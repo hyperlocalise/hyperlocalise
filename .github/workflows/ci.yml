@@ -27,17 +27,5 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: make fmt
-        run: make fmt
-
-      - name: git diff
-        run: git diff --exit-code
-
-      - name: make lint
-        run: make lint
-
-      - name: make test
-        run: make test
-
-      - name: make build
-        run: make build
+      - name: make precommit
+        run: make precommit
