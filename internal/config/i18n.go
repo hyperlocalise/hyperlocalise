@@ -121,12 +121,11 @@ func resolveDefaultPath() string {
 }
 
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
 	}
-
-	return !errors.Is(err, os.ErrNotExist)
+	return !info.IsDir()
 }
 
 // Validate validates all cross-field i18n configuration semantics.
