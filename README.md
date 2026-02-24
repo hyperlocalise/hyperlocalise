@@ -2,6 +2,8 @@
 
 A high-performance localization CLI built in Go for modern development workflows — lightweight, fast, and dependency-minimal.
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/quiet-circles/hyperlocalise)](https://goreportcard.com/report/github.com/quiet-circles/hyperlocalise)
+
 # Table of Contents
 <!--ts-->
    * [hyperlocalise](#hyperlocalise)
