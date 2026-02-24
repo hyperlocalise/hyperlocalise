@@ -55,6 +55,15 @@ fmt: ## format go files
 lint: ## lint go files
 	$(golangci_lint_bin) run
 
+
+.PHONY: precommit
+precommit: ## run local CI validation flow
+	make fmt
+	git diff --exit-code
+	make lint
+	make test
+	make build
+
 .PHONY: staticcheck
 staticcheck: ## run staticcheck directly
 	go tool staticcheck ./...
