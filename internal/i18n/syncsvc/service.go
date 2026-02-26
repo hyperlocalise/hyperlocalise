@@ -176,9 +176,9 @@ func buildPullReport(local, remote storage.CatalogSnapshot, opts PullOptions) Re
 				ID:          update.ID(),
 				Reason:      conflictReasonInvariantViolation,
 				LocalValue:  localEntry.Value,
-				RemoteValue: remoteEntry.Value,
+				RemoteValue: update.Value,
 				LocalState:  localEntry.Provenance.State,
-				RemoteState: remoteEntry.Provenance.State,
+				RemoteState: update.Provenance.State,
 			})
 			report.Warnings = append(report.Warnings, storage.Warning{
 				Code: "invariant_violation",
