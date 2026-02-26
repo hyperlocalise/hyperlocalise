@@ -174,10 +174,11 @@ func buildPullReport(local, remote storage.CatalogSnapshot, opts PullOptions) Re
 		if diags := validateEntryInvariant(*update, localEntry); len(diags) > 0 {
 			report.Conflicts = append(report.Conflicts, storage.Conflict{
 				ID:          update.ID(),
+				Reason:      conflictReasonInvariantViolation,
 				LocalValue:  localEntry.Value,
-				RemoteValue: update.Value,
+				RemoteValue: remoteEntry.Value,
 				LocalState:  localEntry.Provenance.State,
-				RemoteState: update.Provenance.State,
+				RemoteState: remoteEntry.Provenance.State,
 			})
 			report.Warnings = append(report.Warnings, storage.Warning{
 				Code: "invariant_violation",
