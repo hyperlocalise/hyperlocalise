@@ -90,8 +90,12 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 			text.WriteByte(p.src[p.pos])
 			p.pos++
 		case '\'':
-			// Simplified ICU apostrophe handling; keeps literal content parse-safe.
-			p.consumeQuotedInto(&text)
+			if p.startsQuotedLiteral() {
+				p.consumeQuotedInto(&text)
+				continue
+			}
+			text.WriteByte('\'')
+			p.pos++
 		default:
 			text.WriteByte(p.src[p.pos])
 			p.pos++
@@ -364,6 +368,8 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 				return nil, err
 			}
 			out = append(out, el)
+		case '}':
+			return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
 		case '#':
 			if ctx.inPlural {
 				flushText()
@@ -386,13 +392,30 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 			text.WriteByte('<')
 			p.pos++
 		case '\'':
-			p.consumeQuotedInto(&text)
+			if p.startsQuotedLiteral() {
+				p.consumeQuotedInto(&text)
+				continue
+			}
+			text.WriteByte('\'')
+			p.pos++
 		default:
 			text.WriteByte(p.src[p.pos])
 			p.pos++
 		}
 	}
 	return nil, fmt.Errorf("unclosed tag %q", name)
+}
+
+func (p *astParser) startsQuotedLiteral() bool {
+	if p.pos >= len(p.src) || p.src[p.pos] != '\'' || p.pos+1 >= len(p.src) {
+		return false
+	}
+	switch p.src[p.pos+1] {
+	case '\'', '{', '}', '<', '>', '#':
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *astParser) consumeQuotedInto(b *strings.Builder) {

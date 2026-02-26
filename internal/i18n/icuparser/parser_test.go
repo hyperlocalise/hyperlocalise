@@ -68,6 +68,21 @@ func TestParserFeatureParitySubset(t *testing.T) {
 			msg:              "'{not-an-arg}' and '' quote and {actual}",
 			wantPlaceholders: []string{"actual"},
 		},
+		{
+			name:             "bare apostrophe remains literal and does not swallow placeholders",
+			msg:              "It's {name}",
+			wantPlaceholders: []string{"name"},
+		},
+		{
+			name:             "doubled apostrophe is literal and keeps placeholder parsing",
+			msg:              "It''s {name}",
+			wantPlaceholders: []string{"name"},
+		},
+		{
+			name:             "quoted closing brace inside tag body is valid literal text",
+			msg:              "<b>'}' and {name}</b>",
+			wantPlaceholders: []string{"name"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -96,6 +111,7 @@ func TestParserInvalidSyntax(t *testing.T) {
 		{name: "missing option body", msg: "{count, plural, one other {x}}", errContains: "ICU option body"},
 		{name: "unexpected top level closing brace", msg: "hello }", errContains: "unexpected closing brace"},
 		{name: "plural requires options", msg: "{count, plural, }", errContains: "missing options"},
+		{name: "unexpected closing brace inside tag body", msg: "<b>{name}}</b>", errContains: "unexpected closing brace"},
 	}
 
 	for _, tt := range tests {

@@ -37,3 +37,26 @@ func TestValidateEntryInvariantPlaceholderParityUsesICUParserPackage(t *testing.
 		t.Fatalf("unexpected diags: %#v", diags)
 	}
 }
+
+func TestValidateEntryInvariantAcceptsApostrophesWithoutLosingPlaceholderParity(t *testing.T) {
+	base := storage.Entry{Value: "It's {name}"}
+	candidate := storage.Entry{Value: "It''s {name}"}
+
+	diags := validateEntryInvariant(candidate, base)
+	if len(diags) != 0 {
+		t.Fatalf("expected no invariant diagnostics, got %#v", diags)
+	}
+}
+
+func TestValidateEntryInvariantFlagsInvalidBraceInTagBody(t *testing.T) {
+	base := storage.Entry{Value: "<b>{name}</b>"}
+	candidate := storage.Entry{Value: "<b>{name}}</b>"}
+
+	diags := validateEntryInvariant(candidate, base)
+	if len(diags) == 0 {
+		t.Fatalf("expected invalid ICU/braces structure diagnostic")
+	}
+	if !strings.Contains(strings.Join(diags, " | "), "invalid ICU/braces structure in candidate") {
+		t.Fatalf("unexpected diags: %#v", diags)
+	}
+}

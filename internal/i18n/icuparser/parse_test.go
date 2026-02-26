@@ -77,3 +77,31 @@ func TestParseASTIgnoreTagOption(t *testing.T) {
 		t.Fatalf("expected single literal, got %+v", elems)
 	}
 }
+
+func TestParseASTBareAndEscapedApostrophesKeepArgumentParsing(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+	}{
+		{name: "bare apostrophe", msg: "It's {name}"},
+		{name: "escaped apostrophe", msg: "It''s {name}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if len(elems) != 2 {
+				t.Fatalf("expected 2 elements, got %d", len(elems))
+			}
+			if elems[0].Type() != TypeLiteral {
+				t.Fatalf("expected first element to be literal, got %s", elems[0].Type())
+			}
+			if elems[1].Type() != TypeArgument {
+				t.Fatalf("expected second element to be argument, got %s", elems[1].Type())
+			}
+		})
+	}
+}
