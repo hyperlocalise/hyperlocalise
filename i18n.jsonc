@@ -77,11 +77,13 @@
     },
     "rules": [
       {
+        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
         "priority": 100,
         "group": "modern",
         "profile": "precise"
       },
       {
+        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
         "priority": 50,
         "group": "docs-team",
         "profile": "verbose"
