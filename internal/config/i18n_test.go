@@ -535,18 +535,30 @@ func TestJSONSchema(t *testing.T) {
 
 func TestLoadAllowsOptionalStorageConfig(t *testing.T) {
 	path := writeConfigFile(t, `{
-	  "locale": {
+	  "locales": {
 	    "source": "en-US",
 	    "targets": ["fr-FR"]
 	  },
 	  "buckets": {
-	    "json": {"include": ["lang/[locale].json"]}
+	    "json": {
+	      "files": [
+	        {"from": "lang/en.json", "to": "lang/[locale].json"}
+	      ]
+	    }
+	  },
+	  "groups": {
+	    "default": {
+	      "targets": ["fr-FR"],
+	      "buckets": ["json"]
+	    }
 	  },
 	  "llm": {
-	    "default": {
-	      "provider": "openai",
-	      "model": "gpt-4.1-mini",
-	      "prompt": "Translate from {source} to {target}."
+	    "profiles": {
+	      "default": {
+	        "provider": "openai",
+	        "model": "gpt-4.1-mini",
+	        "prompt": "Translate from {source} to {target}."
+	      }
 	    }
 	  },
 	  "storage": {
@@ -566,18 +578,30 @@ func TestLoadAllowsOptionalStorageConfig(t *testing.T) {
 
 func TestLoadRejectsEmptyStorageAdapter(t *testing.T) {
 	path := writeConfigFile(t, `{
-	  "locale": {
+	  "locales": {
 	    "source": "en-US",
 	    "targets": ["fr-FR"]
 	  },
 	  "buckets": {
-	    "json": {"include": ["lang/[locale].json"]}
+	    "json": {
+	      "files": [
+	        {"from": "lang/en.json", "to": "lang/[locale].json"}
+	      ]
+	    }
+	  },
+	  "groups": {
+	    "default": {
+	      "targets": ["fr-FR"],
+	      "buckets": ["json"]
+	    }
 	  },
 	  "llm": {
-	    "default": {
-	      "provider": "openai",
-	      "model": "gpt-4.1-mini",
-	      "prompt": "Translate from {source} to {target}."
+	    "profiles": {
+	      "default": {
+	        "provider": "openai",
+	        "model": "gpt-4.1-mini",
+	        "prompt": "Translate from {source} to {target}."
+	      }
 	    }
 	  },
 	  "storage": {

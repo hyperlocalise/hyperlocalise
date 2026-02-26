@@ -103,18 +103,31 @@ func mustNewStore(t *testing.T, pattern string) *JSONStore {
 	t.Helper()
 
 	store, err := NewJSONStore(&config.I18NConfig{
-		Locale: config.LocaleConfig{
+		Locales: config.LocaleConfig{
 			Source:  "en",
 			Targets: []string{"fr"},
 		},
-		Buckets: config.BucketsConfig{
-			JSON: &config.BucketConfig{Include: []string{pattern}},
+		Buckets: map[string]config.BucketConfig{
+			"json": {
+				Files: []config.BucketFileMapping{{
+					From: "lang/en.json",
+					To:   pattern,
+				}},
+			},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {
+				Targets: []string{"fr"},
+				Buckets: []string{"json"},
+			},
 		},
 		LLM: config.LLMConfig{
-			Default: config.LLMDefaultConfig{
-				Provider: "openai",
-				Model:    "gpt-4.1-mini",
-				Prompt:   "Translate",
+			Profiles: map[string]config.LLMProfile{
+				"default": {
+					Provider: "openai",
+					Model:    "gpt-4.1-mini",
+					Prompt:   "Translate",
+				},
 			},
 		},
 	})

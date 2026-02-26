@@ -12,9 +12,10 @@ func TestSyncPullRequiresStorageConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
 	content := `{
-	  "locale": {"source":"en","targets":["fr"]},
-	  "buckets": {"json":{"include":["lang/[locale].json"]}},
-	  "llm": {"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"json":{"files":[{"from":"lang/en.json","to":"lang/[locale].json"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["json"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
 	}`
 	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
