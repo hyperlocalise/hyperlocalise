@@ -22,7 +22,7 @@ type I18NConfig struct {
 	Buckets map[string]BucketConfig `json:"buckets" jsonschema:"required"`
 	Groups  map[string]GroupConfig  `json:"groups" jsonschema:"required"`
 	LLM     LLMConfig               `json:"llm" jsonschema:"required"`
-	Storage *StorageConfig `json:"storage,omitempty"`
+	Storage *StorageConfig          `json:"storage,omitempty"`
 }
 
 // LocaleConfig configures source/target locales and fallback hierarchy.
