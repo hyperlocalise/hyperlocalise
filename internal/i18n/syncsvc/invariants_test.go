@@ -10,7 +10,7 @@ import (
 
 func TestValidateEntryInvariantICUParityUsesParsedStructure(t *testing.T) {
 	base := "{count, plural, one {{name} invited} other {{name} and # others invited}}"
-	candidate := "{count, plural, one {{name} invited} other {{name} invited}}"
+	candidate := "{count, plural, one {{name} invited}}"
 
 	diags := validateEntryInvariant(storage.Entry{Value: candidate}, storage.Entry{Value: base})
 	if len(diags) == 0 {

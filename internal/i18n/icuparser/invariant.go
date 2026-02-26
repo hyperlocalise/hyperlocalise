@@ -19,7 +19,11 @@ type BlockSignature struct {
 func ParseInvariant(s string) (Invariant, error) {
 	elems, err := Parse(s, nil)
 	if err != nil {
-		return Invariant{}, err
+		normalized := normalizeMustachePlaceholders(s)
+		elems, err = Parse(normalized, nil)
+		if err != nil {
+			return Invariant{}, err
+		}
 	}
 
 	inv := Invariant{}
@@ -36,6 +40,34 @@ func ParseInvariant(s string) (Invariant, error) {
 		return strings.Join(inv.ICUBlocks[i].Options, "\x00") < strings.Join(inv.ICUBlocks[j].Options, "\x00")
 	})
 	return inv, nil
+}
+
+func normalizeMustachePlaceholders(s string) string {
+	var b strings.Builder
+
+	for i := 0; i < len(s); {
+		if i+3 < len(s) && s[i] == '{' && s[i+1] == '{' {
+			j := i + 2
+			for j < len(s) && s[j] != '}' {
+				j++
+			}
+			if j+1 < len(s) && s[j] == '}' && s[j+1] == '}' {
+				name := strings.TrimSpace(s[i+2 : j])
+				if isPlaceholderName(name) {
+					// Convert moustache placeholders to ICU-style arguments for fallback parsing.
+					b.WriteByte('{')
+					b.WriteString(name)
+					b.WriteByte('}')
+					i = j + 2
+					continue
+				}
+			}
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+
+	return b.String()
 }
 
 func collectInvariantFromElements(elems []Element, inv *Invariant) {

@@ -240,6 +240,10 @@ func TestPullBlocksICUParityRegression(t *testing.T) {
 				Key:    "cart.items",
 				Locale: "fr",
 				Value:  "{count, plural, one {# article} other {# articles}}",
+				Provenance: storage.EntryProvenance{
+					Origin: storage.OriginLLM,
+					State:  storage.StateDraft,
+				},
 			}},
 		},
 	}

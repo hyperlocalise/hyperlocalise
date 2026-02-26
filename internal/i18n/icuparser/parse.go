@@ -16,7 +16,7 @@ func Parse(input string, opts *ParseOptions) ([]Element, error) {
 		src:  input,
 		opts: *opts,
 	}
-	elems, err := p.parseMessage(parseCtx{})
+	elems, err := p.parseMessage(parseCtx{}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ type astParser struct {
 	opts ParseOptions
 }
 
-func (p *astParser) parseMessage(ctx parseCtx) ([]Element, error) {
+func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, error) {
 	var out []Element
 	var text strings.Builder
 
@@ -58,6 +58,9 @@ func (p *astParser) parseMessage(ctx parseCtx) ([]Element, error) {
 			}
 			out = append(out, el)
 		case '}':
+			if !untilBrace {
+				return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
+			}
 			flushText()
 			return out, nil
 		case '#':
@@ -96,6 +99,9 @@ func (p *astParser) parseMessage(ctx parseCtx) ([]Element, error) {
 	}
 
 	flushText()
+	if untilBrace {
+		return nil, fmt.Errorf("unclosed brace at %d", p.pos)
+	}
 	return out, nil
 }
 
@@ -214,6 +220,9 @@ func (p *astParser) parseSimpleStyle() (string, error) {
 func (p *astParser) parseSelectOptions(ctx parseCtx) ([]SelectOption, error) {
 	var out []SelectOption
 	for {
+		if p.pos >= len(p.src) {
+			return nil, fmt.Errorf("unclosed brace at %d", p.pos)
+		}
 		p.skipSpaces()
 		if p.peek() == '}' {
 			if len(out) == 0 {
@@ -229,7 +238,7 @@ func (p *astParser) parseSelectOptions(ctx parseCtx) ([]SelectOption, error) {
 		if !p.consume('{') {
 			return nil, fmt.Errorf("expected select option body at %d", p.pos)
 		}
-		body, err := p.parseMessage(ctx)
+		body, err := p.parseMessage(ctx, true)
 		if err != nil {
 			return nil, err
 		}
@@ -244,6 +253,9 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 	offset := 0
 	var out []PluralOption
 	for {
+		if p.pos >= len(p.src) {
+			return 0, nil, fmt.Errorf("unclosed brace at %d", p.pos)
+		}
 		p.skipSpaces()
 		if p.peek() == '}' {
 			if len(out) == 0 {
@@ -267,7 +279,7 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 		if !p.consume('{') {
 			return 0, nil, fmt.Errorf("expected ICU option body at %d", p.pos)
 		}
-		body, err := p.parseMessage(parseCtx{inPlural: true})
+		body, err := p.parseMessage(parseCtx{inPlural: true}, true)
 		if err != nil {
 			return 0, nil, err
 		}
