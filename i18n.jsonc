@@ -1,0 +1,93 @@
+{
+  "locales": {
+    "source": "en-US",
+    "targets": [
+      "es-ES",
+      "fr-FR",
+      "de-DE"
+    ],
+    "fallbacks": {
+      // `{{source}}` is always the implicit base for fallbacks.
+      "fr-FR": [
+        "es-ES"
+      ]
+    }
+  },
+  // Buckets centralize file sets; file mappings stay the same for clarity.
+  "buckets": {
+    "ui": {
+      "files": [
+        {
+          "from": "content/ui/{{source}}/strings.json",
+          "to": "dist/ui/{{target}}/strings.json"
+        },
+        {
+          "from": "content/ui/shared.json",
+          "to": "dist/ui/shared.{{target}}.json"
+        }
+      ]
+    },
+    "docs": {
+      "files": [
+        {
+          "from": "content/docs/{{target}}/guide.md",
+          "to": "dist/docs/{{target}}/guide.md"
+        }
+      ]
+    }
+  },
+  "groups": {
+    // both targets and buckets can be empty array, but they cannot be empty at the same time
+    "modern": {
+      "targets": [
+        "es-ES",
+        "fr-FR"
+      ],
+      "buckets": [
+        "ui"
+      ]
+    },
+    "docs-team": {
+      "targets": [
+        "de-DE"
+      ],
+      "buckets": [
+        "docs"
+      ]
+    }
+  },
+  "llm": {
+    // Default profile is mandatory and sets the core provider/model/prompt.
+    "profiles": {
+      "default": {
+        "provider": "openai",
+        "model": "xmt-std",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      },
+      "verbose": {
+        "provider": "openai",
+        "model": "xmt-std",
+        "prompt": "Translate from {{source}} to {{target}} with richer context:\n\n{{input}}"
+      },
+      "precise": {
+        "provider": "openai",
+        "model": "xmt-std",
+        "prompt": "Translate from {{source}} to {{target}} precisely:\n\n{{input}}"
+      }
+    },
+    "rules": [
+      {
+        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
+        "priority": 100,
+        "group": "modern",
+        "profile": "precise"
+      },
+      {
+        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
+        "priority": 50,
+        "group": "docs-team",
+        "profile": "verbose"
+      }
+    ]
+  }
+}

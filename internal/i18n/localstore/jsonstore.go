@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,18 +18,21 @@ import (
 const localeToken = "[locale]"
 
 type JSONStore struct {
-	cfg *config.I18NConfig
+	cfg           *config.I18NConfig
+	localePattern string
 }
 
 func NewJSONStore(cfg *config.I18NConfig) (*JSONStore, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("new json store: config is nil")
 	}
-	if cfg.Buckets.JSON == nil || len(cfg.Buckets.JSON.Include) == 0 {
-		return nil, fmt.Errorf("new json store: buckets.json.include is required")
+
+	localePattern, err := resolveLocalePattern(cfg.Buckets)
+	if err != nil {
+		return nil, err
 	}
 
-	return &JSONStore{cfg: cfg}, nil
+	return &JSONStore{cfg: cfg, localePattern: localePattern}, nil
 }
 
 func (s *JSONStore) ReadSnapshot(ctx context.Context, req syncsvc.LocalReadRequest) (storage.CatalogSnapshot, error) {
@@ -42,7 +46,7 @@ func (s *JSONStore) BuildPushSnapshot(ctx context.Context, req syncsvc.LocalRead
 func (s *JSONStore) readSnapshot(_ context.Context, req syncsvc.LocalReadRequest) (storage.CatalogSnapshot, error) {
 	locales := req.Locales
 	if len(locales) == 0 {
-		locales = append([]string(nil), s.cfg.Locale.Targets...)
+		locales = append([]string(nil), s.cfg.Locales.Targets...)
 	}
 
 	var entries []storage.Entry
@@ -122,8 +126,30 @@ func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (sy
 }
 
 func (s *JSONStore) localePath(locale string) string {
-	pattern := s.cfg.Buckets.JSON.Include[0]
-	return strings.ReplaceAll(pattern, localeToken, locale)
+	return strings.ReplaceAll(s.localePattern, localeToken, locale)
+}
+
+func resolveLocalePattern(buckets map[string]config.BucketConfig) (string, error) {
+	if len(buckets) == 0 {
+		return "", fmt.Errorf("new json store: buckets is required")
+	}
+
+	names := make([]string, 0, len(buckets))
+	for name := range buckets {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		bucket := buckets[name]
+		for _, file := range bucket.Files {
+			if strings.TrimSpace(file.To) != "" {
+				return file.To, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("new json store: buckets.*.files[].to is required")
 }
 
 type entryMeta struct {
