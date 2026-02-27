@@ -1,6 +1,8 @@
 {
   "locales": {
+    // Base language your content is authored in.
     "source": "en-US",
+    // Languages to generate translations for.
     "targets": [
       "es-ES",
       "fr-FR",
@@ -8,20 +10,24 @@
     ],
     "fallbacks": {
       // `{{source}}` is always the implicit base for fallbacks.
+      // Example: if `fr-FR` is missing a key, try `es-ES` before `en-US`.
       "fr-FR": [
         "es-ES"
       ]
     }
   },
-  // Buckets centralize file sets; file mappings stay the same for clarity.
+  // Buckets group reusable file mappings.
+  // Use `{{source}}` and `{{target}}` placeholders in paths.
   "buckets": {
     "ui": {
       "files": [
         {
+          // Translate from source locale file to each target locale file.
           "from": "content/ui/{{source}}/strings.json",
           "to": "dist/ui/{{target}}/strings.json"
         },
         {
+          // Shared source file copied/rendered per target output.
           "from": "content/ui/shared.json",
           "to": "dist/ui/shared.{{target}}.json"
         }
@@ -37,7 +43,8 @@
     }
   },
   "groups": {
-    // both targets and buckets can be empty array, but they cannot be empty at the same time
+    // A group selects which targets + buckets a rule applies to.
+    // `targets` or `buckets` can be empty, but not both.
     "modern": {
       "targets": [
         "es-ES",
@@ -60,8 +67,11 @@
     // Default profile is mandatory and sets the core provider/model/prompt.
     "profiles": {
       "default": {
+        // Any provider supported by your CLI/runtime.
         "provider": "openai",
+        // Model id for this profile.
         "model": "xmt-std",
+        // Available vars: {{source}}, {{target}}, {{input}}.
         "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
       },
       "verbose": {
@@ -77,13 +87,13 @@
     },
     "rules": [
       {
-        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
+        // Match group -> pick profile. Higher priority wins conflicts.
         "priority": 100,
         "group": "modern",
         "profile": "precise"
       },
       {
-        // if multiple rules have conflicts, which one should win (the bigger, the stronger)
+        // Keep priorities simple (e.g. 100, 50, 10).
         "priority": 50,
         "group": "docs-team",
         "profile": "verbose"
