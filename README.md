@@ -19,8 +19,7 @@ A high-performance localization CLI built in Go for modern development workflows
 # Features
 - [goreleaser](https://goreleaser.com/) with `deb.` and `.rpm` packer releasing, including `manpages`, `shell completions`, and grouped changelog generation.
 - [golangci-lint](https://golangci-lint.run/) for linting and formatting
-- [Gitlab CI](.gitlab-ci.yml) Configuration (Lint, Test, Build, Release)
-- [cobra](https://cobra.dev/) example setup including tests
+- [cobra](https://cobra.dev/) setup including tests
 - [Makefile](Makefile) - with various useful targets and documentation (see Makefile Targets)
 - Storage adapter based translation sync with POEditor and Lokalise support
 - Local provenance sidecar metadata for LLM-vs-curation workflows (`draft` vs `curated`)
@@ -151,7 +150,7 @@ For more details on the storage system and sync model, see [`internal/i18n/stora
 # Project Layout
 * [assets/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/assets) => docs, images, etc
 * [cmd/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/cmd)  => commandline configurations (flags, subcommands)
-* [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/pkg)  => packages that are only for project internal purposes
+* [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/internal)  => packages that are only for project internal purposes
 * [`go.mod`](go.mod) `tool` directives => tracks CLI tooling versions (for example `golangci-lint`, `gofumpt`, `gci`, `goimports`, `staticcheck`) in a Go 1.24+ compatible way
 - [`scripts/`](scripts/) => build scripts 
 
