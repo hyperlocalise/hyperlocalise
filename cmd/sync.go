@@ -9,6 +9,7 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/config"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/localstore"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lokalise"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/poeditor"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storageregistry"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/syncsvc"
@@ -72,6 +73,9 @@ func newSyncRuntime(configPath string) (*syncRuntime, error) {
 
 	reg := storageregistry.New()
 	if err := reg.Register(poeditor.AdapterName, poeditor.New); err != nil {
+		return nil, err
+	}
+	if err := reg.Register(lokalise.AdapterName, lokalise.New); err != nil {
 		return nil, err
 	}
 
