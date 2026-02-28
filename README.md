@@ -65,7 +65,6 @@ Flags:
 - `--dry-run` - preview changes without applying (default: true)
 - `--output` - output format: text or json
 - `--fail-on-conflict` - return error if conflicts are detected (default: true)
-- `--force-conflicts` - allow overwriting remote mismatches despite conflict policies (default: false)
 - `--apply-curated-over-draft` - allow pull to update local draft entries with curated remote values (default: true)
 
 ### sync push
@@ -82,6 +81,7 @@ Flags:
 - `--dry-run` - preview changes without applying (default: true)
 - `--output` - output format: text or json
 - `--fail-on-conflict` - return error if conflicts are detected (default: true)
+- `--force-conflicts` - allow overwriting remote mismatches despite conflict policies (default: false)
 
 ## status
 

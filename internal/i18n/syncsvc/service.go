@@ -293,6 +293,16 @@ func decidePullDiff(localEntry, remoteEntry storage.Entry, opts PullOptions) (*s
 		update := markRemoteCurated(remoteEntry)
 		return nil, &update
 	}
+	if localOrigin == storage.OriginLLM && localState == storage.StateDraft && !shouldApplyCuratedOverDraft {
+		return &storage.Conflict{
+			ID:          localEntry.ID(),
+			Reason:      "curated_over_draft_disabled",
+			LocalValue:  localEntry.Value,
+			RemoteValue: remoteEntry.Value,
+			LocalState:  localEntry.Provenance.State,
+			RemoteState: storage.StateCurated,
+		}, nil
+	}
 
 	if localOrigin == "" || localOrigin == storage.OriginUnknown {
 		return &storage.Conflict{

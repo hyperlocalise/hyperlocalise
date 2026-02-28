@@ -126,7 +126,10 @@ func TestPullConflictForCuratedLocalMismatch(t *testing.T) {
 	report, err := svc.Pull(context.Background(), PullInput{
 		Adapter: adapter,
 		Local:   local,
-		Options: PullOptions{DryRun: true},
+		Options: PullOptions{
+			DryRun:                true,
+			ApplyCuratedOverDraft: true,
+		},
 	})
 	if err != nil {
 		t.Fatalf("pull sync dry-run: %v", err)
@@ -402,7 +405,10 @@ func TestPullBlocksPlaceholderRegression(t *testing.T) {
 	report, err := svc.Pull(context.Background(), PullInput{
 		Adapter: adapter,
 		Local:   local,
-		Options: PullOptions{DryRun: true},
+		Options: PullOptions{
+			DryRun:                true,
+			ApplyCuratedOverDraft: true,
+		},
 	})
 	if err != nil {
 		t.Fatalf("pull sync dry-run: %v", err)
@@ -451,7 +457,10 @@ func TestPullBlocksICUParityRegression(t *testing.T) {
 	report, err := svc.Pull(context.Background(), PullInput{
 		Adapter: adapter,
 		Local:   local,
-		Options: PullOptions{DryRun: true},
+		Options: PullOptions{
+			DryRun:                true,
+			ApplyCuratedOverDraft: true,
+		},
 	})
 	if err != nil {
 		t.Fatalf("pull sync dry-run: %v", err)
