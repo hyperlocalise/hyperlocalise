@@ -3,6 +3,7 @@ module github.com/quiet-circles/hyperlocalise
 go 1.26
 
 require (
+	github.com/crowdin/crowdin-api-client-go v0.18.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/lokalise/go-lokalise-api/v5 v5.0.0
 	github.com/spf13/cobra v1.10.2

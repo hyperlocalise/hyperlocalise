@@ -1,22 +1,19 @@
 package crowdin
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	sdkcrowdin "github.com/crowdin/crowdin-api-client-go/crowdin"
+	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
 )
 
-const apiBaseURL = "https://api.crowdin.com/api/v2"
-
 type HTTPClient struct {
-	baseURL string
-	http    *http.Client
+	client *sdkcrowdin.Client
 }
 
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
@@ -25,7 +22,15 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		timeout = 30 * time.Second
 	}
 
-	return &HTTPClient{baseURL: apiBaseURL, http: &http.Client{Timeout: timeout}}, nil
+	client, err := sdkcrowdin.NewClient(
+		cfg.APIToken,
+		sdkcrowdin.WithHTTPClient(&http.Client{Timeout: timeout}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("crowdin client init: %w", err)
+	}
+
+	return &HTTPClient{client: client}, nil
 }
 
 func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error) {
@@ -42,7 +47,7 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 	limit := 500
 
 	for {
-		endpoint := fmt.Sprintf("/projects/%s/translations?limit=%d&offset=%d", url.PathEscape(in.ProjectID), limit, offset)
+		endpoint := fmt.Sprintf("/api/v2/projects/%s/translations", url.PathEscape(in.ProjectID))
 		var response struct {
 			Data []struct {
 				Data struct {
@@ -59,8 +64,9 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 			} `json:"pagination"`
 		}
 
-		if err := c.getJSON(ctx, endpoint, in.APIToken, &response); err != nil {
-			return nil, "", err
+		_, err := c.client.Get(ctx, endpoint, &model.ListOptions{Limit: limit, Offset: offset}, &response)
+		if err != nil {
+			return nil, "", fmt.Errorf("crowdin request %s: %w", endpoint, err)
 		}
 
 		for _, item := range response.Data {
@@ -80,8 +86,14 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 			entries = append(entries, StringTranslation{Key: item.Data.Identifier, Context: item.Data.Context, Locale: locale, Value: value})
 		}
 
+		if response.Pagination.Limit == 0 {
+			break
+		}
 		offset += response.Pagination.Limit
-		if offset >= response.Pagination.Total || response.Pagination.Limit == 0 {
+		if response.Pagination.Total > 0 && offset >= response.Pagination.Total {
+			break
+		}
+		if len(response.Data) < response.Pagination.Limit {
 			break
 		}
 	}
@@ -99,69 +111,11 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 		if strings.TrimSpace(entry.Context) != "" {
 			payload["context"] = entry.Context
 		}
-		if err := c.postJSON(ctx, fmt.Sprintf("/projects/%s/translations", url.PathEscape(in.ProjectID)), in.APIToken, payload, nil); err != nil {
-			return "", err
+		endpoint := fmt.Sprintf("/api/v2/projects/%s/translations", url.PathEscape(in.ProjectID))
+		if _, err := c.client.Post(ctx, endpoint, payload, nil); err != nil {
+			return "", fmt.Errorf("crowdin request %s: %w", endpoint, err)
 		}
 	}
 
 	return time.Now().UTC().Format(time.RFC3339Nano), nil
-}
-
-func (c *HTTPClient) getJSON(ctx context.Context, endpoint, apiToken string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("crowdin request build %s: %w", endpoint, err)
-	}
-	req.Header.Set("Authorization", "Bearer "+apiToken)
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("crowdin request %s: %w", endpoint, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("crowdin request %s: status %d: %s", endpoint, resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("crowdin decode %s response: %w", endpoint, err)
-	}
-
-	return nil
-}
-
-func (c *HTTPClient) postJSON(ctx context.Context, endpoint, apiToken string, in any, out any) error {
-	raw, err := json.Marshal(in)
-	if err != nil {
-		return fmt.Errorf("crowdin marshal %s request: %w", endpoint, err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+endpoint, bytes.NewReader(raw))
-	if err != nil {
-		return fmt.Errorf("crowdin request build %s: %w", endpoint, err)
-	}
-	req.Header.Set("Authorization", "Bearer "+apiToken)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("crowdin request %s: %w", endpoint, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("crowdin request %s: status %d: %s", endpoint, resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	if out == nil {
-		return nil
-	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return fmt.Errorf("crowdin decode %s response: %w", endpoint, err)
-	}
-
-	return nil
 }
