@@ -28,6 +28,15 @@ Fixes:
 - `status`: only `csv`
 - `sync`: `text` or `json`
 
+## `unsupported file extension` during `run`
+
+Cause: a mapped source or target file uses an extension not supported by the local parser.
+
+Fixes:
+
+- use one of: `.json`, `.xlf`, `.xliff`, `.po`, `.md`
+- verify bucket `from` and `to` paths resolve to the expected file names
+
 ## Provider auth failures
 
 Cause: missing/invalid env token.

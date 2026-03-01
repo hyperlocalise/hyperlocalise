@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -22,7 +23,7 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
-		return nil, filepath.ErrBadPattern
+		return nil, os.ErrNotExist
 	}
 
 	_, err := svc.Run(context.Background(), Input{})
@@ -262,6 +263,57 @@ func TestRunLockWriterPersistsEachSuccess(t *testing.T) {
 	}
 	if seenSizes[len(seenSizes)-1] != 3 {
 		t.Fatalf("expected final lock map size 3, got %v", seenSizes)
+	}
+}
+
+func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.md"
+	targetPath := "/tmp/out.md"
+	source := "---\ntitle: Welcome\n---\n\n# Heading\n\nHello `code` and [docs](https://example.com).\n\n```js\nconsole.log('x')\n```\n"
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "FR(" + req.Source + ")", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	if !strings.Contains(out, "title: Welcome") {
+		t.Fatalf("expected frontmatter unchanged, got %q", out)
+	}
+	if !strings.Contains(out, "```js") || !strings.Contains(out, "console.log('x')") {
+		t.Fatalf("expected code fence preserved, got %q", out)
+	}
+	if !strings.Contains(out, "https://example.com") {
+		t.Fatalf("expected link destination preserved, got %q", out)
+	}
+	if !strings.Contains(out, "FR( Heading") || !strings.Contains(out, "FR(Hello )") {
+		t.Fatalf("expected markdown text translated, got %q", out)
 	}
 }
 
