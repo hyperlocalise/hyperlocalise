@@ -6,6 +6,7 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/crowdin"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lilt"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lokalise"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/phrase"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/poeditor"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/smartling"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storageregistry"
@@ -25,6 +26,7 @@ func RegisterBuiltins(reg *storageregistry.Registry) error {
 		{name: crowdin.AdapterName, factory: crowdin.New},
 		{name: lilt.AdapterName, factory: lilt.New},
 		{name: lokalise.AdapterName, factory: lokalise.New},
+		{name: phrase.AdapterName, factory: phrase.New},
 		{name: smartling.AdapterName, factory: smartling.New},
 	}
 

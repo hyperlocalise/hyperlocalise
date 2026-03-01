@@ -1,0 +1,37 @@
+---
+title: "Phrase adapter"
+description: "Configure Phrase for remote translation synchronization."
+---
+
+## Required config
+
+```jsonc
+{
+  "storage": {
+    "adapter": "phrase",
+    "config": {
+      "projectID": "project-uuid",
+      "apiTokenEnv": "PHRASE_API_TOKEN",
+      "mode": "strings"
+    }
+  }
+}
+```
+
+## Optional config fields
+
+- `sourceLanguage`
+- `targetLanguages`
+- `timeoutSeconds`
+- `fileFormat` (required when `mode` is `files`)
+
+## Modes
+
+- `strings`: pull and push using Phrase key and translation APIs.
+- `files`: pull and push using Phrase export/import jobs.
+
+## Common issues
+
+- token not found: export `PHRASE_API_TOKEN`
+- mode validation error: set `mode` to `strings` or `files`
+- file mode import failure: verify `fileFormat` matches your project settings
