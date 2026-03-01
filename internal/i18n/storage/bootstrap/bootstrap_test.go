@@ -16,7 +16,7 @@ func TestRegisterBuiltinsRegistersExpectedAdapters(t *testing.T) {
 	}
 
 	got := reg.List()
-	want := []string{"crowdin", "lokalise", "poeditor", "smartling"}
+	want := []string{"crowdin", "lilt", "lokalise", "poeditor", "smartling"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected registered adapters: got %v want %v", got, want)
 	}
