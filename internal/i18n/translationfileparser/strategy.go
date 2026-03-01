@@ -25,6 +25,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".po", POFileParser{})
 	s.Register(".md", MarkdownParser{})
 	s.Register(".mdx", MarkdownParser{})
+	s.Register(".strings", AppleStringsParser{})
 	return s
 }
 

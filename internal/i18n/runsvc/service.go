@@ -575,11 +575,23 @@ func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
 func (s *Service) marshalTargetFile(path, sourcePath string, values map[string]string) ([]byte, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	if ext == ".md" || ext == ".mdx" {
-		template, err := s.loadMarkdownTemplate(path, sourcePath)
+		template, err := s.loadTemplateFallback(path, sourcePath)
 		if err != nil {
 			return nil, err
 		}
 		return translationfileparser.MarshalMarkdown(template, values), nil
+	}
+
+	if ext == ".strings" {
+		template, err := s.loadTemplateFallback(path, sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		content, err := translationfileparser.MarshalAppleStrings(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	}
 
 	if ext != ".json" {
@@ -599,7 +611,7 @@ func (s *Service) marshalTargetFile(path, sourcePath string, values map[string]s
 	return append(content, '\n'), nil
 }
 
-func (s *Service) loadMarkdownTemplate(targetPath, sourcePath string) ([]byte, error) {
+func (s *Service) loadTemplateFallback(targetPath, sourcePath string) ([]byte, error) {
 	content, err := s.readFile(targetPath)
 	if err == nil {
 		return content, nil
@@ -610,7 +622,7 @@ func (s *Service) loadMarkdownTemplate(targetPath, sourcePath string) ([]byte, e
 
 	template, srcErr := s.readFile(sourcePath)
 	if srcErr != nil {
-		return nil, fmt.Errorf("flush outputs: read markdown template source %q: %w", sourcePath, srcErr)
+		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, srcErr)
 	}
 	return template, nil
 }

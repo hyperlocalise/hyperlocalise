@@ -77,6 +77,25 @@ func TestStrategyParsesXLIFF2(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesAppleStrings(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	content := []byte(`"greeting" = "Bonjour";
+"rocket" = "\UD83D\UDE80";
+`)
+	got, err := s.Parse("fr.strings", content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["greeting"] != "Bonjour" {
+		t.Fatalf("unexpected greeting translation: %q", got["greeting"])
+	}
+	if got["rocket"] != "🚀" {
+		t.Fatalf("unexpected rocket translation: %q", got["rocket"])
+	}
+}
+
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
