@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 	"reflect"
 	"testing"
 
@@ -176,7 +175,7 @@ func TestAdapterPushFilesAndPullFiles(t *testing.T) {
 }
 
 func TestParseConfigFallbackEnv(t *testing.T) {
-	os.Unsetenv("CUSTOM_PHRASE_TOKEN")
+	t.Setenv("CUSTOM_PHRASE_TOKEN", "")
 	t.Setenv(defaultTokenEnvName, "fallback-token")
 	cfg, err := ParseConfig(json.RawMessage(`{"projectID":"proj","apiTokenEnv":"CUSTOM_PHRASE_TOKEN"}`))
 	if err != nil {

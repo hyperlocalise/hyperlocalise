@@ -127,7 +127,7 @@ func TestEncodeDecodeEntriesJSON(t *testing.T) {
 func TestRetryDelayUsesExponentialBackoff(t *testing.T) {
 	d1 := retryDelay(0, nil)
 	d2 := retryDelay(1, nil)
-	if !(d2 > d1 && d1 >= 200*time.Millisecond) {
+	if d2 <= d1 || d1 < 200*time.Millisecond {
 		t.Fatalf("unexpected delays: %s %s", d1, d2)
 	}
 }
