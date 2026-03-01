@@ -49,56 +49,12 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 	}
 
 	for p.pos < len(p.src) {
-		switch p.src[p.pos] {
-		case '{':
-			flushText()
-			el, err := p.parseArgumentLike()
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, el)
-		case '}':
-			if !untilBrace {
-				return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
-			}
-			flushText()
+		stop, err := p.handleMessageChar(&out, &text, ctx, untilBrace, flushText)
+		if err != nil {
+			return nil, err
+		}
+		if stop {
 			return out, nil
-		case '#':
-			if ctx.inPlural {
-				flushText()
-				out = append(out, PoundElement{})
-				p.pos++
-				continue
-			}
-			text.WriteByte(p.src[p.pos])
-			p.pos++
-		case '<':
-			if p.opts.IgnoreTag {
-				text.WriteByte(p.src[p.pos])
-				p.pos++
-				continue
-			}
-			tag, ok, err := p.tryParseTag(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				flushText()
-				out = append(out, tag)
-				continue
-			}
-			text.WriteByte(p.src[p.pos])
-			p.pos++
-		case '\'':
-			if p.startsQuotedLiteral() {
-				p.consumeQuotedInto(&text)
-				continue
-			}
-			text.WriteByte('\'')
-			p.pos++
-		default:
-			text.WriteByte(p.src[p.pos])
-			p.pos++
 		}
 	}
 
@@ -107,6 +63,83 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 		return nil, fmt.Errorf("unclosed brace at %d", p.pos)
 	}
 	return out, nil
+}
+
+func (p *astParser) handleMessageChar(out *[]Element, text *strings.Builder, ctx parseCtx, untilBrace bool, flushText func()) (bool, error) {
+	switch p.src[p.pos] {
+	case '{':
+		flushText()
+		el, err := p.parseArgumentLike()
+		if err != nil {
+			return false, err
+		}
+		*out = append(*out, el)
+	case '}':
+		if !untilBrace {
+			return false, fmt.Errorf("unexpected closing brace at %d", p.pos)
+		}
+		flushText()
+		return true, nil
+	case '#':
+		if p.handlePound(text, ctx, out, flushText) {
+			return false, nil
+		}
+	case '<':
+		handled, err := p.handleOpenTag(text, ctx, out, flushText)
+		if err != nil {
+			return false, err
+		}
+		if handled {
+			return false, nil
+		}
+	case '\'':
+		if p.startsQuotedLiteral() {
+			p.consumeQuotedInto(text)
+			return false, nil
+		}
+		text.WriteByte('\'')
+		p.pos++
+	default:
+		text.WriteByte(p.src[p.pos])
+		p.pos++
+	}
+
+	return false, nil
+}
+
+func (p *astParser) handlePound(text *strings.Builder, ctx parseCtx, out *[]Element, flushText func()) bool {
+	if !ctx.inPlural {
+		text.WriteByte(p.src[p.pos])
+		p.pos++
+		return true
+	}
+
+	flushText()
+	*out = append(*out, PoundElement{})
+	p.pos++
+	return true
+}
+
+func (p *astParser) handleOpenTag(text *strings.Builder, ctx parseCtx, out *[]Element, flushText func()) (bool, error) {
+	if p.opts.IgnoreTag {
+		text.WriteByte(p.src[p.pos])
+		p.pos++
+		return true, nil
+	}
+
+	tag, ok, err := p.tryParseTag(ctx)
+	if err != nil {
+		return false, err
+	}
+	if ok {
+		flushText()
+		*out = append(*out, tag)
+		return true, nil
+	}
+
+	text.WriteByte(p.src[p.pos])
+	p.pos++
+	return true, nil
 }
 
 func (p *astParser) parseArgumentLike() (Element, error) {
@@ -133,61 +166,83 @@ func (p *astParser) parseArgumentLike() (Element, error) {
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	p.skipSpaces()
 
-	switch kind {
-	case "number", "date", "time":
-		style, err := p.parseSimpleStyle()
-		if err != nil {
-			return nil, err
-		}
-		switch kind {
-		case "number":
-			return NumberElement{Value: arg, Style: style}, nil
-		case "date":
-			return DateElement{Value: arg, Style: style}, nil
-		default:
-			return TimeElement{Value: arg, Style: style}, nil
-		}
-	case "select":
-		if !p.consume(',') {
-			return nil, fmt.Errorf("expected ',' before select options at %d", p.pos)
-		}
-		p.skipSpaces()
-		opts, err := p.parseSelectOptions(parseCtx{})
-		if err != nil {
-			return nil, err
-		}
-		if !p.consume('}') {
-			return nil, fmt.Errorf("expected closing brace for select at %d", p.pos)
-		}
-		return SelectElement{Value: arg, Options: opts}, nil
-	case "plural", "selectordinal":
-		if !p.consume(',') {
-			return nil, fmt.Errorf("expected ',' before plural options at %d", p.pos)
-		}
-		p.skipSpaces()
-		offset, opts, err := p.parsePluralOptions()
-		if err != nil {
-			return nil, err
-		}
-		if !p.consume('}') {
-			return nil, fmt.Errorf("expected closing brace for plural at %d", p.pos)
-		}
-		return PluralElement{
-			Value:      arg,
-			Options:    opts,
-			Offset:     offset,
-			Ordinal:    kind == "selectordinal",
-			PluralType: map[bool]ElementType{true: TypeSelectOrdinal, false: TypePlural}[kind == "selectordinal"],
-		}, nil
-	default:
-		// Generic formatter/custom format. Preserve style text but don't parse skeletons yet.
-		style, err := p.parseSimpleStyle()
-		if err != nil {
-			return nil, err
-		}
-		_ = style
-		return ArgumentElement{Value: arg}, nil
+	if kind == "number" || kind == "date" || kind == "time" {
+		return p.parseSimpleTypedArgument(arg, kind)
 	}
+	if kind == "select" {
+		return p.parseSelectArgument(arg)
+	}
+	if kind == "plural" || kind == "selectordinal" {
+		return p.parsePluralArgument(arg, kind)
+	}
+
+	return p.parseCustomArgument(arg)
+}
+
+func (p *astParser) parseSimpleTypedArgument(arg, kind string) (Element, error) {
+	style, err := p.parseSimpleStyle()
+	if err != nil {
+		return nil, err
+	}
+
+	switch kind {
+	case "number":
+		return NumberElement{Value: arg, Style: style}, nil
+	case "date":
+		return DateElement{Value: arg, Style: style}, nil
+	default:
+		return TimeElement{Value: arg, Style: style}, nil
+	}
+}
+
+func (p *astParser) parseSelectArgument(arg string) (Element, error) {
+	if !p.consume(',') {
+		return nil, fmt.Errorf("expected ',' before select options at %d", p.pos)
+	}
+	p.skipSpaces()
+	opts, err := p.parseSelectOptions(parseCtx{})
+	if err != nil {
+		return nil, err
+	}
+	if !p.consume('}') {
+		return nil, fmt.Errorf("expected closing brace for select at %d", p.pos)
+	}
+	return SelectElement{Value: arg, Options: opts}, nil
+}
+
+func (p *astParser) parsePluralArgument(arg, kind string) (Element, error) {
+	if !p.consume(',') {
+		return nil, fmt.Errorf("expected ',' before plural options at %d", p.pos)
+	}
+	p.skipSpaces()
+	offset, opts, err := p.parsePluralOptions()
+	if err != nil {
+		return nil, err
+	}
+	if !p.consume('}') {
+		return nil, fmt.Errorf("expected closing brace for plural at %d", p.pos)
+	}
+	ordinal := kind == "selectordinal"
+	pluralType := TypePlural
+	if ordinal {
+		pluralType = TypeSelectOrdinal
+	}
+
+	return PluralElement{
+		Value:      arg,
+		Options:    opts,
+		Offset:     offset,
+		Ordinal:    ordinal,
+		PluralType: pluralType,
+	}, nil
+}
+
+func (p *astParser) parseCustomArgument(arg string) (Element, error) {
+	// Generic formatter/custom format. Preserve style text but don't parse skeletons yet.
+	if _, err := p.parseSimpleStyle(); err != nil {
+		return nil, err
+	}
+	return ArgumentElement{Value: arg}, nil
 }
 
 func (p *astParser) parseSimpleStyle() (string, error) {
@@ -339,71 +394,83 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 	}
 
 	for p.pos < len(p.src) {
-		if strings.HasPrefix(p.src[p.pos:], "</") {
-			save := p.pos
-			p.pos += 2
-			closeName, ok := p.readTagName()
-			if !ok {
-				p.pos = save
-				text.WriteByte(p.src[p.pos])
-				p.pos++
-				continue
-			}
-			p.skipSpaces()
-			if !p.consume('>') {
-				return nil, fmt.Errorf("expected closing '>' for tag %q", closeName)
-			}
-			if closeName != name {
-				return nil, fmt.Errorf("mismatched closing tag: got %q want %q", closeName, name)
-			}
-			flushText()
+		closed, err := p.consumeClosingTagIfPresent(name, flushText)
+		if err != nil {
+			return nil, err
+		}
+		if closed {
 			return out, nil
 		}
 
-		switch p.peek() {
-		case '{':
-			flushText()
-			el, err := p.parseArgumentLike()
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, el)
-		case '}':
-			return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
-		case '#':
-			if ctx.inPlural {
-				flushText()
-				out = append(out, PoundElement{})
-				p.pos++
-				continue
-			}
-			text.WriteByte('#')
-			p.pos++
-		case '<':
-			tag, ok, err := p.tryParseTag(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				flushText()
-				out = append(out, tag)
-				continue
-			}
-			text.WriteByte('<')
-			p.pos++
-		case '\'':
-			if p.startsQuotedLiteral() {
-				p.consumeQuotedInto(&text)
-				continue
-			}
-			text.WriteByte('\'')
-			p.pos++
-		default:
-			text.WriteByte(p.src[p.pos])
-			p.pos++
+		if err := p.handleTagBodyChar(&out, &text, ctx, flushText); err != nil {
+			return nil, err
 		}
 	}
 	return nil, fmt.Errorf("unclosed tag %q", name)
+}
+
+func (p *astParser) consumeClosingTagIfPresent(name string, flushText func()) (bool, error) {
+	if !strings.HasPrefix(p.src[p.pos:], "</") {
+		return false, nil
+	}
+
+	save := p.pos
+	p.pos += 2
+	closeName, ok := p.readTagName()
+	if !ok {
+		p.pos = save
+		return false, nil
+	}
+	p.skipSpaces()
+	if !p.consume('>') {
+		return false, fmt.Errorf("expected closing '>' for tag %q", closeName)
+	}
+	if closeName != name {
+		return false, fmt.Errorf("mismatched closing tag: got %q want %q", closeName, name)
+	}
+	flushText()
+	return true, nil
+}
+
+func (p *astParser) handleTagBodyChar(out *[]Element, text *strings.Builder, ctx parseCtx, flushText func()) error {
+	switch p.peek() {
+	case '{':
+		flushText()
+		el, err := p.parseArgumentLike()
+		if err != nil {
+			return err
+		}
+		*out = append(*out, el)
+	case '}':
+		return fmt.Errorf("unexpected closing brace at %d", p.pos)
+	case '#':
+		if p.handlePound(text, ctx, out, flushText) {
+			return nil
+		}
+	case '<':
+		tag, ok, err := p.tryParseTag(ctx)
+		if err != nil {
+			return err
+		}
+		if ok {
+			flushText()
+			*out = append(*out, tag)
+			return nil
+		}
+		text.WriteByte('<')
+		p.pos++
+	case '\'':
+		if p.startsQuotedLiteral() {
+			p.consumeQuotedInto(text)
+			return nil
+		}
+		text.WriteByte('\'')
+		p.pos++
+	default:
+		text.WriteByte(p.src[p.pos])
+		p.pos++
+	}
+	return nil
 }
 
 func (p *astParser) startsQuotedLiteral() bool {

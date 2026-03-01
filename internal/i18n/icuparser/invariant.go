@@ -72,53 +72,64 @@ func normalizeMustachePlaceholders(s string) string {
 
 func collectInvariantFromElements(elems []Element, inv *Invariant) {
 	for _, el := range elems {
-		switch v := el.(type) {
-		case ArgumentElement:
-			if isPlaceholderName(v.Value) {
-				inv.Placeholders = append(inv.Placeholders, v.Value)
-			}
-		case NumberElement:
-			if isPlaceholderName(v.Value) {
-				inv.Placeholders = append(inv.Placeholders, v.Value)
-			}
-		case DateElement:
-			if isPlaceholderName(v.Value) {
-				inv.Placeholders = append(inv.Placeholders, v.Value)
-			}
-		case TimeElement:
-			if isPlaceholderName(v.Value) {
-				inv.Placeholders = append(inv.Placeholders, v.Value)
-			}
-		case SelectElement:
-			inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-				Arg:     v.Value,
-				Type:    "select",
-				Options: sortedSelectors(v.Options),
-			})
-			for _, opt := range v.Options {
-				collectInvariantFromElements(opt.Value, inv)
-			}
-		case PluralElement:
-			blockType := "plural"
-			if v.Type() == TypeSelectOrdinal {
-				blockType = "selectordinal"
-			}
-			inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-				Arg:     v.Value,
-				Type:    blockType,
-				Options: sortedPluralSelectors(v.Options),
-			})
-			for _, opt := range v.Options {
-				collectInvariantFromElements(opt.Value, inv)
-			}
-		case TagElement:
-			collectInvariantFromElements(v.Children, inv)
-		case LiteralElement, PoundElement:
-			continue
-		default:
-			// Defensive no-op for future element types.
-			continue
-		}
+		collectInvariantFromElement(el, inv)
+	}
+}
+
+func collectInvariantFromElement(el Element, inv *Invariant) {
+	switch v := el.(type) {
+	case ArgumentElement:
+		appendPlaceholder(inv, v.Value)
+	case NumberElement:
+		appendPlaceholder(inv, v.Value)
+	case DateElement:
+		appendPlaceholder(inv, v.Value)
+	case TimeElement:
+		appendPlaceholder(inv, v.Value)
+	case SelectElement:
+		appendSelectBlockInvariant(inv, v)
+	case PluralElement:
+		appendPluralBlockInvariant(inv, v)
+	case TagElement:
+		collectInvariantFromElements(v.Children, inv)
+	case LiteralElement, PoundElement:
+		return
+	default:
+		// Defensive no-op for future element types.
+		return
+	}
+}
+
+func appendPlaceholder(inv *Invariant, value string) {
+	if isPlaceholderName(value) {
+		inv.Placeholders = append(inv.Placeholders, value)
+	}
+}
+
+func appendSelectBlockInvariant(inv *Invariant, v SelectElement) {
+	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+		Arg:     v.Value,
+		Type:    "select",
+		Options: sortedSelectors(v.Options),
+	})
+	for _, opt := range v.Options {
+		collectInvariantFromElements(opt.Value, inv)
+	}
+}
+
+func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
+	blockType := "plural"
+	if v.Type() == TypeSelectOrdinal {
+		blockType = "selectordinal"
+	}
+
+	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+		Arg:     v.Value,
+		Type:    blockType,
+		Options: sortedPluralSelectors(v.Options),
+	})
+	for _, opt := range v.Options {
+		collectInvariantFromElements(opt.Value, inv)
 	}
 }
 

@@ -272,94 +272,15 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 	defer cancel()
 
 	lockWriterDone := make(chan struct{})
-	go func() {
-		defer close(lockWriterDone)
-		for completion := range completions {
-			state.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
-			if err := s.saveLock(lockPath, *state); err != nil {
-				select {
-				case fatalLockErr <- fmt.Errorf("persist lock state: %w", err):
-				default:
-				}
-				cancel()
-				return
-			}
-
-			reportMu.Lock()
-			report.PersistedToLock++
-			reportMu.Unlock()
-		}
-	}()
+	go s.runLockWriter(completions, lockWriterDone, state, lockPath, fatalLockErr, cancel, &report, &reportMu)
 
 	var wg sync.WaitGroup
 	for range workerCount {
 		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case task, ok := <-jobs:
-					if !ok {
-						return
-					}
-
-					translated, err := s.translate(ctx, translator.Request{
-						Source:         task.SourceText,
-						TargetLanguage: task.TargetLocale,
-						Context:        task.EntryKey,
-						ModelProvider:  task.Provider,
-						Model:          task.Model,
-						Prompt:         task.Prompt,
-					})
-					if err != nil {
-						reportMu.Lock()
-						report.Failed++
-						report.Failures = append(report.Failures, Failure{
-							TargetPath: task.TargetPath,
-							EntryKey:   task.EntryKey,
-							Reason:     err.Error(),
-						})
-						reportMu.Unlock()
-						continue
-					}
-
-					if err := stageTaskOutput(staged, task.TargetPath, task.EntryKey, translated, &stageMu); err != nil {
-						reportMu.Lock()
-						report.Failed++
-						report.Failures = append(report.Failures, Failure{
-							TargetPath: task.TargetPath,
-							EntryKey:   task.EntryKey,
-							Reason:     err.Error(),
-						})
-						reportMu.Unlock()
-						continue
-					}
-
-					select {
-					case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), sourceHash: hashSourceText(task.SourceText)}:
-						reportMu.Lock()
-						report.Succeeded++
-						reportMu.Unlock()
-					case <-ctx.Done():
-						return
-					}
-				}
-			}
-		}()
+		go s.runWorker(ctx, jobs, completions, staged, &stageMu, &report, &reportMu, &wg)
 	}
 
-	go func() {
-		defer close(jobs)
-		for _, task := range tasks {
-			select {
-			case <-ctx.Done():
-				return
-			case jobs <- task:
-			}
-		}
-	}()
+	go s.feedJobs(ctx, jobs, tasks)
 
 	wg.Wait()
 	close(completions)
@@ -372,6 +293,112 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 	}
 
 	return staged, report, nil
+}
+
+func (s *Service) runLockWriter(
+	completions <-chan taskCompletion,
+	lockWriterDone chan<- struct{},
+	state *lockfile.File,
+	lockPath string,
+	fatalLockErr chan<- error,
+	cancel context.CancelFunc,
+	report *executionReport,
+	reportMu *sync.Mutex,
+) {
+	defer close(lockWriterDone)
+	for completion := range completions {
+		state.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
+		if err := s.saveLock(lockPath, *state); err != nil {
+			select {
+			case fatalLockErr <- fmt.Errorf("persist lock state: %w", err):
+			default:
+			}
+			cancel()
+			return
+		}
+		reportMu.Lock()
+		report.PersistedToLock++
+		reportMu.Unlock()
+	}
+}
+
+func (s *Service) runWorker(
+	ctx context.Context,
+	jobs <-chan Task,
+	completions chan<- taskCompletion,
+	staged map[string]map[string]string,
+	stageMu *sync.Mutex,
+	report *executionReport,
+	reportMu *sync.Mutex,
+	wg *sync.WaitGroup,
+) {
+	defer wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case task, ok := <-jobs:
+			if !ok {
+				return
+			}
+			s.processTask(ctx, task, staged, stageMu, completions, report, reportMu)
+		}
+	}
+}
+
+func (s *Service) processTask(
+	ctx context.Context,
+	task Task,
+	staged map[string]map[string]string,
+	stageMu *sync.Mutex,
+	completions chan<- taskCompletion,
+	report *executionReport,
+	reportMu *sync.Mutex,
+) {
+	translated, err := s.translate(ctx, translator.Request{
+		Source:         task.SourceText,
+		TargetLanguage: task.TargetLocale,
+		Context:        task.EntryKey,
+		ModelProvider:  task.Provider,
+		Model:          task.Model,
+		Prompt:         task.Prompt,
+	})
+	if err != nil {
+		recordTaskFailure(report, reportMu, task, err)
+		return
+	}
+
+	if err := stageTaskOutput(staged, task.TargetPath, task.EntryKey, translated, stageMu); err != nil {
+		recordTaskFailure(report, reportMu, task, err)
+		return
+	}
+
+	select {
+	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), sourceHash: hashSourceText(task.SourceText)}:
+		reportMu.Lock()
+		report.Succeeded++
+		reportMu.Unlock()
+	case <-ctx.Done():
+		return
+	}
+}
+
+func (s *Service) feedJobs(ctx context.Context, jobs chan<- Task, tasks []Task) {
+	defer close(jobs)
+	for _, task := range tasks {
+		select {
+		case <-ctx.Done():
+			return
+		case jobs <- task:
+		}
+	}
+}
+
+func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, task Task, err error) {
+	reportMu.Lock()
+	defer reportMu.Unlock()
+	report.Failed++
+	report.Failures = append(report.Failures, Failure{TargetPath: task.TargetPath, EntryKey: task.EntryKey, Reason: err.Error()})
 }
 
 func stageTaskOutput(staged map[string]map[string]string, targetPath, entryKey, value string, stageMu *sync.Mutex) error {

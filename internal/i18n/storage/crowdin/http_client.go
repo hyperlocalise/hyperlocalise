@@ -338,86 +338,100 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	sentIndexes := make([]int, 0, len(in.Entries))
 
 	for idx, entry := range in.Entries {
-		key := strings.TrimSpace(entry.Key)
-		locale := strings.TrimSpace(entry.Locale)
-		if key == "" || locale == "" {
-			continue
+		sent, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, translationsByTarget)
+		if upsertErr != nil {
+			return "", &partialUpsertError{sentIndexes: sentIndexes, cause: upsertErr}
 		}
-		stringID, exists := sourceByKey[sourceStringKey{
-			key:     key,
-			context: strings.TrimSpace(entry.Context),
-		}]
-		if !exists {
-			return "", &partialUpsertError{
-				sentIndexes: sentIndexes,
-				cause: fmt.Errorf(
-					"source string not found for key=%q context=%q",
-					key,
-					strings.TrimSpace(entry.Context),
-				),
-			}
+		if sent {
+			sentIndexes = append(sentIndexes, idx)
 		}
-		if stringID < 0 {
-			return "", &partialUpsertError{
-				sentIndexes: sentIndexes,
-				cause: fmt.Errorf(
-					"ambiguous source string for key=%q context=%q",
-					key,
-					strings.TrimSpace(entry.Context),
-				),
-			}
-		}
-
-		target := translationLookupKey{stringID: stringID, locale: locale}
-		knownTexts, exists := translationsByTarget[target]
-		if !exists {
-			knownTexts, err = c.listTranslationTexts(ctx, projectID, stringID, locale)
-			if err != nil {
-				return "", &partialUpsertError{
-					sentIndexes: sentIndexes,
-					cause:       err,
-				}
-			}
-			translationsByTarget[target] = knownTexts
-		}
-		if _, exists = knownTexts[entry.Value]; exists {
-			continue
-		}
-
-		var lastErr error
-		for attempt := 0; attempt <= maxUpsertRetries; attempt++ {
-			_, _, reqErr := c.client.StringTranslations.AddTranslation(
-				ctx,
-				projectID,
-				&model.TranslationAddRequest{
-					StringID:   stringID,
-					LanguageID: locale,
-					Text:       entry.Value,
-				},
-			)
-			if reqErr == nil {
-				lastErr = nil
-				break
-			}
-			lastErr = reqErr
-
-			if !isRetryableUpsertError(lastErr) || attempt == maxUpsertRetries {
-				break
-			}
-			if err := waitForRetry(ctx, retryDelay(attempt, lastErr)); err != nil {
-				lastErr = err
-				break
-			}
-		}
-		if lastErr != nil {
-			return "", &partialUpsertError{
-				sentIndexes: sentIndexes,
-				cause:       fmt.Errorf("add translation: %w", lastErr),
-			}
-		}
-		knownTexts[entry.Value] = struct{}{}
-		sentIndexes = append(sentIndexes, idx)
 	}
 
 	return time.Now().UTC().Format(time.RFC3339Nano), nil
+}
+
+func (c *HTTPClient) upsertTranslationEntry(
+	ctx context.Context,
+	projectID int,
+	entry StringTranslation,
+	sourceByKey map[sourceStringKey]int,
+	translationsByTarget map[translationLookupKey]map[string]struct{},
+) (bool, error) {
+	key, locale := strings.TrimSpace(entry.Key), strings.TrimSpace(entry.Locale)
+	if key == "" || locale == "" {
+		return false, nil
+	}
+
+	stringID, err := resolveSourceStringID(sourceByKey, key, entry.Context)
+	if err != nil {
+		return false, err
+	}
+
+	knownTexts, err := c.ensureKnownTranslationTexts(ctx, projectID, stringID, locale, translationsByTarget)
+	if err != nil {
+		return false, err
+	}
+	if _, exists := knownTexts[entry.Value]; exists {
+		return false, nil
+	}
+
+	if err := c.addTranslationWithRetry(ctx, projectID, stringID, locale, entry.Value); err != nil {
+		return false, fmt.Errorf("add translation: %w", err)
+	}
+
+	knownTexts[entry.Value] = struct{}{}
+	return true, nil
+}
+
+func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context string) (int, error) {
+	ctx := strings.TrimSpace(context)
+	stringID, exists := sourceByKey[sourceStringKey{key: key, context: ctx}]
+	if !exists {
+		return 0, fmt.Errorf("source string not found for key=%q context=%q", key, ctx)
+	}
+	if stringID < 0 {
+		return 0, fmt.Errorf("ambiguous source string for key=%q context=%q", key, ctx)
+	}
+	return stringID, nil
+}
+
+func (c *HTTPClient) ensureKnownTranslationTexts(
+	ctx context.Context,
+	projectID, stringID int,
+	locale string,
+	translationsByTarget map[translationLookupKey]map[string]struct{},
+) (map[string]struct{}, error) {
+	target := translationLookupKey{stringID: stringID, locale: locale}
+	if knownTexts, exists := translationsByTarget[target]; exists {
+		return knownTexts, nil
+	}
+
+	knownTexts, err := c.listTranslationTexts(ctx, projectID, stringID, locale)
+	if err != nil {
+		return nil, err
+	}
+	translationsByTarget[target] = knownTexts
+	return knownTexts, nil
+}
+
+func (c *HTTPClient) addTranslationWithRetry(ctx context.Context, projectID, stringID int, locale, value string) error {
+	var lastErr error
+	for attempt := 0; attempt <= maxUpsertRetries; attempt++ {
+		_, _, reqErr := c.client.StringTranslations.AddTranslation(
+			ctx,
+			projectID,
+			&model.TranslationAddRequest{StringID: stringID, LanguageID: locale, Text: value},
+		)
+		if reqErr == nil {
+			return nil
+		}
+		lastErr = reqErr
+		if !isRetryableUpsertError(lastErr) || attempt == maxUpsertRetries {
+			break
+		}
+		if err := waitForRetry(ctx, retryDelay(attempt, lastErr)); err != nil {
+			return err
+		}
+	}
+	return lastErr
 }
