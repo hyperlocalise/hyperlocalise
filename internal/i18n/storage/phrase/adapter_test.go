@@ -21,12 +21,15 @@ type fakeClient struct {
 func (f *fakeClient) ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error) {
 	return f.listStringsFn(ctx, in)
 }
+
 func (f *fakeClient) UpsertStrings(ctx context.Context, in UpsertStringsInput) (string, error) {
 	return f.upsertStringsFn(ctx, in)
 }
+
 func (f *fakeClient) ExportFile(ctx context.Context, in ExportFileInput) ([]storage.Entry, string, error) {
 	return f.exportFileFn(ctx, in)
 }
+
 func (f *fakeClient) ImportFile(ctx context.Context, in ImportFileInput) (string, error) {
 	return f.importFileFn(ctx, in)
 }
