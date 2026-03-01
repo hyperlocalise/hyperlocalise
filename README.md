@@ -22,7 +22,7 @@ A high-performance localization CLI built in Go for modern development workflows
 - [golangci-lint](https://golangci-lint.run/) for linting and formatting
 - [cobra](https://cobra.dev/) setup including tests
 - [Makefile](Makefile) - with various useful targets and documentation (see Makefile Targets)
-- Storage adapter based translation sync with POEditor and Lokalise support
+- Storage adapter based translation sync with POEditor, Lokalise, and Crowdin support
 - Local provenance sidecar metadata for LLM-vs-curation workflows (`draft` vs `curated`)
 
 # Commands
@@ -238,6 +238,23 @@ Configuration:
 ```
 
 Environment variable: `LOKALISE_API_TOKEN`
+
+### Crowdin
+
+Configuration:
+```json
+{
+  "adapter": "crowdin",
+  "config": {
+    "projectID": "123456",
+    "apiTokenEnv": "CROWDIN_API_TOKEN",
+    "sourceLanguage": "en",
+    "targetLanguages": ["fr", "de", "es"]
+  }
+}
+```
+
+Environment variable: `CROWDIN_API_TOKEN`
 
 For more details on the storage system and sync model, see [`internal/i18n/storage/README.md`](internal/i18n/storage/README.md).
 
