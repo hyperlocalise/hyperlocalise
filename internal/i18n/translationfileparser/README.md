@@ -7,10 +7,11 @@
 - `.json` via `JSONParser`
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
+- `.md` via `MarkdownParser`
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, and PO parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, and Markdown parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -36,6 +37,13 @@
 - For plural forms, uses `msgstr[0]` as the mapped value.
 - Skips header entry (`msgid ""`).
 - Ignores comments and `msgctxt` for now.
+
+### Markdown
+
+- Extracts stable sequential keys (`md.0001`, `md.0002`, ...).
+- Preserves frontmatter blocks (`---`) unchanged.
+- Preserves fenced code blocks (``` and ~~~) unchanged.
+- Preserves Markdown syntax tokens and link destinations while extracting text segments.
 
 ## Minimal usage
 

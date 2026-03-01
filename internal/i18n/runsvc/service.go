@@ -278,9 +278,14 @@ type taskCompletion struct {
 	sourceHash string
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string, state *lockfile.File) (map[string]map[string]string, executionReport, error) {
+type stagedOutput struct {
+	entries    map[string]string
+	sourcePath string
+}
+
+func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string, state *lockfile.File) (map[string]stagedOutput, executionReport, error) {
 	report := executionReport{}
-	staged := map[string]map[string]string{}
+	staged := map[string]stagedOutput{}
 
 	workerCount := s.numCPU()
 	if workerCount < 1 {
@@ -354,7 +359,7 @@ func (s *Service) runWorker(
 	ctx context.Context,
 	jobs <-chan Task,
 	completions chan<- taskCompletion,
-	staged map[string]map[string]string,
+	staged map[string]stagedOutput,
 	stageMu *sync.Mutex,
 	report *executionReport,
 	reportMu *sync.Mutex,
@@ -377,7 +382,7 @@ func (s *Service) runWorker(
 func (s *Service) processTask(
 	ctx context.Context,
 	task Task,
-	staged map[string]map[string]string,
+	staged map[string]stagedOutput,
 	stageMu *sync.Mutex,
 	completions chan<- taskCompletion,
 	report *executionReport,
@@ -396,7 +401,7 @@ func (s *Service) processTask(
 		return
 	}
 
-	if err := stageTaskOutput(staged, task.TargetPath, task.EntryKey, translated, stageMu); err != nil {
+	if err := stageTaskOutput(staged, task.TargetPath, task.SourcePath, task.EntryKey, translated, stageMu); err != nil {
 		recordTaskFailure(report, reportMu, task, err)
 		return
 	}
@@ -429,25 +434,28 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, task Task,
 	report.Failures = append(report.Failures, Failure{TargetPath: task.TargetPath, EntryKey: task.EntryKey, Reason: err.Error()})
 }
 
-func stageTaskOutput(staged map[string]map[string]string, targetPath, entryKey, value string, stageMu *sync.Mutex) error {
+func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, entryKey, value string, stageMu *sync.Mutex) error {
 	stageMu.Lock()
 	defer stageMu.Unlock()
 
-	bucket := staged[targetPath]
-	if bucket == nil {
-		bucket = map[string]string{}
+	bucket, ok := staged[targetPath]
+	if !ok {
+		bucket = stagedOutput{entries: map[string]string{}, sourcePath: sourcePath}
 		staged[targetPath] = bucket
+	} else if bucket.sourcePath != sourcePath {
+		return fmt.Errorf("output staging conflict: %s has conflicting source paths", targetPath)
 	}
 
-	if existing, exists := bucket[entryKey]; exists && existing != value {
+	if existing, exists := bucket.entries[entryKey]; exists && existing != value {
 		return fmt.Errorf("output staging conflict: %s already staged with different value", taskIdentity(targetPath, entryKey))
 	}
 
-	bucket[entryKey] = value
+	bucket.entries[entryKey] = value
+	staged[targetPath] = bucket
 	return nil
 }
 
-func (s *Service) flushOutputs(staged map[string]map[string]string, pruneTargets map[string]map[string]struct{}) error {
+func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}) error {
 	targetPaths := make([]string, 0, len(staged))
 	for path := range staged {
 		targetPaths = append(targetPaths, path)
@@ -462,6 +470,7 @@ func (s *Service) flushOutputs(staged map[string]map[string]string, pruneTargets
 	targetPaths = slices.Compact(targetPaths)
 
 	for _, targetPath := range targetPaths {
+		output := staged[targetPath]
 		values, err := s.loadExistingTarget(targetPath)
 		if err != nil {
 			return err
@@ -476,9 +485,9 @@ func (s *Service) flushOutputs(staged map[string]map[string]string, pruneTargets
 			}
 		}
 
-		maps.Copy(values, staged[targetPath])
+		maps.Copy(values, output.entries)
 
-		content, err := marshalTargetFile(targetPath, values)
+		content, err := s.marshalTargetFile(targetPath, output.sourcePath, values)
 		if err != nil {
 			return err
 		}
@@ -559,8 +568,16 @@ func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
 	return entries, nil
 }
 
-func marshalTargetFile(path string, values map[string]string) ([]byte, error) {
+func (s *Service) marshalTargetFile(path, sourcePath string, values map[string]string) ([]byte, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".md" {
+		template, err := s.loadMarkdownTemplate(path, sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		return translationfileparser.MarshalMarkdown(template, values), nil
+	}
+
 	if ext != ".json" {
 		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
@@ -576,6 +593,22 @@ func marshalTargetFile(path string, values map[string]string) ([]byte, error) {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}
 	return append(content, '\n'), nil
+}
+
+func (s *Service) loadMarkdownTemplate(targetPath, sourcePath string) ([]byte, error) {
+	content, err := s.readFile(targetPath)
+	if err == nil {
+		return content, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("flush outputs: read target file %q: %w", targetPath, err)
+	}
+
+	template, srcErr := s.readFile(sourcePath)
+	if srcErr != nil {
+		return nil, fmt.Errorf("flush outputs: read markdown template source %q: %w", sourcePath, srcErr)
+	}
+	return template, nil
 }
 
 func setNestedValue(payload map[string]any, dottedKey, value string) {

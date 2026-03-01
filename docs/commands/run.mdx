@@ -17,6 +17,21 @@ hyperlocalise run [--config <path>] [--dry-run]
 4. execute remaining tasks,
 5. persist successful tasks to lock state.
 
+## Supported local file formats
+
+`run` can read source and target files with these extensions:
+
+- `.json`
+- `.xlf` and `.xliff`
+- `.po`
+- `.md`
+
+For Markdown (`.md`), `run` translates extracted text segments and preserves non-translatable structure:
+
+- frontmatter blocks (`---`)
+- fenced code blocks (```` ``` ```` and `~~~`)
+- Markdown anchors such as link destinations
+
 ## Flags
 
 - `--config`: path to config file (default `i18n.jsonc` in current directory)
