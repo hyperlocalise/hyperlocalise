@@ -1,0 +1,67 @@
+---
+title: "LLM providers"
+description: "Configure translation model providers for hyperlocalise run workflows."
+---
+
+Supported providers in `llm.profiles.*.provider`:
+
+- `openai`
+- `lmstudio`
+
+`llm.profiles.default` is required, and each profile requires:
+
+- `provider`
+- `model`
+- `prompt`
+
+Prompt variables:
+
+- `{{source}}`
+- `{{target}}`
+- `{{input}}`
+
+## OpenAI example
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "openai",
+        "model": "gpt-5.2",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+## LM Studio example
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "lmstudio",
+        "model": "qwen2.5-7b-instruct",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+```bash
+export LM_STUDIO_BASE_URL="http://127.0.0.1:1234/v1"
+export LM_STUDIO_API_KEY="lm-studio"
+```
+
+Notes:
+
+- LM Studio must be running locally with an OpenAI-compatible API.
+- `model` must match a model identifier exposed by your LM Studio server.

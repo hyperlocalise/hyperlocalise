@@ -1,0 +1,51 @@
+---
+title: "Quickstart"
+description: "Run hyperlocalise locally with your i18n config and provider credentials."
+---
+
+## Prerequisites
+
+- Go toolchain available on your machine.
+- An `i18n.jsonc` file in your project.
+- Provider credentials if you run translation or remote sync.
+
+## Bootstrap and run
+
+```bash
+make bootstrap
+make test
+make install
+```
+
+Then run:
+
+```bash
+hyperlocalise run --config i18n.jsonc
+```
+
+Use dry-run mode to inspect planned work without writing changes:
+
+```bash
+hyperlocalise run --config i18n.jsonc --dry-run
+```
+
+## Configure provider credentials
+
+OpenAI:
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+LM Studio (optional overrides):
+
+```bash
+export LM_STUDIO_BASE_URL="http://127.0.0.1:1234/v1"
+export LM_STUDIO_API_KEY="lm-studio"
+```
+
+## Next steps
+
+- Review CLI details in [Commands](/cli/commands).
+- Review remote sync behavior in [Sync](/cli/sync).
+- Choose a storage adapter in [Storage overview](/storage/overview).
