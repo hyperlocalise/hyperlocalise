@@ -1,7 +1,16 @@
 ---
 title: "CI automation"
-description: "Suggested CI checks for drift, conflicts, and translation completeness."
+description: "Secure CI patterns for drift checks and scheduled TMS pull/push synchronization."
 ---
+
+## CI secret injection standard
+
+For remote adapters, keep secrets in your CI secret manager and inject them only in jobs that call `hyperlocalise sync`.
+
+- Commit only `*Env` variable names in `i18n.jsonc`.
+- Inject token values at runtime through job-level environment variables.
+- Use separate credentials for read-only checks vs write-enabled sync jobs.
+- Avoid printing environment variables in pipeline steps.
 
 ## Suggested checks
 
@@ -27,3 +36,62 @@ hyperlocalise sync push --config i18n.jsonc --output json --fail-on-conflict
 ```
 
 Keep `--dry-run` enabled in CI unless your pipeline is explicitly authorized to modify files or remote systems.
+
+## Scheduled sync job examples
+
+Use these GitHub Actions examples as a baseline. Adapt secret names and approval rules to your CI platform.
+
+### Scheduled pull sync (read-only)
+
+```yaml
+name: tms-pull-sync
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  pull-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SMARTLING_USER_SECRET: ${{ secrets.SMARTLING_USER_SECRET }}
+      LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run
+```
+
+### Scheduled push sync (write-enabled)
+
+```yaml
+name: tms-push-sync
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  push-sync:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    env:
+      SMARTLING_USER_SECRET: ${{ secrets.SMARTLING_USER_SECRET }}
+      LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go run . sync push --config i18n.jsonc --output json --fail-on-conflict
+```
+
+For write-enabled jobs, prefer protected environments, approval gates, and least-privilege service credentials.
