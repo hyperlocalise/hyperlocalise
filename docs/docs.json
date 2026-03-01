@@ -31,7 +31,8 @@
           "storage/overview",
           "storage/poeditor",
           "storage/lokalise",
-          "storage/crowdin"
+          "storage/crowdin",
+          "storage/smartling"
         ]
       },
       {
