@@ -1,0 +1,31 @@
+---
+title: "Ollama"
+description: "Configure Ollama as an LLM provider for translation generation."
+---
+
+## Provider value
+
+Use `ollama` in `llm.profiles.<name>.provider`.
+
+## Example profile
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "ollama",
+        "model": "qwen2.5:7b",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+## Required environment variables
+
+```bash
+export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
+export OLLAMA_API_KEY="ollama"
+```

@@ -1,0 +1,30 @@
+---
+title: "OpenAI"
+description: "Configure OpenAI as an LLM provider for translation generation."
+---
+
+## Provider value
+
+Use `openai` in `llm.profiles.<name>.provider`.
+
+## Example profile
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "openai",
+        "model": "gpt-5.2",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+## Required environment variable
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```

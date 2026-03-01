@@ -1,0 +1,31 @@
+---
+title: "Anthropic"
+description: "Configure Anthropic as an LLM provider for translation generation."
+---
+
+## Provider value
+
+Use `anthropic` in `llm.profiles.<name>.provider`.
+
+## Example profile
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-5",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+## Required environment variables
+
+```bash
+export ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+```

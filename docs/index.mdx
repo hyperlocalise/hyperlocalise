@@ -1,5 +1,5 @@
 ---
-title: "hyperlocalise"
+title: "What is hyperlocalise?"
 description: "CLI-first localization workflows for draft generation, curation sync, and status reporting."
 ---
 
@@ -15,13 +15,20 @@ Use this CLI if you:
 
 ## Core workflow
 
-```text
-init -> configure i18n.jsonc -> run --dry-run -> run -> sync push -> curate in TMS -> sync pull -> status
-```
+| Stage | Action | Why it matters |
+| --- | --- | --- |
+| 1 | [`init`](/commands/init) | Scaffold `i18n.jsonc` and bootstrap defaults. |
+| 2 | Configure [`i18n config`](/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
+| 3 | [`run --dry-run`](/commands/run) | Validate plan and detect issues before writing drafts. |
+| 4 | [`run`](/commands/run) | Generate local draft translations. |
+| 5 | [`sync push`](/commands/sync-push) | Upload local changes to your TMS. |
+| 6 | Curate in TMS | Human review and correction in your translation platform. |
+| 7 | [`sync pull`](/commands/sync-pull) | Bring curated translations back into the repository. |
+| 8 | [`status`](/commands/status) | Measure completion and unresolved work. |
 
 ## Start in 10 minutes
 
-1. [Install the CLI](/getting-started/install).
+1. [Installation](/getting-started/install).
 2. [Run quickstart](/getting-started/quickstart).
 3. [Set up your i18n config](/configuration/i18n-config).
 

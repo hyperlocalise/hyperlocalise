@@ -1,0 +1,42 @@
+---
+title: "LLM providers overview"
+description: "Shared profile fields, prompt variables, and links to each provider-specific configuration page."
+---
+
+Use one provider page below for exact setup and examples:
+
+- [OpenAI](/providers/openai)
+- [Azure OpenAI](/providers/azure-openai)
+- [Gemini](/providers/gemini)
+- [Anthropic](/providers/anthropic)
+- [AWS Bedrock](/providers/bedrock)
+- [LM Studio](/providers/lmstudio)
+- [Groq](/providers/groq)
+- [Ollama](/providers/ollama)
+
+## Supported provider values
+
+- `openai`
+- `azure_openai`
+- `gemini`
+- `anthropic`
+- `bedrock`
+- `lmstudio`
+- `groq`
+- `ollama`
+
+## Required profile fields
+
+Each `llm.profiles.<name>` entry requires:
+
+- `provider`
+- `model`
+- `prompt`
+
+## Prompt variables
+
+These placeholders are available in `prompt`:
+
+- `{{source}}`
+- `{{target}}`
+- `{{input}}`

@@ -10,7 +10,7 @@
   "navigation": {
     "groups": [
       {
-        "group": "Start Here",
+        "group": "Getting Started",
         "pages": [
           "index",
           "getting-started/install",
@@ -39,23 +39,36 @@
         ]
       },
       {
-        "group": "Providers & Storage",
-        "pages": [
-          "providers/llm-providers",
-          "storage/overview",
-          "storage/poeditor",
-          "storage/lilt",
-          "storage/lokalise",
-          "storage/crowdin",
-          "storage/smartling"
-        ]
-      },
-      {
         "group": "Workflows",
         "pages": [
           "workflows/local-generation",
           "workflows/tms-curation-loop",
           "workflows/ci-automation"
+        ]
+      },
+      {
+        "group": "Providers",
+        "pages": [
+          "providers/overview",
+          "providers/openai",
+          "providers/azure-openai",
+          "providers/gemini",
+          "providers/anthropic",
+          "providers/bedrock",
+          "providers/lmstudio",
+          "providers/groq",
+          "providers/ollama"
+        ]
+      },
+      {
+        "group": "TMS Adapters",
+        "pages": [
+          "storage/overview",
+          "storage/crowdin",
+          "storage/lilt",
+          "storage/lokalise",
+          "storage/poeditor",
+          "storage/smartling"
         ]
       },
       {
@@ -67,11 +80,11 @@
         ]
       },
       {
-        "group": "Reference",
+        "group": "Reference & Concepts",
         "pages": [
+          "reference/glossary",
           "reference/config-schema",
           "reference/output-formats",
-          "reference/glossary",
           "reference/creator"
         ]
       },

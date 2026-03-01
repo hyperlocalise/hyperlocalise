@@ -1,0 +1,32 @@
+---
+title: "Azure OpenAI"
+description: "Configure Azure OpenAI as an LLM provider for translation generation."
+---
+
+## Provider value
+
+Use `azure_openai` in `llm.profiles.<name>.provider`.
+
+## Example profile
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "azure_openai",
+        "model": "gpt-4.1-mini",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+## Required environment variables
+
+```bash
+# Example: https://<resource>.openai.azure.com/openai/v1
+export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
+export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+```
