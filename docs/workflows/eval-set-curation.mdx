@@ -1,0 +1,41 @@
+---
+title: "Eval set curation"
+description: "Build a representative translation evaluation set that catches real quality issues."
+---
+
+Use an eval set to measure translation quality on the strings that matter most to you.
+
+## Choose a file format
+
+You can store eval sets as JSON, JSONC, or CSV.
+
+- use JSON or JSONC when you want nested structure and explicit metadata
+- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
+- in CSV, separate multiple tags with semicolons (`ui;short;icu`)
+
+## Pick representative coverage
+
+Include a mix of string types so you can detect regressions across different content shapes.
+
+- short UI strings: buttons, labels, menu items, and concise error text
+- long-form strings: onboarding steps, help text, legal copy, and transactional messages
+- ICU and complex formatting: plural rules, gender variants, select statements, and date or number formatting placeholders
+- placeholders and variables: tokens like `{name}`, `%s`, or `{{count}}` that must survive unchanged
+
+## Keep context close to each case
+
+For each case, store a stable id and include enough context for reviewers.
+
+- add target locale and source text
+- include screenshots, feature names, or intent notes in `context`
+- add optional `reference` text when you already have a trusted translation
+- label cases with tags and optional bucket or group so you can slice reports by area
+
+## Maintain quality over time
+
+Treat the eval set as production test data.
+
+- review and refresh the set when UI or product copy changes
+- remove stale cases that no longer map to active features
+- keep a balance of easy, medium, and difficult strings
+- run the same set repeatedly to compare model or prompt changes fairly
