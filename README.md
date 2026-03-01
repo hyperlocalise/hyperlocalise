@@ -134,6 +134,7 @@ Flags:
 - `groq`
 - `ollama`
 - `gemini`
+- `bedrock`
 
 `llm.profiles.default` is required, and each profile requires:
 - `provider`
@@ -215,6 +216,32 @@ Environment:
 export ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
 
 export ANTHROPIC_API_KEY="your-anthropic-api-key"
+```
+
+## AWS Bedrock Example
+
+Config:
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "bedrock",
+        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+Environment:
+```bash
+export AWS_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="your-access-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
+# Optional when using temporary credentials:
+export AWS_SESSION_TOKEN="your-session-token"
 ```
 
 ## LM Studio Example (Local Model)

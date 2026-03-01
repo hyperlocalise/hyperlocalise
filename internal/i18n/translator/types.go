@@ -13,6 +13,7 @@ const (
 	ProviderGroq      = "groq"
 	ProviderOllama    = "ollama"
 	ProviderGemini    = "gemini"
+	ProviderBedrock   = "bedrock"
 )
 
 type Request struct {
