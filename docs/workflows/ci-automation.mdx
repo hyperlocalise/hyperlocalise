@@ -30,18 +30,20 @@ Store CSV as a build artifact for trend tracking.
 
 ### 3. Sync conflict gate
 
+`sync pull` and `sync push` default to `--dry-run=true`, which is a safe CI baseline.
+
 ```bash
-hyperlocalise sync pull --config i18n.jsonc --output json --fail-on-conflict
-hyperlocalise sync push --config i18n.jsonc --output json --fail-on-conflict
+hyperlocalise sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
 ```
 
-Keep `--dry-run` enabled in CI unless your pipeline is explicitly authorized to modify files or remote systems.
+Use `--dry-run=false` only in jobs that are explicitly authorized to write local files or remote systems.
 
 ## Scheduled sync job examples
 
 Use these GitHub Actions examples as a baseline. Adapt secret names and approval rules to your CI platform.
 
-### Scheduled pull sync (read-only)
+### Scheduled pull sync (read-only, safe default)
 
 ```yaml
 name: tms-pull-sync
@@ -64,10 +66,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run
+      - run: go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
 ```
 
-### Scheduled push sync (write-enabled)
+To apply remote changes to local files in CI, switch to:
+
+```bash
+go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+```
+
+### Scheduled push sync (write-enabled, active)
 
 ```yaml
 name: tms-push-sync
@@ -91,7 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --config i18n.jsonc --output json --fail-on-conflict
+      - run: go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+```
+
+For a non-mutating validation pass, use:
+
+```bash
+go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
 ```
 
 For write-enabled jobs, prefer protected environments, approval gates, and least-privilege service credentials.
