@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/crowdin"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lilt"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lokalise"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/poeditor"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage/smartling"
@@ -22,6 +23,7 @@ func RegisterBuiltins(reg *storageregistry.Registry) error {
 	}{
 		{name: poeditor.AdapterName, factory: poeditor.New},
 		{name: crowdin.AdapterName, factory: crowdin.New},
+		{name: lilt.AdapterName, factory: lilt.New},
 		{name: lokalise.AdapterName, factory: lokalise.New},
 		{name: smartling.AdapterName, factory: smartling.New},
 	}
