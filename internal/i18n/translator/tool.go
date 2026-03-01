@@ -32,6 +32,7 @@ func New() *Tool {
 	t.MustRegister(NewGroqProvider())
 	t.MustRegister(NewOllamaProvider())
 	t.MustRegister(NewGeminiProvider())
+	t.MustRegister(NewBedrockProvider())
 	return t
 }
 
