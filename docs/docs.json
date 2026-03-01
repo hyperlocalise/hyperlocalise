@@ -53,6 +53,7 @@
         "group": "Workflows",
         "pages": [
           "workflows/local-generation",
+          "workflows/eval-set-curation",
           "workflows/tms-curation-loop",
           "workflows/ci-automation"
         ]
