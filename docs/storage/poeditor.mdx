@@ -1,0 +1,48 @@
+---
+title: "POEditor adapter"
+description: "POEditor-backed storage adapter configuration and behavior."
+---
+
+The POEditor adapter maps POEditor terms and translations into normalized sync entries.
+
+## Mapping
+
+- `key`: POEditor term
+- `context`: POEditor context
+- `locale`: POEditor language
+
+## Token resolution
+
+POEditor authentication uses API token lookup in this order:
+
+1. Environment variable named by `storage.config.apiTokenEnv`.
+2. `POEDITOR_API_TOKEN`.
+
+## Config
+
+```jsonc
+{
+  "storage": {
+    "adapter": "poeditor",
+    "config": {
+      "projectID": "123456",
+      "apiTokenEnv": "POEDITOR_API_TOKEN"
+    }
+  }
+}
+```
+
+Supported config fields:
+
+- `projectID` (required)
+- `apiTokenEnv` (optional, default `POEDITOR_API_TOKEN`)
+- `sourceLanguage` (optional)
+- `targetLanguages` (optional)
+- `timeoutSeconds` (optional)
+
+## Behavior notes
+
+- Empty translations are skipped on pull and push.
+- Namespace mapping is local-only.
+- Tags, comments, and plurals are outside v1 sync semantics.
+- Conflict resolution is handled by sync service logic.
