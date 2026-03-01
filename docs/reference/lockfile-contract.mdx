@@ -1,0 +1,106 @@
+---
+title: "Lockfile contract"
+description: "Understand what `.hyperlocalise.lock.json` stores, when to reset it, and why it is advisory."
+---
+
+## Canonical file name
+
+The lockfile name is fixed to `.hyperlocalise.lock.json`.
+
+`hyperlocalise` does not currently read `i18n.lock` or other alias names.
+
+Keep the file in your project root so `run` and sync commands share the same checkpoint state.
+
+## What the lockfile is for
+
+Treat the lockfile as an **advisory checkpoint**, not your source of truth.
+
+- Source of truth for translatable content is your source files.
+- Source of truth for generated output is your target files.
+- Source of truth for synced remote state is your TMS plus local artifacts.
+
+The lockfile only records what the CLI already attempted or completed so it can skip repeated work.
+
+## Schema
+
+Current shape:
+
+```json
+{
+  "adapter": "crowdin",
+  "project_id": "12345",
+  "last_pull_at": "2026-01-15T12:34:56Z",
+  "locale_states": {
+    "es-ES": {
+      "revision": "rev_abc123",
+      "updated_at": "2026-01-15T12:00:00Z"
+    }
+  },
+  "run_completed": {
+    "apps/web/lang/es-ES.json::checkout.submit": {
+      "completed_at": "2026-01-15T12:10:00Z",
+      "source_hash": "7f4f7d..."
+    }
+  }
+}
+```
+
+Field meanings:
+
+- `adapter`: active TMS adapter name.
+- `project_id`: adapter-specific project identifier.
+- `last_pull_at`: timestamp of the latest successful sync pull.
+- `locale_states`: per-locale checkpoint map.
+  - `revision`: adapter revision or cursor for incremental pull logic.
+  - `updated_at`: last time that locale checkpoint was refreshed.
+- `run_completed`: per-task completion map used by `run` for skip decisions.
+  - `completed_at`: when the task last completed.
+  - `source_hash`: source fingerprint captured at completion time.
+
+## Lifecycle by command
+
+### `hyperlocalise run`
+
+- Reads `.hyperlocalise.lock.json` when planning tasks.
+- Skips work already marked complete in `run_completed`.
+- Persists successful tasks back to `run_completed`.
+
+### `hyperlocalise sync pull`
+
+- Reads existing adapter and locale checkpoint metadata.
+- Updates `adapter`, `project_id`, `last_pull_at`, and `locale_states` after successful pull.
+
+### `hyperlocalise sync push`
+
+- May read adapter/project context from the lockfile.
+- Does not replace source/target content authority.
+
+## Safe reset guidance
+
+Reset the lockfile when checkpoint state is stale or no longer trustworthy.
+
+Common reset cases:
+
+- you changed source text structure heavily
+- you changed bucket mappings or file path templates
+- you switched adapters or projects
+- you suspect corrupted or manually edited checkpoint entries
+
+Safe reset steps:
+
+1. ensure your source and generated files are committed or backed up
+2. delete `.hyperlocalise.lock.json`
+3. run `hyperlocalise run --dry-run` to inspect the larger plan
+4. run `hyperlocalise run` and/or `hyperlocalise sync pull` to rebuild checkpoint state
+
+Expected side effects after reset:
+
+- `run` may re-execute tasks that were previously skipped
+- next sync pull may perform a broader refresh for locales
+- CLI runtime can increase temporarily until checkpoints are rebuilt
+
+## Team conventions
+
+- Do not hand-edit lockfile fields unless debugging a local incident.
+- Keep lockfile handling explicit in CI scripts.
+- Review lockfile changes in pull requests when run/sync behavior looks unexpected.

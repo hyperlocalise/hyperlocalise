@@ -88,6 +88,7 @@
           "reference/glossary",
           "reference/config-schema",
           "reference/output-formats",
+          "reference/lockfile-contract",
           "reference/creator"
         ]
       },
