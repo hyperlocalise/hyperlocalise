@@ -44,6 +44,12 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 				UpdatedAt: &now,
 			},
 		},
+		RunCompleted: map[string]RunCompletion{
+			"locales/fr.json::hello": {
+				CompletedAt: now,
+				SourceHash:  "abc123",
+			},
+		},
 	})
 	if err != nil {
 		t.Fatalf("save lockfile: %v", err)
@@ -65,6 +71,13 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	}
 	if checkpoint.UpdatedAt == nil || !checkpoint.UpdatedAt.Equal(now) {
 		t.Fatalf("unexpected updated_at: %+v", checkpoint.UpdatedAt)
+	}
+	completion, ok := got.RunCompleted["locales/fr.json::hello"]
+	if !ok {
+		t.Fatalf("expected run completion")
+	}
+	if completion.SourceHash != "abc123" {
+		t.Fatalf("unexpected source hash: %q", completion.SourceHash)
 	}
 }
 

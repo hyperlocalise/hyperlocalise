@@ -24,6 +24,7 @@ type LocaleCheckpoint struct {
 
 type RunCompletion struct {
 	CompletedAt time.Time `json:"completed_at"`
+	SourceHash  string    `json:"source_hash,omitempty"`
 }
 
 func Load(path string) (*File, error) {

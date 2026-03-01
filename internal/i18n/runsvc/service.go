@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -222,7 +223,8 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 	executable := make([]Task, 0, len(planned))
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
-		if _, ok := completed[identity]; ok {
+		sourceHash := hashSourceText(task.SourceText)
+		if c, ok := completed[identity]; ok && c.SourceHash == sourceHash {
 			report.SkippedByLock++
 			report.Skipped = append(report.Skipped, task)
 			continue
@@ -243,6 +245,11 @@ type executionReport struct {
 	Failures        []Failure
 }
 
+type taskCompletion struct {
+	identity   string
+	sourceHash string
+}
+
 func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string, state *lockfile.File) (map[string]map[string]string, executionReport, error) {
 	report := executionReport{}
 	staged := map[string]map[string]string{}
@@ -253,7 +260,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 	}
 
 	jobs := make(chan Task)
-	completions := make(chan string)
+	completions := make(chan taskCompletion)
 	fatalLockErr := make(chan error, 1)
 
 	var (
@@ -267,8 +274,8 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 	lockWriterDone := make(chan struct{})
 	go func() {
 		defer close(lockWriterDone)
-		for identity := range completions {
-			state.RunCompleted[identity] = lockfile.RunCompletion{CompletedAt: s.now()}
+		for completion := range completions {
+			state.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
 			if err := s.saveLock(lockPath, *state); err != nil {
 				select {
 				case fatalLockErr <- fmt.Errorf("persist lock state: %w", err):
@@ -331,7 +338,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 					}
 
 					select {
-					case completions <- taskIdentity(task.TargetPath, task.EntryKey):
+					case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), sourceHash: hashSourceText(task.SourceText)}:
 						reportMu.Lock()
 						report.Succeeded++
 						reportMu.Unlock()
@@ -560,4 +567,9 @@ func renderPrompt(prompt, sourceLocale, targetLocale, sourceText string) string 
 
 func taskIdentity(targetPath, entryKey string) string {
 	return targetPath + "::" + entryKey
+}
+
+func hashSourceText(source string) string {
+	sum := sha512.Sum512([]byte(source))
+	return fmt.Sprintf("%x", sum)
 }

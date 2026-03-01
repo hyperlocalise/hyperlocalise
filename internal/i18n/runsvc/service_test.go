@@ -89,7 +89,7 @@ func TestRunAppliesLockFilterByTargetAndEntry(t *testing.T) {
 		}
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
-		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "a"): {CompletedAt: time.Now()}}}, nil
+		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "a"): {CompletedAt: time.Now(), SourceHash: hashSourceText("A")}}}, nil
 	}
 
 	report, err := svc.Run(context.Background(), Input{DryRun: true})
@@ -102,6 +102,36 @@ func TestRunAppliesLockFilterByTargetAndEntry(t *testing.T) {
 	}
 	if len(report.Executable) != 1 || report.Executable[0].EntryKey != "b" {
 		t.Fatalf("unexpected executable tasks: %+v", report.Executable)
+	}
+}
+
+func TestRunDoesNotSkipWhenSourceTextChanges(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello World"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "hello"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Hello")}}}, nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err != nil {
+		t.Fatalf("run dry-run: %v", err)
+	}
+
+	if report.SkippedByLock != 0 || report.ExecutableTotal != 1 {
+		t.Fatalf("expected changed source to be executable, got %+v", report)
 	}
 }
 
@@ -212,6 +242,11 @@ func TestRunLockWriterPersistsEachSuccess(t *testing.T) {
 	svc.saveLock = func(_ string, f lockfile.File) error {
 		lockWrites++
 		seenSizes = append(seenSizes, len(f.RunCompleted))
+		for identity, completion := range f.RunCompleted {
+			if completion.SourceHash == "" {
+				t.Fatalf("expected source hash persisted for %s", identity)
+			}
+		}
 		return nil
 	}
 
