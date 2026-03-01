@@ -21,9 +21,15 @@ type Config struct {
 	UserIdentifier  string   `json:"userIdentifier"`
 	UserSecret      string   `json:"-"`
 	UserSecretEnv   string   `json:"userSecretEnv,omitempty"`
+	Mode            string   `json:"mode,omitempty"`
 	TargetLanguages []string `json:"targetLanguages,omitempty"`
 	TimeoutSeconds  int      `json:"timeoutSeconds,omitempty"`
 }
+
+const (
+	ModeStrings = "strings"
+	ModeFiles   = "files"
+)
 
 type StringTranslation struct {
 	Key     string `json:"stringText"`
@@ -45,6 +51,18 @@ type UpsertTranslationsInput struct {
 type Client interface {
 	ListTranslations(ctx context.Context, in ListTranslationsInput) ([]StringTranslation, string, error)
 	UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (string, error)
+	ExportFileEntries(ctx context.Context, in ExportFileInput) ([]storage.Entry, string, error)
+	ImportFileEntries(ctx context.Context, in ImportFileInput) (string, error)
+}
+
+type ExportFileInput struct {
+	ProjectID string
+	Locales   []string
+}
+
+type ImportFileInput struct {
+	ProjectID string
+	Entries   []storage.Entry
 }
 
 type Adapter struct {
@@ -67,6 +85,7 @@ func New(raw json.RawMessage) (storage.StorageAdapter, error) {
 }
 
 func NewWithClient(cfg Config, client Client) (*Adapter, error) {
+	cfg = normalizeConfig(cfg)
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
@@ -101,14 +120,24 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 			cfg.UserSecret = os.Getenv(defaultUserSecretEnvVar)
 		}
 	}
-	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = 30
-	}
+	cfg = normalizeConfig(cfg)
 
 	if err := validateConfig(cfg); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
+}
+
+func normalizeConfig(cfg Config) Config {
+	if cfg.TimeoutSeconds <= 0 {
+		cfg.TimeoutSeconds = 30
+	}
+	if strings.TrimSpace(cfg.Mode) == "" {
+		cfg.Mode = ModeStrings
+	} else {
+		cfg.Mode = strings.ToLower(strings.TrimSpace(cfg.Mode))
+	}
+	return cfg
 }
 
 func validateConfig(cfg Config) error {
@@ -120,6 +149,9 @@ func validateConfig(cfg Config) error {
 	}
 	if strings.TrimSpace(cfg.UserSecret) == "" {
 		return fmt.Errorf("smartling config: user secret is required (%s)", defaultUserSecretEnvVar)
+	}
+	if cfg.Mode != ModeStrings && cfg.Mode != ModeFiles {
+		return fmt.Errorf("smartling config: mode must be one of %q or %q", ModeStrings, ModeFiles)
 	}
 	return nil
 }
@@ -136,6 +168,13 @@ func (a *Adapter) Capabilities() storage.Capabilities {
 }
 
 func (a *Adapter) Pull(ctx context.Context, req storage.PullRequest) (storage.PullResult, error) {
+	if a.cfg.Mode == ModeFiles {
+		return a.pullFiles(ctx, req)
+	}
+	return a.pullStrings(ctx, req)
+}
+
+func (a *Adapter) pullStrings(ctx context.Context, req storage.PullRequest) (storage.PullResult, error) {
 	locales := req.Locales
 	if len(locales) == 0 && len(a.cfg.TargetLanguages) > 0 {
 		locales = append([]string(nil), a.cfg.TargetLanguages...)
@@ -174,6 +213,13 @@ func (a *Adapter) Pull(ctx context.Context, req storage.PullRequest) (storage.Pu
 }
 
 func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.PushResult, error) {
+	if a.cfg.Mode == ModeFiles {
+		return a.pushFiles(ctx, req)
+	}
+	return a.pushStrings(ctx, req)
+}
+
+func (a *Adapter) pushStrings(ctx context.Context, req storage.PushRequest) (storage.PushResult, error) {
 	payload := make([]StringTranslation, 0, len(req.Entries))
 	applied := make([]storage.EntryID, 0, len(req.Entries))
 	indexByID := make(map[storage.EntryID]int, len(req.Entries))
@@ -203,6 +249,75 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 	}
 
 	revision, err := a.client.UpsertTranslations(ctx, UpsertTranslationsInput{ProjectID: a.cfg.ProjectID, Entries: payload})
+	if err != nil {
+		return storage.PushResult{}, fmt.Errorf("smartling push: %w", err)
+	}
+	return storage.PushResult{Applied: applied, Revision: revision}, nil
+}
+
+func (a *Adapter) pullFiles(ctx context.Context, req storage.PullRequest) (storage.PullResult, error) {
+	locales := req.Locales
+	if len(locales) == 0 && len(a.cfg.TargetLanguages) > 0 {
+		locales = append([]string(nil), a.cfg.TargetLanguages...)
+	}
+
+	entries, revision, err := a.client.ExportFileEntries(ctx, ExportFileInput{ProjectID: a.cfg.ProjectID, Locales: locales})
+	if err != nil {
+		return storage.PullResult{}, fmt.Errorf("smartling pull: %w", err)
+	}
+
+	now := time.Now().UTC()
+	out := make([]storage.Entry, 0, len(entries))
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.Key) == "" || strings.TrimSpace(entry.Locale) == "" || strings.TrimSpace(entry.Value) == "" {
+			continue
+		}
+		mapped := entry
+		mapped.Remote = storage.RemoteMeta{Adapter: AdapterName, Revision: revision}
+		if mapped.Provenance.Origin == "" {
+			mapped.Provenance.Origin = storage.OriginHuman
+		}
+		if mapped.Provenance.State == "" {
+			mapped.Provenance.State = storage.StateCurated
+		}
+		if mapped.Provenance.UpdatedAt.IsZero() {
+			mapped.Provenance.UpdatedAt = now
+		}
+		out = append(out, mapped)
+	}
+
+	retrievedAt := now
+	return storage.PullResult{Snapshot: storage.CatalogSnapshot{Entries: out, Revision: revision, RetrievedAt: &retrievedAt}}, nil
+}
+
+func (a *Adapter) pushFiles(ctx context.Context, req storage.PushRequest) (storage.PushResult, error) {
+	entries := make([]storage.Entry, 0, len(req.Entries))
+	applied := make([]storage.EntryID, 0, len(req.Entries))
+	indexByID := make(map[storage.EntryID]int, len(req.Entries))
+
+	for _, entry := range req.Entries {
+		key := strings.TrimSpace(entry.Key)
+		locale := strings.TrimSpace(entry.Locale)
+		if key == "" || locale == "" || strings.TrimSpace(entry.Value) == "" {
+			continue
+		}
+		normalized := entry
+		normalized.Key = key
+		normalized.Locale = locale
+		normalized.Context = strings.TrimSpace(entry.Context)
+
+		id := normalized.ID()
+		if idx, exists := indexByID[id]; exists {
+			entries[idx] = normalized
+			continue
+		}
+
+		indexByID[id] = len(entries)
+		entries = append(entries, normalized)
+		applied = append(applied, id)
+	}
+
+	revision, err := a.client.ImportFileEntries(ctx, ImportFileInput{ProjectID: a.cfg.ProjectID, Entries: entries})
 	if err != nil {
 		return storage.PushResult{}, fmt.Errorf("smartling push: %w", err)
 	}

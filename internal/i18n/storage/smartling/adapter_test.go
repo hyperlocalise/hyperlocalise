@@ -14,15 +14,35 @@ type fakeClient struct {
 	items        []StringTranslation
 	listRevision string
 	upsertIn     UpsertTranslationsInput
+	fileEntries  []storage.Entry
+	fileRevision string
+	importIn     ImportFileInput
+	listCalls    int
+	upsertCalls  int
+	exportCalls  int
+	importCalls  int
 }
 
 func (f *fakeClient) ListTranslations(_ context.Context, _ ListTranslationsInput) ([]StringTranslation, string, error) {
+	f.listCalls++
 	return f.items, f.listRevision, nil
 }
 
 func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
+	f.upsertCalls++
 	f.upsertIn = in
 	return "rev2", nil
+}
+
+func (f *fakeClient) ExportFileEntries(_ context.Context, _ ExportFileInput) ([]storage.Entry, string, error) {
+	f.exportCalls++
+	return f.fileEntries, f.fileRevision, nil
+}
+
+func (f *fakeClient) ImportFileEntries(_ context.Context, in ImportFileInput) (string, error) {
+	f.importCalls++
+	f.importIn = in
+	return "rev-file", nil
 }
 
 func TestParseConfigUsesEnvSecret(t *testing.T) {
@@ -169,6 +189,134 @@ func TestAdapterPushDeduplicatesByEntryID(t *testing.T) {
 	}
 	if result.Applied[1] != third.ID() {
 		t.Fatalf("unexpected second applied id: got %v want %v", result.Applied[1], third.ID())
+	}
+}
+
+func TestAdapterModeDefaultsToStrings(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	cfg, err := ParseConfig(json.RawMessage(`{"projectID":"123","userIdentifier":"uid"}`))
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	if cfg.Mode != ModeStrings {
+		t.Fatalf("unexpected default mode: got %q want %q", cfg.Mode, ModeStrings)
+	}
+}
+
+func TestAdapterModeRoutingPull(t *testing.T) {
+	tests := []struct {
+		name          string
+		mode          string
+		wantListCalls int
+		wantFileCalls int
+	}{
+		{name: "strings", mode: ModeStrings, wantListCalls: 1},
+		{name: "files", mode: ModeFiles, wantFileCalls: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &fakeClient{
+				items:        []StringTranslation{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+				listRevision: "rev1",
+				fileEntries:  []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+				fileRevision: "rev-file",
+			}
+			adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: tc.mode}, client)
+			if err != nil {
+				t.Fatalf("new adapter: %v", err)
+			}
+
+			if _, err := adapter.Pull(context.Background(), storage.PullRequest{Locales: []string{"fr"}}); err != nil {
+				t.Fatalf("pull: %v", err)
+			}
+			if client.listCalls != tc.wantListCalls {
+				t.Fatalf("unexpected list calls: got %d want %d", client.listCalls, tc.wantListCalls)
+			}
+			if client.exportCalls != tc.wantFileCalls {
+				t.Fatalf("unexpected file export calls: got %d want %d", client.exportCalls, tc.wantFileCalls)
+			}
+		})
+	}
+}
+
+func TestAdapterModeRoutingPush(t *testing.T) {
+	tests := []struct {
+		name            string
+		mode            string
+		wantUpsertCalls int
+		wantImportCalls int
+	}{
+		{name: "strings", mode: ModeStrings, wantUpsertCalls: 1},
+		{name: "files", mode: ModeFiles, wantImportCalls: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &fakeClient{}
+			adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: tc.mode}, client)
+			if err != nil {
+				t.Fatalf("new adapter: %v", err)
+			}
+
+			_, err = adapter.Push(context.Background(), storage.PushRequest{Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}}})
+			if err != nil {
+				t.Fatalf("push: %v", err)
+			}
+			if client.upsertCalls != tc.wantUpsertCalls {
+				t.Fatalf("unexpected upsert calls: got %d want %d", client.upsertCalls, tc.wantUpsertCalls)
+			}
+			if client.importCalls != tc.wantImportCalls {
+				t.Fatalf("unexpected import calls: got %d want %d", client.importCalls, tc.wantImportCalls)
+			}
+		})
+	}
+}
+
+func TestAdapterFileModePullAndPushDeduplicatesAndMatchesStringsSemantics(t *testing.T) {
+	client := &fakeClient{
+		fileEntries: []storage.Entry{
+			{Key: "hello", Locale: "fr", Value: "bonjour"},
+			{Key: "goodbye", Locale: "fr", Value: "au revoir"},
+			{Key: "", Locale: "fr", Value: "skip"},
+		},
+		fileRevision: "rev-file",
+	}
+
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	pullRes, err := adapter.Pull(context.Background(), storage.PullRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("pull: %v", err)
+	}
+	if got := len(pullRes.Snapshot.Entries); got != 2 {
+		t.Fatalf("expected 2 pulled file entries, got %d", got)
+	}
+
+	pushReq := storage.PushRequest{Entries: []storage.Entry{
+		{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"},
+		{Key: "hello", Context: "home", Locale: "fr", Value: "salut"},
+		{Key: "goodbye", Context: "home", Locale: "fr", Value: "au revoir"},
+		{Key: "skip", Context: "home", Locale: "fr", Value: "   "},
+	}}
+	pushRes, err := adapter.Push(context.Background(), pushReq)
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(client.importIn.Entries); got != 2 {
+		t.Fatalf("expected 2 imported file entries after dedupe, got %d", got)
+	}
+	if got := client.importIn.Entries[0].Value; got != "salut" {
+		t.Fatalf("expected latest duplicate value to win, got %q", got)
+	}
+	if got := len(pushRes.Applied); got != 2 {
+		t.Fatalf("expected 2 applied file entries, got %d", got)
+	}
+	if pushRes.Applied[0] != pushReq.Entries[0].ID() {
+		t.Fatalf("unexpected first applied id: got %v want %v", pushRes.Applied[0], pushReq.Entries[0].ID())
 	}
 }
 
