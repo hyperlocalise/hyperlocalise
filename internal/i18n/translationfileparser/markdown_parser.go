@@ -200,10 +200,7 @@ func looksLikeJSXTagStart(line string, idx int) bool {
 		return true
 	}
 	if (next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z') {
-		if strings.HasPrefix(line[idx+1:], "http") {
-			return false
-		}
-		return true
+		return !strings.HasPrefix(line[idx+1:], "http")
 	}
 	return false
 }
