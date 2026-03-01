@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,6 +16,102 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
+
+func TestRunUsesConfiguredWorkersWhenProvided(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A","b":"B","c":"C"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.numCPU = func() int { return 1 }
+
+	var mu sync.Mutex
+	active := 0
+	maxActive := 0
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		mu.Lock()
+		active++
+		if active > maxActive {
+			maxActive = active
+		}
+		mu.Unlock()
+
+		time.Sleep(20 * time.Millisecond)
+
+		mu.Lock()
+		active--
+		mu.Unlock()
+		return strings.ToUpper(req.Source), nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{Workers: 3})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if maxActive < 2 {
+		t.Fatalf("expected parallel execution with explicit workers, max active=%d", maxActive)
+	}
+}
+
+func TestRunDefaultsWorkersToNumCPUWhenUnset(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A","b":"B","c":"C"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.numCPU = func() int { return 1 }
+
+	var mu sync.Mutex
+	active := 0
+	maxActive := 0
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		mu.Lock()
+		active++
+		if active > maxActive {
+			maxActive = active
+		}
+		mu.Unlock()
+
+		time.Sleep(20 * time.Millisecond)
+
+		mu.Lock()
+		active--
+		mu.Unlock()
+		return strings.ToUpper(req.Source), nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if maxActive != 1 {
+		t.Fatalf("expected single worker from numCPU default, max active=%d", maxActive)
+	}
+}
 
 func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 	svc := newTestService()

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"runtime"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/runsvc"
 	"github.com/spf13/cobra"
@@ -14,6 +15,7 @@ type runOptions struct {
 	prune      bool
 	pruneLimit int
 	pruneForce bool
+	workers    int
 }
 
 func newRunCmd() *cobra.Command {
@@ -24,12 +26,21 @@ func newRunCmd() *cobra.Command {
 		Short:        "generate local translations from source files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			workers := o.workers
+			if workers == 0 {
+				workers = runtime.NumCPU()
+			}
+			if workers < 1 {
+				return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
+			}
+
 			report, err := runsvc.Run(backgroundContext(), runsvc.Input{
 				ConfigPath: o.configPath,
 				DryRun:     o.dryRun,
 				Prune:      o.prune,
 				PruneLimit: o.pruneLimit,
 				PruneForce: o.pruneForce,
+				Workers:    workers,
 			})
 
 			if writeErr := writeRunReport(cmd.OutOrStdout(), report, o.dryRun); writeErr != nil {
@@ -52,6 +63,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.prune, "prune", o.prune, "remove target keys that no longer exist in source files")
 	cmd.Flags().IntVar(&o.pruneLimit, "prune-max-deletions", 100, "maximum stale keys that can be deleted in one run before requiring an explicit override")
 	cmd.Flags().BoolVar(&o.pruneForce, "prune-force", o.pruneForce, "bypass prune deletion safety limit")
+	cmd.Flags().IntVar(&o.workers, "workers", o.workers, "number of parallel translation workers (default: number of CPU cores)")
 
 	return cmd
 }

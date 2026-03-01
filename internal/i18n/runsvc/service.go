@@ -33,6 +33,7 @@ type Input struct {
 	PruneLimit int
 	PruneForce bool
 	LockPath   string
+	Workers    int
 }
 
 const defaultPruneLimit = 100
@@ -148,7 +149,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		return report, nil
 	}
 
-	staged, execReport, err := s.executePool(ctx, executable, in.LockPath, state)
+	staged, execReport, err := s.executePool(ctx, executable, in.LockPath, state, in.Workers)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
@@ -283,11 +284,14 @@ type stagedOutput struct {
 	sourcePath string
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string, state *lockfile.File) (map[string]stagedOutput, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string, state *lockfile.File, workers int) (map[string]stagedOutput, executionReport, error) {
 	report := executionReport{}
 	staged := map[string]stagedOutput{}
 
-	workerCount := s.numCPU()
+	workerCount := workers
+	if workerCount == 0 {
+		workerCount = s.numCPU()
+	}
 	if workerCount < 1 {
 		workerCount = 1
 	}

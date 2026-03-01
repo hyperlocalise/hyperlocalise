@@ -6,7 +6,7 @@ description: "Plan and execute local translation generation from configured sour
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--dry-run]
+hyperlocalise run [--config <path>] [--dry-run] [--workers <count>]
 ```
 
 ## Behavior
@@ -36,6 +36,7 @@ For Markdown (`.md`), `run` translates extracted text segments and preserves non
 
 - `--config`: path to config file (default `i18n.jsonc` in current directory)
 - `--dry-run`: print plan only, do not translate or write files
+- `--workers`: number of parallel translation workers (defaults to CPU cores)
 
 ## Output fields
 
@@ -49,3 +50,10 @@ For Markdown (`.md`), `run` translates extracted text segments and preserves non
 ## Failure output
 
 On task failure, output includes `failure target=<...> key=<...> reason=<...>`.
+
+
+## Worker tuning guidance
+
+Lower `--workers` when you hit provider rate limits or run in constrained CI environments. Start with `1` to stabilize retries and then increase gradually.
+
+Raise `--workers` when your provider quota and machine resources allow more throughput. Increase in small steps and watch API error rates plus local CPU and memory usage.
