@@ -450,6 +450,26 @@ Configuration:
 
 Environment variable: `CROWDIN_API_TOKEN`
 
+### Phrase
+
+Docs: [`internal/i18n/storage/phrase/README.md`](internal/i18n/storage/phrase/README.md)
+
+Configuration:
+```json
+{
+  "adapter": "phrase",
+  "config": {
+    "projectID": "your-project-id",
+    "apiTokenEnv": "PHRASE_API_TOKEN",
+    "mode": "strings",
+    "sourceLanguage": "en",
+    "targetLanguages": ["fr", "de", "es"]
+  }
+}
+```
+
+Environment variable: `PHRASE_API_TOKEN`
+
 ### Smartling
 
 Docs: [`internal/i18n/storage/smartling/README.md`](internal/i18n/storage/smartling/README.md)

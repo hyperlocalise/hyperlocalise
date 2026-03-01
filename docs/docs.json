@@ -69,6 +69,7 @@
           "storage/crowdin",
           "storage/lilt",
           "storage/lokalise",
+          "storage/phrase",
           "storage/poeditor",
           "storage/smartling"
         ]
