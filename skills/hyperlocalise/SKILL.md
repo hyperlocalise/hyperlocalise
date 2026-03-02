@@ -41,10 +41,8 @@ hyperlocalise sync pull
 hyperlocalise sync push
 ```
 
-6. Evaluate translation quality when requested:
-
 ```bash
-hyperlocalise eval
+hyperlocalise eval run
 ```
 
 ## Command Guidance Rules
