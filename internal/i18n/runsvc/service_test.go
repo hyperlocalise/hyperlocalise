@@ -424,9 +424,13 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
 	targetPath := "/tmp/out.json"
+	lockState := &lockfile.File{LocaleStates: map[string]lockfile.LocaleCheckpoint{}, RunCompleted: map[string]lockfile.RunCompletion{}}
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
 		cfg := testConfig(sourcePath, targetPath)
 		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return lockState, nil
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		switch path {
@@ -461,8 +465,14 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	if report.Succeeded != 1 || report.Failed != 1 {
 		t.Fatalf("unexpected execution totals: %+v", report)
 	}
+	if report.PersistedToLock != 0 {
+		t.Fatalf("expected lock rollback for failed target, got persisted=%d", report.PersistedToLock)
+	}
 	if len(report.Failures) != 1 || report.Failures[0].EntryKey != "bad" {
 		t.Fatalf("unexpected failures: %+v", report.Failures)
+	}
+	if len(lockState.RunCompleted) != 0 {
+		t.Fatalf("expected no completed lock entries for failed target, got %+v", lockState.RunCompleted)
 	}
 
 	var payload map[string]any

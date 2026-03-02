@@ -91,24 +91,26 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 
 	jobs := make(chan Task)
 	completions := make(chan taskCompletion)
+	targetFailures := make(chan string)
 	fatalLockErr := make(chan error, 1)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	lockWriterDone := make(chan struct{})
-	go s.runLockWriter(ctx, completions, lockWriterDone, lockState, lockPath, fatalLockErr, cancel, state, emitter)
+	go s.runLockWriter(ctx, completions, targetFailures, lockWriterDone, lockState, lockPath, fatalLockErr, cancel, state, emitter)
 
 	var wg sync.WaitGroup
 	for range workerCount {
 		wg.Add(1)
-		go s.runWorker(ctx, jobs, completions, state, emitter, &wg, cancel)
+		go s.runWorker(ctx, jobs, completions, targetFailures, state, emitter, &wg, cancel)
 	}
 
 	go s.feedJobs(ctx, jobs, tasks)
 
 	wg.Wait()
 	close(completions)
+	close(targetFailures)
 	<-lockWriterDone
 
 	select {
@@ -120,15 +122,27 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, lockPath string
 	return state.staged, state.flushedTargets, state.report, nil
 }
 
-func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskCompletion, done chan<- struct{}, lockState *lockfile.File, lockPath string, fatalLockErr chan<- error, cancel context.CancelFunc, state *executorState, emitter *eventEmitter) {
+func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskCompletion, targetFailures <-chan string, done chan<- struct{}, lockState *lockfile.File, lockPath string, fatalLockErr chan<- error, cancel context.CancelFunc, state *executorState, emitter *eventEmitter) {
 	defer close(done)
+	completionCh := completions
+	failureCh := targetFailures
 	for {
+		if completionCh == nil && failureCh == nil {
+			return
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case completion, ok := <-completions:
+		case completion, ok := <-completionCh:
 			if !ok {
-				return
+				completionCh = nil
+				continue
+			}
+			if isTargetFailed(completion.targetPath, &state.pendingMu, state.failedTargets) {
+				if err := s.flushIfTargetCompleted(completion.targetPath, completion.sourcePath, state); err != nil {
+					recordTaskFailure(&state.report, &state.reportMu, state.total, Task{TargetPath: completion.targetPath}, err, emitter)
+				}
+				continue
 			}
 			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
 			if err := s.saveLock(lockPath, *lockState); err != nil {
@@ -160,11 +174,24 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				}
 				continue
 			}
+		case targetPath, ok := <-failureCh:
+			if !ok {
+				failureCh = nil
+				continue
+			}
+			if rollbackErr := s.rollbackLockForTarget(lockState, lockPath, targetPath, state, emitter); rollbackErr != nil {
+				select {
+				case fatalLockErr <- rollbackErr:
+				default:
+				}
+				cancel()
+				return
+			}
 		}
 	}
 }
 
-func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, state *executorState, emitter *eventEmitter, wg *sync.WaitGroup, cancel context.CancelFunc) {
+func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter, wg *sync.WaitGroup, cancel context.CancelFunc) {
 	defer wg.Done()
 	for {
 		select {
@@ -174,7 +201,7 @@ func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions c
 			if !ok {
 				return
 			}
-			if s.processTask(ctx, task, completions, state, emitter) {
+			if s.processTask(ctx, task, completions, targetFailures, state, emitter) {
 				continue
 			}
 			if err := s.flushIfTargetCompleted(task.TargetPath, task.SourcePath, state); err != nil {
@@ -232,16 +259,16 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	return s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
 }
 
-func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, state *executorState, emitter *eventEmitter) bool {
+func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) bool {
 	translated, err := s.translate(ctx, translator.Request{Source: task.SourceText, TargetLanguage: task.TargetLocale, Context: task.EntryKey, ModelProvider: task.Provider, Model: task.Model, Prompt: task.Prompt})
 	if err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
-		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets)
+		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 		return false
 	}
 	if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
-		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets)
+		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 		return false
 	}
 
@@ -302,10 +329,23 @@ func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, tar
 	return nil
 }
 
-func markTargetFailed(targetPath string, mu *sync.Mutex, failedTargets map[string]struct{}) {
+func markTargetFailed(targetPath string, mu *sync.Mutex, failedTargets map[string]struct{}, targetFailures chan<- string, ctx context.Context) {
+	newFailure := false
 	mu.Lock()
+	if _, failed := failedTargets[targetPath]; !failed {
+		newFailure = true
+	}
 	failedTargets[targetPath] = struct{}{}
 	mu.Unlock()
+
+	if !newFailure {
+		return
+	}
+
+	select {
+	case targetFailures <- targetPath:
+	case <-ctx.Done():
+	}
 }
 
 func isTargetFailed(targetPath string, mu *sync.Mutex, failedTargets map[string]struct{}) bool {
