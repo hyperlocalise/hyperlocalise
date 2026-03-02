@@ -16,7 +16,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		return Report{}, fmt.Errorf("load config: %w", err)
 	}
 
-	planned, err := s.planTasks(cfg)
+	planned, err := s.planTasks(cfg, in.Bucket)
 	if err != nil {
 		return Report{}, err
 	}

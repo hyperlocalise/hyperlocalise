@@ -18,6 +18,7 @@ type runOptions struct {
 	pruneForce bool
 	workers    int
 	progress   string
+	bucket     string
 }
 
 var runFunc = runsvc.Run
@@ -59,6 +60,7 @@ func newRunCmd() *cobra.Command {
 				PruneLimit: o.pruneLimit,
 				PruneForce: o.pruneForce,
 				Workers:    workers,
+				Bucket:     o.bucket,
 			}
 			if renderer != nil {
 				input.OnEvent = func(event runsvc.Event) {
@@ -93,6 +95,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.pruneForce, "prune-force", o.pruneForce, "bypass prune deletion safety limit")
 	cmd.Flags().IntVar(&o.workers, "workers", o.workers, "number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
+	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
 
 	return cmd
 }

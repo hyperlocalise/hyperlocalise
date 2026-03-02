@@ -910,6 +910,50 @@ func TestRunPruneSafetyLimitBlocksMassDeletion(t *testing.T) {
 	}
 }
 
+func TestRunFiltersTasksByBucket(t *testing.T) {
+	svc := newTestService()
+	uiSource := "/tmp/ui_source.json"
+	uiTarget := "/tmp/ui_out.json"
+	marketingSource := "/tmp/marketing_source.json"
+	marketingTarget := "/tmp/marketing_out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(uiSource, uiTarget)
+		cfg.Buckets["marketing"] = config.BucketConfig{Files: []config.BucketFileMapping{{From: marketingSource, To: marketingTarget}}}
+		cfg.Groups["default"] = config.GroupConfig{Targets: []string{"fr"}, Buckets: []string{"ui", "marketing"}}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case uiSource:
+			return []byte(`{"ui_key":"Hello"}`), nil
+		case marketingSource:
+			return []byte(`{"mkt_key":"Bonjour"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	report, err := svc.Run(context.Background(), Input{DryRun: true, Bucket: "marketing"})
+	if err != nil {
+		t.Fatalf("run dry-run: %v", err)
+	}
+	if report.PlannedTotal != 1 || report.ExecutableTotal != 1 {
+		t.Fatalf("expected only one planned task for filtered bucket, got %+v", report)
+	}
+	if report.Executable[0].EntryKey != "mkt_key" {
+		t.Fatalf("unexpected executable task: %+v", report.Executable)
+	}
+}
+
+func TestRunReturnsErrorForUnknownBucketFilter(t *testing.T) {
+	svc := newTestService()
+
+	_, err := svc.Run(context.Background(), Input{DryRun: true, Bucket: "unknown"})
+	if err == nil || !strings.Contains(err.Error(), `unknown bucket "unknown"`) {
+		t.Fatalf("expected unknown bucket error, got %v", err)
+	}
+}
+
 func newTestService() *Service {
 	now := time.Unix(1700000000, 0).UTC()
 	sourcePath := "/tmp/source.json"
