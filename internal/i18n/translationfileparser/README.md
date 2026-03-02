@@ -7,20 +7,12 @@
 - `.json` via `JSONParser`
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
-<<<<<<< HEAD
 - `.md` / `.mdx` via `MarkdownParser`
-
-## Strategy API
-
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, and Markdown/MDX parsers.
-=======
-- `.md` via `MarkdownParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Markdown, and Apple Strings parsers.
->>>>>>> b3aa15e (Document .strings support across run and parser docs)
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings and Markdown/MDX parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
