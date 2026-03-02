@@ -96,7 +96,7 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 	}
 	slices.Sort(keys)
 	for _, key := range keys {
-		row := make([]string, valueIdx+1)
+		row := make([]string, max(keyIdx, valueIdx)+1)
 		row[keyIdx] = key
 		row[valueIdx] = values[key]
 		records = append(records, row)
