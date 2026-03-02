@@ -428,6 +428,7 @@ func (e *eventEmitter) emit(ev Event) {
 	defer e.mu.Unlock()
 	e.notify(ev)
 }
+
 func (s *Service) executePool(
 	ctx context.Context,
 	tasks []Task,
@@ -464,8 +465,8 @@ func (s *Service) executePool(
 	fatalLockErr := make(chan error, 1)
 
 	var (
-		reportMu sync.Mutex
-		stageMu  sync.Mutex
+		reportMu  sync.Mutex
+		stageMu   sync.Mutex
 		pendingMu sync.Mutex
 	)
 
