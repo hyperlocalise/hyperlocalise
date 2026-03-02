@@ -1,9 +1,9 @@
 ---
-title: "What is hyperlocalise?"
-description: "CLI-first localization workflows for draft generation, curation sync, and status reporting."
+title: "What is Hyperlocalise?"
+description: "CLI-first localization workflows for AI draft generation, optional TMS curation sync, and status reporting."
 ---
 
-`hyperlocalise` helps you generate local translation drafts, sync with your TMS, and track what still needs review.
+`hyperlocalise` helps you generate local translation drafts, optionally sync with your TMS, and track what still needs review.
 
 ## Who this is for
 
@@ -11,7 +11,7 @@ Use this CLI if you:
 
 - keep translation files in your repository,
 - want AI-generated drafts as a starting point,
-- still need human curation in POEditor, Lokalise, or Crowdin.
+- want to choose between zero-human workflows and optional human curation in POEditor, Lokalise, or Crowdin.
 
 ## Core workflow
 
@@ -21,10 +21,11 @@ Use this CLI if you:
 | 2 | Configure [`i18n config`](/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
 | 3 | [`run --dry-run`](/commands/run) | Validate plan and detect issues before writing drafts. |
 | 4 | [`run`](/commands/run) | Generate local draft translations. |
-| 5 | [`sync push`](/commands/sync-push) | Upload local changes to your TMS. |
-| 6 | Curate in TMS | Human review and correction in your translation platform. |
-| 7 | [`sync pull`](/commands/sync-pull) | Bring curated translations back into the repository. |
-| 8 | [`status`](/commands/status) | Measure completion and unresolved work. |
+| 5 | [Release from local repo](/commands/run) | Zero-human path when your process allows direct publish from generated outputs. |
+| 6 (optional) | [`sync push` (experimental)](/commands/sync-push) | Upload local changes to your TMS for curation workflows. |
+| 7 (optional) | Curate in TMS | Human review and correction in your translation platform. |
+| 8 (optional) | [`sync pull` (experimental)](/commands/sync-pull) | Bring curated translations back into the repository. |
+| 9 | [`status`](/commands/status) | Measure completion and unresolved work in either workflow path. |
 
 ## Start in 10 minutes
 

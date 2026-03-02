@@ -1,0 +1,97 @@
+---
+title: "Why Hyperlocalise for AI Localization Workflows"
+description: "A localization CLI for AI draft generation, TMS curation sync, and Git-friendly translation workflows."
+---
+
+`hyperlocalise` is built for teams that want faster localization cycles without giving up reviewer control.
+
+It combines local draft generation, explicit TMS sync steps, and Git-friendly workflows so engineering and localization teams can collaborate in one delivery path.
+
+Unlike TMS-only or custom-script approaches, Hyperlocalise is designed for teams that keep translation files in-repo and need a repeatable draft-to-curation loop with conflict-aware sync.
+
+## Who this is for
+
+Hyperlocalise is a good fit if your team:
+
+- keeps translation files in your repository,
+- uses AI drafts as a starting point rather than final output,
+- may use human curation for some workflows but wants it to be optional,
+- wants CI-visible status and quality checks around localization work.
+
+## Why teams choose Hyperlocalise
+
+### 1. Developer velocity with operational guardrails
+
+The CLI is designed around plan-first workflows. You can inspect work with `--dry-run`, generate drafts locally, and rerun incrementally with lockfile-backed checkpoints.
+
+This reduces repeated translation work while keeping changes reviewable in normal Git diffs.
+
+### 2. Human curation is supported, not required
+
+Hyperlocalise does not assume machine output is production-ready.
+
+The intended loop is straightforward: generate drafts, push to your TMS, curate with human reviewers, then pull curated values back into the repository. This keeps source-of-truth decisions with your localization team.
+
+If your team needs speed over review in specific pipelines, you can also run a local-only path and publish without TMS sync.
+
+### 3. Better visibility for release decisions
+
+Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
+
+### 4. Provider and platform flexibility
+
+You can run multiple LLM providers and integrate with common TMS adapters (for example Crowdin, Lokalise, POEditor, Phrase, Smartling, and Lilt) without redesigning your entire workflow around one vendor.
+
+## How it fits your existing workflow
+
+A typical path looks like this:
+
+1. Initialize config with [`init`](/commands/init).
+2. Define locales, buckets, and profiles in [`i18n config`](/configuration/i18n-config).
+3. Generate drafts with [`run`](/commands/run).
+4. Optional curation path: use [`sync push` (experimental)](/commands/sync-push), curate in TMS, then [`sync pull` (experimental)](/commands/sync-pull).
+5. Verify progress with [`status`](/commands/status) before release.
+
+For a full curation sequence, see [TMS curation loop (experimental)](/workflows/tms-curation-loop).
+
+## When Hyperlocalise is not the best fit (yet!)
+
+Hyperlocalise may not be the right choice today if you:
+
+- need a fully hosted localization platform with no CLI usage,
+- cannot run repository-based workflows in developer or CI environments,
+- require a workflow where all localization operations are managed only inside a hosted TMS UI.
+
+## Quick comparison
+
+| Approach | Setup effort | Review control | CI/Git workflow fit | Vendor lock-in risk |
+| --- | --- | --- | --- | --- |
+| Manual scripts | 🟡 Medium to high (build and maintain yourself) | 🟢 High (fully custom) | 🟡 Medium (depends on script quality and standards) | 🟢 Low |
+| TMS-only workflow | 🟢 Low to medium | 🟡 Medium to high in TMS, lower in Git-based review | 🟡 Low to medium for in-repo workflows | 🟠 Medium to high |
+| Hyperlocalise | 🟢 Low (single CLI with straightforward config) | 🟢 High (AI draft + optional human curation loop) | 🟢 High (explicit dry-run, sync, status flow) | 🟢 Low (multi-provider and multi-adapter support) |
+
+## FAQ
+
+### Is Hyperlocalise a replacement for my TMS?
+
+No. Hyperlocalise is built to work with your TMS, not replace it. The intended model is local draft generation plus human curation in your existing translation platform.
+
+### Can I use Hyperlocalise with Crowdin, Lokalise, or POEditor?
+
+Yes. Hyperlocalise supports multiple TMS adapters, including Crowdin, Lokalise, and POEditor (plus Phrase, Smartling, and Lilt).
+
+### Can this run in CI?
+
+Yes. Teams commonly run planning, generation, and reporting commands in CI to keep localization changes visible in standard release workflows.
+
+### Does Hyperlocalise publish machine translations directly to production?
+
+Yes, it can. TMS curation is optional, and teams can choose a zero-human-review path when that matches their risk tolerance and release process.
+
+## Next steps
+
+New user path: [Install](/getting-started/install) -> [Quickstart](/getting-started/quickstart) -> [i18n config](/configuration/i18n-config)
+
+Evaluation path: [Quickstart](/getting-started/quickstart) -> [`eval` (experimental)](/commands/eval) -> [`status`](/commands/status)
+
+TMS curation path: [Storage overview](/storage/overview) -> [`sync push` (experimental)](/commands/sync-push) -> [TMS curation loop (experimental)](/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/commands/sync-pull)
