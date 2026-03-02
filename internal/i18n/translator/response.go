@@ -49,21 +49,7 @@ func sanitizeGeneratedText(text string) string {
 	for _, marker := range trailingMarkers {
 		trimmed = strings.ReplaceAll(trimmed, marker, "")
 	}
-	trimmed = strings.TrimSpace(trimmed)
-	if trimmed == "" {
-		return ""
-	}
-
-	changed := true
-	for changed {
-		changed = false
-		for _, marker := range trailingMarkers {
-			if strings.HasSuffix(trimmed, marker) {
-				trimmed = strings.TrimSpace(strings.TrimSuffix(trimmed, marker))
-				changed = true
-			}
-		}
-	}
+	return strings.TrimSpace(trimmed)
 
 	return trimmed
 }
