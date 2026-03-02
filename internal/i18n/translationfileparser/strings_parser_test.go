@@ -79,3 +79,22 @@ func TestMarshalAppleStringsPreservesTemplateFormatting(t *testing.T) {
 		t.Fatalf("expected escaped output preserved, got %q", rendered)
 	}
 }
+
+func TestAppleStringsParserRejectsIncompleteUnicodeEscapesNearClosingQuote(t *testing.T) {
+	_, err := (AppleStringsParser{}).Parse([]byte("\"broken_u\" = \"\\u123\";\n"))
+	if err == nil || !strings.Contains(err.Error(), "invalid \\u escape") {
+		t.Fatalf("expected invalid \\u escape error, got %v", err)
+	}
+
+	_, err = (AppleStringsParser{}).Parse([]byte("\"broken_U\" = \"\\U123\";\n"))
+	if err == nil || !strings.Contains(err.Error(), "invalid \\U escape") {
+		t.Fatalf("expected invalid \\U escape error, got %v", err)
+	}
+}
+
+func TestAppleStringsParserRejectsIncompleteSurrogatePairNearClosingQuote(t *testing.T) {
+	_, err := (AppleStringsParser{}).Parse([]byte("\"broken_surrogate\" = \"\\UD83D\\UDE8\";\n"))
+	if err == nil || !strings.Contains(err.Error(), "invalid surrogate pair") {
+		t.Fatalf("expected invalid surrogate pair error, got %v", err)
+	}
+}

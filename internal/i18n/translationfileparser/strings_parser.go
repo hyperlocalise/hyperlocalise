@@ -181,7 +181,7 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 		case '\\':
 			b.WriteByte('\\')
 		case 'u':
-			if i+4 >= len(raw) {
+			if i+4 >= len(raw)-1 {
 				return "", fmt.Errorf("invalid \\u escape")
 			}
 			hex := raw[i+1 : i+5]
@@ -192,7 +192,7 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 			b.WriteRune(rune(v))
 			i += 4
 		case 'U':
-			if i+4 >= len(raw) {
+			if i+4 >= len(raw)-1 {
 				return "", fmt.Errorf("invalid \\U escape")
 			}
 			hex := raw[i+1 : i+5]
@@ -203,7 +203,7 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 			i += 4
 			r := rune(v)
 			if utf16.IsSurrogate(r) {
-				if i+6 >= len(raw) || raw[i+1] != '\\' || raw[i+2] != 'U' {
+				if i+6 >= len(raw)-1 || raw[i+1] != '\\' || raw[i+2] != 'U' {
 					return "", fmt.Errorf("invalid surrogate pair")
 				}
 				hex2 := raw[i+3 : i+7]
