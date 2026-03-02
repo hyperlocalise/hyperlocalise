@@ -28,6 +28,7 @@
             "group": "Getting Started",
             "pages": [
               "index",
+              "getting-started/why-hyperlocalise",
               "getting-started/install",
               "getting-started/quickstart",
               "getting-started/first-project"
