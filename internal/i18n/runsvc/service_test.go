@@ -734,3 +734,16 @@ func testConfig(sourcePath, targetPath string) config.I18NConfig {
 		},
 	}
 }
+
+func TestShouldIgnoreSourcePath(t *testing.T) {
+	targets := []string{"fr", "es", "zh"}
+	if !shouldIgnoreSourcePath("docs/fr/index.mdx", targets) {
+		t.Fatalf("expected docs/fr/index.mdx to be ignored")
+	}
+	if !shouldIgnoreSourcePath("docs/es/guides/quickstart.mdx", targets) {
+		t.Fatalf("expected nested locale path to be ignored")
+	}
+	if shouldIgnoreSourcePath("docs/index.mdx", targets) {
+		t.Fatalf("expected root docs source path not to be ignored")
+	}
+}

@@ -16,6 +16,7 @@ import (
 
 	"github.com/quiet-circles/hyperlocalise/internal/config"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/lockfile"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/pathresolver"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
@@ -198,14 +199,17 @@ func (s *Service) planTasks(cfg *config.I18NConfig) ([]Task, error) {
 			}
 
 			for _, file := range bucket.Files {
-				sourcePath := expandLocalePath(file.From, cfg.Locales.Source, "")
+				sourcePath := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
+				if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
+					continue
+				}
 				sourceEntries, err := s.loadSourceEntries(parser, sourcePath)
 				if err != nil {
 					return nil, err
 				}
 				keys := sortedEntryKeys(sourceEntries)
 				for _, target := range targets {
-					targetPath := expandLocalePath(file.To, cfg.Locales.Source, target)
+					targetPath := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 					for _, key := range keys {
 						sourceText := sourceEntries[key]
 						tasks = append(tasks, Task{
@@ -724,10 +728,24 @@ func sortedEntryKeys(entries map[string]string) []string {
 	return keys
 }
 
-func expandLocalePath(pattern, sourceLocale, targetLocale string) string {
-	path := strings.ReplaceAll(pattern, tokenSource, sourceLocale)
-	path = strings.ReplaceAll(path, tokenTarget, targetLocale)
-	return path
+func shouldIgnoreSourcePath(sourcePath string, targetLocales []string) bool {
+	normalized := filepath.ToSlash(sourcePath)
+	segments := strings.Split(normalized, "/")
+	if len(segments) < 2 {
+		return false
+	}
+
+	targets := make(map[string]struct{}, len(targetLocales))
+	for _, locale := range targetLocales {
+		targets[locale] = struct{}{}
+	}
+
+	for i := 1; i < len(segments)-1; i++ {
+		if _, ok := targets[segments[i]]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func renderPrompt(prompt, sourceLocale, targetLocale, sourceText string) string {
