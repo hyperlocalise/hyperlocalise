@@ -47,6 +47,8 @@ hyperlocalise sync pull
 hyperlocalise sync push
 ```
 
+6. Evaluate translation quality when needed:
+
 ```bash
 hyperlocalise eval run
 ```
