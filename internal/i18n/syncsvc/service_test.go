@@ -553,6 +553,71 @@ func TestPushBlocksUnbalancedICURegression(t *testing.T) {
 	if len(report.Warnings) == 0 || !strings.Contains(report.Warnings[0].Message, "invalid ICU/braces structure") {
 		t.Fatalf("expected invalid ICU structure warning, got %+v", report.Warnings)
 	}
+	if got := len(report.Risky); got == 0 {
+		t.Fatalf("expected risky placeholder edit entry")
+	}
+	if report.Risky[0].Code != riskCodePlaceholderEdit {
+		t.Fatalf("unexpected risk code: %q", report.Risky[0].Code)
+	}
+}
+
+func TestPushFlagsLengthSpikeAsRisk(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{
+				Key:    "homepage.subtitle",
+				Locale: "fr",
+				Value:  "Une phrase locale tres longue qui depasse clairement la baseline",
+				Provenance: storage.EntryProvenance{
+					Origin: storage.OriginHuman,
+					State:  storage.StateCurated,
+				},
+			}},
+		},
+	}
+	adapter := &fakeAdapter{
+		pullResult: storage.PullResult{
+			Snapshot: storage.CatalogSnapshot{
+				Entries: []storage.Entry{{
+					Key:    "homepage.subtitle",
+					Locale: "fr",
+					Value:  "Short text",
+					Provenance: storage.EntryProvenance{
+						Origin: storage.OriginHuman,
+						State:  storage.StateCurated,
+					},
+				}},
+			},
+		},
+	}
+
+	report, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+		Options: PushOptions{DryRun: true},
+	})
+	if err != nil {
+		t.Fatalf("push sync dry-run: %v", err)
+	}
+	if got := len(report.Updates); got != 1 {
+		t.Fatalf("expected 1 update, got %d", got)
+	}
+	if got := len(report.Risky); got == 0 {
+		t.Fatalf("expected at least one risky change")
+	}
+	found := false
+	for _, risk := range report.Risky {
+		if risk.Code == riskCodeLengthSpike {
+			found = true
+			if risk.Ratio < defaultLengthSpikeRatio {
+				t.Fatalf("expected length spike ratio >= threshold, got %f", risk.Ratio)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected length spike risk code in %+v", report.Risky)
+	}
 }
 
 func TestBuildPushSnapshotSortedReportUsesCompareEntryID(t *testing.T) {

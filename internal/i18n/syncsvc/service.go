@@ -66,6 +66,7 @@ type Report struct {
 	Updates   []storage.Entry    `json:"updates,omitempty"`
 	Unchanged []storage.EntryID  `json:"unchanged,omitempty"`
 	Conflicts []storage.Conflict `json:"conflicts,omitempty"`
+	Risky     []RiskChange       `json:"risky,omitempty"`
 	Warnings  []storage.Warning  `json:"warnings,omitempty"`
 	Applied   []storage.EntryID  `json:"applied,omitempty"`
 	Skipped   []storage.EntryID  `json:"skipped,omitempty"`
@@ -180,6 +181,7 @@ func buildPullReport(local, remote storage.CatalogSnapshot, opts PullOptions) Re
 				LocalState:  localEntry.Provenance.State,
 				RemoteState: update.Provenance.State,
 			})
+			report.Risky = append(report.Risky, detectRiskyChanges(update.ID(), localEntry.Value, update.Value, diags)...)
 			report.Warnings = append(report.Warnings, storage.Warning{
 				Code: "invariant_violation",
 				Message: formatInvariantWarning(
@@ -190,6 +192,7 @@ func buildPullReport(local, remote storage.CatalogSnapshot, opts PullOptions) Re
 			})
 			continue
 		}
+		report.Risky = append(report.Risky, detectRiskyChanges(update.ID(), localEntry.Value, update.Value, nil)...)
 		report.Updates = append(report.Updates, *update)
 	}
 
@@ -225,6 +228,7 @@ func buildPushReport(local, remote storage.CatalogSnapshot, opts PushOptions) (R
 				LocalState:  localEntry.Provenance.State,
 				RemoteState: remoteEntry.Provenance.State,
 			})
+			report.Risky = append(report.Risky, detectRiskyChanges(id, remoteEntry.Value, localEntry.Value, diags)...)
 			report.Warnings = append(report.Warnings, storage.Warning{
 				Code:    "invariant_violation",
 				Message: formatInvariantWarning("push blocked by invariant validation", id, diags),
@@ -260,6 +264,7 @@ func buildPushReport(local, remote storage.CatalogSnapshot, opts PushOptions) (R
 			continue
 		}
 
+		report.Risky = append(report.Risky, detectRiskyChanges(id, remoteEntry.Value, localEntry.Value, nil)...)
 		report.Updates = append(report.Updates, localEntry)
 		pushReq.Entries = append(pushReq.Entries, localEntry)
 	}
@@ -343,6 +348,7 @@ func sortReport(report *Report) {
 	slices.SortFunc(report.Creates, func(a, b storage.Entry) int { return compareEntryID(a.ID(), b.ID()) })
 	slices.SortFunc(report.Updates, func(a, b storage.Entry) int { return compareEntryID(a.ID(), b.ID()) })
 	slices.SortFunc(report.Conflicts, func(a, b storage.Conflict) int { return compareEntryID(a.ID, b.ID) })
+	slices.SortFunc(report.Risky, compareRiskChange)
 }
 
 func compareEntryID(a, b storage.EntryID) int {
