@@ -78,7 +78,7 @@ Available Commands:
 Generate local translations from configured source files into target files:
 
 ```
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--force] [--prune] [--prune-max-deletions <n>] [--prune-force] [--workers <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--force] [--prune] [--prune-max-deletions <n>] [--prune-force] [--workers <count>] [--output <report.json>]
 ```
 
 Behavior:
@@ -104,6 +104,12 @@ Flags:
 - `--prune-force` - bypass the prune safety limit
 - `--workers` - number of parallel translation workers (defaults to CPU core count)
 - `--progress` - progress rendering mode (`auto|on|off`, default: `auto`)
+- `--output` - write machine-readable JSON run report to the given path
+
+Run report output:
+- stdout summary now includes token totals: `prompt_tokens`, `completion_tokens`, and `total_tokens`
+- stdout includes per-locale token lines: `locale_usage locale=<locale> ...`
+- `--output` writes a JSON report with run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage
 
 Progress debug logging (optional):
 - `HYPERLOCALISE_PROGRESS_DEBUG=1` enables progress debug logging

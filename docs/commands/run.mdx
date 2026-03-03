@@ -6,7 +6,7 @@ description: "Plan and execute local translation generation from configured sour
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--workers <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--workers <count>] [--output <report.json>]
 ```
 
 ## Behavior
@@ -59,6 +59,7 @@ When writing CSV targets, `run` preserves the existing header and non-target col
 - `--force`: rerun all planned tasks and ignore lockfile skip state
 - `--workers`: number of parallel translation workers (defaults to CPU cores)
 - `--progress`: progress rendering mode (`auto|on|off`, default: `auto`)
+- `--output`: write machine-readable JSON run report to the given path
 
 ### Progress debug logging (optional)
 
@@ -106,6 +107,13 @@ hyperlocalise run --config i18n.jsonc --group tests --force
 - `succeeded`
 - `failed`
 - `persisted_to_lock`
+- `prompt_tokens`
+- `completion_tokens`
+- `total_tokens`
+
+Per-locale token usage is printed as: `locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`.
+
+When you pass `--output`, the JSON report includes run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage.
 
 ## Failure output
 
