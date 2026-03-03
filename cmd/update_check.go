@@ -66,6 +66,7 @@ func fetchLatestVersion(ctx context.Context) (*semver.Version, error) {
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil {
 			// Response body has already been consumed; close errors are non-fatal here.
+			_ = closeErr
 		}
 	}()
 
