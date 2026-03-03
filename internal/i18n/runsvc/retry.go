@@ -60,7 +60,7 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 	if lastErr == nil {
 		return "", nil
 	}
-	return "", fmt.Errorf("translation failed after %d attempts: %w", attempt, lastErr)
+	return "", fmt.Errorf("translation failed after %d attempts: %w", attempt+1, lastErr)
 }
 
 func isRetryableTranslateError(err error) bool {
