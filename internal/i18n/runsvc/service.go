@@ -45,6 +45,7 @@ type EventKind string
 const (
 	EventPhase     EventKind = "phase"
 	EventPlanned   EventKind = "planned"
+	EventTaskStart EventKind = "task_start"
 	EventTaskDone  EventKind = "task_done"
 	EventPersisted EventKind = "persisted"
 	EventCompleted EventKind = "completed"
