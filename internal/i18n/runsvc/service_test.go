@@ -709,6 +709,81 @@ func TestRunSkipsCompletedLocaleBatchAndFlushesFromCheckpoint(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenCheckpointStagingConflicts(t *testing.T) {
+	svc := newTestService()
+	sourceAPath := "/tmp/source-a.json"
+	sourceBPath := "/tmp/source-b.json"
+	targetPath := "/tmp/out.json"
+	aID := taskIdentity(targetPath, "a")
+	bID := taskIdentity(targetPath, "b")
+	now := time.Unix(1700000000, 0).UTC()
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := config.I18NConfig{
+			Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+			Buckets: map[string]config.BucketConfig{
+				"ui": {
+					Files: []config.BucketFileMapping{
+						{From: sourceAPath, To: targetPath},
+						{From: sourceBPath, To: targetPath},
+					},
+				},
+			},
+			Groups: map[string]config.GroupConfig{
+				"default": {Targets: []string{"fr"}, Buckets: []string{"ui"}},
+			},
+			LLM: config.LLMConfig{Profiles: map[string]config.LLMProfile{
+				"default": {
+					Provider: "openai",
+					Model:    "gpt-4.1-mini",
+					Prompt:   "Translate {{source}} to {{target}}: {{input}}",
+				},
+			}},
+		}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourceAPath:
+			return []byte(`{"a":"A"}`), nil
+		case sourceBPath:
+			return []byte(`{"b":"B"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{
+			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+			RunCompleted: map[string]lockfile.RunCompletion{
+				aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
+				bID: {CompletedAt: now, SourceHash: hashSourceText("B")},
+			},
+			RunCheckpoint: map[string]lockfile.RunCheckpoint{
+				aID: {TargetPath: targetPath, SourcePath: sourceAPath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
+				bID: {TargetPath: targetPath, SourcePath: sourceBPath, TargetLocale: "fr", EntryKey: "b", Value: "bb", SourceHash: hashSourceText("B"), UpdatedAt: now},
+			},
+		}, nil
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "", errors.New("translate should not be called when everything is lock-skipped")
+	}
+	svc.writeFile = func(_ string, _ []byte) error {
+		t.Fatalf("write should not be called on checkpoint staging conflict")
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err == nil {
+		t.Fatalf("expected conflict error")
+	}
+	if !strings.Contains(err.Error(), "stage checkpoint output") || !strings.Contains(err.Error(), "output staging conflict") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.md"

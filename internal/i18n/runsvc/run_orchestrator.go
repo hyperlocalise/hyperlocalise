@@ -27,7 +27,10 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 	initializeLockState(state)
 
-	report, executable, checkpointStaged := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, in.Force)
+	report, executable, checkpointStaged, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, in.Force)
+	if err != nil {
+		return Report{}, err
+	}
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
 	emitter.emit(Event{Kind: EventPlanned, PlannedTotal: report.PlannedTotal, SkippedByLock: report.SkippedByLock, ExecutableTotal: report.ExecutableTotal})
@@ -76,21 +79,23 @@ func initializeLockState(state *lockfile.File) {
 	}
 }
 
-func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, force bool) (Report, []Task, map[string]stagedOutput) {
+func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, force bool) (Report, []Task, map[string]stagedOutput, error) {
 	report := Report{PlannedTotal: len(planned)}
 	executable := make([]Task, 0, len(planned))
 	checkpointStaged := map[string]stagedOutput{}
 	if force {
 		report.Executable = append(report.Executable, planned...)
 		report.ExecutableTotal = len(planned)
-		return report, planned, checkpointStaged
+		return report, planned, checkpointStaged, nil
 	}
 
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := hashSourceText(task.SourceText)
 		if cp, ok := checkpoints[identity]; ok && cp.SourceHash == sourceHash {
-			_ = stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, cp.Value, nil)
+			if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
+				return Report{}, nil, nil, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
+			}
 		}
 		if c, ok := completed[identity]; ok && c.SourceHash == sourceHash {
 			report.SkippedByLock++
@@ -101,7 +106,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 		executable = append(executable, task)
 	}
 	report.ExecutableTotal = len(executable)
-	return report, executable, checkpointStaged
+	return report, executable, checkpointStaged, nil
 }
 
 func (s *Service) collectPruneTargets(in Input, planned []Task, report *Report, emitter *eventEmitter) (map[string]map[string]struct{}, error) {
