@@ -81,6 +81,44 @@ func TestModelIndeterminateView(t *testing.T) {
 	}
 }
 
+func TestModelShowsFileStatuses(t *testing.T) {
+	t.Parallel()
+
+	m := newModel("Translating", ModeOn, defaultSpinnerTick, Options{})
+	next, _ := m.Update(taskStartedMsg{targetPath: "/tmp/fr/ui.json", entryKey: "welcome"})
+	m, _ = next.(model)
+	next, _ = m.Update(taskStatusMsg{
+		targetPath:    "/tmp/fr/ui.json",
+		entryKey:      "welcome",
+		taskSucceeded: true,
+	})
+	m, _ = next.(model)
+
+	next, _ = m.Update(taskStartedMsg{targetPath: "/tmp/fr/errors.json", entryKey: "network"})
+	m, _ = next.(model)
+	next, _ = m.Update(taskStatusMsg{
+		targetPath:    "/tmp/fr/errors.json",
+		entryKey:      "network",
+		taskSucceeded: false,
+		failureReason: "rate limit",
+	})
+	m, _ = next.(model)
+
+	view := m.View()
+	if !strings.Contains(view, "Files") {
+		t.Fatalf("expected files section, got %q", view)
+	}
+	if !strings.Contains(view, "ui.json [done] ok=1 fail=0") {
+		t.Fatalf("expected successful file row, got %q", view)
+	}
+	if !strings.Contains(view, "errors.json [failed] ok=0 fail=1") {
+		t.Fatalf("expected failed file row, got %q", view)
+	}
+	if !strings.Contains(view, "reason=rate limit") {
+		t.Fatalf("expected failure reason in file row, got %q", view)
+	}
+}
+
 func TestModelCompleteClearsView(t *testing.T) {
 	t.Parallel()
 

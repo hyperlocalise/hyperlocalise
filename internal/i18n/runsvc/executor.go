@@ -260,6 +260,19 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 }
 
 func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) bool {
+	state.reportMu.Lock()
+	startedSucceeded := state.report.Succeeded
+	startedFailed := state.report.Failed
+	state.reportMu.Unlock()
+	emitter.emit(Event{
+		Kind:            EventTaskStart,
+		TargetPath:      task.TargetPath,
+		EntryKey:        task.EntryKey,
+		Succeeded:       startedSucceeded,
+		Failed:          startedFailed,
+		ExecutableTotal: state.total,
+	})
+
 	translated, err := s.translate(ctx, translator.Request{Source: task.SourceText, TargetLanguage: task.TargetLocale, Context: task.EntryKey, ModelProvider: task.Provider, Model: task.Model, Prompt: task.Prompt})
 	if err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)

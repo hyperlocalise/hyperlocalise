@@ -35,6 +35,7 @@ const (
 const (
 	defaultSpinnerTick       = 100 * time.Millisecond
 	defaultBarWidth          = 30
+	defaultVisibleFileStatus = 8
 	envProgressDebug         = "HYPERLOCALISE_PROGRESS_DEBUG"
 	envProgressDebugFilePath = "HYPERLOCALISE_PROGRESS_DEBUG_FILE"
 	defaultDebugLogPath      = ".hyperlocalise/logs/run.log"
@@ -83,6 +84,18 @@ type taskDoneMsg struct {
 	total     int
 }
 
+type taskStartedMsg struct {
+	targetPath string
+	entryKey   string
+}
+
+type taskStatusMsg struct {
+	targetPath    string
+	entryKey      string
+	taskSucceeded bool
+	failureReason string
+}
+
 type completeMsg struct{}
 
 type model struct {
@@ -97,6 +110,19 @@ type model struct {
 	spinner spinner.Model
 	bar     progress.Model
 	styles  dashboardStyles
+
+	files      map[string]fileStatus
+	fileOrder  []string
+	maxVisible int
+}
+
+type fileStatus struct {
+	targetPath string
+	lastEntry  string
+	lastReason string
+	processing int
+	succeeded  int
+	failed     int
 }
 
 type dashboardStyles struct {
@@ -107,6 +133,8 @@ type dashboardStyles struct {
 	ok        lipgloss.Style
 	fail      lipgloss.Style
 	meta      lipgloss.Style
+	files     lipgloss.Style
+	fileLine  lipgloss.Style
 }
 
 func ParseMode(raw string) (Mode, error) {
@@ -211,6 +239,41 @@ func (r *Renderer) Plan(total int) {
 	}
 
 	r.logPlain(fmt.Sprintf("progress executable_total=%d", total), true)
+}
+
+func (r *Renderer) TaskStarted(targetPath, entryKey string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed || strings.TrimSpace(targetPath) == "" {
+		return
+	}
+
+	r.debug("task start", "target_path", targetPath, "entry_key", entryKey)
+
+	if r.interactive {
+		r.program.Send(taskStartedMsg{targetPath: targetPath, entryKey: entryKey})
+	}
+}
+
+func (r *Renderer) TaskStatus(targetPath, entryKey string, taskSucceeded bool, failureReason string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.closed || strings.TrimSpace(targetPath) == "" {
+		return
+	}
+
+	r.debug("task status", "target_path", targetPath, "entry_key", entryKey, "task_succeeded", taskSucceeded, "failure_reason", failureReason)
+
+	if r.interactive {
+		r.program.Send(taskStatusMsg{
+			targetPath:    targetPath,
+			entryKey:      entryKey,
+			taskSucceeded: taskSucceeded,
+			failureReason: failureReason,
+		})
+	}
 }
 
 func (r *Renderer) TaskDone(succeeded, failed, total int) {
@@ -337,18 +400,21 @@ func newModel(label string, mode Mode, tick time.Duration, options Options) mode
 	bar.EmptyColor = "#3A3A45"
 
 	return model{
-		label:     label,
-		phase:     "Working...",
-		modeLabel: string(mode),
-		spinner:   spin,
-		bar:       bar,
-		styles:    styles,
+		label:      label,
+		phase:      "Working...",
+		modeLabel:  string(mode),
+		spinner:    spin,
+		bar:        bar,
+		styles:     styles,
+		files:      map[string]fileStatus{},
+		maxVisible: defaultVisibleFileStatus,
 	}
 }
 
 func newDashboardStyles(theme Theme) dashboardStyles {
-	if theme == "" {
-		theme = ThemeCalm
+	effectiveTheme := theme
+	if effectiveTheme == "" {
+		effectiveTheme = ThemeCalm
 	}
 
 	container := lipgloss.NewStyle().
@@ -359,7 +425,14 @@ func newDashboardStyles(theme Theme) dashboardStyles {
 	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("252"))
 	progressLine := lipgloss.NewStyle().Foreground(lipgloss.Color("249"))
 	summary := lipgloss.NewStyle().Foreground(lipgloss.Color("247"))
-	ok := lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true)
+	var okColor lipgloss.TerminalColor
+	switch effectiveTheme {
+	case ThemeCalm:
+		okColor = lipgloss.Color("78")
+	default:
+		okColor = lipgloss.Color("78")
+	}
+	ok := lipgloss.NewStyle().Foreground(okColor).Bold(true)
 	fail := lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
 	meta := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
 
@@ -371,6 +444,8 @@ func newDashboardStyles(theme Theme) dashboardStyles {
 		ok:        ok,
 		fail:      fail,
 		meta:      meta,
+		files:     lipgloss.NewStyle().Foreground(lipgloss.Color("248")).Bold(true),
+		fileLine:  lipgloss.NewStyle().Foreground(lipgloss.Color("250")),
 	}
 }
 
@@ -397,6 +472,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case planMsg:
 		m.total = msg.total
 		return m, m.setProgressCmd()
+	case taskStartedMsg:
+		m.recordTaskStarted(msg.targetPath, msg.entryKey)
+		return m, nil
+	case taskStatusMsg:
+		m.recordTaskFinished(msg.targetPath, msg.entryKey, msg.taskSucceeded, msg.failureReason)
+		return m, nil
 	case taskDoneMsg:
 		m.succeeded = msg.succeeded
 		m.failed = msg.failed
@@ -445,7 +526,12 @@ func (m model) View() string {
 		m.styles.meta.Render(statusText+" progress="+m.modeLabel),
 	)
 
-	return m.styles.container.Render(lipgloss.JoinVertical(lipgloss.Left, headerLine, progressLine, summaryLine))
+	sections := []string{headerLine, progressLine, summaryLine}
+	if filesBlock := m.fileStatusView(); filesBlock != "" {
+		sections = append(sections, filesBlock)
+	}
+
+	return m.styles.container.Render(lipgloss.JoinVertical(lipgloss.Left, sections...))
 }
 
 func (m *model) setProgressCmd() tea.Cmd {
@@ -463,6 +549,114 @@ func (m *model) setProgressCmd() tea.Cmd {
 
 	percent := float64(completed) / float64(m.total)
 	return m.bar.SetPercent(percent)
+}
+
+func (m *model) recordTaskStarted(targetPath, entryKey string) {
+	path := strings.TrimSpace(targetPath)
+	if path == "" {
+		return
+	}
+
+	status, ok := m.files[path]
+	if !ok {
+		status = fileStatus{targetPath: path}
+	}
+	status.processing++
+	status.lastEntry = entryKey
+	status.lastReason = ""
+	m.files[path] = status
+	m.touchFile(path)
+}
+
+func (m *model) recordTaskFinished(targetPath, entryKey string, taskSucceeded bool, failureReason string) {
+	path := strings.TrimSpace(targetPath)
+	if path == "" {
+		return
+	}
+
+	status, ok := m.files[path]
+	if !ok {
+		status = fileStatus{targetPath: path}
+	}
+	if status.processing > 0 {
+		status.processing--
+	}
+	status.lastEntry = entryKey
+	if taskSucceeded {
+		status.succeeded++
+		status.lastReason = ""
+	} else {
+		status.failed++
+		status.lastReason = failureReason
+	}
+	m.files[path] = status
+	m.touchFile(path)
+}
+
+func (m *model) touchFile(path string) {
+	next := make([]string, 0, len(m.fileOrder)+1)
+	next = append(next, path)
+	for _, existing := range m.fileOrder {
+		if existing == path {
+			continue
+		}
+		next = append(next, existing)
+	}
+	m.fileOrder = next
+}
+
+func (m model) fileStatusView() string {
+	if len(m.fileOrder) == 0 {
+		return ""
+	}
+
+	limit := m.maxVisible
+	if limit <= 0 {
+		limit = defaultVisibleFileStatus
+	}
+	if limit > len(m.fileOrder) {
+		limit = len(m.fileOrder)
+	}
+
+	lines := make([]string, 0, limit+1)
+	lines = append(lines, m.styles.files.Render("Files"))
+	for _, path := range m.fileOrder[:limit] {
+		status := m.files[path]
+		state := "done"
+		switch {
+		case status.failed > 0:
+			state = "failed"
+		case status.processing > 0:
+			state = "processing"
+		}
+
+		row := fmt.Sprintf("- %s [%s] ok=%d fail=%d", statusLabel(path), state, status.succeeded, status.failed)
+		if status.lastEntry != "" {
+			row += " key=" + status.lastEntry
+		}
+		if status.lastReason != "" {
+			row += " reason=" + status.lastReason
+		}
+		lines = append(lines, m.styles.fileLine.Render(row))
+	}
+
+	if len(m.fileOrder) > limit {
+		lines = append(lines, m.styles.meta.Render(fmt.Sprintf("... %d more files", len(m.fileOrder)-limit)))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func statusLabel(path string) string {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "(unknown)"
+	}
+	base := filepath.Base(trimmed)
+	if base == "." || base == string(os.PathSeparator) {
+		return trimmed
+	}
+	return base
 }
 
 func resolveDebugLogConfig(options Options) (bool, string) {
