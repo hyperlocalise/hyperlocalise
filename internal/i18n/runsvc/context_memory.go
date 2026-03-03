@@ -285,9 +285,11 @@ func normalizeContextMemory(memory string, maxChars int) string {
 	if trimmed == "" {
 		return ""
 	}
-	if maxChars > 0 && len(trimmed) > maxChars {
-		trimmed = truncateUTF8(trimmed, maxChars)
-	}
+	if maxChars > 0 {
+		runes := []rune(trimmed)
+		if len(runes) > maxChars {
+			trimmed = strings.TrimSpace(string(runes[:maxChars]))
+		}
 	}
 	return trimmed
 }
