@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -135,6 +136,9 @@ type dashboardStyles struct {
 	meta      lipgloss.Style
 	files     lipgloss.Style
 	fileLine  lipgloss.Style
+	fileDone  lipgloss.Style
+	fileBusy  lipgloss.Style
+	fileError lipgloss.Style
 }
 
 func ParseMode(raw string) (Mode, error) {
@@ -179,8 +183,13 @@ func New(w io.Writer, mode Mode, options Options) *Renderer {
 
 	enabled, logPath := resolveDebugLogConfig(options)
 	if enabled {
-		r.logger, r.logFile = newDebugLogger(logPath)
-		r.debug("renderer started", "interactive", r.interactive, "mode", r.mode, "log_file", logPath)
+		var err error
+		r.logger, r.logFile, err = newDebugLogger(logPath)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "hyperlocalise: progress debug logging disabled: %v\n", err)
+		} else {
+			r.debug("renderer started", "interactive", r.interactive, "mode", r.mode, "log_file", logPath)
+		}
 	}
 
 	if !r.interactive {
@@ -446,6 +455,9 @@ func newDashboardStyles(theme Theme) dashboardStyles {
 		meta:      meta,
 		files:     lipgloss.NewStyle().Foreground(lipgloss.Color("248")).Bold(true),
 		fileLine:  lipgloss.NewStyle().Foreground(lipgloss.Color("250")),
+		fileDone:  lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true),
+		fileBusy:  lipgloss.NewStyle().Foreground(lipgloss.Color("110")).Bold(true),
+		fileError: lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true),
 	}
 }
 
@@ -614,23 +626,27 @@ func (m model) fileStatusView() string {
 	if limit <= 0 {
 		limit = defaultVisibleFileStatus
 	}
-	if limit > len(m.fileOrder) {
-		limit = len(m.fileOrder)
+	sorted := m.sortedFilePaths()
+	if limit > len(sorted) {
+		limit = len(sorted)
 	}
 
 	lines := make([]string, 0, limit+1)
 	lines = append(lines, m.styles.files.Render("Files"))
-	for _, path := range m.fileOrder[:limit] {
+	for _, path := range sorted[:limit] {
 		status := m.files[path]
-		state := "done"
-		switch {
-		case status.failed > 0:
-			state = "failed"
-		case status.processing > 0:
-			state = "processing"
+		state, _ := fileState(status)
+		fileName := statusLabel(path)
+		switch state {
+		case "processing":
+			fileName = m.styles.fileBusy.Render(fileName)
+		case "failed":
+			fileName = m.styles.fileError.Render(fileName)
+		default:
+			fileName = m.styles.fileDone.Render(fileName)
 		}
 
-		row := fmt.Sprintf("- %s [%s] ok=%d fail=%d", statusLabel(path), state, status.succeeded, status.failed)
+		row := fmt.Sprintf("- %s [%s] ok=%d fail=%d", fileName, state, status.succeeded, status.failed)
 		if status.lastEntry != "" {
 			row += " key=" + status.lastEntry
 		}
@@ -640,11 +656,47 @@ func (m model) fileStatusView() string {
 		lines = append(lines, m.styles.fileLine.Render(row))
 	}
 
-	if len(m.fileOrder) > limit {
-		lines = append(lines, m.styles.meta.Render(fmt.Sprintf("... %d more files", len(m.fileOrder)-limit)))
+	if len(sorted) > limit {
+		lines = append(lines, m.styles.meta.Render(fmt.Sprintf("... %d more files", len(sorted)-limit)))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func (m model) sortedFilePaths() []string {
+	paths := append([]string(nil), m.fileOrder...)
+	if len(paths) <= 1 {
+		return paths
+	}
+
+	rank := make(map[string]int, len(m.fileOrder))
+	for i, path := range m.fileOrder {
+		rank[path] = i
+	}
+
+	sort.SliceStable(paths, func(i, j int) bool {
+		left := m.files[paths[i]]
+		right := m.files[paths[j]]
+		_, leftPriority := fileState(left)
+		_, rightPriority := fileState(right)
+		if leftPriority != rightPriority {
+			return leftPriority < rightPriority
+		}
+		return rank[paths[i]] < rank[paths[j]]
+	})
+
+	return paths
+}
+
+func fileState(status fileStatus) (state string, priority int) {
+	switch {
+	case status.processing > 0:
+		return "processing", 0
+	case status.failed > 0:
+		return "failed", 1
+	default:
+		return "done", 2
+	}
 }
 
 func statusLabel(path string) string {
@@ -676,18 +728,18 @@ func resolveDebugLogConfig(options Options) (bool, string) {
 	return true, path
 }
 
-func newDebugLogger(path string) (*log.Logger, *os.File) {
+func newDebugLogger(path string) (*log.Logger, *os.File, error) {
 	if strings.TrimSpace(path) == "" {
-		return nil, nil
+		return nil, nil, fmt.Errorf("empty debug log path")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return nil, nil
+		return nil, nil, fmt.Errorf("create debug log directory: %w", err)
 	}
 
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
-		return nil, nil
+		return nil, nil, fmt.Errorf("open debug log file %q: %w", path, err)
 	}
 
 	logger := log.NewWithOptions(file, log.Options{
@@ -697,7 +749,7 @@ func newDebugLogger(path string) (*log.Logger, *os.File) {
 		Prefix:          "progressui",
 	})
 
-	return logger, file
+	return logger, file, nil
 }
 
 func parseBoolEnv(raw string) bool {

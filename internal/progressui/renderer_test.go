@@ -108,14 +108,44 @@ func TestModelShowsFileStatuses(t *testing.T) {
 	if !strings.Contains(view, "Files") {
 		t.Fatalf("expected files section, got %q", view)
 	}
-	if !strings.Contains(view, "ui.json [done] ok=1 fail=0") {
+	if !strings.Contains(view, "ui.json") || !strings.Contains(view, "[done] ok=1 fail=0") {
 		t.Fatalf("expected successful file row, got %q", view)
 	}
-	if !strings.Contains(view, "errors.json [failed] ok=0 fail=1") {
+	if !strings.Contains(view, "errors.json") || !strings.Contains(view, "[failed] ok=0 fail=1") {
 		t.Fatalf("expected failed file row, got %q", view)
 	}
 	if !strings.Contains(view, "reason=rate limit") {
 		t.Fatalf("expected failure reason in file row, got %q", view)
+	}
+}
+
+func TestModelFileStatusSortsProcessingFirst(t *testing.T) {
+	t.Parallel()
+
+	m := newModel("Translating", ModeOn, defaultSpinnerTick, Options{})
+	next, _ := m.Update(taskStartedMsg{targetPath: "/tmp/fr/done.json", entryKey: "welcome"})
+	m, _ = next.(model)
+	next, _ = m.Update(taskStatusMsg{
+		targetPath:    "/tmp/fr/done.json",
+		entryKey:      "welcome",
+		taskSucceeded: true,
+	})
+	m, _ = next.(model)
+
+	next, _ = m.Update(taskStartedMsg{targetPath: "/tmp/fr/live.json", entryKey: "loading"})
+	m, _ = next.(model)
+
+	view := m.View()
+	liveIdx := strings.Index(view, "live.json")
+	doneIdx := strings.Index(view, "done.json")
+	if liveIdx == -1 || doneIdx == -1 {
+		t.Fatalf("expected both file rows in view, got %q", view)
+	}
+	if liveIdx > doneIdx {
+		t.Fatalf("expected processing file to appear first, got %q", view)
+	}
+	if !strings.Contains(view, "[processing]") {
+		t.Fatalf("expected processing status marker, got %q", view)
 	}
 }
 
@@ -207,5 +237,37 @@ func TestDebugLoggingCustomPathViaEnv(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "msg=phase") {
 		t.Fatalf("expected phase log entry, got %q", string(data))
+	}
+}
+
+func TestDebugLoggingSetupFailureWritesStderr(t *testing.T) {
+	t.Setenv(envProgressDebug, "")
+	t.Setenv(envProgressDebugFilePath, "")
+
+	oldStderr := os.Stderr
+	rPipe, wPipe, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stderr pipe: %v", err)
+	}
+	os.Stderr = wPipe
+	t.Cleanup(func() {
+		os.Stderr = oldStderr
+		_ = rPipe.Close()
+	})
+
+	renderer := New(bytes.NewBuffer(nil), ModeOn, Options{
+		IsTTYFn:        func(_ io.Writer) bool { return false },
+		EnableDebugLog: true,
+		DebugLogPath:   "/dev/null/progress.log",
+	})
+	renderer.Close()
+	_ = wPipe.Close()
+
+	data, readErr := io.ReadAll(rPipe)
+	if readErr != nil {
+		t.Fatalf("read stderr: %v", readErr)
+	}
+	if !strings.Contains(string(data), "progress debug logging disabled") {
+		t.Fatalf("expected stderr warning when debug setup fails, got %q", string(data))
 	}
 }
