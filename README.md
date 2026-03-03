@@ -85,8 +85,9 @@ Behavior:
 - Loads and validates `i18n.jsonc`
 - Plans entry-level translation tasks from group/bucket mappings
 - Skips tasks already recorded in `.hyperlocalise.lock.json`
-- Executes remaining tasks in parallel (worker count = CPU core count)
-- Persists each successful task completion to lock state
+- Rehydrates staged values from lock checkpoints for interrupted runs
+- Executes remaining tasks in parallel (worker count = CPU core count) with transient-error retries
+- Persists each successful task completion and checkpoint to lock state
 
 Prune workflow recommendation:
 - Run `hyperlocalise run --dry-run --prune` regularly (for example weekly or before releases) to review stale-key candidates.
