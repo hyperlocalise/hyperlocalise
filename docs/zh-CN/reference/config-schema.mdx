@@ -9,7 +9,7 @@ description: "hyperlocalise 使用的 i18n.jsonc 字段简明参考。"
 - `buckets`
 - `groups`
 - `llm`
-- `storage` (所需用于 `sync`)
+- `storage` (必填，用于 `sync`)
 
 ## `locales`
 
@@ -19,32 +19,32 @@ description: "hyperlocalise 使用的 i18n.jsonc 字段简明参考。"
 
 ## `buckets`
 
-- 桶名称的映射 -> 桶定义
-- `files` 数组与 `from` 和 `to` 模板
+- 存储桶名称映射 -> 存储桶定义
+- `files` 包含数组，返回仅翻译后的文本，不要包含任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `from` 和返回仅包含翻译文本，不包含任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `to` 模板
 
 ## `groups`
 
-- 组名映射 -> 组定义
+- 组名称映射 -> 组定义
 - `targets` 数组
 - `buckets` 数组
 
 ## `llm`
 
-- `profiles` 配置文件名称的映射 -> 提供者/模型/提示
+- `profiles` 配置文件名称映射 -> 提供方/模型/提示词
 - 支持的提供商： `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `ollama`
-- `rules` 数组包含 `priority`, `group`, `profile`
+- `rules` 包含的数组 `priority`, `group`, `profile`
 
 ## `storage`
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
-- `config`：适配器-特定字段
+- `config`: 适配器-特定字段
 
-有关示例，请参阅 [i18n 配置](/configuration/i18n-config).
+例如，请参阅 [i18n 配置](/configuration/i18n-config).
 
 
-## CSV 工作流程说明
+## CSV 工作流说明
 
-使用 `buckets.*.files[].from` 和 `to` 指向 `.csv` 运行 CSV 时的文件-基于定位的流程。
+使用 `buckets.*.files[].from` 和返回仅包含译文的文本，不要添加任何解释、标签、Markdown 或引号，除非译文内容本身需要。 `to` 指向 `.csv` 运行 CSV 时的文件-基于的本地化流程。
 
-- 每-语言文件通常使用 `[locale]` 在 `to` 路径。
-- 共享的 CSV 文件可以重复使用相同的 `from` 和 `to` 路径。
+- 每-locale 文件通常使用 `[locale]` 在 `to` 路径。
+- 共享的 CSV 文件可以重复使用同一个 `from` 和 返回仅包含翻译后的文本，不要添加任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `to` 路径。

@@ -1,6 +1,6 @@
 ---
 title: "短语适配器"
-description: "配置Phrase以进行远程翻译同步。"
+description: "配置 Phrase 以进行远程翻译同步。"
 ---
 
 ## 必需配置
@@ -23,15 +23,15 @@ description: "配置Phrase以进行远程翻译同步。"
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
-- `fileFormat` (需要时 `mode` 是 `files`)
+- `fileFormat` (需要时必填 `mode` 是 `files`)
 
 ## 模式
 
-- `strings`：使用 Phrase 密钥和翻译 API 进行拉取和推送。
-- `files`: 使用 Phrase 导出/导入任务进行拉取和推送。
+- `strings`：使用 Phrase 的 key 和翻译 API 进行拉取和推送。
+- `files`：使用 Phrase 导出/导入作业进行拉取和推送。
 
 ## 常见问题
 
-- 未找到令牌：export `PHRASE_API_TOKEN`
-- 模式验证错误：设置 `mode` 至 `strings` 或 `files`
-- 文件模式导入失败：请验证 `fileFormat` 匹配你的项目设置
+- 未找到令牌：导出 `PHRASE_API_TOKEN`
+- 模式验证错误：设置 `mode` 到 `strings` 或 `files`
+- 文件模式导入失败：请验证 `fileFormat` 与您的项目设置匹配

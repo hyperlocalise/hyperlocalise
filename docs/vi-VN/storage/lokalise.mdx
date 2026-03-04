@@ -1,6 +1,6 @@
 ---
-title: "Bộ chuyển đổi Lokalise"
-description: "Cấu hình Lokalise API v2 để đồng bộ kéo/đẩy."
+title: "Bộ điều hợp Lokalise"
+description: "Cấu hình Lokalise API v2 để đồng bộ hóa kéo/đẩy."
 ---
 
 ## Cấu hình bắt buộc
@@ -25,10 +25,10 @@ description: "Cấu hình Lokalise API v2 để đồng bộ kéo/đẩy."
 ## Phân giải token
 
 - biến môi trường mặc định: `LOKALISE_API_TOKEN`
-- ghi đè với `apiTokenEnv`
+- ghi đè bằng `apiTokenEnv`
 
-## Các vấn đề thường gặp
+## Các sự cố thường gặp
 
 - lỗi không được ủy quyền: thiếu token hoặc phạm vi không đủ
-- không khớp ngôn ngữ: căn chỉnh mã ngôn ngữ Lokalise với các địa phương mục tiêu
-- lỗi hết thời gian: tăng lên `timeoutSeconds` cho các dự án lớn
+- không khớp ngôn ngữ: căn chỉnh mã ngôn ngữ Lokalise với các ngôn ngữ đích
+- lỗi hết thời gian chờ: tăng `timeoutSeconds` cho các dự án lớn

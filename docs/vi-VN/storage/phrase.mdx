@@ -1,6 +1,6 @@
 ---
 title: "Bộ điều hợp cụm từ"
-description: "Cấu hình Phrase để đồng bộ hóa dịch từ xa."
+description: "Cấu hình Phrase để đồng bộ hóa bản dịch từ xa."
 ---
 
 ## Cấu hình bắt buộc
@@ -27,11 +27,11 @@ description: "Cấu hình Phrase để đồng bộ hóa dịch từ xa."
 
 ## Chế độ
 
-- `strings`: kéo và đẩy sử dụng khóa Phrase và API dịch.
-- `files`: kéo và đẩy bằng cách sử dụng các công việc xuất/nhập khẩu của Phrase.
+- `strings`: kéo và đẩy bằng cách sử dụng Phrase key và các API dịch.
+- `files`: kéo và đẩy bằng các tác vụ xuất/nhập Phrase.
 
-## Các vấn đề phổ biến
+## Các vấn đề thường gặp
 
-- token không tìm thấy: xuất khẩu `PHRASE_API_TOKEN`
-- lỗi xác thực chế độ: set `mode` để `strings` hoặc `files`
-- lỗi nhập khẩu chế độ tập tin: xác minh `fileFormat` phù hợp với cài đặt dự án của bạn
+- không tìm thấy token: export `PHRASE_API_TOKEN`
+- lỗi xác thực chế độ: đặt `mode` đến `strings` hoặc `files`
+- Lỗi nhập chế độ tệp: xác minh `fileFormat` khớp với cài đặt dự án của bạn

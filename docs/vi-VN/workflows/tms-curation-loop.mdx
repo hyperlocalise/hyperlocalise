@@ -1,31 +1,31 @@
 ---
 title: "Vòng lặp tuyển chọn TMS"
-description: "Thử nghiệm: Chuyển từ tạo bản nháp tại chỗ sang dịch do con người biên tập và ngược lại."
+description: "Thử nghiệm: Chuyển từ tạo bản nháp cục bộ sang bản dịch do con người biên soạn và quay lại."
 ---
 
 <Note>
-Tính năng này đang thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc kiểm soát và cố định phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Các cờ, cấu trúc đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
 
-Hướng dẫn quy trình làm việc có thể thay đổi khi ngữ nghĩa đồng bộ và chính sách xung đột tiếp tục phát triển.
+Hướng dẫn quy trình có thể thay đổi khi ngữ nghĩa đồng bộ và chính sách xung đột tiếp tục hoàn thiện.
 </Note>
 
-## Kết thúc-để-kết thúc chuỗi
+## Kết thúc-đến-kết thúc chuỗi
 
-1. tạo bản thảo cục bộ với `run`
+1. tạo bản nháp cục bộ với `run`
 2. đẩy bản nháp với `sync push --dry-run=false`
-3. các biên dịch viên quản lý trong POEditor/Lokalise/Crowdin
-4. kéo các cập nhật được tuyển chọn với `sync pull --dry-run=false`
+3. biên dịch viên biên tập trong POEditor/Lokalise/Crowdin
+4. lấy các bản cập nhật được tuyển chọn với `sync pull --dry-run=false`
 5. xác minh với `status`
 
 ## Các điểm quyết định
 
-- Giữ lại `--fail-on-conflict=true` vì lý do an toàn.
-- Sử dụng `--apply-curated-over-draft` khi kéo dữ liệu đã được lựa chọn nên được ưu tiên.
-- Sử dụng `--force-conflicts` chỉ đẩy sau khi xem xét các xung đột.
+- Giữ `--fail-on-conflict=true` vì an toàn.
+- Sử dụng `--apply-curated-over-draft` khi kéo (pull) khi dữ liệu được tuyển chọn nên được ưu tiên.
+- Sử dụng `--force-conflicts` chỉ push sau khi đã xem xét xung đột.
 
-## Khả năng kiểm toán
+## Khả năng kiểm tra, truy vết
 
-Sử dụng đầu ra JSON cho máy móc-đánh giá dễ đọc:
+Sử dụng đầu ra JSON cho máy-đánh giá dễ đọc:
 
 ```bash
 hyperlocalise sync pull --output json

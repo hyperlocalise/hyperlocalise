@@ -1,13 +1,13 @@
 ---
-title: "Lỗi phổ biến"
-description: "Khắc phục sự cố thường gặp về cài đặt, cấu hình, nhà cung cấp và đồng bộ."
+title: "Lỗi thường gặp"
+description: "Khắc phục sự cố thường gặp khi thiết lập, cấu hình, nhà cung cấp và đồng bộ hóa bị lỗi."
 ---
 
 ## `i18n.jsonc already exists; use --force to overwrite`
 
-Nguyên nhân: đang chạy `init` nơi cấu hình đã tồn tại.
+Nguyên nhân: đang chạy `init` khi cấu hình đã tồn tại.
 
-Sửa:
+Sửa lỗi:
 
 ```bash
 hyperlocalise init --force
@@ -15,30 +15,30 @@ hyperlocalise init --force
 
 ## `storage config is required`
 
-Nguyên nhân: `sync` lệnh được sử dụng mà không có top-cấp độ `storage` cấu hình.
+Nguyên nhân: `sync` lệnh được sử dụng mà không có top-level `storage` cấu hình.
 
-Sửa: thêm `storage.adapter` và `storage.config` trong `i18n.jsonc`.
+Sửa lỗi: thêm `storage.adapter` và `storage.config` trong `i18n.jsonc`.
 
 ## `unsupported output format`
 
 Nguyên nhân: sai `--output` giá trị.
 
-Sửa lỗi:
+Bản sửa lỗi:
 
 - `status`: chỉ `csv`
 - `sync`: `text` hoặc `json`
 
-## `unsupported file extension` trong suốt `run`
+## `unsupported file extension` trong quá trình `run`
 
-Nguyên nhân: một tệp nguồn hoặc đích được ánh xạ sử dụng phần mở rộng không được trình phân tích cú pháp cục bộ hỗ trợ.
+Nguyên nhân: một tệp nguồn hoặc tệp đích được ánh xạ sử dụng phần mở rộng không được trình phân tích cục bộ hỗ trợ.
 
-Sửa lỗi:
+Bản sửa lỗi:
 
-- sử dụng một trong số: `.json`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`
-- xác minh bucket `from` và `to` các đường dẫn được phân giải thành tên tệp mong đợi
+- sử dụng một trong các: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
+- xác minh bucket `from` và `to` các đường dẫn phân giải thành tên tệp như mong đợi
 
 ## Lỗi xác thực nhà cung cấp
 
-Nguyên nhân: thiếu/mã thông báo môi trường không hợp lệ.
+Nguyên nhân: thiếu hoặc không hợp lệ env token.
 
-Sửa: về lại-xuất token trong cùng một phiên shell và chạy lại.
+Sửa: re-export token trong cùng phiên shell và chạy lại.

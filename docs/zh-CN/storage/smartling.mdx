@@ -1,9 +1,9 @@
 ---
 title: "Smartling 适配器"
-description: "配置 Smartling 以实现远程翻译的拉取/推送同步。"
+description: "配置 Smartling 以进行远程翻译拉取/推送同步。"
 ---
 
-## 所需配置
+## 必需配置
 
 ```jsonc
 {
@@ -24,7 +24,7 @@ description: "配置 Smartling 以实现远程翻译的拉取/推送同步。"
 export SMARTLING_USER_SECRET="your-smartling-user-secret"
 ```
 
-`userSecret` 配置中不支持内联。请仅使用环境变量。
+`userSecret` 不支持在配置中内联。请仅使用环境变量。
 
 ## 可选配置字段
 
@@ -33,6 +33,6 @@ export SMARTLING_USER_SECRET="your-smartling-user-secret"
 
 ## 常见问题
 
-- 缺少密钥：导出 `SMARTLING_USER_SECRET` 在同一个 shell 会话中
-- 缺少用户标识符：设置 `storage.config.userIdentifier`
-- 区域设置不匹配：对齐 `targetLanguages` 与你的项目本地化设置
+- 缺少密钥：导出 `SMARTLING_USER_SECRET` 在同一个 Shell 会话中
+- 缺少用户标识符：已设置 `storage.config.userIdentifier`
+- 区域设置不匹配：对齐 `targetLanguages` 使用你的项目区域设置

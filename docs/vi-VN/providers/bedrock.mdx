@@ -1,13 +1,13 @@
 ---
 title: "AWS Bedrock"
-description: "Cấu hình AWS Bedrock làm nhà cung cấp LLM cho việc tạo bản dịch."
+description: "Cấu hình AWS Bedrock làm nhà cung cấp LLM để tạo bản dịch."
 ---
 
 ## Giá trị nhà cung cấp
 
 Sử dụng `bedrock` trong `llm.profiles.<name>.provider`.
 
-## Hồ sơ mẫu
+## Hồ sơ ví dụ
 
 ```json
 {
@@ -23,7 +23,7 @@ Sử dụng `bedrock` trong `llm.profiles.<name>.provider`.
 }
 ```
 
-## Biến môi trường bắt buộc
+## Các biến môi trường bắt buộc
 
 <CodeGroup>
 ```bash Export
@@ -39,7 +39,7 @@ AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 ```
 </CodeGroup>
 
-Tùy chọn khi sử dụng thông tin đăng nhập tạm thời:
+Tùy chọn khi sử dụng thông tin xác thực tạm thời:
 
 <CodeGroup>
 ```bash Export

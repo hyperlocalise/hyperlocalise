@@ -1,14 +1,14 @@
 ---
 title: "Bảng thuật ngữ"
-description: "Các thuật ngữ dùng chung được sử dụng trong cấu hình và quy trình làm việc của hyperlocalise."
+description: "Các thuật ngữ dùng chung trong cấu hình và quy trình làm việc của Hyperlocalise."
 ---
 
-- `bucket`: bộ ánh xạ tệp có thể tái sử dụng định nghĩa `from`/`to` mẫu.
-- `group`: phạm vi thực thi liên kết các địa phương mục tiêu với tên các bucket.
+- `bucket`: bộ ánh xạ tệp có thể tái sử dụng dùng để định nghĩa `from`/`to` mẫu.
+- `group`: phạm vi thực thi liên kết các ngôn ngữ mục tiêu với tên bucket.
 - `profile`: Định nghĩa nhà cung cấp/mô hình/lời nhắc LLM.
-- `rule`: ưu tiên-bản đồ dựa trên nhóm đến hồ sơ.
-- `draft`: bản dịch được tạo ra tại chỗ bởi quy trình làm việc LLM.
-- `curated`: bản dịch đã được kiểm tra bởi con người trong hệ thống quản lý bản dịch từ xa.
-- `provenance`: siêu dữ liệu mô tả nguồn/giai đoạn và lịch sử cập nhật.
-- `sidecar metadata`: tệp metadata riêng biệt lưu trữ trạng thái hoạt động.
-- `conflict`: không khớp giá trị, cần chính sách giải quyết rõ ràng.
+- `rule`: ưu tiên-ánh xạ dựa trên từ nhóm đến hồ sơ.
+- `draft`: bản dịch được tạo cục bộ bởi quy trình làm việc LLM.
+- `curated`: bản dịch đã được con người rà soát trong TMS từ xa.
+- `provenance`: siêu dữ liệu mô tả nguồn gốc/trạng thái và lịch sử cập nhật.
+- `sidecar metadata`: tệp siêu dữ liệu riêng lưu trữ trạng thái hoạt động.
+- `conflict`: không khớp giá trị, yêu cầu chính sách phân giải rõ ràng.

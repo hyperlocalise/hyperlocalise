@@ -1,14 +1,14 @@
 ---
 title: "Cài đặt"
-description: "Các bước cài đặt cho hyperlocalise, bao gồm xác minh và nâng cấp."
+description: "Các bước cài đặt hyperlocalise, bao gồm xác minh và nâng cấp."
 ---
 
-## Yêu cầu tiên quyết
+## Điều kiện tiên quyết
 
 - macOS hoặc Linux
-- một trong các: script cài đặt, tệp nhị phân dựng sẵn `.deb`/`.rpm` gói, hoặc bộ công cụ Go
+- một trong các: tập lệnh trình cài đặt, tệp nhị phân dựng sẵn, `.deb`/`.rpm` gói hoặc bộ công cụ Go
 
-## Cài đặt bằng tập lệnh bootstrap
+## Cài đặt bằng script bootstrap
 
 Sử dụng URL bootstrap ổn định:
 
@@ -16,15 +16,15 @@ Sử dụng URL bootstrap ổn định:
 curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | bash
 ```
 
-Ghim một phiên bản cụ thể:
+Ghim một bản phát hành cụ thể:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
 ```
 
-Tập lệnh cài đặt cũng được đính kèm với mỗi bản phát hành trên GitHub để bạn có thể xem lại hoặc tải phiên bản đã gắn thẻ trực tiếp từ tài sản phát hành.
+Tập lệnh cài đặt cũng được đính kèm trong mỗi bản phát hành trên GitHub để bạn có thể xem lại hoặc tải xuống trực tiếp phiên bản theo thẻ từ tài nguyên của bản phát hành.
 
-## Cài đặt từ nguồn (Đi)
+## Cài đặt từ mã nguồn (Đi)
 
 ```bash
 go install github.com/quiet-circles/hyperlocalise@latest
@@ -44,9 +44,9 @@ hyperlocalise version
 hyperlocalise --help
 ```
 
-Đầu ra dự kiến bao gồm các lệnh có sẵn: `init`, `run`, `status`, `sync`, và `version`.
+Kết quả mong đợi bao gồm các lệnh khả dụng: `init`, `run`, `status`, `sync`, và `version`.
 
-## Cài đặt kỹ năng Hyperlocalise (kỹ_năng.sh)
+## Cài đặt kỹ năng Hyperlocalise (skills.sh)
 
 Cài đặt:
 
@@ -54,12 +54,12 @@ Cài đặt:
 npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocalise
 ```
 
-Điều này sử dụng [kỹ năng.sh](https://skills.sh) trình cài đặt qua `npx`.
+Phần này sử dụng [skills.sh](https://skills.sh) trình cài đặt qua `npx`.
 
 ## Nâng cấp
 
-Trả lời-chạy phương thức cài đặt của bạn.
+Về việc-chạy phương thức cài đặt của bạn.
 
 - Người dùng trình cài đặt: chạy lại lệnh bootstrap, tùy chọn với `VERSION=<tag>`.
-- Cài đặt Go người dùng: chạy `go install ...@latest` lại.
-- Người dùng kho lưu trữ: kéo những thay đổi mới nhất, sau đó chạy `make install`.
+- Để cài đặt người dùng Go: chạy `go install ...@latest` lần nữa.
+- Người dùng kho lưu trữ: kéo các thay đổi mới nhất, sau đó chạy `make install`.

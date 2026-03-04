@@ -1,15 +1,15 @@
 ---
-title: "đánh giá"
-description: "Thử nghiệm: Chạy các thử nghiệm chất lượng bản dịch và so sánh các báo cáo ứng viên với đường cơ sở."
+title: "eval"
+description: "Thử nghiệm: Chạy các thử nghiệm chất lượng dịch và so sánh các báo cáo ứng viên với một đường cơ sở."
 ---
 
 <Note>
-Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình được kiểm soát và ghim phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
 
-Sơ đồ báo cáo và cách đánh giá điểm có thể thay đổi khi quy trình đánh giá phát triển hoàn thiện hơn.
+Lược đồ báo cáo và hành vi chấm điểm có thể thay đổi khi quy trình đánh giá dần hoàn thiện.
 </Note>
 
-Sử dụng `eval` các lệnh để đánh giá chất lượng bản dịch trên một tập đánh giá đại diện và thực thi ngưỡng chất lượng trong CI.
+Sử dụng `eval` các lệnh để đo chất lượng bản dịch trên một bộ đánh giá đại diện và áp dụng ngưỡng chất lượng trong CI.
 
 ## Sử dụng
 
@@ -18,38 +18,38 @@ hyperlocalise eval run --eval-set <path> [flags]
 hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 ```
 
-## chạy eval
+## đánh giá chạy
 
 Chạy một hoặc nhiều biến thể thử nghiệm trên tập đánh giá của bạn.
 
-### Lệnh này làm gì
+### Lệnh này thực hiện gì
 
-Tải tập dữ liệu đánh giá từ `--eval-set`.
-2. Mở rộng các biến thể thí nghiệm từ các hồ sơ, nhà cung cấp, mô hình và ghi đè lời nhắc bạn đã chọn.
-3. Thực thi mọi trường hợp kiểm thử với mọi biến thể thử nghiệm.
-4. Tạo báo cáo JSON khi bạn truyền `--output`.
-5. In một bản tóm tắt cho mỗi-bảng tóm tắt thí nghiệm.
+1. Tải bộ dữ liệu eval từ `--eval-set`.
+2. Mở rộng các biến thể thử nghiệm từ các hồ sơ, nhà cung cấp, mô hình và phần ghi đè lời nhắc bạn đã chọn.
+3. Chạy từng trường hợp cho từng biến thể của thử nghiệm.
+4. Ghi báo cáo JSON khi bạn truyền `--output`.
+5. In một bản tóm tắt ngắn gọn cho mỗi-bảng tóm tắt thử nghiệm.
 
-### Cờ hiệu
+### Cờ
 
 - `--eval-set`: đường dẫn đến tập dữ liệu đánh giá (`.json`, `.jsonc`, `.csv`) (bắt buộc)
-- `--profile`ghi đè tên hồ sơ (lặp lại được)
+- `--profile`: ghi đè tên hồ sơ (có thể lặp lại)
 - `--provider`: ghi đè nhà cung cấp (có thể lặp lại)
-- `--model`ghi đè mô hình (lặp lại được)
-- `--prompt-file`ghi đè tệp lời nhắc
-- `--prompt`: ghi đè nhắc nhở nội tuyến (loại trừ lẫn nhau với `--prompt-file`)
-- `--output`Đường dẫn báo cáo đầu ra JSON
+- `--model`: ghi đè mô hình (lặp lại được)
+- `--prompt-file`: ghi đè tệp prompt
+- `--prompt`: ghi đè lời nhắc nội tuyến (loại trừ lẫn nhau với `--prompt-file`)
+- `--output`: Đường dẫn báo cáo đầu ra JSON
 
-### Các trường trong bảng tóm tắt
+### Các trường của bảng tóm tắt
 
-- `score`điểm chất lượng trung bình có trọng số cho thí nghiệm
-- `pass_rate`số lần chạy thành công / tổng số lần chạy cho thí nghiệm
-- `placeholder_violations`số lượng tính toàn vẹn của placeholder khó-thất bại vi phạm
-- `latency_ms`độ trễ trung bình cho thí nghiệm
+- `score`: điểm chất lượng trung bình có trọng số cho thử nghiệm
+- `pass_rate`: số lần chạy thành công / tổng số lần chạy cho thử nghiệm
+- `placeholder_violations`: số lượng kiểm tra tính toàn vẹn placeholder cứng-không đạt do vi phạm
+- `latency_ms`: độ trễ trung bình cho thử nghiệm
 
 ### Ví dụ
 
-Chạy với các thiết lập mặc định từ cấu hình của bạn và viết báo cáo:
+Chạy với các giá trị mặc định từ cấu hình của bạn và viết báo cáo:
 
 ```bash
 hyperlocalise eval run \
@@ -57,7 +57,7 @@ hyperlocalise eval run \
   --output ./artifacts/eval-report.json
 ```
 
-Chạy một ma trận các cấu hình và ghi đè nhà cung cấp/mô hình:
+Chạy ma trận các cấu hình và các ghi đè nhà cung cấp/mô hình:
 
 ```bash
 hyperlocalise eval run \
@@ -70,7 +70,7 @@ hyperlocalise eval run \
   --model claude-sonnet-4-5
 ```
 
-Chạy với ghi đè tệp prompt:
+Chạy với tệp nhắc bị ghi đè:
 
 ```bash
 hyperlocalise eval run \
@@ -82,21 +82,21 @@ hyperlocalise eval run \
 
 So sánh một báo cáo ứng viên với một báo cáo cơ sở.
 
-Sử dụng lệnh này trong CI để ngăn ngừa sự suy giảm chất lượng.
+Sử dụng lệnh này trong CI để ngăn chặn suy giảm chất lượng.
 
 ### Cờ
 
-- `--candidate`: báo cáo ứng viên đường dẫn JSON (bắt buộc)
-- `--baseline`đường dẫn JSON báo cáo cơ sở (bắt buộc)
-- `--min-score`điểm trọng số ứng viên tối thiểu
-- `--max-regression`: mức giảm điểm tối đa cho phép từ đường cơ sở đến ứng viên
+- `--candidate`: đường dẫn JSON của báo cáo ứng viên (bắt buộc)
+- `--baseline`: đường dẫn JSON báo cáo cơ sở (bắt buộc)
+- `--min-score`: điểm trọng số tối thiểu của ứng viên
+- `--max-regression`: mức suy giảm điểm số tối đa được phép từ baseline sang candidate
 
 ### Hành vi CI
 
 Lệnh thoát với lỗi khi:
 
-- điểm trọng số của ứng viên thấp hơn `--min-score`hoặc
-- điểm hồi quy vượt quá `--max-regression`.
+- điểm có trọng số của ứng viên thấp hơn `--min-score`, hoặc
+- hồi quy điểm vượt quá `--max-regression`.
 
 ### Ví dụ
 
@@ -108,7 +108,7 @@ hyperlocalise eval compare \
   --baseline ./artifacts/eval-baseline.json
 ```
 
-Không cho CI vượt qua nếu điểm ứng viên giảm xuống dưới `0.82` hoặc giảm nhiều hơn `0.02`:
+Thất bại CI nếu điểm ứng viên giảm xuống dưới `0.82` hoặc giảm hồi quy nhiều hơn `0.02`:
 
 ```bash
 hyperlocalise eval compare \

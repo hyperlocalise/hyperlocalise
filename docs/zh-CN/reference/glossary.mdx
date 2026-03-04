@@ -1,14 +1,14 @@
 ---
-title: "词汇表"
-description: "在 hyperlocalise 配置和工作流中使用的共享术语。"
+title: "术语表"
+description: "在 hyperlocalise 配置和工作流中通用的术语。"
 ---
 
-- `bucket`：定义的可重用文件映射集 `from`/`to` 模板。
-- `group`：将目标语言环境绑定到存储桶名称的执行范围。
-- `profile`: LLM 提供者/模型/提示定义。
+- `bucket`：可重用的文件映射集，用于定义 `from`/`to` 模板。
+- `group`：将目标区域设置绑定到存储桶名称的执行范围。
+- `profile`: LLM 提供商/模型/提示词定义。
 - `rule`: 优先级-基于从组到配置文件的映射。
-- `draft`：由本地LLM工作流生成的翻译。
-- `curated`: 翻译已由远程翻译管理系统中的人工审核。
+- `draft`：由 LLM 工作流在本地生成的翻译。
+- `curated`：翻译已由远程 TMS 中的人工审核。
 - `provenance`：描述来源/状态和更新历史的元数据。
-- `sidecar metadata`：存储操作状态的独立元数据文件。
-- `conflict`：值不匹配，需明确解决策略。
+- `sidecar metadata`：用于存储运行状态的单独元数据文件。
+- `conflict`：值不匹配，需要明确的解决策略。

@@ -1,9 +1,9 @@
 ---
 title: "Tổng quan về các nhà cung cấp LLM"
-description: "Các trường hồ sơ chung, biến lời nhắc và liên kết đến từng trang cấu hình riêng cho nhà cung cấp."
+description: "Các trường hồ sơ dùng chung, các biến trong lời nhắc, và liên kết đến trang cấu hình riêng cho từng nhà cung cấp."
 ---
 
-Sử dụng một trang nhà cung cấp dưới đây để thiết lập chính xác và các ví dụ:
+Sử dụng một trang nhà cung cấp bên dưới để thiết lập chính xác và xem các ví dụ:
 
 - [OpenAI](/providers/openai)
 - [Azure OpenAI](/providers/azure-openai)
@@ -14,7 +14,7 @@ Sử dụng một trang nhà cung cấp dưới đây để thiết lập chính
 - [Groq](/providers/groq)
 - [Ollama](/providers/ollama)
 
-## Giá trị nhà cung cấp được hỗ trợ
+## Các giá trị nhà cung cấp được hỗ trợ
 
 - `openai`
 - `azure_openai`
@@ -27,15 +27,15 @@ Sử dụng một trang nhà cung cấp dưới đây để thiết lập chính
 
 ## Các trường hồ sơ bắt buộc
 
-Mỗi `llm.profiles.<name>` mục nhập yêu cầu:
+Mỗi `llm.profiles.<name>` yêu cầu mục nhập:
 
 - `provider`
 - `model`
 - `prompt`
 
-## Biến số yêu cầu
+## Biến lời nhắc
 
-Các trình giữ chỗ này có sẵn trong `prompt`:
+Các phần giữ chỗ này có sẵn trong `prompt`:
 
 - `{{source}}`
 - `{{target}}`

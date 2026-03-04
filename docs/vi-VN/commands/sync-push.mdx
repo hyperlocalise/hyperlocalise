@@ -1,12 +1,12 @@
 ---
-title: "đồng bộ đẩy"
-description: "Thử nghiệm: Đẩy các thay đổi dịch bản địa lên bộ điều hợp lưu trữ từ xa."
+title: "đồng bộ hóa push"
+description: "Thử nghiệm: Đẩy các thay đổi bản dịch cục bộ lên các bộ điều hợp lưu trữ từ xa."
 ---
 
 <Note>
-Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Cờ, dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
 
-Việc xử lý xung đột và hợp đồng đồng bộ có thể phát triển khi các tích hợp TMS trở nên hoàn thiện hơn.
+Cơ chế xử lý xung đột và các hợp đồng đồng bộ có thể thay đổi khi các tích hợp TMS trở nên hoàn thiện hơn.
 </Note>
 
 ## Sử dụng
@@ -22,11 +22,11 @@ hyperlocalise sync push [--config <path>] [flags]
 ## Cờ
 
 - `--config`: đường dẫn cấu hình
-- `--locale`: ngôn ngữ đích(s), có thể lặp lại
+- `--locale`: ngôn ngữ mục tiêu(s), có thể lặp lại
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text` hoặc `json`
 - `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
-- `--force-conflicts`: cho phép ghi đè trong các trường hợp không khớp khi chính sách cho phép (mặc định `false`)
+- `--force-conflicts`: cho phép ghi đè đối với các trường hợp không khớp khi chính sách cho phép (mặc định `false`)
 
 ## Ví dụ
 

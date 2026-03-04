@@ -14,7 +14,7 @@ description: "run、status 和 sync 命令输出格式参考。"
 - `failed`
 - `persisted_to_lock`
 
-失败行格式：
+故障行格式：
 
 ```text
 failure target=<path> key=<key> reason=<reason>
@@ -28,7 +28,7 @@ failure target=<path> key=<key> reason=<reason>
 key,namespace,locale,status,origin,state
 ```
 
-## `sync` 输出 (`text` 或 `json`)
+## `sync` output (`text` 或 `json`)
 
 文本摘要字段：
 
@@ -41,9 +41,9 @@ key,namespace,locale,status,origin,state
 - `skipped`
 - `warnings`
 
-在与CI检查集成时使用JSON输出。
+与 CI 检查集成时，请使用 JSON 输出。
 
 
 ## CSV 翻译文件
 
-当 `run` 写入 `.csv` 翻译目标，新添加键的输出行顺序是确定的 (按键排序)，并且现有的行保持其原始顺序。
+当 `run` 写入 `.csv` 翻译目标，对于新追加的键，输出行顺序是确定的 (按键排序)并且，现有行保持其原始顺序。

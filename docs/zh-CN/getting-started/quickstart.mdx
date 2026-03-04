@@ -1,11 +1,11 @@
 ---
 title: "快速入门"
-description: "大约10分钟内完成端到端的超本地化运行。"
+description: "在大约 10 分钟内端到端运行 hyperlocalise。"
 ---
 
 ## 目标
 
-创建一个 `i18n.jsonc`安全运行翻译规划，生成输出，并审查状态。
+创建一个 `i18n.jsonc`安全地运行翻译规划，生成输出，并查看状态。
 
 ## 1. 初始化配置
 
@@ -13,11 +13,11 @@ description: "大约10分钟内完成端到端的超本地化运行。"
 hyperlocalise init
 ```
 
-这会写入 `i18n.jsonc` 在您当前的目录中。
+这会写入 `i18n.jsonc` 在当前目录中。
 
-## 2. 配置提供者凭证
+## 2. 配置提供商凭据
 
-`hyperlocalise` 自动从读取凭据 `.env` 和 `.env.local` 在您当前的项目目录中。导出的 shell 变量仍然具有优先权。
+`hyperlocalise` 自动从中读取凭据 `.env` 和返回仅包含译文的文本，不要包含任何解释、标签、Markdown 或引号，除非译文内容本身需要。 `.env.local` 在你当前的项目目录中。已导出的 shell 变量仍然优先生效。
 
 示例：
 
@@ -59,7 +59,7 @@ AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
 </CodeGroup>
 
-双子座：
+Gemini：
 
 <CodeGroup>
 ```bash Export
@@ -87,7 +87,7 @@ ANTHROPIC_API_KEY="your-anthropic-api-key"
 ```
 </CodeGroup>
 
-LM 工作室：
+LM Studio：
 
 <CodeGroup>
 ```bash Export
@@ -135,7 +135,7 @@ GROQ_API_KEY="your-groq-api-key"
 hyperlocalise run --config i18n.jsonc --dry-run
 ```
 
-检查 `planned_total`, `executable_total`，以及列出的 `tasks`.
+检查 `planned_total`, `executable_total`以及列出的 `tasks`.
 
 ## 4. 执行生成
 
@@ -143,7 +143,7 @@ hyperlocalise run --config i18n.jsonc --dry-run
 hyperlocalise run --config i18n.jsonc
 ```
 
-这会写入翻译并进行更新 `.hyperlocalise.lock.json`。详情请参见 [锁文件合约](/reference/lockfile-contract).
+这会写入翻译并更新 `.hyperlocalise.lock.json`。有关详细信息，请参阅 [锁文件契约](/reference/lockfile-contract).
 
 ## 5. 审核状态
 
@@ -151,17 +151,17 @@ hyperlocalise run --config i18n.jsonc
 hyperlocalise status --config i18n.jsonc --output csv
 ```
 
-使用 `needs_review` 行以识别仍需人工整理的条目。
+使用 `needs_review` 行用于识别仍需要人工整理的条目。
 
-## 6. 需要时评估翻译质量
+## 6. 必要时评估翻译质量
 
 ```bash
 hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
 ```
 
-在比较提示/配置文件/提供者选择或在推广大型翻译更新之前使用此项。
+在比较提示词/配置文件/服务提供商选项时，或在推广大规模翻译更新之前，请使用此内容。
 
 ## 下一步
 
-- 调整配置于 [i18n 配置](/configuration/i18n-config).
-- 使用 与您的 TMS 同步 [同步推送](/commands/sync-push) 和 [同步拉取](/commands/sync-pull).
+- 在中调整配置 [i18n 配置](/configuration/i18n-config).
+- 使用与您的 TMS 同步 [同步推送](/commands/sync-push) 和 [同步拉取](/commands/sync-pull).

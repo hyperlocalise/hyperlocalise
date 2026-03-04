@@ -1,11 +1,11 @@
 ---
-title: "Bắt đầu nhanh"
-description: "Chạy hyperlocalise từ đầu đến cuối trong khoảng 10 phút."
+title: "Hướng dẫn bắt đầu nhanh"
+description: "Chạy hyperlocalise end-to-end trong khoảng 10 phút."
 ---
 
 ## Mục tiêu
 
-Tạo một `i18n.jsonc`, thực hiện lập kế hoạch dịch một cách an toàn, tạo kết quả đầu ra và kiểm tra trạng thái.
+Tạo một `i18n.jsonc`, chạy lập kế hoạch dịch một cách an toàn, tạo đầu ra và xem xét trạng thái.
 
 ## 1. Khởi tạo cấu hình
 
@@ -13,11 +13,11 @@ Tạo một `i18n.jsonc`, thực hiện lập kế hoạch dịch một cách an
 hyperlocalise init
 ```
 
-Điều này ghi lại `i18n.jsonc` trong thư mục hiện tại của bạn.
+Thao tác này ghi `i18n.jsonc` trong thư mục hiện tại của bạn.
 
 ## 2. Cấu hình thông tin xác thực nhà cung cấp
 
-`hyperlocalise` tự động đọc thông tin đăng nhập từ `.env` và `.env.local` trong thư mục dự án hiện tại của bạn. Biến shell đã xuất vẫn được ưu tiên.
+`hyperlocalise` tự động đọc thông tin xác thực từ `.env` và `.env.local` trong thư mục dự án hiện tại của bạn. Các biến shell đã được export vẫn có mức ưu tiên cao hơn.
 
 Ví dụ:
 
@@ -129,21 +129,21 @@ GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
 
-## 3. Khô-chạy trước
+## 3. Làm khô-chạy trước
 
 ```bash
 hyperlocalise run --config i18n.jsonc --dry-run
 ```
 
-Kiểm tra `planned_total`, `executable_total`, và danh sách `tasks`.
+Kiểm tra `planned_total`, `executable_total`, và được liệt kê `tasks`.
 
-## 4. Thực hiện tạo dữ liệu
+## 4. Thực thi việc tạo ra
 
 ```bash
 hyperlocalise run --config i18n.jsonc
 ```
 
-Điều này ghi bản dịch và cập nhật `.hyperlocalise.lock.json`. Để biết chi tiết, xem [Hợp đồng khóa tệp](/reference/lockfile-contract).
+Phần này ghi bản dịch và cập nhật `.hyperlocalise.lock.json`. Để biết chi tiết, xem [Hợp đồng tệp khóa](/reference/lockfile-contract).
 
 ## 5. Trạng thái đánh giá
 
@@ -151,7 +151,7 @@ hyperlocalise run --config i18n.jsonc
 hyperlocalise status --config i18n.jsonc --output csv
 ```
 
-Sử dụng `needs_review` các hàng để xác định các mục vẫn cần được biên tập thủ công.
+Sử dụng `needs_review` các hàng để xác định các mục vẫn cần được con người tuyển chọn.
 
 ## 6. Đánh giá chất lượng bản dịch khi cần thiết
 
@@ -159,9 +159,9 @@ Sử dụng `needs_review` các hàng để xác định các mục vẫn cần 
 hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
 ```
 
-Sử dụng điều này khi so sánh lựa chọn lời nhắc/hồ sơ/nhà cung cấp hoặc trước khi cập nhật bản dịch lớn.
+Sử dụng nội dung này khi so sánh các lựa chọn prompt/hồ sơ/nhà cung cấp hoặc trước khi triển khai các bản cập nhật bản dịch lớn.
 
 ## Tiếp theo
 
-- Điều chỉnh cấu hình trong [cấu hình i18n](/configuration/i18n-config).
-- Đồng bộ với TMS của bạn bằng cách sử dụng [đồng bộ đẩy](/commands/sync-push) và [đồng bộ kéo](/commands/sync-pull).
+- Tinh chỉnh cấu hình trong [cấu hình i18n](/configuration/i18n-config).
+- Đồng bộ hóa với TMS của bạn bằng cách sử dụng [đồng bộ đẩy](/commands/sync-push) và [đồng bộ hóa kéo xuống](/commands/sync-pull).

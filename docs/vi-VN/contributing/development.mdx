@@ -3,7 +3,7 @@ title: "Phát triển"
 description: "Phát triển và xác thực CLI hyperlocalise bằng Go."
 ---
 
-## Yêu cầu tiên quyết
+## Điều kiện tiên quyết
 
 - Go 1.26+
 - `git`
@@ -22,9 +22,9 @@ cd hyperlocalise
 make bootstrap
 ```
 
-Điều này tải xuống các mô-đun Go và cài đặt bộ công cụ lint đã được ghim.
+Thao tác này tải xuống các mô-đun Go và cài đặt bộ công cụ lint đã được ghim phiên bản.
 
-## Vòng lặp phát triển hàng ngày
+## Vòng lặp phát triển hằng ngày
 
 ```bash
 make fmt
@@ -33,7 +33,7 @@ make test
 make check-build
 ```
 
-## Chạy CLI trên máy cục bộ
+## Chạy CLI cục bộ
 
 ```bash
 make run
@@ -41,7 +41,7 @@ make run
 go run -ldflags "-X main.version=dev" main.go
 ```
 
-## Cài đặt nhị phân cục bộ
+## Cài đặt tệp nhị phân cục bộ
 
 ```bash
 make install
@@ -52,9 +52,9 @@ hyperlocalise version
 
 - `cmd/`: Lệnh Cobra, cờ và hành vi đầu ra CLI
 - `internal/config/`: `i18n.jsonc` phân tích cú pháp và xác thực
-- `internal/i18n/runsvc/`: `run` quy trình lập kế hoạch và thực hiện
-- `internal/i18n/syncsvc/`: đồng bộ điều phối và logic xung đột
-- `internal/i18n/storage/`: hợp đồng bộ điều hợp và tích hợp nhà cung cấp
+- `internal/i18n/runsvc/`: `run` Luồng lập kế hoạch và thực thi
+- `internal/i18n/syncsvc/`: điều phối đồng bộ hóa và logic xung đột
+- `internal/i18n/storage/`: hợp đồng adapter và tích hợp nhà cung cấp
 
 ## Trước khi mở một PR
 
@@ -62,4 +62,4 @@ hyperlocalise version
 make precommit
 ```
 
-Điều này thực hiện định dạng, kiểm tra lint, kiểm tra và xây dựng trong cùng một quy trình được sử dụng bởi người đóng góp.
+Lệnh này chạy định dạng, linting, kiểm thử và kiểm tra build theo cùng một quy trình mà các cộng tác viên sử dụng.

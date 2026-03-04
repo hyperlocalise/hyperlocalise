@@ -1,17 +1,17 @@
 ---
-title: "Tổng quan về lưu trữ"
-description: "Cách các tệp cục bộ, metadata sidecar và các bộ điều hợp từ xa hoạt động trong quá trình đồng bộ."
+title: "Tổng quan về bộ nhớ lưu trữ"
+description: "Cách các tệp cục bộ, siêu dữ liệu sidecar và các bộ điều hợp từ xa hoạt động trong quá trình đồng bộ hóa."
 ---
 
-## Những gì lớp lưu trữ thực hiện
+## Lớp lưu trữ làm gì
 
-Kết nối lưu trữ:
+Kết nối bộ lưu trữ:
 
-- các tập tin dịch địa phương,
+- các tệp bản dịch cục bộ,
 - siêu dữ liệu nguồn gốc sidecar,
-- các API bộ chuyển đổi từ xa.
+- API bộ điều hợp từ xa.
 
-## Bộ chuyển đổi được hỗ trợ
+## Bộ điều hợp được hỗ trợ
 
 - [Crowdin](/storage/crowdin)
 - [Lilt](/storage/lilt)
@@ -20,30 +20,30 @@ Kết nối lưu trữ:
 - [POEditor](/storage/poeditor)
 - [Smartling](/storage/smartling)
 
-## Nhận dạng mục nhập
+## Danh tính mục nhập
 
-Mỗi mục dịch được xác định bởi:
+Mỗi mục bản dịch được xác định bằng:
 
 - `key`
 - `context`
 - `locale`
 
-## Tại sao metadata của sidecar tồn tại
+## Vì sao siêu dữ liệu sidecar tồn tại
 
-Người dùng của bạn-văn bản đối diện nằm trong các tệp dịch bình thường. Dữ liệu vận hành (ví dụ trạng thái nháp so với trạng thái được chọn lọc) được lưu trong các tệp siêu dữ liệu bên cạnh để nội dung bản dịch giữ được sự sạch sẽ.
+Người dùng của bạn-Văn bản hiển thị vẫn nằm trong các tệp bản dịch thông thường. Siêu dữ liệu vận hành (ví dụ: trạng thái bản nháp so với trạng thái đã tuyển chọn) nằm trong các tệp siêu dữ liệu sidecar để nội dung bản dịch luôn sạch.
 
-## Vòng đời kéo và đẩy
+## Vòng đời pull và push
 
 1. `run` tạo bản nháp cục bộ (`origin=llm`, `state=draft`).
-2. `sync push` gửi các thay đổi cục bộ lên kho lưu trữ từ xa.
-3. Người dịch quản lý giá trị trong hệ thống quản lý dịch từ xa.
-4. `sync pull` áp dụng các thay đổi được tuyển chọn tại chỗ.
+2. `sync push` gửi các thay đổi cục bộ lên bộ lưu trữ từ xa.
+3. Biên dịch viên chỉnh sửa các giá trị trong hệ thống TMS từ xa.
+4. `sync pull` áp dụng các thay đổi đã được chọn cẩn thận tại máy cục bộ.
 
 ## Quy tắc xung đột
 
-- Kéo có thể tự động-áp dụng được chọn lọc-qua-bản nháp khi được bật.
-- Push mặc định bảo vệ các giá trị từ xa được sắp xếp.
-- `--fail-on-conflict` ngăn ngừa trôi lặng.
-- `--force-conflicts` là tùy chọn-cho các đường dẫn ghi đè rủi ro.
+- Pull có thể tự động-áp dụng đã được tuyển chọn-over-Bản nháp khi được bật.
+- Push bảo vệ các giá trị từ xa đã được tuyển chọn theo mặc định.
+- `--fail-on-conflict` ngăn chặn sự sai lệch âm thầm.
+- `--force-conflicts` là opt-trong các đường dẫn ghi đè có rủi ro.
 
-Để biết các quyết định xung đột cụ thể, xem [xung đột](/troubleshooting/conflicts).
+Để biết các quyết định xung đột cụ thể, hãy xem [xung đột](/troubleshooting/conflicts).

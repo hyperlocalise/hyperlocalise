@@ -1,12 +1,12 @@
 ---
-title: "đồng bộ kéo"
-description: "Thử nghiệm: Kéo bản dịch chọn lọc từ bộ nhớ từ xa vào các tệp cục bộ."
+title: "kéo đồng bộ"
+description: "Thử nghiệm: Kéo các bản dịch đã được tuyển chọn từ bộ lưu trữ từ xa vào các tệp cục bộ."
 ---
 
 <Note>
-Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Các cờ, cấu trúc đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
 
-Việc xử lý xung đột và hợp đồng đồng bộ có thể phát triển khi các tích hợp TMS trở nên hoàn thiện hơn.
+Cách xử lý xung đột và các hợp đồng đồng bộ hóa có thể thay đổi khi các tích hợp TMS dần hoàn thiện.
 </Note>
 
 ## Sử dụng
@@ -17,16 +17,16 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync pull` mặc định là khô-chế độ chạy. Bắt đầu bằng cách xem xét báo cáo, sau đó chạy lại với `--dry-run=false`.
+`sync pull` mặc định là dry-chế độ chạy. Bắt đầu bằng cách xem lại báo cáo, sau đó chạy lại với `--dry-run=false`.
 
 ## Cờ
 
 - `--config`: đường dẫn cấu hình
-- `--locale`: ngôn ngữ đích(s), có thể lặp lại được
+- `--locale`: ngôn ngữ mục tiêu(s), lặp lại được
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text` hoặc `json`
 - `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
-- `--apply-curated-over-draft`: cho phép các giá trị từ xa được chọn lọc thay thế các giá trị bản nháp cục bộ (mặc định `true`)
+- `--apply-curated-over-draft`: cho phép các giá trị từ xa đã được tuyển chọn thay thế các giá trị bản nháp cục bộ (mặc định `true`)
 
 ## Ví dụ
 

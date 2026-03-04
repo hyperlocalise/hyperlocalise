@@ -1,55 +1,55 @@
 ---
-title: "评估"
-description: "实验：运行翻译质量实验，并将候选报告与基线进行比较。"
+title: "eval"
+description: "实验性：运行翻译质量实验，并将候选报告与基线进行对比。"
 ---
 
 <Note>
-此功能处于实验阶段。标志、输出形状和行为可能在各版本之间发生变化。请在受控工作流程中使用，并在持续集成中固定版本。
+此功能为实验性功能。标志、输出结构和行为可能会在不同版本之间发生变化。请在受控的工作流中使用，并在 CI 中固定版本。
 
-随着评估流程的成熟，报告架构和评分行为可能会发生变化。
+随着评估工作流逐步成熟，报告架构和评分行为可能会不断演进。
 </Note>
 
-使用 `eval` 用于在代表性评估集上基准测试翻译质量并在持续集成中强制执行质量阈值的命令。
+使用 `eval` 用于在具有代表性的评估集上基准测试翻译质量并在 CI 中强制执行质量阈值的命令。
 
-## 用法
+## 使用
 
 ```bash
 hyperlocalise eval run --eval-set <path> [flags]
 hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 ```
 
-## 评估运行
+## eval run
 
-在您的评估集中运行一个或多个实验变体。
+在你的评估集上运行一个或多个实验变体。
 
-### 此命令的功能
+### 此命令的作用是什么
 
-1. 从中加载评估数据集 `--eval-set`.
-2. 从您选择的配置文件、提供商、模型和提示覆盖中扩展实验变体。
-3. 对每个实验变体执行每个用例。
-4. 当您传递时，生成一个 JSON 报告 `--output`.
-5. 打印简明的每个-实验总结表。
+1. 从加载 eval 数据集 `--eval-set`.
+2. 根据你选择的配置文件、提供商、模型和提示词覆盖，扩展实验变体。
+3. 针对每个实验变体执行每个用例。
+4. 当你传递时写入 JSON 报告 `--output`.
+5. 打印简洁的每个-实验汇总表。
 
 ### 标志
 
-- `--eval-set`: 评估数据集的路径 (`.json`, `.jsonc`, `.csv`) (必填)
+- `--eval-set`：评估数据集路径 (`.json`, `.jsonc`, `.csv`) (必填)
 - `--profile`: 配置文件名称覆盖 (可重复的)
-- `--provider`：提供者覆盖 (可重复的)
+- `--provider`: 提供程序覆盖 (可重复)
 - `--model`: 模型覆盖 (可重复的)
 - `--prompt-file`: 提示文件覆盖
 - `--prompt`：内联提示覆盖 (与……互斥 `--prompt-file`)
-- `--output`: JSON输出报告路径
+- `--output`: JSON 输出报告路径
 
-### 摘要表字段
+### 汇总表字段
 
-- `score`: 实验的加权平均质量得分
+- `score`: 实验的平均加权质量评分
 - `pass_rate`：实验的成功运行次数 / 总运行次数
-- `placeholder_violations`: 占位符完整性计数严格-失败违规
+- `placeholder_violations`：占位符完整性硬计数-违规失败
 - `latency_ms`：实验的平均延迟
 
 ### 示例
 
-使用配置中的默认设置运行并编写报告：
+使用你配置中的默认设置运行并编写一份报告：
 
 ```bash
 hyperlocalise eval run \
@@ -57,7 +57,7 @@ hyperlocalise eval run \
   --output ./artifacts/eval-report.json
 ```
 
-运行配置文件和提供程序/模型覆盖的矩阵：
+运行一组配置文件与提供商/模型覆盖项的矩阵：
 
 ```bash
 hyperlocalise eval run \
@@ -78,29 +78,29 @@ hyperlocalise eval run \
   --prompt-file ./prompts/translation-eval.txt
 ```
 
-## 评估比较
+## eval compare
 
 将候选报告与基线报告进行比较。
 
-在持续集成中使用此命令以防止质量下降。
+在 CI 中使用此命令以防止质量回退。
 
 ### 标志
 
 - `--candidate`: 候选人报告 JSON 路径 (必填)
 - `--baseline`: 基线报告 JSON 路径 (必填)
-- `--min-score`：最低候选人加权分数
-- `--max-regression`：从基线到候选的最大允许分数回退
+- `--min-score`: 候选人最低加权分数
+- `--max-regression`: 从基线到候选项允许的最大评分回退
 
-### 持续集成行为
+### CI 行为
 
-当出现以下情况时，命令会错误退出：
+命令在以下情况下会因错误而退出：
 
-- 候选人加权得分低于 `--min-score`，或
-- 分数回归超出 `--max-regression`.
+- 候选人的加权得分低于 `--min-score`，或
+- 评分回归超出 `--max-regression`.
 
 ### 示例
 
-仅比较报告并打印摘要值：
+比较报告并仅打印摘要值：
 
 ```bash
 hyperlocalise eval compare \
@@ -108,7 +108,7 @@ hyperlocalise eval compare \
   --baseline ./artifacts/eval-baseline.json
 ```
 
-如果候选分数低于该值，则使 CI 失败 `0.82` 或者退步超过 `0.02`:
+如果候选分数降至低于，则使 CI 失败 `0.82` 或回归超过 `0.02`:
 
 ```bash
 hyperlocalise eval compare \
