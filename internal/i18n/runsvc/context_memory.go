@@ -128,11 +128,11 @@ func (s *Service) resolveTaskContextMemory(ctx context.Context, task Task, state
 	groupCtx, cancel := context.WithTimeout(ctx, contextMemoryPerGroupTimeout)
 	request := translator.Request{
 		Source:         group.Source,
-		TargetLanguage: group.Seed.TargetLocale,
-		Context:        fmt.Sprintf("Scope: %s\nSource locale: %s\nTarget locale: %s\nSource identifier: %s", state.contextPlan.Scope, group.Seed.SourceLocale, group.Seed.TargetLocale, contextScopeValue(group.Seed, state.contextPlan.Scope)),
+		TargetLanguage: group.Seed.SourceLocale,
+		Context:        fmt.Sprintf("Scope: %s\nSource locale: %s\nSource identifier: %s", state.contextPlan.Scope, group.Seed.SourceLocale, contextScopeValue(group.Seed, state.contextPlan.Scope)),
 		ModelProvider:  group.Seed.Provider,
 		Model:          group.Seed.Model,
-		Prompt:         buildContextMemoryPrompt(group.Seed.SourceLocale, group.Seed.TargetLocale),
+		Prompt:         buildContextMemoryPrompt(group.Seed.SourceLocale),
 	}
 	memory, err := s.translateRequestWithRetry(translator.WithUsageCollector(groupCtx, &usage), request)
 	cancel()
@@ -281,12 +281,12 @@ func buildContextMemorySource(tasks []Task, indexes []int) string {
 	return strings.TrimSpace(b.String())
 }
 
-func buildContextMemoryPrompt(sourceLocale, targetLocale string) string {
+func buildContextMemoryPrompt(sourceLocale string) string {
 	return "You produce compact translation memory notes for consistent localization. " +
 		"Generate structured plain text under these headings: Terminology, Tone, Formatting, Do-not-translate. " +
 		"Do not quote long source passages, do not include secrets, and do not output markdown code fences. " +
-		fmt.Sprintf("The source language is %s and target language is %s. ", sourceLocale, targetLocale) +
-		"Keep the output concise and directly useful for translating related keys."
+		fmt.Sprintf("The source language is %s. ", sourceLocale) +
+		"Keep the notes target-locale agnostic, concise, and directly useful for translating related keys."
 }
 
 func normalizeContextMemory(memory string, maxChars int) string {

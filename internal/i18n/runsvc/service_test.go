@@ -3352,6 +3352,93 @@ func TestRunExperimentalContextMemoryBuildsOneContextPerFile(t *testing.T) {
 	}
 }
 
+func TestRunExperimentalContextMemoryIsSharedAcrossLocales(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPattern := "/tmp/out-[locale].json"
+	zhPath := "/tmp/out-zh-CN.json"
+	viPath := "/tmp/out-vi-VN.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		return &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"zh-CN", "vi-VN"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"ui": {
+					Files: []config.BucketFileMapping{{
+						From: sourcePath,
+						To:   targetPattern,
+					}},
+				},
+			},
+			Groups: map[string]config.GroupConfig{
+				"default": {
+					Targets: []string{"zh-CN", "vi-VN"},
+					Buckets: []string{"ui"},
+				},
+			},
+			LLM: config.LLMConfig{
+				Profiles: map[string]config.LLMProfile{
+					"default": {
+						Provider: "openai",
+						Model:    "gpt-4.1-mini",
+						Prompt:   "Translate {{source}} to {{target}}: {{input}}",
+					},
+				},
+			},
+		}, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello","bye":"Bye"}`), nil
+		case zhPath, viPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	var mu sync.Mutex
+	contextBuildCalls := 0
+	memoryMismatches := 0
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if strings.HasPrefix(req.Source, "Representative source entries:") {
+			mu.Lock()
+			contextBuildCalls++
+			mu.Unlock()
+			if req.TargetLanguage != "en" {
+				t.Fatalf("expected locale-agnostic summary to target source locale, got %q", req.TargetLanguage)
+			}
+			return "MEMORY(shared)", nil
+		}
+
+		if !strings.Contains(req.Context, "Shared memory:\nMEMORY(shared)") {
+			mu.Lock()
+			memoryMismatches++
+			mu.Unlock()
+		}
+		return req.TargetLanguage + "(" + req.Source + ")", nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{
+		Workers:                   4,
+		ExperimentalContextMemory: true,
+		ContextMemoryScope:        ContextMemoryScopeFile,
+	})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	if contextBuildCalls != 1 {
+		t.Fatalf("expected one locale-agnostic context build per scope, got %d", contextBuildCalls)
+	}
+	if memoryMismatches != 0 {
+		t.Fatalf("expected shared locale-agnostic memory context, mismatches=%d", memoryMismatches)
+	}
+}
+
 func TestInterleaveTasksByContextKeyAlternatesScopes(t *testing.T) {
 	in := []Task{
 		{EntryKey: "a1", ContextKey: "file-a"},

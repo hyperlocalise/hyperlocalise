@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -44,5 +45,34 @@ func TestResolveTaskContextMemoryReturnsOnCanceledContextWhenSlotInProgress(t *t
 	}
 	if elapsed := time.Since(started); elapsed > 100*time.Millisecond {
 		t.Fatalf("expected immediate return for canceled context, took %s", elapsed)
+	}
+}
+
+func TestBuildContextMemoryPlanGroupsByScopeRegardlessOfTargetLocale(t *testing.T) {
+	tasks := []Task{
+		{SourceLocale: "en", TargetLocale: "zh-CN", SourcePath: "/tmp/source.json", BucketName: "docs", GroupName: "default", EntryKey: "hello", SourceText: "Hello"},
+		{SourceLocale: "en", TargetLocale: "zh-CN", SourcePath: "/tmp/source.json", BucketName: "docs", GroupName: "default", EntryKey: "bye", SourceText: "Bye"},
+		{SourceLocale: "en", TargetLocale: "vi-VN", SourcePath: "/tmp/source.json", BucketName: "docs", GroupName: "default", EntryKey: "hello", SourceText: "Hello"},
+		{SourceLocale: "en", TargetLocale: "vi-VN", SourcePath: "/tmp/source.json", BucketName: "docs", GroupName: "default", EntryKey: "bye", SourceText: "Bye"},
+	}
+
+	plan := buildContextMemoryPlan(tasks, ContextMemoryScopeFile, 1200)
+	if !plan.Enabled {
+		t.Fatalf("expected enabled context memory plan")
+	}
+	if plan.Total != 1 {
+		t.Fatalf("expected 1 context group shared by locales, got %d", plan.Total)
+	}
+
+	for key, group := range plan.Groups {
+		if strings.Contains(key, "target_locale=") {
+			t.Fatalf("expected locale-agnostic context key, got %q", key)
+		}
+		if !strings.Contains(key, "scope_value=/tmp/source.json") {
+			t.Fatalf("expected scope value in key, got %q", key)
+		}
+		if group.SingleTargetLocale != "" {
+			t.Fatalf("expected no single target locale for mixed-locale group, got %q", group.SingleTargetLocale)
+		}
 	}
 }
