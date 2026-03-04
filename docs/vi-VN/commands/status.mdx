@@ -1,6 +1,6 @@
 ---
 title: "trạng thái"
-description: "Báo cáo trạng thái bản dịch theo key/namespace/locale ở định dạng CSV."
+description: "Báo cáo trạng thái dịch theo từng khóa/namespace/locale trong CSV, với tùy chọn bảng điều khiển TTY tương tác."
 ---
 
 ## Cách sử dụng
@@ -16,6 +16,7 @@ hyperlocalise status [--config <path>] [flags]
 - `--output`: định dạng đầu ra (`csv`)
 - `--group`: lọc theo tên nhóm
 - `--bucket`: lọc theo tên bucket
+- `-i`, `--interactive`: hiển thị bảng điều khiển tương tác trong TTY (yêu cầu `--output csv`)
 
 ## Giá trị trạng thái
 
@@ -27,4 +28,8 @@ hyperlocalise status [--config <path>] [flags]
 
 ```bash
 hyperlocalise status --config i18n.jsonc --locale es-ES --output csv
+```
+
+```bash
+hyperlocalise status --config i18n.jsonc --group default --output csv -i
 ```

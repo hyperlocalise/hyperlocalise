@@ -844,6 +844,10 @@
       "completed_at": "2026-03-04T12:20:09.448528Z",
       "source_hash": "7c7c521519a25575d9cff11cdd675962527d61065a5244554b87d911eebff82789fc22b9e5357c106c41e336bda8fe6618c0953e81b3ecda393600e6ba1fff6c"
     },
+    "docs/vi-VN/commands/status.mdx::md.2ebda06ee22ae044": {
+      "completed_at": "2026-03-04T13:14:47.354342Z",
+      "source_hash": "233f7512eb3cf2d0f4461ec98737ad399626b3b00d1ee5420212d533a496599f07d7105690e3e0c541ef06fd0bd20da7faeb9d192aeba5e0b8077178a6f5ee97"
+    },
     "docs/vi-VN/commands/status.mdx::md.300c2d9ac3cebf0b": {
       "completed_at": "2026-03-04T12:20:10.021954Z",
       "source_hash": "67037d9b75ac35a35571675f7c0f739328d91034845ee00892342758d2ede0ceecc1cc1960ea4820fbe8307a587a9f238a83fbcb7bf120d9c6c8faca974d470d"
@@ -851,6 +855,14 @@
     "docs/vi-VN/commands/status.mdx::md.3ffe863d1692d0ad": {
       "completed_at": "2026-03-04T12:20:09.59265Z",
       "source_hash": "a0763464a613c508ba18a565312662f2f610998d7527147286ae799878b00ce65631619af2ff2628e57d15df4977b92fe173cd0d506fb6569646982bcd4e9145"
+    },
+    "docs/vi-VN/commands/status.mdx::md.5e65208036a6304e": {
+      "completed_at": "2026-03-04T13:14:47.449972Z",
+      "source_hash": "25f92b7679d6efa78de61484c9852a8f7bddb531f48826efc2e5c671a86fc7015cd3b9a1ae91e5a45c9922c90890571c652a7985900d40789e9c1d4a0de0334a"
+    },
+    "docs/vi-VN/commands/status.mdx::md.630b8f9c487be9c6": {
+      "completed_at": "2026-03-04T13:14:47.309101Z",
+      "source_hash": "3ce15de946e13752e513c026f310db5ddb46a23d15255ecc14caa9b6dbe81537990ff8ad0563fba6da7c0c3f55f0f9ca82cb99340801b7949a082de6e8b0392b"
     },
     "docs/vi-VN/commands/status.mdx::md.63ba73b0bb6a0158": {
       "completed_at": "2026-03-04T12:20:09.532055Z",
@@ -883,6 +895,10 @@
     "docs/vi-VN/commands/status.mdx::md.c4e6fe75b26383df": {
       "completed_at": "2026-03-04T12:20:10.175179Z",
       "source_hash": "4f7ad669572edc62fdc58e95d5e44f0b28af7ce4027f443ffffd4e4f0e2d1aafb2ca0fa2cf25781d2feccc8c917e6a9c93b71894508e451a139181e1655311fd"
+    },
+    "docs/vi-VN/commands/status.mdx::md.cfebd2bc5a4193e0": {
+      "completed_at": "2026-03-04T13:14:47.519689Z",
+      "source_hash": "bed7141a837abc904d6f403741cf0b731c09018b7c636429bd4b1a068c2b4af264b4ef22617701cea5bdd35a70de4ce283ef39ad365b5edce0184a020b87b21d"
     },
     "docs/vi-VN/commands/status.mdx::md.e3ee915a8e8c7aa0": {
       "completed_at": "2026-03-04T12:20:10.406968Z",
@@ -4104,6 +4120,10 @@
       "completed_at": "2026-03-04T12:22:41.547059Z",
       "source_hash": "9ba75470588fb1df818311a8b62dd224e2d8c9af5af1f9377111825d8bc3a4929251c2c058cc4d46b4ebec64dc5a7b19fc05b629da088b2546081a1f7f7e8eb9"
     },
+    "docs/vi-VN/reference/output-formats.mdx::md.128ad6cce8f15886": {
+      "completed_at": "2026-03-04T13:14:47.44133Z",
+      "source_hash": "0d78a3c6b5ec13292dfc67390a90531516d65364e90b8086fcc48fdd04d9e4eb03f43afceb19fdf8f241dee488579353c5ae6f1134e2f1d8f5003f57324dc849"
+    },
     "docs/vi-VN/reference/output-formats.mdx::md.1a862ff5cfdf2d3f": {
       "completed_at": "2026-03-04T12:22:42.037505Z",
       "source_hash": "364069b6ea141aaf34521b1e6103b73b15eb7af820079d8f9ee5555adb05fac5cbe3667c7721e4e61858bd8c15a01deeb20bd2d9f0e21c4015f8c3d0f5fb19d1"
@@ -4111,6 +4131,10 @@
     "docs/vi-VN/reference/output-formats.mdx::md.23022ed143955d4a": {
       "completed_at": "2026-03-04T12:22:41.945814Z",
       "source_hash": "e6924ec0296d3f54d2b702a937ba8d228c98741376f5f5224d5c48cd4233840ee1dd39140b43fe191292db66e5e6640b3209117f4ea4f4f3651da25996bab0e0"
+    },
+    "docs/vi-VN/reference/output-formats.mdx::md.2e7d6fa5f5f02958": {
+      "completed_at": "2026-03-04T13:14:47.393416Z",
+      "source_hash": "6e206afbb2d6ca2ab7392967f9751c866f530b5dae7651f47abab101b63204037966b8001ef7ae92b65b02f43b1c7e1cf68daf64f1c0123980adbfde911b03f3"
     },
     "docs/vi-VN/reference/output-formats.mdx::md.2f429aee3d5e2377": {
       "completed_at": "2026-03-04T12:22:43.214596Z",
@@ -4164,9 +4188,17 @@
       "completed_at": "2026-03-04T12:22:42.840979Z",
       "source_hash": "b7cf618fd859f6129381db13ff82943c0f1b39b48b0297c898453f3be92ae61d6cc362b548eff28c6cf0e3e93c07911e4ac0c374abd5bb51e258cae3f139688c"
     },
+    "docs/vi-VN/reference/output-formats.mdx::md.e207c695831d3693": {
+      "completed_at": "2026-03-04T13:14:47.429097Z",
+      "source_hash": "497d4c99140be5431bfa3f81b8ec5cdb30bf6fdaf1d9a3f933420b471506d9c33c43e6424bccdb3f2f40b9d7ecd39dc4db15de255fa28db21c145f55d6dd0d60"
+    },
     "docs/vi-VN/reference/output-formats.mdx::md.e4a9feef734f24b3": {
       "completed_at": "2026-03-04T12:22:45.473758Z",
       "source_hash": "37a69bd0917695f81fd72e91651a0d3373c6596a7496f37d4c3e4e655d87e63b352800ddb2c65d7237ec699afdfd79786efbcea51d096359bd6ae13a5afcc934"
+    },
+    "docs/vi-VN/reference/output-formats.mdx::md.f164c104ae7c60e5": {
+      "completed_at": "2026-03-04T13:14:47.382874Z",
+      "source_hash": "bee2580fdc9747015aede6a1169420c8d1f6f89c73120287eee602abc66b40aa9dfc66bfbe60466d19704a581f6cd9431875b03a0048f33f05f5f28da7086bc3"
     },
     "docs/vi-VN/storage/crowdin.mdx::md.0564a4c97ed67466": {
       "completed_at": "2026-03-04T12:22:46.232728Z",
@@ -6260,6 +6292,10 @@
       "completed_at": "2026-03-04T12:20:10.837146Z",
       "source_hash": "7c7c521519a25575d9cff11cdd675962527d61065a5244554b87d911eebff82789fc22b9e5357c106c41e336bda8fe6618c0953e81b3ecda393600e6ba1fff6c"
     },
+    "docs/zh-CN/commands/status.mdx::md.2ebda06ee22ae044": {
+      "completed_at": "2026-03-04T13:14:47.285074Z",
+      "source_hash": "233f7512eb3cf2d0f4461ec98737ad399626b3b00d1ee5420212d533a496599f07d7105690e3e0c541ef06fd0bd20da7faeb9d192aeba5e0b8077178a6f5ee97"
+    },
     "docs/zh-CN/commands/status.mdx::md.300c2d9ac3cebf0b": {
       "completed_at": "2026-03-04T12:20:11.400877Z",
       "source_hash": "67037d9b75ac35a35571675f7c0f739328d91034845ee00892342758d2ede0ceecc1cc1960ea4820fbe8307a587a9f238a83fbcb7bf120d9c6c8faca974d470d"
@@ -6267,6 +6303,14 @@
     "docs/zh-CN/commands/status.mdx::md.3ffe863d1692d0ad": {
       "completed_at": "2026-03-04T12:20:11.019726Z",
       "source_hash": "a0763464a613c508ba18a565312662f2f610998d7527147286ae799878b00ce65631619af2ff2628e57d15df4977b92fe173cd0d506fb6569646982bcd4e9145"
+    },
+    "docs/zh-CN/commands/status.mdx::md.5e65208036a6304e": {
+      "completed_at": "2026-03-04T13:14:47.494739Z",
+      "source_hash": "25f92b7679d6efa78de61484c9852a8f7bddb531f48826efc2e5c671a86fc7015cd3b9a1ae91e5a45c9922c90890571c652a7985900d40789e9c1d4a0de0334a"
+    },
+    "docs/zh-CN/commands/status.mdx::md.630b8f9c487be9c6": {
+      "completed_at": "2026-03-04T13:14:47.219046Z",
+      "source_hash": "3ce15de946e13752e513c026f310db5ddb46a23d15255ecc14caa9b6dbe81537990ff8ad0563fba6da7c0c3f55f0f9ca82cb99340801b7949a082de6e8b0392b"
     },
     "docs/zh-CN/commands/status.mdx::md.63ba73b0bb6a0158": {
       "completed_at": "2026-03-04T12:20:11.089429Z",
@@ -6299,6 +6343,10 @@
     "docs/zh-CN/commands/status.mdx::md.c4e6fe75b26383df": {
       "completed_at": "2026-03-04T12:20:11.556552Z",
       "source_hash": "4f7ad669572edc62fdc58e95d5e44f0b28af7ce4027f443ffffd4e4f0e2d1aafb2ca0fa2cf25781d2feccc8c917e6a9c93b71894508e451a139181e1655311fd"
+    },
+    "docs/zh-CN/commands/status.mdx::md.cfebd2bc5a4193e0": {
+      "completed_at": "2026-03-04T13:14:47.624364Z",
+      "source_hash": "bed7141a837abc904d6f403741cf0b731c09018b7c636429bd4b1a068c2b4af264b4ef22617701cea5bdd35a70de4ce283ef39ad365b5edce0184a020b87b21d"
     },
     "docs/zh-CN/commands/status.mdx::md.e3ee915a8e8c7aa0": {
       "completed_at": "2026-03-04T12:20:11.685679Z",
@@ -9520,6 +9568,10 @@
       "completed_at": "2026-03-04T12:22:43.380863Z",
       "source_hash": "9ba75470588fb1df818311a8b62dd224e2d8c9af5af1f9377111825d8bc3a4929251c2c058cc4d46b4ebec64dc5a7b19fc05b629da088b2546081a1f7f7e8eb9"
     },
+    "docs/zh-CN/reference/output-formats.mdx::md.128ad6cce8f15886": {
+      "completed_at": "2026-03-04T13:14:47.408102Z",
+      "source_hash": "0d78a3c6b5ec13292dfc67390a90531516d65364e90b8086fcc48fdd04d9e4eb03f43afceb19fdf8f241dee488579353c5ae6f1134e2f1d8f5003f57324dc849"
+    },
     "docs/zh-CN/reference/output-formats.mdx::md.1a862ff5cfdf2d3f": {
       "completed_at": "2026-03-04T12:22:43.667097Z",
       "source_hash": "364069b6ea141aaf34521b1e6103b73b15eb7af820079d8f9ee5555adb05fac5cbe3667c7721e4e61858bd8c15a01deeb20bd2d9f0e21c4015f8c3d0f5fb19d1"
@@ -9527,6 +9579,10 @@
     "docs/zh-CN/reference/output-formats.mdx::md.23022ed143955d4a": {
       "completed_at": "2026-03-04T12:22:43.75791Z",
       "source_hash": "e6924ec0296d3f54d2b702a937ba8d228c98741376f5f5224d5c48cd4233840ee1dd39140b43fe191292db66e5e6640b3209117f4ea4f4f3651da25996bab0e0"
+    },
+    "docs/zh-CN/reference/output-formats.mdx::md.2e7d6fa5f5f02958": {
+      "completed_at": "2026-03-04T13:14:47.390841Z",
+      "source_hash": "6e206afbb2d6ca2ab7392967f9751c866f530b5dae7651f47abab101b63204037966b8001ef7ae92b65b02f43b1c7e1cf68daf64f1c0123980adbfde911b03f3"
     },
     "docs/zh-CN/reference/output-formats.mdx::md.2f429aee3d5e2377": {
       "completed_at": "2026-03-04T12:22:43.483575Z",
@@ -9580,9 +9636,17 @@
       "completed_at": "2026-03-04T12:22:45.988732Z",
       "source_hash": "b7cf618fd859f6129381db13ff82943c0f1b39b48b0297c898453f3be92ae61d6cc362b548eff28c6cf0e3e93c07911e4ac0c374abd5bb51e258cae3f139688c"
     },
+    "docs/zh-CN/reference/output-formats.mdx::md.e207c695831d3693": {
+      "completed_at": "2026-03-04T13:14:48.129239Z",
+      "source_hash": "497d4c99140be5431bfa3f81b8ec5cdb30bf6fdaf1d9a3f933420b471506d9c33c43e6424bccdb3f2f40b9d7ecd39dc4db15de255fa28db21c145f55d6dd0d60"
+    },
     "docs/zh-CN/reference/output-formats.mdx::md.e4a9feef734f24b3": {
       "completed_at": "2026-03-04T12:22:45.608162Z",
       "source_hash": "37a69bd0917695f81fd72e91651a0d3373c6596a7496f37d4c3e4e655d87e63b352800ddb2c65d7237ec699afdfd79786efbcea51d096359bd6ae13a5afcc934"
+    },
+    "docs/zh-CN/reference/output-formats.mdx::md.f164c104ae7c60e5": {
+      "completed_at": "2026-03-04T13:14:48.319439Z",
+      "source_hash": "bee2580fdc9747015aede6a1169420c8d1f6f89c73120287eee602abc66b40aa9dfc66bfbe60466d19704a581f6cd9431875b03a0048f33f05f5f28da7086bc3"
     },
     "docs/zh-CN/storage/crowdin.mdx::md.0564a4c97ed67466": {
       "completed_at": "2026-03-04T12:22:46.775874Z",

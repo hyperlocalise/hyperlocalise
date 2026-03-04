@@ -1,6 +1,6 @@
 ---
 title: "状态"
-description: "以 CSV 格式按 key/namespace/locale 报告翻译状态。"
+description: "按 key/namespace/locale 以 CSV 格式报告翻译状态，并可选提供交互式 TTY 仪表板。"
 ---
 
 ## 用法
@@ -16,6 +16,7 @@ hyperlocalise status [--config <path>] [flags]
 - `--output`：输出格式 (`csv`)
 - `--group`：按组名筛选
 - `--bucket`：按存储桶名称筛选
+- `-i`, `--interactive`：在 TTY 中渲染交互式仪表板 (需要 `--output csv`)
 
 ## 状态值
 
@@ -27,4 +28,8 @@ hyperlocalise status [--config <path>] [flags]
 
 ```bash
 hyperlocalise status --config i18n.jsonc --locale es-ES --output csv
+```
+
+```bash
+hyperlocalise status --config i18n.jsonc --group default --output csv -i
 ```

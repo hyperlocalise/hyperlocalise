@@ -207,6 +207,7 @@ Flags:
 - `--output` - output format: csv
 - `--group` - filter by group name
 - `--bucket` - filter by bucket name
+- `-i`, `--interactive` - render interactive dashboard in TTY (requires `--output csv`)
 
 # LLM Providers
 
