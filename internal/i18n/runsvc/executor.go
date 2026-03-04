@@ -10,6 +10,11 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
 
+const (
+	lockPersistBatchSize     = 32
+	lockPersistFlushInterval = 250 * time.Millisecond
+)
+
 type executionReport struct {
 	Succeeded       int
 	Failed          int
@@ -161,11 +166,11 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 	defer close(done)
 	flushInterval := s.lockPersistFlushInterval
 	if flushInterval <= 0 {
-		flushInterval = 250 * time.Millisecond
+		flushInterval = lockPersistFlushInterval
 	}
 	batchSize := s.lockPersistBatchSize
 	if batchSize <= 0 {
-		batchSize = 32
+		batchSize = lockPersistBatchSize
 	}
 
 	ticker := time.NewTicker(flushInterval)

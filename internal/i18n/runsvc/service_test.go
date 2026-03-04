@@ -355,6 +355,124 @@ func TestRunEmitsPlannedAndCompletedEventsInDryRun(t *testing.T) {
 	}
 }
 
+func TestRunNoExecutableDoesNotEmitExecutingPhaseWithoutPruneCandidates(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{
+			RunCompleted: map[string]lockfile.RunCompletion{
+				taskIdentity(targetPath, "a"): {CompletedAt: time.Now(), SourceHash: hashSourceText("A")},
+			},
+		}, nil
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatalf("did not expect translation call with zero executable tasks")
+		return "", nil
+	}
+
+	events := make([]Event, 0, 4)
+	report, err := svc.Run(context.Background(), Input{
+		OnEvent: func(event Event) {
+			events = append(events, event)
+		},
+	})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.ExecutableTotal != 0 {
+		t.Fatalf("expected zero executable tasks, got %+v", report)
+	}
+	for _, event := range events {
+		if event.Kind == EventPhase && event.Phase == PhaseExecuting {
+			t.Fatalf("did not expect %q phase event, got %+v", PhaseExecuting, events)
+		}
+	}
+}
+
+func TestRunNoExecutableDoesNotEmitExecutingPhaseWithPruneCandidates(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{"hello":"Bonjour","legacy":"Legacy"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{
+			RunCompleted: map[string]lockfile.RunCompletion{
+				taskIdentity(targetPath, "hello"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Hello")},
+			},
+		}, nil
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatalf("did not expect translation call with zero executable tasks")
+		return "", nil
+	}
+
+	events := make([]Event, 0, 8)
+	report, err := svc.Run(context.Background(), Input{
+		Prune: true,
+		OnEvent: func(event Event) {
+			events = append(events, event)
+		},
+	})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.ExecutableTotal != 0 {
+		t.Fatalf("expected zero executable tasks, got %+v", report)
+	}
+	if len(report.PruneCandidates) != 1 {
+		t.Fatalf("expected one prune candidate, got %+v", report.PruneCandidates)
+	}
+
+	foundScanningPrune := false
+	foundFinalizing := false
+	for _, event := range events {
+		if event.Kind != EventPhase {
+			continue
+		}
+		if event.Phase == PhaseExecuting {
+			t.Fatalf("did not expect %q phase event, got %+v", PhaseExecuting, events)
+		}
+		if event.Phase == PhaseScanningPrune {
+			foundScanningPrune = true
+		}
+		if event.Phase == PhaseFinalizingOutput {
+			foundFinalizing = true
+		}
+	}
+	if !foundScanningPrune {
+		t.Fatalf("expected %q phase event, got %+v", PhaseScanningPrune, events)
+	}
+	if !foundFinalizing {
+		t.Fatalf("expected %q phase event, got %+v", PhaseFinalizingOutput, events)
+	}
+}
+
 func TestRunEmitsTaskDoneEventsForSuccessAndFailure(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
