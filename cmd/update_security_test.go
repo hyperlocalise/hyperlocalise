@@ -4,25 +4,50 @@ import "testing"
 
 func TestParseSHA256Digest(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
-		in := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-		got, err := parseSHA256Digest(in)
+		in := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+		got, err := parseSHA256Hex(in)
 		if err != nil {
-			t.Fatalf("parseSHA256Digest returned error: %v", err)
+			t.Fatalf("parseSHA256Hex returned error: %v", err)
 		}
 		if got != "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" {
 			t.Fatalf("unexpected digest: %q", got)
 		}
 	})
 
-	t.Run("invalid prefix", func(t *testing.T) {
-		if _, err := parseSHA256Digest("md5:abc"); err == nil {
-			t.Fatalf("expected error for unsupported prefix")
+	t.Run("invalid length", func(t *testing.T) {
+		if _, err := parseSHA256Hex("abcd"); err == nil {
+			t.Fatalf("expected error for invalid length")
+		}
+	})
+}
+
+func TestChecksumForAsset(t *testing.T) {
+	t.Run("find checksum with double-space format", func(t *testing.T) {
+		checksums := []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  install.sh\n")
+		got, err := checksumForAsset(checksums, "install.sh")
+		if err != nil {
+			t.Fatalf("checksumForAsset returned error: %v", err)
+		}
+		if want := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; got != want {
+			t.Fatalf("unexpected checksum: got %q want %q", got, want)
 		}
 	})
 
-	t.Run("invalid length", func(t *testing.T) {
-		if _, err := parseSHA256Digest("sha256:abcd"); err == nil {
-			t.Fatalf("expected error for invalid length")
+	t.Run("find checksum with star format", func(t *testing.T) {
+		checksums := []byte("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb *install.sh\n")
+		got, err := checksumForAsset(checksums, "install.sh")
+		if err != nil {
+			t.Fatalf("checksumForAsset returned error: %v", err)
+		}
+		if want := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"; got != want {
+			t.Fatalf("unexpected checksum: got %q want %q", got, want)
+		}
+	})
+
+	t.Run("missing asset checksum", func(t *testing.T) {
+		checksums := []byte("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc  other.sh\n")
+		if _, err := checksumForAsset(checksums, "install.sh"); err == nil {
+			t.Fatalf("expected missing checksum error")
 		}
 	})
 }

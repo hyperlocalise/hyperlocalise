@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +23,7 @@ import (
 const (
 	githubReleaseAPIBase = "https://api.github.com/repos/quiet-circles/hyperlocalise/releases"
 	installerAssetName   = "install.sh"
+	checksumsAssetName   = "checksums.txt"
 )
 
 type githubRelease struct {
@@ -31,7 +34,6 @@ type githubRelease struct {
 type githubReleaseAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
-	Digest             string `json:"digest"`
 }
 
 var (
@@ -71,14 +73,24 @@ func runSelfUpdate(ctx context.Context, version string, stdout io.Writer, stderr
 		return err
 	}
 
-	expectedDigest, err := parseSHA256Digest(installerAsset.Digest)
+	checksumsAsset, err := findAssetByName(release.Assets, checksumsAssetName)
 	if err != nil {
-		return fmt.Errorf("invalid installer digest for release %s: %w", release.TagName, err)
+		return fmt.Errorf("release %s: %w", release.TagName, err)
 	}
 
 	script, err := downloadAsset(ctx, installerAsset.BrowserDownloadURL)
 	if err != nil {
 		return fmt.Errorf("download installer asset: %w", err)
+	}
+
+	checksums, err := downloadAsset(ctx, checksumsAsset.BrowserDownloadURL)
+	if err != nil {
+		return fmt.Errorf("download checksums asset: %w", err)
+	}
+
+	expectedDigest, err := checksumForAsset(checksums, installerAsset.Name)
+	if err != nil {
+		return fmt.Errorf("resolve installer checksum: %w", err)
 	}
 
 	actualDigest := sha256Hex(script)
@@ -146,17 +158,7 @@ func fetchRelease(ctx context.Context, version string) (*githubRelease, error) {
 }
 
 func findInstallerAsset(assets []githubReleaseAsset) (*githubReleaseAsset, error) {
-	for i := range assets {
-		if assets[i].Name == installerAssetName {
-			if strings.TrimSpace(assets[i].BrowserDownloadURL) == "" {
-				return nil, fmt.Errorf("installer asset missing download URL")
-			}
-
-			return &assets[i], nil
-		}
-	}
-
-	return nil, fmt.Errorf("release missing installer asset %q", installerAssetName)
+	return findAssetByName(assets, installerAssetName)
 }
 
 func downloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
@@ -191,22 +193,64 @@ func downloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
 	return body, nil
 }
 
-func parseSHA256Digest(digest string) (string, error) {
-	trimmed := strings.TrimSpace(digest)
-	if !strings.HasPrefix(trimmed, "sha256:") {
-		return "", fmt.Errorf("unsupported digest %q", digest)
+func findAssetByName(assets []githubReleaseAsset, name string) (*githubReleaseAsset, error) {
+	for i := range assets {
+		if assets[i].Name != name {
+			continue
+		}
+		if strings.TrimSpace(assets[i].BrowserDownloadURL) == "" {
+			return nil, fmt.Errorf("asset %q missing download URL", name)
+		}
+		return &assets[i], nil
 	}
 
-	value := strings.TrimPrefix(trimmed, "sha256:")
-	if len(value) != 64 {
-		return "", fmt.Errorf("expected 64 hex chars, got %d", len(value))
+	return nil, fmt.Errorf("release missing asset %q", name)
+}
+
+func checksumForAsset(checksums []byte, assetName string) (string, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(checksums))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+
+		filename := strings.TrimLeft(fields[len(fields)-1], "*")
+		if filename != assetName && filepath.Base(filename) != assetName {
+			continue
+		}
+
+		hash, err := parseSHA256Hex(fields[0])
+		if err != nil {
+			return "", fmt.Errorf("invalid checksum entry for %q: %w", assetName, err)
+		}
+
+		return hash, nil
 	}
 
-	if _, err := hex.DecodeString(value); err != nil {
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("scan checksums: %w", err)
+	}
+
+	return "", fmt.Errorf("checksum entry not found for %q", assetName)
+}
+
+func parseSHA256Hex(value string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(value))
+	if len(trimmed) != 64 {
+		return "", fmt.Errorf("expected 64 hex chars, got %d", len(trimmed))
+	}
+
+	if _, err := hex.DecodeString(trimmed); err != nil {
 		return "", fmt.Errorf("invalid sha256 hex: %w", err)
 	}
 
-	return strings.ToLower(value), nil
+	return trimmed, nil
 }
 
 func sha256Hex(input []byte) string {
