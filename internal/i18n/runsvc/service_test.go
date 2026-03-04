@@ -687,7 +687,6 @@ func TestRunLockWriterFlushesOnTickerInterval(t *testing.T) {
 		t.Fatalf("expected at least one ticker-triggered flush plus final flush, got %d", lockWrites)
 	}
 }
-
 func TestRunRetriesRetryableTranslateErrors(t *testing.T) {
 	svc := newTestService()
 	attempts := 0
