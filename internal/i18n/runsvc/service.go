@@ -322,15 +322,35 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 
 type eventEmitter struct {
 	notify func(Event)
+	events chan Event
+	done   chan struct{}
 	mu     sync.Mutex
+	closed bool
 }
+
+const (
+	eventEmitterBufferSize = 1024
+)
 
 func newEventEmitter(onEvent func(Event)) *eventEmitter {
 	if onEvent == nil {
 		return nil
 	}
 
-	return &eventEmitter{notify: onEvent}
+	e := &eventEmitter{
+		notify: onEvent,
+		events: make(chan Event, eventEmitterBufferSize),
+		done:   make(chan struct{}),
+	}
+	go e.run()
+	return e
+}
+
+func (e *eventEmitter) run() {
+	defer close(e.done)
+	for ev := range e.events {
+		e.notify(ev)
+	}
 }
 
 func (e *eventEmitter) emit(ev Event) {
@@ -340,7 +360,44 @@ func (e *eventEmitter) emit(ev Event) {
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.notify(ev)
+	if e.closed {
+		return
+	}
+	if e.isDroppable(ev) {
+		select {
+		case e.events <- ev:
+		default:
+		}
+		return
+	}
+	e.events <- ev
+}
+
+func (e *eventEmitter) close() {
+	if e == nil {
+		return
+	}
+
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		return
+	}
+	e.closed = true
+	close(e.events)
+	e.mu.Unlock()
+	<-e.done
+}
+
+func (e *eventEmitter) isDroppable(ev Event) bool {
+	switch ev.Kind {
+	case EventTaskStart, EventTaskDone, EventPersisted:
+		return true
+	case EventContextMemory:
+		return ev.ContextMemoryState == ContextMemoryStateProgress
+	default:
+		return false
+	}
 }
 
 func resolveProfile(cfg *config.I18NConfig, groupName string) (string, config.LLMProfile, error) {

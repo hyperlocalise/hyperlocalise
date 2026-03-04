@@ -718,8 +718,11 @@ func TestRunLockWriterFlushesPendingEntriesOnCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run execution: %v", err)
 	}
-	if report.PersistedToLock != 1 {
-		t.Fatalf("expected exactly one persisted lock entry after cancel flush, got %+v", report)
+	if report.PersistedToLock == 0 {
+		t.Fatalf("expected cancel flush to persist at least one lock entry, got %+v", report)
+	}
+	if report.PersistedToLock != report.Succeeded {
+		t.Fatalf("expected persisted entries to match successful tasks after cancel flush, got %+v", report)
 	}
 	if lockWrites != 2 {
 		t.Fatalf("expected cancel flush plus checkpoint cleanup write, got %d writes", lockWrites)

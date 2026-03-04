@@ -11,6 +11,7 @@ import (
 
 func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	emitter := newEventEmitter(in.OnEvent)
+	defer emitter.close()
 	emitter.emit(Event{Kind: EventPhase, Phase: PhasePlanning})
 
 	cfg, err := s.loadConfig(in.ConfigPath)
