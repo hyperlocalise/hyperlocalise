@@ -1,6 +1,6 @@
 ---
 title: "status"
-description: "Report translation status per key/namespace/locale in CSV format."
+description: "Report translation status per key/namespace/locale in CSV, with optional interactive TTY dashboard."
 ---
 
 ## Usage
@@ -16,6 +16,7 @@ hyperlocalise status [--config <path>] [flags]
 - `--output`: output format (`csv`)
 - `--group`: filter by group name
 - `--bucket`: filter by bucket name
+- `-i`, `--interactive`: render interactive dashboard in TTY (requires `--output csv`)
 
 ## Status values
 
@@ -23,8 +24,12 @@ hyperlocalise status [--config <path>] [flags]
 - `needs_review`: provenance is `origin=llm` and `state=draft`
 - `untranslated`: value is empty
 
-## Example
+## Examples
 
 ```bash
 hyperlocalise status --config i18n.jsonc --locale es-ES --output csv
+```
+
+```bash
+hyperlocalise status --config i18n.jsonc --group default --output csv -i
 ```
