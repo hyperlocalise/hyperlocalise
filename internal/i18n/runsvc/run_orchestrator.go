@@ -61,7 +61,9 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		contextPlan = buildContextMemoryPlan(executable, in.ContextMemoryScope, in.ContextMemoryMaxChars)
 	}
 
-	emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
+	if len(executable) > 0 {
+		emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
+	}
 	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, pruneTargets, contextPlan, emitter)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
