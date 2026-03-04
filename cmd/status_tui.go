@@ -101,7 +101,7 @@ type statusDashboardModel struct {
 
 func runStatusDashboard(w io.Writer, entries []storage.Entry, locales []string, group, bucket string) error {
 	if !isTTYWriter(w) {
-		return fmt.Errorf("--tty requires a TTY output")
+		return fmt.Errorf("--interactive requires a TTY output")
 	}
 
 	summary := buildStatusSummary(entries, locales)
