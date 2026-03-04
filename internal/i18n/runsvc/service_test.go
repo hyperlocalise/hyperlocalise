@@ -501,7 +501,7 @@ func TestRunContinueOnErrorReturnsPartialFailureReport(t *testing.T) {
 	}
 }
 
-func TestRunLockWriterPersistsEachSuccess(t *testing.T) {
+func TestRunLockWriterBatchesAndFlushesOnShutdown(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
 	targetPath := "/tmp/out.json"
@@ -540,11 +540,151 @@ func TestRunLockWriterPersistsEachSuccess(t *testing.T) {
 	if report.Succeeded != 3 || report.PersistedToLock != 3 {
 		t.Fatalf("unexpected lock persistence totals: %+v", report)
 	}
-	if lockWrites != 3 {
-		t.Fatalf("expected one lock write per success, got %d", lockWrites)
+	if lockWrites != 1 {
+		t.Fatalf("expected one batched lock write on shutdown flush, got %d", lockWrites)
 	}
 	if seenSizes[len(seenSizes)-1] != 3 {
 		t.Fatalf("expected final lock map size 3, got %v", seenSizes)
+	}
+}
+
+func TestRunLockWriterFlushesPendingEntriesOnCancel(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A","b":"B"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	lockWrites := 0
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockWrites++
+		for identity, completion := range f.RunCompleted {
+			if completion.SourceHash == "" {
+				t.Fatalf("expected source hash persisted for %s", identity)
+			}
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var cancelOnce sync.Once
+	report, err := svc.Run(ctx, Input{
+		Workers: 1,
+		OnEvent: func(e Event) {
+			if e.Kind == EventTaskDone && e.TaskSucceeded {
+				cancelOnce.Do(cancel)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.PersistedToLock != 1 {
+		t.Fatalf("expected exactly one persisted lock entry after cancel flush, got %+v", report)
+	}
+	if lockWrites != 1 {
+		t.Fatalf("expected pending lock entries flushed once on cancel, got %d writes", lockWrites)
+	}
+}
+
+func TestRunLockWriterFlushesWhenBatchSizeReached(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.lockPersistBatchSize = 2
+	svc.lockPersistFlushInterval = time.Hour
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A","b":"B","c":"C","d":"D","e":"E"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	lockWrites := 0
+	seenSizes := []int{}
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		lockWrites++
+		seenSizes = append(seenSizes, len(f.RunCompleted))
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Succeeded != 5 || report.PersistedToLock != 5 {
+		t.Fatalf("unexpected lock persistence totals: %+v", report)
+	}
+	if lockWrites != 3 {
+		t.Fatalf("expected flushes at batch 2,4 plus final target flush, got %d", lockWrites)
+	}
+	if len(seenSizes) != 3 || seenSizes[0] != 2 || seenSizes[1] != 4 || seenSizes[2] != 5 {
+		t.Fatalf("unexpected lock snapshot sizes: %v", seenSizes)
+	}
+}
+
+func TestRunLockWriterFlushesOnTickerInterval(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.lockPersistBatchSize = 100
+	svc.lockPersistFlushInterval = 5 * time.Millisecond
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A","b":"B","c":"C"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		time.Sleep(20 * time.Millisecond)
+		return strings.ToUpper(req.Source), nil
+	}
+
+	lockWrites := 0
+	svc.saveLock = func(_ string, _ lockfile.File) error {
+		lockWrites++
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Succeeded != 3 || report.PersistedToLock != 3 {
+		t.Fatalf("unexpected lock persistence totals: %+v", report)
+	}
+	if lockWrites < 2 {
+		t.Fatalf("expected at least one ticker-triggered flush plus final flush, got %d", lockWrites)
 	}
 }
 
@@ -1764,6 +1904,9 @@ func newTestService() *Service {
 		newParser: translationfileparser.NewDefaultStrategy,
 		now:       func() time.Time { return now },
 		numCPU:    func() int { return 2 },
+
+		lockPersistBatchSize:     32,
+		lockPersistFlushInterval: 250 * time.Millisecond,
 	}
 }
 
