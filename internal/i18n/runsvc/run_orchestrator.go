@@ -3,6 +3,8 @@ package runsvc
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/lockfile"
 )
@@ -27,7 +29,8 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 	initializeLockState(state)
 
-	report, executable, checkpointStaged, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, in.Force)
+	activeRunID := ensureActiveRunID(state)
+	report, executable, checkpointStaged, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force)
 	if err != nil {
 		return Report{}, err
 	}
@@ -63,8 +66,12 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 
 	if len(executable) > 0 {
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
+		if state.ActiveRunID == "" {
+			state.ActiveRunID = nextRunID(s.now())
+			activeRunID = state.ActiveRunID
+		}
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, pruneTargets, contextPlan, emitter)
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
@@ -85,6 +92,10 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		emitter.emit(completedEvent(report))
 		return report, err
 	}
+	if err := s.clearRunCheckpoints(in.LockPath, state); err != nil {
+		emitter.emit(completedEvent(report))
+		return report, err
+	}
 
 	report.PruneApplied = len(report.PruneCandidates)
 	emitter.emit(completedEvent(report))
@@ -100,7 +111,7 @@ func initializeLockState(state *lockfile.File) {
 	}
 }
 
-func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, force bool) (Report, []Task, map[string]stagedOutput, error) {
+func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, force bool) (Report, []Task, map[string]stagedOutput, error) {
 	report := Report{PlannedTotal: len(planned)}
 	executable := make([]Task, 0, len(planned))
 	checkpointStaged := map[string]stagedOutput{}
@@ -113,7 +124,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := hashSourceText(task.SourceText)
-		if cp, ok := checkpoints[identity]; ok && cp.SourceHash == sourceHash {
+		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && cp.SourceHash == sourceHash {
 			if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
 				return Report{}, nil, nil, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 			}
@@ -128,6 +139,30 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 	}
 	report.ExecutableTotal = len(executable)
 	return report, executable, checkpointStaged, nil
+}
+
+func ensureActiveRunID(state *lockfile.File) string {
+	return state.ActiveRunID
+}
+
+func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) bool {
+	return activeRunID != "" && cp.RunID == activeRunID
+}
+
+func nextRunID(now time.Time) string {
+	return "run_" + strconv.FormatInt(now.UnixNano(), 10)
+}
+
+func (s *Service) clearRunCheckpoints(lockPath string, state *lockfile.File) error {
+	if len(state.RunCheckpoint) == 0 && state.ActiveRunID == "" {
+		return nil
+	}
+	state.RunCheckpoint = map[string]lockfile.RunCheckpoint{}
+	state.ActiveRunID = ""
+	if err := s.saveLock(lockPath, *state); err != nil {
+		return fmt.Errorf("clear run checkpoints: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) collectPruneTargets(in Input, planned []Task, report *Report, emitter *eventEmitter) (map[string]map[string]struct{}, error) {

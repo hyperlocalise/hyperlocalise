@@ -640,9 +640,13 @@ func TestRunLockWriterBatchesAndFlushesOnShutdown(t *testing.T) {
 
 	lockWrites := 0
 	seenSizes := []int{}
+	lastCheckpointSize := -1
+	lastActiveRunID := ""
 	svc.saveLock = func(_ string, f lockfile.File) error {
 		lockWrites++
 		seenSizes = append(seenSizes, len(f.RunCompleted))
+		lastCheckpointSize = len(f.RunCheckpoint)
+		lastActiveRunID = f.ActiveRunID
 		for identity, completion := range f.RunCompleted {
 			if completion.SourceHash == "" {
 				t.Fatalf("expected source hash persisted for %s", identity)
@@ -658,11 +662,14 @@ func TestRunLockWriterBatchesAndFlushesOnShutdown(t *testing.T) {
 	if report.Succeeded != 3 || report.PersistedToLock != 3 {
 		t.Fatalf("unexpected lock persistence totals: %+v", report)
 	}
-	if lockWrites != 1 {
-		t.Fatalf("expected one batched lock write on shutdown flush, got %d", lockWrites)
+	if lockWrites != 2 {
+		t.Fatalf("expected one progress write plus one checkpoint cleanup write, got %d", lockWrites)
 	}
 	if seenSizes[len(seenSizes)-1] != 3 {
 		t.Fatalf("expected final lock map size 3, got %v", seenSizes)
+	}
+	if lastCheckpointSize != 0 || lastActiveRunID != "" {
+		t.Fatalf("expected checkpoints cleared after successful run, got run_checkpoint=%d active_run_id=%q", lastCheckpointSize, lastActiveRunID)
 	}
 }
 
@@ -714,8 +721,8 @@ func TestRunLockWriterFlushesPendingEntriesOnCancel(t *testing.T) {
 	if report.PersistedToLock != 1 {
 		t.Fatalf("expected exactly one persisted lock entry after cancel flush, got %+v", report)
 	}
-	if lockWrites != 1 {
-		t.Fatalf("expected pending lock entries flushed once on cancel, got %d writes", lockWrites)
+	if lockWrites != 2 {
+		t.Fatalf("expected cancel flush plus checkpoint cleanup write, got %d writes", lockWrites)
 	}
 }
 
@@ -755,10 +762,10 @@ func TestRunLockWriterFlushesWhenBatchSizeReached(t *testing.T) {
 	if report.Succeeded != 5 || report.PersistedToLock != 5 {
 		t.Fatalf("unexpected lock persistence totals: %+v", report)
 	}
-	if lockWrites != 3 {
-		t.Fatalf("expected flushes at batch 2,4 plus final target flush, got %d", lockWrites)
+	if lockWrites != 4 {
+		t.Fatalf("expected flushes at batch 2,4 plus final target flush and checkpoint cleanup, got %d", lockWrites)
 	}
-	if len(seenSizes) != 3 || seenSizes[0] != 2 || seenSizes[1] != 4 || seenSizes[2] != 5 {
+	if len(seenSizes) != 4 || seenSizes[0] != 2 || seenSizes[1] != 4 || seenSizes[2] != 5 || seenSizes[3] != 5 {
 		t.Fatalf("unexpected lock snapshot sizes: %v", seenSizes)
 	}
 }
@@ -852,11 +859,12 @@ func TestRunResumesFromCheckpointAfterInterruptedRun(t *testing.T) {
 	now := time.Unix(1700000000, 0).UTC()
 	lockState := &lockfile.File{
 		LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+		ActiveRunID:  "run_1",
 		RunCompleted: map[string]lockfile.RunCompletion{
 			aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
 		},
 		RunCheckpoint: map[string]lockfile.RunCheckpoint{
-			aID: {TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "a", SourceHash: hashSourceText("A"), UpdatedAt: now},
+			aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "a", SourceHash: hashSourceText("A"), UpdatedAt: now},
 		},
 	}
 
@@ -941,13 +949,14 @@ func TestRunSkipsCompletedLocaleBatchAndFlushesFromCheckpoint(t *testing.T) {
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{
 			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+			ActiveRunID:  "run_1",
 			RunCompleted: map[string]lockfile.RunCompletion{
 				aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
 				bID: {CompletedAt: now, SourceHash: hashSourceText("B")},
 			},
 			RunCheckpoint: map[string]lockfile.RunCheckpoint{
-				aID: {TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
-				bID: {TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "b", Value: "bb", SourceHash: hashSourceText("B"), UpdatedAt: now},
+				aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
+				bID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "b", Value: "bb", SourceHash: hashSourceText("B"), UpdatedAt: now},
 			},
 		}, nil
 	}
@@ -1029,13 +1038,14 @@ func TestRunFailsWhenCheckpointStagingConflicts(t *testing.T) {
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{
 			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+			ActiveRunID:  "run_1",
 			RunCompleted: map[string]lockfile.RunCompletion{
 				aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
 				bID: {CompletedAt: now, SourceHash: hashSourceText("B")},
 			},
 			RunCheckpoint: map[string]lockfile.RunCheckpoint{
-				aID: {TargetPath: targetPath, SourcePath: sourceAPath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
-				bID: {TargetPath: targetPath, SourcePath: sourceBPath, TargetLocale: "fr", EntryKey: "b", Value: "bb", SourceHash: hashSourceText("B"), UpdatedAt: now},
+				aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourceAPath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
+				bID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourceBPath, TargetLocale: "fr", EntryKey: "b", Value: "bb", SourceHash: hashSourceText("B"), UpdatedAt: now},
 			},
 		}, nil
 	}

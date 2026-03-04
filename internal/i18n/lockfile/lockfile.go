@@ -13,6 +13,7 @@ type File struct {
 	Adapter       string                      `json:"adapter,omitempty"`
 	ProjectID     string                      `json:"project_id,omitempty"`
 	LastPullAt    *time.Time                  `json:"last_pull_at,omitempty"`
+	ActiveRunID   string                      `json:"active_run_id,omitempty"`
 	LocaleStates  map[string]LocaleCheckpoint `json:"locale_states,omitempty"`
 	RunCompleted  map[string]RunCompletion    `json:"run_completed,omitempty"`
 	RunCheckpoint map[string]RunCheckpoint    `json:"run_checkpoint,omitempty"`
@@ -29,6 +30,7 @@ type RunCompletion struct {
 }
 
 type RunCheckpoint struct {
+	RunID        string    `json:"run_id,omitempty"`
 	TargetPath   string    `json:"target_path,omitempty"`
 	SourcePath   string    `json:"source_path,omitempty"`
 	TargetLocale string    `json:"target_locale,omitempty"`

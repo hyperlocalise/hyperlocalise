@@ -110,7 +110,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, emitter *eventEmitter) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, emitter *eventEmitter) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
 	scheduledTasks := tasks
 	if contextPlan.Enabled {
 		scheduledTasks = interleaveTasksByContextKey(tasks)
@@ -138,7 +138,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 	defer cancel()
 
 	lockWriterDone := make(chan struct{})
-	go s.runLockWriter(ctx, completions, targetFailures, lockWriterDone, lockState, lockPath, fatalLockErr, cancel, state, emitter)
+	go s.runLockWriter(ctx, completions, targetFailures, lockWriterDone, lockState, lockPath, activeRunID, fatalLockErr, cancel, state, emitter)
 
 	var wg sync.WaitGroup
 	for range workerCount {
@@ -162,7 +162,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 	return state.staged, state.flushedTargets, state.report, nil
 }
 
-func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskCompletion, targetFailures <-chan string, done chan<- struct{}, lockState *lockfile.File, lockPath string, fatalLockErr chan<- error, cancel context.CancelFunc, state *executorState, emitter *eventEmitter) {
+func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskCompletion, targetFailures <-chan string, done chan<- struct{}, lockState *lockfile.File, lockPath string, activeRunID string, fatalLockErr chan<- error, cancel context.CancelFunc, state *executorState, emitter *eventEmitter) {
 	defer close(done)
 	flushInterval := s.lockPersistFlushInterval
 	if flushInterval <= 0 {
@@ -255,10 +255,11 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				continue
 			}
 			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
-			lockState.RunCheckpoint[completion.identity] = lockfile.RunCheckpoint{
-				TargetPath:   completion.targetPath,
-				SourcePath:   completion.sourcePath,
-				TargetLocale: completion.targetLocale,
+				lockState.RunCheckpoint[completion.identity] = lockfile.RunCheckpoint{
+					RunID:        activeRunID,
+					TargetPath:   completion.targetPath,
+					SourcePath:   completion.sourcePath,
+					TargetLocale: completion.targetLocale,
 				EntryKey:     completion.entryKey,
 				Value:        completion.value,
 				SourceHash:   completion.sourceHash,

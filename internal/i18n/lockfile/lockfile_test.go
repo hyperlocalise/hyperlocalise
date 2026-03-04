@@ -38,9 +38,10 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	now := time.Unix(1700000000, 0).UTC()
 
 	err := Save(path, File{
-		Adapter:    "poeditor",
-		ProjectID:  "123",
-		LastPullAt: &now,
+		Adapter:     "poeditor",
+		ProjectID:   "123",
+		LastPullAt:  &now,
+		ActiveRunID: "run_1700000000000000000",
 		LocaleStates: map[string]LocaleCheckpoint{
 			"fr": {
 				Revision:  "rev1",
@@ -53,10 +54,11 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 				SourceHash:  "abc123",
 			},
 		},
-		RunCheckpoint: map[string]RunCheckpoint{
-			"locales/fr.json::hello": {
-				TargetPath:   "locales/fr.json",
-				SourcePath:   "locales/en.json",
+			RunCheckpoint: map[string]RunCheckpoint{
+				"locales/fr.json::hello": {
+					RunID:        "run_1700000000000000000",
+					TargetPath:   "locales/fr.json",
+					SourcePath:   "locales/en.json",
 				TargetLocale: "fr",
 				EntryKey:     "hello",
 				Value:        "Bonjour",
@@ -75,6 +77,9 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	}
 	if got.Adapter != "poeditor" || got.ProjectID != "123" {
 		t.Fatalf("unexpected header fields: %+v", got)
+	}
+	if got.ActiveRunID != "run_1700000000000000000" {
+		t.Fatalf("unexpected active run id: %q", got.ActiveRunID)
 	}
 	checkpoint, ok := got.LocaleStates["fr"]
 	if !ok {
@@ -99,6 +104,9 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	}
 	if checkpointed.Value != "Bonjour" || checkpointed.SourceHash != "abc123" {
 		t.Fatalf("unexpected checkpoint payload: %+v", checkpointed)
+	}
+	if checkpointed.RunID != "run_1700000000000000000" {
+		t.Fatalf("unexpected checkpoint run id: %q", checkpointed.RunID)
 	}
 }
 
