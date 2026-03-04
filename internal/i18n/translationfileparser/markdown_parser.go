@@ -577,7 +577,7 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 				return targetContexts[i].text, true
 			}
 		}
-		for i := 0; i < len(targetContexts); i++ {
+		for i := range targetContexts {
 			if targetUsed[i] {
 				continue
 			}
@@ -597,7 +597,7 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 			targetCursor = i + 1
 			return targetContexts[i].text, true
 		}
-		for i := 0; i < len(targetContexts); i++ {
+		for i := range targetContexts {
 			if targetUsed[i] {
 				continue
 			}
