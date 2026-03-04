@@ -59,9 +59,8 @@ type executorState struct {
 }
 
 type contextMemorySlot struct {
-	cond       *sync.Cond
-	generating bool
-	memory     string
+	done   chan struct{}
+	memory string
 }
 
 func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan) (*executorState, error) {

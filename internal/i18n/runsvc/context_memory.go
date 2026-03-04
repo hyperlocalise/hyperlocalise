@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
@@ -111,15 +110,16 @@ func (s *Service) resolveTaskContextMemory(ctx context.Context, task Task, state
 
 	state.contextMu.Lock()
 	if slot, exists := state.contextSlots[key]; exists {
-		for slot.generating {
-			slot.cond.Wait()
-		}
-		memory := slot.memory
+		done := slot.done
 		state.contextMu.Unlock()
-		return memory
+		select {
+		case <-done:
+			return slot.memory
+		case <-ctx.Done():
+			return ""
+		}
 	}
-	slot := &contextMemorySlot{generating: true}
-	slot.cond = sync.NewCond(&state.contextMu)
+	slot := &contextMemorySlot{done: make(chan struct{})}
 	state.contextSlots[key] = slot
 	state.contextMu.Unlock()
 
@@ -156,8 +156,7 @@ func (s *Service) resolveTaskContextMemory(ctx context.Context, task Task, state
 
 	state.contextMu.Lock()
 	slot.memory = memory
-	slot.generating = false
-	slot.cond.Broadcast()
+	close(slot.done)
 	state.contextMu.Unlock()
 
 	state.reportMu.Lock()
@@ -204,6 +203,16 @@ func (s *Service) emitContextMemoryStart(state *executorState, emitter *eventEmi
 }
 
 func (s *Service) emitContextMemoryDone(state *executorState, emitter *eventEmitter, group contextMemoryGroup, success bool, failureReason string, generated int, fallbacks int) {
+	emitter.emit(Event{
+		Kind:                   EventContextMemory,
+		ContextMemoryState:     ContextMemoryStateProgress,
+		ContextMemoryTotal:     state.contextPlan.Total,
+		ContextMemoryProcessed: generated + fallbacks,
+		ContextMemoryFallbacks: fallbacks,
+		TargetPath:             group.DisplayTarget,
+		EntryKey:               contextMemorySyntheticKey,
+		Message:                fmt.Sprintf("context memory progress for %s", group.DisplayTarget),
+	})
 	emitter.emit(Event{
 		Kind:                   EventContextMemory,
 		ContextMemoryState:     ContextMemoryStateDone,

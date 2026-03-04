@@ -2939,6 +2939,7 @@ func TestRunExperimentalContextMemoryEmitsProgressEvents(t *testing.T) {
 	seenCompletion := false
 	seenStart := false
 	seenDone := false
+	seenProgress := false
 	seenFileTarget := false
 	for _, event := range events {
 		if event.Kind != EventContextMemory {
@@ -2960,6 +2961,9 @@ func TestRunExperimentalContextMemoryEmitsProgressEvents(t *testing.T) {
 		if event.ContextMemoryState == ContextMemoryStateDone {
 			seenDone = true
 		}
+		if event.ContextMemoryState == ContextMemoryStateProgress {
+			seenProgress = true
+		}
 	}
 	if progressEvents == 0 {
 		t.Fatalf("expected context memory progress events, got %+v", events)
@@ -2972,6 +2976,9 @@ func TestRunExperimentalContextMemoryEmitsProgressEvents(t *testing.T) {
 	}
 	if !seenStart || !seenDone {
 		t.Fatalf("expected context memory start/done events for list UI, got %+v", events)
+	}
+	if !seenProgress {
+		t.Fatalf("expected context memory progress events, got %+v", events)
 	}
 	if !seenFileTarget {
 		t.Fatalf("expected context memory file target in events, got %+v", events)
