@@ -36,6 +36,7 @@ type Input struct {
 	LockPath                  string
 	Workers                   int
 	ExperimentalContextMemory bool
+	ExperimentalAutoRepair    bool
 	ContextMemoryScope        string
 	ContextMemoryMaxChars     int
 	OnEvent                   func(Event)
@@ -115,6 +116,7 @@ type Task struct {
 	BucketName    string `json:"-"`
 	ContextKey    string `json:"-"`
 	ContextMemory string `json:"-"`
+	AutoRepair    bool   `json:"-"`
 }
 
 type Failure struct {
@@ -157,6 +159,12 @@ type Report struct {
 	ContextMemoryScope          string                `json:"contextMemoryScope,omitempty"`
 	ContextMemoryGenerated      int                   `json:"contextMemoryGenerated,omitempty"`
 	ContextMemoryFallbackGroups int                   `json:"contextMemoryFallbackGroups,omitempty"`
+	AutoRepairEnabled           bool                  `json:"autoRepairEnabled,omitempty"`
+	AutoRepairEvaluated         int                   `json:"autoRepairEvaluated,omitempty"`
+	AutoRepairTriggered         int                   `json:"autoRepairTriggered,omitempty"`
+	AutoRepairSucceeded         int                   `json:"autoRepairSucceeded,omitempty"`
+	AutoRepairFailed            int                   `json:"autoRepairFailed,omitempty"`
+	AutoRepairOverhead          TokenUsage            `json:"autoRepairOverhead,omitempty"`
 	Warnings                    []string              `json:"warnings,omitempty"`
 }
 

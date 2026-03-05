@@ -37,6 +37,9 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
+	if in.ExperimentalAutoRepair {
+		report.AutoRepairEnabled = true
+	}
 	if in.ExperimentalContextMemory {
 		scope, maxChars, normalizeErr := normalizeContextMemoryOptions(in)
 		if normalizeErr != nil {
@@ -66,6 +69,11 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 
 	if len(executable) > 0 {
+		if in.ExperimentalAutoRepair {
+			for i := range executable {
+				executable[i].AutoRepair = true
+			}
+		}
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseExecuting})
 		if state.ActiveRunID == "" {
 			state.ActiveRunID = nextRunID(s.now())
@@ -82,6 +90,11 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	report.Failures = append(report.Failures, execReport.Failures...)
 	report.ContextMemoryGenerated = execReport.ContextMemoryGenerated
 	report.ContextMemoryFallbackGroups = execReport.ContextMemoryFallbackGroups
+	report.AutoRepairEvaluated = execReport.AutoRepairEvaluated
+	report.AutoRepairTriggered = execReport.AutoRepairTriggered
+	report.AutoRepairSucceeded = execReport.AutoRepairSucceeded
+	report.AutoRepairFailed = execReport.AutoRepairFailed
+	report.AutoRepairOverhead = execReport.AutoRepairOverhead
 	report.Warnings = append(report.Warnings, execReport.Warnings...)
 	if err != nil {
 		emitter.emit(completedEvent(report))

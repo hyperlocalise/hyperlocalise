@@ -29,6 +29,7 @@ type runOptions struct {
 	group                     string
 	outputPath                string
 	experimentalContextMemory bool
+	experimentalAutoRepair    bool
 	contextMemoryScope        string
 	contextMemoryMaxChars     int
 }
@@ -91,6 +92,7 @@ func newRunCmd() *cobra.Command {
 				Bucket:                    o.bucket,
 				Group:                     o.group,
 				ExperimentalContextMemory: o.experimentalContextMemory,
+				ExperimentalAutoRepair:    o.experimentalAutoRepair,
 				ContextMemoryScope:        contextMemoryScope,
 				ContextMemoryMaxChars:     o.contextMemoryMaxChars,
 			}
@@ -136,6 +138,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.group, "group", "", "only run tasks for the given group")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
+	cmd.Flags().BoolVar(&o.experimentalAutoRepair, "experimental-auto-repair", o.experimentalAutoRepair, "enable experimental two-pass translation with automatic repair when source-language leakage is detected")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
 
@@ -234,6 +237,26 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 			report.ContextMemoryScope,
 			report.ContextMemoryGenerated,
 			report.ContextMemoryFallbackGroups,
+		); err != nil {
+			return err
+		}
+	}
+	if report.AutoRepairEnabled {
+		if _, err := fmt.Fprintln(w, "auto_repair_enabled=true"); err != nil {
+			return err
+		}
+	}
+	if report.AutoRepairEnabled {
+		if _, err := fmt.Fprintf(
+			w,
+			"auto_repair evaluated=%d triggered=%d succeeded=%d failed=%d overhead_prompt_tokens=%d overhead_completion_tokens=%d overhead_total_tokens=%d\n",
+			report.AutoRepairEvaluated,
+			report.AutoRepairTriggered,
+			report.AutoRepairSucceeded,
+			report.AutoRepairFailed,
+			report.AutoRepairOverhead.PromptTokens,
+			report.AutoRepairOverhead.CompletionTokens,
+			report.AutoRepairOverhead.TotalTokens,
 		); err != nil {
 			return err
 		}

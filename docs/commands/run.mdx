@@ -6,7 +6,7 @@ description: "Plan and execute local translation generation from configured sour
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--experimental-auto-repair] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Behavior
@@ -72,6 +72,7 @@ When writing CSV targets, `run` preserves the existing header and non-target col
 - `--progress`: progress rendering mode (`auto|on|off`, default: `auto`)
 - `--output`: write machine-readable JSON run report to the given path
 - `--experimental-context-memory`: enable two-stage context memory generation before translating each scope
+- `--experimental-auto-repair`: enable two-pass translation with automatic repair when source-language leakage is detected
 - `--context-memory-scope`: context sharing scope (`file|bucket|group`, default `file`)
 - `--context-memory-max-chars`: maximum context memory length injected into each translation request (default `1200`)
 

@@ -435,6 +435,69 @@ func TestRunExperimentalContextMemoryFlagsPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunExperimentalAutoRepairFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{
+		"run",
+		"--experimental-auto-repair",
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with experimental auto-repair flag: %v", err)
+	}
+	if !gotInput.ExperimentalAutoRepair {
+		t.Fatalf("expected --experimental-auto-repair to set runsvc.Input.ExperimentalAutoRepair")
+	}
+}
+
+func TestRunPrintsAutoRepairEnabledInReport(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{
+			AutoRepairEnabled:   true,
+			AutoRepairEvaluated: 3,
+			AutoRepairTriggered: 2,
+			AutoRepairSucceeded: 2,
+			AutoRepairFailed:    0,
+			AutoRepairOverhead: runsvc.TokenUsage{
+				PromptTokens:     10,
+				CompletionTokens: 4,
+				TotalTokens:      14,
+			},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with two-pass repair report: %v", err)
+	}
+	if !strings.Contains(out.String(), "auto_repair_enabled=true") {
+		t.Fatalf("expected auto-repair marker in output, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "auto_repair evaluated=3 triggered=2 succeeded=2 failed=0 overhead_prompt_tokens=10 overhead_completion_tokens=4 overhead_total_tokens=14") {
+		t.Fatalf("expected auto-repair metric line in output, got %q", out.String())
+	}
+}
+
 func TestRunRejectsInvalidContextMemoryScope(t *testing.T) {
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)
