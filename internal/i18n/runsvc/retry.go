@@ -241,9 +241,6 @@ func shouldAttemptAutoRepair(sourceLocale, targetLocale, source, translated stri
 		}
 		// Guard against false positives on short borrowed-term outputs (for example product names).
 		// For known locales, require both low confidence and enough token mass before overlap-only triggers.
-		if confidence < 0.2 && overlap == translatedTokenCount && translatedTokenCount >= 4 {
-			return true
-		}
 		if confidence < 0.2 && overlapRatio >= 0.9 && translatedTokenCount >= 4 {
 			return true
 		}
