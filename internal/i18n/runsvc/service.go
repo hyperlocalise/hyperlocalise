@@ -28,6 +28,7 @@ type Input struct {
 	ConfigPath                string
 	Bucket                    string
 	Group                     string
+	TargetLocales             []string
 	DryRun                    bool
 	Force                     bool
 	Prune                     bool
@@ -203,12 +204,16 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
-func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string) ([]Task, error) {
+func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales []string) ([]Task, error) {
 	parser := s.newParser()
 	groups := sortedGroupNames(cfg.Groups)
 	buckets := sortedBucketNames(cfg.Buckets)
 	filteredBucket := strings.TrimSpace(onlyBucket)
 	filteredGroup := strings.TrimSpace(onlyGroup)
+	filteredTargets, err := normalizeTargetLocales(onlyTargetLocales)
+	if err != nil {
+		return nil, fmt.Errorf("planning tasks: %w", err)
+	}
 	if filteredBucket != "" {
 		if _, ok := cfg.Buckets[filteredBucket]; !ok {
 			return nil, fmt.Errorf("planning tasks: unknown bucket %q", filteredBucket)
@@ -217,6 +222,17 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	if filteredGroup != "" {
 		if _, ok := cfg.Groups[filteredGroup]; !ok {
 			return nil, fmt.Errorf("planning tasks: unknown group %q", filteredGroup)
+		}
+	}
+	if len(filteredTargets) > 0 {
+		targetSet := make(map[string]struct{}, len(cfg.Locales.Targets))
+		for _, target := range cfg.Locales.Targets {
+			targetSet[target] = struct{}{}
+		}
+		for _, target := range filteredTargets {
+			if _, ok := targetSet[target]; !ok {
+				return nil, fmt.Errorf("planning tasks: unknown target locale %q", target)
+			}
 		}
 	}
 
@@ -235,6 +251,12 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		targets := group.Targets
 		if len(targets) == 0 {
 			targets = append([]string(nil), cfg.Locales.Targets...)
+		}
+		if len(filteredTargets) > 0 {
+			targets = intersectLocales(targets, filteredTargets)
+			if len(targets) == 0 {
+				continue
+			}
 		}
 		slices.Sort(targets)
 
@@ -301,6 +323,48 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	}
 
 	return tasks, nil
+}
+
+func normalizeTargetLocales(locales []string) ([]string, error) {
+	if len(locales) == 0 {
+		return nil, nil
+	}
+
+	seen := make(map[string]struct{}, len(locales))
+	normalized := make([]string, 0, len(locales))
+	for _, locale := range locales {
+		trimmed := strings.TrimSpace(locale)
+		if trimmed == "" {
+			return nil, fmt.Errorf("target locale must not be empty")
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	return normalized, nil
+}
+
+func intersectLocales(locales, selected []string) []string {
+	if len(locales) == 0 || len(selected) == 0 {
+		return nil
+	}
+
+	selectedSet := make(map[string]struct{}, len(selected))
+	for _, locale := range selected {
+		selectedSet[locale] = struct{}{}
+	}
+
+	intersection := make([]string, 0, len(locales))
+	for _, locale := range locales {
+		if _, ok := selectedSet[locale]; ok {
+			intersection = append(intersection, locale)
+		}
+	}
+
+	return intersection
 }
 
 func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, error) {

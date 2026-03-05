@@ -114,6 +114,65 @@ func TestRunDryRunPruneReportsCandidates(t *testing.T) {
 	}
 }
 
+func TestRunDryRunPruneFiltersByTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	deTargetPath := filepath.Join(dir, "dist", "de", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(frTargetPath), 0o755); err != nil {
+		t.Fatalf("create fr target dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(deTargetPath), 0o755); err != nil {
+		t.Fatalf("create de target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(frTargetPath, []byte(`{"hello":"Bonjour","old":"Ancien"}`), 0o600); err != nil {
+		t.Fatalf("write fr target file: %v", err)
+	}
+	if err := os.WriteFile(deTargetPath, []byte(`{"hello":"Hallo","old":"Alt"}`), 0o600); err != nil {
+		t.Fatalf("write de target file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr","de"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr","de"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--prune", "--target-locale", "de"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run prune filtered target locale: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") {
+		t.Fatalf("expected only one planned task, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "prune_candidates=1") {
+		t.Fatalf("expected one prune candidate, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "prune target="+filepath.ToSlash(deTargetPath)+" key=old") {
+		t.Fatalf("expected de prune candidate, got %q", out.String())
+	}
+	if strings.Contains(out.String(), "prune target="+filepath.ToSlash(frTargetPath)+" key=old") {
+		t.Fatalf("expected fr prune candidate to be filtered out, got %q", out.String())
+	}
+}
+
 func TestRunDryRunFiltersByBucket(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -216,6 +275,245 @@ func TestRunDryRunFiltersByGroup(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), filepath.ToSlash(marketingTargetPath)) {
 		t.Fatalf("expected tests group task, got %q", out.String())
+	}
+}
+
+func TestRunDryRunFiltersByTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	deTargetPath := filepath.Join(dir, "dist", "de", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr","de"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr","de"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", "de"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run filtered target locale: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") {
+		t.Fatalf("expected only one planned task, got %q", out.String())
+	}
+	if strings.Contains(out.String(), filepath.ToSlash(frTargetPath)) {
+		t.Fatalf("expected fr locale to be filtered out, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(deTargetPath)) {
+		t.Fatalf("expected de locale task, got %q", out.String())
+	}
+}
+
+func TestRunTargetLocaleRespectsGroupTargets(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr","de"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json")) + `"}]}},
+	  "groups": {
+	    "default":{"targets":["fr"],"buckets":["ui"]},
+	    "secondary":{"targets":["de"],"buckets":["ui"]}
+	  },
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--group", "default", "--target-locale", "de"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run group filtered target locale: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=0") {
+		t.Fatalf("expected no planned tasks when locale is outside group targets, got %q", out.String())
+	}
+}
+
+func TestRunRejectsUnknownTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", "de"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected unknown target locale error")
+	}
+	if !strings.Contains(err.Error(), `planning tasks: unknown target locale "de"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunRejectsEmptyTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", ""})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected empty target locale error")
+	}
+	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunRejectsWhitespaceTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", "   "})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected whitespace target locale error")
+	}
+	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRunRejectsMixedEmptyTargetLocaleValue(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	deTargetPath := filepath.Join(dir, "dist", "de", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr","de"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr","de"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", ",de"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected mixed empty target locale error")
+	}
+	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(out.String(), filepath.ToSlash(frTargetPath)) || strings.Contains(out.String(), filepath.ToSlash(deTargetPath)) {
+		t.Fatalf("expected run to fail before planning tasks, got %q", out.String())
 	}
 }
 
