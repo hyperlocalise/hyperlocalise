@@ -20,7 +20,10 @@ const (
 	translationRetryMaxDelay    = 5 * time.Second
 )
 
-var wordTokenPattern = regexp.MustCompile(`[\p{L}][\p{L}\p{N}_-]{2,}`)
+var (
+	wordTokenPattern     = regexp.MustCompile(`[\p{L}][\p{L}\p{N}_-]{2,}`)
+	stopwordTokenPattern = regexp.MustCompile(`[\p{L}][\p{L}\p{N}_-]*`)
+)
 
 var sleepWithContext = func(ctx context.Context, delay time.Duration) error {
 	t := time.NewTimer(delay)
@@ -67,6 +70,8 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, au
 	pass1Usage := translator.Usage{}
 	pass1, err := s.translateRequestWithRetry(translator.WithUsageCollector(ctx, &pass1Usage), request)
 	if err != nil {
+		// Preserve pass-1 token usage even when auto-repair exits early on error.
+		translator.SetUsage(ctx, pass1Usage)
 		return "", outcome, err
 	}
 	// Guardrails keep repair targeted to likely leakage cases to control cost and latency.
@@ -313,7 +318,8 @@ func targetLanguageConfidence(targetLocale, text string) (float64, bool) {
 		return 0, false
 	}
 	// For Latin-script locales we use a tiny stopword probe as a cheap language-ID heuristic.
-	tokens := wordTokenPattern.FindAllString(strings.ToLower(text), -1)
+	// This tokenizer intentionally allows 1-2 character words (for example: "o", "a", "el", "la").
+	tokens := stopwordTokenPattern.FindAllString(strings.ToLower(text), -1)
 	if len(tokens) == 0 {
 		return 0, true
 	}

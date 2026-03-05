@@ -120,6 +120,43 @@ func TestTranslateWithRetryAutoRepairFailsClosedWhenRepairPassFails(t *testing.T
 	}
 }
 
+func TestTranslateWithRetryAutoRepairKeepsPass1UsageOnPass1Failure(t *testing.T) {
+	svc := newTestService()
+	attempts := 0
+	svc.translate = func(ctx context.Context, _ translator.Request) (string, error) {
+		attempts++
+		translator.SetUsage(ctx, translator.Usage{
+			PromptTokens:     3 * attempts,
+			CompletionTokens: attempts,
+			TotalTokens:      (3 * attempts) + attempts,
+		})
+		return "", errors.New("pass1 failed")
+	}
+
+	usage := translator.Usage{}
+	task := Task{
+		SourceText:   "Welcome to the developer dashboard",
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		EntryKey:     "hello",
+		Provider:     "openai",
+		Model:        "gpt-4.1-mini",
+		Prompt:       "Translate from en to fr.",
+		AutoRepair:   true,
+	}
+
+	_, _, err := svc.translateWithRetry(translator.WithUsageCollector(context.Background(), &usage), task)
+	if err == nil {
+		t.Fatalf("expected pass1 error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected one non-retryable attempt, got %d", attempts)
+	}
+	if usage.PromptTokens != 3 || usage.CompletionTokens != 1 || usage.TotalTokens != 4 {
+		t.Fatalf("unexpected usage preserved from pass1 failure: %+v", usage)
+	}
+}
+
 func TestShouldAttemptAutoRepair(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -177,5 +214,15 @@ func TestShouldAttemptAutoRepair(t *testing.T) {
 				t.Fatalf("shouldAttemptAutoRepair(%q, %q, %q, %q)=%v, want %v", tt.sourceLoc, tt.targetLoc, tt.source, tt.translated, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestTargetLanguageConfidenceCountsShortStopwords(t *testing.T) {
+	confidence, known := targetLanguageConfidence("pt-BR", "o sistema e a plataforma com as traducoes")
+	if !known {
+		t.Fatalf("expected locale to be known")
+	}
+	if confidence <= 0 {
+		t.Fatalf("expected positive confidence from short Portuguese stopwords, got %f", confidence)
 	}
 }
