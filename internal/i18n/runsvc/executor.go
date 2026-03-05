@@ -461,6 +461,15 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		task.ContextMemory = s.resolveTaskContextMemory(ctx, task, state, emitter)
 	}
 	translated, autoRepair, err := s.translateWithRetry(translator.WithUsageCollector(ctx, &usage), task)
+	state.reportMu.Lock()
+	// Record auto-repair telemetry for both success and failure paths.
+	state.report.AutoRepairEvaluated += boolToInt(autoRepair.Evaluated)
+	state.report.AutoRepairTriggered += boolToInt(autoRepair.Triggered)
+	state.report.AutoRepairSucceeded += boolToInt(autoRepair.Succeeded)
+	state.report.AutoRepairFailed += boolToInt(autoRepair.Failed)
+	state.report.AutoRepairOverhead = addTokenUsage(state.report.AutoRepairOverhead, toRunTokenUsage(autoRepair.Overhead))
+	state.reportMu.Unlock()
+
 	if err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
 		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
@@ -479,12 +488,6 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))
 		localeUsage := state.report.LocaleUsage[task.TargetLocale]
 		state.report.LocaleUsage[task.TargetLocale] = addTokenUsage(localeUsage, toRunTokenUsage(usage))
-		// Auto-repair metrics let us track trigger quality and incremental token cost.
-		state.report.AutoRepairEvaluated += boolToInt(autoRepair.Evaluated)
-		state.report.AutoRepairTriggered += boolToInt(autoRepair.Triggered)
-		state.report.AutoRepairSucceeded += boolToInt(autoRepair.Succeeded)
-		state.report.AutoRepairFailed += boolToInt(autoRepair.Failed)
-		state.report.AutoRepairOverhead = addTokenUsage(state.report.AutoRepairOverhead, toRunTokenUsage(autoRepair.Overhead))
 		state.report.Batches = append(state.report.Batches, BatchUsage{
 			TargetLocale: task.TargetLocale,
 			TargetPath:   task.TargetPath,

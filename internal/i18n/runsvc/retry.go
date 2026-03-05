@@ -225,18 +225,22 @@ func shouldAttemptAutoRepair(sourceLocale, targetLocale, source, translated stri
 		return true
 	}
 	overlapRatio := float64(overlap) / float64(translatedTokenCount)
-	// Extremely high overlap is a fallback guardrail even when language confidence is unavailable.
-	// This keeps leakage catch-rate high for unsupported locales.
-	if overlapRatio >= 0.9 && translatedTokenCount >= 3 {
-		return true
-	}
-
 	// Language confidence is the primary signal; overlap is used as corroboration.
 	confidence, known := targetLanguageConfidence(targetLocale, translated)
-	if known && confidence < 0.2 && overlap >= 2 && overlapRatio >= 0.2 {
-		return true
+	if known {
+		// For known locales, strong lexical overlap alone is enough to suspect source leakage.
+		if overlapRatio >= 0.9 && translatedTokenCount >= 3 {
+			return true
+		}
+		if confidence < 0.2 && overlap >= 2 && overlapRatio >= 0.2 {
+			return true
+		}
+		return false
 	}
-	if !known && overlap >= 3 && overlapRatio >= 0.9 {
+
+	// Unknown locale fallback: require both high overlap and enough shared terms.
+	// This is stricter than known-locale checks to avoid over-triggering where confidence is unavailable.
+	if overlap >= 3 && overlapRatio >= 0.9 {
 		return true
 	}
 

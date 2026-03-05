@@ -245,8 +245,6 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 		if _, err := fmt.Fprintln(w, "auto_repair_enabled=true"); err != nil {
 			return err
 		}
-	}
-	if report.AutoRepairEnabled {
 		if _, err := fmt.Fprintf(
 			w,
 			"auto_repair evaluated=%d triggered=%d succeeded=%d failed=%d overhead_prompt_tokens=%d overhead_completion_tokens=%d overhead_total_tokens=%d\n",
