@@ -2207,6 +2207,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.mdx":         []byte("# Hello\n"),
 		"/tmp/source.strings":     []byte("\"hello\" = \"Hello\";\n"),
 		"/tmp/source.stringsdict": []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict><key>hello</key><string>Hello</string></dict></plist>"),
+		"/tmp/source.xcstrings":   []byte(`{"sourceLanguage":"en","version":"1.0","strings":{"hello":{"localizations":{"en":{"stringUnit":{"state":"translated","value":"Hello"}}}}}}`),
 		"/tmp/source.csv":         []byte("key,source,target\nhello,Hello,Hello\n"),
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
@@ -2230,6 +2231,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.mdx", source: "/tmp/source.mdx"},
 		{target: "/tmp/out.strings", source: "/tmp/source.strings"},
 		{target: "/tmp/out.stringsdict", source: "/tmp/source.stringsdict"},
+		{target: "/tmp/out.xcstrings", source: "/tmp/source.xcstrings"},
 		{target: "/tmp/out.csv", source: "/tmp/source.csv"},
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
@@ -2438,6 +2440,76 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 	}
 	if meta["description"] != "target-description" {
 		t.Fatalf("expected target template metadata preserved, got %#v", meta["description"])
+	}
+}
+
+func TestMarshalSourceTemplateTargetPrefersTargetTemplateForXCStringsWhenAllKeysPresent(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.xcstrings"
+	targetPath := "/tmp/out.xcstrings"
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "hello": {
+      "comment": "source-note",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour"
+          }
+        }
+      }
+    }
+  }
+}`)
+	target := []byte(`{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "hello": {
+      "comment": "target-note",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salut"
+          }
+        }
+      }
+    }
+  }
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "fr", map[string]string{"hello": "Coucou"})
+	if err != nil {
+		t.Fatalf("marshal source-template target: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output xcstrings: %v", err)
+	}
+
+	stringsMap := payload["strings"].(map[string]any)
+	hello := stringsMap["hello"].(map[string]any)
+	if hello["comment"] != "target-note" {
+		t.Fatalf("expected target template metadata preserved, got %#v", hello["comment"])
+	}
+	frUnit := hello["localizations"].(map[string]any)["fr"].(map[string]any)["stringUnit"].(map[string]any)
+	if frUnit["state"] != "needs_review" {
+		t.Fatalf("expected target template state preserved, got %#v", frUnit["state"])
 	}
 }
 

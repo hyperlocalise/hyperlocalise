@@ -100,6 +100,11 @@ Flutter ARB format support in `run`:
 - `.arb` files are supported for source and target mappings.
 - Only message keys are translated; metadata keys such as `@key` and `@@locale` are preserved.
 
+Apple Strings Catalog format support in `run`:
+- `.xcstrings` files are supported for source and target mappings.
+- `stringUnit.value` leaves are translated while catalog metadata and state fields are preserved.
+- Variation branches (for example plural forms) are preserved and updated in-place.
+
 Prune workflow recommendation:
 - Run `hyperlocalise run --dry-run --prune` regularly (for example weekly or before releases) to review stale-key candidates.
 - Apply approved cleanup with `hyperlocalise run --prune` in a dedicated change so key deletions are easy to audit.

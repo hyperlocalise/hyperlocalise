@@ -196,6 +196,64 @@ func TestStrategyParsesAppleStringsdict(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesXCStrings(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    },
+    "items": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "1 item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%d items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}`)
+
+	got, err := s.Parse("fr.xcstrings", content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["items.plural.one"] != "1 item" {
+		t.Fatalf("unexpected items.plural.one translation: %q", got["items.plural.one"])
+	}
+	if got["items.plural.other"] != "%d items" {
+		t.Fatalf("unexpected items.plural.other translation: %q", got["items.plural.other"])
+	}
+}
+
 func TestStrategyParsesCSV(t *testing.T) {
 	s := NewDefaultStrategy()
 

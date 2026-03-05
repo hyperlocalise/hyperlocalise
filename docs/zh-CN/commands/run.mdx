@@ -30,6 +30,8 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-ru
 - `.md`
 - `.mdx`
 - `.strings`
+- `.stringsdict`
+- `.xcstrings`
 - `.csv`
 
 对于 JSON (`.json`), `run` 支持：
@@ -53,6 +55,9 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-ru
 
 适用于 Apple/Xcode 字符串 (`.strings`), `run` 保留模板中的注释和键/值格式，同时将值字面量替换为已翻译的文本。
 
+适用于 Apple/Xcode Stringsdict (`.stringsdict`), `run` 保留 plist/XML 结构 (包括复数分支) 替换时 `<string>` 值。
+
+用于 Apple/Xcode 字符串目录 (`.xcstrings`), `run` 翻译本地化 `stringUnit.value` 在保留目录元数据/状态字段和变体结构的同时处理条目。
 
 对于 CSV (`.csv`), `run` 支持两种布局：
 

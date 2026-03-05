@@ -30,6 +30,8 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.md`
 - `.mdx`
 - `.strings`
+- `.stringsdict`
+- `.xcstrings`
 - `.csv`
 
 For JSON (`.json`), `run` supports:
@@ -53,6 +55,9 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 
+For Apple/Xcode Stringsdict (`.stringsdict`), `run` preserves plist/XML structure (including plural branches) while replacing `<string>` values.
+
+For Apple/Xcode Strings Catalog (`.xcstrings`), `run` translates localized `stringUnit.value` entries while preserving catalog metadata/state fields and variation structure.
 
 For CSV (`.csv`), `run` supports two layouts:
 

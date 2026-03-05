@@ -11,11 +11,12 @@
 - `.md` / `.mdx` via `MarkdownParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
+- `.xcstrings` via `XCStringsParser` (Apple/Xcode Strings Catalog)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings and Markdown/MDX parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with all supported parsers listed above.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -70,6 +71,14 @@
   - Example: `item_count.items.one=%d item`
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### Apple Strings Catalog (`.xcstrings`)
+
+- Parses `strings.*.localizations.*` `stringUnit.value` leaves into `map[string]string`.
+- Flattens variation branches using dotted keys.
+  - Example: `item_count.plural.one=1 item`
+- Preserves catalog metadata/state fields when marshalling.
+- `MarshalXCStrings(template, values, targetLocale)` updates only targeted localized values while preserving structure.
 
 ## Minimal usage
 
