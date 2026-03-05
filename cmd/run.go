@@ -27,6 +27,7 @@ type runOptions struct {
 	progress                  string
 	bucket                    string
 	group                     string
+	targetLocales             []string
 	outputPath                string
 	experimentalContextMemory bool
 	contextMemoryScope        string
@@ -49,6 +50,18 @@ func newRunCmd() *cobra.Command {
 			}
 			if workers < 1 {
 				return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
+			}
+			if cmd.Flags().Changed("target-locale") {
+				hasTargetLocale := false
+				for _, locale := range o.targetLocales {
+					if strings.TrimSpace(locale) != "" {
+						hasTargetLocale = true
+						break
+					}
+				}
+				if !hasTargetLocale {
+					return fmt.Errorf("invalid --target-locale value: must not be empty")
+				}
 			}
 			contextMemoryScope := strings.ToLower(strings.TrimSpace(o.contextMemoryScope))
 			if contextMemoryScope == "" {
@@ -90,6 +103,7 @@ func newRunCmd() *cobra.Command {
 				Workers:                   workers,
 				Bucket:                    o.bucket,
 				Group:                     o.group,
+				TargetLocales:             o.targetLocales,
 				ExperimentalContextMemory: o.experimentalContextMemory,
 				ContextMemoryScope:        contextMemoryScope,
 				ContextMemoryMaxChars:     o.contextMemoryMaxChars,
@@ -134,6 +148,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
 	cmd.Flags().StringVar(&o.group, "group", "", "only run tasks for the given group")
+	cmd.Flags().StringSliceVar(&o.targetLocales, "target-locale", nil, "only run tasks for the given target locale(s)")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
