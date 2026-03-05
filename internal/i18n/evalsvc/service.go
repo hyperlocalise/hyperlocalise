@@ -402,6 +402,8 @@ func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experi
 		run.Quality = scoring.Result{WeightedAggregate: 0}
 		if count > 0 {
 			run.Quality.WeightedAggregate = round3(total / float64(count))
+		} else {
+			run.Error = "all judge scorers failed"
 		}
 		return run
 	}

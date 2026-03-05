@@ -77,7 +77,7 @@ func buildLLMJudgeSource(in ScoreInput) string {
 	return b.String()
 }
 
-var firstNumberPattern = regexp.MustCompile(`[-+]?\d*\.?\d+`)
+var firstNumberPattern = regexp.MustCompile(`\b0?\.\d+\b`)
 
 func parseJudgeScore(raw string) (float64, error) {
 	trimmed := strings.TrimSpace(raw)
