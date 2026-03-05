@@ -102,9 +102,13 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, au
 func (s *Service) translateRequestWithRetry(ctx context.Context, request translator.Request) (string, error) {
 	var lastErr error
 	attempt := 0
+	totalUsage := translator.Usage{}
 	for attempt = range translationRetryMaxAttempts {
-		translated, err := s.translate(ctx, request)
+		attemptUsage := translator.Usage{}
+		translated, err := s.translate(translator.WithUsageCollector(ctx, &attemptUsage), request)
+		totalUsage = addTranslatorUsage(totalUsage, attemptUsage)
 		if err == nil {
+			translator.SetUsage(ctx, totalUsage)
 			return translated, nil
 		}
 		lastErr = err
@@ -118,6 +122,7 @@ func (s *Service) translateRequestWithRetry(ctx context.Context, request transla
 		}
 	}
 
+	translator.SetUsage(ctx, totalUsage)
 	if lastErr == nil {
 		return "", fmt.Errorf("translation failed: unknown error")
 	}
@@ -196,17 +201,10 @@ func shouldAttemptAutoRepair(sourceLocale, targetLocale, source, translated stri
 		return false
 	}
 
-	// Exact copy is a clear failure mode for translation and should always be repaired.
-	if strings.EqualFold(source, translated) {
-		return true
-	}
-
-	// Full-source echo in output is a strong leakage signal.
+	// Full-source echo is useful but needs token-mass gating to avoid proper-noun false positives.
 	normalizedSource := strings.ToLower(strings.Join(strings.Fields(source), " "))
 	normalizedTranslated := strings.ToLower(strings.Join(strings.Fields(translated), " "))
-	if len([]rune(normalizedSource)) >= 16 && strings.Contains(normalizedTranslated, normalizedSource) {
-		return true
-	}
+	sourceEcho := len([]rune(normalizedSource)) >= 16 && strings.Contains(normalizedTranslated, normalizedSource)
 
 	sourceTokens := normalizeTokenSet(wordTokenPattern.FindAllString(source, -1))
 	if len(sourceTokens) == 0 {
@@ -225,19 +223,22 @@ func shouldAttemptAutoRepair(sourceLocale, targetLocale, source, translated stri
 	}
 
 	translatedTokenCount := len(translatedTokens)
-	// When all output tokens exist in source tokens, output is effectively an unlocalized rewrite.
-	if overlap == translatedTokenCount && translatedTokenCount >= 1 {
-		return true
-	}
 	overlapRatio := float64(overlap) / float64(translatedTokenCount)
 	// Language confidence is the primary signal; overlap is used as corroboration.
 	confidence, known := targetLanguageConfidence(targetLocale, translated)
 	if known {
-		// For known locales, strong lexical overlap alone is enough to suspect source leakage.
-		if overlapRatio >= 0.9 && translatedTokenCount >= 3 {
+		if sourceEcho && confidence < 0.2 && translatedTokenCount >= 4 {
 			return true
 		}
-		if confidence < 0.2 && overlap >= 2 && overlapRatio >= 0.2 {
+		// Guard against false positives on short borrowed-term outputs (for example product names).
+		// For known locales, require both low confidence and enough token mass before overlap-only triggers.
+		if confidence < 0.2 && overlap == translatedTokenCount && translatedTokenCount >= 4 {
+			return true
+		}
+		if confidence < 0.2 && overlapRatio >= 0.9 && translatedTokenCount >= 4 {
+			return true
+		}
+		if confidence < 0.2 && overlap >= 2 && overlapRatio >= 0.2 && translatedTokenCount >= 4 {
 			return true
 		}
 		return false
@@ -245,7 +246,10 @@ func shouldAttemptAutoRepair(sourceLocale, targetLocale, source, translated stri
 
 	// Unknown locale fallback: require both high overlap and enough shared terms.
 	// This is stricter than known-locale checks to avoid over-triggering where confidence is unavailable.
-	if overlap >= 3 && overlapRatio >= 0.9 {
+	if sourceEcho && translatedTokenCount >= 6 {
+		return true
+	}
+	if overlap >= 5 && overlapRatio >= 0.9 {
 		return true
 	}
 

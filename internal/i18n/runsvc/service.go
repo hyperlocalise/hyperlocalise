@@ -164,7 +164,7 @@ type Report struct {
 	AutoRepairTriggered         int                   `json:"autoRepairTriggered,omitempty"`
 	AutoRepairSucceeded         int                   `json:"autoRepairSucceeded,omitempty"`
 	AutoRepairFailed            int                   `json:"autoRepairFailed,omitempty"`
-	AutoRepairOverhead          TokenUsage            `json:"autoRepairOverhead,omitempty"`
+	AutoRepairOverhead          TokenUsage            `json:"autoRepairOverhead"`
 	Warnings                    []string              `json:"warnings,omitempty"`
 }
 

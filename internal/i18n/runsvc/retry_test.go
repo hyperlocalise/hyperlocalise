@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
@@ -206,6 +207,14 @@ func TestShouldAttemptAutoRepair(t *testing.T) {
 			translated: "Installez le paquet et redémarrez le serveur de développement",
 			want:       false,
 		},
+		{
+			name:       "borrowed proper nouns should not auto-repair",
+			sourceLoc:  "en",
+			targetLoc:  "fr",
+			source:     "React Redux Webpack",
+			translated: "React Redux Webpack",
+			want:       false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -224,5 +233,54 @@ func TestTargetLanguageConfidenceCountsShortStopwords(t *testing.T) {
 	}
 	if confidence <= 0 {
 		t.Fatalf("expected positive confidence from short Portuguese stopwords, got %f", confidence)
+	}
+}
+
+func TestTranslateRequestWithRetryAccumulatesUsageAcrossAttempts(t *testing.T) {
+	svc := newTestService()
+	attempts := 0
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(ctx context.Context, _ time.Duration) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return nil
+		}
+	}
+
+	svc.translate = func(ctx context.Context, _ translator.Request) (string, error) {
+		attempts++
+		translator.SetUsage(ctx, translator.Usage{
+			PromptTokens:     10 * attempts,
+			CompletionTokens: 5 * attempts,
+			TotalTokens:      15 * attempts,
+		})
+		if attempts < 3 {
+			return "", errors.New("status code 429")
+		}
+		return "Bonjour", nil
+	}
+
+	usage := translator.Usage{}
+	got, err := svc.translateRequestWithRetry(translator.WithUsageCollector(context.Background(), &usage), translator.Request{
+		Source:         "Hello",
+		TargetLanguage: "fr",
+		ModelProvider:  "openai",
+		Model:          "gpt-4.1-mini",
+		Prompt:         "Translate",
+	})
+	if err != nil {
+		t.Fatalf("translateRequestWithRetry: %v", err)
+	}
+	if got != "Bonjour" {
+		t.Fatalf("unexpected output: %q", got)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts, got %d", attempts)
+	}
+	if usage.PromptTokens != 60 || usage.CompletionTokens != 30 || usage.TotalTokens != 90 {
+		t.Fatalf("expected summed usage across attempts, got %+v", usage)
 	}
 }
