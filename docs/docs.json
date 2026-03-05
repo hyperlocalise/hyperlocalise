@@ -201,6 +201,7 @@
               "zh-CN/reference/glossary",
               "zh-CN/reference/config-schema",
               "zh-CN/reference/output-formats",
+              "zh-CN/reference/stability-matrix",
               "zh-CN/reference/lockfile-contract",
               "zh-CN/reference/creator"
             ]
@@ -298,6 +299,7 @@
               "vi-VN/reference/glossary",
               "vi-VN/reference/config-schema",
               "vi-VN/reference/output-formats",
+              "vi-VN/reference/stability-matrix",
               "vi-VN/reference/lockfile-contract",
               "vi-VN/reference/creator"
             ]

@@ -1,0 +1,26 @@
+---
+title: "Ma trận độ ổn định"
+description: "Hiểu các mức độ ổn định của tính năng trong hyperlocalise và cách áp dụng cho quy trình phát hành."
+---
+
+`hyperlocalise` cam kết độ ổn định theo từng tính năng, không chỉ theo phiên bản. Hãy dùng ma trận này để quyết định mức độ triển khai.
+
+## Mức độ ổn định
+
+| Mức | Ý nghĩa | Cách dùng khuyến nghị |
+| --- | --- | --- |
+| `stable` | Hành vi đã ổn định và thuộc hợp đồng công khai. | Dùng cho production và ưu tiên trong tự động hóa. |
+| `beta` | Tính năng đã dùng được nhưng vẫn có thể thay đổi tùy chọn hoặc giá trị mặc định. | Kiểm thử ở staging trước khi mở rộng dần. |
+| `experimental` | Tính năng còn trong giai đoạn thử nghiệm, giao diện và hành vi có thể đổi bất kỳ lúc nào. | Chỉ dùng để thử nghiệm, không đưa vào luồng quan trọng. |
+
+## Chính sách rollout
+
+1. Xem `stable` là lựa chọn mặc định và bật lâu dài trong CI.
+2. Đưa `beta` vào quy trình phát hành có cơ chế rollback.
+3. Giới hạn `experimental` trong môi trường sandbox hoặc nhánh ngắn hạn.
+
+## Khuyến nghị kiểm soát rủi ro
+
+- Chạy `run` và `sync` trên một tập ngôn ngữ nhỏ trước khi mở rộng.
+- Ghi lại mọi thay đổi cấu hình khi chuyển mức ổn định để dễ audit.
+- Trước khi nâng phiên bản `hyperlocalise`, kiểm tra trang này và ghi chú phát hành để xem thay đổi mức độ.

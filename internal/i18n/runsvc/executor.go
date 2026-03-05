@@ -461,6 +461,11 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 		return false
 	}
+	if err := validateTranslatedOutput(task.SourceText, translated); err != nil {
+		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+		return false
+	}
 	if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
 		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
