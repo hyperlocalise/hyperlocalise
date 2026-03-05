@@ -43,7 +43,7 @@ func usageFromGenerateTextResponse(resp *openai.ChatCompletion) (Usage, bool) {
 	prompt := int(resp.Usage.PromptTokens)
 	completion := int(resp.Usage.CompletionTokens)
 	total := int(resp.Usage.TotalTokens)
-	if total == 0 {
+	if total == 0 && (prompt != 0 || completion != 0) {
 		total = prompt + completion
 	}
 	if prompt == 0 && completion == 0 && total == 0 {

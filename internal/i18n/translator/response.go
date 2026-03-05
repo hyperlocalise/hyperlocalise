@@ -13,8 +13,8 @@ func responseText(resp *openai.ChatCompletion) (string, error) {
 	}
 
 	b := strings.Builder{}
-	for _, choice := range resp.Choices {
-		b.WriteString(choice.Message.Content)
+	if len(resp.Choices) > 0 {
+		b.WriteString(resp.Choices[0].Message.Content)
 	}
 
 	text := sanitizeGeneratedText(b.String())

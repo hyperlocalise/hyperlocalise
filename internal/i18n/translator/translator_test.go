@@ -143,6 +143,14 @@ func TestResponseText(t *testing.T) {
 			want: "bonjour",
 		},
 		{
+			name: "uses first choice only",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{
+				{Message: openai.ChatCompletionMessage{Content: "bonjour"}},
+				{Message: openai.ChatCompletionMessage{Content: "salut"}},
+			}},
+			want: "bonjour",
+		},
+		{
 			name:    "empty content",
 			resp:    &openai.ChatCompletion{},
 			want:    "",
