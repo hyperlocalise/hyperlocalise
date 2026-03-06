@@ -50,8 +50,7 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 		},
 		RunCompleted: map[string]RunCompletion{
 			"locales/fr.json::hello": {
-				CompletedAt: now,
-				SourceHash:  "abc123",
+				SourceHash: "abc123",
 			},
 		},
 		RunCheckpoint: map[string]RunCheckpoint{
@@ -98,6 +97,13 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	if completion.SourceHash != "abc123" {
 		t.Fatalf("unexpected source hash: %q", completion.SourceHash)
 	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved lockfile: %v", err)
+	}
+	if strings.Contains(string(content), "completed_at") {
+		t.Fatalf("expected saved lockfile to omit completed_at, got %s", string(content))
+	}
 	checkpointed, ok := got.RunCheckpoint["locales/fr.json::hello"]
 	if !ok {
 		t.Fatalf("expected run checkpoint")
@@ -119,6 +125,44 @@ func TestLoadInvalidJSON(t *testing.T) {
 	_, err := Load(path)
 	if err == nil || !strings.Contains(err.Error(), "decode lockfile") {
 		t.Fatalf("expected decode error, got %v", err)
+	}
+}
+
+func TestLoadLegacyRunCompletedWithCompletedAt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.lock.json")
+	content := []byte(`{
+	  "run_completed": {
+	    "locales/fr.json::hello": {
+	      "completed_at": "2026-01-15T12:10:00Z",
+	      "source_hash": "abc123"
+	    }
+	  }
+	}`)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write legacy lockfile: %v", err)
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load legacy lockfile: %v", err)
+	}
+	completion, ok := got.RunCompleted["locales/fr.json::hello"]
+	if !ok {
+		t.Fatalf("expected legacy run completion entry")
+	}
+	if completion.SourceHash != "abc123" {
+		t.Fatalf("unexpected source hash: %q", completion.SourceHash)
+	}
+
+	if err := Save(path, *got); err != nil {
+		t.Fatalf("re-save legacy lockfile: %v", err)
+	}
+	rewritten, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read rewritten lockfile: %v", err)
+	}
+	if strings.Contains(string(rewritten), "completed_at") {
+		t.Fatalf("expected rewritten lockfile to omit completed_at, got %s", string(rewritten))
 	}
 }
 

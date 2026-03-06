@@ -187,7 +187,7 @@ func TestRunAppliesLockFilterByTargetAndEntry(t *testing.T) {
 		}
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
-		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "a"): {CompletedAt: time.Now(), SourceHash: hashSourceText("A")}}}, nil
+		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "a"): {SourceHash: hashSourceText("A")}}}, nil
 	}
 
 	report, err := svc.Run(context.Background(), Input{DryRun: true})
@@ -220,7 +220,7 @@ func TestRunDoesNotSkipWhenSourceTextChanges(t *testing.T) {
 		}
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
-		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "hello"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Hello")}}}, nil
+		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{taskIdentity(targetPath, "hello"): {SourceHash: hashSourceText("Hello")}}}, nil
 	}
 
 	report, err := svc.Run(context.Background(), Input{DryRun: true})
@@ -252,8 +252,8 @@ func TestRunForceBypassesLockFilter(t *testing.T) {
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{
 			RunCompleted: map[string]lockfile.RunCompletion{
-				taskIdentity(targetPath, "a"): {CompletedAt: time.Now(), SourceHash: hashSourceText("A")},
-				taskIdentity(targetPath, "b"): {CompletedAt: time.Now(), SourceHash: hashSourceText("B")},
+				taskIdentity(targetPath, "a"): {SourceHash: hashSourceText("A")},
+				taskIdentity(targetPath, "b"): {SourceHash: hashSourceText("B")},
 			},
 		}, nil
 	}
@@ -374,7 +374,7 @@ func TestRunNoExecutableDoesNotEmitExecutingPhaseWithoutPruneCandidates(t *testi
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{
 			RunCompleted: map[string]lockfile.RunCompletion{
-				taskIdentity(targetPath, "a"): {CompletedAt: time.Now(), SourceHash: hashSourceText("A")},
+				taskIdentity(targetPath, "a"): {SourceHash: hashSourceText("A")},
 			},
 		}, nil
 	}
@@ -423,7 +423,7 @@ func TestRunNoExecutableDoesNotEmitExecutingPhaseWithPruneCandidates(t *testing.
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{
 			RunCompleted: map[string]lockfile.RunCompletion{
-				taskIdentity(targetPath, "hello"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Hello")},
+				taskIdentity(targetPath, "hello"): {SourceHash: hashSourceText("Hello")},
 			},
 		}, nil
 	}
@@ -864,7 +864,7 @@ func TestRunResumesFromCheckpointAfterInterruptedRun(t *testing.T) {
 		LocaleStates: map[string]lockfile.LocaleCheckpoint{},
 		ActiveRunID:  "run_1",
 		RunCompleted: map[string]lockfile.RunCompletion{
-			aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
+			aID: {SourceHash: hashSourceText("A")},
 		},
 		RunCheckpoint: map[string]lockfile.RunCheckpoint{
 			aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "a", SourceHash: hashSourceText("A"), UpdatedAt: now},
@@ -954,8 +954,8 @@ func TestRunSkipsCompletedLocaleBatchAndFlushesFromCheckpoint(t *testing.T) {
 			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
 			ActiveRunID:  "run_1",
 			RunCompleted: map[string]lockfile.RunCompletion{
-				aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
-				bID: {CompletedAt: now, SourceHash: hashSourceText("B")},
+				aID: {SourceHash: hashSourceText("A")},
+				bID: {SourceHash: hashSourceText("B")},
 			},
 			RunCheckpoint: map[string]lockfile.RunCheckpoint{
 				aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourcePath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
@@ -1043,8 +1043,8 @@ func TestRunFailsWhenCheckpointStagingConflicts(t *testing.T) {
 			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
 			ActiveRunID:  "run_1",
 			RunCompleted: map[string]lockfile.RunCompletion{
-				aID: {CompletedAt: now, SourceHash: hashSourceText("A")},
-				bID: {CompletedAt: now, SourceHash: hashSourceText("B")},
+				aID: {SourceHash: hashSourceText("A")},
+				bID: {SourceHash: hashSourceText("B")},
 			},
 			RunCheckpoint: map[string]lockfile.RunCheckpoint{
 				aID: {RunID: "run_1", TargetPath: targetPath, SourcePath: sourceAPath, TargetLocale: "fr", EntryKey: "a", Value: "aa", SourceHash: hashSourceText("A"), UpdatedAt: now},
@@ -1264,7 +1264,7 @@ func TestRunWritesXLIFFWithInsertedUnitWhenExistingTargetPresent(t *testing.T) {
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "old"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Old text")},
+			taskIdentity(targetPath, "old"): {SourceHash: hashSourceText("Old text")},
 		}}, nil
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
@@ -1335,7 +1335,7 @@ msgstr "Ancien texte"
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "old"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Old text")},
+			taskIdentity(targetPath, "old"): {SourceHash: hashSourceText("Old text")},
 		}}, nil
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
@@ -1412,10 +1412,7 @@ func TestRunWritesMarkdownWithInsertedSectionWhenExistingTargetPresent(t *testin
 			if key == newSectionKey {
 				continue
 			}
-			completed[taskIdentity(targetPath, key)] = lockfile.RunCompletion{
-				CompletedAt: time.Now(),
-				SourceHash:  hashSourceText(value),
-			}
+			completed[taskIdentity(targetPath, key)] = lockfile.RunCompletion{SourceHash: hashSourceText(value)}
 		}
 		return &lockfile.File{RunCompleted: completed}, nil
 	}
@@ -1533,7 +1530,7 @@ func TestRunWritesAppleStringsWithInsertedKeyWhenExistingTargetPresent(t *testin
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "old"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Old text")},
+			taskIdentity(targetPath, "old"): {SourceHash: hashSourceText("Old text")},
 		}}, nil
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
@@ -1677,7 +1674,7 @@ func TestRunWritesAppleStringsdictWithInsertedKeyWhenExistingTargetPresent(t *te
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "old"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Old text")},
+			taskIdentity(targetPath, "old"): {SourceHash: hashSourceText("Old text")},
 		}}, nil
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
@@ -1838,7 +1835,7 @@ func TestRunPreservesExistingCSVTargetLocaleValuesForUnchangedKeys(t *testing.T)
 	}
 	svc.loadLock = func(_ string) (*lockfile.File, error) {
 		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "bye"): {CompletedAt: time.Now(), SourceHash: hashSourceText("Goodbye")},
+			taskIdentity(targetPath, "bye"): {SourceHash: hashSourceText("Goodbye")},
 		}}, nil
 	}
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
