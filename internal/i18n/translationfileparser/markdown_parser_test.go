@@ -348,6 +348,18 @@ func TestMarkdownParserParseTreatsMdxWrappedTextAsSingleSection(t *testing.T) {
 	}
 }
 
+func TestSplitMarkdownLinePrefixDoesNotTreatThematicBreakAsBullet(t *testing.T) {
+	prefix, body := splitMarkdownLinePrefix("- - -\n")
+	if prefix != "" || body != "- - -\n" {
+		t.Fatalf("expected thematic break to remain a single literal line, got prefix=%q body=%q", prefix, body)
+	}
+
+	prefix, body = splitMarkdownLinePrefix("* * *\n")
+	if prefix != "" || body != "* * *\n" {
+		t.Fatalf("expected starred thematic break to remain a single literal line, got prefix=%q body=%q", prefix, body)
+	}
+}
+
 func TestMarkdownParserParseSkipsMultiLineJSXAttributes(t *testing.T) {
 	content := []byte("<Card\n  title=\"Replacement rules\"\n  href=\"/docs/rules\"\n>\n  Replace the sentence only.\n</Card>\n")
 
@@ -769,6 +781,97 @@ func TestMarshalMarkdownWithTargetFallbackExpandsFallbackSpanPerTargetPart(t *te
 	}
 	if !strings.Contains(output, "Hai voi <Badge text=\"noi tuyen\" />.") {
 		t.Fatalf("expected second target part preserved in fallback span, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownRecoversRecognizableMalformedPlaceholderTokens(t *testing.T) {
+	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	malformed := strings.Replace(value, "HLMDPH_", "HLMDPH_BROKEN_", 1)
+	output := string(MarshalMarkdown(template, map[string]string{key: malformed}))
+	if strings.Contains(output, "\x1eHLMDPH_") {
+		t.Fatalf("expected malformed but recognizable placeholder token to be normalized, got %q", output)
+	}
+	if !strings.Contains(output, "[docs](https://example.com/source-docs)") {
+		t.Fatalf("expected link restored from placeholder index, got %q", output)
+	}
+	if !strings.Contains(output, "<Badge text=\"beta\" />") {
+		t.Fatalf("expected inline JSX restored from placeholder index, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownFallsBackToSourceWhenPlaceholderTokensRemainUnrecoverable(t *testing.T) {
+	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	unrecoverable := strings.Replace(value, "HLMDPH_", "NOTPH_", 1)
+	output := string(MarshalMarkdown(template, map[string]string{key: unrecoverable}))
+	if strings.Contains(output, "\x1eHLMDPH_") {
+		t.Fatalf("expected unrecoverable placeholder corruption to fall back to source markdown, got %q", output)
+	}
+	if output != string(template) {
+		t.Fatalf("expected source markdown fallback when placeholder corruption is unrecoverable, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t *testing.T) {
+	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	unrecoverable := strings.Replace(value, "HLMDPH_", "NOTPH_", 1)
+	_, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: unrecoverable})
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRendersSourceWhenNoValueOrFallbackExists(t *testing.T) {
+	source := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+	target := []byte("")
+
+	output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{}))
+	if strings.Contains(output, "\x1eHLMDPH_") {
+		t.Fatalf("expected source markdown to be rendered without raw placeholder tokens, got %q", output)
+	}
+	if output != string(source) {
+		t.Fatalf("expected original source markdown when no value or fallback exists, got %q", output)
 	}
 }
 

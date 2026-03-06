@@ -434,7 +434,8 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 		output.targetLocale = expectedTargetLocale
 	}
 
-	return s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
+	_, err := s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
+	return err
 }
 
 func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) bool {

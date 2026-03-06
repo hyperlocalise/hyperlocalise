@@ -2246,13 +2246,54 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		content, err := svc.marshalTargetFile(tc.target, tc.source, "fr", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"})
+		content, warnings, err := svc.marshalTargetFile(tc.target, tc.source, "fr", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"})
 		if err != nil {
 			t.Fatalf("marshal %s: %v", tc.target, err)
 		}
 		if len(content) == 0 {
 			t.Fatalf("marshal %s returned empty content", tc.target)
 		}
+		if len(warnings) != 0 {
+			t.Fatalf("marshal %s returned unexpected warnings: %+v", tc.target, warnings)
+		}
+	}
+}
+
+func TestMarshalTargetFileReportsMarkdownPlaceholderFallbackWarning(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.md"
+	targetPath := "/tmp/out.md"
+	source := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return nil, os.ErrNotExist
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	entries, err := (translationfileparser.MarkdownParser{}).Parse(source)
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)}, map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)})
+	if err != nil {
+		t.Fatalf("marshal markdown target: %v", err)
+	}
+	if string(content) != string(source) {
+		t.Fatalf("expected source markdown fallback content, got %q", string(content))
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "fell back to source") {
+		t.Fatalf("expected placeholder fallback warning, got %+v", warnings)
 	}
 }
 

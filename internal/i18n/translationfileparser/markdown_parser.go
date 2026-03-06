@@ -4,9 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 )
+
+var markdownPlaceholderPattern = regexp.MustCompile("\x1eHLMDPH_[A-Z0-9_]+_(\\d+)\x1f")
 
 type markdownPart struct {
 	literal      string
@@ -31,6 +35,10 @@ type markdownKeyContext struct {
 	prevLiteral string
 	nextLiteral string
 	partIndex   int
+}
+
+type MarkdownRenderDiagnostics struct {
+	SourceFallbackKeys []string
 }
 
 func (d markdownDocument) keyContexts() []markdownKeyContext {
@@ -378,7 +386,13 @@ func hasHeadingPrefix(s string) bool {
 }
 
 func hasBulletPrefix(s string) bool {
-	return len(s) >= 2 && (s[0] == '-' || s[0] == '+' || s[0] == '*') && s[1] == ' '
+	if len(s) < 2 || (s[0] != '-' && s[0] != '+' && s[0] != '*') || s[1] != ' ' {
+		return false
+	}
+	if (s[0] == '-' || s[0] == '*') && isThematicBreak(s) {
+		return false
+	}
+	return true
 }
 
 func hasOrderedPrefix(s string) bool {
@@ -402,6 +416,8 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", placeholderCount, literal)))
 		placeholder := fmt.Sprintf("\x1eHLMDPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), placeholderCount)
 		placeholderCount++
+		// Placeholder sentinels are exposed through Parse() and must survive translation
+		// round-trips so renderMarkdownPart can restore protected markdown/JSX literals.
 		placeholders[placeholder] = literal
 		rendered.WriteString(placeholder)
 	}
@@ -649,7 +665,8 @@ func isTranslatableChunk(chunk string) bool {
 	return false
 }
 
-func (d markdownDocument) render(values map[string]string) []byte {
+func (d markdownDocument) render(values map[string]string) ([]byte, MarkdownRenderDiagnostics) {
+	var diags MarkdownRenderDiagnostics
 	var b strings.Builder
 	for _, part := range d.parts {
 		if part.key == "" {
@@ -657,23 +674,75 @@ func (d markdownDocument) render(values map[string]string) []byte {
 			continue
 		}
 		if v, ok := values[part.key]; ok {
-			b.WriteString(renderMarkdownPart(part, v))
+			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags))
 			continue
 		}
-		b.WriteString(renderMarkdownPart(part, part.source))
+		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags))
 	}
-	return []byte(b.String())
+	return []byte(b.String()), diags
 }
 
 func renderMarkdownPart(part markdownPart, translated string) string {
+	return renderMarkdownPartWithDiagnostics(part, translated, nil)
+}
+
+func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, diags *MarkdownRenderDiagnostics) string {
 	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
 	if len(part.placeholders) == 0 {
 		return rendered
 	}
-	for placeholder, original := range part.placeholders {
+	rendered = expandMarkdownPlaceholders(rendered, part.placeholders)
+	rendered = normalizeMarkdownPlaceholders(rendered, part.placeholders)
+	if strings.ContainsRune(rendered, '\x1e') || strings.ContainsRune(rendered, '\x1f') {
+		// If a translation corrupts placeholder sentinels beyond recovery, emit the
+		// original source markdown for this segment instead of leaking control tokens.
+		if diags != nil && part.key != "" {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+		}
+		return expandMarkdownPlaceholders(part.source, part.placeholders)
+	}
+	return rendered
+}
+
+func expandMarkdownPlaceholders(rendered string, placeholders map[string]string) string {
+	for placeholder, original := range placeholders {
 		rendered = strings.ReplaceAll(rendered, placeholder, original)
 	}
 	return rendered
+}
+
+func normalizeMarkdownPlaceholders(rendered string, placeholders map[string]string) string {
+	if !strings.Contains(rendered, "\x1eHLMDPH_") {
+		return rendered
+	}
+
+	byIndex := map[int]string{}
+	for placeholder, original := range placeholders {
+		match := markdownPlaceholderPattern.FindStringSubmatch(placeholder)
+		if len(match) != 2 {
+			continue
+		}
+		idx, err := strconv.Atoi(match[1])
+		if err != nil {
+			continue
+		}
+		byIndex[idx] = original
+	}
+
+	return markdownPlaceholderPattern.ReplaceAllStringFunc(rendered, func(token string) string {
+		match := markdownPlaceholderPattern.FindStringSubmatch(token)
+		if len(match) != 2 {
+			return token
+		}
+		idx, err := strconv.Atoi(match[1])
+		if err != nil {
+			return token
+		}
+		if original, ok := byIndex[idx]; ok {
+			return original
+		}
+		return token
+	})
 }
 
 func preserveChunkBoundaryWhitespace(source, translated string) string {
@@ -692,14 +761,47 @@ func (p MarkdownParser) Parse(content []byte) (map[string]string, error) {
 }
 
 func MarshalMarkdown(template []byte, values map[string]string) []byte {
+	content, _ := MarshalMarkdownWithDiagnostics(template, values)
+	return content
+}
+
+func MarshalMarkdownWithDiagnostics(template []byte, values map[string]string) ([]byte, MarkdownRenderDiagnostics) {
 	doc, _ := parseMarkdownDocument(template)
 	return doc.render(values)
+}
+
+func isThematicBreak(s string) bool {
+	trimmed := strings.TrimRight(s, "\r\n")
+	if trimmed == "" {
+		return false
+	}
+	delim := trimmed[0]
+	if delim != '-' && delim != '*' && delim != '_' {
+		return false
+	}
+
+	count := 0
+	for i := 0; i < len(trimmed); i++ {
+		switch trimmed[i] {
+		case delim:
+			count++
+		case ' ', '\t':
+		default:
+			return false
+		}
+	}
+	return count >= 3
 }
 
 // MarshalMarkdownWithTargetFallback renders markdown from the source template so new
 // sections are included, while preserving existing target translations for entries
 // not updated in the current run.
 func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) []byte {
+	content, _ := MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, values)
+	return content
+}
+
+func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, MarkdownRenderDiagnostics) {
 	sourceDoc, sourceEntries := parseMarkdownDocument(sourceTemplate)
 	targetDoc, _ := parseMarkdownDocument(targetTemplate)
 	targetContexts := targetDoc.keyContexts()
@@ -708,6 +810,7 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 	targetPartCursor := 0
 	sourceContexts := sourceDoc.keyContexts()
 	sourceCtxIdx := 0
+	var diags MarkdownRenderDiagnostics
 
 	takeFallback := func(sourceCtx markdownKeyContext) (string, bool) {
 		for i := targetCtxCursor; i < len(targetContexts); i++ {
@@ -779,7 +882,7 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 		}
 
 		if v, ok := values[part.key]; ok {
-			b.WriteString(renderMarkdownPart(part, v))
+			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags))
 			sourceCtxIdx++
 			continue
 		}
@@ -788,7 +891,7 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 		// This avoids injecting fallback text into non-translatable structural segments.
 		if _, ok := sourceEntries[part.key]; ok && sourceCtxIdx < len(sourceContexts) {
 			if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
-				b.WriteString(renderMarkdownPart(part, fallback))
+				b.WriteString(renderMarkdownPartWithDiagnostics(part, fallback, &diags))
 				sourceCtxIdx++
 				continue
 			}
@@ -796,10 +899,10 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 		if sourceCtxIdx < len(sourceContexts) {
 			sourceCtxIdx++
 		}
-		b.WriteString(part.source)
+		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags))
 	}
 
-	return []byte(b.String())
+	return []byte(b.String()), diags
 }
 
 // AlignMarkdownTargetToSource maps translated target segments back to source-derived markdown keys.
