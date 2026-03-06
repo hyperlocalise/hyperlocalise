@@ -769,7 +769,7 @@ func TestMarshalMarkdownWithTargetFallbackKeepsInsertedSectionsOrderedAroundMult
 	first := strings.Index(output, "Gioi thieu hien co.")
 	inserted := strings.Index(output, "Ghi chu moi duoc chen.")
 	last := strings.Index(output, "Ket hien co.")
-	if !(first >= 0 && inserted > first && last > inserted) {
+	if first < 0 || inserted <= first || last <= inserted {
 		t.Fatalf("expected inserted section to remain ordered between existing sections, got %q", output)
 	}
 }
