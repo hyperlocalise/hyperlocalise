@@ -37,7 +37,7 @@ func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[
 }
 
 func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, keep map[string]struct{}) ([]string, error) {
-	values, err := s.loadExistingTarget(targetPath)
+	values, loadWarnings, err := s.loadExistingTargetWithWarnings(targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	if err := s.writeFile(targetPath, content); err != nil {
 		return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 	}
-	return warnings, nil
+	return append(loadWarnings, warnings...), nil
 }
 
 func buildPlannedTargetKeySet(planned []Task) map[string]map[string]struct{} {
@@ -118,12 +118,17 @@ func validatePruneLimit(in Input, candidates int) error {
 }
 
 func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
+	entries, _, err := s.loadExistingTargetWithWarnings(path)
+	return entries, err
+}
+
+func (s *Service) loadExistingTargetWithWarnings(path string) (map[string]string, []string, error) {
 	content, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]string{}, nil
+			return map[string]string{}, nil, nil
 		}
-		return nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
 	}
 	entries, err := s.newParser().Parse(path, content)
 	if err != nil {
@@ -132,14 +137,16 @@ func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
 			// Recover string entries instead of failing the whole run.
 			recovered, recoverErr := parseJSONEntriesLenient(content)
 			if recoverErr == nil {
-				return recovered, nil
+				return recovered, nil, nil
 			}
 			// If JSON is malformed, continue with source-template fallback during marshal.
-			return map[string]string{}, nil
+			return map[string]string{}, []string{
+				fmt.Sprintf("json target %q is malformed; existing translated values could not be loaded and source-template fallback will be used", path),
+			}, nil
 		}
-		return nil, fmt.Errorf("flush outputs: parse target file %q: %w", path, err)
+		return nil, nil, fmt.Errorf("flush outputs: parse target file %q: %w", path, err)
 	}
-	return entries, nil
+	return entries, nil, nil
 }
 
 func (s *Service) marshalTargetFile(path, sourcePath, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
@@ -296,7 +303,10 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 	}
 
 	if isStrictFormatJSTemplate(payload) {
-		applyFormatJSTranslations(payload, allowedValues)
+		if pruneKeys != nil {
+			pruneFormatJSEntries(payload, pruneKeys)
+		}
+		applyFormatJSUpdates(payload, allowedValues)
 	} else {
 		if pruneKeys != nil {
 			pruneNestedJSONStringFields(payload, "", pruneKeys)
@@ -364,9 +374,9 @@ func isStrictFormatJSTemplate(payload map[string]any) bool {
 	return true
 }
 
-func applyFormatJSTranslations(payload map[string]any, values map[string]string) {
+func pruneFormatJSEntries(payload map[string]any, keep map[string]struct{}) {
 	for key, raw := range payload {
-		if _, keep := values[key]; keep {
+		if _, ok := keep[key]; ok {
 			continue
 		}
 		message, ok := raw.(map[string]any)
@@ -377,7 +387,9 @@ func applyFormatJSTranslations(payload map[string]any, values map[string]string)
 			delete(payload, key)
 		}
 	}
+}
 
+func applyFormatJSUpdates(payload map[string]any, values map[string]string) {
 	for _, key := range sortedEntryKeys(values) {
 		raw, ok := payload[key]
 		if !ok {

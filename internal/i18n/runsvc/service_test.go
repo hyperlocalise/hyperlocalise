@@ -1894,6 +1894,58 @@ func TestRunPruneRemovesStaleKeysForJSONAndNestedKeys(t *testing.T) {
 	}
 }
 
+func TestRunWarnsWhenJSONTargetIsMalformedAndFallsBack(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{"hello":"Bonjour"`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Salut", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(report.Warnings) == 0 {
+		t.Fatalf("expected warning when existing json target is malformed")
+	}
+	joined := strings.Join(report.Warnings, "\n")
+	if !strings.Contains(joined, "malformed") || !strings.Contains(joined, targetPath) {
+		t.Fatalf("expected malformed target warning mentioning path, got %+v", report.Warnings)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode written payload: %v", err)
+	}
+	if payload["hello"] != "Salut" {
+		t.Fatalf("expected translation to still succeed via fallback, got %+v", payload)
+	}
+}
+
 func TestRunPruneSafetyLimitBlocksMassDeletion(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
@@ -2553,6 +2605,56 @@ func TestMarshalTargetFileJSONReturnsBothErrorsWhenTargetAndSourceTemplatesFail(
 	}
 	if !strings.Contains(err.Error(), sourcePath) {
 		t.Fatalf("expected source template path in message, got %v", err)
+	}
+}
+
+func TestMarshalTargetFileFormatJSPruneKeepsValidUntranslatedEntries(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	target := []byte(`{
+  "a": {"defaultMessage": "A old", "description": "desc a"},
+  "b": {"defaultMessage": "B old", "description": "desc b"},
+  "stale": {"defaultMessage": "Stale old", "description": "desc stale"}
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{
+  "a": {"defaultMessage":"A source","description":"src a"},
+  "b": {"defaultMessage":"B source","description":"src b"}
+}`), nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	values := map[string]string{
+		"a": "A new",
+	}
+	pruneKeys := map[string]struct{}{
+		"a": {},
+		"b": {},
+	}
+	content, _, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", values, values, pruneKeys)
+	if err != nil {
+		t.Fatalf("marshal target file formatjs prune: %v", err)
+	}
+
+	var payload map[string]map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["a"]["defaultMessage"] != "A new" {
+		t.Fatalf("expected key a updated, got %+v", payload["a"])
+	}
+	if payload["b"]["defaultMessage"] != "B old" {
+		t.Fatalf("expected valid-but-untranslated key b preserved, got %+v", payload["b"])
+	}
+	if _, ok := payload["stale"]; ok {
+		t.Fatalf("expected stale formatjs key pruned, got %+v", payload)
 	}
 }
 
