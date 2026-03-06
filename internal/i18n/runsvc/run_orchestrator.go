@@ -115,6 +115,9 @@ func warningsForLegacyPrompts(tasks []Task) []string {
 		if strings.TrimSpace(task.Prompt) == "" {
 			continue
 		}
+		if strings.TrimSpace(task.SystemPrompt) != "" || strings.TrimSpace(task.UserPrompt) != "" {
+			continue
+		}
 		if strings.TrimSpace(task.ProfileName) == "" {
 			continue
 		}
@@ -133,7 +136,7 @@ func warningsForLegacyPrompts(tasks []Task) []string {
 	warnings := make([]string, 0, len(profiles))
 	for _, profileName := range profiles {
 		warnings = append(warnings, fmt.Sprintf(
-			`legacy_prompt profile=%s message=llm.profiles.%s.prompt is deprecated; migrate to system_prompt and user_prompt`,
+			`legacy_prompt profile=%s message="llm.profiles.%s.prompt is deprecated; migrate to system_prompt and user_prompt"`,
 			profileName,
 			profileName,
 		))

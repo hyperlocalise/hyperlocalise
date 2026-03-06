@@ -8,10 +8,10 @@ func buildSystemPrompt(req Request) string {
 		base = strings.TrimSpace(req.Prompt)
 	}
 	if base == "" {
-		base = "You are a translation assistant."
+		return "You are a translation assistant. Return only the translated text with no explanations, labels, markdown, or quotes unless the translated content itself requires them."
 	}
 
-	return base + " Return only the translated text with no explanations, labels, markdown, or quotes unless the translated content itself requires them."
+	return base
 }
 
 func buildUserPrompt(req Request) string {

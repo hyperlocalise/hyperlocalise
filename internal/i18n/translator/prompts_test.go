@@ -13,7 +13,7 @@ func TestBuildSystemPromptPrefersSystemPrompt(t *testing.T) {
 		SystemPrompt: "custom system",
 	})
 
-	if !strings.HasPrefix(got, "custom system") {
+	if got != "custom system" {
 		t.Fatalf("expected system_prompt to be used, got %q", got)
 	}
 }
@@ -22,8 +22,17 @@ func TestBuildSystemPromptFallsBackToPrompt(t *testing.T) {
 	t.Parallel()
 
 	got := buildSystemPrompt(Request{Prompt: "legacy prompt"})
-	if !strings.HasPrefix(got, "legacy prompt") {
+	if got != "legacy prompt" {
 		t.Fatalf("expected prompt fallback, got %q", got)
+	}
+}
+
+func TestBuildSystemPromptUsesDefaultPolicyWhenNoPromptProvided(t *testing.T) {
+	t.Parallel()
+
+	got := buildSystemPrompt(Request{})
+	if !strings.Contains(got, "Return only the translated text") {
+		t.Fatalf("expected default policy suffix, got %q", got)
 	}
 }
 
