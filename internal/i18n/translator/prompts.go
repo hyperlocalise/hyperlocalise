@@ -2,8 +2,11 @@ package translator
 
 import "strings"
 
-func buildSystemPrompt(customPrompt string) string {
-	base := strings.TrimSpace(customPrompt)
+func buildSystemPrompt(req Request) string {
+	base := strings.TrimSpace(req.SystemPrompt)
+	if base == "" {
+		base = strings.TrimSpace(req.Prompt)
+	}
 	if base == "" {
 		base = "You are a translation assistant."
 	}
@@ -12,6 +15,10 @@ func buildSystemPrompt(customPrompt string) string {
 }
 
 func buildUserPrompt(req Request) string {
+	if custom := strings.TrimSpace(req.UserPrompt); custom != "" {
+		return custom
+	}
+
 	b := strings.Builder{}
 	b.WriteString("Translate the following source text into the requested target language. Preserve placeholders, variables, and formatting.\n\n")
 	b.WriteString("Target language: ")
