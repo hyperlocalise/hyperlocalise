@@ -25,8 +25,7 @@ type LocaleCheckpoint struct {
 }
 
 type RunCompletion struct {
-	CompletedAt time.Time `json:"completed_at"`
-	SourceHash  string    `json:"source_hash,omitempty"`
+	SourceHash string `json:"source_hash,omitempty"`
 }
 
 type RunCheckpoint struct {

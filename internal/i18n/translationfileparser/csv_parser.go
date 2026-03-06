@@ -130,7 +130,9 @@ func readCSVRecords(content []byte, delimiter rune) ([][]string, error) {
 func normalizeCSVHeaders(headers []string) []string {
 	normalized := make([]string, len(headers))
 	for i, header := range headers {
-		normalized[i] = strings.ToLower(strings.TrimSpace(header))
+		clean := strings.TrimSpace(header)
+		clean = strings.TrimPrefix(clean, "\ufeff")
+		normalized[i] = strings.ToLower(clean)
 	}
 	return normalized
 }

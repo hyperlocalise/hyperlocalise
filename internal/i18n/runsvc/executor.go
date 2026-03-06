@@ -308,7 +308,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				}
 				continue
 			}
-			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{CompletedAt: s.now(), SourceHash: completion.sourceHash}
+			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{SourceHash: completion.sourceHash}
 			lockState.RunCheckpoint[completion.identity] = lockfile.RunCheckpoint{
 				RunID:        activeRunID,
 				TargetPath:   completion.targetPath,
