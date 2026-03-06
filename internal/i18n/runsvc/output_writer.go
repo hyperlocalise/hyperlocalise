@@ -2,6 +2,7 @@ package runsvc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -47,7 +48,15 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 			}
 		}
 	}
-	maps.Copy(values, output.entries)
+	if keep == nil {
+		maps.Copy(values, output.entries)
+	} else {
+		for key, value := range output.entries {
+			if _, ok := keep[key]; ok {
+				values[key] = value
+			}
+		}
+	}
 
 	content, warnings, err := s.marshalTargetFile(targetPath, output.sourcePath, output.targetLocale, values, output.entries, keep)
 	if err != nil {
@@ -276,13 +285,23 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 		payload = map[string]any{}
 	}
 
+	allowedValues := values
+	if pruneKeys != nil {
+		allowedValues = make(map[string]string, len(values))
+		for key, value := range values {
+			if _, ok := pruneKeys[key]; ok {
+				allowedValues[key] = value
+			}
+		}
+	}
+
 	if isStrictFormatJSTemplate(payload) {
-		applyFormatJSTranslations(payload, values)
+		applyFormatJSTranslations(payload, allowedValues)
 	} else {
 		if pruneKeys != nil {
-			pruneNestedJSONStringFields(payload, "", values)
+			pruneNestedJSONStringFields(payload, "", pruneKeys)
 		}
-		applyNestedJSONTranslations(payload, values)
+		applyNestedJSONTranslations(payload, allowedValues)
 	}
 
 	content, err := json.MarshalIndent(payload, "", "  ")
@@ -308,7 +327,10 @@ func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values 
 		if fallbackErr == nil {
 			return fallbackContent, nil
 		}
-		return nil, marshalErr
+		return nil, errors.Join(
+			marshalErr,
+			fmt.Errorf("flush outputs: fallback template %q: %w", sourcePath, fallbackErr),
+		)
 	}
 	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
@@ -377,7 +399,7 @@ func applyNestedJSONTranslations(payload map[string]any, values map[string]strin
 	}
 }
 
-func pruneNestedJSONStringFields(payload map[string]any, prefix string, allowed map[string]string) {
+func pruneNestedJSONStringFields(payload map[string]any, prefix string, allowed map[string]struct{}) {
 	for _, key := range sortedEntryKeysMapAny(payload) {
 		value := payload[key]
 		fullKey := key

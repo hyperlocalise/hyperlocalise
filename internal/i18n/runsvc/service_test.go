@@ -2450,6 +2450,112 @@ func TestMarshalTargetFileJSONFallsBackToSourceTemplateWhenTargetMissingOrUnpars
 	}
 }
 
+func TestMarshalTargetFileJSONPruneRemovesStaleStringsAndPreservesNonStrings(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	target := []byte(`{
+  "hello": "Bonjour",
+  "stale": "Supprimer",
+  "nested": {
+    "title": "Titre",
+    "stale": "Ancien",
+    "enabled": true
+  },
+  "count": 3,
+  "flags": ["a", "b"]
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello","nested":{"title":"Title"}}`), nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	values := map[string]string{
+		"hello":        "Salut",
+		"nested.title": "Titre mis à jour",
+		"rogue":        "Should be dropped",
+	}
+	pruneKeys := map[string]struct{}{
+		"hello":        {},
+		"nested.title": {},
+	}
+	content, _, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", values, values, pruneKeys)
+	if err != nil {
+		t.Fatalf("marshal target file with prune: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["hello"] != "Salut" {
+		t.Fatalf("expected translated hello, got %+v", payload["hello"])
+	}
+	if _, ok := payload["stale"]; ok {
+		t.Fatalf("expected stale top-level string key pruned, got %+v", payload)
+	}
+
+	nested, ok := payload["nested"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected nested object, got %+v", payload["nested"])
+	}
+	if nested["title"] != "Titre mis à jour" {
+		t.Fatalf("expected nested.title updated, got %+v", nested)
+	}
+	if _, ok := nested["stale"]; ok {
+		t.Fatalf("expected nested stale string key pruned, got %+v", nested)
+	}
+	if nested["enabled"] != true {
+		t.Fatalf("expected nested non-string field preserved, got %+v", nested["enabled"])
+	}
+	if payload["count"] != float64(3) {
+		t.Fatalf("expected top-level numeric field preserved, got %+v", payload["count"])
+	}
+	flags, ok := payload["flags"].([]any)
+	if !ok || len(flags) != 2 {
+		t.Fatalf("expected top-level array field preserved, got %+v", payload["flags"])
+	}
+	if _, ok := payload["rogue"]; ok {
+		t.Fatalf("expected rogue staged key absent because not in pruneKeys, got %+v", payload)
+	}
+}
+
+func TestMarshalTargetFileJSONReturnsBothErrorsWhenTargetAndSourceTemplatesFail(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"source":`), nil
+		case targetPath:
+			return []byte(`{"target":`), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	_, _, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{"hello": "Salut"}, map[string]string{"hello": "Salut"}, nil)
+	if err == nil {
+		t.Fatalf("expected marshal error when both templates are invalid")
+	}
+	if !strings.Contains(err.Error(), "decode template") {
+		t.Fatalf("expected target decode error in message, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "fallback template") {
+		t.Fatalf("expected fallback template context in message, got %v", err)
+	}
+	if !strings.Contains(err.Error(), sourcePath) {
+		t.Fatalf("expected source template path in message, got %v", err)
+	}
+}
+
 func TestMarshalTargetFileReportsMarkdownPlaceholderFallbackWarning(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.md"
