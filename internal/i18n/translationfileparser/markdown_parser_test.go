@@ -785,7 +785,7 @@ func TestMarshalMarkdownWithTargetFallbackExpandsFallbackSpanPerTargetPart(t *te
 }
 
 func TestMarshalMarkdownRecoversRecognizableMalformedPlaceholderTokens(t *testing.T) {
-	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+	template := []byte("Run `hyperlocalise status --verbose` before publishing.\n")
 
 	entries, err := (MarkdownParser{}).Parse(template)
 	if err != nil {
@@ -800,16 +800,17 @@ func TestMarshalMarkdownRecoversRecognizableMalformedPlaceholderTokens(t *testin
 		key, value = k, v
 	}
 
-	malformed := strings.Replace(value, "HLMDPH_", "HLMDPH_BROKEN_", 1)
+	malformed := strings.Replace(value, "Run", "Execute", 1)
+	malformed = strings.Replace(malformed, "HLMDPH_", "HLMDPH_BROKEN_", 1)
 	output := string(MarshalMarkdown(template, map[string]string{key: malformed}))
 	if strings.Contains(output, "\x1eHLMDPH_") {
 		t.Fatalf("expected malformed but recognizable placeholder token to be normalized, got %q", output)
 	}
-	if !strings.Contains(output, "[docs](https://example.com/source-docs)") {
-		t.Fatalf("expected link restored from placeholder index, got %q", output)
+	if !strings.Contains(output, "Execute ") {
+		t.Fatalf("expected translated prose preserved, got %q", output)
 	}
-	if !strings.Contains(output, "<Badge text=\"beta\" />") {
-		t.Fatalf("expected inline JSX restored from placeholder index, got %q", output)
+	if !strings.Contains(output, "`hyperlocalise status --verbose`") {
+		t.Fatalf("expected inline code restored from placeholder index, got %q", output)
 	}
 }
 
@@ -857,6 +858,33 @@ func TestMarshalMarkdownWithDiagnosticsReportsUnrecoverablePlaceholderFallback(t
 
 	unrecoverable := strings.Replace(value, "HLMDPH_", "NOTPH_", 1)
 	_, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: unrecoverable})
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+}
+
+func TestMarshalMarkdownFallsBackToSourceWhenMalformedTokenTargetsWrongPlaceholderIndex(t *testing.T) {
+	template := []byte("Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	swapped := strings.Replace(value, "_0\x1f", "_1\x1f", 1)
+	output := string(MarshalMarkdown(template, map[string]string{key: swapped}))
+	if output != string(template) {
+		t.Fatalf("expected source markdown fallback for wrong placeholder index corruption, got %q", output)
+	}
+	_, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: swapped})
 	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
 		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
 	}

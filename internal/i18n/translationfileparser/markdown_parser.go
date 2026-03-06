@@ -715,18 +715,32 @@ func normalizeMarkdownPlaceholders(rendered string, placeholders map[string]stri
 	if !strings.Contains(rendered, "\x1eHLMDPH_") {
 		return rendered
 	}
-
-	byIndex := map[int]string{}
-	for placeholder, original := range placeholders {
+	// Only recover by index when there is exactly one placeholder in the part.
+	// With multiple placeholders, index corruption could silently substitute the
+	// wrong literal, so we intentionally fail closed to source fallback.
+	if len(placeholders) != 1 {
+		return rendered
+	}
+	var (
+		expectedIdx int
+		original    string
+		ok          bool
+	)
+	for placeholder, v := range placeholders {
 		match := markdownPlaceholderPattern.FindStringSubmatch(placeholder)
 		if len(match) != 2 {
-			continue
+			return rendered
 		}
 		idx, err := strconv.Atoi(match[1])
 		if err != nil {
-			continue
+			return rendered
 		}
-		byIndex[idx] = original
+		expectedIdx = idx
+		original = v
+		ok = true
+	}
+	if !ok {
+		return rendered
 	}
 
 	return markdownPlaceholderPattern.ReplaceAllStringFunc(rendered, func(token string) string {
@@ -738,7 +752,7 @@ func normalizeMarkdownPlaceholders(rendered string, placeholders map[string]stri
 		if err != nil {
 			return token
 		}
-		if original, ok := byIndex[idx]; ok {
+		if idx == expectedIdx {
 			return original
 		}
 		return token
