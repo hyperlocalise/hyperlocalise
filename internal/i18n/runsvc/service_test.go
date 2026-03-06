@@ -2295,7 +2295,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		content, warnings, err := svc.marshalTargetFile(tc.target, tc.source, "fr", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"})
+		content, warnings, err := svc.marshalTargetFile(tc.target, tc.source, "fr", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"}, nil)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", tc.target, err)
 		}
@@ -2305,6 +2305,148 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		if len(warnings) != 0 {
 			t.Fatalf("marshal %s returned unexpected warnings: %+v", tc.target, warnings)
 		}
+	}
+}
+
+func TestMarshalTargetFileJSONPrefersValidTargetTemplateAndPreservesMetadata(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	source := []byte(`{
+  "checkout": {
+    "title": "Checkout",
+    "cta": "Submit order"
+  }
+}`)
+	target := []byte(`{
+  "checkout": {
+    "title": "Ancien titre",
+    "cta": "Ancien bouton",
+    "meta": {
+      "pinned": true,
+      "weight": 2
+    }
+  },
+  "version": 7
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{
+		"checkout.title":    "Titre caisse",
+		"checkout.cta":      "Valider",
+		"checkout.subtitle": "Paiement sécurisé",
+	}, map[string]string{
+		"checkout.title":    "Titre caisse",
+		"checkout.cta":      "Valider",
+		"checkout.subtitle": "Paiement sécurisé",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal target file: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	checkout, ok := payload["checkout"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected checkout object, got %+v", payload["checkout"])
+	}
+	if checkout["title"] != "Titre caisse" || checkout["cta"] != "Valider" || checkout["subtitle"] != "Paiement sécurisé" {
+		t.Fatalf("expected translated strings, got %+v", checkout)
+	}
+	meta, ok := checkout["meta"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected checkout.meta object, got %+v", checkout["meta"])
+	}
+	if meta["pinned"] != true || meta["weight"] != float64(2) {
+		t.Fatalf("expected metadata preserved, got %+v", meta)
+	}
+	if payload["version"] != float64(7) {
+		t.Fatalf("expected top-level non-string field preserved, got %+v", payload["version"])
+	}
+}
+
+func TestMarshalTargetFileJSONFallsBackToSourceTemplateWhenTargetMissingOrUnparsable(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	source := []byte(`{
+  "home": {
+    "title": "Welcome"
+  },
+  "meta": {
+    "version": 1
+  }
+}`)
+	unparsableTarget := []byte(`{"home":{"title":"Broken"`)
+
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return unparsableTarget, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{
+		"home.title": "Bienvenue",
+	}, map[string]string{
+		"home.title": "Bienvenue",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal target file with unparsable target: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	home, ok := payload["home"].(map[string]any)
+	if !ok || home["title"] != "Bienvenue" {
+		t.Fatalf("expected translated home.title with source fallback, got %+v", payload["home"])
+	}
+	meta, ok := payload["meta"].(map[string]any)
+	if !ok || meta["version"] != float64(1) {
+		t.Fatalf("expected source metadata preserved on fallback, got %+v", payload["meta"])
+	}
+
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return nil, os.ErrNotExist
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	content, _, err = svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{
+		"home.title": "Bienvenue",
+	}, map[string]string{
+		"home.title": "Bienvenue",
+	}, nil)
+	if err != nil {
+		t.Fatalf("marshal target file with missing target: %v", err)
+	}
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output (missing target): %v", err)
+	}
+	home, ok = payload["home"].(map[string]any)
+	if !ok || home["title"] != "Bienvenue" {
+		t.Fatalf("expected translated home.title with missing-target fallback, got %+v", payload["home"])
 	}
 }
 
@@ -2334,7 +2476,7 @@ func TestMarshalTargetFileReportsMarkdownPlaceholderFallbackWarning(t *testing.T
 		key, value = k, v
 	}
 
-	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)}, map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)})
+	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "fr", map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)}, map[string]string{key: strings.Replace(value, "HLMDPH_", "NOTPH_", 1)}, nil)
 	if err != nil {
 		t.Fatalf("marshal markdown target: %v", err)
 	}
