@@ -9,19 +9,28 @@ import (
 )
 
 type markdownPart struct {
-	literal string
-	key     string
-	source  string
+	literal      string
+	key          string
+	source       string
+	placeholders map[string]string
 }
 
 type markdownDocument struct {
 	parts []markdownPart
 }
 
+type markdownParseState struct {
+	inJSXTag     bool
+	jsxQuote     byte
+	jsxEscaped   bool
+	jsxBraceDepth int
+}
+
 type markdownKeyContext struct {
 	text        string
 	prevLiteral string
 	nextLiteral string
+	partIndex   int
 }
 
 func (d markdownDocument) keyContexts() []markdownKeyContext {
@@ -38,7 +47,7 @@ func (d markdownDocument) keyContexts() []markdownKeyContext {
 		if i+1 < len(d.parts) && d.parts[i+1].key == "" {
 			next = d.parts[i+1].literal
 		}
-		out = append(out, markdownKeyContext{text: part.source, prevLiteral: prev, nextLiteral: next})
+		out = append(out, markdownKeyContext{text: part.source, prevLiteral: prev, nextLiteral: next, partIndex: i})
 	}
 	return out
 }
@@ -58,11 +67,13 @@ func parseMarkdownDocument(content []byte) (markdownDocument, map[string]string)
 
 	inFence := false
 	fenceMarker := ""
+	state := markdownParseState{}
 
-	appendKey := func(segment string) {
-		key := markdownSegmentKey(segment, hashOccurrences)
-		doc.parts = append(doc.parts, markdownPart{key: key, source: segment})
-		entries[key] = segment
+	appendKey := func(part markdownPart) {
+		key := markdownSegmentKey(part.source, hashOccurrences)
+		part.key = key
+		doc.parts = append(doc.parts, part)
+		entries[key] = part.source
 	}
 
 	for i, line := range lines {
@@ -74,9 +85,11 @@ func parseMarkdownDocument(content []byte) (markdownDocument, map[string]string)
 				inFrontmatter = false
 				continue
 			}
-			emitFrontmatterLineParts(line, &doc, appendKey)
-			continue
-		}
+				emitFrontmatterLineParts(line, &doc, func(segment string) {
+					appendKey(markdownPart{source: segment})
+				})
+				continue
+			}
 
 		if inFence {
 			doc.parts = append(doc.parts, markdownPart{literal: line})
@@ -105,7 +118,7 @@ func parseMarkdownDocument(content []byte) (markdownDocument, map[string]string)
 			continue
 		}
 
-		emitMarkdownLineParts(line, &doc, appendKey)
+		emitMarkdownLineParts(line, &doc, appendKey, &state)
 	}
 
 	return doc, entries
@@ -129,64 +142,68 @@ func isImportExportLine(trimmed string) bool {
 	return trimmed == "import" || trimmed == "export"
 }
 
-func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(string)) {
-	start := 0
-
-	flushText := func(end int) {
-		if end <= start {
-			return
-		}
-		emitMarkdownTextParts(line[start:end], doc, appendKey)
-		start = end
+func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(markdownPart), state *markdownParseState) {
+	prefix := ""
+	body := line
+	if !state.inJSXTag {
+		prefix, body = splitMarkdownLinePrefix(line)
+	}
+	if prefix != "" {
+		doc.parts = append(doc.parts, markdownPart{literal: prefix})
+	}
+	if body == "" {
+		return
 	}
 
-	for idx := 0; idx < len(line); {
-		if line[idx] == '`' {
-			flushText(idx)
-			end := idx + 1
-			for end < len(line) && line[end] != '`' {
-				end++
-			}
-			if end < len(line) {
-				end++
-			}
-			doc.parts = append(doc.parts, markdownPart{literal: line[idx:end]})
-			idx = end
-			start = idx
-			continue
-		}
-
-		if strings.HasPrefix(line[idx:], "](") {
-			flushText(idx)
-			end := findMarkdownLinkDestinationEnd(line, idx+2)
-			doc.parts = append(doc.parts, markdownPart{literal: line[idx:end]})
-			idx = end
-			start = idx
-			continue
-		}
-
-		if line[idx] == '{' {
-			flushText(idx)
-			end := findBraceExpressionEnd(line, idx)
-			doc.parts = append(doc.parts, markdownPart{literal: line[idx:end]})
-			idx = end
-			start = idx
-			continue
-		}
-
-		if line[idx] == '<' && looksLikeJSXTagStart(line, idx) {
-			flushText(idx)
-			end := findJSXTagEnd(line, idx)
-			doc.parts = append(doc.parts, markdownPart{literal: line[idx:end]})
-			idx = end
-			start = idx
-			continue
-		}
-
-		idx++
+	newline := ""
+	if strings.HasSuffix(body, "\n") {
+		newline = "\n"
+		body = strings.TrimSuffix(body, "\n")
 	}
 
-	flushText(len(line))
+	var literal string
+	var consumed bool
+	literal, body, consumed = consumeLeadingJSXLiteral(body, state)
+	if consumed {
+		doc.parts = append(doc.parts, markdownPart{literal: literal})
+	}
+
+	body, trailingLiterals := stripTrailingJSXClosingLiterals(body)
+	for {
+		literal, body, consumed = consumeLeadingJSXLiteral(body, state)
+		if !consumed {
+			break
+		}
+		doc.parts = append(doc.parts, markdownPart{literal: literal})
+	}
+	if body == "" {
+		for _, literal := range trailingLiterals {
+			doc.parts = append(doc.parts, markdownPart{literal: literal})
+		}
+		if newline != "" {
+			doc.parts = append(doc.parts, markdownPart{literal: newline})
+		}
+		return
+	}
+
+	placeholdered, placeholders, plainText := protectMarkdownInlineSyntax(body)
+	if !isTranslatableChunk(plainText) {
+		doc.parts = append(doc.parts, markdownPart{literal: body})
+		for _, literal := range trailingLiterals {
+			doc.parts = append(doc.parts, markdownPart{literal: literal})
+		}
+		if newline != "" {
+			doc.parts = append(doc.parts, markdownPart{literal: newline})
+		}
+		return
+	}
+	appendKey(markdownPart{source: placeholdered, placeholders: placeholders})
+	for _, literal := range trailingLiterals {
+		doc.parts = append(doc.parts, markdownPart{literal: literal})
+	}
+	if newline != "" {
+		doc.parts = append(doc.parts, markdownPart{literal: newline})
+	}
 }
 
 func findBraceExpressionEnd(line string, start int) int {
@@ -310,31 +327,215 @@ func findMarkdownLinkDestinationEnd(line string, start int) int {
 	return len(line)
 }
 
-func emitMarkdownTextParts(segment string, doc *markdownDocument, appendKey func(string)) {
-	start := 0
-	flush := func(end int) {
-		if end <= start {
-			return
-		}
-		chunk := segment[start:end]
-		if isTranslatableChunk(chunk) {
-			appendKey(chunk)
-		} else {
-			doc.parts = append(doc.parts, markdownPart{literal: chunk})
-		}
-		start = end
+func splitMarkdownLinePrefix(line string) (string, string) {
+	idx := 0
+	for idx < len(line) && (line[idx] == ' ' || line[idx] == '\t') {
+		idx++
 	}
 
-	for idx, r := range segment {
-		switch r {
-		case '#', '>', '*', '_', '|', '[', ']', '(', ')', '!', '-', '+':
-			flush(idx)
-			next := idx + len(string(r))
-			flush(next)
-		default:
+	// Preserve one or more blockquote markers as structural prefix.
+	for idx < len(line) && line[idx] == '>' {
+		idx++
+		for idx < len(line) && line[idx] == ' ' {
+			idx++
 		}
 	}
-	flush(len(segment))
+
+	switch {
+	case hasHeadingPrefix(line[idx:]):
+		for idx < len(line) && line[idx] == '#' {
+			idx++
+		}
+		if idx < len(line) && line[idx] == ' ' {
+			idx++
+		}
+	case hasBulletPrefix(line[idx:]):
+		idx += 2
+	case hasOrderedPrefix(line[idx:]):
+		for idx < len(line) && line[idx] >= '0' && line[idx] <= '9' {
+			idx++
+		}
+		if idx < len(line) && line[idx] == '.' {
+			idx++
+		}
+		if idx < len(line) && line[idx] == ' ' {
+			idx++
+		}
+	}
+
+	return line[:idx], line[idx:]
+}
+
+func hasHeadingPrefix(s string) bool {
+	if s == "" || s[0] != '#' {
+		return false
+	}
+	count := 0
+	for count < len(s) && s[count] == '#' {
+		count++
+	}
+	return count > 0 && count <= 6 && count < len(s) && s[count] == ' '
+}
+
+func hasBulletPrefix(s string) bool {
+	return len(s) >= 2 && (s[0] == '-' || s[0] == '+' || s[0] == '*') && s[1] == ' '
+}
+
+func hasOrderedPrefix(s string) bool {
+	if s == "" || s[0] < '0' || s[0] > '9' {
+		return false
+	}
+	idx := 0
+	for idx < len(s) && s[idx] >= '0' && s[idx] <= '9' {
+		idx++
+	}
+	return idx+1 < len(s) && s[idx] == '.' && s[idx+1] == ' '
+}
+
+func protectMarkdownInlineSyntax(segment string) (string, map[string]string, string) {
+	var rendered strings.Builder
+	var plain strings.Builder
+	placeholders := map[string]string{}
+	placeholderCount := 0
+
+	appendPlaceholder := func(literal string) {
+		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", placeholderCount, literal)))
+		placeholder := fmt.Sprintf("\x1eHLMDPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), placeholderCount)
+		placeholderCount++
+		placeholders[placeholder] = literal
+		rendered.WriteString(placeholder)
+	}
+
+	for idx := 0; idx < len(segment); {
+		switch {
+		case segment[idx] == '`':
+			end := idx + 1
+			for end < len(segment) && segment[end] != '`' {
+				end++
+			}
+			if end < len(segment) {
+				end++
+			}
+			appendPlaceholder(segment[idx:end])
+			idx = end
+		case strings.HasPrefix(segment[idx:], "]("):
+			end := findMarkdownLinkDestinationEnd(segment, idx+2)
+			appendPlaceholder(segment[idx:end])
+			idx = end
+		case segment[idx] == '{':
+			end := findBraceExpressionEnd(segment, idx)
+			appendPlaceholder(segment[idx:end])
+			idx = end
+		case segment[idx] == '<' && looksLikeJSXTagStart(segment, idx):
+			end := findJSXTagEnd(segment, idx)
+			appendPlaceholder(segment[idx:end])
+			idx = end
+		default:
+			rendered.WriteByte(segment[idx])
+			plain.WriteByte(segment[idx])
+			idx++
+		}
+	}
+
+	if len(placeholders) == 0 {
+		return segment, nil, segment
+	}
+	return rendered.String(), placeholders, plain.String()
+}
+
+func consumeLeadingJSXLiteral(body string, state *markdownParseState) (string, string, bool) {
+	if body == "" {
+		return "", body, false
+	}
+	start := 0
+	if !state.inJSXTag {
+		for start < len(body) && (body[start] == ' ' || body[start] == '\t') {
+			start++
+		}
+		if start >= len(body) || body[start] != '<' || !looksLikeJSXTagStart(body, start) {
+			return "", body, false
+		}
+	}
+
+	end, closed := scanJSXTagFragment(body, start, state)
+	if closed {
+		state.inJSXTag = false
+		state.jsxQuote = 0
+		state.jsxEscaped = false
+		state.jsxBraceDepth = 0
+		return body[:end], body[end:], true
+	}
+	state.inJSXTag = true
+	return body, "", true
+}
+
+func scanJSXTagFragment(line string, start int, state *markdownParseState) (int, bool) {
+	loopStart := start + 1
+	if !state.inJSXTag {
+		state.jsxQuote = 0
+		state.jsxEscaped = false
+		state.jsxBraceDepth = 0
+	} else {
+		loopStart = start
+	}
+
+	for idx := loopStart; idx < len(line); idx++ {
+		ch := line[idx]
+		if state.jsxQuote != 0 {
+			if state.jsxEscaped {
+				state.jsxEscaped = false
+				continue
+			}
+			if ch == '\\' {
+				state.jsxEscaped = true
+				continue
+			}
+			if ch == state.jsxQuote {
+				state.jsxQuote = 0
+			}
+			continue
+		}
+
+		if ch == '\'' || ch == '"' {
+			state.jsxQuote = ch
+			continue
+		}
+
+		switch ch {
+		case '{':
+			state.jsxBraceDepth++
+		case '}':
+			if state.jsxBraceDepth > 0 {
+				state.jsxBraceDepth--
+			}
+		case '>':
+			if state.jsxBraceDepth == 0 {
+				return idx + 1, true
+			}
+		}
+	}
+
+	return len(line), false
+}
+
+func stripTrailingJSXClosingLiterals(body string) (string, []string) {
+	trailing := []string{}
+	for {
+		end := len(body)
+		for end > 0 && (body[end-1] == ' ' || body[end-1] == '\t') {
+			end--
+		}
+		start := strings.LastIndex(body[:end], "</")
+		if start < 0 || !looksLikeJSXTagStart(body, start) {
+			return body, trailing
+		}
+		tagEnd := findJSXTagEnd(body, start)
+		if tagEnd != end {
+			return body, trailing
+		}
+		trailing = append([]string{body[start:end]}, trailing...)
+		body = body[:start]
+	}
 }
 
 func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func(string)) {
@@ -438,12 +639,23 @@ func (d markdownDocument) render(values map[string]string) []byte {
 			continue
 		}
 		if v, ok := values[part.key]; ok {
-			b.WriteString(preserveChunkBoundaryWhitespace(part.source, v))
+			b.WriteString(renderMarkdownPart(part, v))
 			continue
 		}
-		b.WriteString(part.source)
+		b.WriteString(renderMarkdownPart(part, part.source))
 	}
 	return []byte(b.String())
+}
+
+func renderMarkdownPart(part markdownPart, translated string) string {
+	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
+	if len(part.placeholders) == 0 {
+		return rendered
+	}
+	for placeholder, original := range part.placeholders {
+		rendered = strings.ReplaceAll(rendered, placeholder, original)
+	}
+	return rendered
 }
 
 func preserveChunkBoundaryWhitespace(source, translated string) string {
@@ -473,47 +685,53 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 	sourceDoc, sourceEntries := parseMarkdownDocument(sourceTemplate)
 	targetDoc, _ := parseMarkdownDocument(targetTemplate)
 	targetContexts := targetDoc.keyContexts()
-	targetUsed := make([]bool, len(targetContexts))
+	targetPartUsed := make([]bool, len(targetDoc.parts))
 	targetCursor := 0
 	sourceContexts := sourceDoc.keyContexts()
 	sourceCtxIdx := 0
 
 	takeFallback := func(sourceCtx markdownKeyContext) (string, bool) {
 		for i := targetCursor; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
 			if targetContexts[i].prevLiteral == sourceCtx.prevLiteral && targetContexts[i].nextLiteral == sourceCtx.nextLiteral {
-				targetUsed[i] = true
+				targetPartUsed[targetContexts[i].partIndex] = true
 				targetCursor = i + 1
 				return targetContexts[i].text, true
 			}
 		}
 		for i := 0; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
 			if targetContexts[i].prevLiteral == sourceCtx.prevLiteral && targetContexts[i].nextLiteral == sourceCtx.nextLiteral {
-				targetUsed[i] = true
+				targetPartUsed[targetContexts[i].partIndex] = true
 				if i >= targetCursor {
 					targetCursor = i + 1
 				}
 				return targetContexts[i].text, true
 			}
 		}
+		for _, startAt := range []int{targetCursor, 0} {
+			if fallback, nextCursor, ok := takeMarkdownFallbackSpan(targetDoc, targetPartUsed, startAt, sourceCtx); ok {
+				targetCursor = nextCursor
+				return fallback, true
+			}
+		}
 		for i := targetCursor; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
-			targetUsed[i] = true
+			targetPartUsed[targetContexts[i].partIndex] = true
 			targetCursor = i + 1
 			return targetContexts[i].text, true
 		}
 		for i := 0; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
-			targetUsed[i] = true
+			targetPartUsed[targetContexts[i].partIndex] = true
 			return targetContexts[i].text, true
 		}
 		return "", false
@@ -527,7 +745,7 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 		}
 
 		if v, ok := values[part.key]; ok {
-			b.WriteString(preserveChunkBoundaryWhitespace(part.source, v))
+			b.WriteString(renderMarkdownPart(part, v))
 			sourceCtxIdx++
 			continue
 		}
@@ -536,7 +754,7 @@ func MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate []byte, va
 		// This avoids injecting fallback text into non-translatable structural segments.
 		if _, ok := sourceEntries[part.key]; ok && sourceCtxIdx < len(sourceContexts) {
 			if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
-				b.WriteString(preserveChunkBoundaryWhitespace(part.source, fallback))
+				b.WriteString(renderMarkdownPart(part, fallback))
 				sourceCtxIdx++
 				continue
 			}
@@ -560,7 +778,7 @@ func AlignMarkdownTargetToSource(sourceTemplate, targetTemplate []byte) map[stri
 
 func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]string, targetDoc markdownDocument) map[string]string {
 	targetContexts := targetDoc.keyContexts()
-	targetUsed := make([]bool, len(targetContexts))
+	targetPartUsed := make([]bool, len(targetDoc.parts))
 	targetCursor := 0
 	sourceContexts := sourceDoc.keyContexts()
 	sourceCtxIdx := 0
@@ -568,40 +786,46 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 
 	takeFallback := func(sourceCtx markdownKeyContext) (string, bool) {
 		for i := targetCursor; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
 			if targetContexts[i].prevLiteral == sourceCtx.prevLiteral && targetContexts[i].nextLiteral == sourceCtx.nextLiteral {
-				targetUsed[i] = true
+				targetPartUsed[targetContexts[i].partIndex] = true
 				targetCursor = i + 1
 				return targetContexts[i].text, true
 			}
 		}
 		for i := range targetContexts {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
 			if targetContexts[i].prevLiteral == sourceCtx.prevLiteral && targetContexts[i].nextLiteral == sourceCtx.nextLiteral {
-				targetUsed[i] = true
+				targetPartUsed[targetContexts[i].partIndex] = true
 				if i >= targetCursor {
 					targetCursor = i + 1
 				}
 				return targetContexts[i].text, true
 			}
 		}
+		for _, startAt := range []int{targetCursor, 0} {
+			if fallback, nextCursor, ok := takeMarkdownFallbackSpan(targetDoc, targetPartUsed, startAt, sourceCtx); ok {
+				targetCursor = nextCursor
+				return fallback, true
+			}
+		}
 		for i := targetCursor; i < len(targetContexts); i++ {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
-			targetUsed[i] = true
+			targetPartUsed[targetContexts[i].partIndex] = true
 			targetCursor = i + 1
 			return targetContexts[i].text, true
 		}
 		for i := range targetContexts {
-			if targetUsed[i] {
+			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
 			}
-			targetUsed[i] = true
+			targetPartUsed[targetContexts[i].partIndex] = true
 			return targetContexts[i].text, true
 		}
 		return "", false
@@ -615,11 +839,11 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 		// Only consume fallback translations for keys that are part of source extraction.
 		// This avoids injecting fallback text into non-translatable structural segments.
 		if _, ok := sourceEntries[part.key]; ok && sourceCtxIdx < len(sourceContexts) {
-			if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
-				aligned[part.key] = preserveChunkBoundaryWhitespace(part.source, fallback)
-				sourceCtxIdx++
-				continue
-			}
+				if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
+					aligned[part.key] = renderMarkdownPart(part, fallback)
+					sourceCtxIdx++
+					continue
+				}
 		}
 		if sourceCtxIdx < len(sourceContexts) {
 			sourceCtxIdx++
@@ -630,4 +854,80 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 	}
 
 	return aligned
+}
+
+func takeMarkdownFallbackSpan(targetDoc markdownDocument, targetPartUsed []bool, startAt int, sourceCtx markdownKeyContext) (string, int, bool) {
+	findSpan := func(searchStart int) (int, int, bool) {
+		start := searchStart
+		if sourceCtx.prevLiteral != "" {
+			foundPrev := false
+			for i := searchStart; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" && part.literal == sourceCtx.prevLiteral {
+					start = i + 1
+					foundPrev = true
+					break
+				}
+			}
+			if !foundPrev {
+				return 0, 0, false
+			}
+		}
+
+		end := len(targetDoc.parts)
+		if sourceCtx.nextLiteral != "" {
+			foundNext := false
+			for i := start; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" && part.literal == sourceCtx.nextLiteral {
+					end = i
+					foundNext = true
+					break
+				}
+			}
+			if !foundNext {
+				return 0, 0, false
+			}
+		} else {
+			for i := start; i < len(targetDoc.parts); i++ {
+				part := targetDoc.parts[i]
+				if part.key == "" {
+					end = i
+					break
+				}
+			}
+		}
+
+		if end <= start {
+			return 0, 0, false
+		}
+
+		for i := start; i < end; i++ {
+			if targetPartUsed[i] {
+				return 0, 0, false
+			}
+		}
+		return start, end, true
+	}
+
+	spanStart, spanEnd, ok := findSpan(startAt)
+	if !ok {
+		return "", startAt, false
+	}
+
+	var b strings.Builder
+	for i := spanStart; i < spanEnd; i++ {
+		targetPartUsed[i] = true
+		if targetDoc.parts[i].key == "" {
+			b.WriteString(targetDoc.parts[i].literal)
+			continue
+		}
+		b.WriteString(targetDoc.parts[i].source)
+	}
+
+	nextCursor := startAt
+	if spanEnd > nextCursor {
+		nextCursor = spanEnd
+	}
+	return b.String(), nextCursor, true
 }

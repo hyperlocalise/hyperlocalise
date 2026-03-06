@@ -1115,7 +1115,7 @@ func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	if !strings.Contains(out, "https://example.com") {
 		t.Fatalf("expected link destination preserved, got %q", out)
 	}
-	if !strings.Contains(out, "FR( Heading") || !strings.Contains(out, "FR(Hello )") {
+	if !strings.Contains(out, "FR(Heading)") || !strings.Contains(out, "FR(Hello `code` and [docs](https://example.com).)") {
 		t.Fatalf("expected markdown text translated, got %q", out)
 	}
 }
