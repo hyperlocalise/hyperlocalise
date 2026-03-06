@@ -110,6 +110,69 @@ func TestMarshalMarkdownPreservesLinkDestinationsWithParentheses(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownPreservesDoubleBacktickInlineCode(t *testing.T) {
+	template := []byte("Use ``code with ` inside`` safely.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := map[string]string{}
+	for k, v := range entries {
+		updates[k] = strings.ToUpper(v)
+	}
+
+	output := string(MarshalMarkdown(template, updates))
+	if !strings.Contains(output, "``code with ` inside``") {
+		t.Fatalf("expected double-backtick inline code preserved, got %q", output)
+	}
+	if !strings.Contains(output, "USE ") || !strings.Contains(output, " SAFELY.") {
+		t.Fatalf("expected surrounding prose translated, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownPreservesTripleBacktickInlineCode(t *testing.T) {
+	template := []byte("Wrap ```code with `` nested``` carefully.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := map[string]string{}
+	for k, v := range entries {
+		updates[k] = strings.ToUpper(v)
+	}
+
+	output := string(MarshalMarkdown(template, updates))
+	if !strings.Contains(output, "```code with `` nested```") {
+		t.Fatalf("expected triple-backtick inline code preserved, got %q", output)
+	}
+	if !strings.Contains(output, "WRAP ") || !strings.Contains(output, " CAREFULLY.") {
+		t.Fatalf("expected surrounding prose translated, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownLeavesUnclosedMultiBacktickSpanLiteral(t *testing.T) {
+	template := []byte("Document ``unfinished span safely.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := map[string]string{}
+	for k, v := range entries {
+		updates[k] = strings.ToUpper(v)
+	}
+
+	output := string(MarshalMarkdown(template, updates))
+	if !strings.Contains(output, "``UNFINISHED SPAN SAFELY.") {
+		t.Fatalf("expected unmatched multi-backtick run left literal and translated as prose, got %q", output)
+	}
+}
+
 func TestMarshalMarkdownMdxRoundTripPreservesComponentSyntax(t *testing.T) {
 	template := []byte("<Tabs defaultValue=\"cli\">\n<Tab value=\"cli\" label=\"CLI\">Run the command.</Tab>\n</Tabs>\n")
 	entries, err := (MarkdownParser{}).Parse(template)
@@ -612,6 +675,16 @@ func TestMarshalMarkdownWithTargetFallbackKeepsMdxSentenceBoundariesAroundExpres
 	}
 }
 
+func TestMarshalMarkdownWithTargetFallbackPreservesMixedProtectedConstructsInSingleSentence(t *testing.T) {
+	source := []byte("Open [docs](https://example.com/docs), run `hyperlocalise status`, inspect <Badge text=\"beta\" />, then confirm {locale.toUpperCase()}.\n")
+	target := []byte("Mo [tai lieu](https://example.com/docs), chay `hyperlocalise status`, kiem tra <Badge text=\"beta\" />, sau do xac nhan {locale.toUpperCase()}.\n")
+
+	output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{}))
+	if !strings.Contains(output, "Mo [tai lieu](https://example.com/docs), chay `hyperlocalise status`, kiem tra <Badge text=\"beta\" />, sau do xac nhan {locale.toUpperCase()}.") {
+		t.Fatalf("expected all protected constructs preserved in one sentence, got %q", output)
+	}
+}
+
 func TestMarshalMarkdownPreservesLiteralPlaceholderLookingText(t *testing.T) {
 	template := []byte("Document the token MDPH_0_END literally and keep `code` intact.\n")
 
@@ -647,6 +720,57 @@ func TestMarshalMarkdownWithTargetFallbackPreservesMultiLineJSXStructure(t *test
 	}
 	if !strings.Contains(output, "  Chi thay cau van.\n") {
 		t.Fatalf("expected inner prose preserved from target, got %q", output)
+	}
+}
+
+func TestMarkdownParserParseSkipsMultiLineJSXAttributesWithNestedBracesAndAngles(t *testing.T) {
+	content := []byte("<Card\n  title={label === \"a > b\" ? \"A > B\" : \"C\"}\n  meta={{cta: {href: \"/docs?x=1>0\"}}}\n>\n  Replace only the prose.\n</Card>\n")
+
+	entries, err := (MarkdownParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one translatable section inside multiline tag with nested braces, got %d", len(entries))
+	}
+
+	combined := strings.Join(mapValues(entries), "\n")
+	if combined != "Replace only the prose." {
+		t.Fatalf("expected only prose extracted from multiline JSX tag, got %q", combined)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackKeepsInsertedSectionsOrderedAroundMultiLineJSX(t *testing.T) {
+	source := []byte("<Card\n  title=\"One\"\n>\n  Existing intro.\n</Card>\n\nNew inserted note.\n\n<Card\n  title=\"Two\"\n>\n  Existing outro.\n</Card>\n")
+	target := []byte("<Card\n  title=\"One\"\n>\n  Gioi thieu hien co.\n</Card>\n\n<Card\n  title=\"Two\"\n>\n  Ket hien co.\n</Card>\n")
+
+	sourceEntries, err := (MarkdownParser{}).Parse(source)
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
+	}
+
+	newKey := findKeyByValue(sourceEntries, "New inserted note.")
+	if newKey == "" {
+		t.Fatalf("expected source key for inserted note")
+	}
+
+	output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{
+		newKey: "Ghi chu moi duoc chen.",
+	}))
+	if !strings.Contains(output, "Gioi thieu hien co.") {
+		t.Fatalf("expected first translated section preserved, got %q", output)
+	}
+	if !strings.Contains(output, "Ghi chu moi duoc chen.") {
+		t.Fatalf("expected inserted section preserved in order, got %q", output)
+	}
+	if !strings.Contains(output, "Ket hien co.") {
+		t.Fatalf("expected second translated section preserved, got %q", output)
+	}
+	first := strings.Index(output, "Gioi thieu hien co.")
+	inserted := strings.Index(output, "Ghi chu moi duoc chen.")
+	last := strings.Index(output, "Ket hien co.")
+	if !(first >= 0 && inserted > first && last > inserted) {
+		t.Fatalf("expected inserted section to remain ordered between existing sections, got %q", output)
 	}
 }
 
