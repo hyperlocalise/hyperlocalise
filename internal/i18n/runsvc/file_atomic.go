@@ -15,6 +15,7 @@ func writeBytesAtomic(path string, content []byte) error {
 	}
 	tmp := fmt.Sprintf("%s.tmp.%d", path, time.Now().UnixNano())
 	if err := os.WriteFile(tmp, content, 0o644); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
