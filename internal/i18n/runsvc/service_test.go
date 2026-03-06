@@ -1120,6 +1120,55 @@ func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 }
 
+func TestRunReportsMarkdownPlaceholderFallbackWarningsFromEarlyTargetFlush(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.md"
+	targetPath := "/tmp/out.md"
+	source := "Open [docs](https://example.com/source-docs) and inspect <Badge text=\"beta\" />.\n"
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		case targetPath:
+			return nil, os.ErrNotExist
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return strings.Replace(req.Source, "HLMDPH_", "NOTPH_", 1), nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	if string(written) != source {
+		t.Fatalf("expected source markdown fallback content after unrecoverable placeholder corruption, got %q", string(written))
+	}
+	if len(report.Warnings) == 0 {
+		t.Fatalf("expected markdown placeholder fallback warning in report")
+	}
+	if !strings.Contains(strings.Join(report.Warnings, "\n"), "fell back to source") {
+		t.Fatalf("expected fallback warning text, got %+v", report.Warnings)
+	}
+}
+
 func TestRunWritesMDXUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.mdx"

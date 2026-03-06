@@ -434,8 +434,16 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 		output.targetLocale = expectedTargetLocale
 	}
 
-	_, err := s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
-	return err
+	warnings, err := s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
+	if err != nil {
+		return err
+	}
+	if len(warnings) > 0 {
+		state.reportMu.Lock()
+		state.report.Warnings = append(state.report.Warnings, warnings...)
+		state.reportMu.Unlock()
+	}
+	return nil
 }
 
 func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) bool {
