@@ -38,6 +38,17 @@ func TestCSVParserDelimiterQuoteAndEscaping(t *testing.T) {
 	}
 }
 
+func TestCSVParserHandlesBOMPrefixedHeader(t *testing.T) {
+	p := CSVParser{KeyColumn: "id", ValueColumn: "fr"}
+	got, err := p.Parse([]byte("\ufeffid,en,fr\nhello,Hello,Bonjour\n"))
+	if err != nil {
+		t.Fatalf("parse csv with bom header: %v", err)
+	}
+	if got["hello"] != "Bonjour" {
+		t.Fatalf("unexpected value from bom header csv: %q", got["hello"])
+	}
+}
+
 func TestMarshalCSVPreservesColumnsAndAppendsDeterministically(t *testing.T) {
 	template := []byte("key,en,fr\nhello,Hello,Salut\n")
 	out, err := MarshalCSV(template, map[string]string{"hello": "Bonjour", "bye": "Au revoir"}, CSVParser{ValueColumn: "fr"})
