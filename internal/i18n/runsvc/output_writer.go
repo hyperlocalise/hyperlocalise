@@ -13,7 +13,7 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
 )
 
-func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}) error {
+func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}) ([]string, error) {
 	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
 	for path := range staged {
 		targetPaths = append(targetPaths, path)
@@ -24,18 +24,21 @@ func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[
 	slices.Sort(targetPaths)
 	targetPaths = slices.Compact(targetPaths)
 
+	var warnings []string
 	for _, targetPath := range targetPaths {
-		if err := s.flushOutputForTarget(targetPath, staged[targetPath], pruneTargets[targetPath]); err != nil {
-			return err
+		targetWarnings, err := s.flushOutputForTarget(targetPath, staged[targetPath], pruneTargets[targetPath])
+		if err != nil {
+			return nil, err
 		}
+		warnings = append(warnings, targetWarnings...)
 	}
-	return nil
+	return warnings, nil
 }
 
-func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, keep map[string]struct{}) error {
+func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, keep map[string]struct{}) ([]string, error) {
 	values, err := s.loadExistingTarget(targetPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if keep != nil {
 		for key := range values {
@@ -46,14 +49,14 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	}
 	maps.Copy(values, output.entries)
 
-	content, err := s.marshalTargetFile(targetPath, output.sourcePath, output.targetLocale, values, output.entries)
+	content, warnings, err := s.marshalTargetFile(targetPath, output.sourcePath, output.targetLocale, values, output.entries)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.writeFile(targetPath, content); err != nil {
-		return fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
+		return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 	}
-	return nil
+	return warnings, nil
 }
 
 func buildPlannedTargetKeySet(planned []Task) map[string]map[string]struct{} {
@@ -120,7 +123,7 @@ func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
 	return entries, nil
 }
 
-func (s *Service) marshalTargetFile(path, sourcePath, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, error) {
+func (s *Service) marshalTargetFile(path, sourcePath, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb":
@@ -128,36 +131,38 @@ func (s *Service) marshalTargetFile(path, sourcePath, targetLocale string, value
 	case ".json":
 		template, err := s.loadTemplateFallback(path, sourcePath)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return marshalJSONTarget(path, template, values)
+		content, err := marshalJSONTarget(path, template, values)
+		return content, nil, err
 	default:
-		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
+		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
 }
 
-func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, error) {
+func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	if ext == ".md" || ext == ".mdx" {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
 	}
 	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".arb" {
-		return s.marshalSourceTemplateTarget(ext, path, sourcePath, targetLocale, values)
+		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, targetLocale, values)
+		return content, nil, err
 	}
 
 	template, err := s.loadTemplateFallback(path, sourcePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	switch ext {
 	case ".csv":
 		content, err := translationfileparser.MarshalCSV(template, values, translationfileparser.CSVParser{})
 		if err != nil {
-			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			return nil, nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
-		return content, nil
+		return content, nil, nil
 	default:
-		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
+		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
 }
 
@@ -224,21 +229,36 @@ func hasExactKeySet(a, b map[string]string) bool {
 	return true
 }
 
-func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, error) {
+func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
 	sourceTemplate, err := s.readFile(sourcePath)
 	if err != nil {
-		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
 	targetTemplate, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return translationfileparser.MarshalMarkdown(sourceTemplate, stagedEntries), nil
+			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries)
+			return content, markdownRenderWarnings(path, diags), nil
 		}
-		return nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
 	}
 
-	return translationfileparser.MarshalMarkdownWithTargetFallback(sourceTemplate, targetTemplate, stagedEntries), nil
+	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries)
+	return content, markdownRenderWarnings(path, diags), nil
+}
+
+func markdownRenderWarnings(path string, diags translationfileparser.MarkdownRenderDiagnostics) []string {
+	if len(diags.SourceFallbackKeys) == 0 {
+		return nil
+	}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("markdown render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("markdown render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func marshalJSONTarget(path string, template []byte, values map[string]string) ([]byte, error) {

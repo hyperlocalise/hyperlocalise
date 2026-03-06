@@ -89,7 +89,9 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 
 	emitter.emit(Event{Kind: EventPhase, Phase: PhaseFinalizingOutput})
-	if err := s.flushOutputs(staged, remainingPruneTargets(pruneTargets, flushedTargets)); err != nil {
+	flushWarnings, err := s.flushOutputs(staged, remainingPruneTargets(pruneTargets, flushedTargets))
+	report.Warnings = append(report.Warnings, flushWarnings...)
+	if err != nil {
 		emitter.emit(completedEvent(report))
 		return report, err
 	}
