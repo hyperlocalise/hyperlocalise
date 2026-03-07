@@ -48,7 +48,7 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 }
 
 func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string) string {
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, 3)
 	if key := sanitizeScopeIdentifier(entryKey); key != "" {
 		parts = append(parts, "Entry key: "+key)
 	}
@@ -148,7 +148,12 @@ func sanitizePromptContext(value string, maxLen int) string {
 	if maxLen > 0 {
 		runes := []rune(joined)
 		if len(runes) > maxLen {
-			joined = strings.TrimSpace(string(runes[:maxLen]))
+			const ellipsis = "…"
+			if maxLen <= len([]rune(ellipsis)) {
+				joined = ellipsis
+			} else {
+				joined = strings.TrimSpace(string(runes[:maxLen-len([]rune(ellipsis))])) + ellipsis
+			}
 		}
 	}
 	return joined

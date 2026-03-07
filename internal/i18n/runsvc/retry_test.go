@@ -449,6 +449,20 @@ var (
 	_ net.Error = nonTimeoutNetError{}
 )
 
+func TestSanitizePromptContextTruncatesWithEllipsis(t *testing.T) {
+	got := sanitizePromptContext("abcdefghij", 5)
+	if got != "abcd…" {
+		t.Fatalf("sanitizePromptContext() = %q, want %q", got, "abcd…")
+	}
+}
+
+func TestSanitizePromptContextUsesEllipsisWhenMaxLenIsOne(t *testing.T) {
+	got := sanitizePromptContext("abcdefghij", 1)
+	if got != "…" {
+		t.Fatalf("sanitizePromptContext() = %q, want %q", got, "…")
+	}
+}
+
 func TestSanitizePromptContext(t *testing.T) {
 	got := sanitizePromptContext(" line 1\n\n line 2 \r\n", 0)
 	if got != "line 1\nline 2" {
