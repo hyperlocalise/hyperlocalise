@@ -19,9 +19,9 @@ type ExactCacheEntry struct {
 // TranslationMemoryEntry stores L2 memory candidates.
 type TranslationMemoryEntry struct {
 	ID             uint         `gorm:"primaryKey"`
-	SourceLocale   string       `gorm:"size:32;index:idx_tm_locales_text,priority:1;not null"`
-	TargetLocale   string       `gorm:"size:32;index:idx_tm_locales_text,priority:2;not null"`
-	SourceText     string       `gorm:"type:text;index:idx_tm_locales_text,priority:3;not null"`
+	SourceLocale   string       `gorm:"size:32;uniqueIndex:idx_tm_locales_text,priority:1;not null"`
+	TargetLocale   string       `gorm:"size:32;uniqueIndex:idx_tm_locales_text,priority:2;not null"`
+	SourceText     string       `gorm:"type:text;uniqueIndex:idx_tm_locales_text,priority:3;not null"`
 	TranslatedText string       `gorm:"type:text;not null"`
 	Score          float64      `gorm:"not null;default:0"`
 	Provenance     TMProvenance `gorm:"size:32;index;not null;default:unknown;check:provenance IN ('curated','draft','llm','tms','unknown')"`

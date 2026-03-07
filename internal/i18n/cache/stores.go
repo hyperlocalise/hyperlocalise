@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -137,31 +137,58 @@ func (s *tmSQLiteStore) Upsert(ctx context.Context, write TMWrite) error {
 		Provenance:     provenance,
 		Source:         source,
 	}
-	query := s.db.WithContext(ctx).
-		Where("source_locale = ? AND target_locale = ? AND source_text = ?", write.SourceLocale, write.TargetLocale, write.SourceText).
-		Assign(entry)
-	if err := query.FirstOrCreate(&entry).Error; err != nil {
+	if err := s.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{
+				{Name: "source_locale"},
+				{Name: "target_locale"},
+				{Name: "source_text"},
+			},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"translated_text", "score", "provenance", "source", "updated_at",
+			}),
+		}).
+		Create(&entry).Error; err != nil {
 		return fmt.Errorf("upsert translation memory entry: %w", err)
 	}
 	return nil
 }
 
+// tmLengthFilterRatio is the maximum allowed length ratio difference for a
+// candidate to be considered. Candidates whose rune-length differs by more
+// than this factor from the query are skipped without computing the full
+// edit distance, because their similarity cannot exceed this threshold.
+const tmLengthFilterRatio = 0.3
+
 func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, sourceText string, limit int) ([]TMResult, error) {
 	if limit <= 0 {
 		limit = 5
 	}
+
+	// Normalise the query once, outside the row loop.
+	queryRunes := []rune(strings.ToLower(strings.TrimSpace(sourceText)))
+	queryLen := len(queryRunes)
+
+	// Pre-filter by source text length in SQL so the DB only returns plausible
+	// candidates. For a normalised Levenshtein similarity of S, the candidate
+	// length L must satisfy: 1 - |queryLen-L|/max(queryLen,L) >= S.
+	// Using tmLengthFilterRatio as the minimum useful similarity gives a safe
+	// bound on the allowed length difference.
+	minLen := int(float64(queryLen) * (1 - tmLengthFilterRatio))
+	maxLen := int(float64(queryLen) / (1 - tmLengthFilterRatio))
+
 	rows, err := s.db.WithContext(ctx).
 		Model(&TranslationMemoryEntry{}).
-		Where("source_locale = ? AND target_locale = ?", sourceLocale, targetLocale).
+		Where("source_locale = ? AND target_locale = ? AND LENGTH(source_text) BETWEEN ? AND ?",
+			sourceLocale, targetLocale, minLen, maxLen).
 		Rows()
 	if err != nil {
 		return nil, fmt.Errorf("lookup translation memory entries: %w", err)
 	}
-	defer func() {
-		if closeErr := rows.Close(); closeErr != nil {
-			_ = closeErr
-		}
-	}()
+	defer func() { _ = rows.Close() }()
+
+	// Reusable buffers for levenshtein computation to avoid per-row allocs.
+	var levBuf levBuffers
 
 	results := make([]TMResult, 0, limit)
 	for rows.Next() {
@@ -169,7 +196,8 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 		if err := s.db.ScanRows(rows, &row); err != nil {
 			return nil, fmt.Errorf("scan translation memory row: %w", err)
 		}
-		similarity := normalizedLevenshtein(sourceText, row.SourceText)
+		rowRunes := []rune(strings.ToLower(strings.TrimSpace(row.SourceText)))
+		similarity := normalizedLevenshteinRunes(queryRunes, rowRunes, &levBuf)
 		metadata := TMMetadata{
 			Provenance: sanitizeTMProvenance(row.Provenance),
 			Source:     sanitizeTMSource(row.Source),
@@ -201,9 +229,10 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	return results, nil
 }
 
-func normalizedLevenshtein(a, b string) float64 {
-	left := []rune(strings.ToLower(strings.TrimSpace(a)))
-	right := []rune(strings.ToLower(strings.TrimSpace(b)))
+// normalizedLevenshteinRunes computes normalised Levenshtein similarity on
+// pre-converted rune slices. If buf is non-nil it is reused across calls to
+// avoid allocations in hot loops.
+func normalizedLevenshteinRunes(left, right []rune, buf *levBuffers) float64 {
 	if len(left) == 0 && len(right) == 0 {
 		return 1
 	}
@@ -211,7 +240,7 @@ func normalizedLevenshtein(a, b string) float64 {
 	if maxLen == 0 {
 		return 1
 	}
-	dist := levenshteinDistance(left, right)
+	dist := levenshteinDistance(left, right, buf)
 	similarity := 1 - float64(dist)/float64(maxLen)
 	if similarity < 0 {
 		return 0
@@ -219,16 +248,41 @@ func normalizedLevenshtein(a, b string) float64 {
 	return similarity
 }
 
-func levenshteinDistance(a, b []rune) int {
+// levBuffers holds reusable row buffers for levenshteinDistance so the hot
+// loop inside Lookup avoids allocating two slices per candidate.
+type levBuffers struct {
+	prev []int
+	curr []int
+}
+
+func (b *levBuffers) ensure(n int) ([]int, []int) {
+	if cap(b.prev) < n {
+		b.prev = make([]int, n)
+	}
+	if cap(b.curr) < n {
+		b.curr = make([]int, n)
+	}
+	return b.prev[:n], b.curr[:n]
+}
+
+func levenshteinDistance(a, b []rune, buf *levBuffers) int {
 	if len(a) == 0 {
 		return len(b)
 	}
 	if len(b) == 0 {
 		return len(a)
 	}
-	prev := make([]int, len(b)+1)
-	curr := make([]int, len(b)+1)
-	for j := 0; j <= len(b); j++ {
+
+	var prev, curr []int
+	needed := len(b) + 1
+	if buf != nil {
+		prev, curr = buf.ensure(needed)
+	} else {
+		prev = make([]int, needed)
+		curr = make([]int, needed)
+	}
+
+	for j := 0; j < needed; j++ {
 		prev[j] = j
 	}
 	for i := 1; i <= len(a); i++ {
@@ -238,7 +292,7 @@ func levenshteinDistance(a, b []rune) int {
 			if a[i-1] != b[j-1] {
 				cost = 1
 			}
-			curr[j] = minInt(
+			curr[j] = min(
 				curr[j-1]+1,
 				prev[j]+1,
 				prev[j-1]+cost,
@@ -246,17 +300,12 @@ func levenshteinDistance(a, b []rune) int {
 		}
 		prev, curr = curr, prev
 	}
-	return prev[len(b)]
-}
 
-func minInt(values ...int) int {
-	minValue := values[0]
-	for _, value := range values[1:] {
-		if value < minValue {
-			minValue = value
-		}
+	if buf != nil {
+		buf.prev = prev
+		buf.curr = curr
 	}
-	return minValue
+	return prev[len(b)]
 }
 
 func provenanceRank(provenance TMProvenance) int {
@@ -276,6 +325,17 @@ func provenanceRank(provenance TMProvenance) int {
 	}
 }
 
+// tmCompositeScore computes a single sortable score that blends similarity
+// with a small provenance bonus so that entries within the comparable-gap
+// window are boosted by provenance without creating non-transitive cycles.
+func tmCompositeScore(r TMResult) float64 {
+	// provenanceRank returns 0-5; normalise to [0, tmComparableSimilarityGap]
+	// so provenance can only break ties within the gap, never override a
+	// larger similarity difference.
+	bonus := float64(provenanceRank(r.Metadata.Provenance)) / 5.0 * tmComparableSimilarityGap
+	return r.Similarity + bonus
+}
+
 func sortTMResults(results []TMResult) {
 	sort.SliceStable(results, func(i, j int) bool {
 		return tmResultBetter(results[i], results[j])
@@ -283,16 +343,10 @@ func sortTMResults(results []TMResult) {
 }
 
 func tmResultBetter(left, right TMResult) bool {
-	diff := math.Abs(left.Similarity - right.Similarity)
-	if diff <= tmComparableSimilarityGap {
-		leftRank := provenanceRank(left.Metadata.Provenance)
-		rightRank := provenanceRank(right.Metadata.Provenance)
-		if leftRank != rightRank {
-			return leftRank > rightRank
-		}
-	}
-	if left.Similarity != right.Similarity {
-		return left.Similarity > right.Similarity
+	lc := tmCompositeScore(left)
+	rc := tmCompositeScore(right)
+	if lc != rc {
+		return lc > rc
 	}
 	if left.Score != right.Score {
 		return left.Score > right.Score

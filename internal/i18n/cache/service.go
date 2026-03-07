@@ -115,10 +115,12 @@ func NewFromConfig(cfg config.CacheConfig) (*Service, error) {
 	}
 	applyConnPool(sqlDB, cfg)
 
+	// Enforce CHECK constraints before AutoMigrate on existing tables so
+	// GORM's internal copy step doesn't fail on legacy invalid values.
 	if db.Migrator().HasTable(&TranslationMemoryEntry{}) {
 		if err := ensureTMTableConstraints(db); err != nil {
 			_ = sqlDB.Close()
-			return nil, fmt.Errorf("enforce tm table constraints: %w", err)
+			return nil, fmt.Errorf("enforce tm table constraints (pre-migrate): %w", err)
 		}
 	}
 
@@ -126,6 +128,9 @@ func NewFromConfig(cfg config.CacheConfig) (*Service, error) {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate cache schema: %w", err)
 	}
+
+	// Run again after AutoMigrate to handle fresh tables where GORM tags
+	// provide the constraints but the unique index may not exist yet.
 	if err := ensureTMTableConstraints(db); err != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("enforce tm table constraints: %w", err)
@@ -186,69 +191,120 @@ func ensureDBDir(dbPath string) error {
 
 func ensureTMTableConstraints(db *gorm.DB) error {
 	const (
-		provenanceCheck = "check (provenance in ('curated','draft','llm','tms','unknown'))"
-		sourceCheck     = "check (source in ('run','sync_pull','sync_push','manual','import','legacy','unknown'))"
+		provenanceCheck  = "check (provenance in ('curated','draft','llm','tms','unknown'))"
+		sourceCheck      = "check (source in ('run','sync_pull','sync_push','manual','import','legacy','unknown'))"
+		uniqueIdxCheck   = "unique"
+		localesTextIndex = "idx_tm_locales_text"
 	)
+
 	var createSQL string
 	if err := db.Raw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(&createSQL).Error; err != nil {
 		return fmt.Errorf("inspect translation_memory_entries schema: %w", err)
 	}
 	schemaSQL := strings.ToLower(strings.TrimSpace(createSQL))
-	if strings.Contains(schemaSQL, provenanceCheck) && strings.Contains(schemaSQL, sourceCheck) {
+
+	hasChecks := strings.Contains(schemaSQL, provenanceCheck) && strings.Contains(schemaSQL, sourceCheck)
+
+	var idxSQL string
+	_ = db.Raw("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", localesTextIndex).Scan(&idxSQL)
+	hasUniqueIdx := strings.Contains(strings.ToLower(idxSQL), uniqueIdxCheck)
+
+	if hasChecks && hasUniqueIdx {
 		return nil
 	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(`CREATE TABLE translation_memory_entries_new (
-id integer PRIMARY KEY AUTOINCREMENT,
-source_locale text NOT NULL,
-target_locale text NOT NULL,
-source_text text NOT NULL,
-translated_text text NOT NULL,
-score real NOT NULL DEFAULT 0,
-provenance text NOT NULL DEFAULT 'unknown' CHECK (provenance IN ('curated','draft','llm','tms','unknown')),
-source text NOT NULL DEFAULT 'unknown' CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown')),
-created_at datetime,
-updated_at datetime
-)`).Error; err != nil {
+		// Discover columns dynamically so future model changes are preserved.
+		type sqliteCol struct {
+			Name   string `gorm:"column:name"`
+			Hidden int    `gorm:"column:hidden"`
+		}
+		var cols []sqliteCol
+		if err := tx.Raw(`PRAGMA table_xinfo("translation_memory_entries")`).Scan(&cols).Error; err != nil {
+			return fmt.Errorf("inspect tm columns: %w", err)
+		}
+		if len(cols) == 0 {
+			return fmt.Errorf("translation_memory_entries has no columns")
+		}
+
+		var insertCols, selectExprs []string
+		for _, c := range cols {
+			if c.Hidden != 0 {
+				continue
+			}
+			quoted := `"` + c.Name + `"`
+			insertCols = append(insertCols, quoted)
+			switch strings.ToLower(c.Name) {
+			case "provenance":
+				selectExprs = append(selectExprs, `CASE
+  WHEN LOWER(TRIM(COALESCE("provenance", ''))) IN ('curated','draft','llm','tms','unknown')
+    THEN LOWER(TRIM("provenance"))
+  ELSE 'unknown'
+END`)
+			case "source":
+				selectExprs = append(selectExprs, `CASE
+  WHEN LOWER(TRIM(COALESCE("source", ''))) IN ('run','sync_pull','sync_push','manual','import','legacy','unknown')
+    THEN LOWER(TRIM("source"))
+  ELSE 'unknown'
+END`)
+			default:
+				selectExprs = append(selectExprs, quoted)
+			}
+		}
+		colList := strings.Join(insertCols, ", ")
+		selList := strings.Join(selectExprs, ", ")
+
+		// Capture existing indexes and triggers so they can be replayed.
+		type schemaObj struct {
+			SQL string `gorm:"column:sql"`
+		}
+		var existingObjs []schemaObj
+		if err := tx.Raw(`SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN ('index','trigger') AND sql IS NOT NULL`, "translation_memory_entries").Scan(&existingObjs).Error; err != nil {
+			return fmt.Errorf("inspect tm indexes/triggers: %w", err)
+		}
+
+		// Patch the existing CREATE TABLE DDL to inject CHECK constraints.
+		newCreateSQL := createSQL
+		if !strings.Contains(strings.ToLower(newCreateSQL), provenanceCheck) {
+			newCreateSQL = patchColumnConstraint(newCreateSQL, "provenance", "CHECK (provenance IN ('curated','draft','llm','tms','unknown'))")
+		}
+		if !strings.Contains(strings.ToLower(newCreateSQL), sourceCheck) {
+			newCreateSQL = patchColumnConstraint(newCreateSQL, "source", "CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown'))")
+		}
+		// Point the DDL at the temp table name.
+		newCreateSQL = strings.Replace(newCreateSQL, "translation_memory_entries", "translation_memory_entries_new", 1)
+
+		if err := tx.Exec(newCreateSQL).Error; err != nil {
 			return fmt.Errorf("create constrained tm table: %w", err)
 		}
 
-		if err := tx.Exec(`INSERT INTO translation_memory_entries_new (
-id, source_locale, target_locale, source_text, translated_text, score, provenance, source, created_at, updated_at
-)
-SELECT
-id,
-source_locale,
-target_locale,
-source_text,
-translated_text,
-score,
-CASE
-  WHEN LOWER(TRIM(COALESCE(provenance, ''))) IN ('curated','draft','llm','tms','unknown')
-    THEN LOWER(TRIM(provenance))
-  ELSE 'unknown'
-END AS provenance,
-CASE
-  WHEN LOWER(TRIM(COALESCE(source, ''))) IN ('run','sync_pull','sync_push','manual','import','legacy','unknown')
-    THEN LOWER(TRIM(source))
-  ELSE 'unknown'
-END AS source,
-created_at,
-updated_at
-FROM translation_memory_entries`).Error; err != nil {
+		copySQL := fmt.Sprintf(`INSERT INTO "translation_memory_entries_new" (%s) SELECT %s FROM "translation_memory_entries"`, colList, selList)
+		if err := tx.Exec(copySQL).Error; err != nil {
 			return fmt.Errorf("copy tm rows into constrained table: %w", err)
 		}
 
-		if err := tx.Exec(`DROP TABLE translation_memory_entries`).Error; err != nil {
+		if err := tx.Exec(`DROP TABLE "translation_memory_entries"`).Error; err != nil {
 			return fmt.Errorf("drop legacy tm table: %w", err)
 		}
-		if err := tx.Exec(`ALTER TABLE translation_memory_entries_new RENAME TO translation_memory_entries`).Error; err != nil {
+		if err := tx.Exec(`ALTER TABLE "translation_memory_entries_new" RENAME TO "translation_memory_entries"`).Error; err != nil {
 			return fmt.Errorf("rename constrained tm table: %w", err)
 		}
 
-		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_tm_locales_text ON translation_memory_entries(source_locale, target_locale, source_text)`).Error; err != nil {
-			return fmt.Errorf("create tm locales_text index: %w", err)
+		// Replay captured indexes/triggers, replacing any non-unique
+		// locales_text index with a unique one.
+		for _, obj := range existingObjs {
+			sql := obj.SQL
+			lower := strings.ToLower(sql)
+			if strings.Contains(lower, localesTextIndex) {
+				continue // will be recreated as unique below
+			}
+			if err := tx.Exec(sql).Error; err != nil {
+				return fmt.Errorf("replay tm schema object: %w", err)
+			}
+		}
+
+		if err := tx.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_locales_text ON translation_memory_entries(source_locale, target_locale, source_text)`).Error; err != nil {
+			return fmt.Errorf("create tm locales_text unique index: %w", err)
 		}
 		if err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_tm_provenance ON translation_memory_entries(provenance)`).Error; err != nil {
 			return fmt.Errorf("create tm provenance index: %w", err)
@@ -258,4 +314,27 @@ FROM translation_memory_entries`).Error; err != nil {
 		}
 		return nil
 	})
+}
+
+// patchColumnConstraint appends a CHECK constraint to a column definition
+// inside a CREATE TABLE statement. It finds the column by name and appends
+// the constraint text after the existing column definition.
+func patchColumnConstraint(createSQL, column, constraint string) string {
+	lines := strings.Split(createSQL, "\n")
+	target := strings.ToLower(column)
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(strings.ToLower(line))
+		// Match lines starting with the column name (possibly quoted).
+		col := strings.TrimPrefix(trimmed, `"`)
+		if strings.HasPrefix(col, target+" ") || strings.HasPrefix(col, target+`"`) {
+			clean := strings.TrimRight(lines[i], ", \t")
+			sep := ","
+			if !strings.HasSuffix(strings.TrimRight(line, " \t"), ",") {
+				sep = ""
+			}
+			lines[i] = clean + " " + constraint + sep
+			break
+		}
+	}
+	return strings.Join(lines, "\n")
 }

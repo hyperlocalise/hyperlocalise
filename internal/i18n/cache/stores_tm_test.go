@@ -142,8 +142,8 @@ func TestTMLookupAutoAcceptThreshold(t *testing.T) {
 	if err := svc.L2.Upsert(context.Background(), TMWrite{
 		SourceLocale:   "en",
 		TargetLocale:   "fr",
-		SourceText:     "Goodbye everyone",
-		TranslatedText: "Au revoir",
+		SourceText:     "Hallo",
+		TranslatedText: "Salut",
 		Score:          0.8,
 		Metadata: TMMetadata{
 			Provenance: TMProvenanceDraft,
