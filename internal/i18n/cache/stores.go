@@ -157,7 +157,11 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	if err != nil {
 		return nil, fmt.Errorf("lookup translation memory entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			_ = closeErr
+		}
+	}()
 
 	results := make([]TMResult, 0, limit)
 	for rows.Next() {
