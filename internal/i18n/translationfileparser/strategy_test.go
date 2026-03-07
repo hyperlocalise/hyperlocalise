@@ -250,6 +250,31 @@ func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	}
 }
 
+func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	messages, contextByKey, err := s.ParseWithContext("fr.jsonc", []byte(`{
+  // Greeting used on landing page.
+  "hello": "Bonjour",
+  "home": {
+    // Main heading in app shell.
+    "title": "Accueil"
+  }
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["hello"] != "Bonjour" {
+		t.Fatalf("unexpected hello message: %q", messages["hello"])
+	}
+	if contextByKey["hello"] != "Greeting used on landing page." {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+	if contextByKey["home.title"] != "Main heading in app shell." {
+		t.Fatalf("unexpected home.title context: %q", contextByKey["home.title"])
+	}
+}
+
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
