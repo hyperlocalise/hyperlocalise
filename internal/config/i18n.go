@@ -145,18 +145,25 @@ func Load(path string) (*I18NConfig, error) {
 		return nil, fmt.Errorf("open i18n config: %w", err)
 	}
 
-	decoder := json.NewDecoder(bytes.NewReader(jsonc.ToJSON(content)))
+	jsonContent := jsonc.ToJSON(content)
+
+	decoder := json.NewDecoder(bytes.NewReader(jsonContent))
 	decoder.DisallowUnknownFields()
 
 	var cfg I18NConfig
 	if err := decoder.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("decode i18n config: %w", err)
 	}
-	cfg.applyDefaults()
 
 	if err := expectEOF(decoder); err != nil {
 		return nil, err
 	}
+
+	autoAcceptThresholdSet, err := hasExplicitCacheL2AutoAcceptThreshold(jsonContent)
+	if err != nil {
+		return nil, err
+	}
+	cfg.applyDefaults(autoAcceptThresholdSet)
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate i18n config: %w", err)
@@ -200,11 +207,27 @@ func (c I18NConfig) Validate() error {
 	return nil
 }
 
-func (c *I18NConfig) applyDefaults() {
-	c.Cache.applyDefaults()
+func hasExplicitCacheL2AutoAcceptThreshold(content []byte) (bool, error) {
+	type cacheL2Config struct {
+		Cache struct {
+			L2 struct {
+				AutoAcceptThreshold *float64 `json:"auto_accept_threshold"`
+			} `json:"l2"`
+		} `json:"cache"`
+	}
+
+	var cfg cacheL2Config
+	if err := json.Unmarshal(content, &cfg); err != nil {
+		return false, fmt.Errorf("decode i18n config defaults: %w", err)
+	}
+	return cfg.Cache.L2.AutoAcceptThreshold != nil, nil
 }
 
-func (c *CacheConfig) applyDefaults() {
+func (c *I18NConfig) applyDefaults(autoAcceptThresholdSet bool) {
+	c.Cache.applyDefaults(autoAcceptThresholdSet)
+}
+
+func (c *CacheConfig) applyDefaults(autoAcceptThresholdSet bool) {
 	if strings.TrimSpace(c.DBPath) == "" {
 		c.DBPath = DefaultCacheDBPath
 	}
@@ -220,7 +243,7 @@ func (c *CacheConfig) applyDefaults() {
 	if c.L1.MaxItems == 0 {
 		c.L1.MaxItems = DefaultCacheL1MaxItems
 	}
-	if c.L2.AutoAcceptThreshold <= 0 {
+	if c.L2.AutoAcceptThreshold < 0 || (!autoAcceptThresholdSet && c.L2.AutoAcceptThreshold == 0) {
 		c.L2.AutoAcceptThreshold = DefaultCacheL2AutoAcceptThreshold
 	}
 	if c.RAG.TopK == 0 {

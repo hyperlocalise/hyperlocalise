@@ -237,9 +237,6 @@ func normalizedLevenshteinRunes(left, right []rune, buf *levBuffers) float64 {
 		return 1
 	}
 	maxLen := max(len(left), len(right))
-	if maxLen == 0 {
-		return 1
-	}
 	dist := levenshteinDistance(left, right, buf)
 	similarity := 1 - float64(dist)/float64(maxLen)
 	if similarity < 0 {

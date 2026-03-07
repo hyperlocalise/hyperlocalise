@@ -206,7 +206,9 @@ func ensureTMTableConstraints(db *gorm.DB) error {
 	hasChecks := strings.Contains(schemaSQL, provenanceCheck) && strings.Contains(schemaSQL, sourceCheck)
 
 	var idxSQL string
-	_ = db.Raw("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", localesTextIndex).Scan(&idxSQL)
+	if err := db.Raw("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", localesTextIndex).Scan(&idxSQL).Error; err != nil {
+		return fmt.Errorf("inspect %s schema: %w", localesTextIndex, err)
+	}
 	hasUniqueIdx := strings.Contains(strings.ToLower(idxSQL), uniqueIdxCheck)
 
 	if hasChecks && hasUniqueIdx {

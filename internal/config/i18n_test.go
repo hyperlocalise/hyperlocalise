@@ -926,6 +926,52 @@ func TestLoadRejectsInvalidCacheL2AutoAcceptThreshold(t *testing.T) {
 	}
 }
 
+func TestLoadPreservesExplicitZeroCacheL2AutoAcceptThreshold(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {
+	    "source": "en-US",
+	    "targets": ["fr-FR"]
+	  },
+	  "buckets": {
+	    "json": {
+	      "files": [
+	        {"from": "lang/{{source}}.json", "to": "lang/{{target}}.json"}
+	      ]
+	    }
+	  },
+	  "groups": {
+	    "default": {
+	      "targets": ["fr-FR"],
+	      "buckets": ["json"]
+	    }
+	  },
+	  "llm": {
+	    "profiles": {
+	      "default": {
+	        "provider": "openai",
+	        "model": "gpt-4.1-mini",
+	        "prompt": "Translate"
+	      }
+	    }
+	  },
+	  "cache": {
+	    "enabled": true,
+	    "l2": {
+	      "enabled": true,
+	      "auto_accept_threshold": 0
+	    }
+	  }
+	}`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Cache.L2.AutoAcceptThreshold != 0 {
+		t.Fatalf("cache.l2.auto_accept_threshold=%f, want 0", cfg.Cache.L2.AutoAcceptThreshold)
+	}
+}
+
 func writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 
