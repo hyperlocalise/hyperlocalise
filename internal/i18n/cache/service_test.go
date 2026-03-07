@@ -196,7 +196,7 @@ func TestL1GetReturnsCachedValueEvenWhenTouchUpdateFails(t *testing.T) {
 
 	callbackName := "test:force_touch_update_failure"
 	if err := svc.db.Callback().Update().Before("gorm:update").Register(callbackName, func(db *gorm.DB) {
-		db.AddError(errors.New("forced update failure"))
+		_ = db.AddError(errors.New("forced update failure"))
 	}); err != nil {
 		t.Fatalf("register update callback: %v", err)
 	}

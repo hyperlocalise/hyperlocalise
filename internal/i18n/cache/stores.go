@@ -51,6 +51,7 @@ func (s *exactSQLiteStore) Get(ctx context.Context, key string) (string, bool, e
 	if err := s.db.WithContext(ctx).Model(&ExactCacheEntry{}).Where("id = ?", row.ID).Update("updated_at", time.Now().UTC()).Error; err != nil {
 		// Non-fatal: keep serving valid cache hits even if metadata touch fails.
 		// This only affects LRU recency ordering for eviction.
+		_ = err
 	}
 	return row.Value, true, nil
 }
