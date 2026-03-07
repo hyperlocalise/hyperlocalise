@@ -52,8 +52,8 @@ func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string
 	if key := sanitizeScopeIdentifier(entryKey); key != "" {
 		parts = append(parts, "Entry key: "+key)
 	}
-	if context := sanitizePromptContext(sourceContext, maxSourceContextLen); context != "" {
-		parts = append(parts, "Source context:\n"+context)
+	if sanitizedContext := sanitizePromptContext(sourceContext, maxSourceContextLen); sanitizedContext != "" {
+		parts = append(parts, "Source context:\n"+sanitizedContext)
 	}
 	if memory := strings.TrimSpace(sharedMemory); memory != "" {
 		parts = append(parts, "Shared memory:\n"+memory)
