@@ -17,7 +17,18 @@ import (
 // ExactCache is the L1 exact-match cache contract.
 type ExactCache interface {
 	Get(ctx context.Context, key string) (string, bool, error)
-	Put(ctx context.Context, key, value string) error
+	Put(ctx context.Context, entry ExactCacheWrite) error
+}
+
+// ExactCacheWrite carries L1 payload and metadata for write-through upserts.
+type ExactCacheWrite struct {
+	Key          string
+	Value        string
+	SourceLocale string
+	TargetLocale string
+	Provider     string
+	Model        string
+	SourceHash   string
 }
 
 // TranslationMemory is the L2 fuzzy memory contract.

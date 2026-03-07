@@ -3,8 +3,10 @@ package runsvc
 import (
 	"context"
 	"crypto/sha512"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -123,6 +125,10 @@ type Task struct {
 	BucketName      string `json:"-"`
 	ContextKey      string `json:"-"`
 	ContextMemory   string `json:"-"`
+	ParserMode      string `json:"-"`
+	PromptVersion   string `json:"-"`
+	GlossaryVersion string `json:"-"`
+	RAGSnapshot     string `json:"-"`
 }
 
 type Failure struct {
@@ -298,7 +304,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
 					}
-					sourceEntries, err := s.loadSourceEntries(parser, sourcePath)
+					sourceEntries, parserMode, err := s.loadSourceEntries(parser, sourcePath)
 					if err != nil {
 						return nil, err
 					}
@@ -335,6 +341,18 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								ContextModel:    contextModel,
 								GroupName:       groupName,
 								BucketName:      bucketName,
+								ParserMode:      parserMode,
+								PromptVersion: cacheHash(strings.Join([]string{
+									"profile=" + profileName,
+									"provider=" + profile.Provider,
+									"model=" + profile.Model,
+									"legacy=" + fmt.Sprintf("%t", legacyPromptUsed),
+									"prompt_template=" + strings.TrimSpace(profile.Prompt),
+									"system_template=" + strings.TrimSpace(profile.SystemPrompt),
+									"user_template=" + strings.TrimSpace(profile.UserPrompt),
+								}, "\n")),
+								GlossaryVersion: resolveGlossaryVersion(cfg),
+								RAGSnapshot:     resolveRetrievalSnapshot(cfg),
 							})
 						}
 					}
@@ -388,21 +406,41 @@ func intersectLocales(locales, selected []string) []string {
 	return intersection
 }
 
-func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, error) {
+func resolveGlossaryVersion(cfg *config.I18NConfig) string {
+	version := strings.TrimSpace(cfg.Cache.GlossaryTermbaseVersion)
+	if version == "" {
+		return "none"
+	}
+	return version
+}
+
+func resolveRetrievalSnapshot(cfg *config.I18NConfig) string {
+	version := strings.TrimSpace(cfg.Cache.RetrievalCorpusSnapshotVersion)
+	if version != "" {
+		return version
+	}
+	return cacheHash(strings.Join([]string{
+		"snapshot=none",
+		"rag_enabled=" + fmt.Sprintf("%t", cfg.Cache.RAG.Enabled),
+		"rag_top_k=" + fmt.Sprintf("%d", cfg.Cache.RAG.TopK),
+	}, "\n"))
+}
+
+func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, string, error) {
 	content, err := s.readFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)
+			return nil, "", fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)
 		}
-		return nil, fmt.Errorf("planning tasks: read source file %q: %w", sourcePath, err)
+		return nil, "", fmt.Errorf("planning tasks: read source file %q: %w", sourcePath, err)
 	}
 
 	entries, err := parser.Parse(sourcePath, content)
 	if err != nil {
-		return nil, fmt.Errorf("planning tasks: parse source file %q: %w", sourcePath, err)
+		return nil, "", fmt.Errorf("planning tasks: parse source file %q: %w", sourcePath, err)
 	}
 
-	return entries, nil
+	return entries, parserModeForSource(sourcePath, content), nil
 }
 
 type eventEmitter struct {
@@ -567,4 +605,48 @@ func taskIdentity(targetPath, entryKey string) string {
 func hashSourceText(source string) string {
 	sum := sha512.Sum512([]byte(source))
 	return fmt.Sprintf("%x", sum)
+}
+
+func cacheHash(input string) string {
+	sum := sha512.Sum512([]byte(input))
+	return fmt.Sprintf("%x", sum)
+}
+
+func parserModeForSource(path string, content []byte) string {
+	normalized := strings.ToLower(filepath.ToSlash(strings.TrimSpace(path)))
+	switch {
+	case strings.HasSuffix(normalized, ".arb"):
+		return "arb"
+	case strings.HasSuffix(normalized, ".json"):
+		if isStrictFormatJSON(content) {
+			return "formatjs"
+		}
+		return "json"
+	default:
+		return "other"
+	}
+}
+
+func isStrictFormatJSON(content []byte) bool {
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		return false
+	}
+	if len(payload) == 0 {
+		return false
+	}
+	for _, value := range payload {
+		message, ok := value.(map[string]any)
+		if !ok {
+			return false
+		}
+		raw, ok := message["defaultMessage"]
+		if !ok {
+			return false
+		}
+		if _, ok := raw.(string); !ok {
+			return false
+		}
+	}
+	return true
 }

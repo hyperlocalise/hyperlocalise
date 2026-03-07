@@ -102,12 +102,14 @@ type StorageConfig struct {
 
 // CacheConfig configures local cache foundation (L1/L2/RAG wiring + SQLite bootstrap).
 type CacheConfig struct {
-	Enabled bool                 `json:"enabled,omitempty"`
-	DBPath  string               `json:"db_path,omitempty"`
-	SQLite  CacheSQLiteConfig    `json:"sqlite,omitempty"`
-	L1      CacheTierConfig      `json:"l1,omitempty"`
-	L2      CacheTierConfig      `json:"l2,omitempty"`
-	RAG     CacheRetrieverConfig `json:"rag,omitempty"`
+	Enabled                        bool                 `json:"enabled,omitempty"`
+	DBPath                         string               `json:"db_path,omitempty"`
+	SQLite                         CacheSQLiteConfig    `json:"sqlite,omitempty"`
+	L1                             CacheTierConfig      `json:"l1,omitempty"`
+	L2                             CacheTierConfig      `json:"l2,omitempty"`
+	RAG                            CacheRetrieverConfig `json:"rag,omitempty"`
+	GlossaryTermbaseVersion        string               `json:"glossary_termbase_version,omitempty"`
+	RetrievalCorpusSnapshotVersion string               `json:"retrieval_corpus_snapshot_version,omitempty"`
 }
 
 // CacheSQLiteConfig controls sqlite connection pool tuning.
