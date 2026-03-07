@@ -301,8 +301,9 @@ func sanitizeScopeIdentifier(id string) string {
 	clean := strings.ReplaceAll(id, "\n", " ")
 	clean = strings.ReplaceAll(clean, "\r", " ")
 	clean = strings.TrimSpace(clean)
-	if len(clean) > maxScopeIdentifierLen {
-		clean = clean[:maxScopeIdentifierLen]
+	runes := []rune(clean)
+	if len(runes) > maxScopeIdentifierLen {
+		clean = string(runes[:maxScopeIdentifierLen])
 	}
 	return clean
 }

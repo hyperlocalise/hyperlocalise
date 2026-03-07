@@ -48,7 +48,7 @@ func (s *LLMJudgeScorer) ScoreJudge(ctx context.Context, in ScoreInput) (JudgeRe
 	}
 
 	judgeSystem := s.prompt
-	if caseCtx := strings.TrimSpace(in.Case.Context); caseCtx != "" {
+	if caseCtx := sanitizeEvalCaseContext(in.Case.Context); caseCtx != "" {
 		if sp := strings.TrimSpace(judgeSystem); sp != "" {
 			judgeSystem = sp + "\n\nEval case context:\n" + caseCtx
 		} else {
@@ -92,10 +92,6 @@ func buildLLMJudgeUserPrompt(in ScoreInput) string {
 	b.WriteString("\n\nCandidate translation:\n")
 	b.WriteString(strings.TrimSpace(in.Translated))
 
-	if ctx := strings.TrimSpace(in.Case.Context); ctx != "" {
-		b.WriteString("\n\nShared context:\n")
-		b.WriteString(ctx)
-	}
 	if ref := strings.TrimSpace(in.Case.Reference); ref != "" {
 		b.WriteString("\n\nReference translation (optional style guidance only):\n")
 		b.WriteString(ref)

@@ -369,7 +369,7 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 
 func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer) RunResult {
 	systemPrompt := exp.prompt
-	if caseCtx := strings.TrimSpace(tc.Context); caseCtx != "" {
+	if caseCtx := sanitizeEvalCaseContext(tc.Context); caseCtx != "" {
 		if sp := strings.TrimSpace(systemPrompt); sp != "" {
 			systemPrompt = sp + "\n\nEval case context (do not translate or repeat):\n" + caseCtx
 		} else {

@@ -51,7 +51,7 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 
 func buildTranslationRuntimeContext(entryKey, sharedMemory string) string {
 	parts := make([]string, 0, 2)
-	if key := strings.TrimSpace(entryKey); key != "" {
+	if key := sanitizeScopeIdentifier(entryKey); key != "" {
 		parts = append(parts, "Entry key: "+key)
 	}
 	if memory := strings.TrimSpace(sharedMemory); memory != "" {

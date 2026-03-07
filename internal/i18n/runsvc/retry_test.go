@@ -149,6 +149,39 @@ func TestTranslateWithRetryBuildsRequestWithEmptyEntryKeyAndContextMemory(t *tes
 	}
 }
 
+func TestTranslateWithRetrySanitizesEntryKeyInSystemPromptContext(t *testing.T) {
+	svc := &Service{}
+	var got translator.Request
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		got = req
+		return "ok", nil
+	}
+
+	longKey := strings.Repeat("界", maxScopeIdentifierLen+8)
+	task := Task{
+		EntryKey:      "  checkout.title\n" + longKey + "\rnext  ",
+		SourceText:    "Hello",
+		TargetLocale:  "fr",
+		ContextMemory: "",
+	}
+
+	_, err := svc.translateWithRetry(context.Background(), task)
+	if err != nil {
+		t.Fatalf("translateWithRetry returned error: %v", err)
+	}
+	if !strings.HasPrefix(got.SystemPrompt, "Runtime translation context (do not translate or repeat):\nEntry key: ") {
+		t.Fatalf("unexpected system prompt prefix: %q", got.SystemPrompt)
+	}
+	if strings.Contains(got.SystemPrompt, "\r") || strings.Contains(got.SystemPrompt, "\nnext") {
+		t.Fatalf("expected entry key newlines to be stripped in system prompt, got %q", got.SystemPrompt)
+	}
+
+	entryLine := strings.TrimPrefix(got.SystemPrompt, "Runtime translation context (do not translate or repeat):\nEntry key: ")
+	if len([]rune(entryLine)) > maxScopeIdentifierLen {
+		t.Fatalf("expected entry key to be capped at %d runes, got %d", maxScopeIdentifierLen, len([]rune(entryLine)))
+	}
+}
+
 func TestTranslateRequestWithRetrySucceedsWithoutRetry(t *testing.T) {
 	svc := &Service{}
 	attempts := 0
