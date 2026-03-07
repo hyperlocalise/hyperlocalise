@@ -4429,6 +4429,7 @@ func (c *failingWriteExactCache) Put(_ context.Context, _ cache.ExactCacheWrite)
 }
 
 type failingReadExactCache struct {
+	mu     sync.Mutex
 	values map[string]string
 }
 
@@ -4437,6 +4438,8 @@ func (c *failingReadExactCache) Get(_ context.Context, _ string) (string, bool, 
 }
 
 func (c *failingReadExactCache) Put(_ context.Context, entry cache.ExactCacheWrite) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.values[entry.Key] = entry.Value
 	return nil
 }
