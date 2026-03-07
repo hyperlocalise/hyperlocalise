@@ -1,41 +1,42 @@
 ---
-title: "评估集整理"
-description: "构建一个具有代表性的翻译评估集，用于发现真实的质量问题。"
+title: "评估集策划"
+description: "构建一个具有代表性的翻译评估集，以发现和解决实际的质量问题。"
 ---
 
-使用评估集来衡量对你最重要的字符串的翻译质量。
+使用评估集来衡量您最关心的字符串的翻译质量。
 
 ## 选择文件格式
 
-你可以将评估集存储为 JSON、JSONC 或 CSV。
+您可以将评估集存储为 JSON、JSONC 或 CSV 格式。
 
-- 当你需要嵌套结构和明确的元数据时，使用 JSON 或 JSONC
-- 当你需要快速进行带有“如”等列的电子表格编辑时，使用 CSV `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`，并且 `group`
-- 在 CSV 中，用分号分隔多个标签 (`ui;short;icu`)
+- 使用 JSON 或 JSONC 格式时，如果您需要嵌套结构和明确的元数据。
+- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
+- in CSV, separate multiple tags with semicolons (`ui;short;icu`)
 
 ## 选择具有代表性的覆盖范围
 
-包含多种字符串类型的组合，以便你能检测不同内容形式之间的回归。
+包括各种类型的字符串，以便您可以在不同内容形态中检测回归。
 
-- 简短的 UI 文本：按钮、标签、菜单项和简短的错误信息
-- 长-表单文案：引导流程步骤、帮助文本、法律条款文案和交易消息
-- ICU 和复杂格式：复数规则、性别变体、select 语句，以及日期或数字格式化占位符
-- 占位符和变量：如这样的标记 `{name}`, `%s`，或 `{{count}}` 必须保持不变
+- 简短的 UI 字符串：按钮、标签、菜单项和简洁的错误文本
+- 长文本：包括入职流程、帮助文本、法律条款和交易消息
+- ICU 和复杂格式：包括复数规则、性别变体、选择语句以及日期或数字格式占位符
+- 占位符和变量：例如 `{name}`, `%s` 或 `{{count}}` 这样的标记，这些标记必须在未更改的情况下保留。
 
-## 让上下文尽量贴近每个用例
+## 尽量将上下文与每个用例保持一致。
 
-对于每个案例，存储一个稳定的 ID，并包含足够的上下文供审阅者参考。
+针对每个案例，请存储一个稳定的ID，并提供足够的上下文信息供审核人员参考。
 
-- 添加目标语言环境和源文本
-- 在其中包含屏幕截图、功能名称或意图说明 `context`
-- 添加可选项 `reference` 当你已经有可信的翻译时的文本
-- 使用标签以及可选的桶或组为案例打标，以便按区域拆分报表
+- 添加目标区域和源文本
+- include screenshots, feature names, or intent notes in `context`
+- 当您已经拥有可信的翻译时，添加可选的`reference`文本
+- 使用标签对用例进行标记，并添加可选的“区域”或“组”，以便按区域对报告进行筛选。
 
 ## 长期保持质量
 
 将评估集视为生产测试数据。
 
-- 当 UI 或产品文案发生变化时，审查并更新该集合
-- 移除不再映射到活动功能的过时用例
+- - Review cycle: refresh set with UI or copy updates
+- Quality maintenance: update over time, keep context close
+- 删除不再与活动功能匹配的过时案例
 - 保持简单、中等和困难字符串的平衡
-- 重复运行同一组测试，以公平比较模型或提示的更改
+- 重复运行相同的测试集，以便公平地比较模型或提示的变更。

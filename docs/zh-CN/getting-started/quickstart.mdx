@@ -1,11 +1,11 @@
 ---
 title: "快速入门"
-description: "在大约 10 分钟内端到端运行 hyperlocalise。"
+description: "在约10分钟内完成整个本地化过程。"
 ---
 
 ## 目标
 
-创建一个 `i18n.jsonc`安全地运行翻译规划，生成输出，并查看状态。
+Create an `i18n.jsonc`, run translation planning safely, generate outputs, and review status.
 
 ## 1. 初始化配置
 
@@ -13,11 +13,11 @@ description: "在大约 10 分钟内端到端运行 hyperlocalise。"
 hyperlocalise init
 ```
 
-这会写入 `i18n.jsonc` 在当前目录中。
+This writes `i18n.jsonc` in your current directory.
 
 ## 2. 配置提供商凭据
 
-`hyperlocalise` 自动从中读取凭据 `.env` 和返回仅包含译文的文本，不要包含任何解释、标签、Markdown 或引号，除非译文内容本身需要。 `.env.local` 在你当前的项目目录中。已导出的 shell 变量仍然优先生效。
+`hyperlocalise` automatically reads credentials from `.env` and `.env.local` in your current project directory. Exported shell variables still take precedence.
 
 示例：
 
@@ -31,7 +31,7 @@ OPENAI_API_KEY="your-openai-api-key"
 ```
 </CodeGroup>
 
-OpenAI：
+OpenAI:
 
 <CodeGroup>
 ```bash Export
@@ -43,7 +43,7 @@ OPENAI_API_KEY="your-openai-api-key"
 ```
 </CodeGroup>
 
-Azure OpenAI：
+Azure OpenAI
 
 <CodeGroup>
 ```bash Export
@@ -59,7 +59,7 @@ AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
 </CodeGroup>
 
-Gemini：
+Gemini:
 
 <CodeGroup>
 ```bash Export
@@ -73,7 +73,7 @@ GEMINI_API_KEY="your-gemini-api-key"
 ```
 </CodeGroup>
 
-Anthropic：
+Anthropic:
 
 <CodeGroup>
 ```bash Export
@@ -101,7 +101,7 @@ LM_STUDIO_API_KEY="lm-studio"
 ```
 </CodeGroup>
 
-Ollama：
+Ollama:
 
 <CodeGroup>
 ```bash Export
@@ -115,7 +115,7 @@ OLLAMA_API_KEY="ollama"
 ```
 </CodeGroup>
 
-Groq：
+Groq:
 
 <CodeGroup>
 ```bash Export
@@ -129,40 +129,40 @@ GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
 
-## 3. 干燥-先运行
+## 3. 先进行测试
 
 ```bash
-hyperlocalise run --config i18n.jsonc --dry-run
+hyperlocalise run --dry-run
 ```
 
-检查 `planned_total`, `executable_total`以及列出的 `tasks`.
+检查 `planned_total`、`executable_total`以及列出的 `tasks`。
 
 ## 4. 执行生成
 
 ```bash
-hyperlocalise run --config i18n.jsonc
+hyperlocalise run
 ```
 
-这会写入翻译并更新 `.hyperlocalise.lock.json`。有关详细信息，请参阅 [锁文件契约](/reference/lockfile-contract).
+This writes translations and updates `.hyperlocalise.lock.json`. For details, see [Lockfile contract](/reference/lockfile-contract).
 
-## 5. 审核状态
+## 5. 检查状态
 
 ```bash
-hyperlocalise status --config i18n.jsonc --output csv
+hyperlocalise status --output csv
 ```
 
-使用 `needs_review` 行用于识别仍需要人工整理的条目。
+Use `needs_review` rows to identify entries that still need human curation.
 
-## 6. 必要时评估翻译质量
+## 6. 根据需要评估翻译质量
 
 ```bash
 hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
 ```
 
-在比较提示词/配置文件/服务提供商选项时，或在推广大规模翻译更新之前，请使用此内容。
+使用此功能，在比较提示/个人资料/提供商选项或在推广大型翻译更新之前进行操作。
 
-## 下一步
+## 下一页
 
-- 在中调整配置 [i18n 配置](/configuration/i18n-config).
-- 使用与您的 TMS 同步 [同步推送](/commands/sync-push) 和 [同步拉取](/commands/sync-pull).
-- 检查成熟度预期在 [稳定性矩阵](/reference/stability-matrix).
+- 调整配置在 [i18n 配置](/configuration/i18n-config)。
+- 使用 [同步推](/commands/sync-push)和 [同步拉](/commands/sync-pull)与您的TMS同步。
+- Check maturity expectations in the [stability matrix](/reference/stability-matrix).

@@ -1,13 +1,13 @@
 ---
-title: "Lỗi thường gặp"
-description: "Khắc phục sự cố thường gặp khi thiết lập, cấu hình, nhà cung cấp và đồng bộ hóa bị lỗi."
+title: "Lỗi phổ biến"
+description: "Khắc phục các sự cố thường xuyên xảy ra trong quá trình cài đặt, cấu hình, kết nối nhà cung cấp và đồng bộ."
 ---
 
 ## `i18n.jsonc already exists; use --force to overwrite`
 
-Nguyên nhân: đang chạy `init` khi cấu hình đã tồn tại.
+Cause: running `init` where config already exists.
 
-Sửa lỗi:
+Sửa
 
 ```bash
 hyperlocalise init --force
@@ -15,30 +15,30 @@ hyperlocalise init --force
 
 ## `storage config is required`
 
-Nguyên nhân: `sync` lệnh được sử dụng mà không có top-level `storage` cấu hình.
+Cause: `sync` command used without top-level `storage` config.
 
-Sửa lỗi: thêm `storage.adapter` và `storage.config` trong `i18n.jsonc`.
+Sửa: thêm `storage.adapter` và `storage.config` vào `i18n.jsonc`.
 
 ## `unsupported output format`
 
-Nguyên nhân: sai `--output` giá trị.
+Cause: wrong `--output` value.
 
-Bản sửa lỗi:
+Sửa lỗi:
 
-- `status`: chỉ `csv`
+- `status`: only `csv`
 - `sync`: `text` hoặc `json`
+
+## `unsupported file extension` during `run`
+
+Nguyên nhân: một tệp nguồn hoặc đích được chỉ định sử dụng phần mở rộng không được trình xử lý cục bộ hỗ trợ.
+
+Sửa lỗi:
+
+- use one of: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
+- verify bucket `from` and `to` paths resolve to the expected file names
 
 ## `unsupported file extension` trong quá trình `run`
 
-Nguyên nhân: một tệp nguồn hoặc tệp đích được ánh xạ sử dụng phần mở rộng không được trình phân tích cục bộ hỗ trợ.
+Nguyên nhân: [1mToken[0m môi trường bị thiếu/không hợp lệ.
 
-Bản sửa lỗi:
-
-- sử dụng một trong các: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
-- xác minh bucket `from` và `to` các đường dẫn phân giải thành tên tệp như mong đợi
-
-## Lỗi xác thực nhà cung cấp
-
-Nguyên nhân: thiếu hoặc không hợp lệ env token.
-
-Sửa: re-export token trong cùng phiên shell và chạy lại.
+Khắc phục: xuất lại mã thông báo trong cùng một phiên và chạy lại.

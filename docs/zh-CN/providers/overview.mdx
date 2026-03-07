@@ -1,9 +1,9 @@
 ---
 title: "LLM 提供商概览"
-description: "共享的配置文件字段、提示变量，以及指向各提供商专用配置页面的链接。"
+description: "共享的个人资料字段、提示变量以及指向每个提供商特定配置页面的链接。"
 ---
 
-使用下面的一个提供商页面获取准确的设置和示例：
+使用以下某个提供者页面以获取详细的设置和示例：
 
 - [OpenAI](/providers/openai)
 - [Azure OpenAI](/providers/azure-openai)
@@ -27,17 +27,22 @@ description: "共享的配置文件字段、提示变量，以及指向各提供
 - `mistral`
 - `ollama`
 
-## 必填个人资料字段
+## 必填字段
 
-每个 `llm.profiles.<name>` 条目要求：
+每个`llm.profiles.<name>`条目需要：
 
 - `provider`
 - `model`
-- `prompt`
+
+可选的配置文件字段：
+
+- `system_prompt`
+- `user_prompt`
+- `prompt` (已弃用)
 
 ## 提示变量
 
-这些占位符可用在 `prompt`:
+These placeholders are available in `prompt`, `system_prompt`, and `user_prompt`:
 
 - `{{source}}`
 - `{{target}}`

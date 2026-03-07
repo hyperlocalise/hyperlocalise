@@ -1,27 +1,27 @@
 ---
 title: "运行"
-description: "根据已配置的源文件规划并执行本地翻译生成。"
+description: "计划并执行从配置的源文件生成本地翻译。"
 ---
 
-## 用法
+## 使用说明
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--target-locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## 行为
 
-1. 加载并验证配置，
-2. 从组和存储桶规划任务，
-3. 跳过已在其中的任务 `.hyperlocalise.lock.json`,
-4. 执行剩余任务，
-5. 将成功的任务持久化到锁定状态。
+1. 加载和验证配置
+2. 计划来自组和分区的任务
+3. skip tasks already in `.hyperlocalise.lock.json`,
+4. 执行剩余任务
+5. 将成功的任务保存在锁定状态中。
 
-有关锁文件字段、生命周期和重置指南，请参见 [锁文件契约](/reference/lockfile-contract).
+关于锁文件字段、生命周期和重置的指导，请参阅 [锁文件合同](/reference/lockfile-contract)。
 
 ## 支持的本地文件格式
 
-`run` 可读取具有以下扩展名的源文件和目标文件：
+`run` can read source and target files with these extensions:
 
 - `.json`
 - `.arb`
@@ -32,63 +32,78 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-ru
 - `.strings`
 - `.csv`
 
-对于 JSON (`.json`), `run` 支持：
+对于 JSON (`.json`)， `run` 支持：
 
-- 标准的嵌套键/值 JSON 对象
-- 当根节点严格匹配时，对 FormatJS 消息 JSON 进行格式化：
+- 标准嵌套的键/值 JSON 对象
+- 当根路径严格匹配时，FormatJS消息JSON：
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
-在 FormatJS 模式下，仅 `defaultMessage` 已翻译。键 (消息 ID), `description`，以及其他非-消息元数据将被保留。
+In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
 
-用于 Flutter ARB (`.arb`), `run` 仅翻译消息键，并保留元数据键，例如 `@key` 和 返回仅包含译文的文本，不要包含任何解释、标签、Markdown 或引号，除非译文内容本身需要它们。 `@@locale` 不变。
+对于 Flutter ARB (`.arb`)，`run` 仅翻译消息键，并保持元数据键（如 `@key` 和 `@@locale`）不变。
 
-对于 Markdown 和 MDX (`.md`, `.mdx`), `run` 翻译提取的正文并保留非文本内容-可翻译结构：
+For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and preserves non-translatable structure:
 
 - frontmatter 块 (`---`)
-- 围栏代码块 (```` ``` ```` and `~~~`)
-- 内联代码跨度
+- 代码块 (```` ``` ```` 和 `~~~`)
+- 内联代码块
 - Markdown 锚点，例如链接目标
-- MDX `import` 和 `export` 行
+- MDX `import` and `export` lines
 - JSX/MDX 组件标签和属性值
 
-适用于 Apple/Xcode 字符串 (`.strings`), `run` 保留模板中的注释和键/值格式，同时将值字面量替换为已翻译的文本。
+For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 
 
-对于 CSV (`.csv`), `run` 支持两种布局：
+对于 CSV (`.csv`)， `run` 支持两种布局：
 
-- 键/值布局 (例如： `key,value`)
-- 每-区域设置列布局 (例如： `id,en,fr,de`)
+- 键/值布局（例如：`key,value`）
+- 按区域列布局 (例如：`id,en,fr,de`)
 
-在编写 CSV 目标时， `run` 保留现有的标头和非-目标列，在原位置更新匹配的键，并按确定性的排序顺序追加新键。
+When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
 
 ## 标志
 
-- `--config`：配置文件路径 (default `i18n.jsonc` 在当前目录中)
-- `--group`: 仅为给定的组名运行任务
-- `--bucket`：仅运行指定存储桶名称的任务
-- `--dry-run`：仅打印计划，不要翻译或写入文件
+- `--config`: path to config file (default `i18n.jsonc` in current directory)
+- `--group`: 仅运行指定组的任务
+- `--bucket`: 仅运行指定的bucket名称的任务
+- `--target-locale`: run only tasks for the given target locale (repeatable)
+- `--dry-run`: print plan only, do not translate or write files
 - `--force`: 重新运行所有计划的任务，并忽略锁文件跳过状态
-- `--workers`：并行翻译工作线程数 (默认为 CPU 核心数)
-- `--progress`：进度渲染模式 (`auto|on|off`，默认： `auto`)
-- `--output`：写入机器-将可读的 JSON 运行报告写入指定路径
-- `--experimental-context-memory`：启用两个-在翻译每个范围之前进行阶段上下文记忆生成
-- `--context-memory-scope`: 上下文共享范围 (`file|bucket|group`，默认 `file`)
-- `--context-memory-max-chars`：注入到每个翻译请求中的最大上下文记忆长度 (默认 `1200`)
+- `--prune`: remove target keys that no longer exist in source files
+- `--prune-max-deletions`: 在需要显式覆盖之前，每次运行中删除的最大旧密钥（默认 `100`）
+- `--prune-force`: bypass the prune deletion safety limit
+- `--workers`: number of parallel translation workers (defaults to CPU cores)
+- `--progress`: progress rendering mode (`auto|on|off`, default: `auto`)
+- `--output`: 将机器可读的 JSON 运行报告写入指定的路径
+- `--experimental-context-memory`: enable two-stage context memory generation before translating each scope
+- `--context-memory-scope`: context sharing scope (`file|bucket|group`, default `file`)
+- `--context-memory-max-chars`: maximum context memory length injected into each translation request (default `1200`)
 
-### 进度调试日志记录 (可选)
+## 目标合同 `run`
 
-为排查进度渲染问题，你可以在不更改 CLI 标志的情况下启用调试日志：
+- `system_prompt` is used for instructions and runtime context.
+- `user_prompt` is used for payload content (text to translate, or source content to summarize for context memory).
+- Translation flow supports profile `user_prompt` override.
+- Context-memory 总结流程始终使用内置的总结负载模板，并且不应用 profile `user_prompt` 覆盖。
 
-- `HYPERLOCALISE_PROGRESS_DEBUG=1` 启用进度调试日志记录。
+<Note>
+Changing prompt structure (e.g. moving context from the user message to the system message) does not automatically invalidate cached translations. To force re-translation after a prompt restructure, bump the `prompt_version` in your profile.
+</Note>
+
+### 调试日志（可选）
+
+要进行进度渲染故障排除，您可以启用调试日志，而无需更改命令行标志：
+
+- `HYPERLOCALISE_PROGRESS_DEBUG=1` 启用进度调试日志。
 - `HYPERLOCALISE_PROGRESS_DEBUG_FILE=<path>` 覆盖日志文件位置。
 
-启用时的默认日志路径： `.hyperlocalise/logs/run.log`.
+启用时的默认日志路径：`.hyperlocalise/logs/run.log`。
 
-## 实验性上下文记忆流程
+## 实验环境内存流程
 
-当 `--experimental-context-memory` 已启用， `run` 每个作用域只构建一次共享内存 (默认：每个源文件)然后在该作用域内对所有条目重复使用它。
+当`--experimental-context-memory`启用时，`run`会在每个作用域中一次性创建共享内存（默认：每个源文件），然后将其用于该作用域中的所有条目。
 
-如果记忆生成失败或超时， `run` 记录警告，并在该作用域内不使用共享内存继续翻译。
+如果内存生成失败或超时，`run`会记录一条警告并继续翻译，而不会使用该范围的共享内存。
 
 ```mermaid
 flowchart TD
@@ -106,39 +121,55 @@ flowchart TD
     I --> T
 ```
 
-### 为什么它看起来像是在等待
+### 它为什么会让人看起来在等待
 
-- 在新作用域中首次进入时，会等待内存生成完成。
-- 同一作用域中的后续条目会复用缓存的内存，并在无需重建的情况下继续执行。
-- 进度 UI 现在显示上下文-在文件列表中记住步骤，以便你可以看到活动作用域-级别工作。
+- 在新的作用域中的第一个条目等待内存生成完成。
+- 后续在同一作用域中的条目会重用缓存的内存，而无需重新构建。
+- Progress UI 现在在文件列表中显示上下文-内存步骤，这样您就可以查看当前作用域的工作。
 
 
-## 作用域适用于一个组
+## 范围仅限于一个组
 
-使用 `--group` 当你只想运行一个已配置的组时。
+使用`--group`时，您想要仅运行一个配置的组。
 
 ```bash
-hyperlocalise run --config i18n.jsonc --group tests --dry-run
+hyperlocalise run --group tests --dry-run
 ```
 
-如果该组在您的配置中不存在， `run` 失败并返回一个 `unknown group` 规划错误。
+If the group does not exist in your config, `run` fails with an `unknown group` planning error.
 
-## 作用域适用于一个存储桶
+## 适用范围仅限于一个桶
 
-使用 `--bucket` 当你只想运行一个已配置的桶时。这对于聚焦更新、CI 分区，或在完整运行前验证单个区域很有用。
+Use `--bucket` when you want to run only one configured bucket. This is useful for focused updates, CI partitioning, or validating a single area before a full run.
 
 ```bash
-hyperlocalise run --config i18n.jsonc --bucket ui --dry-run
+hyperlocalise run --bucket ui --dry-run
 ```
 
-如果你的配置中不存在该存储桶， `run` 会因一个而失败 `unknown bucket` 规划错误。
+If the bucket does not exist in your config, `run` fails with an `unknown bucket` planning error.
 
-## 强制重新运行所有计划任务
+## 目标区域仅限于一个
 
-使用 `--force` 忽略锁定文件中的跳过状态，并再次执行每个已计划的任务。
+Use `--target-locale` when you want to re-run only specific locales without changing group or bucket selection. You can repeat the flag to select multiple locales.
 
 ```bash
-hyperlocalise run --config i18n.jsonc --group tests --force
+hyperlocalise run --group tests --target-locale fr --target-locale de --dry-run
+```
+
+If a requested locale is not present in `locales.targets`, `run` fails with an `unknown target locale` planning error. When combined with `--group`, only locales that belong to that group are planned.
+
+当与`--prune`组合使用时，过时密钥检测也仅限于所选的目标区域。`run`仅扫描和清理属于过滤区域集的目标文件。
+
+```bash
+hyperlocalise run --prune --target-locale de --dry-run
+```
+
+## 强制重新运行所有计划的任务
+
+使用`--force`来忽略跳过锁文件状态，并重新执行所有计划的任务。
+
+```bash
+hyperlocalise run --group tests --force
 ```
 
 ## 输出字段
@@ -153,25 +184,25 @@ hyperlocalise run --config i18n.jsonc --group tests --force
 - `completion_tokens`
 - `total_tokens`
 
-每-区域设置令牌用法输出为： `locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`.
+每个区域的令牌使用情况以以下格式打印：`locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`
 
-当你传递时 `--output`，JSON 报告包含运行元数据 (`generatedAt`, `configPath`)，汇总令牌用量，每-区域设置用法，并按-条目批量使用。
+When you pass `--output`, the JSON report includes run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage.
 
-## 失败输出
+## 错误输出
 
-任务失败时，输出包括 `failure target=<...> key=<...> reason=<...>`.
+在任务失败时，输出包括`failure target=<...> key=<...> reason=<...>`。
 
 
-## 工作线程调优指南
+## 工人调优指南
 
-较低 `--workers` 当你遇到提供商速率限制或在受限的 CI 环境中运行时。以此开始： `1` 先稳定重试次数，然后再逐步增加。
+Lower `--workers` when you hit provider rate limits or run in constrained CI environments. Start with `1` to stabilize retries and then increase gradually.
 
-提升 `--workers` 在你的服务提供商配额和机器资源允许更高吞吐量时。以小步幅逐步增加，并监控 API 错误率以及本地 CPU 和内存使用情况。
+Raise `--workers` when your provider quota and machine resources allow more throughput. Increase in small steps and watch API error rates plus local CPU and memory usage.
 
-## 另请参阅
+## 参见
 
 - [eval](/commands/eval)
 - [状态](/commands/status)
 - [同步推送](/commands/sync-push)
 - [同步拉取](/commands/sync-pull)
-- [锁文件契约](/reference/lockfile-contract)
+- [锁文件合约](/reference/lockfile-contract)

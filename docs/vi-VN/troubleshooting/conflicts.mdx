@@ -1,33 +1,33 @@
 ---
-title: "Xử lý xung đột"
-description: "Hiểu xung đột pull/push và áp dụng các chiến lược xử lý an toàn."
+title: "Giải quyết xung đột"
+description: "Hiểu về xung đột giữa "pull" và "push" và áp dụng các chiến lược giải quyết an toàn."
 ---
 
-## Kéo các xung đột
+## Giải quyết xung đột
 
-Trường hợp điển hình: giá trị được tuyển chọn cục bộ khác với giá trị từ xa.
+Trường hợp điển hình: giá trị cục bộ được chọn khác với giá trị từ xa.
 
 Giải pháp an toàn:
 
-1. chạy `sync pull` với `--output json`
+1. run `sync pull` with `--output json`
 2. kiểm tra các mục xung đột
-3. quyết định nguồn thông tin đáng tin cậy nhất
-4. chạy lại với trạng thái cục bộ/từ xa đã được cập nhật
+3. quyết định nguồn dữ liệu đáng tin cậy
+4. khởi động lại với trạng thái cục bộ/xa xa đã cập nhật
 
-`--apply-curated-over-draft` chỉ áp dụng khi mục nhập cục bộ ở trạng thái bản nháp.
+`--apply-curated-over-draft` only applies when local entry is draft.
 
-## Xung đột khi đẩy (push)
+## Xác định xung đột
 
-Trường hợp điển hình: bản nháp cục bộ khác với giá trị đã tuyển chọn trên máy chủ từ xa.
+Trường hợp điển hình: giá trị bản nháp cục bộ khác với giá trị đã được chọn lọc từ xa.
 
-Phân giải an toàn:
+Giải pháp an toàn:
 
-1. kiểm tra báo cáo xung đột trong JSON
-2. giữ nguyên hành vi mặc định khi xung đột sẽ thất bại
-3. sử dụng `--force-conflicts` chỉ dành cho các trường hợp ngoại lệ đã được xem xét
+1. Kiểm tra báo cáo xung đột ở định dạng JSON
+2. giữ hành vi mặc định khi có xung đột
+3. use `--force-conflicts` only for reviewed exceptions
 
 ## Giá trị mặc định được đề xuất
 
-- giữ `--fail-on-conflict=true`
-- giữ lại `--dry-run=true` cho đến khi báo cáo được xem xét
-- lưu trữ báo cáo JSON trong CI để phục vụ theo dõi kiểm toán
+- keep `--fail-on-conflict=true`
+- giữ `--dry-run=true` cho đến khi báo cáo được xem
+- Lưu trữ báo cáo JSON trong CI để theo dõi

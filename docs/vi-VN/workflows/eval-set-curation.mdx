@@ -1,41 +1,41 @@
 ---
-title: "Tuyển chọn tập đánh giá"
-description: "Xây dựng một bộ đánh giá chất lượng bản dịch mang tính đại diện để phát hiện các vấn đề chất lượng thực tế."
+title: "Lựa chọn tập đánh giá"
+description: "Xây dựng một bộ kiểm tra dịch thuật đại diện để phát hiện các vấn đề chất lượng thực tế."
 ---
 
-Sử dụng bộ đánh giá (eval set) để đo lường chất lượng bản dịch trên các chuỗi quan trọng nhất đối với bạn.
+Sử dụng một bộ kiểm tra để đo lường chất lượng bản dịch trên các chuỗi có ý nghĩa nhất đối với bạn.
 
 ## Chọn định dạng tệp
 
-Bạn có thể lưu các bộ eval dưới dạng JSON, JSONC hoặc CSV.
+Bạn có thể lưu tập dữ liệu đánh giá dưới dạng JSON, JSONC hoặc CSV.
 
-- Sử dụng JSON hoặc JSONC khi bạn muốn cấu trúc lồng nhau và siêu dữ liệu rõ ràng
-- Sử dụng CSV khi bạn muốn chỉnh sửa bảng tính nhanh với các cột như `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, và `group`
-- Ở định dạng CSV, hãy phân tách nhiều thẻ bằng dấu chấm phẩy (`ui;short;icu`)
+- Sử dụng JSON hoặc JSONC khi bạn muốn cấu trúc có nhiều cấp và dữ liệu siêu dữ liệu rõ ràng.
+- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
+- trong định dạng CSV, tách các thẻ nhiều bằng dấu chấm phẩy (`ui;short;icu`)
 
-## Chọn phạm vi đại diện
+## Chọn các trường hợp đại diện
 
-Bao gồm sự kết hợp các loại chuỗi để bạn có thể phát hiện hồi quy trên nhiều dạng nội dung khác nhau.
+Bao gồm nhiều loại kiểu chuỗi để bạn có thể phát hiện các lỗi trên các loại nội dung khác nhau.
 
-- chuỗi UI ngắn: nút, nhãn, mục menu và thông báo lỗi ngắn gọn
-- dài-chuỗi biểu mẫu: các bước giới thiệu, văn bản trợ giúp, nội dung pháp lý và thông báo giao dịch
-- ICU và định dạng phức tạp: quy tắc số nhiều, biến thể giới tính, câu lệnh select, và placeholder định dạng ngày hoặc số
-- trình giữ chỗ và biến: các token như `{name}`, `%s`, hoặc `{{count}}` phải giữ nguyên không thay đổi
+- chuỗi UI ngắn: nút, nhãn, mục menu và văn bản lỗi súc tích
+- chuỗi văn bản dài: các bước hướng dẫn, văn bản trợ giúp, bản sao pháp lý và các tin nhắn giao dịch
+- ICU và định dạng phức tạp: quy tắc số nhiều, biến thể giới tính, mệnh lệnh chọn, và các ký hiệu cho định dạng ngày hoặc số
+- placeholders and variables: tokens like `{name}`, `%s`, or `{{count}}` that must survive unchanged
 
-## Giữ ngữ cảnh gần với từng trường hợp
+## Duy trì thông tin liên quan đến từng trường hợp
 
-Đối với mỗi trường hợp, hãy lưu một ID ổn định và cung cấp đủ ngữ cảnh cho người đánh giá.
+Đối với mỗi trường hợp, hãy lưu một ID ổn định và cung cấp đủ thông tin để người xem đánh giá.
 
-- thêm ngôn ngữ mục tiêu và văn bản nguồn
-- bao gồm ảnh chụp màn hình, tên tính năng hoặc ghi chú ý định trong `context`
-- thêm tùy chọn `reference` văn bản khi bạn đã có bản dịch đáng tin cậy
-- gắn nhãn hồ sơ bằng thẻ và bucket hoặc nhóm (tùy chọn) để bạn có thể lọc báo cáo theo từng khu vực
+- Thêm khu vực ngôn ngữ đích và văn bản nguồn
+- include screenshots, feature names, or intent notes in `context`
+- add optional `reference` text when you already have a trusted translation
+- Gán nhãn cho các trường hợp với thẻ và/hoặc nhóm tùy chọn để bạn có thể phân loại báo cáo theo khu vực.
 
 ## Duy trì chất lượng theo thời gian
 
-Xem tập eval như dữ liệu kiểm thử cho môi trường sản xuất.
+Xử lý tập đánh giá như dữ liệu kiểm thử sản xuất.
 
-- Xem xét và cập nhật bộ nội dung khi giao diện người dùng hoặc nội dung sản phẩm thay đổi
-- loại bỏ các trường hợp lỗi thời không còn tương ứng với các tính năng đang hoạt động
+- - Đánh giá và cập nhật bộ dữ liệu khi giao diện người dùng hoặc nội dung sản phẩm thay đổi
+- Loại bỏ các trường hợp cũ không còn ánh xạ với các tính năng đang hoạt động.
 - giữ sự cân bằng giữa các chuỗi dễ, trung bình và khó
-- chạy lặp lại cùng một bộ dữ liệu để so sánh công bằng các thay đổi của mô hình hoặc lời nhắc
+- - Thực hiện lại cùng một tập dữ liệu nhiều lần để so sánh các thay đổi của mô hình hoặc prompt một cách công bằng.

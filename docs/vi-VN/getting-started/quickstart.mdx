@@ -1,11 +1,11 @@
 ---
-title: "Hướng dẫn bắt đầu nhanh"
-description: "Chạy hyperlocalise end-to-end trong khoảng 10 phút."
+title: "Bắt đầu nhanh"
+description: "Thực hiện hyperlocalise toàn bộ quy trình trong khoảng 10 phút."
 ---
 
 ## Mục tiêu
 
-Tạo một `i18n.jsonc`, chạy lập kế hoạch dịch một cách an toàn, tạo đầu ra và xem xét trạng thái.
+Create an `i18n.jsonc`, run translation planning safely, generate outputs, and review status.
 
 ## 1. Khởi tạo cấu hình
 
@@ -13,11 +13,11 @@ Tạo một `i18n.jsonc`, chạy lập kế hoạch dịch một cách an toàn,
 hyperlocalise init
 ```
 
-Thao tác này ghi `i18n.jsonc` trong thư mục hiện tại của bạn.
+This writes `i18n.jsonc` in your current directory.
 
-## 2. Cấu hình thông tin xác thực nhà cung cấp
+## 2. Cấu hình thông tin đăng nhập của nhà cung cấp
 
-`hyperlocalise` tự động đọc thông tin xác thực từ `.env` và `.env.local` trong thư mục dự án hiện tại của bạn. Các biến shell đã được export vẫn có mức ưu tiên cao hơn.
+`hyperlocalise` automatically reads credentials from `.env` and `.env.local` in your current project directory. Exported shell variables still take precedence.
 
 Ví dụ:
 
@@ -129,29 +129,29 @@ GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
 
-## 3. Làm khô-chạy trước
+## 3. Thực hiện thử nghiệm trước
 
 ```bash
-hyperlocalise run --config i18n.jsonc --dry-run
+hyperlocalise run --dry-run
 ```
 
-Kiểm tra `planned_total`, `executable_total`, và được liệt kê `tasks`.
+Kiểm tra HLMDPH_5D04BBA3F0B6_0, HLMDPH_8320BC5C3DC1_1, và các mục được liệt kê HLMDPH_CA7EA3026C7D_2.
 
-## 4. Thực thi việc tạo ra
+## 4. Thực hiện tạo
 
 ```bash
-hyperlocalise run --config i18n.jsonc
+hyperlocalise run
 ```
 
-Phần này ghi bản dịch và cập nhật `.hyperlocalise.lock.json`. Để biết chi tiết, xem [Hợp đồng tệp khóa](/reference/lockfile-contract).
+This writes translations and updates `.hyperlocalise.lock.json`. For details, see [Lockfile contract](/reference/lockfile-contract).
 
-## 5. Trạng thái đánh giá
+## 5. Xem lại trạng thái
 
 ```bash
-hyperlocalise status --config i18n.jsonc --output csv
+hyperlocalise status --output csv
 ```
 
-Sử dụng `needs_review` các hàng để xác định các mục vẫn cần được con người tuyển chọn.
+Use `needs_review` rows to identify entries that still need human curation.
 
 ## 6. Đánh giá chất lượng bản dịch khi cần thiết
 
@@ -159,10 +159,10 @@ Sử dụng `needs_review` các hàng để xác định các mục vẫn cần 
 hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
 ```
 
-Sử dụng nội dung này khi so sánh các lựa chọn prompt/hồ sơ/nhà cung cấp hoặc trước khi triển khai các bản cập nhật bản dịch lớn.
+Sử dụng công cụ này khi so sánh các lựa chọn yêu cầu/cấu hình/nhà cung cấp hoặc trước khi triển khai các bản cập nhật dịch thuật lớn.
 
-## Tiếp theo
+## Tiếp
 
-- Tinh chỉnh cấu hình trong [cấu hình i18n](/configuration/i18n-config).
-- Đồng bộ hóa với TMS của bạn bằng cách sử dụng [đồng bộ đẩy](/commands/sync-push) và [đồng bộ hóa kéo xuống](/commands/sync-pull).
-- Kiểm tra các kỳ vọng về mức độ trưởng thành trong [ma trận ổn định](/reference/stability-matrix).
+- Tune config in [i18n config](/configuration/i18n-config).
+- Đồng bộ với hệ thống quản lý nội dung (TMS) của bạn bằng cách sử dụng [sync push](/commands/sync-push) và [sync pull](/commands/sync-pull).
+- Check maturity expectations in the [stability matrix](/reference/stability-matrix).

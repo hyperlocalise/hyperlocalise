@@ -1,11 +1,11 @@
 ---
 title: "输出格式"
-description: "run、status 和 sync 命令输出格式参考。"
+description: "关于 run、状态和同步命令输出格式的参考。"
 ---
 
-## `run` 输出 (`text`)
+## `run` output (`text`)
 
-关键摘要字段：
+关键摘要字段
 
 - `planned_total`
 - `skipped_by_lock`
@@ -14,15 +14,15 @@ description: "run、status 和 sync 命令输出格式参考。"
 - `failed`
 - `persisted_to_lock`
 
-故障行格式：
+失败行格式：
 
 ```text
 failure target=<path> key=<key> reason=<reason>
 ```
 
-## `status` 输出 (`csv`)
+## `status` output (`csv`)
 
-标题列：
+表头列：
 
 ```csv
 key,namespace,locale,status,origin,state
@@ -30,10 +30,10 @@ key,namespace,locale,status,origin,state
 
 交互模式：
 
-- `hyperlocalise status --output csv -i` 渲染一个用于人工分流的 TTY 仪表板。
-- CSV 仍然是规范的机器格式-适用于 CI 和自动化的易读格式。
+- `hyperlocalise status --output csv -i` 渲染一个用于手动分诊的TTY仪表板。
+- CSV 仍然是 CI 和自动化领域的标准机器可读格式。
 
-## `sync` output (`text` 或 `json`)
+## `sync` 输出 (`text` 或 `json`)
 
 文本摘要字段：
 
@@ -46,9 +46,9 @@ key,namespace,locale,status,origin,state
 - `skipped`
 - `warnings`
 
-与 CI 检查集成时，请使用 JSON 输出。
+在与 CI 检查集成时，请使用 JSON 格式的输出。
 
 
 ## CSV 翻译文件
 
-当 `run` 写入 `.csv` 翻译目标，对于新追加的键，输出行顺序是确定的 (按键排序)并且，现有行保持其原始顺序。
+当`run`写入`.csv`的翻译目标时，新添加的键的输出行顺序是确定的（按键排序），而现有行会保持其原始顺序。

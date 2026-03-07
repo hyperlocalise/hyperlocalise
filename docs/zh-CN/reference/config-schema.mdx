@@ -1,50 +1,71 @@
 ---
-title: "配置架构"
-description: "hyperlocalise 使用的 i18n.jsonc 字段简明参考。"
+title: "配置方案"
+description: "简洁的 i18n.jsonc 字段参考，用于 hyperlocalize。"
 ---
 
-## 顶部-级别键
+## 顶层键
 
 - `locales`
 - `buckets`
 - `groups`
 - `llm`
-- `storage` (必填，用于 `sync`)
+- `storage` (required for `sync`)
+- `cache` (可选)
 
 ## `locales`
 
 - `source` (字符串，必填)
-- `targets` (字符串数组，必填)
+- `targets` (字符串数组，必需)
 - `fallbacks` (对象，可选)
 
 ## `buckets`
 
-- 存储桶名称映射 -> 存储桶定义
-- `files` 包含数组，返回仅翻译后的文本，不要包含任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `from` 和返回仅包含翻译文本，不包含任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `to` 模板
+- 桶名称 -> 桶定义 的映射
+- `files` 与 `from` 和 `to` 模板的数组
 
 ## `groups`
 
-- 组名称映射 -> 组定义
+- 组名 -> 组定义
 - `targets` 数组
 - `buckets` 数组
 
 ## `llm`
 
-- `profiles` 配置文件名称映射 -> 提供方/模型/提示词
-- 支持的提供商： `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama`
-- `rules` 包含的数组 `priority`, `group`, `profile`
+- `profiles` 映射：配置文件名称 -> 提供者/模型/提示
+- optional `context_memory` object with `provider` and `model` for context-building overrides
+- 支持的提供商：`openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama`
+- `rules` array with `priority`, `group`, `profile`
 
 ## `storage`
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
-- `config`: 适配器-特定字段
+- `config`: adapter-specific fields
 
-例如，请参阅 [i18n 配置](/configuration/i18n-config).
+## `cache`
+
+- `enabled` 布尔
+- `db_path` 字符串
+- `sqlite.max_open_conns` 整数
+- `sqlite.max_idle_conns` integer
+- `sqlite.conn_max_lifetime_seconds` 整数
+- `l1.enabled` 布尔
+- `l1.max_items` 整数
+- `l2.enabled` 布尔
+- `l2.auto_accept_threshold` 编号：`[0,1]`
+- `rag.enabled` 布尔
+- `rag.top_k` 整数
+
+缓存中使用的 TM 元数据值：
+
+- 来源：`curated` | `draft` | `llm` | `tms` | `unknown`
+- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+
+例如，请参阅 [i18n 配置](/configuration/i18n-config)。
 
 
-## CSV 工作流说明
+## CSV 工作流程备注
 
-使用 `buckets.*.files[].from` 和返回仅包含译文的文本，不要添加任何解释、标签、Markdown 或引号，除非译文内容本身需要。 `to` 指向 `.csv` 运行 CSV 时的文件-基于的本地化流程。
+使用`buckets.*.files[].from`和`to`来指向`.csv`的文件，当您执行基于CSV的本地化流程时。
 
-- 每-locale 文件通常使用 `[locale]` 在 `to` 路径。
-- 共享的 CSV 文件可以重复使用同一个 `from` 和 返回仅包含翻译后的文本，不要添加任何解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `to` 路径。
+- Per-locale files typically use `[locale]` in the `to` path.
+- 共享的 CSV 文件可以使用相同的路径 `from` 和 `to`。

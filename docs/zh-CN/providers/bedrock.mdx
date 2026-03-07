@@ -1,11 +1,11 @@
 ---
 title: "AWS Bedrock"
-description: "将 AWS Bedrock 配置为用于生成翻译的 LLM 提供方。"
+description: "配置 AWS Bedrock 作为 LLM 翻译生成提供方。"
 ---
 
-## 提供商值
+## Provider value
 
-使用 `bedrock` in `llm.profiles.<name>.provider`.
+使用`bedrock`，在`llm.profiles.<name>.provider`中。
 
 ## 示例配置文件
 
@@ -23,7 +23,7 @@ description: "将 AWS Bedrock 配置为用于生成翻译的 LLM 提供方。"
 }
 ```
 
-## 所需的环境变量
+## 所需环境变量
 
 <CodeGroup>
 ```bash Export
@@ -39,7 +39,7 @@ AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 ```
 </CodeGroup>
 
-使用临时凭证时可选：
+当使用临时凭证时：
 
 <CodeGroup>
 ```bash Export

@@ -1,9 +1,9 @@
 ---
-title: "Tổng quan về các nhà cung cấp LLM"
-description: "Các trường hồ sơ dùng chung, các biến trong lời nhắc, và liên kết đến trang cấu hình riêng cho từng nhà cung cấp."
+title: "Tổng quan về nhà cung cấp LLM"
+description: "Các trường chung, biến prompt và liên kết đến trang cấu hình cụ thể của từng nhà cung cấp."
 ---
 
-Sử dụng một trang nhà cung cấp bên dưới để thiết lập chính xác và xem các ví dụ:
+Sử dụng một trang nhà cung cấp bên dưới để có hướng dẫn và ví dụ chính xác:
 
 - [OpenAI](/providers/openai)
 - [Azure OpenAI](/providers/azure-openai)
@@ -27,17 +27,22 @@ Sử dụng một trang nhà cung cấp bên dưới để thiết lập chính 
 - `mistral`
 - `ollama`
 
-## Các trường hồ sơ bắt buộc
+## Các trường bắt buộc
 
-Mỗi `llm.profiles.<name>` yêu cầu mục nhập:
+Each `llm.profiles.<name>` entry requires:
 
 - `provider`
 - `model`
-- `prompt`
 
-## Biến lời nhắc
+Trường profile tùy chọn:
 
-Các phần giữ chỗ này có sẵn trong `prompt`:
+- `system_prompt`
+- `user_prompt`
+- `prompt` (deprecated)
+
+## Biến Prompt
+
+These placeholders are available in `prompt`, `system_prompt`, and `user_prompt`:
 
 - `{{source}}`
 - `{{target}}`

@@ -1,13 +1,13 @@
 ---
 title: "常见错误"
-description: "排查常见的安装、配置、提供商和同步失败问题。"
+description: "故障排除常用配置、设置、提供商和同步失败。"
 ---
 
 ## `i18n.jsonc already exists; use --force to overwrite`
 
-原因：正在运行 `init` 在配置已存在的情况下。
+原因：在已存在配置的情况下，尝试运行 `init`。
 
-修复：
+修复
 
 ```bash
 hyperlocalise init --force
@@ -15,30 +15,30 @@ hyperlocalise init --force
 
 ## `storage config is required`
 
-原因： `sync` 命令在未使用 top 的情况下使用-level `storage` 配置。
+原因：使用了不带顶层配置 [1mHLMDPH_C544220C52A1_1[0m [1mHLMDPH_40CAE40DAF05_0[0m 命令。
 
-修复：添加 `storage.adapter` 和 `storage.config` in `i18n.jsonc`.
+Fix: add `storage.adapter` and `storage.config` in `i18n.jsonc`.
 
 ## `unsupported output format`
 
-原因：错误 `--output` 值。
+原因：错误地使用了[1mHLMDPH_6573F78BA507_0[0m的值。
 
 修复：
 
-- `status`: 仅限 `csv`
-- `sync`: `text` 或 `json`
+- `status`：仅限 `csv`
+- `sync`： `text` 或 `json`
 
-## `unsupported file extension` 期间 `run`
+## `unsupported file extension` during `run`
 
-原因：已映射的源文件或目标文件使用了本地解析器不支持的扩展名。
+原因：映射的源或目标文件使用了本地解析器不支持的扩展名。
 
 修复：
 
-- 使用以下其中之一： `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
-- 验证存储桶 `from` 和返回仅翻译后的文本，不要提供任何说明、标签、Markdown 或引号，除非翻译内容本身需要它们。 `to` 路径解析为预期的文件名
+- 使用以下任一选项：`.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
+- verify bucket `from` and `to` paths resolve to the expected file names
 
-## 提供方身份验证失败
+## 提供商认证失败
 
-原因：缺少/无效的环境令牌。
+原因：缺少/无效的 `Env token`。
 
-修复：re-在同一 Shell 会话中导出 token，然后重新运行。
+修复：重新导出令牌并在同一 shell 会话中重新运行。

@@ -1,49 +1,49 @@
 ---
 title: "Tự động hóa CI"
-description: "Mẫu CI an toàn để kiểm tra drift và đồng bộ hóa TMS pull/push theo lịch trình."
+description: "Các mẫu CI an toàn cho kiểm tra sai số và đồng bộ hóa TMS theo lịch trình."
 ---
 
 ## Tiêu chuẩn tiêm bí mật CI
 
-Đối với các adapter từ xa, hãy lưu các bí mật trong trình quản lý bí mật CI của bạn và chỉ đưa chúng vào các job có gọi `hyperlocalise sync`.
+For remote adapters, keep secrets in your CI secret manager and inject them only in jobs that call `hyperlocalise sync`.
 
-- Chỉ commit `*Env` tên biến trong `i18n.jsonc`.
-- Chèn giá trị token trong thời gian chạy thông qua job-biến môi trường cấp độ.
-- Sử dụng thông tin đăng nhập riêng cho quyền đọc-chỉ kiểm tra so với ghi-đã bật các tác vụ đồng bộ hóa.
-- Tránh in các biến môi trường trong các bước pipeline.
+- Commit only `*Env` variable names in `i18n.jsonc`.
+- Tiêm giá trị token vào thời chạy thông qua biến môi trường cấp công việc.
+- Sử dụng thông tin đăng nhập riêng biệt cho việc kiểm tra chỉ đọc so với các công việc đồng bộ cho phép ghi.
+- Tránh in các biến môi trường trong các bước của pipeline.
 
 ## Các kiểm tra được đề xuất
 
 ### 1. Cấu hình + lập kế hoạch kiểm thử khói
 
 ```bash
-hyperlocalise run --config i18n.jsonc --dry-run
+hyperlocalise run --dry-run
 ```
 
-### 2. Ảnh chụp nhanh trạng thái
+### 2. Tóm tắt trạng thái
 
 ```bash
-hyperlocalise status --config i18n.jsonc --output csv
+hyperlocalise status --output csv
 ```
 
-Lưu tệp CSV dưới dạng artifact của bản dựng để theo dõi xu hướng.
+Lưu trữ tệp CSV làm một phần của dự án để theo dõi xu hướng.
 
-### 3. Cổng xung đột đồng bộ hóa
+### 3. Cổng xung đột đồng bộ
 
-`sync pull` và `sync push` mặc định là `--dry-run=true`, đây là đường cơ sở CI an toàn.
+`sync pull` and `sync push` default to `--dry-run=true`, which is a safe CI baseline.
 
 ```bash
-hyperlocalise sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
-hyperlocalise sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync pull --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-Sử dụng `--dry-run=false` chỉ trong các công việc được ủy quyền rõ ràng để ghi vào tệp cục bộ hoặc hệ thống từ xa.
+Use `--dry-run=false` only in jobs that are explicitly authorized to write local files or remote systems.
 
-## Ví dụ về tác vụ đồng bộ theo lịch
+## Ví dụ về công việc đồng bộ theo lịch trình
 
-Sử dụng các ví dụ GitHub Actions này làm cơ sở. Điều chỉnh tên bí mật và quy tắc phê duyệt cho phù hợp với nền tảng CI của bạn.
+Sử dụng các ví dụ GitHub Actions này làm cơ sở. Điều chỉnh tên và quy tắc phê duyệt để phù hợp với nền tảng CI của bạn.
 
-### Đồng bộ kéo theo lịch trình (đọc-chỉ, mặc định an toàn)
+### Đồng bộ theo lịch (chỉ đọc, cài đặt mặc định an toàn)
 
 ```yaml
 name: tms-pull-sync
@@ -66,16 +66,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+      - run: go run . sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
-Để áp dụng các thay đổi từ xa cho các tệp cục bộ trong CI, hãy chuyển sang:
+Để áp dụng các thay đổi từ xa đối với các tệp cục bộ trong CI, hãy chuyển sang:
 
 ```bash
-go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+go run . sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
-### Đồng bộ đẩy theo lịch trình (viết-đã bật, đang hoạt động)
+### Đẩy đồng bộ theo lịch (bật, đang hoạt động)
 
 ```yaml
 name: tms-push-sync
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+      - run: go run . sync push --output json --fail-on-conflict --dry-run=false
 ```
 
-Đối với một không-bước xác thực có thay đổi, sử dụng:
+Để thực hiện kiểm tra không làm thay đổi dữ liệu, hãy sử dụng:
 
 ```bash
-go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+go run . sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-Để ghi-bật các công việc, ưu tiên môi trường được bảo vệ, cổng phê duyệt và tối thiểu-thông tin xác thực của dịch vụ đặc quyền.
+Đối với các công việc cho phép ghi, hãy ưu tiên sử dụng môi trường được bảo vệ, các cơ chế kiểm soát và thông tin xác thực dịch vụ có quyền hạn tối thiểu.

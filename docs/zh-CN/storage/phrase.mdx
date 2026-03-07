@@ -1,9 +1,9 @@
 ---
-title: "短语适配器"
+title: "Phrase 连接器/映射器"
 description: "配置 Phrase 以进行远程翻译同步。"
 ---
 
-## 必需配置
+## 所需配置
 
 ```jsonc
 {
@@ -23,15 +23,15 @@ description: "配置 Phrase 以进行远程翻译同步。"
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
-- `fileFormat` (需要时必填 `mode` 是 `files`)
+- `fileFormat` (required when `mode` is `files`)
 
-## 模式
+## 可用模式
 
-- `strings`：使用 Phrase 的 key 和翻译 API 进行拉取和推送。
-- `files`：使用 Phrase 导出/导入作业进行拉取和推送。
+- `strings`: pull and push using Phrase key and translation APIs.
+- `files`: pull and push using Phrase export/import jobs.
 
 ## 常见问题
 
-- 未找到令牌：导出 `PHRASE_API_TOKEN`
-- 模式验证错误：设置 `mode` 到 `strings` 或 `files`
-- 文件模式导入失败：请验证 `fileFormat` 与您的项目设置匹配
+- token 未找到：导出 `PHRASE_API_TOKEN`
+- 模式验证错误：将`mode`设置为`strings`或`files`
+- 文件模式导入失败: 确认 `HLMDPH_5943534CBB5C_0` 与您的项目设置匹配

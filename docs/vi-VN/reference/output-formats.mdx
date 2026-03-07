@@ -1,6 +1,6 @@
 ---
 title: "Định dạng đầu ra"
-description: "Tài liệu tham khảo về định dạng đầu ra của các lệnh run, status và sync."
+description: "Tham khảo định dạng đầu ra cho các lệnh chạy, trạng thái và đồng bộ."
 ---
 
 ## `run` output (`text`)
@@ -20,9 +20,9 @@ Các trường tóm tắt chính:
 failure target=<path> key=<key> reason=<reason>
 ```
 
-## `status` output (`csv`)
+## `status` đầu ra (`csv`)
 
-Cột tiêu đề:
+Tiêu đề cột:
 
 ```csv
 key,namespace,locale,status,origin,state
@@ -30,10 +30,10 @@ key,namespace,locale,status,origin,state
 
 Chế độ tương tác:
 
-- `hyperlocalise status --output csv -i` hiển thị bảng điều khiển TTY để phân loại thủ công.
-- CSV vẫn là định dạng chuẩn chính cho máy tính-định dạng dễ đọc cho CI và tự động hóa.
+- `hyperlocalise status --output csv -i` renders a TTY dashboard for manual triage.
+- CSV vẫn là định dạng có thể đọc được bằng máy phổ biến nhất cho CI và tự động hóa.
 
-## `sync` đầu ra (`text` hoặc `json`)
+## `sync` output (`text` or `json`)
 
 Các trường tóm tắt văn bản:
 
@@ -46,9 +46,9 @@ Các trường tóm tắt văn bản:
 - `skipped`
 - `warnings`
 
-Sử dụng đầu ra JSON khi tích hợp với các bước kiểm tra CI.
+Sử dụng đầu ra JSON khi tích hợp với kiểm tra CI.
 
 
-## Tệp dịch CSV
+## Tệp dịch thuật CSV
 
-Khi `run` viết `.csv` mục tiêu bản dịch, thứ tự hàng đầu ra được xác định (deterministic), và các hàng hiện có giữ nguyên thứ tự ban đầu.
+When `run` writes `.csv` translation targets, output row order is deterministic for newly appended keys (sorted by key), and existing rows keep their original order.

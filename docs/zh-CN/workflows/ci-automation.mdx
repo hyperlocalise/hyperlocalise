@@ -1,49 +1,49 @@
 ---
 title: "CI 自动化"
-description: "用于漂移检查和按计划执行的 TMS 拉取/推送同步的安全 CI 模式。"
+description: "安全CI模式，用于漂移检查和按计划的TMS拉取/推送同步。"
 ---
 
 ## CI 密钥注入标准
 
-对于远程适配器，请将机密保存在你的 CI 机密管理器中，并且只在调用的作业中注入它们。 `hyperlocalise sync`.
+For remote adapters, keep secrets in your CI secret manager and inject them only in jobs that call `hyperlocalise sync`.
 
-- 仅提交 `*Env` 变量名在 `i18n.jsonc`.
-- 通过作业在运行时注入令牌值-级别环境变量。
-- 使用单独的凭据进行读取-仅检查 vs 写入-已启用同步作业。
-- 避免在流水线步骤中打印环境变量。
+- Commit only `*Env` variable names in `i18n.jsonc`.
+- 通过作业级别的环境变量在运行时注入令牌值。
+- 使用不同的凭据，用于只读检查和具有写入功能的同步任务。
+- 避免在管道步骤中打印环境变量。
 
 ## 建议检查
 
 ### 1. 配置 + 规划冒烟测试
 
 ```bash
-hyperlocalise run --config i18n.jsonc --dry-run
+hyperlocalise run --dry-run
 ```
 
 ### 2. 状态快照
 
 ```bash
-hyperlocalise status --config i18n.jsonc --output csv
+hyperlocalise status --output csv
 ```
 
-将 CSV 存储为构建制品，用于趋势跟踪。
+将 CSV 数据存储为构建工件，用于趋势跟踪。
 
-### 3. 同步冲突检查门
+### 3. 同步冲突栅
 
-`sync pull` 和 `sync push` 默认为仅返回翻译后的文本，不要提供解释、标签、Markdown 或引号，除非翻译内容本身需要它们。 `--dry-run=true`这是一条安全的 CI 基线。
+`sync pull` 和 `sync push` 默认为 `--dry-run=true`，后者是一个安全的 CI 基线。
 
 ```bash
-hyperlocalise sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
-hyperlocalise sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync pull --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-使用 `--dry-run=false` 仅限于明确授权写入本地文件或远程系统的作业中。
+Use `--dry-run=false` only in jobs that are explicitly authorized to write local files or remote systems.
 
-## 计划同步作业示例
+## 计划同步任务示例
 
-以这些 GitHub Actions 示例为基线。根据你的 CI 平台调整密钥名称和审批规则。
+请将这些 GitHub Actions 示例作为基准。 根据您的 CI 平台，调整密钥名称和审批规则。
 
-### 计划拉取同步 (读取-仅限，安全默认值)
+### 计划同步（只读，安全默认）
 
 ```yaml
 name: tms-pull-sync
@@ -66,16 +66,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+      - run: go run . sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
-要在 CI 中将远程更改应用到本地文件，请切换到：
+为了在 CI 中将远程更改应用到本地文件，请切换到：
 
 ```bash
-go run . sync pull --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+go run . sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
-### 计划推送同步 (写入-已启用，活动中)
+### 计划性推送同步（已启用，处于活动状态）
 
 ```yaml
 name: tms-push-sync
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=false
+      - run: go run . sync push --output json --fail-on-conflict --dry-run=false
 ```
 
-对于非-可变更的验证阶段，请使用：
+对于不修改数据的验证，请使用：
 
 ```bash
-go run . sync push --config i18n.jsonc --output json --fail-on-conflict --dry-run=true
+go run . sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-用于写入-启用的作业，优先使用受保护的环境、审批门禁，以及最小化-特权服务凭据。
+对于允许写入的作业，建议使用受保护的环境、审批流程和最小权限的服务凭据。

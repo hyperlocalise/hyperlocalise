@@ -1,15 +1,15 @@
 ---
-title: "kéo đồng bộ"
-description: "Thử nghiệm: Kéo các bản dịch đã được tuyển chọn từ bộ lưu trữ từ xa vào các tệp cục bộ."
+title: "đồng bộ kéo"
+description: "Thử nghiệm: Tải các bản dịch đã được chọn từ bộ nhớ từ xa vào các tệp cục bộ."
 ---
 
 <Note>
-Tính năng này đang ở giai đoạn thử nghiệm. Các cờ, cấu trúc đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
+Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và khóa phiên bản trong CI.
 
-Cách xử lý xung đột và các hợp đồng đồng bộ hóa có thể thay đổi khi các tích hợp TMS dần hoàn thiện.
+Việc giải quyết xung đột và đồng bộ hóa hợp đồng có thể thay đổi khi các tích hợp TMS phát triển.
 </Note>
 
-## Sử dụng
+## Cách sử dụng
 
 ```bash
 hyperlocalise sync pull [--config <path>] [flags]
@@ -17,29 +17,29 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync pull` mặc định là dry-chế độ chạy. Bắt đầu bằng cách xem lại báo cáo, sau đó chạy lại với `--dry-run=false`.
+`sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
 
 ## Cờ
 
-- `--config`: đường dẫn cấu hình
-- `--locale`: ngôn ngữ mục tiêu(s), lặp lại được
-- `--dry-run`: chỉ xem trước (mặc định `true`)
+- `--config`: config path
+- `--locale`: target locale(s), repeatable
+- `--dry-run`: chỉ xem (mặc định `true`)
 - `--output`: `text` hoặc `json`
-- `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
-- `--apply-curated-over-draft`: cho phép các giá trị từ xa đã được tuyển chọn thay thế các giá trị bản nháp cục bộ (mặc định `true`)
+- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
+- `--apply-curated-over-draft`: allow curated remote values to replace local draft values (default `true`)
 
 ## Ví dụ
 
 ```bash
-hyperlocalise sync pull --config i18n.jsonc --locale es-ES --output json
+hyperlocalise sync pull --locale es-ES --output json
 ```
 
-Xem [xử lý xung đột](/troubleshooting/conflicts) cho chiến lược giải quyết.
+Xem [cách giải quyết xung đột](/troubleshooting/conflicts) để biết chiến lược.
 
 ## Xem thêm
 
-- [chạy](/commands/run)
+- [run](/commands/run)
 - [trạng thái](/commands/status)
-- [đẩy đồng bộ hóa](/commands/sync-push)
-- [Tổng quan về lưu trữ](/storage/overview)
-- [Vòng lặp tuyển chọn TMS (thử nghiệm)](/workflows/tms-curation-loop)
+- [sync push](/commands/sync-push)
+- [Tổng quan lưu trữ](/storage/overview)
+- [Vòng lặp quản lý bằng TMS (thử nghiệm)](/workflows/tms-curation-loop)

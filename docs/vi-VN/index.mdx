@@ -1,19 +1,19 @@
 ---
 title: "Hyperlocalise là gì?"
-description: "Quy trình bản địa hóa ưu tiên CLI cho việc tạo bản nháp bằng AI, đồng bộ hóa hiệu đính TMS tùy chọn và báo cáo trạng thái."
+description: "Quy trình làm việc đa ngôn ngữ dựa trên CLI để tạo bản nháp AI, đồng bộ hóa kiểm duyệt TMS tùy chọn và báo cáo trạng thái."
 ---
 
-`hyperlocalise` giúp bạn tạo bản nháp bản dịch cho từng ngôn ngữ, tùy chọn đồng bộ với TMS của bạn và theo dõi những nội dung vẫn cần được rà soát.
+`hyperlocalise` helps you generate local translation drafts, optionally sync with your TMS, and track what still needs review.
 
-## Trọng tâm nền tảng
+## Tập trung vào nền tảng
 
-- Lớp nhà cung cấp LLM: OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama
-- Bộ điều hợp TMS (locale): Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling
-- Khung đánh giá (tùy chọn): chất lượng + kiểm tra hồi quy trên các ngôn ngữ/khu vực và mô hình
-- CI-nhãn trạng thái sẵn sàng (thử nghiệm): `ready` / `needs review` / `missing`
-- Kế hoạch-đầu tiên + lockfile: chạy có tính xác định và khác biệt có thể xem xét
+- Lớp cung cấp LLM: OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama
+- TMS adapters (thử nghiệm): Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling
+- Khung đánh giá (thử nghiệm): kiểm tra chất lượng và kiểm tra lỗi trên nhiều ngôn ngữ/mô hình
+- Nhãn trạng thái sẵn sàng cho CI (thử nghiệm): `ready` / `needs review` / `missing`
+- Lên kế hoạch trước + tệp khóa: chạy và so sánh theo cách nhất quán và có thể kiểm tra
 
-## Biểu đồ tính năng
+## Граф đặc trưng
 
 ```mermaid
 flowchart LR
@@ -29,37 +29,37 @@ flowchart LR
   J --> I
 ```
 
+## Đây dành cho ai
+
+Sử dụng giao diện dòng lệnh này nếu bạn:
+
+- lu trữ các tệp bản dịch trong kho lưu trữ của bạn
+- muốn có bản nháp do AI tạo ra làm điểm khởi đầu
+- muốn lựa chọn giữa quy trình không cần con người và lựa chọn con người trong TMS của bạn.
+
+## Luồng làm việc chính
+
+| Giai đoạn | Hành động | Tại sao điều này quan trọng |
+| --- | --- | --- |
+| 1 | [`init`](/commands/init) | Scaffold `i18n.jsonc` and bootstrap defaults. |
+| 2 | Configure [`i18n config`](/configuration/i18n-config) | Define locales, buckets, and LLM/storage settings. |
+| 3 | [`run --dry-run`](/commands/run) | Validate plan and detect issues before writing drafts. |
+| 4 | [`run`](/commands/run) | Generate local draft translations. |
+| 5 | [Giải phóng từ kho lưu trữ cục bộ](/commands/run) | Đường dẫn không cần người dùng khi quy trình của bạn cho phép xuất bản trực tiếp từ đầu ra đã tạo. |
+| 6 (tùy chọn) | [`sync push` (thử nghiệm)](/commands/sync-push) | Tải lên các thay đổi cục bộ lên TMS của bạn để sử dụng trong quy trình làm việc. |
+| 7 (tùy chọn) | Kiểm duyệt trong TMS | Xem xét và chỉnh sửa do con người trên nền tảng dịch thuật của bạn. |
+| 8 (optional) | [`sync pull` (experimental)](/commands/sync-pull) | Bring curated translations back into the repository. |
+| 9 | [`status`](/commands/status) | Đo lường mức độ hoàn thành và công việc chưa hoàn thành trên cả hai luồng quy trình. |
+
 ## Bắt đầu trong 10 phút
 
-Sử dụng CLI này nếu bạn:
-
-- Giữ các tệp bản dịch trong kho lưu trữ của bạn,
-- muốn AI-bản nháp được tạo làm điểm khởi đầu,
-- muốn chọn giữa số không-quy trình làm việc của con người và tuyển chọn nội dung thủ công tùy chọn trong TMS của bạn.
+1. [Cài đặt](/getting-started/install).
+2. [Bắt đầu nhanh](/getting-started/quickstart).
+3. [Thiết lập cấu hình i18n của bạn](/configuration/i18n-config).
 
 ## Các bước tiếp theo phổ biến
 
-| Giai đoạn | Thao tác | Tại sao điều này quan trọng |
-| --- | --- | --- |
-| 1 | [`init`](/commands/init) | Giàn giáo `i18n.jsonc` và các giá trị mặc định của bootstrap. |
-| 2 | Cấu hình [`i18n config`](/configuration/i18n-config) | 3 |
-| Xác thực kế hoạch và phát hiện vấn đề trước khi viết bản nháp. | [`run --dry-run`](/commands/run) | 4 |
-| Tạo bản dịch nháp cục bộ. | [`run`](/commands/run) | 5 |
-| Tải lên các thay đổi cục bộ lên TMS của bạn để phục vụ quy trình tuyển chọn. | [Phát hành từ kho lưu trữ cục bộ](/commands/run) | Không trả về nội dung nào-Đường dẫn thủ công khi quy trình của bạn cho phép xuất bản trực tiếp từ các đầu ra được tạo. |
-| Xác định ngôn ngữ (thử nghiệm) | [`sync push` (thử nghiệm)](/commands/sync-push) | Biên tập trong TMS |
-| 6 (tùy chọn) | Rà soát và chỉnh sửa bởi con người trong nền tảng dịch thuật của bạn. | Đưa các bản dịch đã được tuyển chọn trở lại kho lưu trữ. |
-| 7 (tùy chọn) | [`sync pull` (thử nghiệm)](/commands/sync-pull) | 9 |
-| Đo lường mức độ hoàn thành và công việc chưa giải quyết trong bất kỳ luồng quy trình nào. | [`status`](/commands/status) | Tìm hiểu hành vi của lệnh trong |
-
-## Dành cho ai
-
-1. [Cài đặt](/getting-started/install).
-2. [Chạy hướng dẫn bắt đầu nhanh](/getting-started/quickstart).
-3. [Thiết lập cấu hình i18n của bạn](/configuration/i18n-config).
-
-## Quy trình làm việc cốt lõi
-
-- Cấu hình thông tin xác thực của nhà cung cấp trong [tổng quan lệnh](/commands/overview).
-- Hiểu hành vi đồng bộ hóa trong [thông tin xác thực của nhà cung cấp](/configuration/provider-credentials).
-- Tổng quan về lưu trữ [quy trình làm việc của con người và việc biên tập thủ công tùy chọn trong POEditor, Lokalise hoặc Crowdin.](/storage/overview).
-- Xem xét mức độ hoàn thiện của tính năng trong [ma trận ổn định](/reference/stability-matrix).
+- Tìm hiểu về cách hoạt động của lệnh trong [Tổng quan lệnh](/commands/overview).
+- Configure provider credentials in [provider credentials](/configuration/provider-credentials).
+- Hiểu rõ về hành vi đồng bộ trong [tóm tắt kho lưu trữ](/storage/overview).
+- Đánh giá mức độ trưởng thành của tính năng trong [ma trận tính ổn định](/reference/stability-matrix).

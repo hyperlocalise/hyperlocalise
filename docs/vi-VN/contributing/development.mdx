@@ -1,13 +1,13 @@
 ---
 title: "Phát triển"
-description: "Phát triển và xác thực CLI hyperlocalise bằng Go."
+description: "Phát triển và xác thực tiện ích dòng lệnh (CLI) cục bộ trong Go."
 ---
 
-## Điều kiện tiên quyết
+## Các điều kiện tiên quyết
 
 - Go 1.26+
 - `git`
-- `make` có sẵn trong shell của bạn
+- `make` available in your shell
 
 ## Sao chép kho lưu trữ
 
@@ -22,9 +22,9 @@ cd hyperlocalise
 make bootstrap
 ```
 
-Thao tác này tải xuống các mô-đun Go và cài đặt bộ công cụ lint đã được ghim phiên bản.
+Chức năng này tải xuống các mô-đun Go và cài đặt công cụ kiểm lint đã được chỉ định.
 
-## Vòng lặp phát triển hằng ngày
+## Vòng lặp phát triển hàng ngày
 
 ```bash
 make fmt
@@ -41,20 +41,20 @@ make run
 go run -ldflags "-X main.version=dev" main.go
 ```
 
-## Cài đặt tệp nhị phân cục bộ
+## Cài đặt bản nhị phân cục bộ
 
 ```bash
 make install
 hyperlocalise version
 ```
 
-## Vị trí mã khóa
+## Vị trí các mã khóa
 
-- `cmd/`: Lệnh Cobra, cờ và hành vi đầu ra CLI
-- `internal/config/`: `i18n.jsonc` phân tích cú pháp và xác thực
-- `internal/i18n/runsvc/`: `run` Luồng lập kế hoạch và thực thi
-- `internal/i18n/syncsvc/`: điều phối đồng bộ hóa và logic xung đột
-- `internal/i18n/storage/`: hợp đồng adapter và tích hợp nhà cung cấp
+- `cmd/`: Cobra commands, flags, and CLI output behavior
+- `internal/config/`: `i18n.jsonc` parsing and validation
+- `internal/i18n/runsvc/`: `run` planning and execution flow
+- `internal/i18n/syncsvc/`: sync orchestration and conflict logic
+- `internal/i18n/storage/`: hợp đồng và tích hợp nhà cung cấp
 
 ## Trước khi mở một PR
 
@@ -62,4 +62,4 @@ hyperlocalise version
 make precommit
 ```
 
-Lệnh này chạy định dạng, linting, kiểm thử và kiểm tra build theo cùng một quy trình mà các cộng tác viên sử dụng.
+Điều này thực hiện định dạng, kiểm tra, chạy thử và kiểm tra xây dựng theo quy trình được sử dụng bởi các nhà đóng góp.

@@ -1,31 +1,31 @@
 ---
-title: "Vòng lặp tuyển chọn TMS"
-description: "Thử nghiệm: Chuyển từ tạo bản nháp cục bộ sang bản dịch do con người biên soạn và quay lại."
+title: "Vòng lặp quản lý thông tin TMS"
+description: "Thử nghiệm: Di chuyển từ việc tạo bản nháp cục bộ sang bản dịch do người dùng biên soạn và ngược lại."
 ---
 
 <Note>
-Tính năng này đang ở giai đoạn thử nghiệm. Các cờ, cấu trúc đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
+Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
 
-Hướng dẫn quy trình có thể thay đổi khi ngữ nghĩa đồng bộ và chính sách xung đột tiếp tục hoàn thiện.
+Hướng dẫn quy trình có thể thay đổi khi các định nghĩa về đồng bộ hóa và chính sách giải quyết xung đột tiếp tục phát triển.
 </Note>
 
-## Kết thúc-đến-kết thúc chuỗi
+## Thứ tự hoàn chỉnh
 
-1. tạo bản nháp cục bộ với `run`
-2. đẩy bản nháp với `sync push --dry-run=false`
-3. biên dịch viên biên tập trong POEditor/Lokalise/Crowdin
-4. lấy các bản cập nhật được tuyển chọn với `sync pull --dry-run=false`
-5. xác minh với `status`
+1. tạo bản nháp cục bộ bằng `run`
+2. push drafts with `sync push --dry-run=false`
+3. Người dịch thực hiện quản lý trong POEditor/Lokalise/Crowdin
+4. pull curated updates with `sync pull --dry-run=false`
+5. verify with `status`
 
 ## Các điểm quyết định
 
-- Giữ `--fail-on-conflict=true` vì an toàn.
-- Sử dụng `--apply-curated-over-draft` khi kéo (pull) khi dữ liệu được tuyển chọn nên được ưu tiên.
-- Sử dụng `--force-conflicts` chỉ push sau khi đã xem xét xung đột.
+- Giữ `--fail-on-conflict=true` để đảm bảo an toàn.
+- Sử dụng `--apply-curated-over-draft` khi dữ liệu được quản lý nên thắng.
+- Sử dụng `--force-conflicts` chỉ khi đẩy sau khi đã xem xét xung đột.
 
-## Khả năng kiểm tra, truy vết
+## Khả năng kiểm toán
 
-Sử dụng đầu ra JSON cho máy-đánh giá dễ đọc:
+Sử dụng đầu ra JSON để đánh giá có thể đọc được bằng máy:
 
 ```bash
 hyperlocalise sync pull --output json

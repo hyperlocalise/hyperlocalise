@@ -1,27 +1,27 @@
 ---
-title: "Hợp đồng lockfile"
-description: "Hiểu `.hyperlocalise.lock.json` lưu trữ gì, khi nào cần đặt lại nó, và vì sao nó chỉ mang tính tham khảo."
+title: "Hợp đồng quản lý tệp"
+description: "Hiểu rõ `.hyperlocalise.lock.json` lưu trữ những gì, khi nào nên reset nó, và lý do tại sao nó là một lời khuyên."
 ---
 
-## Tên tệp chuẩn
+## Tên tệp tối ưu
 
-Tên tệp lockfile được cố định thành `.hyperlocalise.lock.json`.
+Tên tệp khóa đã được đặt cố định là `.hyperlocalise.lock.json`.
 
-`hyperlocalise` hiện không đọc được `i18n.lock` hoặc các tên bí danh khác.
+`hyperlocalise` does not currently read `i18n.lock` or other alias names.
 
-Giữ tệp trong thư mục gốc của dự án để `run` và các lệnh sync dùng chung cùng một trạng thái checkpoint.
+Giữ file ở thư mục gốc của dự án để các lệnh đồng bộ hóa có trạng thái kiểm tra giống nhau.
 
-## Lockfile dùng để làm gì
+## Lockfile là gì
 
-Xem tệp lockfile như một **điểm kiểm tra khuyến nghị**, không phải nguồn sự thật của bạn.
+Xem tệp khóa là một **điểm kiểm tra hướng dẫn**, chứ không phải là nguồn thông tin chính.
 
-- Nguồn chính xác cho nội dung cần dịch là các tệp nguồn của bạn.
-- Nguồn chân lý cho đầu ra được tạo là các tệp mục tiêu của bạn.
-- Nguồn dữ liệu chuẩn cho trạng thái từ xa đã đồng bộ là TMS của bạn cộng với các hiện vật cục bộ.
+- Nguồn gốc chính xác cho nội dung có thể dịch là các tệp nguồn của bạn.
+- Nguồn gốc dữ liệu chính cho kết quả được tạo ra là các tệp mục tiêu của bạn.
+- Nguồn dữ liệu chính cho trạng thái từ xa đã đồng bộ là TMS và các tài liệu cục bộ.
 
-Tệp lockfile chỉ ghi lại những gì CLI đã thử hoặc đã hoàn thành để có thể bỏ qua công việc lặp lại.
+Tệp lockfile chỉ ghi lại những gì CLI đã thử hoặc hoàn thành, để nó có thể bỏ qua các công việc lặp lại.
 
-## Lược đồ
+## Schema
 
 Hình dạng hiện tại:
 
@@ -44,61 +44,61 @@ Hình dạng hiện tại:
 }
 ```
 
-Ý nghĩa các trường:
+Ý nghĩa của trường:
 
-- `adapter`: tên bộ điều hợp TMS đang hoạt động.
-- `project_id`: bộ chuyển đổi-mã định danh dự án cụ thể.
-- `last_pull_at`: dấu thời gian của lần kéo đồng bộ thành công gần nhất.
-- `locale_states`: mỗi-bản đồ điểm kiểm tra ngôn ngữ.
-  - `revision`: phiên bản sửa đổi của bộ chuyển đổi hoặc con trỏ cho logic kéo tăng dần.
-  - `updated_at`: lần gần nhất điểm kiểm tra bản địa hóa được làm mới.
-- `run_completed`: per-bản đồ hoàn thành tác vụ được sử dụng bởi `run` cho các quyết định bỏ qua.
-  - `source_hash`: dấu vân tay nguồn được ghi lại tại thời điểm hoàn tất.
+- `adapter`: active TMS adapter name.
+- `project_id`: adapter-specific project identifier.
+- `last_pull_at`: timestamp of the latest successful sync pull.
+- `locale_states`: bản đồ kiểm tra theo ngôn ngữ.
+  - `revision`: phiên bản bộ điều hợp hoặc con trỏ cho logic kéo dần.
+  - `updated_at`: last time that locale checkpoint was refreshed.
+- `run_completed`: per-task completion map used by `run` for skip decisions.
+  - `source_hash`: source fingerprint captured at completion time.
 
-## Vòng đời theo lệnh
+## Quản lý vòng đời theo lệnh
 
 ### `hyperlocalise run`
 
-- Đọc `.hyperlocalise.lock.json` khi lập kế hoạch công việc.
-- Bỏ qua công việc đã được đánh dấu là hoàn tất trong `run_completed`.
-- Lưu lại các tác vụ thành công trở lại vào `run_completed`.
+- Reads `.hyperlocalise.lock.json` when planning tasks.
+- Bỏ qua công việc đã đánh dấu là hoàn thành trong`run_completed`.
+- Tiến hành lưu các nhiệm vụ thành công trở lại `run_completed`.
 
 ### `hyperlocalise sync pull`
 
-- Đọc siêu dữ liệu điểm kiểm tra hiện có của bộ điều hợp và ngôn ngữ bản địa.
-- Cập nhật `adapter`, `project_id`, `last_pull_at`, và `locale_states` sau khi pull thành công.
+- Đọc thông tin kiểm tra bộ điều hợp và ngôn ngữ hiện có.
+- Updates `adapter`, `project_id`, `last_pull_at`, and `locale_states` after successful pull.
 
 ### `hyperlocalise sync push`
 
-- Có thể đọc ngữ cảnh adapter/dự án từ tệp lockfile.
-- Không thay thế thẩm quyền nội dung của nguồn/đích.
+- Có thể đọc thông tin về trình điều hợp/dự án từ tệp khóa.
+- Không thay thế quyền hạn của nội dung nguồn/đích.
 
-## Hướng dẫn đặt lại an toàn
+## Hướng dẫn khôi phục an toàn
 
-Đặt lại tệp khóa khi trạng thái điểm kiểm tra đã cũ hoặc không còn đáng tin cậy.
+Đặt lại tệp khóa khi trạng thái kiểm tra điểm không còn hợp lệ hoặc không còn đáng tin cậy.
 
-Các trường hợp đặt lại phổ biến:
+Các trường hợp khôi phục phổ biến:
 
-- bạn đã thay đổi cấu trúc văn bản nguồn rất nhiều
-- bạn đã thay đổi ánh xạ bucket hoặc mẫu đường dẫn tệp
-- Bạn đã chuyển bộ điều hợp hoặc dự án
-- bạn nghi ngờ các mục checkpoint bị hỏng hoặc đã được chỉnh sửa thủ công
+- Bạn đã thay đổi cấu trúc của văn bản nguồn rất nhiều
+- Bạn đã thay đổi cấu hình bucket hoặc mẫu đường dẫn tệp.
+- bạn đã thay đổi các bộ chuyển đổi hoặc dự án
+- Bạn nghi ngờ rằng các mục nhập checkpoint bị hỏng hoặc đã được chỉnh sửa thủ công
 
-Các bước đặt lại an toàn:
+Các bước khôi phục an toàn:
 
-1. đảm bảo các tệp nguồn và tệp được tạo của bạn đã được commit hoặc sao lưu
-2. xóa `.hyperlocalise.lock.json`
-3. chạy `hyperlocalise run --dry-run` để kiểm tra kế hoạch lớn hơn
-4. chạy `hyperlocalise run` và/hoặc `hyperlocalise sync pull` để xây dựng lại trạng thái điểm kiểm tra
+1. Đảm bảo rằng các tệp nguồn và tệp được tạo ra của bạn được commit hoặc sao lưu.
+2. delete `.hyperlocalise.lock.json`
+3. run `hyperlocalise run --dry-run` to inspect the larger plan
+4. chạy `hyperlocalise run` và/hoặc `hyperlocalise sync pull` để khôi phục trạng thái kiểm tra
 
-Các tác dụng phụ dự kiến sau khi đặt lại:
+Các tác dụng phụ dự kiến sau khi reset:
 
-- `run` có thể re-thực thi các tác vụ đã bị bỏ qua trước đó
-- Lần sync pull tiếp theo có thể thực hiện làm mới rộng hơn cho các ngôn ngữ bản địa hóa
-- Thời gian chạy của CLI có thể tăng tạm thời cho đến khi các checkpoint được xây dựng lại
+- `run` may re-execute tasks that were previously skipped
+- "Việc đồng bộ lần sau có thể thực hiện cập nhật rộng hơn cho các khu vực địa lý"
+- Thời gian chạy CLI có thể tăng lên tạm thời cho đến khi các điểm kiểm tra được xây dựng lại.
 
-## Quy ước nhóm
+## Các quy tắc của nhóm
 
-- Không được giao tận tay-Không chỉnh sửa các trường trong lockfile trừ khi bạn đang gỡ lỗi một sự cố cục bộ.
-- Giữ việc xử lý lockfile rõ ràng trong các script CI.
-- Xem xét các thay đổi trong lockfile ở các pull request khi hành vi run/sync có vẻ không như mong đợi.
+- Không chỉnh sửa thủ công các trường trong file khóa trừ khi đang gỡ lỗi một sự cố cục bộ.
+- Luôn luôn xử lý tệp khóa một cách rõ ràng trong các kịch bản CI.
+- Xem lại các thay đổi trong tệp khóa khi chạy/đồng bộ, nếu hành vi không như mong đợi.

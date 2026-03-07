@@ -1,35 +1,35 @@
 ---
-title: "cấu hình i18n"
-description: "Hướng dẫn theo từng trường cho i18n.jsonc được dùng bởi các lệnh run, status và sync."
+title: "Cấu hình i18n"
+description: "Hướng dẫn từng trường cho i18n.jsonc được sử dụng bởi các lệnh run, status và sync."
 ---
 
 ## Tổng quan về tệp
 
-`i18n.jsonc` kiểm soát ngôn ngữ, ánh xạ tệp, cấu hình mô hình và lựa chọn quy tắc.
+`i18n.jsonc` controls locales, file mapping, model profiles, and rule selection.
 
-## Ngôn ngữ bản địa
+## Các khu vực
 
-- `locales.source`: ngôn ngữ nguồn.
-- `locales.targets`: danh sách ngôn ngữ bản địa mục tiêu.
-- tùy chọn `locales.fallbacks`: thứ tự dự phòng theo từng ngôn ngữ.
+- `locales.source`: nguồn vị trí.
+- `locales.targets`: list of target locales.
+- optional `locales.fallbacks`: fallback order per locale.
 
-## Thùng chứa
+## Thau
 
-`buckets` ánh xạ các tệp nguồn với các mẫu đầu ra đích.
+`buckets` map source files to target output templates.
 
-Mỗi ánh xạ tệp sử dụng:
+Mỗi bản ánh xạ sử dụng:
 
-- `from`: mẫu đường dẫn nguồn
+- `from`: source path template
 - `to`: mẫu đường dẫn đích
 
-Sử dụng `{{source}}`, `{{target}}`, và `{{localeDir}}` trong mẫu. `{{localeDir}}` sẽ được phân giải thành một đoạn trống khi target bằng source, và thành locale đích trong các trường hợp khác.
+Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
 
 
-### Mẫu ánh xạ tệp CSV
+### Mẫu định dạng tệp CSV
 
-Sử dụng ánh xạ tệp trong bucket để mô hình hóa quy trình làm việc CSV.
+Sử dụng bản đồ tệp bucket để mô hình hóa quy trình CSV.
 
-Mỗi-tệp bản địa hóa:
+Các tệp theo ngữ cảnh:
 
 ```json
 {
@@ -38,7 +38,7 @@ Mỗi-tệp bản địa hóa:
 }
 ```
 
-Chia sẻ nhiều người dùng-locale file:
+Tệp đa ngôn ngữ được chia sẻ:
 
 ```json
 {
@@ -47,24 +47,26 @@ Chia sẻ nhiều người dùng-locale file:
 }
 ```
 
-Cho nhiều người dùng chung-tệp CSV bản địa hóa, chỉ giữ một cột khóa và một cột ngôn ngữ đích mà `run` có thể cập nhật một cách nhất quán.
+For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
 ## Nhóm
 
-`groups.<name>` xác định những gì cần xử lý cùng nhau.
+`groups.<name>` defines what to process together.
 
-- `targets`: tập con của `locales.targets`
-- `buckets`: danh sách tên bucket
+- `targets`: subset of `locales.targets`
+- `buckets`: list of bucket names
 
-## Hồ sơ LLM
+## Các hồ sơ LLM
 
 `llm.profiles.<name>` trường:
 
-- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, hoặc `ollama`
-- `model`: id mô hình nhà cung cấp
-- `prompt`: mẫu prompt dịch
+- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, or `ollama`
+- `model`: mã mô hình nhà cung cấp
+- `system_prompt` (tùy chọn): mẫu tin nhắn hệ thống
+- `user_prompt` (optional): explicit user-message template
+- `prompt` (deprecated, optional): legacy prompt template used as system fallback
 
-Biến của prompt:
+Các biến đầu vào:
 
 - `{{source}}`
 - `{{target}}`
@@ -72,22 +74,38 @@ Biến của prompt:
 
 ## Quy tắc
 
-`llm.rules` Chọn hồ sơ cho từng nhóm.
+`llm.rules` choose profile per group.
 
-- `priority`: cao hơn sẽ thắng
+- `priority`: người thắng
 - `group`: tên nhóm
-- `profile`: tên hồ sơ
+- `profile`: profile name
 
-## Cấu hình khởi đầu
+## Bộ nhớ đệm
+
+`cache` configures local L1/L2 behavior.
+
+- `enabled` (tùy chọn): bật dịch vụ bộ nhớ đệm.
+- `db_path` (tùy chọn): đường dẫn sqlite cho cơ sở dữ liệu cache.
+- `sqlite` (tùy chọn): điều chỉnh kết nối.
+- `l1.max_items` (tùy chọn): Giới hạn loại bỏ bộ nhớ cấp 1.
+- `l2.enabled` (optional): enable translation memory lookup/upsert.
+- `l2.auto_accept_threshold` (optional): fuzzy auto-accept threshold in `[0,1]` (default `0.90`).
+
+Danh sách giá trị enum cho TM metadata:
+
+- nguồn gốc: `curated` | `draft` | `llm` | `tms` | `unknown`
+- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+
+## Cấu hình ban đầu
 
 ```bash
 hyperlocalise init
 ```
 
-Sau đó chỉnh sửa phần được tạo ra `i18n.jsonc` cho dự án của bạn.
+Then edit the generated `i18n.jsonc` for your project.
 
-## Mẹo xác thực
+## Mẹo kiểm tra
 
-- Giữ các mục tiêu nhóm ở bên trong `locales.targets`.
-- Giữ các bucket nhóm được căn chỉnh với `buckets` phím.
-- Giữ nhất quán tên hồ sơ giữa `profiles` và `rules`.
+- Keep group targets inside `locales.targets`.
+- Keep group buckets aligned with `buckets` keys.
+- Giữ nguyên tên hồ sơ giữa `profiles` và `rules`.

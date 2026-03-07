@@ -1,6 +1,6 @@
 ---
 title: "Bảo trì bản phát hành"
-description: "Quy trình làm việc của người duy trì cho các cổng chất lượng và phát hành bản phát hành CLI."
+description: "Quy trình quản lý để kiểm tra chất lượng và xuất bản phiên bản bằng CLI."
 ---
 
 ## Kiểm tra chất lượng
@@ -12,20 +12,20 @@ make test
 make precommit
 ```
 
-## Luồng phát hành
+## Quy trình phát hành
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Tệp tự động hóa phát hành:
+Các tệp tự động hóa phát hành:
 
 - `.github/workflows/release.yml`
 - `.goreleaser.yml`
 
-## Các mục tiêu tạo tác đã xuất bản
+## Đích đến của artifact đã xuất bản
 
 - macOS: `amd64`, `arm64`
 - Linux: `amd64`, `arm64`
-- gói: `.deb`, `.rpm`
+- packages:`.deb`, `.rpm`

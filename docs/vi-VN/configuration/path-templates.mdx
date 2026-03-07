@@ -1,17 +1,17 @@
 ---
 title: "Mẫu đường dẫn"
-description: "Sử dụng an toàn các placeholder nguồn và đích trong ánh xạ tệp bucket."
+description: "Sử dụng các trường thay thế nguồn và đích một cách an toàn trong bản đồ file bucket."
 ---
 
-## Các placeholder được hỗ trợ
+## Các biến được hỗ trợ
 
-- `{{source}}`: ngôn ngữ nguồn
-- `{{target}}`: ngôn ngữ đích
-- `{{localeDir}}`: để trống cho đầu ra ngôn ngữ nguồn, nếu không thì ngôn ngữ đích
+- `{{source}}`: source locale
+- `{{target}}`: target locale
+- `{{localeDir}}`: empty for source locale output, otherwise target locale
 
 ## Ví dụ
 
-### Tệp bản địa hóa JSON
+### Tệp địa phương JSON
 
 ```jsonc
 {
@@ -20,7 +20,7 @@ description: "Sử dụng an toàn các placeholder nguồn và đích trong án
 }
 ```
 
-### Mẫu ngôn ngữ với `[locale]` mã thông báo
+### Locale template with `[locale]` token
 
 ```jsonc
 {
@@ -30,7 +30,7 @@ description: "Sử dụng an toàn các placeholder nguồn và đích trong án
 ```
 
 
-### Ánh xạ đệ quy Mintlify với globs
+### Sử dụng Mintlify với mapping đệ quy và glob
 
 ```jsonc
 {
@@ -39,33 +39,33 @@ description: "Sử dụng an toàn các placeholder nguồn và đích trong án
 }
 ```
 
-Điều này giữ nguyên cấu trúc tệp nguồn và ghi các tệp đã dịch vào cùng các đường dẫn tương đối trong từng thư mục locale.
+Điều này giúp duy trì cấu trúc thư mục của tệp nguồn và ghi các tệp đã dịch vào các đường dẫn tương đối giống nhau trong mỗi thư mục ngôn ngữ.
 
-Với `source=en` và mục tiêu `fr`, `es`, và `zh`:
+With `source=en` and targets `fr`, `es`, and `zh`:
 
-- `target=en` giải quyết `docs/{{localeDir}}/index.mdx` đến `docs/index.mdx`
-- `target=fr` giải quyết `docs/{{localeDir}}/index.mdx` to `docs/fr/index.mdx`
-- `target=es` giải quyết `docs/{{localeDir}}/index.mdx` đến `docs/es/index.mdx`
-- `target=zh` giải quyết `docs/{{localeDir}}/index.mdx` để `docs/zh/index.mdx`
+- `target=en` resolves `docs/{{localeDir}}/index.mdx` to `docs/index.mdx`
+- `target=fr` resolves `docs/{{localeDir}}/index.mdx` to `docs/fr/index.mdx`
+- `target=es` resolves `docs/{{localeDir}}/index.mdx` to `docs/es/index.mdx`
+- `target=zh` resolves `docs/{{localeDir}}/index.mdx` to `docs/zh/index.mdx`
 
-Sử dụng mẫu này khi các trang nguồn tiếng Anh của bạn nằm trực tiếp bên dưới `docs/` và các trang đã dịch nên được ghi vào các thư mục locale.
+Use this pattern when your English source pages live directly under `docs/` and translated pages should be written into locale folders.
 
 ## Các mẫu tốt
 
-- Giữ cây nguồn và cây đích tách biệt.
-- Sử dụng tên bucket ổn định theo miền (`ui`, `marketing`, `emails`).
-- Giữ một trách nhiệm cho mỗi ánh xạ tệp.
+- Giữ cây nguồn và cây đích riêng biệt.
+- Use stable bucket names by domain (`ui`, `marketing`, `emails`).
+- Giữ một trách nhiệm duy nhất cho mỗi bản ánh xạ.
 
-## Chống-mẫu
+## Các lỗi phổ biến
 
-- Viết `to` các đường dẫn quay lại vào các thư mục nguồn.
-- Tái sử dụng cùng một đường dẫn đầu ra cho nhiều bucket.
-- Trộn các token ngôn ngữ với quảng cáo-thay thế chuỗi HOC bên ngoài mẫu.
+- Ghi HLMDPH_71AA225F938B_0 vào các đường dẫn trở lại thư mục nguồn.
+- Sử dụng cùng một đường dẫn đầu ra cho nhiều thư viện lưu trữ.
+- Trộn các token ngôn ngữ địa phương với việc thay thế chuỗi tùy chỉnh bên ngoài các mẫu.
 
 ## Kiểm tra nhanh
 
-Trước khi chạy:
+Trước khi thực hiện:
 
-1. xác nhận `from` phân giải cho ngôn ngữ nguồn,
-2. xác nhận `to` có thể được tạo cho từng ngôn ngữ mục tiêu,
-3. chạy `hyperlocalise run --dry-run` để kiểm tra các tác vụ đã lên kế hoạch.
+1. xác nhận HLMDPH_BA081439DFC6_0 giải quyết cho khu vực ngôn ngữ nguồn,
+2. xác nhận HLMDPH_71AA225F938B_0 có thể được tạo cho mỗi định cấu địa phương đích,
+3. chạy HLMDPH_EC005404C47A_0 để kiểm tra các nhiệm vụ đã lên kế hoạch.

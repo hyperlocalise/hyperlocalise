@@ -1,6 +1,6 @@
 ---
-title: "Bộ điều hợp POEditor"
-description: "Cấu hình POEditor cho đồng bộ kéo và đồng bộ đẩy."
+title: "ADAPTER POEditor"
+description: "Cấu hình POEditor để đồng bộ kéo và thả, đồng bộ đẩy."
 ---
 
 ## Cấu hình bắt buộc
@@ -17,10 +17,10 @@ description: "Cấu hình POEditor cho đồng bộ kéo và đồng bộ đẩy
 }
 ```
 
-## Phân giải mã thông báo
+## Giải quyết token
 
-1. biến môi trường được đặt tên bởi `storage.config.apiTokenEnv`
-2. dự phòng: `POEDITOR_API_TOKEN`
+1. biến môi trường có tên là`storage.config.apiTokenEnv`
+2. fallback: `POEDITOR_API_TOKEN`
 
 ## Các trường cấu hình tùy chọn
 
@@ -30,6 +30,6 @@ description: "Cấu hình POEditor cho đồng bộ kéo và đồng bộ đẩy
 
 ## Các vấn đề thường gặp
 
-- token không hợp lệ: hãy xác minh rằng biến môi trường đã được export trong shell hiện tại
-- Sai ID dự án: xác minh ID dự án dạng số từ POEditor
-- thiếu ngôn ngữ: đảm bảo `targetLanguages` phù hợp với các mục tiêu cấu hình
+- Token không hợp lệ: Kiểm tra xem biến môi trường có được xuất trong shell hiện tại hay không.
+- ID dự án không đúng: Vui lòng xác minh ID dự án số từ POEditor.
+- Thiếu thông tin ngôn ngữ: Đảm bảo `targetLanguages` phù hợp với các mục tiêu cấu hình

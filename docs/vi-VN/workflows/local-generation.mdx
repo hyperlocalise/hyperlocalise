@@ -1,31 +1,31 @@
 ---
-title: "Quy trình tạo cục bộ"
-description: "Chạy quá trình tạo bản nháp một cách an toàn và làm cho hành vi của tệp khóa có thể dự đoán được."
+title: "Quy trình tạo bản cục bộ"
+description: "Thực hiện tạo bản nháp một cách an toàn và đảm bảo hành vi của file khóa có thể đoán trước."
 ---
 
 ## Vòng lặp được khuyến nghị
 
 1. `hyperlocalise run --dry-run`
-2. kiểm tra danh sách tác vụ và số lượng
+2. kiểm tra danh sách và số lượng công việc
 3. `hyperlocalise run`
-4. xem lại các lỗi và chạy lại nếu cần
+4. kiểm tra lỗi và chạy lại nếu cần
 
-## Khóa-hành vi của tệp
+## Hành vi của file khóa
 
-`.hyperlocalise.lock.json` theo dõi các tác vụ đã hoàn thành để tránh làm lại công việc.
+`.hyperlocalise.lock.json` tracks completed tasks to avoid repeated work.
 
-Khi bạn thay đổi nội dung nguồn hoặc ánh xạ cấu hình, hãy re-chạy và xác minh xem có tác vụ mới nào được lên kế hoạch hay không.
+Khi bạn thay đổi nội dung nguồn hoặc cấu hình ánh xạ, hãy chạy lại và xác minh xem có nhiệm vụ mới nào được lên lịch hay không.
 
-Sử dụng [Hợp đồng lockfile](/reference/lockfile-contract) để biết chi tiết về lược đồ và hướng dẫn đặt lại.
+Sử dụng [Hợp đồng file khóa](/reference/lockfile-contract) để biết chi tiết về sơ đồ và hướng dẫn đặt lại.
 
 ## Thực hành tốt
 
-- Giữ khô-chạy trong CI để tăng khả năng hiển thị
-- sử dụng ánh xạ tệp xác định
+- giữ nguyên chế độ chạy thử trong CI để có khả năng quan sát
+- sử dụng ánh xạ tệp có tính quyết định
 - tránh chỉnh sửa thủ công trạng thái khóa
 
 ## Markdown trong quy trình làm việc cục bộ
 
-Nếu ánh xạ bucket của bạn trỏ đến `.md` hoặc `.mdx` tệp, `hyperlocalise run --dry-run` vẫn lập kế hoạch các tác vụ từ các nguồn Markdown.
+If your bucket mappings point to `.md` or `.mdx` files, `hyperlocalise run --dry-run` still plans tasks from Markdown sources.
 
-Khi bạn chạy mà không có `--dry-run`, đầu ra giữ bố cục Markdown và MDX ổn định trong khi dịch các nút văn bản được trích xuất.
+When you run without `--dry-run`, output keeps Markdown and MDX layout stable while translating extracted prose nodes.

@@ -1,55 +1,67 @@
 ---
 title: "eval"
-description: "Thử nghiệm: Chạy các thử nghiệm chất lượng dịch và so sánh các báo cáo ứng viên với một đường cơ sở."
+description: "Thử nghiệm: Thực hiện các thí nghiệm đánh giá chất lượng bản dịch và so sánh các bản báo cáo đề xuất với một bộ tham chiếu."
 ---
 
 <Note>
-Tính năng này đang ở giai đoạn thử nghiệm. Cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Chỉ sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
+Tính năng này vẫn đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và ghi lại các phiên bản trong CI.
 
-Lược đồ báo cáo và hành vi chấm điểm có thể thay đổi khi quy trình đánh giá dần hoàn thiện.
+Cấu trúc báo cáo và hành vi chấm điểm có thể thay đổi khi quy trình đánh giá phát triển.
 </Note>
 
-Sử dụng `eval` các lệnh để đo chất lượng bản dịch trên một bộ đánh giá đại diện và áp dụng ngưỡng chất lượng trong CI.
+Use `eval` commands to benchmark translation quality on a representative eval set and enforce quality thresholds in CI.
 
-## Sử dụng
+## Cách sử dụng
 
 ```bash
 hyperlocalise eval run --eval-set <path> [flags]
 hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 ```
 
-## đánh giá chạy
+## eval chạy
 
-Chạy một hoặc nhiều biến thể thử nghiệm trên tập đánh giá của bạn.
+Chạy một hoặc nhiều biến thể thí nghiệm trên bộ dữ liệu đánh giá của bạn.
 
-### Lệnh này thực hiện gì
+### Lệnh này làm gì
 
-1. Tải bộ dữ liệu eval từ `--eval-set`.
-2. Mở rộng các biến thể thử nghiệm từ các hồ sơ, nhà cung cấp, mô hình và phần ghi đè lời nhắc bạn đã chọn.
-3. Chạy từng trường hợp cho từng biến thể của thử nghiệm.
-4. Ghi báo cáo JSON khi bạn truyền `--output`.
-5. In một bản tóm tắt ngắn gọn cho mỗi-bảng tóm tắt thử nghiệm.
+1. Tải tập dữ liệu eval từ `--eval-set`.
+2. Mở rộng các biến thí nghiệm từ các hồ sơ, nhà cung cấp, mô hình và tùy chỉnh prompt đã chọn của bạn.
+3. Thực hiện mọi trường hợp đối với mọi biến thể thí nghiệm.
+4. Đánh giá mỗi bản dịch bằng cách sử dụng quy tắc heuristic tích hợp.
+5. Optionally adds an LLM judge lane when you pass both `--eval-provider` and `--eval-model`.
+6. Writes a JSON report when you pass `--output`.
+7. In쇄 một bảng tóm tắt ngắn gọn cho mỗi thí nghiệm.
 
 ### Cờ
 
-- `--eval-set`: đường dẫn đến tập dữ liệu đánh giá (`.json`, `.jsonc`, `.csv`) (bắt buộc)
-- `--profile`: ghi đè tên hồ sơ (có thể lặp lại)
+- `--eval-set`: path to eval dataset (`.json`, `.jsonc`, `.csv`) (required)
+- `--profile`: profile name override (repeatable)
 - `--provider`: ghi đè nhà cung cấp (có thể lặp lại)
-- `--model`: ghi đè mô hình (lặp lại được)
-- `--prompt-file`: ghi đè tệp prompt
-- `--prompt`: ghi đè lời nhắc nội tuyến (loại trừ lẫn nhau với `--prompt-file`)
-- `--output`: Đường dẫn báo cáo đầu ra JSON
+- `--model`: ghi đè mô hình (có thể lặp lại)
+- `--prompt-file`: ghi đè tệp hướng dẫn
+- `--prompt`: inline prompt override (mutually exclusive with `--prompt-file`)
+- `--eval-provider`: provider for LLM evaluation
+- `--eval-model`: mô hình đánh giá cho LLM
+- `--eval-prompt-file`: evaluation prompt file override
+- `--eval-prompt`: inline evaluation prompt override (mutually exclusive with `--eval-prompt-file`)
+- `--output`: JSON output report path
 
-### Các trường của bảng tóm tắt
+LLM evaluation mode turns on only when you pass both `--eval-provider` and `--eval-model`.
 
-- `score`: điểm chất lượng trung bình có trọng số cho thử nghiệm
-- `pass_rate`: số lần chạy thành công / tổng số lần chạy cho thử nghiệm
-- `placeholder_violations`: số lượng kiểm tra tính toàn vẹn placeholder cứng-không đạt do vi phạm
-- `latency_ms`: độ trễ trung bình cho thử nghiệm
+Your translation flags keep their current meaning. The `--eval-*` flags only control the judge lane.
+
+Trong chế độ đánh giá bằng LLM, các bản dịch tham khảo là tùy chọn. Khi có, người đánh giá sẽ sử dụng chúng làm hướng dẫn về phong cách và giọng văn.
+
+### Các trường trong bảng tóm tắt
+
+- `score`: điểm chất lượng trung bình có trọng số cho thí nghiệm
+- `pass_rate`: số lần chạy thành công / tổng số lần chạy cho thí nghiệm
+- `placeholder_violations`: count of placeholder integrity hard-fail violations
+- `latency_ms`: average latency for the experiment
 
 ### Ví dụ
 
-Chạy với các giá trị mặc định từ cấu hình của bạn và viết báo cáo:
+Chạy với các cài đặt mặc định từ cấu hình của bạn và tạo báo cáo:
 
 ```bash
 hyperlocalise eval run \
@@ -57,7 +69,7 @@ hyperlocalise eval run \
   --output ./artifacts/eval-report.json
 ```
 
-Chạy ma trận các cấu hình và các ghi đè nhà cung cấp/mô hình:
+Thực hiện thử nghiệm với nhiều cấu hình và thay đổi cài đặt cho nhà cung cấp/mô hình:
 
 ```bash
 hyperlocalise eval run \
@@ -70,7 +82,7 @@ hyperlocalise eval run \
   --model claude-sonnet-4-5
 ```
 
-Chạy với tệp nhắc bị ghi đè:
+Chạy với tệp cấu hình tùy chỉnh:
 
 ```bash
 hyperlocalise eval run \
@@ -78,29 +90,55 @@ hyperlocalise eval run \
   --prompt-file ./prompts/translation-eval.txt
 ```
 
-## đánh giá so sánh
+Chạy với đánh giá bằng LLM bằng lời nhắc giám khảo trực tiếp:
 
-So sánh một báo cáo ứng viên với một báo cáo cơ sở.
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/core.json \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --eval-prompt "Score translation quality from 0.0 to 1.0 and explain briefly." \
+  --output ./artifacts/eval-report.json
+```
 
-Sử dụng lệnh này trong CI để ngăn chặn suy giảm chất lượng.
+Chạy với đánh giá bằng LLM sử dụng tệp hướng dẫn:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/core.json \
+  --eval-provider anthropic \
+  --eval-model claude-sonnet-4-5 \
+  --eval-prompt-file ./prompts/eval-judge.txt \
+  --output ./artifacts/eval-report.json
+```
+
+## eval so sánh
+
+So sánh báo cáo của ứng viên với báo cáo cơ sở.
+
+Sử dụng lệnh này trong CI để ngăn chặn các vấn đề về chất lượng.
+
+The workflow stays the same: run `eval run` first, then run `eval compare`.
 
 ### Cờ
 
-- `--candidate`: đường dẫn JSON của báo cáo ứng viên (bắt buộc)
+- `--candidate`: candidate report JSON path (required)
 - `--baseline`: đường dẫn JSON báo cáo cơ sở (bắt buộc)
-- `--min-score`: điểm trọng số tối thiểu của ứng viên
-- `--max-regression`: mức suy giảm điểm số tối đa được phép từ baseline sang candidate
+- `--min-score`: minimum candidate score
+- `--max-regression`: maximum allowed score regression from baseline to candidate
 
-### Hành vi CI
+### Hành vi của CI
 
-Lệnh thoát với lỗi khi:
+`eval compare` prefers the LLM aggregate score when both reports include a usable LLM judge aggregate. Otherwise, it falls back to the heuristic weighted score.
 
-- điểm có trọng số của ứng viên thấp hơn `--min-score`, hoặc
-- hồi quy điểm vượt quá `--max-regression`.
+Lệnh này sẽ kết thúc với lỗi khi:
+
+- candidate score is below `--min-score`, or
+- score regression exceeds `--max-regression`.
 
 ### Ví dụ
 
-So sánh báo cáo và chỉ in các giá trị tóm tắt:
+So sánh các báo cáo và in chỉ các giá trị tóm tắt:
 
 ```bash
 hyperlocalise eval compare \
@@ -108,7 +146,7 @@ hyperlocalise eval compare \
   --baseline ./artifacts/eval-baseline.json
 ```
 
-Thất bại CI nếu điểm ứng viên giảm xuống dưới `0.82` hoặc giảm hồi quy nhiều hơn `0.02`:
+Fail CI if the candidate score drops below `0.82` or regresses by more than `0.02`:
 
 ```bash
 hyperlocalise eval compare \
@@ -120,7 +158,7 @@ hyperlocalise eval compare \
 
 ## Xem thêm
 
-- [chạy](/commands/run)
+- [run](/commands/run)
 - [trạng thái](/commands/status)
 - [Tự động hóa CI](/workflows/ci-automation)
 - [Định dạng đầu ra](/reference/output-formats)

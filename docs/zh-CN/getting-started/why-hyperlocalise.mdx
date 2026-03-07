@@ -1,99 +1,99 @@
 ---
-title: "为什么在 AI 本地化工作流程中选择 Hyperlocalise"
-description: "用于 AI 草稿生成、TMS 审校同步，以及对 Git 友好的翻译工作流的本地化 CLI。"
+title: "为什么在 AI 翻译工作流程中使用本地化"
+description: "一个用于 AI 辅助的内容生成、TMS 库同步，以及与 Git 友好的翻译工作流的 CLI。"
 ---
 
-`hyperlocalise` 专为希望加快本地化周期，同时不放弃审校人员控制权的团队而打造。
+`hyperlocalise` is built for teams that want faster localization cycles without giving up reviewer control.
 
-它结合了本地草稿生成、明确的 TMS 同步步骤和 Git-友好的工作流程，让工程团队和本地化团队可以在同一交付路径上协作。
+它结合了本地草稿生成、显式 TMS 同步步骤和 Git 友好的工作流程，以便工程和本地化团队可以在一个交付路径中协作。
 
-不同于 TMS-仅限或自定义-在脚本方案中，Hyperlocalise 专为将翻译文件存放在中的团队而设计-仓库，并且需要一个可重复使用的草稿-至-带冲突的策展循环-感知同步。
+与仅使用TMS或自定义脚本的方法不同，Hyperlocalise 专为那些将翻译文件存储在代码仓库中的团队而设计，并需要一个可重复的从草稿到审查的流程，同时具备冲突感知同步功能。
 
-## 适用对象
+## 这是给谁的
 
-如果您的团队符合以下条件，Hyperlocalise 将非常适合：
+Hyperlocalise 适合您的团队，如果您的团队：
 
-- 在你的代码仓库中保留翻译文件，
-- 将 AI 草稿作为起点，而不是最终输出，
-- 可能会在某些工作流程中使用人工审核，但希望这是可选的，
-- 想要持续集成-围绕本地化工作的可见状态和质量检查。
+- 将翻译文件保存在您的仓库中
+- 将AI生成的草稿作为起点，而不是最终输出
+- 可能在某些工作流程中使用人工审核，但希望这成为一种可选功能。
+- 需要在CI中显示本地化工作的状态和质量检查。
 
-## 为什么团队选择 Hyperlocalise
+## 团队选择 Hyperlocalise 的原因
 
-### 1. 在运营护栏的保障下提升开发速度
+### 1. 开发速度与运维保障措施
 
-CLI 围绕 plan 设计-首先是工作流。你可以使用来检查工作。 `--dry-run`，在本地生成草稿，并使用锁文件进行增量重新运行-备份的检查点。
+The CLI is designed around plan-first workflows. You can inspect work with `--dry-run`, generate drafts locally, and rerun incrementally with lockfile-backed checkpoints.
 
-这样可以减少重复的翻译工作，同时让更改在常规的 Git diff 中仍然便于审查。
+这减少了重复的翻译工作，同时又能通过正常的 Git 差异来查看更改。
 
-### 2. 支持人工整理，但不是必需的
+### 2. 允许人工审核，但不是强制要求
 
-Hyperlocalise 不会将机器输出视为可直接用于生产环境的内容-准备就绪。
+Hyperlocalise 不假设机器输出可以直接用于生产。
 
-预期的循环很直接：生成草稿，推送到你的 TMS，由人工审校人员进行整理，然后将整理后的值拉回到代码库。这能保持源内容-的-与您的本地化团队一起做出真实决策。
+目标循环是简单的：生成草稿，推送到你的 TMS 系统，由人工审核员进行筛选，然后将筛选后的值再拉回仓库。这样可以将源数据决策权交给你的本地化团队。
 
-如果你的团队在特定流水线中更需要速度而非审核，你也可以在本地运行-仅执行路径和发布，不进行 TMS 同步。
+如果您团队在特定流程中更需要速度而非审查，您还可以运行仅在本地执行的路径，并在不进行 TMS 同步的情况下发布。
 
-### 3. 为发布决策提供更清晰的可见性
+### 3. 更好地了解发布决策
 
-团队可以使用 `status` 用于跟踪翻译情况的报告，需要-按区域设置审核和未翻译的内容。对于质量实验，你可以运行 [`eval` (实验性)](/commands/eval) 以可重复的格式将候选输出与基准进行比较。
+Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
 
-### 4. 提供商与平台灵活性
+### 4. 提供方和平台的灵活性
 
-您可以运行多个 LLM 提供商，并与常见的 TMS 适配器集成 (例如 Crowdin、Lokalise、POEditor、Phrase、Smartling 和 LILT AI) 无需围绕某一家供应商重新设计你的整个工作流程。
+您可以在不重新设计整个工作流程以围绕单一供应商进行优化的情况下，同时运行多个 LLM 提供商，并与常见的 TMS 适配器（例如 Crowdin、Lokalise、POEditor、Phrase、Smartling 和 LILT AI）集成。
 
-## 它如何融入你现有的工作流程
+## 它如何与您现有的工作流程配合
 
-典型路径如下所示：
+一个典型的路径如下：
 
-1. 使用 初始化配置，参数为 [`init`](/commands/init).
-2. 在中定义区域设置、分桶和配置文件 [`i18n config`](/configuration/i18n-config).
-3. 使用生成草稿，包含 [`run`](/commands/run).
-4. 可选的策展路径：使用 [`sync push` (实验性)](/commands/sync-push)，在 TMS 中整理，然后 [`sync pull` (实验性)](/commands/sync-pull).
-5. 使用 验证进度 [`status`](/commands/status) 发布前。
+1. 使用以下配置初始化：[`init`](/commands/init)。
+2. 定义区域、桶和配置文件，请参见 [`i18n config`](/configuration/i18n-config)。
+3. 生成草稿：[`run`](/commands/run)
+4. 可选的精细路径：使用 [`sync push` (实验性)](/commands/sync-push)，在 TMS 中进行精细，然后使用 [`sync pull` (实验性)](/commands/sync-pull)。
+5. 在发布前，使用 [`status`](/commands/status)] 验证进度。
 
-如需完整的策展流程，请参见 [TMS 策展循环 (实验性)](/workflows/tms-curation-loop).
+为了完整地进行整理过程，请参阅 [TMS 整理循环（实验版）](/workflows/tms-curation-loop)。
 
-## 当 Hyperlocalise 不是最佳选择时 (仍然!)
+## 当 Hyperlocalise 并非最佳选择 (但尚未确定) 时
 
-如果你符合以下情况，Hyperlocalise 可能并不是你目前的最佳选择：
+如果以下情况，那么“本地化”可能不是您今天的最佳选择：
 
-- 需要一个完全托管的本地化平台，不使用 CLI。
-- 无法运行代码仓库-开发者或 CI 环境中的基于工作流，
-- 需要一个工作流程，使所有本地化操作仅在托管的 TMS 用户界面内进行管理。
+- 需要一个完全托管的本地化平台，无需使用 CLI。
+- 无法在开发者或CI环境中运行基于仓库的工作流程。
+- 需要一个工作流程，其中所有本地化操作都仅在托管的TMS UI中进行管理。
 
-## 快速对比
+## 快速比较
 
-| 方法 | 设置工作量 | 审核控制 | CI/Git 工作流适配度 | 供应商锁定-处于风险中 |
+| 方法 | 设置工作量 | 审查控制 | CI/Git 工作流程适应性 | 供应商锁定风险 |
 | --- | --- | --- | --- | --- |
-| 手动脚本 | 🟡 中到高 (自行构建并维护) | 🟢 高 (完全自定义) | 🟡 中等 (取决于脚本质量和标准) | 🟢 低 |
-| TMS-仅限工作流 | 🟢 低到中等 | 🟡 在 TMS 中为中到高，在 Git 中较低-基于审核 | 🟡 低到中等，对于 in-仓库工作流 | 🟠 中等到高 |
-| 超本地化 | 🟢 低 (带有简单明了配置的单个 CLI) | 🟢 高 (AI 草稿 + 可选的人工审核循环) | 🟢 高 (显式干燥-运行、同步、状态流) | 🟢 低 (multi-提供商和多重-适配器支持) |
+| 手动脚本 | 🟡 中到高（需要自行构建和维护） | 🟢 高（完全自定义） | 🟡 中（取决于脚本的质量和标准） | 🟢 低
+| 仅使用 TMS 的工作流程 | 🟢 低至中等 | 🟡 在 TMS 中为中等到高，但在基于 Git 的审查中较低 | 🟡 对于在仓库内的工作流程，为低至中等 | 🟠 中等到高
+| 细分地域化 | 🟢 低 (使用单一 CLI，配置简单) | 🟢 高 (AI 自动生成 + 可选的人工审核流程) | 🟢 高 (显式预演、同步、状态流程) | 🟢 低 (支持多提供商和多适配器) |
 
 ## 常见问题
 
-### Hyperlocalise 能取代我的 TMS 吗？
+### Hyperlocalise是否可以替代我的TMS？
 
-不。Hyperlocalise 的设计目的是与您的 TMS 协同工作，而不是替代它。其预期模式是在您现有的翻译平台中生成本地化草稿，并由人工进行审核与完善。
+No. Hyperlocalise 的设计目的是与您的 TMS 协同工作，而不是取代它。 预期的模式是本地草稿生成加上在您现有的翻译平台上的人工审核。
 
-### 我可以将 Hyperlocalise 与 Crowdin、Lokalise 或 POEditor 一起使用吗？
+### 我可以将Hyperlocalise与Crowdin、Lokalise或POEditor一起使用吗？
 
-是的。Hyperlocalise 支持多个 TMS 适配器，包括 Crowdin、Lokalise 和 POEditor。 (以及 Phrase、Smartling 和 LILT AI).
+是的。Hyperlocalise 支持多种 TMS 适配器，包括 Crowdin、Lokalise 和 POEditor（以及 Phrase、Smartling 和 LILT AI）。
 
-### 这可以在 CI 中运行吗？
+### 这在 CI 中可以运行吗？
 
-是的。团队通常在 CI 中运行规划、生成和报告命令，以便在标准发布工作流中让本地化变更保持可见。
+是的。 团队通常在 CI（持续集成）中运行计划、生成和报告等命令，以便将本地化更改集成到标准的发布流程中。
 
-### Hyperlocalise 会将机器翻译直接发布到生产环境吗？
+### Hyperlocalise 是否会将机器翻译直接发布到生产环境？
 
-是的，可以。TMS 策划是可选的，团队可以选择零-human-当这与他们的风险承受能力和发布流程匹配时，审查路径。
+是的，可以。TMS 筛选是可选的，团队可以选择在不进行人工审核的情况下进行，这取决于他们的风险承受能力和发布流程。
 
 ## 下一步
 
-新用户路径： [安装](/getting-started/install) -> [快速入门](/getting-started/quickstart) -> [i18n 配置](/configuration/i18n-config)
+New user path: [Install](/getting-started/install) -> [Quickstart](/getting-started/quickstart) -> [i18n config](/configuration/i18n-config)
 
-评估路径： [快速入门](/getting-started/quickstart) -> [`eval` (实验性)](/commands/eval) -> [`status`](/commands/status)
+Evaluation path: [Quickstart](/getting-started/quickstart) -> [`eval` (experimental)](/commands/eval) -> [`status`](/commands/status)
 
-TMS 策展路径： [存储概述](/storage/overview) -> [`sync push` (实验性)](/commands/sync-push) -> [TMS 策展循环 (实验性)](/workflows/tms-curation-loop) -> [`sync pull` (实验性)](/commands/sync-pull)
+TMS curation path: [Storage overview](/storage/overview) -> [`sync push` (experimental)](/commands/sync-push) -> [TMS curation loop (experimental)](/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/commands/sync-pull)
 
-决策支持： [稳定性矩阵](/reference/stability-matrix)
+决策支持：[稳定性矩阵](/reference/stability-matrix)
