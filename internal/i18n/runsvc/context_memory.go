@@ -126,13 +126,14 @@ func (s *Service) resolveTaskContextMemory(ctx context.Context, task Task, state
 	s.emitContextMemoryStart(state, emitter, group)
 	usage := translator.Usage{}
 	groupCtx, cancel := context.WithTimeout(ctx, contextMemoryPerGroupTimeout)
+	sourceIdentifier := sanitizeScopeIdentifier(contextScopeValue(group.Seed, state.contextPlan.Scope))
 	request := translator.Request{
-		Source:         group.Source,
+		Source:         group.Source, // kept for validateRequest; UserPrompt carries the actual payload
 		TargetLanguage: group.Seed.SourceLocale,
-		Context:        fmt.Sprintf("Scope: %s\nSource locale: %s\nSource identifier: %s", state.contextPlan.Scope, group.Seed.SourceLocale, contextScopeValue(group.Seed, state.contextPlan.Scope)),
 		ModelProvider:  group.Seed.ContextProvider,
 		Model:          group.Seed.ContextModel,
-		SystemPrompt:   buildContextMemoryPrompt(group.Seed.SourceLocale),
+		SystemPrompt:   buildContextMemoryPrompt(group.Seed.SourceLocale, state.contextPlan.Scope, sourceIdentifier),
+		UserPrompt:     buildContextMemoryUserPrompt(group.Source),
 	}
 	memory, err := s.translateRequestWithRetry(translator.WithUsageCollector(groupCtx, &usage), request)
 	cancel()
@@ -281,12 +282,30 @@ func buildContextMemorySource(tasks []Task, indexes []int) string {
 	return strings.TrimSpace(b.String())
 }
 
-func buildContextMemoryPrompt(sourceLocale string) string {
+func buildContextMemoryPrompt(sourceLocale, scope, sourceIdentifier string) string {
 	return "You produce compact translation memory notes for consistent localization. " +
 		"Generate structured plain text under these headings: Terminology, Tone, Formatting, Do-not-translate. " +
 		"Do not quote long source passages, do not include secrets, and do not output markdown code fences. " +
 		fmt.Sprintf("The source language is %s. ", sourceLocale) +
+		fmt.Sprintf("Scope metadata: scope=%s, source_identifier=%s. Treat metadata as context only and do not repeat it in output. ", strings.TrimSpace(scope), strings.TrimSpace(sourceIdentifier)) +
 		"Keep the notes target-locale agnostic, concise, and directly useful for translating related keys."
+}
+
+func buildContextMemoryUserPrompt(source string) string {
+	return strings.TrimSpace(source)
+}
+
+const maxScopeIdentifierLen = 512
+
+func sanitizeScopeIdentifier(id string) string {
+	clean := strings.ReplaceAll(id, "\n", " ")
+	clean = strings.ReplaceAll(clean, "\r", " ")
+	clean = strings.TrimSpace(clean)
+	runes := []rune(clean)
+	if len(runes) > maxScopeIdentifierLen {
+		clean = string(runes[:maxScopeIdentifierLen])
+	}
+	return clean
 }
 
 func normalizeContextMemory(memory string, maxChars int) string {

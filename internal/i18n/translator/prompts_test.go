@@ -41,7 +41,6 @@ func TestBuildUserPromptPrefersUserPrompt(t *testing.T) {
 	got := buildUserPrompt(Request{
 		Source:         "hello",
 		TargetLanguage: "fr",
-		Context:        "ctx",
 		UserPrompt:     "custom user",
 	})
 	if got != "custom user" {

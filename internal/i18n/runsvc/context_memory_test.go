@@ -20,6 +20,18 @@ func TestNormalizeContextMemoryPreservesUTF8WhenTruncating(t *testing.T) {
 	}
 }
 
+func TestSanitizeScopeIdentifierPreservesUTF8WhenTruncating(t *testing.T) {
+	in := strings.Repeat("界", maxScopeIdentifierLen+5)
+	out := sanitizeScopeIdentifier(in)
+
+	if !utf8.ValidString(out) {
+		t.Fatalf("expected valid UTF-8 output, got %q", out)
+	}
+	if got := len([]rune(out)); got != maxScopeIdentifierLen {
+		t.Fatalf("expected %d runes, got %d", maxScopeIdentifierLen, got)
+	}
+}
+
 func TestResolveTaskContextMemoryReturnsOnCanceledContextWhenSlotInProgress(t *testing.T) {
 	svc := newTestService()
 	key := "file|scope_value=/tmp/source.json"

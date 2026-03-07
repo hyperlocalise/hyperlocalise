@@ -472,11 +472,48 @@ func TestLLMJudgeScorerUsesOriginalSourceAndCustomPrompt(t *testing.T) {
 	if !strings.Contains(gotReq.UserPrompt, "Candidate translation:\nSalut") {
 		t.Fatalf("expected candidate translation in user prompt, got %q", gotReq.UserPrompt)
 	}
+	if strings.Contains(gotReq.UserPrompt, "Shared context:") {
+		t.Fatalf("expected eval context to be system-only, got user prompt %q", gotReq.UserPrompt)
+	}
 	if !strings.Contains(gotReq.SystemPrompt, "judge prompt") {
 		t.Fatalf("expected custom judge system prompt, got %q", gotReq.SystemPrompt)
 	}
+	if !strings.Contains(gotReq.SystemPrompt, "Eval case context:") || !strings.Contains(gotReq.SystemPrompt, "homepage headline") {
+		t.Fatalf("expected eval context in system prompt, got %q", gotReq.SystemPrompt)
+	}
 	if result.Score == nil || *result.Score != 0.8 {
 		t.Fatalf("unexpected judge result: %+v", result)
+	}
+}
+
+func TestLLMJudgeScorerSanitizesEvalCaseContextInSystemPrompt(t *testing.T) {
+	var gotReq translator.Request
+	longCtx := strings.Repeat("界", maxEvalCaseContextLen+10)
+	scorer := NewLLMJudgeScorer("openai", "gpt-4.1-mini", "judge prompt", func(_ context.Context, req translator.Request) (string, error) {
+		gotReq = req
+		return `{"score":0.8,"rationale":"ok"}`, nil
+	})
+
+	_, err := scorer.ScoreJudge(context.Background(), ScoreInput{
+		Case: evalset.Case{
+			Source:       "Hello",
+			TargetLocale: "fr",
+			Context:      "  line1\n" + longCtx + "\rline2  ",
+		},
+		Translated: "Salut",
+	})
+	if err != nil {
+		t.Fatalf("score judge: %v", err)
+	}
+	if strings.Contains(gotReq.SystemPrompt, "\r") || strings.Contains(gotReq.SystemPrompt, "\nline2") {
+		t.Fatalf("expected sanitized eval context in system prompt, got %q", gotReq.SystemPrompt)
+	}
+	parts := strings.SplitN(gotReq.SystemPrompt, "Eval case context:\n", 2)
+	if len(parts) != 2 {
+		t.Fatalf("expected eval case context section in system prompt, got %q", gotReq.SystemPrompt)
+	}
+	if len([]rune(parts[1])) > maxEvalCaseContextLen {
+		t.Fatalf("expected eval context to be capped at %d runes, got %d", maxEvalCaseContextLen, len([]rune(parts[1])))
 	}
 }
 
@@ -564,6 +601,39 @@ func TestExecuteSingleCapturesArtifacts(t *testing.T) {
 	}
 	if gotReq.UserPrompt != "" {
 		t.Fatalf("expected no custom eval user prompt by default, got %q", gotReq.UserPrompt)
+	}
+}
+
+func TestExecuteSingleSanitizesEvalCaseContextInSystemPrompt(t *testing.T) {
+	var gotReq translator.Request
+	longCtx := strings.Repeat("界", maxEvalCaseContextLen+15)
+	svc := &Service{translate: func(_ context.Context, req translator.Request) (string, error) {
+		gotReq = req
+		return req.Source, nil
+	}, qualityEvaluator: scoring.NewEvaluator()}
+
+	_ = svc.executeSingle(context.Background(), evalset.Case{
+		ID:           "case-1",
+		Source:       "hello",
+		TargetLocale: "fr",
+		Context:      "  ctx-a\n" + longCtx + "\rctx-b ",
+	}, experiment{
+		id:       "exp-1",
+		profile:  "default",
+		provider: "openai",
+		model:    "m1",
+		prompt:   "p1",
+	}, nil, nil)
+
+	if strings.Contains(gotReq.SystemPrompt, "\r") || strings.Contains(gotReq.SystemPrompt, "\nctx-b") {
+		t.Fatalf("expected sanitized eval context in executeSingle system prompt, got %q", gotReq.SystemPrompt)
+	}
+	parts := strings.SplitN(gotReq.SystemPrompt, "Eval case context (do not translate or repeat):\n", 2)
+	if len(parts) != 2 {
+		t.Fatalf("expected eval context section in executeSingle system prompt, got %q", gotReq.SystemPrompt)
+	}
+	if len([]rune(parts[1])) > maxEvalCaseContextLen {
+		t.Fatalf("expected eval context to be capped at %d runes, got %d", maxEvalCaseContextLen, len([]rune(parts[1])))
 	}
 }
 

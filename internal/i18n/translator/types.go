@@ -21,7 +21,6 @@ const (
 type Request struct {
 	Source         string
 	TargetLanguage string
-	Context        string
 	ModelProvider  string
 	Model          string
 	SystemPrompt   string
