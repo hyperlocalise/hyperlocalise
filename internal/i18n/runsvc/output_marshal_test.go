@@ -176,3 +176,24 @@ func TestMarshalSourceTemplateTargetFallsBackToSourceOnKeyMismatch(t *testing.T)
 		t.Fatalf("expected source-template fallback content, got %q", text)
 	}
 }
+
+func TestMarshalTargetFileJSONC(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.jsonc":
+			return []byte(`{"hello":"Salut"}`), nil
+		case "/tmp/source.jsonc":
+			return []byte(`{"hello":"Hello"}`), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	content, _, err := svc.marshalTargetFile("/tmp/target.jsonc", "/tmp/source.jsonc", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal jsonc target file: %v", err)
+	}
+	if !strings.Contains(string(content), `"hello": "Bonjour"`) {
+		t.Fatalf("expected translated value in output: %s", content)
+	}
+}
