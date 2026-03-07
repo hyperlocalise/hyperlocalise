@@ -469,11 +469,10 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	if l1 != nil {
 		cachedValue, hit, err := l1.Get(ctx, cacheKey)
 		if err != nil {
-			recordTaskFailure(&state.report, &state.reportMu, state.total, task, fmt.Errorf("lookup exact cache: %w", err), emitter)
-			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
-			return false
-		}
-		if hit {
+			state.reportMu.Lock()
+			state.report.Warnings = append(state.report.Warnings, fmt.Sprintf(`cache_l1_get_failed target=%q key=%q error=%q`, task.TargetPath, task.EntryKey, err.Error()))
+			state.reportMu.Unlock()
+		} else if hit {
 			if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, cachedValue, &state.stageMu); err != nil {
 				recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
 				markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
@@ -521,9 +520,9 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 			Model:        task.Model,
 			SourceHash:   hashSourceText(task.SourceText),
 		}); err != nil {
-			recordTaskFailure(&state.report, &state.reportMu, state.total, task, fmt.Errorf("write exact cache: %w", err), emitter)
-			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
-			return false
+			state.reportMu.Lock()
+			state.report.Warnings = append(state.report.Warnings, fmt.Sprintf(`cache_l1_put_failed target=%q key=%q error=%q`, task.TargetPath, task.EntryKey, err.Error()))
+			state.reportMu.Unlock()
 		}
 	}
 	if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {

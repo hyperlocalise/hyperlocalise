@@ -263,6 +263,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			return nil, err
 		}
 		contextProvider, contextModel := resolveContextMemoryModel(profile, cfg.LLM.ContextMemory)
+		promptVersion := resolvePromptVersion(profile)
 
 		targets := group.Targets
 		if len(targets) == 0 {
@@ -342,11 +343,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								GroupName:       groupName,
 								BucketName:      bucketName,
 								ParserMode:      parserMode,
-								PromptVersion: hashSourceText(strings.Join([]string{
-									"prompt_template=" + strings.TrimSpace(profile.Prompt),
-									"system_template=" + strings.TrimSpace(profile.SystemPrompt),
-									"user_template=" + strings.TrimSpace(profile.UserPrompt),
-								}, "\n")),
+								PromptVersion:   promptVersion,
 								GlossaryVersion: resolveGlossaryVersion(cfg),
 								RAGSnapshot:     resolveRetrievalSnapshot(cfg),
 							})
@@ -408,6 +405,14 @@ func resolveGlossaryVersion(cfg *config.I18NConfig) string {
 		return "none"
 	}
 	return version
+}
+
+func resolvePromptVersion(profile config.LLMProfile) string {
+	return hashSourceText(strings.Join([]string{
+		"prompt_template=" + strings.TrimSpace(profile.Prompt),
+		"system_template=" + strings.TrimSpace(profile.SystemPrompt),
+		"user_template=" + strings.TrimSpace(profile.UserPrompt),
+	}, "\n"))
 }
 
 func resolveRetrievalSnapshot(cfg *config.I18NConfig) string {

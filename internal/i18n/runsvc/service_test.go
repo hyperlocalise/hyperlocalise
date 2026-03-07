@@ -4428,6 +4428,19 @@ func (c *failingWriteExactCache) Put(_ context.Context, _ cache.ExactCacheWrite)
 	return errors.New("write failed")
 }
 
+type failingReadExactCache struct {
+	values map[string]string
+}
+
+func (c *failingReadExactCache) Get(_ context.Context, _ string) (string, bool, error) {
+	return "", false, errors.New("read failed")
+}
+
+func (c *failingReadExactCache) Put(_ context.Context, entry cache.ExactCacheWrite) error {
+	c.values[entry.Key] = entry.Value
+	return nil
+}
+
 func TestRunL1ExactCacheSkipsProviderForSameDimensions(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "tests/json/en-US.json"
@@ -4728,7 +4741,7 @@ func TestRunL1ExactCacheKeyChangesWhenContextMemoryChanges(t *testing.T) {
 	}
 }
 
-func TestRunCacheWriteFailureMarksTaskFailed(t *testing.T) {
+func TestRunCacheWriteFailureDoesNotFailTask(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "tests/json/en-US.json"
 	targetPath := "/tmp/out.json"
@@ -4758,11 +4771,54 @@ func TestRunCacheWriteFailureMarksTaskFailed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run execution: %v", err)
 	}
-	if report.Succeeded != 0 || report.Failed != 1 {
-		t.Fatalf("expected cache write failure to mark task failed, report=%+v", report)
+	if report.Succeeded != 1 || report.Failed != 0 {
+		t.Fatalf("expected cache write failure to keep task successful, report=%+v", report)
 	}
-	if len(report.Failures) != 1 || !strings.Contains(report.Failures[0].Reason, "write exact cache") {
-		t.Fatalf("expected write exact cache failure reason, got %+v", report.Failures)
+	if !strings.Contains(strings.Join(report.Warnings, "\n"), "cache_l1_put_failed") {
+		t.Fatalf("expected warning for cache write failure, got %+v", report.Warnings)
+	}
+}
+
+func TestRunCacheReadFailureFallsBackToProvider(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "tests/json/en-US.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		cfg.Cache = config.CacheConfig{Enabled: true, L1: config.CacheTierConfig{Enabled: true}}
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.newCache = func(_ config.CacheConfig) (*cache.Service, error) {
+		return &cache.Service{Enabled: true, L1: &failingReadExactCache{values: map[string]string{}}}, nil
+	}
+	translateCalls := 0
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translateCalls++
+		return "FR(" + req.Source + ")", nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Force: true})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Succeeded != 1 || report.Failed != 0 {
+		t.Fatalf("expected cache read failure to fallback to provider and succeed, report=%+v", report)
+	}
+	if translateCalls != 1 {
+		t.Fatalf("expected provider to be called once, got %d", translateCalls)
+	}
+	if !strings.Contains(strings.Join(report.Warnings, "\n"), "cache_l1_get_failed") {
+		t.Fatalf("expected warning for cache read failure, got %+v", report.Warnings)
 	}
 }
 
