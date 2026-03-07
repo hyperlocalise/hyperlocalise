@@ -353,6 +353,24 @@ func TestLoad(t *testing.T) {
 			errContains: "file suffix mismatch",
 		},
 		{
+			name: "valid bucket file mapping no extension in dotted directory",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "v1.5/Makefile", "to": "v2.0/Makefile"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
+			name: "valid bucket file mapping same extension in dotted directory",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "my.project/config.yaml", "to": "my.project/config.es.yaml"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "invalid group targets and buckets both empty",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},

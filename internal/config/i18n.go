@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/tidwall/jsonc"
@@ -421,7 +422,7 @@ func validateBucket(name string, bucket BucketConfig) error {
 
 		fromSuffix := getFileSuffix(file.From)
 		toSuffix := getFileSuffix(file.To)
-		if fromSuffix != toSuffix {
+		if !containsPlaceholder(toSuffix) && fromSuffix != toSuffix {
 			return fmt.Errorf("buckets.%s.files[%d]: file suffix mismatch: from=%q and to=%q must have the same extension", name, i, file.From, file.To)
 		}
 	}
@@ -430,11 +431,14 @@ func validateBucket(name string, bucket BucketConfig) error {
 }
 
 func getFileSuffix(path string) string {
-	idx := strings.LastIndexByte(path, '.')
-	if idx == -1 || idx == len(path)-1 {
-		return ""
-	}
-	return path[idx:]
+	return filepath.Ext(path)
+}
+
+func containsPlaceholder(s string) bool {
+	return strings.Contains(s, "[locale]") ||
+		strings.Contains(s, "{{source}}") ||
+		strings.Contains(s, "{{target}}") ||
+		strings.Contains(s, "{{localeDir}}")
 }
 
 func (c I18NConfig) validateGroups(targetSet map[string]struct{}, bucketSet map[string]struct{}) (map[string]struct{}, error) {
