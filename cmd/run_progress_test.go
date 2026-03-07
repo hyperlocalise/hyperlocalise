@@ -26,3 +26,31 @@ func TestContextMemoryPhaseMessageWithoutTotals(t *testing.T) {
 		t.Fatalf("context memory phase message = %q, want %q", got, want)
 	}
 }
+
+func TestContextMemoryDisplayPhaseKeepsMemoryPhaseUntilCompletion(t *testing.T) {
+	event := runsvc.Event{
+		ContextMemoryTotal:     3,
+		ContextMemoryProcessed: 2,
+		ContextMemoryFallbacks: 1,
+		Message:                "context memory progress for app.json",
+	}
+	got := contextMemoryDisplayPhase(event)
+	want := "Building context memory... (2/3, fallback=1) context memory progress for app.json"
+	if got != want {
+		t.Fatalf("context memory display phase = %q, want %q", got, want)
+	}
+}
+
+func TestContextMemoryDisplayPhaseSwitchesToTranslatingWhenComplete(t *testing.T) {
+	event := runsvc.Event{
+		ContextMemoryTotal:     3,
+		ContextMemoryProcessed: 3,
+		ContextMemoryFallbacks: 1,
+		Message:                "context memory generated for app.json",
+	}
+	got := contextMemoryDisplayPhase(event)
+	want := "Translating entries..."
+	if got != want {
+		t.Fatalf("context memory display phase = %q, want %q", got, want)
+	}
+}
