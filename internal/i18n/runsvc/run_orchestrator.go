@@ -178,24 +178,146 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 		return report, planned, checkpointStaged, nil
 	}
 
+	activeKeysByTarget := buildActiveKeysByTarget(planned)
+	consumedLegacy := map[string]struct{}{}
+	seenWarnings := map[string]struct{}{}
+
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := hashSourceText(task.SourceText)
+
 		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && cp.SourceHash == sourceHash {
 			if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
 				return Report{}, nil, nil, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 			}
 		}
+
 		if c, ok := completed[identity]; ok && c.SourceHash == sourceHash {
 			report.SkippedByLock++
 			report.Skipped = append(report.Skipped, task)
 			continue
 		}
+
+		legacyIdentity, conflictWarning := inferRenameLegacyIdentity(task, sourceHash, activeKeysByTarget, completed, checkpoints, activeRunID, consumedLegacy)
+		if conflictWarning != "" {
+			appendUniqueWarning(&report.Warnings, seenWarnings, conflictWarning)
+		}
+		if legacyIdentity != "" {
+			appendUniqueWarning(&report.Warnings, seenWarnings, fmt.Sprintf(`key_rename target=%q old_key=%q new_key=%q`, task.TargetPath, entryKeyFromIdentity(legacyIdentity), task.EntryKey))
+			if cp, ok := checkpoints[legacyIdentity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && cp.SourceHash == sourceHash {
+				if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
+					return Report{}, nil, nil, fmt.Errorf("stage checkpoint output for %s (renamed from %s): %w", identity, legacyIdentity, err)
+				}
+				delete(checkpoints, legacyIdentity)
+			}
+			if c, ok := completed[legacyIdentity]; ok && c.SourceHash == sourceHash {
+				completed[identity] = c
+				delete(completed, legacyIdentity)
+				report.SkippedByLock++
+				report.Skipped = append(report.Skipped, task)
+				continue
+			}
+		}
+
 		report.Executable = append(report.Executable, task)
 		executable = append(executable, task)
 	}
 	report.ExecutableTotal = len(executable)
 	return report, executable, checkpointStaged, nil
+}
+
+func buildActiveKeysByTarget(tasks []Task) map[string]map[string]struct{} {
+	active := make(map[string]map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		if _, ok := active[task.TargetPath]; !ok {
+			active[task.TargetPath] = map[string]struct{}{}
+		}
+		active[task.TargetPath][task.EntryKey] = struct{}{}
+	}
+	return active
+}
+
+func inferRenameLegacyIdentity(task Task, sourceHash string, activeKeysByTarget map[string]map[string]struct{}, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, consumedLegacy map[string]struct{}) (legacyIdentity string, conflictWarning string) {
+	candidates := make([]string, 0, 2)
+	candidateSet := map[string]struct{}{}
+	addCandidate := func(identity string) {
+		if _, consumed := consumedLegacy[identity]; consumed {
+			return
+		}
+		if _, exists := candidateSet[identity]; exists {
+			return
+		}
+		candidateSet[identity] = struct{}{}
+		candidates = append(candidates, identity)
+	}
+
+	for identity, completion := range completed {
+		targetPath, entryKey, ok := splitTaskIdentity(identity)
+		if !ok || targetPath != task.TargetPath {
+			continue
+		}
+		if completion.SourceHash != sourceHash || entryKey == task.EntryKey {
+			continue
+		}
+		if _, stillActive := activeKeysByTarget[task.TargetPath][entryKey]; stillActive {
+			continue
+		}
+		addCandidate(identity)
+	}
+	for identity, checkpoint := range checkpoints {
+		targetPath, entryKey, ok := splitTaskIdentity(identity)
+		if !ok || targetPath != task.TargetPath {
+			continue
+		}
+		if !checkpointMatchesActiveRun(checkpoint, activeRunID) || checkpoint.SourceHash != sourceHash || entryKey == task.EntryKey {
+			continue
+		}
+		if _, stillActive := activeKeysByTarget[task.TargetPath][entryKey]; stillActive {
+			continue
+		}
+		addCandidate(identity)
+	}
+
+	if len(candidates) == 1 {
+		consumedLegacy[candidates[0]] = struct{}{}
+		return candidates[0], ""
+	}
+	if len(candidates) > 1 {
+		keys := make([]string, 0, len(candidates))
+		for _, identity := range candidates {
+			keys = append(keys, entryKeyFromIdentity(identity))
+		}
+		sort.Strings(keys)
+		return "", fmt.Sprintf(`key_rename_conflict target=%q new_key=%q message="ambiguous rename candidates: %s"`, task.TargetPath, task.EntryKey, strings.Join(keys, ","))
+	}
+	return "", ""
+}
+
+func splitTaskIdentity(identity string) (targetPath, entryKey string, ok bool) {
+	targetPath, entryKey, ok = strings.Cut(identity, "::")
+	if !ok || strings.TrimSpace(targetPath) == "" || strings.TrimSpace(entryKey) == "" {
+		return "", "", false
+	}
+	return targetPath, entryKey, true
+}
+
+func entryKeyFromIdentity(identity string) string {
+	_, entryKey, ok := splitTaskIdentity(identity)
+	if !ok {
+		return ""
+	}
+	return entryKey
+}
+
+func appendUniqueWarning(warnings *[]string, seen map[string]struct{}, warning string) {
+	if strings.TrimSpace(warning) == "" {
+		return
+	}
+	if _, ok := seen[warning]; ok {
+		return
+	}
+	seen[warning] = struct{}{}
+	*warnings = append(*warnings, warning)
 }
 
 func ensureActiveRunID(state *lockfile.File) string {

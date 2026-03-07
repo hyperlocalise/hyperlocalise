@@ -425,6 +425,7 @@ func validateBucket(name string, bucket BucketConfig) error {
 		if !containsPlaceholder(fromSuffix) && !containsPlaceholder(toSuffix) && fromSuffix != toSuffix {
 			return fmt.Errorf("buckets.%s.files[%d]: file suffix mismatch: from=%q and to=%q must have the same extension", name, i, file.From, file.To)
 		}
+
 	}
 
 	return nil
