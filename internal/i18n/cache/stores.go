@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -14,7 +15,7 @@ func (noopExactCache) Get(_ context.Context, _ string) (string, bool, error) {
 	return "", false, nil
 }
 
-func (noopExactCache) Put(_ context.Context, _ string, _ string) error {
+func (noopExactCache) Put(_ context.Context, _ ExactCacheWrite) error {
 	return nil
 }
 
@@ -47,12 +48,25 @@ func (s *exactSQLiteStore) Get(ctx context.Context, key string) (string, bool, e
 		}
 		return "", false, fmt.Errorf("lookup exact cache: %w", err)
 	}
+	if err := s.db.WithContext(ctx).Model(&ExactCacheEntry{}).Where("id = ?", row.ID).Update("updated_at", time.Now().UTC()).Error; err != nil {
+		// Non-fatal: keep serving valid cache hits even if metadata touch fails.
+		// This only affects LRU recency ordering for eviction.
+		_ = err
+	}
 	return row.Value, true, nil
 }
 
-func (s *exactSQLiteStore) Put(ctx context.Context, key, value string) error {
-	entry := ExactCacheEntry{CacheKey: key, Value: value}
-	if err := s.db.WithContext(ctx).Where("cache_key = ?", key).Assign(entry).FirstOrCreate(&entry).Error; err != nil {
+func (s *exactSQLiteStore) Put(ctx context.Context, write ExactCacheWrite) error {
+	entry := ExactCacheEntry{
+		CacheKey:     write.Key,
+		SourceLocale: write.SourceLocale,
+		TargetLocale: write.TargetLocale,
+		Provider:     write.Provider,
+		Model:        write.Model,
+		SourceHash:   write.SourceHash,
+		Value:        write.Value,
+	}
+	if err := s.db.WithContext(ctx).Where("cache_key = ?", write.Key).Assign(entry).FirstOrCreate(&entry).Error; err != nil {
 		return fmt.Errorf("upsert exact cache: %w", err)
 	}
 	if s.maxItems > 0 {

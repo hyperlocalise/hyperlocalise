@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/cache"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/lockfile"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
@@ -110,7 +111,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, emitter *eventEmitter) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, l1 cache.ExactCache, emitter *eventEmitter) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
 	scheduledTasks := tasks
 	if contextPlan.Enabled {
 		scheduledTasks = interleaveTasksByContextKey(tasks)
@@ -149,7 +150,7 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 	var wg sync.WaitGroup
 	for range workerCount {
 		wg.Add(1)
-		go s.runWorker(ctx, jobs, completions, targetFailures, state, emitter, &wg, cancel)
+		go s.runWorker(ctx, jobs, completions, targetFailures, state, l1, emitter, &wg, cancel)
 	}
 
 	go s.feedJobs(ctx, jobs, scheduledTasks)
@@ -369,7 +370,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 	}
 }
 
-func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter, wg *sync.WaitGroup, cancel context.CancelFunc) {
+func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, l1 cache.ExactCache, emitter *eventEmitter, wg *sync.WaitGroup, cancel context.CancelFunc) {
 	defer wg.Done()
 	for {
 		select {
@@ -379,7 +380,7 @@ func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions c
 			if !ok {
 				return
 			}
-			if s.processTask(ctx, task, completions, targetFailures, state, emitter) {
+			if s.processTask(ctx, task, completions, targetFailures, state, l1, emitter) {
 				continue
 			}
 			if err := s.flushIfTargetCompleted(task.TargetPath, task.SourcePath, state); err != nil {
@@ -446,7 +447,7 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	return nil
 }
 
-func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, emitter *eventEmitter) bool {
+func (s *Service) processTask(ctx context.Context, task Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, l1 cache.ExactCache, emitter *eventEmitter) bool {
 	state.reportMu.Lock()
 	startedSucceeded := state.report.Succeeded
 	startedFailed := state.report.Failed
@@ -464,11 +465,65 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	if state.contextPlan.Enabled {
 		task.ContextMemory = s.resolveTaskContextMemory(ctx, task, state, emitter)
 	}
+	cacheKey := exactCacheKey(task)
+	if l1 != nil {
+		cachedValue, hit, err := l1.Get(ctx, cacheKey)
+		if err != nil {
+			state.reportMu.Lock()
+			state.report.Warnings = append(state.report.Warnings, fmt.Sprintf(`cache_l1_get_failed target=%q key=%q error=%q`, task.TargetPath, task.EntryKey, err.Error()))
+			state.reportMu.Unlock()
+		} else if hit {
+			if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, cachedValue, &state.stageMu); err != nil {
+				recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+				markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+				return false
+			}
+			select {
+			case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: cachedValue, sourceHash: hashSourceText(task.SourceText), targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+				state.reportMu.Lock()
+				state.report.Succeeded++
+				succeeded := state.report.Succeeded
+				failed := state.report.Failed
+				tokenUsage := state.report.TokenUsage
+				state.reportMu.Unlock()
+				emitter.emit(Event{
+					Kind:             EventTaskDone,
+					TaskSucceeded:    true,
+					TargetPath:       task.TargetPath,
+					EntryKey:         task.EntryKey,
+					Succeeded:        succeeded,
+					Failed:           failed,
+					ExecutableTotal:  state.total,
+					PromptTokens:     tokenUsage.PromptTokens,
+					CompletionTokens: tokenUsage.CompletionTokens,
+					TotalTokens:      tokenUsage.TotalTokens,
+				})
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
+	}
 	translated, err := s.translateWithRetry(translator.WithUsageCollector(ctx, &usage), task)
 	if err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
 		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
 		return false
+	}
+	if l1 != nil {
+		if err := l1.Put(ctx, cache.ExactCacheWrite{
+			Key:          cacheKey,
+			Value:        translated,
+			SourceLocale: task.SourceLocale,
+			TargetLocale: task.TargetLocale,
+			Provider:     task.Provider,
+			Model:        task.Model,
+			SourceHash:   hashSourceText(task.SourceText),
+		}); err != nil {
+			state.reportMu.Lock()
+			state.report.Warnings = append(state.report.Warnings, fmt.Sprintf(`cache_l1_put_failed target=%q key=%q error=%q`, task.TargetPath, task.EntryKey, err.Error()))
+			state.reportMu.Unlock()
+		}
 	}
 	if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
 		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/cache"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/lockfile"
 )
 
@@ -20,8 +21,10 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	if err != nil {
 		return Report{}, fmt.Errorf("load config: %w", err)
 	}
+	var cacheSvc *cache.Service
 	if s.newCache != nil {
-		cacheSvc, cacheErr := s.newCache(cfg.Cache)
+		var cacheErr error
+		cacheSvc, cacheErr = s.newCache(cfg.Cache)
 		if cacheErr != nil {
 			return Report{}, fmt.Errorf("initialize cache service: %w", cacheErr)
 		}
@@ -87,7 +90,11 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 			activeRunID = state.ActiveRunID
 		}
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter)
+	var l1Cache cache.ExactCache
+	if cacheSvc != nil {
+		l1Cache = cacheSvc.L1
+	}
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
