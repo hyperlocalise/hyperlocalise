@@ -420,11 +420,14 @@ func resolveRetrievalSnapshot(cfg *config.I18NConfig) string {
 	if version != "" {
 		return version
 	}
-	return hashSourceText(strings.Join([]string{
+	parts := []string{
 		"snapshot=none",
 		"rag_enabled=" + fmt.Sprintf("%t", cfg.Cache.RAG.Enabled),
-		"rag_top_k=" + fmt.Sprintf("%d", cfg.Cache.RAG.TopK),
-	}, "\n"))
+	}
+	if cfg.Cache.RAG.Enabled {
+		parts = append(parts, "rag_top_k="+fmt.Sprintf("%d", cfg.Cache.RAG.TopK))
+	}
+	return hashSourceText(strings.Join(parts, "\n"))
 }
 
 func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, string, error) {
