@@ -418,9 +418,23 @@ func validateBucket(name string, bucket BucketConfig) error {
 		if strings.TrimSpace(file.To) == "" {
 			return fmt.Errorf("buckets.%s.files[%d].to: must not be empty", name, i)
 		}
+
+		fromSuffix := getFileSuffix(file.From)
+		toSuffix := getFileSuffix(file.To)
+		if fromSuffix != toSuffix {
+			return fmt.Errorf("buckets.%s.files[%d]: file suffix mismatch: from=%q and to=%q must have the same extension", name, i, file.From, file.To)
+		}
 	}
 
 	return nil
+}
+
+func getFileSuffix(path string) string {
+	idx := strings.LastIndexByte(path, '.')
+	if idx == -1 || idx == len(path)-1 {
+		return ""
+	}
+	return path[idx:]
 }
 
 func (c I18NConfig) validateGroups(targetSet map[string]struct{}, bucketSet map[string]struct{}) (map[string]struct{}, error) {
