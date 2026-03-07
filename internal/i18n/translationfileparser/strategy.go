@@ -20,6 +20,7 @@ type Strategy struct {
 func NewDefaultStrategy() *Strategy {
 	s := &Strategy{parsersByExt: map[string]Parser{}}
 	s.Register(".json", JSONParser{})
+	s.Register(".jsonc", JSONCParser{})
 	s.Register(".arb", ARBParser{})
 	s.Register(".xlf", XLIFFParser{})
 	s.Register(".xlif", XLIFFParser{})

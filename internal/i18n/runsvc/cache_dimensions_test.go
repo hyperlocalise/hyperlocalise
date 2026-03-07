@@ -20,6 +20,26 @@ func TestParserModeForSourceDetectsPlainJSONByContent(t *testing.T) {
 	}
 }
 
+func TestParserModeForSourceDetectsStrictFormatJSJSONCByContent(t *testing.T) {
+	mode := parserModeForSource("tests/misc/en-US.jsonc", []byte(`{
+		// comment
+		"hello": {"defaultMessage": "Hello"}
+	}`))
+	if mode != "formatjs" {
+		t.Fatalf("mode=%q, want formatjs", mode)
+	}
+}
+
+func TestParserModeForSourceDetectsPlainJSONCByContent(t *testing.T) {
+	mode := parserModeForSource("tests/misc/en-US.jsonc", []byte(`{
+		/* comment */
+		"hello": "Hello"
+	}`))
+	if mode != "json" {
+		t.Fatalf("mode=%q, want json", mode)
+	}
+}
+
 func TestResolveRetrievalSnapshotUsesExplicitVersion(t *testing.T) {
 	cfg := &config.I18NConfig{}
 	cfg.Cache.RetrievalCorpusSnapshotVersion = "snapshot-v42"

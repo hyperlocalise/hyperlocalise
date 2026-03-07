@@ -21,6 +21,32 @@ func TestStrategyParsesJSON(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesJSONC(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.jsonc", []byte(`{
+		// greeting comment
+		"hello": "bonjour",
+		"home": {
+			/* nested comment */
+			"title": "Accueil"
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["home.title"] != "Accueil" {
+		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
+	}
+	if len(got) != 2 {
+		t.Fatalf("unexpected parsed entry count: got %d want 2", len(got))
+	}
+}
+
 func TestStrategyParsesARB(t *testing.T) {
 	s := NewDefaultStrategy()
 

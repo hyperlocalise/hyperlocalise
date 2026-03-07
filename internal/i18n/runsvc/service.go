@@ -19,6 +19,7 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/pathresolver"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
+	"github.com/tidwall/jsonc"
 )
 
 const (
@@ -616,6 +617,11 @@ func parserModeForSource(path string, content []byte) string {
 	switch {
 	case strings.HasSuffix(normalized, ".arb"):
 		return "arb"
+	case strings.HasSuffix(normalized, ".jsonc"):
+		if isStrictFormatJSON(jsonc.ToJSON(content)) {
+			return "formatjs"
+		}
+		return "json"
 	case strings.HasSuffix(normalized, ".json"):
 		if isStrictFormatJSON(content) {
 			return "formatjs"
