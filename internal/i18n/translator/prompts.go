@@ -22,13 +22,6 @@ func buildUserPrompt(req Request) string {
 	b.WriteString(strings.TrimSpace(req.TargetLanguage))
 	b.WriteString("\n")
 
-	ctx := strings.TrimSpace(req.Context)
-	if ctx != "" {
-		b.WriteString("Shared context guidance (do not translate or repeat this section):\n")
-		b.WriteString(ctx)
-		b.WriteString("\n\n")
-	}
-
 	b.WriteString("Source text:\n")
 	b.WriteString(req.Source)
 	return b.String()

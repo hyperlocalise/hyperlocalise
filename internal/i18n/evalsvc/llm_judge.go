@@ -47,13 +47,20 @@ func (s *LLMJudgeScorer) ScoreJudge(ctx context.Context, in ScoreInput) (JudgeRe
 		return JudgeResult{}, fmt.Errorf("judge translation is empty")
 	}
 
+	judgeSystem := s.prompt
+	if caseCtx := strings.TrimSpace(in.Case.Context); caseCtx != "" {
+		if sp := strings.TrimSpace(judgeSystem); sp != "" {
+			judgeSystem = sp + "\n\nEval case context:\n" + caseCtx
+		} else {
+			judgeSystem = "Eval case context:\n" + caseCtx
+		}
+	}
 	resp, err := s.translate(ctx, translator.Request{
 		Source:         in.Case.Source,
 		TargetLanguage: in.Case.TargetLocale,
-		Context:        in.Case.Context,
 		ModelProvider:  s.provider,
 		Model:          s.model,
-		SystemPrompt:   s.prompt,
+		SystemPrompt:   judgeSystem,
 		UserPrompt:     buildLLMJudgeUserPrompt(in),
 	})
 	if err != nil {

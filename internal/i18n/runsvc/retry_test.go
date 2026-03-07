@@ -56,13 +56,11 @@ func TestTranslateWithRetryBuildsRequestWithoutContextMemory(t *testing.T) {
 	if got.TargetLanguage != "fr" {
 		t.Fatalf("request target = %q, want fr", got.TargetLanguage)
 	}
-	if got.Context != "checkout.title" {
-		t.Fatalf("request context = %q, want checkout.title", got.Context)
-	}
 	if got.ModelProvider != "openai" || got.Model != "gpt-4.1" {
 		t.Fatalf("request model provider/model mismatch: %+v", got)
 	}
-	if got.SystemPrompt != "system" || got.UserPrompt != "user" {
+	wantSystem := "system\n\nRuntime translation context (do not translate or repeat):\nEntry key: checkout.title"
+	if got.SystemPrompt != wantSystem || got.UserPrompt != "user" {
 		t.Fatalf("request prompts mismatch: %+v", got)
 	}
 }
@@ -87,9 +85,12 @@ func TestTranslateWithRetryBuildsRequestWithContextMemory(t *testing.T) {
 		t.Fatalf("translateWithRetry returned error: %v", err)
 	}
 
-	wantContext := "checkout.title\n\nShared memory:\nShared context"
-	if got.Context != wantContext {
-		t.Fatalf("request context = %q, want %q", got.Context, wantContext)
+	wantSystem := "Runtime translation context (do not translate or repeat):\nEntry key: checkout.title\n\nShared memory:\nShared context"
+	if got.SystemPrompt != wantSystem {
+		t.Fatalf("request system prompt = %q, want %q", got.SystemPrompt, wantSystem)
+	}
+	if got.UserPrompt != "Checkout" {
+		t.Fatalf("request user prompt = %q, want Checkout", got.UserPrompt)
 	}
 }
 
@@ -112,8 +113,11 @@ func TestTranslateWithRetryBuildsRequestWithEmptyEntryKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("translateWithRetry returned error: %v", err)
 	}
-	if got.Context != "" {
-		t.Fatalf("request context = %q, want empty string", got.Context)
+	if got.SystemPrompt != "" {
+		t.Fatalf("request system prompt = %q, want empty string", got.SystemPrompt)
+	}
+	if got.UserPrompt != "Hello" {
+		t.Fatalf("request user prompt = %q, want Hello", got.UserPrompt)
 	}
 }
 
@@ -136,9 +140,12 @@ func TestTranslateWithRetryBuildsRequestWithEmptyEntryKeyAndContextMemory(t *tes
 	if err != nil {
 		t.Fatalf("translateWithRetry returned error: %v", err)
 	}
-	wantContext := "\n\nShared memory:\nShared context"
-	if got.Context != wantContext {
-		t.Fatalf("request context = %q, want %q", got.Context, wantContext)
+	wantSystem := "Runtime translation context (do not translate or repeat):\nShared memory:\nShared context"
+	if got.SystemPrompt != wantSystem {
+		t.Fatalf("request system prompt = %q, want %q", got.SystemPrompt, wantSystem)
+	}
+	if got.UserPrompt != "Hello" {
+		t.Fatalf("request user prompt = %q, want Hello", got.UserPrompt)
 	}
 }
 
