@@ -15,7 +15,7 @@ func applyRunProgressEvent(renderer *progressui.Renderer, event runsvc.Event) {
 	case runsvc.EventPlanned:
 		renderer.Plan(event.ExecutableTotal)
 	case runsvc.EventContextMemory:
-		renderer.Phase(contextMemoryPhaseMessage(event))
+		renderer.Phase(contextMemoryDisplayPhase(event))
 		switch event.ContextMemoryState {
 		case runsvc.ContextMemoryStateStart:
 			renderer.TaskStarted(event.TargetPath, event.EntryKey)
@@ -32,6 +32,13 @@ func applyRunProgressEvent(renderer *progressui.Renderer, event runsvc.Event) {
 		renderer.TaskDone(event.Succeeded, event.Failed, event.ExecutableTotal)
 		renderer.TokenUsage(event.PromptTokens, event.CompletionTokens, event.TotalTokens)
 	}
+}
+
+func contextMemoryDisplayPhase(event runsvc.Event) string {
+	if event.ContextMemoryTotal > 0 && event.ContextMemoryProcessed >= event.ContextMemoryTotal {
+		return runPhaseMessage(runsvc.PhaseExecuting)
+	}
+	return contextMemoryPhaseMessage(event)
 }
 
 func contextMemoryPhaseMessage(event runsvc.Event) string {
