@@ -357,7 +357,7 @@ func TestTranslationRetryDelay(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(time.Duration(tt.attempt).String(), func(t *testing.T) {
+		t.Run(fmt.Sprintf("attempt_%d", tt.attempt), func(t *testing.T) {
 			got := translationRetryDelay(tt.attempt)
 			if got != tt.want {
 				t.Fatalf("translationRetryDelay(%d) = %v, want %v", tt.attempt, got, tt.want)

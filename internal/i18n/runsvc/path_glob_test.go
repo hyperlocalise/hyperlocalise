@@ -35,7 +35,7 @@ func TestShouldIgnoreSourcePathScenarios(t *testing.T) {
 }
 
 func TestResolveSourcePathsNoGlobReturnsInput(t *testing.T) {
-	pattern := "/tmp/docs/index.mdx"
+	pattern := filepath.Join(t.TempDir(), "docs", "index.mdx")
 	paths, err := resolveSourcePaths(pattern)
 	if err != nil {
 		t.Fatalf("resolveSourcePaths returned error: %v", err)
@@ -137,16 +137,9 @@ func TestResolveSourcePathsDoublestarNonexistentBaseDir(t *testing.T) {
 }
 
 func TestResolveTargetPathSourceOutsideBase(t *testing.T) {
-	// When sourcePath is outside the source glob base ("docs"), the relative
-	// path includes ".." which filepath.Join cleans, producing a target that
-	// escapes the intended target subdirectory (out/fr → out).
-	got, err := resolveTargetPath("docs/**/*.mdx", "out/fr/**/*.mdx", "other/file.mdx")
-	if err != nil {
-		t.Fatalf("resolveTargetPath returned unexpected error: %v", err)
-	}
-	want := filepath.Join("out", "other", "file.mdx")
-	if got != want {
-		t.Fatalf("resolveTargetPath = %q, want %q (escapes target base)", got, want)
+	_, err := resolveTargetPath("docs/**/*.mdx", "out/fr/**/*.mdx", "other/file.mdx")
+	if err == nil {
+		t.Fatal("expected error when source path escapes source glob base")
 	}
 }
 
