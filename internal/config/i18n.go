@@ -12,23 +12,24 @@ import (
 )
 
 const (
-	defaultConfigPath      = "i18n.jsonc"
-	DefaultCacheDBPath     = ".hyperlocalise/cache/cache.sqlite"
-	DefaultCacheMaxOpen    = 1
-	DefaultCacheMaxIdle    = 1
-	DefaultCacheMaxLifeSec = 300
-	DefaultCacheL1MaxItems = 50000
-	DefaultCacheRAGTopK    = 5
-	llmProviderOpenAI      = "openai"
-	llmProviderAzureOpenAI = "azure_openai"
-	llmProviderAnthropic   = "anthropic"
-	llmProviderLMStudio    = "lmstudio"
-	llmProviderGroq        = "groq"
-	llmProviderMistral     = "mistral"
-	llmProviderOllama      = "ollama"
-	llmProviderGemini      = "gemini"
-	llmProviderBedrock     = "bedrock"
-	llmDefaultProfile      = "default"
+	defaultConfigPath                 = "i18n.jsonc"
+	DefaultCacheDBPath                = ".hyperlocalise/cache/cache.sqlite"
+	DefaultCacheMaxOpen               = 1
+	DefaultCacheMaxIdle               = 1
+	DefaultCacheMaxLifeSec            = 300
+	DefaultCacheL1MaxItems            = 50000
+	DefaultCacheL2AutoAcceptThreshold = 0.90
+	DefaultCacheRAGTopK               = 5
+	llmProviderOpenAI                 = "openai"
+	llmProviderAzureOpenAI            = "azure_openai"
+	llmProviderAnthropic              = "anthropic"
+	llmProviderLMStudio               = "lmstudio"
+	llmProviderGroq                   = "groq"
+	llmProviderMistral                = "mistral"
+	llmProviderOllama                 = "ollama"
+	llmProviderGemini                 = "gemini"
+	llmProviderBedrock                = "bedrock"
+	llmDefaultProfile                 = "default"
 )
 
 // I18NConfig defines the i18n configuration file structure.
@@ -121,8 +122,9 @@ type CacheSQLiteConfig struct {
 
 // CacheTierConfig configures a cache tier toggle and capacity hints.
 type CacheTierConfig struct {
-	Enabled  bool `json:"enabled,omitempty"`
-	MaxItems int  `json:"max_items,omitempty"`
+	Enabled             bool    `json:"enabled,omitempty"`
+	MaxItems            int     `json:"max_items,omitempty"`
+	AutoAcceptThreshold float64 `json:"auto_accept_threshold,omitempty"`
 }
 
 // CacheRetrieverConfig configures optional retrieval augmentation settings.
@@ -217,6 +219,9 @@ func (c *CacheConfig) applyDefaults() {
 	}
 	if c.L1.MaxItems == 0 {
 		c.L1.MaxItems = DefaultCacheL1MaxItems
+	}
+	if c.L2.AutoAcceptThreshold <= 0 {
+		c.L2.AutoAcceptThreshold = DefaultCacheL2AutoAcceptThreshold
 	}
 	if c.RAG.TopK == 0 {
 		c.RAG.TopK = DefaultCacheRAGTopK
@@ -584,6 +589,9 @@ func (c I18NConfig) validateCache() error {
 	}
 	if c.Cache.L1.MaxItems < 0 {
 		return fmt.Errorf("cache.l1.max_items: must be >= 0")
+	}
+	if c.Cache.L2.AutoAcceptThreshold < 0 || c.Cache.L2.AutoAcceptThreshold > 1 {
+		return fmt.Errorf("cache.l2.auto_accept_threshold: must be between 0 and 1")
 	}
 	if c.Cache.RAG.TopK < 0 {
 		return fmt.Errorf("cache.rag.top_k: must be >= 0")

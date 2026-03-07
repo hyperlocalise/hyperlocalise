@@ -80,6 +80,22 @@ Prompt variables:
 - `group`: group name
 - `profile`: profile name
 
+## Cache
+
+`cache` configures local L1/L2 behavior.
+
+- `enabled` (optional): enable cache service.
+- `db_path` (optional): sqlite path for cache DB.
+- `sqlite` (optional): connection tuning.
+- `l1.max_items` (optional): L1 eviction cap.
+- `l2.enabled` (optional): enable translation memory lookup/upsert.
+- `l2.auto_accept_threshold` (optional): fuzzy auto-accept threshold in `[0,1]` (default `0.90`).
+
+TM metadata enums:
+
+- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
+- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+
 ## Starter config
 
 ```bash
