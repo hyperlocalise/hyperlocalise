@@ -1,6 +1,9 @@
 package runsvc
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func baseCacheTask() Task {
 	return Task{
@@ -15,6 +18,7 @@ func baseCacheTask() Task {
 		ParserMode:      "json",
 		RAGSnapshot:     "r1",
 		ContextKey:      "file:a",
+		SourceContext:   "Checkout submit button",
 		ContextMemory:   "memory-A",
 	}
 }
@@ -34,6 +38,26 @@ func TestExactCacheKeyNormalizesSourceText(t *testing.T) {
 	other.SourceText = "  Hello\r\n"
 	if exactCacheKey(base) != exactCacheKey(other) {
 		t.Fatal("expected equivalent normalized source text to yield same key")
+	}
+}
+
+func TestExactCacheKeyChangesWhenSourceContextChanges(t *testing.T) {
+	base := baseCacheTask()
+	other := base
+	other.SourceContext = "Checkout final submit button"
+	if exactCacheKey(base) == exactCacheKey(other) {
+		t.Fatal("expected source context to affect exact cache key")
+	}
+}
+
+func TestExactCacheKeyIgnoresSourceContextChangesOutsidePromptLimit(t *testing.T) {
+	base := baseCacheTask()
+	limit := maxSourceContextLen
+	base.SourceContext = strings.Repeat("a", limit) + "tail-a"
+	other := base
+	other.SourceContext = strings.Repeat("a", limit) + "tail-b"
+	if exactCacheKey(base) != exactCacheKey(other) {
+		t.Fatal("expected source context changes outside prompt limit to keep exact cache key stable")
 	}
 }
 
@@ -97,6 +121,12 @@ func TestExactCacheKeyChangesAcrossDimensions(t *testing.T) {
 			name: "parser mode",
 			mutate: func(task *Task) {
 				task.ParserMode = "formatjs"
+			},
+		},
+		{
+			name: "source context",
+			mutate: func(task *Task) {
+				task.SourceContext = "Checkout final submit button"
 			},
 		},
 		{

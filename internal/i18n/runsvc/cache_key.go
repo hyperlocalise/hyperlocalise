@@ -10,6 +10,13 @@ func normalizeSourceForCache(source string) string {
 	return strings.TrimSpace(normalized)
 }
 
+func sourceContextFingerprint(task Task) string {
+	effectiveContext := sanitizePromptContext(task.SourceContext, maxSourceContextLen)
+	return hashSourceText(strings.Join([]string{
+		"source_context=" + normalizeSourceForCache(effectiveContext),
+	}, "\n"))
+}
+
 func contextMemoryFingerprint(task Task) string {
 	return hashSourceText(strings.Join([]string{
 		"context_key=" + strings.TrimSpace(task.ContextKey),
@@ -28,6 +35,7 @@ func exactCacheKey(task Task) string {
 		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
 		"glossary_termbase_version_hash=" + strings.TrimSpace(task.GlossaryVersion),
 		"parser_mode=" + strings.TrimSpace(task.ParserMode),
+		"source_context_fingerprint=" + sourceContextFingerprint(task),
 		"context_memory_fingerprint=" + contextMemoryFingerprint(task),
 		"retrieval_corpus_snapshot_version=" + strings.TrimSpace(task.RAGSnapshot),
 	}, "\n")
