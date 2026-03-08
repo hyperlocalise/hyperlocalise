@@ -23,16 +23,18 @@ Use `groq` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Required environment variables
+## Required environment variable
 
 <CodeGroup>
 ```bash Export
-export GROQ_BASE_URL="https://api.groq.com/openai/v1"
 export GROQ_API_KEY="your-groq-api-key"
 ```
 
 ```bash .env.local
-GROQ_BASE_URL="https://api.groq.com/openai/v1"
 GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
+
+## Optional environment variable
+
+`GROQ_BASE_URL` defaults to `https://api.groq.com/openai/v1`.

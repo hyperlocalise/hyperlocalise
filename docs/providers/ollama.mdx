@@ -23,16 +23,8 @@ Use `ollama` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Required environment variables
+## Optional environment variables
 
-<CodeGroup>
-```bash Export
-export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-export OLLAMA_API_KEY="ollama"
-```
+`OLLAMA_BASE_URL` defaults to `http://127.0.0.1:11434/v1`.
 
-```bash .env.local
-OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-OLLAMA_API_KEY="ollama"
-```
-</CodeGroup>
+`OLLAMA_API_KEY` defaults to `ollama`.
