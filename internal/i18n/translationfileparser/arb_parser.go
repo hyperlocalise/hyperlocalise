@@ -1,8 +1,10 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 )
@@ -71,30 +73,124 @@ func parseARBDescription(payload map[string]any, key string) string {
 
 // MarshalARB preserves metadata keys and rewrites only translatable message keys.
 func MarshalARB(template []byte, values map[string]string) ([]byte, error) {
-	var payload map[string]any
-	if err := json.Unmarshal(template, &payload); err != nil {
+	fields, err := parseARBObjectFields(template)
+	if err != nil {
 		return nil, fmt.Errorf("arb decode: %w", err)
 	}
-	if payload == nil {
-		payload = map[string]any{}
+
+	written := make(map[string]struct{}, len(values))
+	var out bytes.Buffer
+	out.WriteString("{\n")
+
+	first := true
+	writeField := func(key string, value []byte) error {
+		if !first {
+			out.WriteString(",\n")
+		}
+		first = false
+
+		encodedKey, err := json.Marshal(key)
+		if err != nil {
+			return err
+		}
+		out.WriteString("  ")
+		out.Write(encodedKey)
+		out.WriteString(": ")
+		out.Write(value)
+		return nil
 	}
 
-	out := map[string]any{}
-	for key, value := range payload {
-		if isARBMetadataKey(key) {
-			out[key] = value
+	for _, field := range fields {
+		if isARBMetadataKey(field.Key) {
+			if err := writeField(field.Key, field.RawValue); err != nil {
+				return nil, fmt.Errorf("arb encode: %w", err)
+			}
+			continue
 		}
+
+		value, ok := values[field.Key]
+		if !ok {
+			continue
+		}
+		encodedValue, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("arb encode: %w", err)
+		}
+		if err := writeField(field.Key, encodedValue); err != nil {
+			return nil, fmt.Errorf("arb encode: %w", err)
+		}
+		written[field.Key] = struct{}{}
 	}
 
 	for _, key := range sortedMapKeys(values) {
-		out[key] = values[key]
+		if _, ok := written[key]; ok {
+			continue
+		}
+		encodedValue, err := json.Marshal(values[key])
+		if err != nil {
+			return nil, fmt.Errorf("arb encode: %w", err)
+		}
+		if err := writeField(key, encodedValue); err != nil {
+			return nil, fmt.Errorf("arb encode: %w", err)
+		}
 	}
 
-	content, err := json.MarshalIndent(out, "", "  ")
+	out.WriteString("\n}\n")
+	return out.Bytes(), nil
+}
+
+type arbObjectField struct {
+	Key      string
+	RawValue json.RawMessage
+}
+
+func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
+	dec := json.NewDecoder(bytes.NewReader(content))
+
+	open, err := dec.Token()
 	if err != nil {
-		return nil, fmt.Errorf("arb encode: %w", err)
+		return nil, err
 	}
-	return append(content, '\n'), nil
+	delim, ok := open.(json.Delim)
+	if !ok || delim != '{' {
+		return nil, fmt.Errorf("expected object")
+	}
+
+	fields := make([]arbObjectField, 0)
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := tok.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string key")
+		}
+
+		var raw json.RawMessage
+		if err := dec.Decode(&raw); err != nil {
+			return nil, err
+		}
+		fields = append(fields, arbObjectField{Key: key, RawValue: raw})
+	}
+
+	close, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	delim, ok = close.(json.Delim)
+	if !ok || delim != '}' {
+		return nil, fmt.Errorf("expected object end")
+	}
+
+	if _, err := dec.Token(); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("unexpected trailing json tokens")
+		}
+		return nil, err
+	}
+
+	return fields, nil
 }
 
 func isARBMetadataKey(key string) bool {

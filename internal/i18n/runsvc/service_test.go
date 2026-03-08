@@ -3267,6 +3267,118 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 	}
 }
 
+func TestMarshalSourceTemplateTargetARBAppendsMissingKeysWithoutDroppingTargetMetadata(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.arb"
+	targetPath := "/tmp/out.arb"
+	source := []byte(`{
+  "@@locale": "en",
+  "hello": "Hello",
+  "goodbye": "Goodbye",
+  "@goodbye": {
+    "description": "source-goodbye"
+  }
+}`)
+	target := []byte(`{
+  "@@locale": "fr",
+  "hello": "Bonjour",
+  "@hello": {
+    "description": "target-hello"
+  }
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{
+		"hello":   "Salut",
+		"goodbye": "Au revoir",
+	})
+	if err != nil {
+		t.Fatalf("marshal source-template target: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output arb: %v", err)
+	}
+
+	if payload["@@locale"] != "fr" {
+		t.Fatalf("expected target @@locale preserved, got %#v", payload["@@locale"])
+	}
+	meta, ok := payload["@hello"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected @hello metadata map, got %#v", payload["@hello"])
+	}
+	if meta["description"] != "target-hello" {
+		t.Fatalf("expected target @hello.description preserved, got %#v", meta["description"])
+	}
+	if payload["goodbye"] != "Au revoir" {
+		t.Fatalf("expected missing key appended from values, got %#v", payload["goodbye"])
+	}
+	if _, ok := payload["@goodbye"]; ok {
+		t.Fatalf("expected missing key metadata to remain absent when not in target template")
+	}
+}
+
+func TestMarshalSourceTemplateTargetARBUsesSourceFallbackWhenTargetInvalid(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.arb"
+	targetPath := "/tmp/out.arb"
+	source := []byte(`{
+  "@@locale": "en",
+  "hello": "Hello",
+  "@hello": {
+    "description": "source-hello"
+  }
+}`)
+	target := []byte(`{
+  "@@locale": "fr",
+  "hello": 1,
+  "@hello": {
+    "description": "target-hello"
+  }
+}`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".arb", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	if err != nil {
+		t.Fatalf("marshal source-template target: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode output arb: %v", err)
+	}
+
+	if payload["@@locale"] != "en" {
+		t.Fatalf("expected source @@locale preserved on fallback, got %#v", payload["@@locale"])
+	}
+	meta, ok := payload["@hello"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected @hello metadata map, got %#v", payload["@hello"])
+	}
+	if meta["description"] != "source-hello" {
+		t.Fatalf("expected source @hello.description preserved on fallback, got %#v", meta["description"])
+	}
+}
+
 func TestMarshalSourceTemplateTargetDeletesRemovedKey(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.po"

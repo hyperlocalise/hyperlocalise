@@ -2,6 +2,7 @@ package translationfileparser
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -113,5 +114,50 @@ func TestARBParserParseWithContextIncludesDescriptions(t *testing.T) {
 	}
 	if _, ok := contextByKey["bye"]; ok {
 		t.Fatalf("did not expect context for bye")
+	}
+}
+
+func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
+	template := []byte(`{
+  "@@locale": "fr",
+  "hello": "Bonjour",
+  "@hello": {
+    "description": "target-hello"
+  },
+  "bye": "Au revoir",
+  "@custom": {
+    "owner": "mobile"
+  }
+}`)
+
+	out, err := MarshalARB(template, map[string]string{
+		"hello": "Salut",
+		"new_b": "B",
+		"new_a": "A",
+	})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	helloIdx := strings.Index(rendered, `"hello": "Salut"`)
+	metaIdx := strings.Index(rendered, `"@hello": {`)
+	customIdx := strings.Index(rendered, `"@custom": {`)
+	newAIdx := strings.Index(rendered, `"new_a": "A"`)
+	newBIdx := strings.Index(rendered, `"new_b": "B"`)
+	if helloIdx == -1 || metaIdx == -1 || customIdx == -1 || newAIdx == -1 || newBIdx == -1 {
+		t.Fatalf("expected structure and new keys in rendered output, got %q", rendered)
+	}
+	if metaIdx < helloIdx {
+		t.Fatalf("expected existing metadata to remain after existing key, got %q", rendered)
+	}
+	if customIdx < metaIdx {
+		t.Fatalf("expected unrelated metadata block retained in original position, got %q", rendered)
+	}
+	if !(newAIdx < newBIdx && customIdx < newAIdx) {
+		t.Fatalf("expected new keys appended in sorted order after template structure, got %q", rendered)
+	}
+	if strings.Contains(rendered, `"bye":`) {
+		t.Fatalf("expected missing translatable key to be removed, got %q", rendered)
 	}
 }

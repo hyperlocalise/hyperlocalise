@@ -61,8 +61,10 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 	targetTemplate, err := s.readFile(path)
 	if err == nil {
 		targetEntries, parseErr := s.newParser().Parse(path, targetTemplate)
-		if parseErr == nil && hasExactKeySet(targetEntries, values) {
-			template = targetTemplate
+		if parseErr == nil {
+			if ext == ".arb" || hasExactKeySet(targetEntries, values) {
+				template = targetTemplate
+			}
 		}
 	}
 
