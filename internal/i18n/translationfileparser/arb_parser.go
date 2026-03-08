@@ -110,7 +110,7 @@ func MarshalARB(template []byte, values map[string]string) ([]byte, error) {
 
 	for _, field := range fields {
 		if isARBMetadataKey(field.Key) {
-			if messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, templateMessageKeys, values); isMessageMeta {
+			if messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, templateMessageKeys); isMessageMeta {
 				if _, ok := values[messageKey]; !ok {
 					continue
 				}
@@ -196,6 +196,7 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 		return nil, fmt.Errorf("expected object end")
 	}
 
+	// Confirm no tokens remain after the closing '}'.
 	if _, err := dec.Token(); err != io.EOF {
 		if err == nil {
 			return nil, fmt.Errorf("unexpected trailing json tokens")
@@ -206,16 +207,13 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 	return fields, nil
 }
 
-func arbMessageMetadataKey(metaKey string, templateMessageKeys map[string]struct{}, values map[string]string) (string, bool) {
+func arbMessageMetadataKey(metaKey string, templateMessageKeys map[string]struct{}) (string, bool) {
 	if !strings.HasPrefix(metaKey, "@") || strings.HasPrefix(metaKey, "@@") {
 		return "", false
 	}
 
 	messageKey := strings.TrimPrefix(metaKey, "@")
 	if _, ok := templateMessageKeys[messageKey]; ok {
-		return messageKey, true
-	}
-	if _, ok := values[messageKey]; ok {
 		return messageKey, true
 	}
 	return "", false

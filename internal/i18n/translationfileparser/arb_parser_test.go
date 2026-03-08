@@ -170,3 +170,32 @@ func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
 		t.Fatalf("expected unrelated metadata blocks retained, got %q", rendered)
 	}
 }
+
+func TestMarshalARBDoesNotTreatTemplateOrphanMetadataAsNewMessageMetadata(t *testing.T) {
+	template := []byte(`{
+  "@@locale": "fr",
+  "@foo": {
+    "description": "my new key"
+  },
+  "existing": "value"
+}`)
+
+	out, err := MarshalARB(template, map[string]string{
+		"existing": "valeur",
+		"foo":      "translated",
+	})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	existingIdx := strings.Index(rendered, `"existing": "valeur"`)
+	metaIdx := strings.Index(rendered, `"@foo": {`)
+	fooIdx := strings.Index(rendered, `"foo": "translated"`)
+	if existingIdx == -1 || metaIdx == -1 || fooIdx == -1 {
+		t.Fatalf("expected existing key, orphan metadata, and appended foo in rendered output, got %q", rendered)
+	}
+	if !(metaIdx < existingIdx && existingIdx < fooIdx) {
+		t.Fatalf("expected orphan metadata to stay in template position and new foo appended later, got %q", rendered)
+	}
+}
