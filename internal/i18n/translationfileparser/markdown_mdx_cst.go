@@ -67,8 +67,7 @@ func (p mdxCSTParser) parseSequence(parent *mdxNode, offset int, closingName str
 			}
 		}
 
-		switch {
-		case offset == 0:
+		if offset == 0 {
 			if node, next, ok := p.parseFrontmatter(offset); ok {
 				parent.appendChild(node)
 				offset = next

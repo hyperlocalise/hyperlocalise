@@ -180,21 +180,6 @@ func mdxLineKind(line string) string {
 	}
 }
 
-func mdxApplyContainerLiteral(stack *[]mdxContainer, literal string) {
-	container, closing, selfClosing, ok := mdxParseContainerLiteral(literal)
-	if !ok {
-		return
-	}
-	if closing {
-		mdxPopContainer(stack, container.name)
-		return
-	}
-	if selfClosing {
-		return
-	}
-	*stack = append(*stack, container)
-}
-
 func mdxParseContainerLiteral(literal string) (mdxContainer, bool, bool, bool) {
 	trimmed := strings.TrimSpace(literal)
 	if trimmed == "" || !strings.HasPrefix(trimmed, "<") || !strings.HasSuffix(trimmed, ">") {
@@ -228,16 +213,6 @@ func mdxParseContainerLiteral(literal string) (mdxContainer, bool, bool, bool) {
 	selfClosing := !closing && strings.HasSuffix(strings.TrimSpace(strings.TrimSuffix(trimmed, ">")), "/")
 	signature := name + "[" + markdownPlaceholderHash(0, trimmed) + "]"
 	return mdxContainer{name: name, signature: signature}, closing, selfClosing, true
-}
-
-func mdxPopContainer(stack *[]mdxContainer, name string) {
-	for i := len(*stack) - 1; i >= 0; i-- {
-		if (*stack)[i].name != name {
-			continue
-		}
-		*stack = (*stack)[:i]
-		return
-	}
 }
 
 func isMDXTagNameByte(ch byte) bool {
