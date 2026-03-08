@@ -190,3 +190,20 @@ func TestParseJSONEntriesLenientJSONC(t *testing.T) {
 		t.Fatalf("nested entries mismatch: %#v", got)
 	}
 }
+
+func TestUnmarshalJSONForPathResetsTargetBeforeJSONCRetry(t *testing.T) {
+	payload := map[string]any{"stale": "value"}
+	err := unmarshalJSONForPath("/tmp/messages.jsonc", []byte(`{
+  "first": "one",
+  // comment
+  "second": "two"
+}`), &payload)
+	if err != nil {
+		t.Fatalf("unmarshal jsonc: %v", err)
+	}
+
+	want := map[string]any{"first": "one", "second": "two"}
+	if !reflect.DeepEqual(payload, want) {
+		t.Fatalf("payload mismatch\nwant: %#v\n got: %#v", want, payload)
+	}
+}

@@ -121,6 +121,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		for len(line) > 0 && line[0] == '}' {
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
+				pendingComments = nil
 			}
 			line = strings.TrimSpace(line[1:])
 		}
@@ -152,7 +153,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		}
 
 		valuePart := strings.TrimSpace(matches[2])
-		if strings.HasPrefix(valuePart, "{") {
+		if strings.HasPrefix(valuePart, "{") && jsoncObjectValueSpansMultipleLines(valuePart) {
 			stack = append(stack, decodedKey)
 		}
 	}
@@ -213,4 +214,42 @@ func indexJSONCLineComment(line string) int {
 	}
 
 	return -1
+}
+
+func jsoncObjectValueSpansMultipleLines(valuePart string) bool {
+	depth := 0
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(valuePart); i++ {
+		ch := valuePart[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+
+	return depth > 0
 }

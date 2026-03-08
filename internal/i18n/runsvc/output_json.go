@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -20,9 +21,18 @@ func unmarshalJSONForPath(path string, content []byte, out any) error {
 		return nil
 	}
 	if strings.EqualFold(filepath.Ext(path), ".jsonc") {
+		resetUnmarshalTarget(out)
 		return json.Unmarshal(jsoncparser.ToJSON(content), out)
 	}
 	return firstErr
+}
+
+func resetUnmarshalTarget(out any) {
+	v := reflect.ValueOf(out)
+	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	v.Elem().Set(reflect.Zero(v.Elem().Type()))
 }
 
 func marshalJSONTarget(path string, template []byte, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {

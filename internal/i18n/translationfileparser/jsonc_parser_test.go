@@ -34,3 +34,41 @@ func TestJSONCParserParseWithContextCombinesPendingAndInlineComments(t *testing.
 		t.Fatalf("unexpected hero_title context: %q", contextByKey["hero_title"])
 	}
 }
+
+func TestJSONCParserParseWithContextDoesNotLeakTrailingNestedCommentsToSiblingKey(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  "nested": {
+    "inner": "value"
+    // orphan comment
+  },
+  "next_key": "other"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["next_key"] != "other" {
+		t.Fatalf("unexpected next_key message: %q", messages["next_key"])
+	}
+	if _, ok := contextByKey["next_key"]; ok {
+		t.Fatalf("did not expect leaked context for next_key: %q", contextByKey["next_key"])
+	}
+}
+
+func TestJSONCParserParseWithContextDoesNotLeakSingleLineObjectScopeToSiblingKey(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  "opts": { "a": "b" },
+  "title": "Hello" // page title
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["title"] != "Hello" {
+		t.Fatalf("unexpected title message: %q", messages["title"])
+	}
+	if got := contextByKey["title"]; got != "page title" {
+		t.Fatalf("unexpected title context: %q", got)
+	}
+	if _, ok := contextByKey["opts.title"]; ok {
+		t.Fatalf("did not expect leaked opts.title context: %q", contextByKey["opts.title"])
+	}
+}
