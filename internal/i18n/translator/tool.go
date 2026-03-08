@@ -20,6 +20,8 @@ var (
 )
 
 func Translate(ctx context.Context, req Request) (string, error) {
+	// Initialization is attempted once. If it fails, all subsequent calls
+	// to Translate will return the same error; re-initialization is not possible.
 	defaultToolOnce.Do(func() {
 		defaultTool, defaultToolInitErr = New()
 	})
