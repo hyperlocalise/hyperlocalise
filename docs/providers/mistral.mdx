@@ -21,11 +21,18 @@ Use `mistral` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Environment variables
+## Required environment variable
 
-```bash
-# Optional, defaults to https://api.mistral.ai/v1
-export MISTRAL_BASE_URL="https://api.mistral.ai/v1"
-
+<CodeGroup>
+```bash Export
 export MISTRAL_API_KEY="your-mistral-api-key"
 ```
+
+```bash .env.local
+MISTRAL_API_KEY="your-mistral-api-key"
+```
+</CodeGroup>
+
+## Optional environment variable
+
+`MISTRAL_BASE_URL` defaults to `https://api.mistral.ai/v1`.

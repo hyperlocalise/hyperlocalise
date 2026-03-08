@@ -162,6 +162,7 @@ Flags:
 - `--config` - path to i18n config (optional, defaults to i18n.jsonc in cwd)
 - `--group` - run only tasks for one configured group
 - `--bucket` - run only tasks for one configured bucket
+- `--target-locale` - run only tasks for one target locale (repeatable)
 - `--dry-run` - print plan without translating or writing files
 - `--force` - rerun all planned tasks and ignore lockfile skip state
 - `--prune` - preview/apply deletion of stale target keys missing from source
