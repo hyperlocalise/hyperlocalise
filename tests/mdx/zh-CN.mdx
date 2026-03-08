@@ -1,12 +1,12 @@
 ---
-title: "文档启动计划"
-description: "在不修改 JSX、表达式或导入的情况下处理 MDX 段落替换。"
+title: "发布文档指南"
+description: "在不影响 JSX、表达式或导入的情况下处理 MDX 段落替换。"
 ---
 
 import { Callout } from "nextra/components";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-# 文档发布指南
+# 文档发布流程
 
 <Callout type="warning">
   请在更新此页面时保持 `projectId="docs"` 不变。
@@ -17,12 +17,12 @@ import { Tabs, Tab } from "fumadocs-ui/components/tabs";
     Run `hyperlocalise status --verbose` before publishing the docs portal.
   </Tab>
   <Tab value="api">
-    API 用户应保留令牌名称 `HYPERLOCALISE_API_KEY`。
+    API users should keep the token name `HYPERLOCALISE_API_KEY`.
   </Tab>
 </Tabs>
 
 <Card title="Replacement rules" href="/docs/rules">
-  替换句子，而不是 `title` 属性或 `{locale.toUpperCase()}` 表达式。
+  Replace the sentence, not the `title` prop or `{locale.toUpperCase()}` expression.
 </Card>
 
 <Card
@@ -31,20 +31,20 @@ import { Tabs, Tab } from "fumadocs-ui/components/tabs";
   icon={<Badge text="beta" />}
 >
   <Callout type="info">
-    保持[参考链接][mdx-ref]不变，并保留字面文本，如 `MDPH_0_END`。
+    Keep [reference links][mdx-ref] stable and preserve literal text like `MDPH_0_END`.
   </Callout>
 
-  - 第一层嵌套项：`hyperlocalise sync pull`
+  - 第一层嵌套项目，值为`hyperlocalise sync pull`
   - 第二个嵌套项目，带有<Badge text="inline" />标记
 </Card>
 
-备用路由：{locale === "vi-VN" ? "/vi-VN" : "/"} 在运行时计算。
+备用路线：{locale === "vi-VN" ? "/vi-VN" : "/"} 在运行时计算。
 
-使用<Badge text="stable" />是在发布分支被冻结时构建的。
+使用<Badge text="stable" />时，在发布分支被冻结时进行构建。
 
-> 代码块可以包含<Badge text="quoted" />和`inlineCode()`。
+> 代码块可以包含 <Badge text="quoted" /> 和 `inlineCode()`。
 >
-> ![引用的图表](https://example.com/assets/quoted(flow).png)
+> ![Quoted diagram](https://example.com/assets/quoted(flow).png)
 
 <Steps>
   <Step title="Prepare">
@@ -54,12 +54,12 @@ import { Tabs, Tab } from "fumadocs-ui/components/tabs";
     title="Publish"
     icon={<Badge text="go" />}
   >
-    发送文档页面，并保持`docs/[locale]/index.mdx`不变。
+    Ship the docs page and keep `docs/[locale]/index.mdx` untouched.
   </Step>
 </Steps>
 
 > Repeat this warning: preserve `href="/docs/rules"` exactly.
-> Repeat this warning: preserve `href="/docs/rules"` exactly.
+> 重复以下警告：请严格按照 `href="/docs/rules"` 的原文进行。
 
 ```ts
 export const projectId = "docs";

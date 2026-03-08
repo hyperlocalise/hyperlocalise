@@ -1366,8 +1366,8 @@ func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 
 	out := string(written)
-	if !strings.Contains(out, "title: Welcome") {
-		t.Fatalf("expected frontmatter unchanged, got %q", out)
+	if !strings.Contains(out, "title: FR(Welcome)") {
+		t.Fatalf("expected frontmatter title translated, got %q", out)
 	}
 	if !strings.Contains(out, "```js") || !strings.Contains(out, "console.log('x')") {
 		t.Fatalf("expected code fence preserved, got %q", out)
