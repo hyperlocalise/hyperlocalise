@@ -117,6 +117,69 @@ func TestARBParserParseWithContextIncludesDescriptions(t *testing.T) {
 	}
 }
 
+func TestARBParserParseWithContextIgnoresInvalidDescriptions(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content []byte
+	}{
+		{
+			name: "metadata is not object",
+			content: []byte(`{
+  "hello": "Hello",
+  "@hello": "not-an-object"
+}`),
+		},
+		{
+			name: "description is non-string",
+			content: []byte(`{
+  "hello": "Hello",
+  "@hello": {
+    "description": 123
+  }
+}`),
+		},
+		{
+			name: "description is whitespace only",
+			content: []byte(`{
+  "hello": "Hello",
+  "@hello": {
+    "description": "   "
+  }
+}`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			messages, contextByKey, err := (ARBParser{}).ParseWithContext(tc.content)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if messages["hello"] != "Hello" {
+				t.Fatalf("unexpected hello translation: %q", messages["hello"])
+			}
+			if contextByKey != nil {
+				if _, ok := contextByKey["hello"]; ok {
+					t.Fatalf("did not expect context for hello, got %q", contextByKey["hello"])
+				}
+			}
+		})
+	}
+}
+
+func TestARBParserParseWithContextNullPayload(t *testing.T) {
+	messages, contextByKey, err := (ARBParser{}).ParseWithContext([]byte("null"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(messages) != 0 {
+		t.Fatalf("expected empty messages map, got %#v", messages)
+	}
+	if contextByKey != nil {
+		t.Fatalf("expected nil context map, got %#v", contextByKey)
+	}
+}
+
 func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
 	template := []byte(`{
   "@@locale": "fr",
@@ -244,5 +307,158 @@ func TestMarshalARBCarriesSourceMetadataForAppendedKeys(t *testing.T) {
 	}
 	if meta["description"] != "Shown on the welcome screen" {
 		t.Fatalf("expected @newKey.description metadata preserved, got %#v", meta["description"])
+	}
+}
+
+func TestMarshalARBNormalizesPreservedMetadataIndentation(t *testing.T) {
+	template := []byte("{\n    \"@@locale\": \"fr\",\n    \"hello\": \"Bonjour\",\n    \"@hello\": {\n        \"description\": \"Greeting\"\n    }\n}")
+
+	out, err := MarshalARB(template, template, map[string]string{
+		"hello": "Salut",
+	})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	if !strings.Contains(rendered, "\"@hello\": {\n    \"description\": \"Greeting\"\n  }") {
+		t.Fatalf("expected preserved metadata block to be reindented with two-space nesting, got %q", rendered)
+	}
+}
+
+func TestMarshalARBSkipsSourceMetadataWhenTargetAlreadyHasOrphanedMetadataKey(t *testing.T) {
+	targetTemplate := []byte(`{
+  "@@locale": "fr",
+  "@foo": {
+    "description": "old orphan"
+  },
+  "existing": "value"
+}`)
+
+	sourceTemplate := []byte(`{
+  "@@locale": "en",
+  "existing": "value",
+  "foo": "Foo",
+  "@foo": {
+    "description": "source meta"
+  }
+}`)
+
+	out, err := MarshalARB(targetTemplate, sourceTemplate, map[string]string{
+		"existing": "valeur",
+		"foo":      "translated",
+	})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	if strings.Count(rendered, "\"@foo\": {") != 1 {
+		t.Fatalf("expected exactly one @foo metadata block, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "\"description\": \"old orphan\"") {
+		t.Fatalf("expected orphaned target metadata to be retained, got %q", rendered)
+	}
+	if strings.Contains(rendered, "\"description\": \"source meta\"") {
+		t.Fatalf("expected source metadata to be skipped when @foo already exists, got %q", rendered)
+	}
+}
+
+func TestMarshalARBRemovesAllMessagesWhenValuesEmpty(t *testing.T) {
+	template := []byte(`{
+  "@@locale": "fr",
+  "hello": "Bonjour",
+  "@hello": {
+    "description": "Greeting"
+  },
+  "@custom": {
+    "owner": "mobile"
+  }
+}`)
+
+	out, err := MarshalARB(template, template, map[string]string{})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	if strings.Contains(rendered, `"hello":`) {
+		t.Fatalf("expected hello key to be removed, got %q", rendered)
+	}
+	if strings.Contains(rendered, `"@hello":`) {
+		t.Fatalf("expected @hello metadata to be removed with its message, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `"@@locale": "fr"`) {
+		t.Fatalf("expected locale metadata to be preserved, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `"@custom": {`) {
+		t.Fatalf("expected unrelated metadata to be preserved, got %q", rendered)
+	}
+}
+
+func TestMarshalARBAppendsAllValuesWhenTargetTemplateEmpty(t *testing.T) {
+	targetTemplate := []byte(`{}`)
+	sourceTemplate := []byte(`{
+  "newKey": "New message",
+  "@newKey": {
+    "description": "Shown on the welcome screen"
+  }
+}`)
+
+	out, err := MarshalARB(targetTemplate, sourceTemplate, map[string]string{
+		"newKey": "Nouveau message",
+	})
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	rendered := string(out)
+	newKeyIdx := strings.Index(rendered, `"newKey": "Nouveau message"`)
+	metaIdx := strings.Index(rendered, `"@newKey": {`)
+	if newKeyIdx == -1 || metaIdx == -1 {
+		t.Fatalf("expected appended message and metadata, got %q", rendered)
+	}
+	if metaIdx < newKeyIdx {
+		t.Fatalf("expected metadata to be written after appended key, got %q", rendered)
+	}
+}
+
+func TestMarshalARBRejectsInvalidTemplates(t *testing.T) {
+	validTemplate := []byte(`{"hello":"Hello"}`)
+
+	testCases := []struct {
+		name           string
+		template       []byte
+		sourceTemplate []byte
+	}{
+		{
+			name:           "template must be object",
+			template:       []byte(`[]`),
+			sourceTemplate: validTemplate,
+		},
+		{
+			name:           "template rejects trailing tokens",
+			template:       []byte(`{"hello":"Hello"} {}`),
+			sourceTemplate: validTemplate,
+		},
+		{
+			name:           "source template rejects trailing tokens",
+			template:       validTemplate,
+			sourceTemplate: []byte(`{"hello":"Hello"} {}`),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := MarshalARB(tc.template, tc.sourceTemplate, map[string]string{
+				"hello": "Bonjour",
+			})
+			if err == nil {
+				t.Fatalf("expected marshal error")
+			}
+			if !strings.Contains(err.Error(), "arb decode:") {
+				t.Fatalf("expected arb decode error, got %v", err)
+			}
+		})
 	}
 }

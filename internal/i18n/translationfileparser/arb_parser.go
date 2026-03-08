@@ -92,7 +92,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		return nil, fmt.Errorf("arb decode: %w", err)
 	}
 
-	written := make(map[string]struct{}, len(values))
+	writtenFields := make(map[string]struct{}, len(values))
 	var out bytes.Buffer
 	out.WriteString("{\n")
 
@@ -107,10 +107,14 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if err != nil {
 			return err
 		}
+		normalizedValue, err := normalizeJSONValueIndent(value)
+		if err != nil {
+			return err
+		}
 		out.WriteString("  ")
 		out.Write(encodedKey)
 		out.WriteString(": ")
-		out.Write(value)
+		out.Write(normalizedValue)
 		return nil
 	}
 
@@ -124,6 +128,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 			if err := writeField(field.Key, field.RawValue); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
+			writtenFields[field.Key] = struct{}{}
 			continue
 		}
 
@@ -138,11 +143,11 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if err := writeField(field.Key, encodedValue); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
-		written[field.Key] = struct{}{}
+		writtenFields[field.Key] = struct{}{}
 	}
 
 	for _, key := range sortedMapKeys(values) {
-		if _, ok := written[key]; ok {
+		if _, ok := writtenFields[key]; ok {
 			continue
 		}
 		encodedValue, err := json.Marshal(values[key])
@@ -152,10 +157,17 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if err := writeField(key, encodedValue); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
+		writtenFields[key] = struct{}{}
+
+		metaKey := "@" + key
+		if _, alreadyWritten := writtenFields[metaKey]; alreadyWritten {
+			continue
+		}
 		if rawMeta, ok := sourceMessageMetadata[key]; ok {
-			if err := writeField("@"+key, rawMeta); err != nil {
+			if err := writeField(metaKey, rawMeta); err != nil {
 				return nil, fmt.Errorf("arb encode: %w", err)
 			}
+			writtenFields[metaKey] = struct{}{}
 		}
 	}
 
@@ -180,7 +192,7 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 		return nil, fmt.Errorf("expected object")
 	}
 
-	fields := make([]arbObjectField, 0)
+	var fields []arbObjectField
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -253,6 +265,14 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 		metadataByKey[messageKey] = field.RawValue
 	}
 	return metadataByKey, nil
+}
+
+func normalizeJSONValueIndent(value []byte) ([]byte, error) {
+	var out bytes.Buffer
+	if err := json.Indent(&out, value, "  ", "  "); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
 }
 
 func isARBMetadataKey(key string) bool {

@@ -35,6 +35,14 @@
         },
       ],
     },
+    "tests_arb": {
+      "files": [
+        {
+          "from": "tests/arb/en-US.arb",
+          "to": "tests/arb/[locale].arb",
+        },
+      ],
+    },
     "tests_formatjs": {
       "files": [
         {
@@ -130,6 +138,7 @@
     "tests": {
       "targets": ["zh-CN", "vi-VN"],
       "buckets": [
+        "tests_arb",
         "tests_json",
         "tests_formatjs",
         "tests_xlf",
