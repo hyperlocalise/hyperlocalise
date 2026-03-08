@@ -7,13 +7,37 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
+
+	jsoncparser "github.com/tidwall/jsonc"
 )
+
+func unmarshalJSONForPath(path string, content []byte, out any) error {
+	firstErr := json.Unmarshal(content, out)
+	if firstErr == nil {
+		return nil
+	}
+	if strings.EqualFold(filepath.Ext(path), ".jsonc") {
+		resetUnmarshalTarget(out)
+		return json.Unmarshal(jsoncparser.ToJSON(content), out)
+	}
+	return firstErr
+}
+
+func resetUnmarshalTarget(out any) {
+	v := reflect.ValueOf(out)
+	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	v.Elem().Set(reflect.Zero(v.Elem().Type()))
+}
 
 func marshalJSONTarget(path string, template []byte, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
 	var payload map[string]any
-	if err := json.Unmarshal(template, &payload); err != nil {
+	if err := unmarshalJSONForPath(path, template, &payload); err != nil {
 		return nil, fmt.Errorf("flush outputs: decode template %q: %w", path, err)
 	}
 	if payload == nil {
@@ -42,6 +66,8 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 		applyNestedJSONTranslations(payload, allowedValues)
 	}
 
+	// Note: JSONC comments/trailing commas are not preserved on write-back.
+	// We always emit canonical JSON syntax (while allowing .jsonc extension).
 	content, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
@@ -160,9 +186,9 @@ func pruneNestedJSONStringFields(payload map[string]any, prefix string, allowed 
 	}
 }
 
-func parseJSONEntriesLenient(content []byte) (map[string]string, error) {
+func parseJSONEntriesLenient(path string, content []byte) (map[string]string, error) {
 	var payload map[string]any
-	if err := json.Unmarshal(content, &payload); err != nil {
+	if err := unmarshalJSONForPath(path, content, &payload); err != nil {
 		return nil, err
 	}
 	if payload == nil {

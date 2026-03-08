@@ -21,6 +21,28 @@ func TestStrategyParsesJSON(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesJSONC(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.jsonc", []byte(`{
+  // greeting
+  "hello": "bonjour",
+  "home": {
+    "title": "Accueil", // keep
+  },
+}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["home.title"] != "Accueil" {
+		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
+	}
+}
+
 func TestStrategyParsesARB(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -225,6 +247,31 @@ func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	}
 	if contextByKey["checkout.submit"] != "Checkout CTA" {
 		t.Fatalf("unexpected context: %q", contextByKey["checkout.submit"])
+	}
+}
+
+func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	messages, contextByKey, err := s.ParseWithContext("fr.jsonc", []byte(`{
+  // Greeting used on landing page.
+  "hello": "Bonjour",
+  "home": {
+    // Main heading in app shell.
+    "title": "Accueil"
+  }
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["hello"] != "Bonjour" {
+		t.Fatalf("unexpected hello message: %q", messages["hello"])
+	}
+	if contextByKey["hello"] != "Greeting used on landing page." {
+		t.Fatalf("unexpected hello context: %q", contextByKey["hello"])
+	}
+	if contextByKey["home.title"] != "Main heading in app shell." {
+		t.Fatalf("unexpected home.title context: %q", contextByKey["home.title"])
 	}
 }
 

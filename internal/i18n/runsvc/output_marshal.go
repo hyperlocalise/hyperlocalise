@@ -17,7 +17,7 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	switch ext {
 	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
-	case ".json":
+	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
 		return content, nil, err
 	default:

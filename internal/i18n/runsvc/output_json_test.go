@@ -69,7 +69,7 @@ func TestMarshalJSONTargetNestedPruneAndUpdate(t *testing.T) {
 }
 
 func TestParseJSONEntriesLenient(t *testing.T) {
-	got, err := parseJSONEntriesLenient([]byte(`{"hello":{"defaultMessage":"Bonjour"},"bye":{"defaultMessage":"Salut"}}`))
+	got, err := parseJSONEntriesLenient("/tmp/messages.json", []byte(`{"hello":{"defaultMessage":"Bonjour"},"bye":{"defaultMessage":"Salut"}}`))
 	if err != nil {
 		t.Fatalf("parse lenient formatjs: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestParseJSONEntriesLenient(t *testing.T) {
 		t.Fatalf("formatjs entries mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 
-	got, err = parseJSONEntriesLenient([]byte(`{"app":{"title":"Hello","desc":"World"},"count":1}`))
+	got, err = parseJSONEntriesLenient("/tmp/messages.json", []byte(`{"app":{"title":"Hello","desc":"World"},"count":1}`))
 	if err != nil {
 		t.Fatalf("parse lenient nested: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestParseJSONEntriesLenient(t *testing.T) {
 }
 
 func TestParseJSONEntriesLenientIgnoresNonStringLeaves(t *testing.T) {
-	got, err := parseJSONEntriesLenient([]byte(`{"a":{"s":"x","n":1,"b":true,"arr":["x"],"nil":null}}`))
+	got, err := parseJSONEntriesLenient("/tmp/messages.json", []byte(`{"a":{"s":"x","n":1,"b":true,"arr":["x"],"nil":null}}`))
 	if err != nil {
 		t.Fatalf("parse lenient non-string leaves: %v", err)
 	}
@@ -150,5 +150,60 @@ func TestMarshalJSONTargetWithFallbackJoinError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "fallback template") {
 		t.Fatalf("expected fallback template context, got %v", err)
+	}
+}
+
+func TestMarshalJSONTargetParsesJSONC(t *testing.T) {
+	template := []byte(`{
+  // Section comment
+  "home": {
+    "title": "Old",
+  },
+}`)
+	values := map[string]string{"home.title": "New"}
+	content, err := marshalJSONTarget("/tmp/messages.jsonc", template, values, map[string]struct{}{"home.title": {}})
+	if err != nil {
+		t.Fatalf("marshal jsonc: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	home := payload["home"].(map[string]any)
+	if got := home["title"]; got != "New" {
+		t.Fatalf("title mismatch: %v", got)
+	}
+}
+
+func TestParseJSONEntriesLenientJSONC(t *testing.T) {
+	got, err := parseJSONEntriesLenient("/tmp/messages.jsonc", []byte(`{
+  // comments allowed
+  "app": {
+    "title": "Hello",
+  },
+}`))
+	if err != nil {
+		t.Fatalf("parse lenient jsonc: %v", err)
+	}
+	if got["app.title"] != "Hello" {
+		t.Fatalf("nested entries mismatch: %#v", got)
+	}
+}
+
+func TestUnmarshalJSONForPathResetsTargetBeforeJSONCRetry(t *testing.T) {
+	payload := map[string]any{"stale": "value"}
+	err := unmarshalJSONForPath("/tmp/messages.jsonc", []byte(`{
+  "first": "one",
+  // comment
+  "second": "two"
+}`), &payload)
+	if err != nil {
+		t.Fatalf("unmarshal jsonc: %v", err)
+	}
+
+	want := map[string]any{"first": "one", "second": "two"}
+	if !reflect.DeepEqual(payload, want) {
+		t.Fatalf("payload mismatch\nwant: %#v\n got: %#v", want, payload)
 	}
 }

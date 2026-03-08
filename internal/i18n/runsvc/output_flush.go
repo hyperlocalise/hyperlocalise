@@ -82,10 +82,10 @@ func (s *Service) loadExistingTargetWithWarnings(path, targetLocale string) (map
 	}
 	entries, err := parseExistingTargetEntries(path, content, targetLocale, s.newParser())
 	if err != nil {
-		if strings.EqualFold(filepath.Ext(path), ".json") {
+		if ext := strings.ToLower(filepath.Ext(path)); ext == ".json" || ext == ".jsonc" {
 			// JSON targets may include non-translatable metadata fields (numbers, bools, arrays).
 			// Recover string entries instead of failing the whole run.
-			recovered, recoverErr := parseJSONEntriesLenient(content)
+			recovered, recoverErr := parseJSONEntriesLenient(path, content)
 			if recoverErr == nil {
 				return recovered, nil, nil
 			}
