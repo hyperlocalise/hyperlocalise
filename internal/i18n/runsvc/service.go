@@ -130,6 +130,11 @@ type Task struct {
 	PromptVersion   string `json:"-"`
 	GlossaryVersion string `json:"-"`
 	RAGSnapshot     string `json:"-"`
+
+	sourceTextHash            string
+	sourceContextFingerprint  string
+	contextMemoryFingerprint  string
+	stableExactCacheKeyPrefix string
 }
 
 type Failure struct {
@@ -222,6 +227,7 @@ func Run(ctx context.Context, in Input) (Report, error) {
 
 func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales []string) ([]Task, error) {
 	parser := s.newParser()
+	sourceCache := map[string]plannedSourceSnapshot{}
 	groups := sortedGroupNames(cfg.Groups)
 	buckets := sortedBucketNames(cfg.Buckets)
 	filteredBucket := strings.TrimSpace(onlyBucket)
@@ -306,7 +312,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
 					}
-					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntries(parser, sourcePath)
+					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {
 						return nil, err
 					}
@@ -326,7 +332,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							if strings.TrimSpace(systemPrompt) == "" {
 								systemPrompt = legacyPrompt
 							}
-							tasks = append(tasks, Task{
+							task := Task{
 								SourceLocale:    cfg.Locales.Source,
 								TargetLocale:    target,
 								SourcePath:      sourcePath,
@@ -348,7 +354,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								PromptVersion:   promptVersion,
 								GlossaryVersion: resolveGlossaryVersion(cfg),
 								RAGSnapshot:     resolveRetrievalSnapshot(cfg),
-							})
+							}
+							precomputeStableTaskCacheFields(&task)
+							tasks = append(tasks, task)
 						}
 					}
 				}
@@ -357,6 +365,12 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	}
 
 	return tasks, nil
+}
+
+type plannedSourceSnapshot struct {
+	entries      map[string]string
+	entryContext map[string]string
+	parserMode   string
 }
 
 func normalizeTargetLocales(locales []string) ([]string, error) {
@@ -447,6 +461,23 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 	}
 
 	return entries, entryContext, parserModeForSource(sourcePath, content), nil
+}
+
+func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (map[string]string, map[string]string, string, error) {
+	if cached, ok := sourceCache[sourcePath]; ok {
+		return cached.entries, cached.entryContext, cached.parserMode, nil
+	}
+
+	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	sourceCache[sourcePath] = plannedSourceSnapshot{
+		entries:      entries,
+		entryContext: entryContext,
+		parserMode:   parserMode,
+	}
+	return entries, entryContext, parserMode, nil
 }
 
 type eventEmitter struct {

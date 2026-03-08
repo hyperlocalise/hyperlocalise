@@ -483,6 +483,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	if state.contextPlan.Enabled {
 		task.ContextMemory = s.resolveTaskContextMemory(ctx, task, state, emitter)
 	}
+	precomputeExecutionTaskCacheFields(&task)
 	cacheKey := exactCacheKey(task)
 	if l1 != nil {
 		cachedValue, hit, err := l1.Get(ctx, cacheKey)

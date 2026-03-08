@@ -90,6 +90,59 @@ Behavior:
 - Executes remaining tasks in parallel (worker count = CPU core count) with transient-error retries
 - Persists each successful task completion and checkpoint to lock state
 
+Execution flow:
+
+```text
+               +----------------------+
+               |  load i18n.jsonc     |
+               +----------+-----------+
+                          |
+                          v
+               +----------------------+
+               | plan source->target  |
+               | entry tasks          |
+               +----------+-----------+
+                          |
+                          v
+               +----------------------+
+               | apply lock filter    |
+               | skip / rehydrate cp  |
+               +----------+-----------+
+                          |
+             +------------+------------+
+             |                         |
+             v                         v
+   +--------------------+    +--------------------+
+   | prune scan (opt.)  |    | context memory     |
+   | stale target keys  |    | precompute (opt.)  |
+   +----------+---------+    +----------+---------+
+              \                       /
+               \                     /
+                v                   v
+                 +------------------+
+                 | worker pool      |
+                 | translate/retry  |
+                 +--------+---------+
+                          |
+                          v
+                 +------------------+
+                 | lock writer      |
+                 | checkpoint/save  |
+                 +--------+---------+
+                          |
+                          v
+                 +------------------+
+                 | flush target     |
+                 | files + prune    |
+                 +--------+---------+
+                          |
+                          v
+                 +------------------+
+                 | clear checkpoints |
+                 | emit report       |
+                 +------------------+
+```
+
 JSON format support in `run`:
 - Standard nested JSON key/value objects are supported.
 - FormatJS message JSON is also supported when the root strictly matches:

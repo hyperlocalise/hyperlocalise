@@ -29,3 +29,6 @@ jobs:
 
       - name: make precommit
         run: make precommit
+
+      - name: make bench-runsvc
+        run: make bench-runsvc

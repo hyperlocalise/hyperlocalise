@@ -34,6 +34,11 @@ test: clean ## run tests with JSON output and coverage
 	go tool cover -func=coverage.out | sort -rnk3
 
 
+.PHONY: bench-runsvc
+bench-runsvc: ## run focused runsvc benchmarks
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./internal/i18n/runsvc
+
+
 .PHONY: clean
 clean: ## clean up environment
 	@rm -rf coverage.out test-report.jsonl dist/ $(projectname)
