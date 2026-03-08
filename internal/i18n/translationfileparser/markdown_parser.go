@@ -16,6 +16,7 @@ type markdownPart struct {
 	literal      string
 	key          string
 	source       string
+	path         string
 	placeholders map[string]string
 }
 
@@ -32,6 +33,7 @@ type markdownParseState struct {
 
 type markdownKeyContext struct {
 	text        string
+	path        string
 	prevLiteral string
 	nextLiteral string
 	partIndex   int
@@ -55,7 +57,7 @@ func (d markdownDocument) keyContexts() []markdownKeyContext {
 		if i+1 < len(d.parts) && d.parts[i+1].key == "" {
 			next = d.parts[i+1].literal
 		}
-		out = append(out, markdownKeyContext{text: renderMarkdownPart(part, part.source), prevLiteral: prev, nextLiteral: next, partIndex: i})
+		out = append(out, markdownKeyContext{text: renderMarkdownPart(part, part.source), path: part.path, prevLiteral: prev, nextLiteral: next, partIndex: i})
 	}
 	return out
 }
@@ -70,14 +72,22 @@ func parseMarkdownDocument(content []byte) (markdownDocument, map[string]string)
 	doc := markdownDocument{parts: make([]markdownPart, 0, len(lines))}
 	entries := map[string]string{}
 	hashOccurrences := map[string]int{}
+	pathOccurrences := map[string]int{}
 
 	inFrontmatter := len(lines) > 0 && strings.TrimSpace(lines[0]) == "---"
 
 	inFence := false
 	fenceMarker := ""
 	state := markdownParseState{}
+	prevBlank := true
+	inIndentedCodeBlock := false
 
 	appendKey := func(part markdownPart) {
+		if part.path != "" {
+			ord := pathOccurrences[part.path]
+			pathOccurrences[part.path] = ord + 1
+			part.path = fmt.Sprintf("%s#%d", part.path, ord)
+		}
 		key := markdownSegmentKey(part.source, hashOccurrences)
 		part.key = key
 		doc.parts = append(doc.parts, part)
@@ -93,40 +103,56 @@ func parseMarkdownDocument(content []byte) (markdownDocument, map[string]string)
 				inFrontmatter = false
 				continue
 			}
-			emitFrontmatterLineParts(line, &doc, func(segment string) {
-				appendKey(markdownPart{source: segment})
-			})
+			emitFrontmatterLineParts(line, &doc, appendKey)
 			continue
 		}
 
 		if inFence {
 			doc.parts = append(doc.parts, markdownPart{literal: line})
-			if strings.HasPrefix(trimmed, fenceMarker) {
+			if hasFenceMarker(line, fenceMarker) {
 				inFence = false
 				fenceMarker = ""
 			}
 			continue
 		}
 
-		if strings.HasPrefix(trimmed, "```") {
+		if marker, ok := parseFenceMarker(line); ok {
 			inFence = true
-			fenceMarker = "```"
+			fenceMarker = marker
 			doc.parts = append(doc.parts, markdownPart{literal: line})
+			prevBlank = strings.TrimSpace(line) == ""
 			continue
 		}
-		if strings.HasPrefix(trimmed, "~~~") {
-			inFence = true
-			fenceMarker = "~~~"
+
+		if inIndentedCodeBlock {
+			if strings.TrimSpace(line) == "" || isIndentedCodeLine(line) {
+				doc.parts = append(doc.parts, markdownPart{literal: line})
+				prevBlank = strings.TrimSpace(line) == ""
+				continue
+			}
+			inIndentedCodeBlock = false
+		}
+
+		if prevBlank && isIndentedCodeLine(line) {
+			inIndentedCodeBlock = true
 			doc.parts = append(doc.parts, markdownPart{literal: line})
+			prevBlank = strings.TrimSpace(line) == ""
+			continue
+		}
+		if isRawHTMLBlockLine(trimmed) {
+			doc.parts = append(doc.parts, markdownPart{literal: line})
+			prevBlank = strings.TrimSpace(line) == ""
 			continue
 		}
 
 		if isImportExportLine(trimmed) {
 			doc.parts = append(doc.parts, markdownPart{literal: line})
+			prevBlank = strings.TrimSpace(line) == ""
 			continue
 		}
 
 		emitMarkdownLineParts(line, &doc, appendKey, &state)
+		prevBlank = strings.TrimSpace(line) == ""
 	}
 
 	return doc, entries
@@ -159,6 +185,7 @@ func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(ma
 	if prefix != "" {
 		doc.parts = append(doc.parts, markdownPart{literal: prefix})
 	}
+	path := markdownStructuralPath(prefix, body)
 	if body == "" {
 		return
 	}
@@ -205,13 +232,84 @@ func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(ma
 		}
 		return
 	}
-	appendKey(markdownPart{source: placeholdered, placeholders: placeholders})
+	appendKey(markdownPart{source: placeholdered, path: path, placeholders: placeholders})
 	for _, literal := range trailingLiterals {
 		doc.parts = append(doc.parts, markdownPart{literal: literal})
 	}
 	if newline != "" {
 		doc.parts = append(doc.parts, markdownPart{literal: newline})
 	}
+}
+
+func parseFenceMarker(line string) (string, bool) {
+	trimmed := strings.TrimLeft(line, " \t>")
+	if strings.HasPrefix(trimmed, "```") {
+		return "```", true
+	}
+	if strings.HasPrefix(trimmed, "~~~") {
+		return "~~~", true
+	}
+	return "", false
+}
+
+func hasFenceMarker(line, marker string) bool {
+	trimmed := strings.TrimLeft(line, " \t>")
+	return strings.HasPrefix(trimmed, marker)
+}
+
+func isIndentedCodeLine(line string) bool {
+	t := strings.TrimRight(line, "\r\n")
+	if strings.TrimSpace(t) == "" {
+		return false
+	}
+	trimmed := strings.TrimLeft(t, " \t")
+	indent := len(t) - len(trimmed)
+	return indent >= 4
+}
+
+func isRawHTMLBlockLine(trimmed string) bool {
+	if !strings.HasPrefix(trimmed, "<") {
+		return false
+	}
+	if strings.HasPrefix(trimmed, "<!--") || strings.HasPrefix(trimmed, "<![CDATA[") {
+		return true
+	}
+	if len(trimmed) < 2 {
+		return false
+	}
+	idx := 1
+	if trimmed[idx] == '/' {
+		idx++
+	}
+	if idx >= len(trimmed) {
+		return false
+	}
+	ch := trimmed[idx]
+	return ch >= 'a' && ch <= 'z'
+}
+
+func markdownStructuralPath(prefix, body string) string {
+	bqDepth := strings.Count(prefix, ">")
+	kind := "paragraph"
+	trimmedPrefix := strings.TrimLeft(prefix, " \t")
+	for strings.HasPrefix(trimmedPrefix, ">") {
+		trimmedPrefix = strings.TrimLeft(strings.TrimPrefix(trimmedPrefix, ">"), " ")
+	}
+	switch {
+	case hasHeadingPrefix(trimmedPrefix + body):
+		hash := 0
+		for hash < len(trimmedPrefix) && trimmedPrefix[hash] == '#' {
+			hash++
+		}
+		kind = fmt.Sprintf("heading-%d", hash)
+	case hasBulletPrefix(trimmedPrefix):
+		kind = "list-ul"
+	case hasOrderedPrefix(trimmedPrefix):
+		kind = "list-ol"
+	case strings.HasPrefix(strings.TrimSpace(prefix+body), "|"):
+		kind = "table-row"
+	}
+	return fmt.Sprintf("bq:%d|kind:%s|inline:0", bqDepth, kind)
 }
 
 func findBraceExpressionEnd(line string, start int) int {
@@ -617,7 +715,7 @@ func stripTrailingJSXClosingLiterals(body string) (string, []string) {
 	}
 }
 
-func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func(string)) {
+func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func(markdownPart)) {
 	if strings.TrimSpace(line) == "" {
 		doc.parts = append(doc.parts, markdownPart{literal: line})
 		return
@@ -674,7 +772,7 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 	}
 
 	doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead] + string(quote)})
-	appendKey(quotedText)
+	appendKey(markdownPart{source: quotedText, path: fmt.Sprintf("frontmatter:%s|inline:0", key)})
 	doc.parts = append(doc.parts, markdownPart{literal: valueRest[end:] + newline})
 }
 
@@ -936,6 +1034,9 @@ func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 	var diags MarkdownRenderDiagnostics
 
 	takeFallback := func(sourceCtx markdownKeyContext) (string, bool) {
+		if fallback, ok := takeMarkdownFallbackByPath(targetContexts, targetPartUsed, &targetCtxCursor, &targetPartCursor, sourceCtx); ok {
+			return fallback, true
+		}
 		for i := targetCtxCursor; i < len(targetContexts); i++ {
 			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
@@ -1046,6 +1147,9 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 	aligned := make(map[string]string, len(sourceEntries))
 
 	takeFallback := func(sourceCtx markdownKeyContext) (string, bool) {
+		if fallback, ok := takeMarkdownFallbackByPath(targetContexts, targetPartUsed, &targetCtxCursor, &targetPartCursor, sourceCtx); ok {
+			return fallback, true
+		}
 		for i := targetCtxCursor; i < len(targetContexts); i++ {
 			if targetPartUsed[targetContexts[i].partIndex] {
 				continue
@@ -1206,4 +1310,36 @@ func takeMarkdownFallbackSpan(targetDoc markdownDocument, targetPartUsed []bool,
 		nextCursor = spanEnd
 	}
 	return b.String(), nextCursor, true
+}
+
+func takeMarkdownFallbackByPath(targetContexts []markdownKeyContext, targetPartUsed []bool, targetCtxCursor, targetPartCursor *int, sourceCtx markdownKeyContext) (string, bool) {
+	if sourceCtx.path == "" {
+		return "", false
+	}
+	for i := *targetCtxCursor; i < len(targetContexts); i++ {
+		ctx := targetContexts[i]
+		if targetPartUsed[ctx.partIndex] || ctx.path != sourceCtx.path {
+			continue
+		}
+		targetPartUsed[ctx.partIndex] = true
+		*targetCtxCursor = i + 1
+		if ctx.partIndex+1 > *targetPartCursor {
+			*targetPartCursor = ctx.partIndex + 1
+		}
+		return ctx.text, true
+	}
+	for i, ctx := range targetContexts {
+		if targetPartUsed[ctx.partIndex] || ctx.path != sourceCtx.path {
+			continue
+		}
+		targetPartUsed[ctx.partIndex] = true
+		if i >= *targetCtxCursor {
+			*targetCtxCursor = i + 1
+		}
+		if ctx.partIndex+1 > *targetPartCursor {
+			*targetPartCursor = ctx.partIndex + 1
+		}
+		return ctx.text, true
+	}
+	return "", false
 }

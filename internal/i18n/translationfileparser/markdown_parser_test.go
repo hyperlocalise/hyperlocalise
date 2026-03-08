@@ -1092,3 +1092,37 @@ func findKeyByValue(values map[string]string, needle string) string {
 	}
 	return ""
 }
+
+func TestMarkdownParserParseSkipsQuotedAndListNestedFencedCode(t *testing.T) {
+	template := []byte("> Intro line\n> ```ts\n> const msg = \"hello\"\n> ```\n\n- Item text\n  ```bash\n  echo \"skip\"\n  ```\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	combined := strings.Join(mapValues(entries), "\n")
+	if strings.Contains(combined, "const msg") || strings.Contains(combined, "echo \"skip\"") {
+		t.Fatalf("expected nested fenced code excluded, got %q", combined)
+	}
+	if !strings.Contains(combined, "Intro line") || !strings.Contains(combined, "Item text") {
+		t.Fatalf("expected surrounding prose extracted, got %q", combined)
+	}
+}
+
+func TestMarkdownParserParseSkipsIndentedCodeBlocksAfterBlankLine(t *testing.T) {
+	template := []byte("Paragraph before.\n\n    npm run build\n    npm run test\n\nParagraph after.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	combined := strings.Join(mapValues(entries), "\n")
+	if strings.Contains(combined, "npm run build") || strings.Contains(combined, "npm run test") {
+		t.Fatalf("expected indented code block excluded, got %q", combined)
+	}
+	if !strings.Contains(combined, "Paragraph before.") || !strings.Contains(combined, "Paragraph after.") {
+		t.Fatalf("expected prose paragraphs extracted, got %q", combined)
+	}
+}
