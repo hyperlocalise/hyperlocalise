@@ -197,15 +197,6 @@ func sortedSelectors(opts []SelectOption) []string {
 	return out
 }
 
-func sortedPluralSelectors(opts []PluralOption) []string {
-	out := make([]string, 0, len(opts))
-	for _, o := range opts {
-		out = append(out, o.Selector)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 	type optionSig struct {
 		selector string
