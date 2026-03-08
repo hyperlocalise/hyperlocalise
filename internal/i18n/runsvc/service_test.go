@@ -1864,6 +1864,9 @@ func TestRunWritesAppleStringsdictUsingSourceTemplateWhenTargetMissing(t *testin
 			return "%d article", nil
 		case "%d items":
 			return "%d articles", nil
+		case "%#@items@", "NSStringPluralRuleType", "d":
+			t.Fatalf("metadata string %q must not be translated", req.Source)
+			return "", nil
 		default:
 			return req.Source, nil
 		}
@@ -3302,7 +3305,7 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForARBWhenAllKeysPresen
 	}
 
 	if payload["@@locale"] != "fr" {
-		t.Fatalf("expected target template locale metadata preserved, got %#v", payload["@@locale"])
+		t.Fatalf("expected target locale metadata normalized, got %#v", payload["@@locale"])
 	}
 	meta, ok := payload["@hello"].(map[string]any)
 	if !ok {
@@ -3357,7 +3360,7 @@ func TestMarshalSourceTemplateTargetARBAppendsMissingKeysAndCarriesSourceMetadat
 	}
 
 	if payload["@@locale"] != "fr" {
-		t.Fatalf("expected target @@locale preserved, got %#v", payload["@@locale"])
+		t.Fatalf("expected target @@locale normalized, got %#v", payload["@@locale"])
 	}
 	meta, ok := payload["@hello"].(map[string]any)
 	if !ok {
@@ -3417,8 +3420,8 @@ func TestMarshalSourceTemplateTargetARBUsesSourceFallbackWhenTargetInvalid(t *te
 		t.Fatalf("decode output arb: %v", err)
 	}
 
-	if payload["@@locale"] != "en" {
-		t.Fatalf("expected source @@locale preserved on fallback, got %#v", payload["@@locale"])
+	if payload["@@locale"] != "fr" {
+		t.Fatalf("expected target @@locale normalized on fallback, got %#v", payload["@@locale"])
 	}
 	meta, ok := payload["@hello"].(map[string]any)
 	if !ok {

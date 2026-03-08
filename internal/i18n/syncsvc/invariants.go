@@ -2,7 +2,6 @@ package syncsvc
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/icuparser"
@@ -25,45 +24,28 @@ func validateEntryInvariant(candidate, baseline storage.Entry) []string {
 		return diags
 	}
 
-	if !slices.Equal(baseInv.Placeholders, candInv.Placeholders) {
+	if !icuparser.SamePlaceholderSet(baseInv.Placeholders, candInv.Placeholders) {
 		diags = append(diags, fmt.Sprintf(
 			"placeholder parity mismatch (expected %v, got %v)",
 			baseInv.Placeholders,
 			candInv.Placeholders,
 		))
 	}
-	if !equalICUParity(baseInv.ICUBlocks, candInv.ICUBlocks) {
+	if !icuparser.SameICUBlocks(baseInv.ICUBlocks, candInv.ICUBlocks) {
 		diags = append(diags, fmt.Sprintf(
 			"ICU parity mismatch (expected %s, got %s)",
-			formatICUBlocks(baseInv.ICUBlocks),
-			formatICUBlocks(candInv.ICUBlocks),
+			icuparser.FormatICUBlocks(baseInv.ICUBlocks),
+			icuparser.FormatICUBlocks(candInv.ICUBlocks),
+		))
+	}
+	if icuparser.HasDuplicatePounds(candInv.ICUBlocks) {
+		diags = append(diags, fmt.Sprintf(
+			"duplicate # tokens in ICU plural/selectordinal branch (got %s)",
+			icuparser.FormatICUBlocks(candInv.ICUBlocks),
 		))
 	}
 
 	return diags
-}
-
-func equalICUParity(a, b []icuparser.BlockSignature) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slices.Equal(a[i].Options, b[i].Options) {
-			return false
-		}
-	}
-	return true
-}
-
-func formatICUBlocks(blocks []icuparser.BlockSignature) string {
-	if len(blocks) == 0 {
-		return "[]"
-	}
-	parts := make([]string, 0, len(blocks))
-	for _, b := range blocks {
-		parts = append(parts, fmt.Sprintf("%s:%s%v", b.Arg, b.Type, b.Options))
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func formatInvariantWarning(prefix string, id storage.EntryID, diags []string) string {

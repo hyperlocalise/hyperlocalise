@@ -1,6 +1,8 @@
 package icuparser
 
 import (
+	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -14,6 +16,7 @@ type BlockSignature struct {
 	Arg     string
 	Type    string
 	Options []string
+	Pounds  []int
 }
 
 func ParseInvariant(s string) (Invariant, error) {
@@ -27,7 +30,7 @@ func ParseInvariant(s string) (Invariant, error) {
 	}
 
 	inv := Invariant{}
-	collectInvariantFromElements(elems, &inv)
+	collectInvariantFromElements(elems, &inv, "")
 
 	sort.Strings(inv.Placeholders)
 	sort.Slice(inv.ICUBlocks, func(i, j int) bool {
@@ -37,9 +40,53 @@ func ParseInvariant(s string) (Invariant, error) {
 		if inv.ICUBlocks[i].Type != inv.ICUBlocks[j].Type {
 			return inv.ICUBlocks[i].Type < inv.ICUBlocks[j].Type
 		}
-		return strings.Join(inv.ICUBlocks[i].Options, "\x00") < strings.Join(inv.ICUBlocks[j].Options, "\x00")
+		left := strings.Join(inv.ICUBlocks[i].Options, "\x00") + "|" + formatPoundCounts(inv.ICUBlocks[i].Pounds)
+		right := strings.Join(inv.ICUBlocks[j].Options, "\x00") + "|" + formatPoundCounts(inv.ICUBlocks[j].Pounds)
+		return left < right
 	})
 	return inv, nil
+}
+
+func SamePlaceholderSet(a, b []string) bool {
+	return slicesEqual(uniqueStrings(a), uniqueStrings(b))
+}
+
+func SameICUBlocks(a, b []BlockSignature) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slicesEqual(a[i].Options, b[i].Options) {
+			return false
+		}
+	}
+	return true
+}
+
+func HasDuplicatePounds(blocks []BlockSignature) bool {
+	for _, block := range blocks {
+		for _, count := range block.Pounds {
+			if count > 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func FormatICUBlocks(blocks []BlockSignature) string {
+	if len(blocks) == 0 {
+		return "[]"
+	}
+	parts := make([]string, 0, len(blocks))
+	for _, b := range blocks {
+		if hasNonZeroPounds(b.Pounds) {
+			parts = append(parts, fmt.Sprintf("%s:%s%v#%v", b.Arg, b.Type, b.Options, b.Pounds))
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s:%s%v", b.Arg, b.Type, b.Options))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func normalizeMustachePlaceholders(s string) string {
@@ -70,13 +117,13 @@ func normalizeMustachePlaceholders(s string) string {
 	return b.String()
 }
 
-func collectInvariantFromElements(elems []Element, inv *Invariant) {
+func collectInvariantFromElements(elems []Element, inv *Invariant, pluralArg string) {
 	for _, el := range elems {
-		collectInvariantFromElement(el, inv)
+		collectInvariantFromElement(el, inv, pluralArg)
 	}
 }
 
-func collectInvariantFromElement(el Element, inv *Invariant) {
+func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 	switch v := el.(type) {
 	case ArgumentElement:
 		appendPlaceholder(inv, v.Value)
@@ -87,12 +134,17 @@ func collectInvariantFromElement(el Element, inv *Invariant) {
 	case TimeElement:
 		appendPlaceholder(inv, v.Value)
 	case SelectElement:
-		appendSelectBlockInvariant(inv, v)
+		appendSelectBlockInvariant(inv, v, pluralArg)
 	case PluralElement:
 		appendPluralBlockInvariant(inv, v)
 	case TagElement:
-		collectInvariantFromElements(v.Children, inv)
-	case LiteralElement, PoundElement:
+		collectInvariantFromElements(v.Children, inv, pluralArg)
+	case PoundElement:
+		if pluralArg != "" {
+			appendPlaceholder(inv, pluralArg)
+		}
+		return
+	case LiteralElement:
 		return
 	default:
 		// Defensive no-op for future element types.
@@ -106,14 +158,14 @@ func appendPlaceholder(inv *Invariant, value string) {
 	}
 }
 
-func appendSelectBlockInvariant(inv *Invariant, v SelectElement) {
+func appendSelectBlockInvariant(inv *Invariant, v SelectElement, pluralArg string) {
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
 		Arg:     v.Value,
 		Type:    "select",
 		Options: sortedSelectors(v.Options),
 	})
 	for _, opt := range v.Options {
-		collectInvariantFromElements(opt.Value, inv)
+		collectInvariantFromElements(opt.Value, inv, pluralArg)
 	}
 }
 
@@ -122,14 +174,17 @@ func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
 	if v.Type() == TypeSelectOrdinal {
 		blockType = "selectordinal"
 	}
+	appendPlaceholder(inv, v.Value)
+	sortedOptions, poundCounts := sortedPluralOptionSignatures(v.Options)
 
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
 		Arg:     v.Value,
 		Type:    blockType,
-		Options: sortedPluralSelectors(v.Options),
+		Options: sortedOptions,
+		Pounds:  poundCounts,
 	})
 	for _, opt := range v.Options {
-		collectInvariantFromElements(opt.Value, inv)
+		collectInvariantFromElements(opt.Value, inv, v.Value)
 	}
 }
 
@@ -142,13 +197,98 @@ func sortedSelectors(opts []SelectOption) []string {
 	return out
 }
 
-func sortedPluralSelectors(opts []PluralOption) []string {
-	out := make([]string, 0, len(opts))
-	for _, o := range opts {
-		out = append(out, o.Selector)
+func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
+	type optionSig struct {
+		selector string
+		pounds   int
 	}
-	sort.Strings(out)
+	sigs := make([]optionSig, 0, len(opts))
+	for _, o := range opts {
+		sigs = append(sigs, optionSig{selector: o.Selector, pounds: countPounds(o.Value)})
+	}
+	sort.Slice(sigs, func(i, j int) bool {
+		return sigs[i].selector < sigs[j].selector
+	})
+	selectors := make([]string, 0, len(sigs))
+	pounds := make([]int, 0, len(sigs))
+	for _, sig := range sigs {
+		selectors = append(selectors, sig.selector)
+		pounds = append(pounds, sig.pounds)
+	}
+	if !hasNonZeroPounds(pounds) {
+		pounds = nil
+	}
+	return selectors, pounds
+}
+
+func countPounds(elems []Element) int {
+	total := 0
+	for _, el := range elems {
+		switch v := el.(type) {
+		case PoundElement:
+			total++
+		case TagElement:
+			total += countPounds(v.Children)
+		case SelectElement:
+			for _, opt := range v.Options {
+				total += countPounds(opt.Value)
+			}
+		case PluralElement:
+			for _, opt := range v.Options {
+				total += countPounds(opt.Value)
+			}
+		}
+	}
+	return total
+}
+
+func hasNonZeroPounds(values []int) bool {
+	for _, v := range values {
+		if v != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func formatPoundCounts(values []int) string {
+	if len(values) == 0 {
+		return ""
+	}
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = fmt.Sprintf("%d", v)
+	}
+	return strings.Join(parts, ",")
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	sorted := append([]string(nil), values...)
+	slices.Sort(sorted)
+	out := make([]string, 0, len(sorted))
+	var last string
+	for i, value := range sorted {
+		if i == 0 || value != last {
+			out = append(out, value)
+			last = value
+		}
+	}
 	return out
+}
+
+func slicesEqual[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func isPlaceholderName(s string) bool {

@@ -2,10 +2,11 @@
   "auth": {
     "signIn": {
       "subtitle": "Sử dụng địa chỉ email làm việc của bạn để tiếp tục.",
-      "title": "Đăng nhập vào không gian làm việc của bạn"
+      "title": "Đăng nhập vào không gian làm việc"
     }
   },
   "dashboard": {
+    "pendingReviews": "3 đánh giá đang chờ",
     "syncStatus": "Đã đồng bộ hóa lần cuối 2 phút trước"
   },
   "errors": {

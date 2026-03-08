@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/icuparser"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
 
@@ -28,6 +29,22 @@ var sleepWithContext = func(ctx context.Context, delay time.Duration) error {
 	case <-t.C:
 		return nil
 	}
+}
+
+type invariantViolationError struct {
+	msg   string
+	cause error
+}
+
+func (e *invariantViolationError) Error() string {
+	if e.cause == nil {
+		return e.msg
+	}
+	return e.msg + ": " + e.cause.Error()
+}
+
+func (e *invariantViolationError) Unwrap() error {
+	return e.cause
 }
 
 func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, error) {
@@ -65,12 +82,20 @@ func (s *Service) translateRequestWithRetry(ctx context.Context, request transla
 	var lastErr error
 	attempt := 0
 	for attempt = range translationRetryMaxAttempts {
+		var attemptErr error
 		translated, err := s.translate(ctx, request)
 		if err == nil {
-			return translated, nil
+			if err := validateTranslatedInvariant(request.Source, translated); err != nil {
+				attemptErr = err
+				lastErr = err
+			} else {
+				return translated, nil
+			}
+		} else {
+			attemptErr = err
+			lastErr = err
 		}
-		lastErr = err
-		if !isRetryableTranslateError(err) || attempt+1 >= translationRetryMaxAttempts {
+		if !isRetryableTranslateAttemptError(attemptErr) || attempt+1 >= translationRetryMaxAttempts {
 			break
 		}
 
@@ -84,6 +109,114 @@ func (s *Service) translateRequestWithRetry(ctx context.Context, request transla
 		return "", nil
 	}
 	return "", fmt.Errorf("translation failed after %d attempts: %w", attempt+1, lastErr)
+}
+
+func isRetryableTranslateAttemptError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var invErr *invariantViolationError
+	if errors.As(err, &invErr) {
+		return true
+	}
+	return isRetryableTranslateError(err)
+}
+
+func validateTranslatedInvariant(source, translated string) error {
+	source = strings.TrimSpace(source)
+	translated = strings.TrimSpace(translated)
+
+	srcInv, srcErr := icuparser.ParseInvariant(source)
+	if srcErr != nil {
+		return nil
+	}
+	if len(srcInv.Placeholders) == 0 && len(srcInv.ICUBlocks) == 0 {
+		return nil
+	}
+
+	translatedInv, translatedErr := icuparser.ParseInvariant(translated)
+	if translatedErr != nil {
+		return &invariantViolationError{
+			msg:   fmt.Sprintf("translation invariant violation: invalid ICU/braces structure | %s", formatInvariantDebugContext(source, translated)),
+			cause: translatedErr,
+		}
+	}
+	if !icuparser.SamePlaceholderSet(srcInv.Placeholders, translatedInv.Placeholders) {
+		return &invariantViolationError{msg: fmt.Sprintf(
+			"translation invariant violation: placeholder parity mismatch (expected %v, got %v) | %s",
+			srcInv.Placeholders,
+			translatedInv.Placeholders,
+			formatInvariantDebugContext(source, translated),
+		)}
+	}
+	if !icuparser.SameICUBlocks(srcInv.ICUBlocks, translatedInv.ICUBlocks) {
+		return &invariantViolationError{msg: fmt.Sprintf(
+			"translation invariant violation: ICU parity mismatch (expected %s, got %s) | %s",
+			icuparser.FormatICUBlocks(srcInv.ICUBlocks),
+			icuparser.FormatICUBlocks(translatedInv.ICUBlocks),
+			formatInvariantDebugContext(source, translated),
+		)}
+	}
+	if icuparser.HasDuplicatePounds(translatedInv.ICUBlocks) {
+		return &invariantViolationError{msg: fmt.Sprintf(
+			"translation invariant violation: duplicate # tokens in ICU plural/selectordinal branch (got %s) | %s",
+			icuparser.FormatICUBlocks(translatedInv.ICUBlocks),
+			formatInvariantDebugContext(source, translated),
+		)}
+	}
+	return nil
+}
+
+func formatInvariantDebugContext(source, translated string) string {
+	return fmt.Sprintf(
+		`source=%q candidate=%q diff=%s`,
+		elideInvariantDebugString(source, 160),
+		elideInvariantDebugString(translated, 160),
+		firstDiffWindow(source, translated, 24),
+	)
+}
+
+func elideInvariantDebugString(s string, maxRunes int) string {
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes <= 1 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-1]) + "…"
+}
+
+func firstDiffWindow(a, b string, radius int) string {
+	ar := []rune(a)
+	br := []rune(b)
+	limit := len(ar)
+	if len(br) < limit {
+		limit = len(br)
+	}
+	idx := 0
+	for idx < limit && ar[idx] == br[idx] {
+		idx++
+	}
+	if idx == len(ar) && idx == len(br) {
+		return "none"
+	}
+
+	aStart := max(0, idx-radius)
+	aEnd := min(len(ar), idx+radius)
+	bStart := max(0, idx-radius)
+	bEnd := min(len(br), idx+radius)
+
+	return fmt.Sprintf(
+		`at=%d source[%d:%d]=%q candidate[%d:%d]=%q`,
+		idx,
+		aStart,
+		aEnd,
+		string(ar[aStart:aEnd]),
+		bStart,
+		bEnd,
+		string(br[bStart:bEnd]),
+	)
 }
 
 func isRetryableTranslateError(err error) bool {

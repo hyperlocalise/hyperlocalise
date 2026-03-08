@@ -187,6 +187,116 @@ func TestTranslateWithRetryBuildsRequestWithEmptyEntryKeyAndContextMemory(t *tes
 	}
 }
 
+func TestTranslateWithRetryRejectsTranslatedICUKeyword(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "{plan, 选择, pro{专业计划} other{免费计划}}", nil
+	}
+
+	_, err := svc.translateWithRetry(context.Background(), Task{
+		EntryKey:     "settings.planBadge",
+		SourceText:   "{plan, select, pro{Pro plan} other{Free plan}}",
+		TargetLocale: "zh-CN",
+	})
+	if err == nil {
+		t.Fatalf("expected invariant validation error")
+	}
+	if !strings.Contains(err.Error(), "translation invariant violation") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), `source="{plan, select, pro{Pro plan} other{Free plan}}"`) {
+		t.Fatalf("expected source context in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), `candidate="{plan, 选择, pro{专业计划} other{免费计划}}"`) {
+		t.Fatalf("expected candidate context in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "diff=at=") {
+		t.Fatalf("expected diff context in error, got %v", err)
+	}
+}
+
+func TestTranslateWithRetryRejectsTranslatedPlaceholderName(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Chao mung {ten}", nil
+	}
+
+	_, err := svc.translateWithRetry(context.Background(), Task{
+		EntryKey:     "auth.welcomeBack",
+		SourceText:   "Welcome back {name}",
+		TargetLocale: "vi-VN",
+	})
+	if err == nil {
+		t.Fatalf("expected invariant validation error")
+	}
+	if !strings.Contains(err.Error(), "placeholder parity mismatch") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), `source="Welcome back {name}"`) {
+		t.Fatalf("expected source context in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), `candidate="Chao mung {ten}"`) {
+		t.Fatalf("expected candidate context in error, got %v", err)
+	}
+}
+
+func TestTranslateWithRetryAcceptsPluralPoundForPluralArg(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "{count, plural, =0{无邀请} one{# 邀请} other{# 邀请}}", nil
+	}
+
+	got, err := svc.translateWithRetry(context.Background(), Task{
+		EntryKey:     "inviteCount",
+		SourceText:   "{count, plural, =0{No invites} one{1 invite} other{{count} invites}}",
+		TargetLocale: "zh-CN",
+	})
+	if err != nil {
+		t.Fatalf("expected valid plural rewrite, got %v", err)
+	}
+	if got == "" {
+		t.Fatalf("expected translated text")
+	}
+}
+
+func TestTranslateWithRetryAcceptsPluralPoundWhenSourceOmitsExplicitCount(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "{count, plural, one {# 件} other {# 件}}", nil
+	}
+
+	got, err := svc.translateWithRetry(context.Background(), Task{
+		EntryKey:     "itemCount",
+		SourceText:   "{count, plural, one {a single item} other {many items}}",
+		TargetLocale: "zh-CN",
+	})
+	if err != nil {
+		t.Fatalf("expected valid plural rewrite, got %v", err)
+	}
+	if got == "" {
+		t.Fatalf("expected translated text")
+	}
+}
+
+func TestTranslateWithRetryRejectsDuplicatePluralPoundUsage(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "{count, plural, =0{待审核的评论数量为0} one{# 还有# 待审核的评论} other{# 还有# 待审核的评论}}", nil
+	}
+
+	_, err := svc.translateWithRetry(context.Background(), Task{
+		EntryKey:     "dashboard.pendingReviews",
+		SourceText:   "{count, plural, =0{No reviews pending} one{# review pending} other{# reviews pending}}",
+		TargetLocale: "zh-CN",
+	})
+	if err == nil {
+		t.Fatalf("expected invariant validation error")
+	}
+	if !strings.Contains(err.Error(), "duplicate # tokens in ICU plural/selectordinal branch") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestTranslateWithRetrySanitizesEntryKeyInSystemPromptContext(t *testing.T) {
 	svc := &Service{}
 	var got translator.Request
