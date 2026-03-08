@@ -1,5 +1,22 @@
 {
   "@@locale": "en-US",
+  "@@last_modified": "2026-03-08T09:30:00Z",
+  "app.title": "Hyperlocalise",
+  "@app.title": {
+    "description": "Application name shown in the browser title and native shell"
+  },
+  "nav.home": "Home",
+  "@nav.home": {
+    "description": "Primary navigation link to the homepage"
+  },
+  "nav.pricing": "Pricing",
+  "@nav.pricing": {
+    "description": "Primary navigation link to the pricing page"
+  },
+  "nav.docs": "Docs",
+  "@nav.docs": {
+    "description": "Primary navigation link to the documentation section"
+  },
   "common.hello": "Hello",
   "@common.hello": {
     "description": "Generic greeting"
@@ -7,6 +24,72 @@
   "common.goodbye": "Goodbye",
   "@common.goodbye": {
     "description": "Generic farewell"
+  },
+  "common.cancel": "Cancel",
+  "@common.cancel": {
+    "description": "Generic dismissive action label"
+  },
+  "common.save": "Save changes",
+  "@common.save": {
+    "description": "Primary save action label"
+  },
+  "auth.signIn.title": "Sign in to your workspace",
+  "@auth.signIn.title": {
+    "description": "Heading on the sign-in screen"
+  },
+  "auth.signIn.subtitle": "Use your work email to continue.",
+  "@auth.signIn.subtitle": {
+    "description": "Supporting copy below the sign-in heading"
+  },
+  "auth.welcomeBack": "Welcome back, {firstName}!",
+  "@auth.welcomeBack": {
+    "description": "Personalized greeting shown after successful authentication",
+    "placeholders": {
+      "firstName": {
+        "type": "String",
+        "example": "Mina"
+      }
+    }
+  },
+  "dashboard.syncStatus": "Last synced {relativeTime}",
+  "@dashboard.syncStatus": {
+    "description": "Status line on the dashboard showing the last successful sync time",
+    "placeholders": {
+      "relativeTime": {
+        "type": "String",
+        "example": "2 minutes ago"
+      }
+    }
+  },
+  "dashboard.pendingReviews": "{count, plural, =0{No reviews pending} one{# review pending} other{# reviews pending}}",
+  "@dashboard.pendingReviews": {
+    "description": "Dashboard card showing how many reviews still need approval",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "4"
+      }
+    }
+  },
+  "settings.planBadge": "{plan, select, free{Free plan} pro{Pro plan} enterprise{Enterprise plan} other{Custom plan}}",
+  "@settings.planBadge": {
+    "description": "Badge label showing the active subscription tier",
+    "placeholders": {
+      "plan": {
+        "type": "String",
+        "example": "pro"
+      }
+    }
+  },
+  "billing.trialNotice": "Your trial ends on {date}.",
+  "@billing.trialNotice": {
+    "description": "Notice displayed when the workspace is in a trial period",
+    "placeholders": {
+      "date": {
+        "type": "DateTime",
+        "example": "March 31, 2026"
+      }
+    }
   },
   "inviteCount": "{count, plural, =0{No invites} one{1 invite} other{{count} invites}}",
   "@inviteCount": {
@@ -16,5 +99,55 @@
         "type": "int"
       }
     }
+  },
+  "notifications.email.subject": "{name} mentioned you in {projectName}",
+  "@notifications.email.subject": {
+    "description": "Subject line for mention notification emails",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Alex"
+      },
+      "projectName": {
+        "type": "String",
+        "example": "Website relaunch"
+      }
+    }
+  },
+  "notifications.email.cta": "Review the update",
+  "@notifications.email.cta": {
+    "description": "CTA button label in notification emails"
+  },
+  "errors.networkRetry": "We couldn't save your changes. Check your connection and try again.",
+  "@errors.networkRetry": {
+    "description": "Inline error shown after a failed save request"
+  },
+  "errors.supportLink": "Need help? Visit {supportUrl}",
+  "@errors.supportLink": {
+    "description": "Support help text with a documentation URL",
+    "placeholders": {
+      "supportUrl": {
+        "type": "String",
+        "example": "https://hyperlocalise.dev/docs/support"
+      }
+    }
+  },
+  "onboarding.stepLabel": "Step {current} of {total}",
+  "@onboarding.stepLabel": {
+    "description": "Progress label shown during onboarding",
+    "placeholders": {
+      "current": {
+        "type": "int",
+        "example": "2"
+      },
+      "total": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "legal.termsNotice": "By continuing, you agree to the Terms of Service and Privacy Policy.",
+  "@legal.termsNotice": {
+    "description": "Consent notice displayed before account creation"
   }
 }

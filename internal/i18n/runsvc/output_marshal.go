@@ -61,8 +61,14 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 	targetTemplate, err := s.readFile(path)
 	if err == nil {
 		targetEntries, parseErr := s.newParser().Parse(path, targetTemplate)
-		if parseErr == nil && hasExactKeySet(targetEntries, values) {
-			template = targetTemplate
+		if parseErr == nil {
+			// For ARB files we always prefer the target template when it parses cleanly,
+			// so @@locale, @key attribute blocks, and template-defined ordering are
+			// preserved even when the key sets differ. MarshalARB handles new and
+			// removed message keys when rewriting the file.
+			if ext == ".arb" || hasExactKeySet(targetEntries, values) {
+				template = targetTemplate
+			}
 		}
 	}
 
@@ -92,7 +98,7 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return content, nil
 	case ".arb":
-		content, err := translationfileparser.MarshalARB(template, values)
+		content, err := translationfileparser.MarshalARB(template, sourceTemplate, values)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
