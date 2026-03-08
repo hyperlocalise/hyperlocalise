@@ -1092,7 +1092,7 @@ func TestMarshalMarkdownWithTargetFallbackRegressionMarkdownStructureAcrossAddTh
 	if first < 0 || inserted < 0 || third < 0 {
 		t.Fatalf("expected translated sections to remain present, got %q", v3Target)
 	}
-	if !(first < inserted && inserted < third) {
+	if first >= inserted || inserted >= third {
 		t.Fatalf("expected section order preserved after add/delete cycle, got %q", v3Target)
 	}
 }
@@ -1124,7 +1124,7 @@ func TestMarshalMarkdownWithTargetFallbackRegressionMDXStructureAcrossAddThenDel
 	if intro < 0 || inserted < 0 || outro < 0 {
 		t.Fatalf("expected translated mdx sections to remain present, got %q", v3Target)
 	}
-	if !(intro < inserted && inserted < outro) {
+	if intro >= inserted || inserted >= outro {
 		t.Fatalf("expected mdx section order preserved after add/delete cycle, got %q", v3Target)
 	}
 }
