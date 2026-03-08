@@ -24,6 +24,7 @@ func unmarshalJSONForPath(path string, content []byte, out any) error {
 	}
 	return firstErr
 }
+
 func marshalJSONTarget(path string, template []byte, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
 	var payload map[string]any
 	if err := unmarshalJSONForPath(path, template, &payload); err != nil {

@@ -113,7 +113,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		}
 
 		inlineComment := ""
-		if idx := strings.Index(line, "//"); idx >= 0 {
+		if idx := indexJSONCLineComment(line); idx >= 0 {
 			inlineComment = cleanJSONCCommentText(line[idx:])
 			line = strings.TrimSpace(line[:idx])
 		}
@@ -144,7 +144,11 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			pendingComments = nil
 		}
 		if inlineComment != "" {
-			contexts[fullKey] = inlineComment
+			if existing := strings.TrimSpace(contexts[fullKey]); existing != "" {
+				contexts[fullKey] = existing + "\n" + inlineComment
+			} else {
+				contexts[fullKey] = inlineComment
+			}
 		}
 
 		valuePart := strings.TrimSpace(matches[2])
@@ -175,4 +179,38 @@ func cleanJSONCCommentText(comment string) string {
 	comment = strings.TrimSuffix(comment, "*/")
 	comment = strings.TrimSpace(comment)
 	return comment
+}
+
+func indexJSONCLineComment(line string) int {
+	inString := false
+	escaped := false
+
+	for i := 0; i < len(line)-1; i++ {
+		ch := line[i]
+
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inString = false
+			}
+			continue
+		}
+
+		if ch == '"' {
+			inString = true
+			continue
+		}
+		if ch == '/' && line[i+1] == '/' {
+			return i
+		}
+	}
+
+	return -1
 }
