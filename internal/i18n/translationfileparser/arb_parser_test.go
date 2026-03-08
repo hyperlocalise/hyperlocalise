@@ -125,6 +125,9 @@ func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
     "description": "target-hello"
   },
   "bye": "Au revoir",
+  "@bye": {
+    "description": "farewell"
+  },
   "@custom": {
     "owner": "mobile"
   }
@@ -159,5 +162,11 @@ func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
 	}
 	if strings.Contains(rendered, `"bye":`) {
 		t.Fatalf("expected missing translatable key to be removed, got %q", rendered)
+	}
+	if strings.Contains(rendered, `"@bye":`) {
+		t.Fatalf("expected metadata for removed key to be pruned, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `"@custom": {`) {
+		t.Fatalf("expected unrelated metadata blocks retained, got %q", rendered)
 	}
 }
