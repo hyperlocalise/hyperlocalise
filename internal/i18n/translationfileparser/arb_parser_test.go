@@ -157,7 +157,7 @@ func TestMarshalARBStructureFirstAndDeterministicAppend(t *testing.T) {
 	if customIdx < metaIdx {
 		t.Fatalf("expected unrelated metadata block retained in original position, got %q", rendered)
 	}
-	if !(newAIdx < newBIdx && customIdx < newAIdx) {
+	if newAIdx >= newBIdx || customIdx >= newAIdx {
 		t.Fatalf("expected new keys appended in sorted order after template structure, got %q", rendered)
 	}
 	if strings.Contains(rendered, `"bye":`) {
@@ -195,7 +195,7 @@ func TestMarshalARBDoesNotTreatTemplateOrphanMetadataAsNewMessageMetadata(t *tes
 	if existingIdx == -1 || metaIdx == -1 || fooIdx == -1 {
 		t.Fatalf("expected existing key, orphan metadata, and appended foo in rendered output, got %q", rendered)
 	}
-	if !(metaIdx < existingIdx && existingIdx < fooIdx) {
+	if metaIdx >= existingIdx || existingIdx >= fooIdx {
 		t.Fatalf("expected orphan metadata to stay in template position and new foo appended later, got %q", rendered)
 	}
 }
