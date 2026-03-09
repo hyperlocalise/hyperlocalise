@@ -552,7 +552,7 @@ func (m runInteractiveModel) View() tea.View {
 	case runInteractiveStepBucket, runInteractiveStepFile:
 		body = m.renderTableStep()
 	case runInteractiveStepReview:
-		body = m.renderReviewStep()
+		body = m.renderReviewStep(selection)
 	default:
 		body = m.renderListStep()
 	}
@@ -713,6 +713,12 @@ func (m *runInteractiveModel) applyListSelection(value string) {
 		m.mode = runInteractiveMode(value)
 		m.steps = runInteractiveStepsForMode(m.mode)
 		m.stepPos = 1
+		m.selectedGroup = ""
+		m.selectedBucket = ""
+		m.selectedTarget = ""
+		m.selectedFile = ""
+		m.selectedFiles = map[string]struct{}{}
+		m.directoryScope = ""
 	case runInteractiveStepGroup:
 		m.selectedGroup = value
 		m.clearSelectionsAfter(runInteractiveStepGroup)
@@ -854,7 +860,7 @@ func (m *runInteractiveModel) mutateOption(value string, delta int) {
 		m.options.prune = !m.options.prune
 	case "workers":
 		if delta == 0 {
-			delta = 1
+			return
 		}
 		m.options.workers = max(1, m.options.workers+delta)
 	case "experimental":
@@ -888,7 +894,7 @@ func (m *runInteractiveModel) mutateExperimentalOption(value string, delta int) 
 		m.options.contextMemoryScope = scopes[current]
 	case "context-max":
 		if delta == 0 {
-			delta = 1
+			return
 		}
 		if m.options.contextMemoryMaxChars == 0 {
 			m.options.contextMemoryMaxChars = 1200
@@ -1260,10 +1266,10 @@ func (m runInteractiveModel) renderTableStep() string {
 	return strings.Join(parts, "\n")
 }
 
-func (m runInteractiveModel) renderReviewStep() string {
+func (m runInteractiveModel) renderReviewStep(selection runSelectionSummary) string {
 	return strings.Join([]string{
 		m.sectionStyle.Render("Review"),
-		m.accentStyle.Render(fmt.Sprintf("%d tasks  %d files  %d locales", m.selectionSummary().TaskCount, m.selectionSummary().FileCount, m.selectionSummary().TargetCount)),
+		m.accentStyle.Render(fmt.Sprintf("%d tasks  %d files  %d locales", selection.TaskCount, selection.FileCount, selection.TargetCount)),
 		m.metaStyle.Render("Run now, or edit options and experimental flags first."),
 		m.table.View(),
 		"",
