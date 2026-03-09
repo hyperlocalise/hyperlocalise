@@ -325,10 +325,16 @@ func (m runInteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			if m.list.SettingFilter() {
+				break
+			}
 			m.done = true
 			m.execute = false
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.ToggleHelp):
+			if m.list.SettingFilter() {
+				break
+			}
 			m.help.ShowAll = !m.help.ShowAll
 			m.list.Help.ShowAll = m.help.ShowAll
 			return m, nil

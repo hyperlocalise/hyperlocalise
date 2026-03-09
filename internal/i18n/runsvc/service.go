@@ -387,7 +387,10 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		}
 		slices.Sort(unmatched)
 		if len(unmatched) > 0 {
-			return nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
+			if len(unmatched) == 1 {
+				return nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
+			}
+			return nil, fmt.Errorf("planning tasks: unknown source files: %s", strings.Join(unmatched, ", "))
 		}
 	}
 
