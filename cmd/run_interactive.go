@@ -1466,7 +1466,7 @@ func commonPathPrefix(paths []string) string {
 	prefix := commonPathCandidate(paths[0])
 	for _, path := range paths[1:] {
 		current := commonPathCandidate(path)
-		for prefix != "" && prefix != string(filepath.Separator) && prefix != "." && !isWithinPath(current, prefix) {
+		for prefix != "" && prefix != string(filepath.Separator) && prefix != "." && !isUnderPrefix(current, prefix) {
 			next := filepath.Dir(prefix)
 			if next == prefix {
 				prefix = ""
@@ -1497,17 +1497,16 @@ func filePathsFromCatalog(files []runsvc.SelectionFile) []string {
 	return paths
 }
 
-func isWithinPath(path, dir string) bool {
+func isUnderPrefix(path, prefix string) bool {
 	cleanPath := filepath.Clean(path)
-	cleanDir := filepath.Clean(dir)
-	if cleanPath == cleanDir {
+	cleanPrefix := filepath.Clean(prefix)
+	if cleanPath == cleanPrefix {
 		return true
 	}
-	rel, err := filepath.Rel(cleanDir, cleanPath)
-	if err != nil {
-		return false
+	if !strings.HasSuffix(cleanPrefix, string(filepath.Separator)) {
+		cleanPrefix += string(filepath.Separator)
 	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return strings.HasPrefix(cleanPath, cleanPrefix)
 }
 
 func isTTYInput(f *os.File) bool {
