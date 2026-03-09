@@ -14913,6 +14913,9 @@
     "tests/jsonc/zh-CN.jsonc::errors.networkRetry": {
       "source_hash": "411f14b49e0fa5e4f930c072c12dc96ce9b18a15d0767022751b729da4466cbfaae3cca8e7655f297fce714727843be3c4024154989f303a91aaa9a38297fe77"
     },
+    "tests/md/vi-VN.md::md.055f2de3630416bb": {
+      "source_hash": "df63aa9350d4a3cef2bac0f5a27d125c487df257bcba610880cd190ba675ffe41f8a9b368b9a54823d35e6529ced7bad0d4ba1b8775e5b8d71096a8881368209"
+    },
     "tests/md/vi-VN.md::md.078404b9f4f7b6b6": {
       "source_hash": "db7848ebc50c2abea4088623f08230988871fb0d367c4447ea3bd7c7ddc3270a96b471b0d7567db513dd821d5226703f1e2e25f7a632f00db92b102d5d98bdb2"
     },
@@ -14988,6 +14991,12 @@
     "tests/md/vi-VN.md::md.ac31fcaef2945fbb": {
       "source_hash": "1d0f09cdb2d688f8d137d3b3e5870b66997d2ab98cdcf0907fb0fdec44ae3a6f0b3cd6193fcdbcc071c943cf5aba526aa0d09dbe5fcdc7c6fff24118fe89185b"
     },
+    "tests/md/vi-VN.md::md.ce58419de56c8318": {
+      "source_hash": "67e511be63d0f2da086367a2705d40584c8f941a9806928c64daeff273e9a3b447e817ad86515528b773c3bf2d53ba582e499ac70e4c30e85f76a24e94f7d75b"
+    },
+    "tests/md/vi-VN.md::md.d3621ccbfb11ee2e": {
+      "source_hash": "5b9475fa21597c4a19b56a43686469c9f6fc818a8d5a9e1a30bf68c3c5169a87f1529cd611a8749cfdcc4de9c629f9e770a39c854450353cded62998ede5fc94"
+    },
     "tests/md/vi-VN.md::md.d4382ebde46d1e6f": {
       "source_hash": "89267b846a8c3eaa0a2c2ae4e95a1a7b624feac4627ccc6ec205c081b57ccae88140808f212fa90ab334a59b593e48ba0264da18d4579e3878f6a2a28371bbb8"
     },
@@ -14999,6 +15008,9 @@
     },
     "tests/md/vi-VN.md::md.f88458f525a71dc4": {
       "source_hash": "3f3f4b4242c6bd519f4a1482359dc12fe7d831114295d45331c42dbb6381efac9e33417a1e353f03a096b31fce95b560fdc3c5fe14404d4b9ae299513bc71b79"
+    },
+    "tests/md/zh-CN.md::md.055f2de3630416bb": {
+      "source_hash": "df63aa9350d4a3cef2bac0f5a27d125c487df257bcba610880cd190ba675ffe41f8a9b368b9a54823d35e6529ced7bad0d4ba1b8775e5b8d71096a8881368209"
     },
     "tests/md/zh-CN.md::md.078404b9f4f7b6b6": {
       "source_hash": "db7848ebc50c2abea4088623f08230988871fb0d367c4447ea3bd7c7ddc3270a96b471b0d7567db513dd821d5226703f1e2e25f7a632f00db92b102d5d98bdb2"
@@ -15075,6 +15087,12 @@
     "tests/md/zh-CN.md::md.ac31fcaef2945fbb": {
       "source_hash": "1d0f09cdb2d688f8d137d3b3e5870b66997d2ab98cdcf0907fb0fdec44ae3a6f0b3cd6193fcdbcc071c943cf5aba526aa0d09dbe5fcdc7c6fff24118fe89185b"
     },
+    "tests/md/zh-CN.md::md.ce58419de56c8318": {
+      "source_hash": "67e511be63d0f2da086367a2705d40584c8f941a9806928c64daeff273e9a3b447e817ad86515528b773c3bf2d53ba582e499ac70e4c30e85f76a24e94f7d75b"
+    },
+    "tests/md/zh-CN.md::md.d3621ccbfb11ee2e": {
+      "source_hash": "5b9475fa21597c4a19b56a43686469c9f6fc818a8d5a9e1a30bf68c3c5169a87f1529cd611a8749cfdcc4de9c629f9e770a39c854450353cded62998ede5fc94"
+    },
     "tests/md/zh-CN.md::md.d4382ebde46d1e6f": {
       "source_hash": "89267b846a8c3eaa0a2c2ae4e95a1a7b624feac4627ccc6ec205c081b57ccae88140808f212fa90ab334a59b593e48ba0264da18d4579e3878f6a2a28371bbb8"
     },
@@ -15116,6 +15134,9 @@
     },
     "tests/mdx/vi-VN.mdx::md.8d91218fd83cc00e": {
       "source_hash": "fb1b27ce2faa4fddc00161b8b92cd9cebbe0975e39622ace26ea6932c2e31424e8f6f1cbe6c3ec5f1b3513b98971751e0d30535bdb57225a6d36d2a1c8dae747"
+    },
+    "tests/mdx/vi-VN.mdx::md.9de88caacce6a1f4": {
+      "source_hash": "fec99aee457e07e0b044a7d37a70206066e78bdee0750ebfe5aa80852f340bd5a3a4f76369b03b1a9199e7c899cde99b2fd98ec920617d5a0c3e24d68e226c78"
     },
     "tests/mdx/vi-VN.mdx::md.a8643cfcf5bc2736": {
       "source_hash": "4761b3a393306e16c31215f95a44df2503e9efb9cb006febaf4c7a2116c5a3fab755ff89796ae35b1c64e157c253770561d024d02b75e8dfcdf516e07043821e"
@@ -15182,6 +15203,9 @@
     },
     "tests/mdx/zh-CN.mdx::md.8d91218fd83cc00e": {
       "source_hash": "fb1b27ce2faa4fddc00161b8b92cd9cebbe0975e39622ace26ea6932c2e31424e8f6f1cbe6c3ec5f1b3513b98971751e0d30535bdb57225a6d36d2a1c8dae747"
+    },
+    "tests/mdx/zh-CN.mdx::md.9de88caacce6a1f4": {
+      "source_hash": "fec99aee457e07e0b044a7d37a70206066e78bdee0750ebfe5aa80852f340bd5a3a4f76369b03b1a9199e7c899cde99b2fd98ec920617d5a0c3e24d68e226c78"
     },
     "tests/mdx/zh-CN.mdx::md.a8643cfcf5bc2736": {
       "source_hash": "4761b3a393306e16c31215f95a44df2503e9efb9cb006febaf4c7a2116c5a3fab755ff89796ae35b1c64e157c253770561d024d02b75e8dfcdf516e07043821e"

@@ -121,6 +121,7 @@ func hasExactKeySet(a, b map[string]string) bool {
 }
 
 func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	mdx := strings.ToLower(filepath.Ext(path)) == ".mdx"
 	sourceTemplate, err := s.readFile(sourcePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
@@ -129,13 +130,13 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 	targetTemplate, err := s.readFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries)
+			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries, mdx)
 			return content, markdownRenderWarnings(path, diags), nil
 		}
 		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
 	}
 
-	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries)
+	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries, mdx)
 	return content, markdownRenderWarnings(path, diags), nil
 }
 

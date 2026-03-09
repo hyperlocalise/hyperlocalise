@@ -16,6 +16,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/subosito/gotenv v1.4.1
 	github.com/tidwall/jsonc v0.3.2
+	github.com/yuin/goldmark v1.7.13
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
 )

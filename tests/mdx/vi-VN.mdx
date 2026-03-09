@@ -1,12 +1,12 @@
 ---
 title: "Hướng dẫn triển khai"
-description: "Xử lý thay thế đoạn văn MDX mà không cần tác động đến JSX, biểu thức hoặc import."
+description: "Xử lý thay thế văn bản MDX mà không cần tác động đến JSX, biểu thức hoặc thư viện."
 ---
 
 import { Callout } from "nextra/components";
 import { Tabs, Tab } from "fumadocs-ui/components/tabs";
 
-# Hướng dẫn triển khai
+# Hướng dẫn phát hành
 
 <Callout type="warning">
   Keep `projectId="docs"` unchanged when you update this page.
@@ -31,20 +31,20 @@ import { Tabs, Tab } from "fumadocs-ui/components/tabs";
   icon={<Badge text="beta" />}
 >
   <Callout type="info">
-    Giữ [liên kết tham khảo][mdx-ref] ổn định và giữ nguyên văn bản, ví dụ: `MDPH_0_END`.
+    Keep [reference links][mdx-ref] stable and preserve literal text like `MDPH_0_END`.
   </Callout>
 
-  - Mục con đầu tiên với `hyperlocalise sync pull`
+  - Mục tiêu đệ quy đầu tiên với `hyperlocalise sync pull`
   - Mục tiêu thứ hai được nhúng với <Badge text="inline" />
 </Card>
 
-Fallback route: {locale === "vi-VN" ? "/vi-VN" : "/"} is computed at runtime.
+Đường dẫn dự phòng: {locale === "vi-VN" ? "/vi-VN" : "/"} được tính toán tại thời điểm chạy.
 
 Use <Badge text="stable" /> builds when the release branch is frozen.
 
 > Đoạn trích dẫn có thể bao gồm <Badge text="quoted" /> và `inlineCode()`.
 >
-> ![Hình ảnh sơ đồ](https://example.com/assets/quoted(flow).png)
+> ![Hình ảnh sơ đồ đã trích dẫn](https://example.com/assets/quoted(flow).png)
 
 <Steps>
   <Step title="Prepare">
@@ -58,8 +58,8 @@ Use <Badge text="stable" /> builds when the release branch is frozen.
   </Step>
 </Steps>
 
+> Lặp lại cảnh báo này: giữ nguyên `href="/docs/rules"` một cách chính xác.
 > Repeat this warning: preserve `href="/docs/rules"` exactly.
-> Lặp lại cảnh báo này: giữ nguyên `href="/docs/rules"` chính xác.
 
 ```ts
 export const projectId = "docs";

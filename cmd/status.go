@@ -304,7 +304,8 @@ func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePa
 		if err != nil {
 			return nil, err
 		}
-		return translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent), nil
+		mdx := strings.ToLower(filepath.Ext(targetPath)) == ".mdx"
+		return translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, mdx), nil
 	}
 	return readEntriesForStatus(parser, targetPath)
 }
