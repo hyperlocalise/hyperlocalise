@@ -55,6 +55,7 @@ func newRunCmd() *cobra.Command {
 					return nil
 				}
 				o = result.options
+				syncInteractiveScopeFlags(cmd, o)
 			}
 			return executeRun(cmd, o)
 		},
@@ -171,6 +172,18 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	}
 
 	return nil
+}
+
+func syncInteractiveScopeFlags(cmd *cobra.Command, o runOptions) {
+	if flag := cmd.Flags().Lookup("group"); flag != nil {
+		flag.Changed = strings.TrimSpace(o.group) != ""
+	}
+	if flag := cmd.Flags().Lookup("bucket"); flag != nil {
+		flag.Changed = strings.TrimSpace(o.bucket) != ""
+	}
+	if flag := cmd.Flags().Lookup("target-locale"); flag != nil {
+		flag.Changed = len(o.targetLocales) > 0
+	}
 }
 
 func writeRunReportArtifact(path string, report runsvc.Report) error {

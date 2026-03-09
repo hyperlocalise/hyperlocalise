@@ -319,10 +319,12 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						if _, ok := filteredSourcePaths[sourcePath]; !ok {
 							continue
 						}
-						matchedSourcePaths[sourcePath] = struct{}{}
 					}
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
+					}
+					if len(filteredSourcePaths) > 0 {
+						matchedSourcePaths[sourcePath] = struct{}{}
 					}
 					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {

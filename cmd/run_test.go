@@ -594,6 +594,37 @@ func TestRunRejectsMixedEmptyTargetLocaleValue(t *testing.T) {
 	}
 }
 
+func TestSyncInteractiveScopeFlagsClearsTargetLocaleChangedForAllTargets(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRunCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	if err := cmd.Flags().Parse([]string{"--target-locale", "de"}); err != nil {
+		t.Fatalf("parse target-locale flag: %v", err)
+	}
+	syncInteractiveScopeFlags(cmd, runOptions{targetLocales: nil})
+
+	err := executeRun(cmd, runOptions{
+		progress:      "off",
+		targetLocales: nil,
+	})
+	if err != nil {
+		t.Fatalf("execute run with cleared target locales: %v", err)
+	}
+	if gotInput.TargetLocales != nil {
+		t.Fatalf("expected cleared interactive target locales to remain nil, got %#v", gotInput.TargetLocales)
+	}
+}
+
 func TestRunRejectsInvalidWorkersValue(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

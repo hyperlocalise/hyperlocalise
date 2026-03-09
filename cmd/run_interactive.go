@@ -1451,20 +1451,30 @@ func commonPathPrefix(paths []string) string {
 	if len(paths) == 0 {
 		return ""
 	}
-	prefix := filepath.Clean(paths[0])
+	prefix := commonPathCandidate(paths[0])
 	for _, path := range paths[1:] {
-		current := filepath.Clean(path)
-		for !strings.HasPrefix(current, prefix) && prefix != string(filepath.Separator) && prefix != "." {
-			prefix = filepath.Dir(prefix)
+		current := commonPathCandidate(path)
+		for prefix != "" && prefix != string(filepath.Separator) && prefix != "." && !isWithinPath(current, prefix) {
+			next := filepath.Dir(prefix)
+			if next == prefix {
+				prefix = ""
+				break
+			}
+			prefix = next
 		}
 	}
 	if prefix == "." {
 		return ""
 	}
-	if info, err := os.Stat(prefix); err == nil && !info.IsDir() {
-		return filepath.Dir(prefix)
-	}
 	return prefix
+}
+
+func commonPathCandidate(path string) string {
+	cleaned := filepath.Clean(path)
+	if info, err := os.Stat(cleaned); err == nil && !info.IsDir() {
+		return filepath.Dir(cleaned)
+	}
+	return cleaned
 }
 
 func filePathsFromCatalog(files []runsvc.SelectionFile) []string {

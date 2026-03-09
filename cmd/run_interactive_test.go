@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -274,6 +275,31 @@ func TestRunInteractiveTabSwitchesVisibleFilePane(t *testing.T) {
 	view := fmt.Sprint(typed.View())
 	if !strings.Contains(view, "pick a directory to narrow the file list") {
 		t.Fatalf("expected picker-focused view, got %s", view)
+	}
+}
+
+func TestCommonPathPrefixRespectsPathBoundaries(t *testing.T) {
+	dir := t.TempDir()
+	first := filepath.Join(dir, "foo", "bar", "one.json")
+	second := filepath.Join(dir, "foo", "barbaz", "two.json")
+
+	if err := os.MkdirAll(filepath.Dir(first), 0o755); err != nil {
+		t.Fatalf("create first dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(second), 0o755); err != nil {
+		t.Fatalf("create second dir: %v", err)
+	}
+	if err := os.WriteFile(first, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write first file: %v", err)
+	}
+	if err := os.WriteFile(second, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write second file: %v", err)
+	}
+
+	got := commonPathPrefix([]string{first, second})
+	want := filepath.Join(dir, "foo")
+	if got != want {
+		t.Fatalf("expected path-boundary-safe common prefix %q, got %q", want, got)
 	}
 }
 

@@ -55,6 +55,46 @@ func TestPlanTasksFiltersBySourcePath(t *testing.T) {
 	}
 }
 
+func TestPlanTasksReturnsErrorForIgnoredExplicitSourcePath(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "content", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Bonjour"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{
+			"ui": {
+				Files: []config.BucketFileMapping{
+					{From: filepath.ToSlash(sourcePath), To: filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json"))},
+				},
+			},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {Targets: []string{"fr"}, Buckets: []string{"ui"}},
+		},
+		LLM: config.LLMConfig{
+			Profiles: map[string]config.LLMProfile{
+				"default": {Provider: "openai", Model: "gpt-4.1-mini", Prompt: "Translate {{input}}"},
+			},
+		},
+	}
+
+	svc := New()
+	_, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath})
+	if err == nil {
+		t.Fatalf("expected ignored explicit source path to fail planning")
+	}
+	if got := err.Error(); got != `planning tasks: unknown source file "`+sourcePath+`"` {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestBuildSelectionCatalogAggregatesGlobbedFiles(t *testing.T) {
 	dir := t.TempDir()
 	sourceA := filepath.Join(dir, "content", "en", "a.json")
