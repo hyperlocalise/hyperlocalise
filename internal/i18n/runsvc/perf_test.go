@@ -40,7 +40,7 @@ func TestPlanTasksReusesParsedSourceAcrossGroups(t *testing.T) {
 		}
 	}
 
-	tasks, err := svc.planTasks(&cfg, "", "", nil)
+	tasks, err := svc.planTasks(&cfg, "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("planTasks: %v", err)
 	}
@@ -100,7 +100,7 @@ func BenchmarkPlanTasksSharedSourceMappings(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := svc.planTasks(&cfg, "", "", nil); err != nil {
+		if _, err := svc.planTasks(&cfg, "", "", nil, nil); err != nil {
 			b.Fatalf("planTasks: %v", err)
 		}
 	}

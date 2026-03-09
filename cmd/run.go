@@ -18,6 +18,7 @@ import (
 
 type runOptions struct {
 	configPath                string
+	interactive               bool
 	dryRun                    bool
 	force                     bool
 	prune                     bool
@@ -28,6 +29,7 @@ type runOptions struct {
 	bucket                    string
 	group                     string
 	targetLocales             []string
+	sourcePaths               []string
 	outputPath                string
 	experimentalContextMemory bool
 	contextMemoryScope        string
@@ -44,98 +46,21 @@ func newRunCmd() *cobra.Command {
 		Short:        "generate local translations from source files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			workers := o.workers
-			if workers == 0 {
-				workers = runtime.NumCPU()
-			}
-			if workers < 1 {
-				return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
-			}
-			if cmd.Flags().Changed("target-locale") {
-				if len(o.targetLocales) == 0 {
-					return fmt.Errorf("invalid --target-locale value: must not be empty")
+			if o.interactive {
+				result, err := runInteractiveWizard(o, cmd.OutOrStdout())
+				if err != nil {
+					return err
 				}
-				for _, locale := range o.targetLocales {
-					if strings.TrimSpace(locale) == "" {
-						return fmt.Errorf("invalid --target-locale value: must not be empty")
-					}
+				if !result.execute {
+					return nil
 				}
+				o = result.options
 			}
-			contextMemoryScope := strings.ToLower(strings.TrimSpace(o.contextMemoryScope))
-			if contextMemoryScope == "" {
-				contextMemoryScope = runsvc.ContextMemoryScopeFile
-			}
-			switch contextMemoryScope {
-			case runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup:
-			default:
-				return fmt.Errorf("invalid --context-memory-scope value %q: must be one of %s|%s|%s", o.contextMemoryScope, runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup)
-			}
-
-			progressMode, err := progressui.ParseMode(o.progress)
-			if err != nil {
-				return err
-			}
-
-			output := cmd.OutOrStdout()
-			runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
-			defer stop()
-
-			var renderer *progressui.Renderer
-			if progressui.IsEnabled(progressMode, output, nil) {
-				renderer = progressui.New(output, progressMode, progressui.Options{
-					Label:       "Translating",
-					OnInterrupt: stop,
-				})
-			}
-			if renderer != nil {
-				defer renderer.Close()
-			}
-
-			input := runsvc.Input{
-				ConfigPath:                o.configPath,
-				DryRun:                    o.dryRun,
-				Force:                     o.force,
-				Prune:                     o.prune,
-				PruneLimit:                o.pruneLimit,
-				PruneForce:                o.pruneForce,
-				Workers:                   workers,
-				Bucket:                    o.bucket,
-				Group:                     o.group,
-				TargetLocales:             o.targetLocales,
-				ExperimentalContextMemory: o.experimentalContextMemory,
-				ContextMemoryScope:        contextMemoryScope,
-				ContextMemoryMaxChars:     o.contextMemoryMaxChars,
-			}
-			if renderer != nil {
-				input.OnEvent = func(event runsvc.Event) {
-					applyRunProgressEvent(renderer, event)
-				}
-			}
-
-			report, err := runFunc(runCtx, input)
-			if renderer != nil {
-				renderer.TokenUsage(report.PromptTokens, report.CompletionTokens, report.TotalTokens)
-				renderer.Complete()
-			}
-
-			if writeErr := writeRunReport(output, report, o.dryRun); writeErr != nil {
-				return fmt.Errorf("write run report: %w", writeErr)
-			}
-			if writeErr := writeRunReportArtifact(o.outputPath, report); writeErr != nil {
-				return fmt.Errorf("write run report artifact: %w", writeErr)
-			}
-
-			if err != nil {
-				return err
-			}
-			if report.Failed > 0 {
-				return fmt.Errorf("run completed with failures: %d", report.Failed)
-			}
-
-			return nil
+			return executeRun(cmd, o)
 		},
 	}
 
+	cmd.Flags().BoolVarP(&o.interactive, "interactive", "i", false, "launch interactive run selector in TTY")
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", o.dryRun, "preview planned translation work without executing")
 	cmd.Flags().BoolVar(&o.force, "force", o.force, "rerun all planned tasks and ignore lockfile skip state")
@@ -153,6 +78,99 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
 
 	return cmd
+}
+
+func executeRun(cmd *cobra.Command, o runOptions) error {
+	workers := o.workers
+	if workers == 0 {
+		workers = runtime.NumCPU()
+	}
+	if workers < 1 {
+		return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
+	}
+	if cmd.Flags().Changed("target-locale") {
+		if len(o.targetLocales) == 0 {
+			return fmt.Errorf("invalid --target-locale value: must not be empty")
+		}
+		for _, locale := range o.targetLocales {
+			if strings.TrimSpace(locale) == "" {
+				return fmt.Errorf("invalid --target-locale value: must not be empty")
+			}
+		}
+	}
+	contextMemoryScope := strings.ToLower(strings.TrimSpace(o.contextMemoryScope))
+	if contextMemoryScope == "" {
+		contextMemoryScope = runsvc.ContextMemoryScopeFile
+	}
+	switch contextMemoryScope {
+	case runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup:
+	default:
+		return fmt.Errorf("invalid --context-memory-scope value %q: must be one of %s|%s|%s", o.contextMemoryScope, runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup)
+	}
+
+	progressMode, err := progressui.ParseMode(o.progress)
+	if err != nil {
+		return err
+	}
+
+	output := cmd.OutOrStdout()
+	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
+	defer stop()
+
+	var renderer *progressui.Renderer
+	if progressui.IsEnabled(progressMode, output, nil) {
+		renderer = progressui.New(output, progressMode, progressui.Options{
+			Label:       "Translating",
+			OnInterrupt: stop,
+		})
+	}
+	if renderer != nil {
+		defer renderer.Close()
+	}
+
+	input := runsvc.Input{
+		ConfigPath:                o.configPath,
+		DryRun:                    o.dryRun,
+		Force:                     o.force,
+		Prune:                     o.prune,
+		PruneLimit:                o.pruneLimit,
+		PruneForce:                o.pruneForce,
+		Workers:                   workers,
+		Bucket:                    o.bucket,
+		Group:                     o.group,
+		TargetLocales:             o.targetLocales,
+		SourcePaths:               o.sourcePaths,
+		ExperimentalContextMemory: o.experimentalContextMemory,
+		ContextMemoryScope:        contextMemoryScope,
+		ContextMemoryMaxChars:     o.contextMemoryMaxChars,
+	}
+	if renderer != nil {
+		input.OnEvent = func(event runsvc.Event) {
+			applyRunProgressEvent(renderer, event)
+		}
+	}
+
+	report, err := runFunc(runCtx, input)
+	if renderer != nil {
+		renderer.TokenUsage(report.PromptTokens, report.CompletionTokens, report.TotalTokens)
+		renderer.Complete()
+	}
+
+	if writeErr := writeRunReport(output, report, o.dryRun); writeErr != nil {
+		return fmt.Errorf("write run report: %w", writeErr)
+	}
+	if writeErr := writeRunReportArtifact(o.outputPath, report); writeErr != nil {
+		return fmt.Errorf("write run report artifact: %w", writeErr)
+	}
+
+	if err != nil {
+		return err
+	}
+	if report.Failed > 0 {
+		return fmt.Errorf("run completed with failures: %d", report.Failed)
+	}
+
+	return nil
 }
 
 func writeRunReportArtifact(path string, report runsvc.Report) error {

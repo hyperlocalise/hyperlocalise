@@ -32,6 +32,7 @@ type Input struct {
 	Bucket                    string
 	Group                     string
 	TargetLocales             []string
+	SourcePaths               []string
 	DryRun                    bool
 	Force                     bool
 	Prune                     bool
@@ -225,7 +226,7 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
-func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales []string) ([]Task, error) {
+func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string) ([]Task, error) {
 	parser := s.newParser()
 	sourceCache := map[string]plannedSourceSnapshot{}
 	groups := sortedGroupNames(cfg.Groups)
@@ -236,6 +237,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	if err != nil {
 		return nil, fmt.Errorf("planning tasks: %w", err)
 	}
+	filteredSourcePaths, err := normalizeSourcePaths(onlySourcePaths)
+	if err != nil {
+		return nil, fmt.Errorf("planning tasks: %w", err)
+	}
+	matchedSourcePaths := make(map[string]struct{}, len(filteredSourcePaths))
 	if filteredBucket != "" {
 		if _, ok := cfg.Buckets[filteredBucket]; !ok {
 			return nil, fmt.Errorf("planning tasks: unknown bucket %q", filteredBucket)
@@ -309,6 +315,12 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 				}
 
 				for _, sourcePath := range sources {
+					if len(filteredSourcePaths) > 0 {
+						if _, ok := filteredSourcePaths[sourcePath]; !ok {
+							continue
+						}
+						matchedSourcePaths[sourcePath] = struct{}{}
+					}
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
 					}
@@ -364,6 +376,19 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		}
 	}
 
+	if len(filteredSourcePaths) > 0 {
+		unmatched := make([]string, 0)
+		for sourcePath := range filteredSourcePaths {
+			if _, ok := matchedSourcePaths[sourcePath]; !ok {
+				unmatched = append(unmatched, sourcePath)
+			}
+		}
+		slices.Sort(unmatched)
+		if len(unmatched) > 0 {
+			return nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
+		}
+	}
+
 	return tasks, nil
 }
 
@@ -392,6 +417,22 @@ func normalizeTargetLocales(locales []string) ([]string, error) {
 		normalized = append(normalized, trimmed)
 	}
 
+	return normalized, nil
+}
+
+func normalizeSourcePaths(paths []string) (map[string]struct{}, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	normalized := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		trimmed := strings.TrimSpace(path)
+		if trimmed == "" {
+			return nil, fmt.Errorf("invalid source file value: must not be empty")
+		}
+		normalized[filepath.Clean(trimmed)] = struct{}{}
+	}
 	return normalized, nil
 }
 

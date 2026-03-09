@@ -35,7 +35,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		}()
 	}
 
-	planned, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales)
+	planned, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths)
 	if err != nil {
 		return Report{}, err
 	}
