@@ -24,9 +24,10 @@ var standardMarkdownParser = goldmark.New(goldmark.WithExtensions(
 ))
 
 type markdownSpanCandidate struct {
-	start int
-	stop  int
-	path  string
+	start     int
+	stop      int
+	path      string
+	yamlPlain bool
 }
 
 func parseMarkdownDocument(content []byte, mdx bool) (markdownDocument, map[string]string) {
@@ -72,6 +73,7 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 			source:       placeholdered,
 			placeholders: placeholders,
 			path:         candidate.path,
+			yamlPlain:    candidate.yamlPlain,
 		}
 		part.key = markdownSegmentKey(part.source, hashOccurrences)
 		doc.parts = append(doc.parts, part)
@@ -146,9 +148,10 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 				valueStart := offset + colon + 1 + lead
 				valueEnd := valueStart + len(plainValue)
 				candidates = append(candidates, markdownSpanCandidate{
-					start: valueStart,
-					stop:  valueEnd,
-					path:  fmt.Sprintf("frontmatter/%s", key),
+					start:     valueStart,
+					stop:      valueEnd,
+					path:      fmt.Sprintf("frontmatter/%s", key),
+					yamlPlain: true,
 				})
 			}
 			offset += len(line)

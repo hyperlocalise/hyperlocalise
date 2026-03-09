@@ -50,6 +50,10 @@ type mdxCSTParser struct {
 
 func parseMDXCST(content []byte) *mdxNode {
 	source := strings.ReplaceAll(string(content), "\r\n", "\n")
+	return parseMDXCSTFromSource(source)
+}
+
+func parseMDXCSTFromSource(source string) *mdxNode {
 	parser := mdxCSTParser{source: source}
 	root := &mdxNode{
 		Kind: mdxKindDocument,
@@ -500,22 +504,29 @@ func scanMDXTagLiteral(source string, start int) (int, bool, int) {
 }
 
 type jsBalanceState struct {
-	BraceDepth   int
-	ParenDepth   int
-	BracketDepth int
-	Complete     bool
+	BraceDepth     int
+	ParenDepth     int
+	BracketDepth   int
+	Quote          byte
+	InTemplate     bool
+	InBlockComment bool
+	Escaped        bool
+	Complete       bool
 }
 
 func scanMDXESMBlock(source string, start int) (int, bool, int) {
 	cursor := start
+	state := jsBalanceState{Complete: true}
 	for cursor < len(source) {
 		lineEnd := mdxLineEnd(source, cursor)
-		candidate := source[start:lineEnd]
-		state := scanJSBalanceState(candidate)
+		state = scanJSBalanceState(state, source[cursor:lineEnd])
 		if state.Complete &&
 			state.BraceDepth == 0 &&
 			state.ParenDepth == 0 &&
 			state.BracketDepth == 0 &&
+			state.Quote == 0 &&
+			!state.InTemplate &&
+			!state.InBlockComment &&
 			!jsLineRequiresContinuation(source[cursor:lineEnd]) {
 			return lineEnd, true, 0
 		}
@@ -524,42 +535,56 @@ func scanMDXESMBlock(source string, start int) (int, bool, int) {
 	return len(source), false, len(source)
 }
 
-func scanJSBalanceState(segment string) jsBalanceState {
-	state := jsBalanceState{Complete: true}
+func scanJSBalanceState(state jsBalanceState, segment string) jsBalanceState {
+	if !state.Complete {
+		return state
+	}
 	for idx := 0; idx < len(segment); {
+		if state.InBlockComment {
+			end := strings.Index(segment[idx:], "*/")
+			if end < 0 {
+				return state
+			}
+			idx += end + 2
+			state.InBlockComment = false
+			continue
+		}
+		if state.Quote != 0 {
+			end, ok := consumeJSQuotedStringState(segment, idx, &state)
+			if !ok {
+				return state
+			}
+			idx = end
+			continue
+		}
+		if state.InTemplate {
+			end, ok := consumeJSTemplateLiteralState(segment, idx, &state)
+			if !ok {
+				return state
+			}
+			idx = end
+			continue
+		}
 		switch segment[idx] {
 		case '\'':
-			end, ok := consumeJSQuotedString(segment, idx, '\'')
-			if !ok {
-				state.Complete = false
-				return state
-			}
+			state.Quote = '\''
+			end, _ := consumeJSQuotedStringState(segment, idx, &state)
 			idx = end
 		case '"':
-			end, ok := consumeJSQuotedString(segment, idx, '"')
-			if !ok {
-				state.Complete = false
-				return state
-			}
+			state.Quote = '"'
+			end, _ := consumeJSQuotedStringState(segment, idx, &state)
 			idx = end
 		case '`':
-			end, ok := consumeJSTemplateLiteral(segment, idx)
-			if !ok {
-				state.Complete = false
-				return state
-			}
+			state.InTemplate = true
+			end, _ := consumeJSTemplateLiteralState(segment, idx, &state)
 			idx = end
 		case '/':
 			switch {
 			case idx+1 < len(segment) && segment[idx+1] == '/':
 				idx = consumeJSLineComment(segment, idx)
 			case idx+1 < len(segment) && segment[idx+1] == '*':
-				end, ok := consumeJSBlockComment(segment, idx)
-				if !ok {
-					state.Complete = false
-					return state
-				}
-				idx = end
+				state.InBlockComment = true
+				idx += 2
 			default:
 				idx++
 			}
@@ -685,35 +710,15 @@ func looksLikeMDXESMStart(trimmed string) bool {
 }
 
 func consumeJSQuotedString(source string, start int, quote byte) (int, bool) {
-	for idx := start + 1; idx < len(source); idx++ {
-		switch source[idx] {
-		case '\\':
-			idx++
-		case quote:
-			return idx + 1, true
-		}
-	}
-	return len(source), false
+	state := jsBalanceState{Complete: true, Quote: quote}
+	end, ok := consumeJSQuotedStringState(source, start, &state)
+	return end, ok && state.Quote == 0
 }
 
 func consumeJSTemplateLiteral(source string, start int) (int, bool) {
-	for idx := start + 1; idx < len(source); idx++ {
-		switch source[idx] {
-		case '\\':
-			idx++
-		case '`':
-			return idx + 1, true
-		case '$':
-			if idx+1 < len(source) && source[idx+1] == '{' {
-				end, ok := scanMDXExpression(source, idx+1)
-				if !ok {
-					return len(source), false
-				}
-				idx = end - 1
-			}
-		}
-	}
-	return len(source), false
+	state := jsBalanceState{Complete: true, InTemplate: true}
+	end, ok := consumeJSTemplateLiteralState(source, start, &state)
+	return end, ok && !state.InTemplate
 }
 
 func consumeJSLineComment(source string, start int) int {
@@ -730,6 +735,49 @@ func consumeJSBlockComment(source string, start int) (int, bool) {
 		return len(source), false
 	}
 	return start + 2 + idx + 2, true
+}
+
+func consumeJSQuotedStringState(source string, start int, state *jsBalanceState) (int, bool) {
+	idx := start
+	if state.Quote != 0 && start < len(source) && source[start] == state.Quote {
+		idx++
+	}
+	for ; idx < len(source); idx++ {
+		switch source[idx] {
+		case '\\':
+			idx++
+		case state.Quote:
+			state.Quote = 0
+			return idx + 1, true
+		}
+	}
+	return len(source), true
+}
+
+func consumeJSTemplateLiteralState(source string, start int, state *jsBalanceState) (int, bool) {
+	idx := start
+	if state.InTemplate && start < len(source) && source[start] == '`' {
+		idx++
+	}
+	for ; idx < len(source); idx++ {
+		switch source[idx] {
+		case '\\':
+			idx++
+		case '`':
+			state.InTemplate = false
+			return idx + 1, true
+		case '$':
+			if idx+1 < len(source) && source[idx+1] == '{' {
+				end, ok := scanMDXExpression(source, idx+1)
+				if !ok {
+					state.Complete = false
+					return len(source), false
+				}
+				idx = end - 1
+			}
+		}
+	}
+	return len(source), true
 }
 
 func scanMDXExpression(source string, start int) (int, bool) {

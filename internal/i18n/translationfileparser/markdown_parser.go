@@ -19,6 +19,7 @@ type markdownPart struct {
 	source       string
 	placeholders map[string]string
 	path         string
+	yamlPlain    bool
 }
 
 type markdownDocument struct {
@@ -507,7 +508,7 @@ func stripTrailingJSXClosingLiterals(body string) (string, []string) {
 	}
 }
 
-func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func(string)) {
+func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func(markdownPart)) {
 	if strings.TrimSpace(line) == "" {
 		doc.parts = append(doc.parts, markdownPart{literal: line})
 		return
@@ -560,7 +561,7 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 			return
 		}
 		doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead]})
-		appendKey(plainValue)
+		appendKey(markdownPart{source: plainValue, yamlPlain: true})
 		doc.parts = append(doc.parts, markdownPart{literal: newline})
 		return
 	}
@@ -578,7 +579,7 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 	}
 
 	doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead] + string(quote)})
-	appendKey(quotedText)
+	appendKey(markdownPart{source: quotedText})
 	doc.parts = append(doc.parts, markdownPart{literal: valueRest[end:] + newline})
 }
 
@@ -642,6 +643,9 @@ func renderMarkdownPart(part markdownPart, translated string) string {
 
 func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, diags *MarkdownRenderDiagnostics) string {
 	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
+	if part.yamlPlain && yamlPlainScalarNeedsQuotes(rendered) {
+		rendered = yamlDoubleQuoteScalar(rendered)
+	}
 	rendered = normalizeMarkdownTableRowBoundaries(part, rendered)
 	if len(part.placeholders) == 0 {
 		return rendered
@@ -659,6 +663,29 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		return expandMarkdownPlaceholders(part.source, part.placeholders)
 	}
 	return rendered
+}
+
+func yamlPlainScalarNeedsQuotes(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return true
+	}
+	switch trimmed[0] {
+	case '{', '[', '"', '\'', ':', '>', '|', '-', '!', '&', '*', '?', '@', '`':
+		return true
+	}
+	return strings.Contains(trimmed, ": ")
+}
+
+func yamlDoubleQuoteScalar(value string) string {
+	replacer := strings.NewReplacer(
+		`\\`, `\\\\`,
+		`"`, `\"`,
+		"\n", `\n`,
+		"\r", `\r`,
+		"\t", `\t`,
+	)
+	return `"` + replacer.Replace(value) + `"`
 }
 
 func normalizeMarkdownTableRowBoundaries(part markdownPart, rendered string) string {

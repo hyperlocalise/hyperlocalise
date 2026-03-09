@@ -16,7 +16,7 @@ type mdxPathState struct {
 
 func parseMarkdownMDXDocument(content []byte) (markdownDocument, map[string]string) {
 	source := strings.ReplaceAll(string(content), "\r\n", "\n")
-	root := parseMDXCST(content)
+	root := parseMDXCSTFromSource(source)
 	return extractMDXDocument(root, source)
 }
 
@@ -102,8 +102,8 @@ func (s *mdxExtractState) emitFrontmatterText(text string) {
 		if line == "" {
 			continue
 		}
-		emitFrontmatterLineParts(line, s.doc, func(segment string) {
-			appendKey(markdownPart{source: segment})
+		emitFrontmatterLineParts(line, s.doc, func(part markdownPart) {
+			appendKey(part)
 		})
 		s.prevTrimmed = strings.TrimSpace(line)
 	}

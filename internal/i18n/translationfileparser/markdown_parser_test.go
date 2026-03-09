@@ -563,6 +563,23 @@ func TestMarkdownParserParseMdxSkipsMultilineESMWithTemplatesAndComments(t *test
 	}
 }
 
+func TestMarkdownParserParseMdxSkipsMultilineImportStatement(t *testing.T) {
+	content := []byte("import {\n  Tabs,\n  Tab,\n} from \"fumadocs-ui/components/tabs\"\n\nVisible paragraph.\n")
+
+	entries, err := (MarkdownParser{MDX: true}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	combined := strings.Join(mapValues(entries), "\n")
+	if strings.Contains(combined, "fumadocs-ui/components/tabs") || strings.Contains(combined, "Tabs,") {
+		t.Fatalf("expected multiline import block excluded, got %q", combined)
+	}
+	if !strings.Contains(combined, "Visible paragraph.") {
+		t.Fatalf("expected prose after multiline import extracted, got %q", combined)
+	}
+}
+
 func TestMarkdownParserParseMdxTreatsFragmentWrappedTextAsSingleSection(t *testing.T) {
 	content := []byte("<>\n  Fragment prose with {locale.toUpperCase()} kept safe.\n</>\n")
 
@@ -1702,6 +1719,32 @@ func TestMarshalMarkdownPreservesPlainFrontmatterRoundTrip(t *testing.T) {
 	output := string(MarshalMarkdown(template, updates, false))
 	if !strings.Contains(output, "title: Bonjour le monde") {
 		t.Fatalf("expected translated plain frontmatter, got %q", output)
+	}
+}
+
+func TestMarshalMarkdownQuotesUnsafePlainFrontmatterScalarTranslations(t *testing.T) {
+	template := []byte("---\ntitle: Hello world\nsummary: Intro text\n---\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := map[string]string{}
+	for k, v := range entries {
+		switch v {
+		case "Hello world":
+			updates[k] = "{greeting}"
+		case "Intro text":
+			updates[k] = "Intro: Part 1"
+		}
+	}
+
+	output := string(MarshalMarkdown(template, updates, false))
+	if !strings.Contains(output, "title: \"{greeting}\"") {
+		t.Fatalf("expected unsafe plain scalar wrapped in quotes, got %q", output)
+	}
+	if !strings.Contains(output, "summary: \"Intro: Part 1\"") {
+		t.Fatalf("expected colon-containing plain scalar wrapped in quotes, got %q", output)
 	}
 }
 
