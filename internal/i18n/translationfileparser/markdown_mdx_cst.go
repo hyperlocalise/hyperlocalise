@@ -214,7 +214,7 @@ func (p mdxCSTParser) parseFlowJSX(offset int) (*mdxNode, int, bool) {
 		}, failEnd, true
 	}
 
-	tagLineEnd := mdxLineEndFromIndex(p.source, tagEnd)
+	tagLineEnd := mdxLineEnd(p.source, tagEnd)
 	container, closing, selfClosing, ok := mdxParseContainerLiteral(p.source[absTagStart:tagEnd])
 	if !ok || closing {
 		return nil, offset, false
@@ -323,7 +323,7 @@ func (p mdxCSTParser) parseClosingTag(offset int, name string) (*mdxNode, int, b
 		return nil, offset, false
 	}
 
-	tagLineEnd := mdxLineEndFromIndex(p.source, tagEnd)
+	tagLineEnd := mdxLineEnd(p.source, tagEnd)
 	if strings.TrimSpace(p.source[tagEnd:tagLineEnd]) != "" {
 		return nil, offset, false
 	}
@@ -378,17 +378,6 @@ func (p mdxCSTParser) parseText(offset int, closingName string, allowESM bool) (
 
 func mdxLineEnd(source string, start int) int {
 	end := start
-	for end < len(source) && source[end] != '\n' {
-		end++
-	}
-	if end < len(source) && source[end] == '\n' {
-		end++
-	}
-	return end
-}
-
-func mdxLineEndFromIndex(source string, idx int) int {
-	end := idx
 	for end < len(source) && source[end] != '\n' {
 		end++
 	}

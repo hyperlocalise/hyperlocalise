@@ -797,7 +797,7 @@ type MarkdownParser struct {
 }
 
 func (p MarkdownParser) Parse(content []byte) (map[string]string, error) {
-	_, entries := parseMarkdownDocument(content, p.MDX)
+	_, entries := parseMarkdownDocument(stripBOM(content), p.MDX)
 	return entries, nil
 }
 
