@@ -20,6 +20,7 @@ type statusSummary struct {
 	Total        int
 	Translated   int
 	NeedsReview  int
+	SourceMatch  int
 	Untranslated int
 	ByLocale     []localeSummary
 }
@@ -29,6 +30,7 @@ type localeSummary struct {
 	Total        int
 	Translated   int
 	NeedsReview  int
+	SourceMatch  int
 	Untranslated int
 }
 
@@ -95,6 +97,7 @@ type statusDashboardModel struct {
 	overallStyle       lipgloss.Style
 	translatedStyle    lipgloss.Style
 	needsReviewStyle   lipgloss.Style
+	sourceMatchStyle   lipgloss.Style
 	untranslatedStyle  lipgloss.Style
 	selectedLocaleInfo lipgloss.Style
 }
@@ -114,6 +117,7 @@ func runStatusDashboard(w io.Writer, entries []storage.Entry, locales []string, 
 		{Title: "Total", Width: 8},
 		{Title: "Translated", Width: 12},
 		{Title: "Needs Review", Width: 14},
+		{Title: "Source Match", Width: 14},
 		{Title: "Untranslated", Width: 13},
 		{Title: "Completion", Width: 11},
 	}
@@ -135,6 +139,7 @@ func runStatusDashboard(w io.Writer, entries []storage.Entry, locales []string, 
 		overallStyle:       lipgloss.NewStyle().Bold(true),
 		translatedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("42")),
 		needsReviewStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("214")),
+		sourceMatchStyle:   lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
 		untranslatedStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
 		selectedLocaleInfo: lipgloss.NewStyle().Foreground(lipgloss.Color("111")),
 	}
@@ -202,12 +207,14 @@ func (m statusDashboardModel) View() tea.View {
 		"  ",
 		m.needsReviewStyle.Render(fmt.Sprintf("needs_review=%d", m.summary.NeedsReview)),
 		"  ",
+		m.sourceMatchStyle.Render(fmt.Sprintf("source_match=%d", m.summary.SourceMatch)),
+		"  ",
 		m.untranslatedStyle.Render(fmt.Sprintf("untranslated=%d", m.summary.Untranslated)),
 	)
 
 	selectedInfo := ""
-	if row := m.tbl.SelectedRow(); len(row) >= 6 {
-		selectedInfo = m.selectedLocaleInfo.Render(fmt.Sprintf("selected locale=%s completion=%s", row[0], row[5]))
+	if row := m.tbl.SelectedRow(); len(row) >= 7 {
+		selectedInfo = m.selectedLocaleInfo.Render(fmt.Sprintf("selected locale=%s completion=%s", row[0], row[6]))
 	}
 
 	helpLine := m.help.View(m.keys)
@@ -256,6 +263,7 @@ func (m *statusDashboardModel) sortRows() {
 			fmt.Sprintf("%d", row.Total),
 			fmt.Sprintf("%d", row.Translated),
 			fmt.Sprintf("%d", row.NeedsReview),
+			fmt.Sprintf("%d", row.SourceMatch),
 			fmt.Sprintf("%d", row.Untranslated),
 			percent(row.Translated, row.Total),
 		})
@@ -305,6 +313,9 @@ func buildStatusSummary(entries []storage.Entry, locales []string) statusSummary
 		case "needs_review":
 			s.NeedsReview++
 			row.NeedsReview++
+		case "source_match":
+			s.SourceMatch++
+			row.SourceMatch++
 		default:
 			s.Untranslated++
 			row.Untranslated++

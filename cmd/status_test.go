@@ -76,6 +76,16 @@ func TestComputeStatus(t *testing.T) {
 			},
 			expected: "translated",
 		},
+		{
+			name: "markdown value identical to source is source_match",
+			entry: storage.Entry{
+				Value: "Use the status reference before you push changes.",
+				Metadata: map[string]string{
+					statusSourceValueMetadataKey: "Use the status reference before you push changes.",
+				},
+			},
+			expected: "source_match",
+		},
 	}
 
 	for _, tt := range tests {
@@ -286,6 +296,127 @@ func TestStatusCommandBucketFilterUsesLocalstoreNamespace(t *testing.T) {
 	}
 	if got := out.String(); !strings.Contains(got, "ui/messages.json") {
 		t.Fatalf("expected namespace in status output, got: %s", got)
+	}
+}
+
+func TestStatusCommandMarkdownIdenticalSegmentIsSourceMatch(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "docs", "en-US.md")
+	targetPath := filepath.Join(dir, "docs", "vi-VN.md")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir docs dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("# Guide\n\nTranslate this sentence.\n"), 0o600); err != nil {
+		t.Fatalf("write source markdown: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("# Hướng dẫn\n\nTranslate this sentence.\n"), 0o600); err != nil {
+		t.Fatalf("write target markdown: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["vi-VN"]},
+  "buckets": {"docs":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "docs", "[locale].md")) + `"}]}},
+  "groups": {"default":{"targets":["vi-VN"],"buckets":["docs"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "docs"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, ",vi-VN,source_match,unknown,") {
+		t.Fatalf("expected source_match markdown row, got: %s", got)
+	}
+}
+
+func TestStatusCommandMDXIdenticalSegmentWithInlineSyntaxIsSourceMatch(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "docs", "en-US.mdx")
+	targetPath := filepath.Join(dir, "docs", "vi-VN.mdx")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir docs dir: %v", err)
+	}
+	source := "<Callout>\n  Keep [reference links](https://example.com/docs) stable and preserve `MDPH_0_END`.\n</Callout>\n"
+	target := "<Callout>\n  Keep [reference links](https://example.com/docs) stable and preserve `MDPH_0_END`.\n</Callout>\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source mdx: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target mdx: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["vi-VN"]},
+  "buckets": {"docs":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "docs", "[locale].mdx")) + `"}]}},
+  "groups": {"default":{"targets":["vi-VN"],"buckets":["docs"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "docs"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, ",vi-VN,source_match,unknown,") {
+		t.Fatalf("expected source_match mdx row, got: %s", got)
+	}
+}
+
+func TestBuildStatusSummaryIncludesSourceMatch(t *testing.T) {
+	entries := []storage.Entry{
+		{Locale: "vi-VN", Value: "Da dich"},
+		{
+			Locale: "vi-VN",
+			Value:  "Same as source",
+			Metadata: map[string]string{
+				statusSourceValueMetadataKey: "Same as source",
+			},
+		},
+		{
+			Locale: "zh-CN",
+			Value:  "Draft",
+			Provenance: storage.EntryProvenance{
+				Origin: storage.OriginLLM,
+				State:  storage.StateDraft,
+			},
+		},
+		{Locale: "zh-CN", Value: ""},
+	}
+
+	summary := buildStatusSummary(entries, []string{"vi-VN", "zh-CN"})
+	if summary.Total != 4 || summary.Translated != 1 || summary.NeedsReview != 1 || summary.SourceMatch != 1 || summary.Untranslated != 1 {
+		t.Fatalf("unexpected overall summary: %+v", summary)
+	}
+
+	wantByLocale := map[string]localeSummary{
+		"vi-VN": {Locale: "vi-VN", Total: 2, Translated: 1, SourceMatch: 1},
+		"zh-CN": {Locale: "zh-CN", Total: 2, NeedsReview: 1, Untranslated: 1},
+	}
+	for _, row := range summary.ByLocale {
+		if want, ok := wantByLocale[row.Locale]; ok {
+			if row != want {
+				t.Fatalf("unexpected locale summary for %s: got %+v want %+v", row.Locale, row, want)
+			}
+		}
 	}
 }
 

@@ -20,6 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const statusSourceValueMetadataKey = "status_source_value"
+
 type statusOptions struct {
 	configPath  string
 	locales     []string
@@ -226,6 +228,13 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 						return nil, err
 					}
 				}
+				sourceStatusEntries, err := readSourceEntriesForStatus(parser, sourcePath)
+				if err != nil {
+					if !os.IsNotExist(err) {
+						return nil, err
+					}
+					sourceStatusEntries = map[string]string{}
+				}
 
 				targetByLocale := make(map[string]map[string]string, len(locales))
 				keySet := make(map[string]struct{}, len(sourceEntries))
@@ -263,11 +272,18 @@ func collectStatusEntries(_ context.Context, cfg *config.I18NConfig, req syncsvc
 				for _, locale := range locales {
 					targetEntries := targetByLocale[locale]
 					for _, key := range keys {
+						metadata := map[string]string(nil)
+						if shouldTrackSourceValueForStatus(sourcePath) {
+							metadata = map[string]string{
+								statusSourceValueMetadataKey: sourceStatusEntries[key],
+							}
+						}
 						entries = append(entries, storage.Entry{
 							Key:       key,
 							Namespace: file.From,
 							Locale:    locale,
 							Value:     targetEntries[key],
+							Metadata:  metadata,
 							Provenance: storage.EntryProvenance{
 								Origin: storage.OriginUnknown,
 							},
@@ -291,6 +307,19 @@ func readEntriesForStatus(parser *translationfileparser.Strategy, path string) (
 		return nil, fmt.Errorf("parse translation file %q: %w", path, err)
 	}
 	return entries, nil
+}
+
+func readSourceEntriesForStatus(parser *translationfileparser.Strategy, path string) (map[string]string, error) {
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".md" || ext == ".mdx" {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		mdx := ext == ".mdx"
+		return translationfileparser.AlignMarkdownTargetToSource(content, content, mdx), nil
+	}
+	return readEntriesForStatus(parser, path)
 }
 
 func readTargetEntriesForStatus(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, error) {
@@ -473,10 +502,24 @@ func computeStatus(entry storage.Entry) string {
 	if strings.TrimSpace(entry.Value) == "" {
 		return "untranslated"
 	}
+	if sourceValue, ok := entry.Metadata[statusSourceValueMetadataKey]; ok &&
+		sourceValue != "" &&
+		strings.TrimSpace(sourceValue) == strings.TrimSpace(entry.Value) {
+		return "source_match"
+	}
 	if entry.Provenance.Origin == storage.OriginLLM && entry.Provenance.State == storage.StateDraft {
 		return "needs_review"
 	}
 	return "translated"
+}
+
+func shouldTrackSourceValueForStatus(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".md", ".mdx":
+		return true
+	default:
+		return false
+	}
 }
 
 func sortedLocales(entries map[string]storage.Entry) []string {

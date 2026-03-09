@@ -22,6 +22,7 @@ hyperlocalise status [--config <path>] [flags]
 
 - `translated`: value is non-empty and not marked as draft
 - `needs_review`: provenance is `origin=llm` and `state=draft`
+- `source_match`: markdown/mdx segment is non-empty but identical to the source text
 - `untranslated`: value is empty
 
 ## CSV schema
@@ -49,6 +50,7 @@ Use this mapping when your pipeline expects product-level labels:
 | --- | --- |
 | `translated` | `ready` |
 | `needs_review` | `needs review` |
+| `source_match` | `needs review` |
 | `untranslated` | `missing` |
 
 ## CI gate examples
