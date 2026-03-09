@@ -1132,13 +1132,13 @@ func (m runInteractiveModel) experimentalItems() []runInteractiveListItem {
 
 func (m runInteractiveModel) reviewRows() []table.Row {
 	selection := m.selectionSummary()
-	targets := []string{}
+	var targets []string
 	if m.selectedTarget != "" {
 		targets = []string{m.selectedTarget}
 	} else {
 		targets = sortedStringKeysFromSet(m.availableTargetSet())
 	}
-	files := []string{}
+	var files []string
 	if len(m.selectedFiles) > 0 {
 		files = sortedStringKeysFromSet(m.selectedFiles)
 	} else if m.selectedFile != "" {
@@ -1367,15 +1367,6 @@ func (m runInteractiveModel) fileScopeLabel() string {
 		return fmt.Sprintf("%d files (%s)", len(files), summarizeSlice(files, 2))
 	}
 	return m.scopeLabel(m.selectedFile, "files")
-}
-
-func (m runInteractiveModel) isAllowedFile(path string) bool {
-	for _, file := range m.catalog.Files {
-		if filepath.Clean(file.Path) == filepath.Clean(path) {
-			return true
-		}
-	}
-	return false
 }
 
 func (m runInteractiveModel) isAllowedDirectory(path string) bool {
