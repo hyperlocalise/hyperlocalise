@@ -1,0 +1,98 @@
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+  - id: openai-gpt-5-nano
+    provider: openai
+    model: gpt-5-nano
+judge:
+  provider: openai
+  model: gpt-5.4
+  assertions:
+    - llm-rubric
+    - factuality
+    - context-faithfulness
+    - context-recall
+
+tests:
+  - id: raheem-sterling-melissa-clarke
+    vars:
+      source: |
+        Although still very young, Raheem Sterling's romantic achievements, a promising winger for Liverpool, have earned him respect even from renowned playboys. The young star of The Kop currently holds the heart of one of England's most alluring beauties, Melissa Clarke.
+        Along with the impressive performance that Liverpool has created, Raheem Sterling's name has also become more well-known. However, two years ago, The Kop's rising star "became famous" when he became the father of a baby girl at the age of 17. This was the result of a relationship between Sterling and his 23-year-old girlfriend, Melissa Clarke.
+        The irresistible beauty of Melissa Clarke
+        Despite being a mother, Sterling's lover hasn't lost her fiery curves along with the captivating beauty of one of the most seductive beauties in Foggy Albion. Melissa is currently a talented MC, and she also frequently appears in magazines specifically for men as a nude model.
+        The blazing beauty that made Sterling a father at 17:
+        The naked girlfriend of the Liverpool player
+        Scorching images of the 90s beauty
+        A collection of hot photos of Liverpool WAGs
+        A stunning beauty in lingerie.
+        According to Akmen.
+    locales:
+      - locale: vi-VN
+        reference: |
+          Mặc dù còn rất trẻ nhưng chiến tích tình trường của Raheem Sterling, cầu thủ chạy cánh đầy tiềm năng Liverpool khiến các tay chơi nổi tiếng “sát gát” cũng phải nể phục. Ngôi sao trẻ The Kop đang nắm giữ trái tim một trong những mỹ nhân gợi cảm nhất nước Anh, Melissa Clarke.
+          Cùng với phong độ ấn tượng mà Liverpool đã tạo ra, tên tuổi của Raheem Sterling cũng được biết đến nhiều hơn. Tuy nhiên, cách đây hai năm, ngôi sao triển vọng của The Kop đã “nổi như cồn” khi trở thành cha của một bé gái ở tuổi 17. Đây là kết quả của mối tình giữa Sterling và cô bạn gái 23 tuổi melissa clarke .
+          Vẻ đẹp khó cưỡng của Melissa Clarke
+          Mặc dù đã là một bà mẹ nhưng người tình Sterling vẫn không mất đi những đường cong nóng bỏng cùng vẻ đẹp hút hồn của một trong những mỹ nhân gợi cảm nhất xứ Sương mù. Melissa hiện là một MC tài năng, ngoài ra cô còn thường xuyên xuất hiện trên các tạp chí dành riêng cho đàn ông trong vai trò mẫu khỏa thân.
+          Vẻ đẹp rực lửa khiến Sterling làm bố ở tuổi 17:
+          Cô bồ chuyên khỏa thân của tuyển thủ Liverpool
+          Những khuôn hình nóng bỏng của người đẹp 9x
+          Bộ sưu tập ảnh nóng của wags Liverpool
+          Người đẹp nóng bỏng với đồ nội y.
+          Theo Akmen.
+  - id: aftex-2013-conference
+    vars:
+      source: |
+        In his opening remarks at the Conference, Chairman of AFTEX Vietnam, Mr. Vu Duc Giang, extended a warm welcome and sincere gratitude to all delegates attending the Conference and wished for the friendship and cooperation of AFTEX to grow stronger day by day.
+        The AFTEX - 2013 Conference was held amidst numerous difficulties and complexities in the global economy; The textile industry in the ASEAN region as well as each member country faces increasing competition from various countries. This requires AFTEX to propose many practical programs to help textile businesses survive and develop based on cooperation, proactively participate in the supply chain, and take advantage of existing competitive advantages of economies.
+        This is also an opportunity for members to look back and evaluate challenges as well as what needs to be done in the future. In addition to regular agendas at routine AFTEX meetings, this conference thoroughly discussed expanding textile cooperation between ASEAN countries and China; organizing machinery and resources to implement this cooperation towards the benefit and development of the textile industry of each country within the bloc and the entire bloc...
+        At the Conference, representatives from the textile industry from the China-ASEAN Business Council (CABC) and the Federation signed a Memorandum of Understanding establishing a cooperative alliance in the Asia-Southeast Asia textile industry to maximize the benefits of the Free Trade Area between China and Southeast Asia (CAFTA), expand trade and investment cooperation, create advantageous industrial chains, promote healthy and sustainable development of the textile industry in the region, as well as strengthen the industries of both CABC and AFTEX.
+        According to Vinatex
+    locales:
+      - locale: vi-VN
+        reference: |
+          Phát biểu khai mạc Hội nghị, Chủ tịch AFTEX Việt Nam, ông Vũ Đức Giang bày tỏ lời chào mừng và cảm ơn nồng nhiệt nhất đến toàn thể đại biểu tham dự Hội nghị và chúc cho tình hữu nghị hợp tác của AFTEX phát triển ngày một tốt đẹp.
+          Hội nghị AFTEX – 2013 được tổ chức trong bối cảnh kinh tế thế giới có nhiều diễn biến khó khăn, phức tạp; Dệt may khu vực ASEAN cũng như của mỗi nước thành viên đều phải đối mặt với sự cạnh tranh gay gắt hơn từ các phía các nước bạn. Điều này đòi hỏi AFTEX phải đề ra được nhiều chương trình thiết thực nhằm giúp các doanh nghiệp dệt may tồn tại và phát triển trên cơ sở hợp tác, chủ động tham gia chuỗi cung ứng, tận dụng các lợi thế cạnh tranh sẵn có của các nền kinh tế.
+          Đây cũng là dịp để các thành viên nhìn lại, đánh giá những thách thức cũng như việc cần phải làm trong thời gian tới. Ngoài các nội dung thường xuyên tại các cuộc họp thường kỳ của AFTEX, Hội nghị lần này đã bàn kỹ về vấn đề mở rộng hợp tác về dệt may giữa các nước trong ASEAN và Trung Quốc; tổ chức bộ máy, nguồn lực để triển khai thực hiện hợp tác này theo hướng vì lợi ích và sự phát triển dệt may của từng nước trong khối và toàn khối…
+          Tại Hội nghị, đại diện của ngành công nghiệp dệt may từ Hội đồng doanh nghiệp Trung Quốc và ASEAN (CABC) và Liên đoàn đã ký Biên bản hợp tác thành lập liên minh hợp tác trong công nghiệp dệt may Châu Á – Đông Nam Á nhằm tận dụng tối đa lợi ích của Vùng tự do thương mại giữa Trung Quốc và Đông Nam Á (CAFTA), mở rộng thương mại và hợp tác đầu tư, tạo ra chuỗi công nghiệp có lợi thế, thúc đẩy phát triển lành mạnh và bền vững ngành công nghiệp dệt may trong khu vực cũng như đẩy mạnh nền công nghiệp của cả CABC và AFTEX.
+          Theo Vinatex
+  - id: ui-save-settings
+    vars:
+      source: "Save settings"
+    locales:
+      - locale: vi-VN
+        reference: "Lưu cài đặt"
+  - id: ui-checkout-button
+    vars:
+      source: "Complete purchase"
+    locales:
+      - locale: vi-VN
+        reference: "Hoàn tất mua hàng"
+  - id: ui-password-reset
+    vars:
+      source: "Reset password"
+    locales:
+      - locale: vi-VN
+        reference: "Đặt lại mật khẩu"
+  - id: icu-files-uploaded
+    vars:
+      source: "{count, plural, one {# file uploaded} other {# files uploaded}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, one {Đã tải lên # tệp} other {Đã tải lên # tệp}}"
+  - id: icu-inbox-count
+    vars:
+      source: "{count, plural, =0 {No messages} one {# message} other {# messages}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Không có tin nhắn} one {# tin nhắn} other {# tin nhắn}}"
+  - id: icu-welcome-user
+    vars:
+      source: "Welcome back, {name}"
+    locales:
+      - locale: vi-VN
+        reference: "Chào mừng bạn quay lại, {name}"
