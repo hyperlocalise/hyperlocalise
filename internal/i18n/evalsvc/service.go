@@ -329,7 +329,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 
 func (s *Service) resolveJudgeScorers(in Input, cases []evalset.Case) []JudgeScorer {
 	required := effectiveJudgeAssertions(in.Assertions, cases)
-	if len(required) == 0 || !in.LLMEvaluationEnabled() {
+	if !in.LLMEvaluationEnabled() {
 		return nil
 	}
 	if len(s.judgeScorers) > 0 {
