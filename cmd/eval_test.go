@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc/scoring"
 )
 
 func TestRootHelpIncludesEvalCommand(t *testing.T) {
@@ -67,16 +66,21 @@ func TestEvalRunRejectsInlineAndFileEvalPromptTogether(t *testing.T) {
 	}
 }
 
-func TestEvalRunRejectsIncompleteEvaluatorFlags(t *testing.T) {
+func TestEvalRunAllowsIncompleteEvaluatorFlagsForDefaults(t *testing.T) {
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--eval-provider", "openai"})
 
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatalf("expected error, got nil")
+	prev := evalRunFunc
+	evalRunFunc = func(_ context.Context, in evalsvc.Input) (evalsvc.Report, error) {
+		if in.EvalProvider != "openai" || in.EvalModel != "" {
+			t.Fatalf("unexpected eval input: %+v", in)
+		}
+		return evalsvc.Report{}, nil
 	}
-	if !strings.Contains(err.Error(), "must be set together") {
-		t.Fatalf("unexpected error: %v", err)
+	t.Cleanup(func() { evalRunFunc = prev })
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("expected incomplete evaluator flags to be allowed, got %v", err)
 	}
 }
 
@@ -109,24 +113,39 @@ func TestEvalRunPassesEvalPromptFromFile(t *testing.T) {
 func TestEvalRunPrintsSummary(t *testing.T) {
 	prev := evalRunFunc
 	evalRunFunc = func(_ context.Context, _ evalsvc.Input) (evalsvc.Report, error) {
-		return evalsvc.Report{Runs: []evalsvc.RunResult{
-			{
-				ExperimentID: "default|openai|gpt|prompt",
-				LatencyMS:    10,
-				Quality: scoring.Result{
-					WeightedAggregate: 0.9,
+		return evalsvc.Report{
+			Input: evalsvc.Input{
+				EvalSetPath:  "set.json",
+				OutputPath:   "report.json",
+				EvalProvider: "openai",
+				EvalModel:    "gpt-5.2",
+			},
+			Aggregate: evalsvc.Aggregate{
+				TotalRuns:      2,
+				SuccessfulRuns: 1,
+				FailedRuns:     1,
+			},
+			LLMEvaluation: &evalsvc.LLMEvaluation{
+				Enabled:    true,
+				Provider:   "openai",
+				Model:      "gpt-5.2",
+				Assertions: []string{"llm-rubric"},
+			},
+			CaseSummaries: []evalsvc.CaseSummary{
+				{CaseID: "a"},
+			},
+			ExperimentSummaries: []evalsvc.ExperimentSummary{
+				{
+					ExperimentID:     "default|openai|gpt|prompt",
+					RunCount:         2,
+					SuccessfulRuns:   1,
+					FailedRuns:       1,
+					AverageLatencyMS: 15,
+					WeightedScore:    0.75,
+					HardFailCounts:   map[string]int{"placeholder_drop": 1},
 				},
 			},
-			{
-				ExperimentID: "default|openai|gpt|prompt",
-				LatencyMS:    20,
-				Error:        "fail",
-				Quality: scoring.Result{
-					WeightedAggregate: 0.6,
-					HardFails:         []string{scoring.HardFailPlaceholderDrop},
-				},
-			},
-		}}, nil
+		}, nil
 	}
 	t.Cleanup(func() { evalRunFunc = prev })
 
@@ -144,6 +163,12 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "50.0%") {
 		t.Fatalf("expected pass rate, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "eval: starting dataset=set.json") {
+		t.Fatalf("expected start log, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "eval: judge provider=openai model=gpt-5.2 assertions=llm-rubric") {
+		t.Fatalf("expected judge log, got %q", out.String())
 	}
 }
 

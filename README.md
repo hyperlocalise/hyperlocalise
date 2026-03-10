@@ -194,6 +194,8 @@ hyperlocalise eval compare --candidate <report.json> --baseline <report.json> [-
 
 `eval run` prints a concise per-experiment table with score, pass rate, placeholder violations, and latency.
 
+Eval sets are YAML files built around grouped `tests`, shared `vars`, per-locale `locales`, optional dataset `experiments`, optional dataset `judge`, and optional `assert` checks. Use `reference` for trusted target-side text.
+
 `eval compare` supports CI gating:
 - `--min-score` fails when candidate weighted score is below threshold
 - `--max-regression` fails when candidate regresses more than allowed versus baseline
