@@ -103,6 +103,20 @@ func TestEvaluatorForbiddenTermsCaseInsensitiveTag(t *testing.T) {
 	}
 }
 
+func TestEvaluatorSkipsTagGatedWeightsWithoutTags(t *testing.T) {
+	e := NewEvaluator()
+	got := e.Evaluate("Pay now", "Payer maintenant", "Payer maintenant!", "fr-FR", nil)
+	if slices.Contains(got.HardFails, HardFailLengthOutOfBound) || slices.Contains(got.HardFails, HardFailForbiddenTerms) {
+		t.Fatalf("expected tag-gated hard fails to stay disabled without tags, got %+v", got.HardFails)
+	}
+	if got.LengthCompliance != 1 || got.TermCompliance != 1 {
+		t.Fatalf("expected raw tag-gated scores to stay neutral without tags, got %+v", got)
+	}
+	if got.ReferenceSimilarity == nil || got.WeightedAggregate != 0.882 {
+		t.Fatalf("expected weighted aggregate to exclude tag-gated weights when tags are absent, got %+v", got)
+	}
+}
+
 func TestEvaluatorDetectsDuplicateTagLoss(t *testing.T) {
 	e := NewEvaluator()
 	got := e.Evaluate("Use **bold** and **more bold**", "Utilisez **gras** et plus gras", "", "fr-FR", nil)

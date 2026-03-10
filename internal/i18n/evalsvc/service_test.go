@@ -512,6 +512,16 @@ func TestNormalizeEvalInputDefaultsJudgeModelToOpenAIGPT52(t *testing.T) {
 	}
 }
 
+func TestNormalizeEvalInputHandlesNilDataset(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+		Assertions:  []string{AssertionLLMRubric},
+	}, nil)
+	if got.EvalProvider != "openai" || got.EvalModel != "gpt-5.2" {
+		t.Fatalf("expected default judge config with nil dataset, got %+v", got)
+	}
+}
+
 func TestNormalizeEvalInputUsesDatasetJudgeConfig(t *testing.T) {
 	got := normalizeEvalInput(Input{
 		EvalSetPath: "set.yaml",
@@ -719,7 +729,7 @@ func TestRunFailsOnAssertionThresholdMiss(t *testing.T) {
 				Source:       "Save account settings",
 				TargetLocale: "fr-FR",
 				Assertions: []evalset.Assertion{
-					{Type: "judge.translation_quality", Threshold: &threshold},
+					{Type: "judge.factuality", Threshold: &threshold},
 				},
 			},
 		}}, nil
@@ -743,6 +753,46 @@ func TestRunFailsOnAssertionThresholdMiss(t *testing.T) {
 	}
 	if report.Runs[0].Decision != "fail" || report.Runs[0].FinalScore != 0 {
 		t.Fatalf("expected assertion threshold miss to fail run, got %+v", report.Runs[0])
+	}
+}
+
+func TestRunTreatsAssertionErrorsAsReviewNotFailure(t *testing.T) {
+	svc := newTestService()
+	threshold := 0.7
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{Cases: []evalset.Case{
+			{
+				ID:           "a",
+				Source:       "Save account settings",
+				TargetLocale: "fr-FR",
+				Reference:    "Enregistrer les parametres du compte",
+				Assertions: []evalset.Assertion{
+					{Type: "judge.factuality", Threshold: &threshold},
+				},
+			},
+		}}, nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Enregistrer les parametres du compte", nil
+	}
+	svc.WithJudgeScorers(fakeFailingJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath:  "unused.yaml",
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Runs[0].Decision != "review" {
+		t.Fatalf("expected assertion error to downgrade to review, got %+v", report.Runs[0])
+	}
+	if report.Runs[0].FinalScore == 0 {
+		t.Fatalf("expected assertion error to preserve calibrated score, got %+v", report.Runs[0])
+	}
+	if len(report.Runs[0].AssertionResults) != 1 || report.Runs[0].AssertionResults[0].Error == "" {
+		t.Fatalf("expected assertion error to be recorded, got %+v", report.Runs[0].AssertionResults)
 	}
 }
 

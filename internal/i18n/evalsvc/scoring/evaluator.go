@@ -77,6 +77,8 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	result.LengthCompliance = lengthComplianceScore(srcTrimmed, translatedTrimmed, tags)
 	result.TermCompliance = termComplianceScore(translatedTrimmed, tags)
 	result.LocaleValidity = localeValidityScore(targetLocale, translatedTrimmed)
+	lengthApplicable := hasTag(tags, "ui")
+	termApplicable := hasForbiddenTermTag(tags)
 	result.Details["placeholderIntegrity"] = round3(result.PlaceholderIntegrity)
 	result.Details["tagIntegrity"] = round3(result.TagIntegrity)
 	result.Details["lengthCompliance"] = round3(result.LengthCompliance)
@@ -105,10 +107,10 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	if result.TagIntegrity < 1 {
 		hardFailSet[HardFailTagMismatch] = struct{}{}
 	}
-	if result.LengthCompliance < 1 {
+	if lengthApplicable && result.LengthCompliance < 1 {
 		hardFailSet[HardFailLengthOutOfBound] = struct{}{}
 	}
-	if result.TermCompliance < 1 {
+	if termApplicable && result.TermCompliance < 1 {
 		hardFailSet[HardFailForbiddenTerms] = struct{}{}
 	}
 	if result.LocaleValidity < 1 {
@@ -117,10 +119,16 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 
 	numerator := result.PlaceholderIntegrity*e.weights.PlaceholderIntegrity +
 		result.TagIntegrity*e.weights.TagIntegrity +
-		result.LengthCompliance*e.weights.LengthCompliance +
-		result.TermCompliance*e.weights.TermCompliance +
 		result.LocaleValidity*e.weights.LocaleValidity
-	denominator := e.weights.PlaceholderIntegrity + e.weights.TagIntegrity + e.weights.LengthCompliance + e.weights.TermCompliance + e.weights.LocaleValidity
+	denominator := e.weights.PlaceholderIntegrity + e.weights.TagIntegrity + e.weights.LocaleValidity
+	if lengthApplicable {
+		numerator += result.LengthCompliance * e.weights.LengthCompliance
+		denominator += e.weights.LengthCompliance
+	}
+	if termApplicable {
+		numerator += result.TermCompliance * e.weights.TermCompliance
+		denominator += e.weights.TermCompliance
+	}
 
 	if referenceTrimmed != "" {
 		exact := 0.0
@@ -292,6 +300,15 @@ func hasLetter(text string) bool {
 func hasTag(tags []string, target string) bool {
 	for _, tag := range tags {
 		if strings.EqualFold(strings.TrimSpace(tag), target) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasForbiddenTermTag(tags []string) bool {
+	for _, tag := range tags {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(tag)), "forbidden:") {
 			return true
 		}
 	}

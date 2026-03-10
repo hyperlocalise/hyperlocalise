@@ -422,7 +422,9 @@ func hasCLIExperimentOverrides(in Input) bool {
 }
 
 func normalizeEvalInput(in Input, dataset *evalset.Dataset) Input {
+	var cases []evalset.Case
 	if dataset != nil {
+		cases = dataset.Cases
 		if strings.TrimSpace(in.EvalProvider) == "" {
 			in.EvalProvider = strings.TrimSpace(dataset.Judge.Provider)
 		}
@@ -436,7 +438,7 @@ func normalizeEvalInput(in Input, dataset *evalset.Dataset) Input {
 			in.Assertions = append([]string(nil), dataset.Judge.Assertions...)
 		}
 	}
-	if !evalRequested(in, dataset.Cases) {
+	if !evalRequested(in, cases) {
 		return in
 	}
 	if strings.TrimSpace(in.EvalProvider) == "" {
@@ -973,6 +975,9 @@ func classifyRunDecision(run RunResult) string {
 	if strings.TrimSpace(run.Error) != "" || len(run.Quality.HardFails) > 0 || hasAssertionFailures(run.AssertionResults) {
 		return "fail"
 	}
+	if hasAssertionErrors(run.AssertionResults) {
+		return "review"
+	}
 	hasJudgeFailure := false
 	for _, result := range run.JudgeResults {
 		if strings.TrimSpace(result.Error) != "" {
@@ -1056,7 +1061,16 @@ func evaluateAssertions(assertions []evalset.Assertion, translated string, judge
 
 func hasAssertionFailures(results []AssertionResult) bool {
 	for _, result := range results {
-		if strings.TrimSpace(result.Error) != "" || !result.Passed {
+		if strings.TrimSpace(result.Error) == "" && !result.Passed {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAssertionErrors(results []AssertionResult) bool {
+	for _, result := range results {
+		if strings.TrimSpace(result.Error) != "" {
 			return true
 		}
 	}
