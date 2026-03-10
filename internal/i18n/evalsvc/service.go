@@ -690,6 +690,10 @@ func aggregateRuns(runs []RunResult) Aggregate {
 			hardFailCounts[cat]++
 		}
 		for name, result := range run.JudgeResults {
+			if result.Score != nil {
+				scoreSums[name] += *result.Score
+				scoreCounts[name]++
+			}
 			if strings.TrimSpace(result.Error) != "" {
 				judgeFailureCounts[name]++
 			}
@@ -783,6 +787,10 @@ func summarizeCases(runs []RunResult) []CaseSummary {
 				hardFailCounts[cat]++
 			}
 			for name, result := range run.JudgeResults {
+				if result.Score != nil {
+					scoreSums[name] += *result.Score
+					scoreCounts[name]++
+				}
 				if strings.TrimSpace(result.Error) != "" {
 					judgeFailureCounts[name]++
 				}
@@ -869,6 +877,10 @@ func summarizeExperiments(runs []RunResult) []ExperimentSummary {
 				hardFailCounts[cat]++
 			}
 			for name, result := range run.JudgeResults {
+				if result.Score != nil {
+					scoreSums[name] += *result.Score
+					scoreCounts[name]++
+				}
 				if strings.TrimSpace(result.Error) != "" {
 					judgeFailureCounts[name]++
 				}

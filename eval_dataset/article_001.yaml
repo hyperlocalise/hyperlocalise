@@ -5,9 +5,13 @@ experiments:
   - id: ollama-lfm2-24b
     provider: ollama
     model: lfm2:24b
+
   - id: openai-gpt-5-nano
     provider: openai
     model: gpt-5-nano
+  - id: openai-gpt-5-mini
+    provider: openai
+    model: gpt-5-mini
 judge:
   provider: openai
   model: gpt-5.4

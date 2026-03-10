@@ -497,6 +497,9 @@ func TestAggregateRunsIncludesBreakdownsAndCalibratedFinalScore(t *testing.T) {
 	if len(report.ExperimentSummaries) != 1 || report.ExperimentSummaries[0].AverageJudgeScore == nil {
 		t.Fatalf("expected experiment summaries with judge scores, got %+v", report.ExperimentSummaries)
 	}
+	if report.ExperimentSummaries[0].AverageScoreByName["judge:factuality"] != 0.8 {
+		t.Fatalf("expected experiment summary assertion average, got %+v", report.ExperimentSummaries[0].AverageScoreByName)
+	}
 }
 
 func TestNormalizeEvalInputDefaultsJudgeModelToOpenAIGPT52(t *testing.T) {
@@ -622,6 +625,7 @@ func TestSummarizeExperimentsAggregatesByExperimentID(t *testing.T) {
 			ExperimentID:        "exp-a",
 			LatencyMS:           10,
 			Scores:              map[string]float64{"reference": 1},
+			JudgeResults:        map[string]JudgeResult{"judge:factuality": {Score: &score}},
 			JudgeAggregateScore: &score,
 			Quality:             scoring.Result{WeightedAggregate: 0.9, HardFails: []string{scoring.HardFailPlaceholderDrop}},
 			FinalScore:          0.85,
@@ -652,6 +656,9 @@ func TestSummarizeExperimentsAggregatesByExperimentID(t *testing.T) {
 	}
 	if summaries[0].AverageJudgeScore == nil || *summaries[0].AverageJudgeScore != 0.8 {
 		t.Fatalf("expected exp-a judge summary, got %+v", summaries[0])
+	}
+	if summaries[0].AverageScoreByName["judge:factuality"] != 0.8 {
+		t.Fatalf("expected exp-a assertion average, got %+v", summaries[0].AverageScoreByName)
 	}
 	if summaries[0].HardFailCounts[scoring.HardFailPlaceholderDrop] != 1 {
 		t.Fatalf("expected exp-a placeholder hard fail count, got %+v", summaries[0].HardFailCounts)

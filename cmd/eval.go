@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"github.com/mattn/go-isatty"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc/scoring"
 	"github.com/spf13/cobra"
 )
 
@@ -251,12 +255,16 @@ func loadEvalReport(path string) (evalsvc.Report, error) {
 }
 
 func writeExperimentSummary(w io.Writer, summaries []evalsvc.ExperimentSummary, includeHeader bool) error {
+	styles := newEvalSummaryStyles(w)
 	if includeHeader {
 		if _, err := fmt.Fprintln(w, "candidate experiment summary:"); err != nil {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintln(w, "experiment | score | pass_rate | placeholder_violations | latency_ms"); err != nil {
+	scoreColumns := experimentScoreColumns(summaries)
+	header := []string{"experiment", "score", "pass_rate", "placeholder_violations", "latency_ms"}
+	header = append(header, scoreColumns...)
+	if _, err := fmt.Fprintln(w, strings.Join(header, " | ")); err != nil {
 		return err
 	}
 	for _, summary := range summaries {
@@ -266,22 +274,113 @@ func writeExperimentSummary(w io.Writer, summaries []evalsvc.ExperimentSummary, 
 		}
 		placeholderViolations := 0
 		if summary.HardFailCounts != nil {
-			placeholderViolations = summary.HardFailCounts["placeholder_drop"]
+			placeholderViolations = summary.HardFailCounts[scoring.HardFailPlaceholderDrop]
 		}
-		if _, err := fmt.Fprintf(
-			w,
-			"%s | %.3f | %.1f%% | %d | %.1f\n",
+		row := []string{
 			summary.ExperimentID,
-			summary.WeightedScore,
-			passRate*100,
-			placeholderViolations,
-			summary.AverageLatencyMS,
-		); err != nil {
+			styles.renderScore(summary.WeightedScore),
+			styles.renderPassRate(passRate),
+			fmt.Sprintf("%d", placeholderViolations),
+			fmt.Sprintf("%.1f", summary.AverageLatencyMS),
+		}
+		for _, column := range scoreColumns {
+			row = append(row, formatExperimentScore(styles, summary.AverageScoreByName, column))
+		}
+		if _, err := fmt.Fprintln(w, strings.Join(row, " | ")); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func experimentScoreColumns(summaries []evalsvc.ExperimentSummary) []string {
+	seen := map[string]struct{}{}
+	columns := make([]string, 0)
+	for _, summary := range summaries {
+		for name := range summary.AverageScoreByName {
+			label := experimentScoreLabel(name)
+			if _, ok := seen[label]; ok {
+				continue
+			}
+			seen[label] = struct{}{}
+			columns = append(columns, label)
+		}
+	}
+	sort.Strings(columns)
+	return columns
+}
+
+func formatExperimentScore(styles evalSummaryStyles, scores map[string]float64, column string) string {
+	if len(scores) == 0 {
+		return "-"
+	}
+	for name, score := range scores {
+		if experimentScoreLabel(name) == column {
+			return styles.renderScore(score)
+		}
+	}
+	return "-"
+}
+
+func experimentScoreLabel(name string) string {
+	label := strings.TrimSpace(name)
+	label = strings.TrimPrefix(label, "judge:")
+	return label
+}
+
+type evalSummaryStyles struct {
+	good   lipgloss.Style
+	warn   lipgloss.Style
+	bad    lipgloss.Style
+	colors bool
+}
+
+func newEvalSummaryStyles(w io.Writer) evalSummaryStyles {
+	styles := evalSummaryStyles{}
+	file, ok := w.(*os.File)
+	if !ok {
+		return styles
+	}
+	if !isatty.IsTerminal(file.Fd()) && !isatty.IsCygwinTerminal(file.Fd()) {
+		return styles
+	}
+	return evalSummaryStyles{
+		good:   lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true),
+		warn:   lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true),
+		bad:    lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true),
+		colors: true,
+	}
+}
+
+func (s evalSummaryStyles) renderScore(score float64) string {
+	text := fmt.Sprintf("%.3f", score)
+	if !s.colors {
+		return text
+	}
+	switch {
+	case score >= 0.85:
+		return s.good.Render(text)
+	case score >= 0.70:
+		return s.warn.Render(text)
+	default:
+		return s.bad.Render(text)
+	}
+}
+
+func (s evalSummaryStyles) renderPassRate(passRate float64) string {
+	text := fmt.Sprintf("%.1f%%", passRate*100)
+	if !s.colors {
+		return text
+	}
+	switch {
+	case passRate >= 0.90:
+		return s.good.Render(text)
+	case passRate >= 0.70:
+		return s.warn.Render(text)
+	default:
+		return s.bad.Render(text)
+	}
 }
 
 func logEvalRunStart(w io.Writer, input evalsvc.Input) error {

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc"
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc/scoring"
 )
 
 func TestRootHelpIncludesEvalCommand(t *testing.T) {
@@ -142,7 +143,11 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 					FailedRuns:       1,
 					AverageLatencyMS: 15,
 					WeightedScore:    0.75,
-					HardFailCounts:   map[string]int{"placeholder_drop": 1},
+					HardFailCounts:   map[string]int{scoring.HardFailPlaceholderDrop: 1},
+					AverageScoreByName: map[string]float64{
+						"judge:llm-rubric": 0.82,
+						"judge:factuality": 0.79,
+					},
 				},
 			},
 		}, nil
@@ -158,11 +163,14 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("eval run: %v", err)
 	}
-	if !strings.Contains(out.String(), "experiment | score | pass_rate") {
+	if !strings.Contains(out.String(), "experiment | score | pass_rate | placeholder_violations | latency_ms | factuality | llm-rubric") {
 		t.Fatalf("expected table header, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "50.0%") {
 		t.Fatalf("expected pass rate, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "0.790 | 0.820") {
+		t.Fatalf("expected assertion columns, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "eval: starting dataset=set.json") {
 		t.Fatalf("expected start log, got %q", out.String())
