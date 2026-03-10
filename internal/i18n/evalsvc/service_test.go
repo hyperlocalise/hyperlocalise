@@ -463,14 +463,15 @@ func TestAggregateLLMEvaluationIncludesOnlyConfiguredAndRequiredAssertions(t *te
 	}
 }
 
-func TestAggregateLLMEvaluationDoesNotInjectDefaultAssertion(t *testing.T) {
+func TestAggregateLLMEvaluationUsesDefaultAssertionWhenNoneConfigured(t *testing.T) {
 	in := Input{EvalSetPath: "set.json", EvalProvider: "openai", EvalModel: "judge-model"}
 	got := aggregateLLMEvaluation(in, nil, nil)
 	if got == nil {
 		t.Fatalf("expected llm evaluation payload")
 	}
-	if len(got.Assertions) != 0 {
-		t.Fatalf("expected no assertions when none configured, got %+v", got.Assertions)
+	want := []string{AssertionLLMRubric}
+	if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
+		t.Fatalf("expected default llm-rubric assertion when none configured, got %+v", got.Assertions)
 	}
 }
 

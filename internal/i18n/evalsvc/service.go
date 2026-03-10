@@ -328,7 +328,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 }
 
 func (s *Service) resolveJudgeScorers(in Input, cases []evalset.Case) []JudgeScorer {
-	required := mergeAssertionKinds(normalizedAssertions(in.Assertions), requiredJudgeAssertions(cases))
+	required := effectiveJudgeAssertions(in.Assertions, cases)
 	if len(required) == 0 || !in.LLMEvaluationEnabled() {
 		return nil
 	}
@@ -610,7 +610,7 @@ func aggregateLLMEvaluation(in Input, runs []RunResult, cases []evalset.Case) *L
 		Provider:   strings.TrimSpace(in.EvalProvider),
 		Model:      strings.TrimSpace(in.EvalModel),
 		Prompt:     effectiveLLMJudgePrompt(strings.TrimSpace(in.EvalPrompt)),
-		Assertions: mergeAssertionKinds(normalizedAssertions(in.Assertions), requiredJudgeAssertions(cases)),
+		Assertions: effectiveJudgeAssertions(in.Assertions, cases),
 	}
 
 	total := 0.0
@@ -927,6 +927,16 @@ func round3(v float64) float64 {
 
 func normalizedAssertions(assertions []string) []string {
 	return canonicalJudgeAssertions(assertions)
+}
+
+func effectiveJudgeAssertions(globalAssertions []string, cases []evalset.Case) []string {
+	configured := normalizedAssertions(globalAssertions)
+	required := requiredJudgeAssertions(cases)
+	merged := mergeAssertionKinds(configured, required)
+	if len(merged) == 0 {
+		return []string{AssertionLLMRubric}
+	}
+	return merged
 }
 
 func finalizeRun(run *RunResult) {
