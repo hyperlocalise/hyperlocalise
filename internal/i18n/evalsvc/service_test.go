@@ -2,6 +2,7 @@ package evalsvc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -63,6 +64,13 @@ func (f fakeSecondJudgeScorer) ScoreJudge(_ context.Context, _ ScoreInput) (Judg
 	return JudgeResult{Score: scorePtr(0.75), Rationale: "second judge"}, nil
 }
 
+type fakeStrongJudgeScorer struct{}
+
+func (f fakeStrongJudgeScorer) Name() string { return "judge:factuality" }
+func (f fakeStrongJudgeScorer) ScoreJudge(_ context.Context, _ ScoreInput) (JudgeResult, error) {
+	return JudgeResult{Score: scorePtr(0.8), Rationale: "grounded"}, nil
+}
+
 func TestRunIsDeterministicWithSeed(t *testing.T) {
 	svc := newTestService()
 	input := Input{
@@ -90,8 +98,16 @@ func TestRunIsDeterministicWithSeed(t *testing.T) {
 	zeroLatency(report2.Runs)
 	zeroCaseLatency(report1.CaseSummaries)
 	zeroCaseLatency(report2.CaseSummaries)
+	zeroExperimentLatency(report1.ExperimentSummaries)
+	zeroExperimentLatency(report2.ExperimentSummaries)
 	report1.Aggregate.AverageLatencyMS = 0
 	report2.Aggregate.AverageLatencyMS = 0
+	zeroAggregateBreakdownLatency(report1.Aggregate.ByLocale)
+	zeroAggregateBreakdownLatency(report2.Aggregate.ByLocale)
+	zeroAggregateBreakdownLatency(report1.Aggregate.ByBucket)
+	zeroAggregateBreakdownLatency(report2.Aggregate.ByBucket)
+	zeroAggregateBreakdownLatency(report1.Aggregate.ByTag)
+	zeroAggregateBreakdownLatency(report2.Aggregate.ByTag)
 	report1.Aggregate.WeightedScore = 0
 	report2.Aggregate.WeightedScore = 0
 
@@ -182,6 +198,9 @@ func TestRunAggregatesScorersAndPersistsReport(t *testing.T) {
 	if len(report.CaseSummaries) != 2 {
 		t.Fatalf("expected 2 case summaries, got %d", len(report.CaseSummaries))
 	}
+	if len(report.ExperimentSummaries) != 2 {
+		t.Fatalf("expected 2 experiment summaries, got %d", len(report.ExperimentSummaries))
+	}
 
 	if len(svc.writes) != 1 || svc.writes[0] != outputPath {
 		t.Fatalf("expected report written once to output path, got %+v", svc.writes)
@@ -210,6 +229,29 @@ func TestRunJudgeScoringDisabledByDefault(t *testing.T) {
 		if len(run.JudgeResults) > 0 {
 			t.Fatalf("expected judge results to be disabled by default")
 		}
+	}
+}
+
+func TestRunCreatesOutputDirectoryWhenMissing(t *testing.T) {
+	svc := newTestService()
+	outputPath := filepath.Join("artifacts", "nested", "report.json")
+
+	_, err := svc.Run(context.Background(), Input{
+		EvalSetPath: "unused.json",
+		Profiles:    []string{"default"},
+		Providers:   []string{"openai"},
+		Models:      []string{"model-a"},
+		Prompts:     []string{"prompt A"},
+		OutputPath:  outputPath,
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(svc.dirs) != 1 || svc.dirs[0] != filepath.Join("artifacts", "nested") {
+		t.Fatalf("expected output directory creation, got %+v", svc.dirs)
+	}
+	if len(svc.writes) != 1 || svc.writes[0] != outputPath {
+		t.Fatalf("expected report write after mkdir, got %+v", svc.writes)
 	}
 }
 
@@ -358,17 +400,33 @@ func TestAggregateLLMEvaluationCountsJudgeCallsAcrossScorers(t *testing.T) {
 	}
 }
 
-func TestInputValidateRejectsPartialEvalConfig(t *testing.T) {
-	err := (Input{EvalSetPath: "set.json", EvalProvider: "openai"}).Validate()
-	if err == nil || !strings.Contains(err.Error(), "must be set together") {
-		t.Fatalf("expected paired evaluator flag error, got %v", err)
+func TestInputValidateAllowsPartialEvalConfigForDefaults(t *testing.T) {
+	if err := (Input{EvalSetPath: "set.json", EvalProvider: "openai"}).Validate(); err != nil {
+		t.Fatalf("expected provider-only eval config to be allowed, got %v", err)
 	}
 }
 
-func TestInputValidateRejectsEvalPromptWithoutProviderAndModel(t *testing.T) {
-	err := (Input{EvalSetPath: "set.json", EvalPrompt: "judge this"}).Validate()
-	if err == nil || !strings.Contains(err.Error(), "required when using evaluator prompt overrides") {
-		t.Fatalf("expected evaluator prompt validation error, got %v", err)
+func TestInputValidateAllowsEvalPromptWithoutProviderAndModel(t *testing.T) {
+	if err := (Input{EvalSetPath: "set.json", EvalPrompt: "judge this"}).Validate(); err != nil {
+		t.Fatalf("expected eval prompt-only config to be allowed, got %v", err)
+	}
+}
+
+func TestInputValidateAllowsAssertionsWithoutProviderAndModel(t *testing.T) {
+	if err := (Input{EvalSetPath: "set.json", Assertions: []string{AssertionLLMRubric}}).Validate(); err != nil {
+		t.Fatalf("expected assertion-only config to be allowed, got %v", err)
+	}
+}
+
+func TestInputValidateRejectsUnknownAssertions(t *testing.T) {
+	err := (Input{
+		EvalSetPath:  "set.json",
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+		Assertions:   []string{"llm-rubirc"},
+	}).Validate()
+	if err == nil || !strings.Contains(err.Error(), "unsupported --assertion") {
+		t.Fatalf("expected unsupported assertion validation error, got %v", err)
 	}
 }
 
@@ -380,12 +438,390 @@ func TestAggregateLLMEvaluationDeterministic(t *testing.T) {
 		{JudgeResults: map[string]JudgeResult{"judge": {Error: "boom"}}},
 		{Error: "translation failed"},
 	}
-	got := aggregateLLMEvaluation(in, runs)
+	got := aggregateLLMEvaluation(in, runs, nil)
 	if got == nil || got.AggregateScore == nil || *got.AggregateScore != 0.3 {
 		t.Fatalf("unexpected llm aggregate: %+v", got)
 	}
 	if got.SuccessfulJudges != 2 || got.FailedJudges != 1 || got.SkippedRuns != 1 {
 		t.Fatalf("unexpected llm counters: %+v", got)
+	}
+}
+
+func TestAggregateRunsIncludesBreakdownsAndCalibratedFinalScore(t *testing.T) {
+	svc := newTestService()
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{Cases: []evalset.Case{
+			{ID: "a", Source: "Save account settings", TargetLocale: "fr-FR", Reference: "Enregistrer les parametres du compte"},
+			{ID: "b", Source: "Product docs", TargetLocale: "de-DE", Reference: "Produktdokumentation"},
+		}}, nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		switch req.Source {
+		case "Save account settings":
+			return "Enregistrer les parametres du compte", nil
+		case "Product docs":
+			return "Produktdokumentation", nil
+		default:
+			return req.Source, nil
+		}
+	}
+	svc.WithJudgeScorers(fakeStrongJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath:  "unused.json",
+		Profiles:     []string{"default"},
+		Providers:    []string{"openai"},
+		Models:       []string{"model-a"},
+		Prompts:      []string{"prompt A"},
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Aggregate.AverageJudgeScore == nil || *report.Aggregate.AverageJudgeScore != 0.8 {
+		t.Fatalf("expected aggregate judge score, got %+v", report.Aggregate)
+	}
+	if report.Aggregate.FinalScore != 0.93 {
+		t.Fatalf("expected calibrated final score 0.93, got %+v", report.Aggregate.FinalScore)
+	}
+	if report.Aggregate.DecisionCounts["pass"] != 2 {
+		t.Fatalf("expected pass decision counts, got %+v", report.Aggregate.DecisionCounts)
+	}
+	if report.Aggregate.ByLocale["fr-FR"].TotalRuns != 1 || report.Aggregate.ByLocale["de-DE"].TotalRuns != 1 {
+		t.Fatalf("expected locale breakdowns, got %+v", report.Aggregate.ByLocale)
+	}
+	if len(report.CaseSummaries) != 2 || report.CaseSummaries[0].AverageJudgeScore == nil {
+		t.Fatalf("expected case summaries with judge scores, got %+v", report.CaseSummaries)
+	}
+	if len(report.ExperimentSummaries) != 1 || report.ExperimentSummaries[0].AverageJudgeScore == nil {
+		t.Fatalf("expected experiment summaries with judge scores, got %+v", report.ExperimentSummaries)
+	}
+	if report.ExperimentSummaries[0].AverageScoreByName["judge:factuality"] != 0.8 {
+		t.Fatalf("expected experiment summary assertion average, got %+v", report.ExperimentSummaries[0].AverageScoreByName)
+	}
+}
+
+func TestNormalizeEvalInputDefaultsJudgeModelToOpenAIGPT52(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+		Assertions:  []string{AssertionLLMRubric},
+	}, &evalset.Dataset{})
+	if got.EvalProvider != "openai" || got.EvalModel != "gpt-5.2" {
+		t.Fatalf("expected default judge config openai/gpt-5.2, got %+v", got)
+	}
+}
+
+func TestNormalizeEvalInputHandlesNilDataset(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+		Assertions:  []string{AssertionLLMRubric},
+	}, nil)
+	if got.EvalProvider != "openai" || got.EvalModel != "gpt-5.2" {
+		t.Fatalf("expected default judge config with nil dataset, got %+v", got)
+	}
+}
+
+func TestNormalizeEvalInputUsesDatasetJudgeConfig(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+	}, &evalset.Dataset{
+		Judge: evalset.Judge{
+			Provider:   "anthropic",
+			Model:      "claude-sonnet-4-5",
+			Prompt:     "Judge carefully.",
+			Assertions: []string{"factuality"},
+		},
+	})
+	if got.EvalProvider != "anthropic" || got.EvalModel != "claude-sonnet-4-5" || got.EvalPrompt != "Judge carefully." {
+		t.Fatalf("expected dataset judge config, got %+v", got)
+	}
+	if len(got.Assertions) != 1 || got.Assertions[0] != "factuality" {
+		t.Fatalf("expected dataset judge assertions, got %+v", got.Assertions)
+	}
+}
+
+func TestNormalizeEvalInputCanonicalizesDatasetJudgeAssertions(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+	}, &evalset.Dataset{
+		Judge: evalset.Judge{
+			Assertions: []string{"llm_rubric", "judge.factuality", "g_eval"},
+		},
+	})
+	want := []string{AssertionLLMRubric, AssertionFactuality, AssertionGEval}
+	if len(got.Assertions) != len(want) {
+		t.Fatalf("expected canonical dataset judge assertions, got %+v", got.Assertions)
+	}
+	for i := range want {
+		if got.Assertions[i] != want[i] {
+			t.Fatalf("expected canonical dataset judge assertions %v, got %+v", want, got.Assertions)
+		}
+	}
+}
+
+func TestNormalizeEvalInputCLIOverridesDatasetJudgeConfig(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath:  "set.yaml",
+		EvalProvider: "openai",
+		Assertions:   []string{"g-eval"},
+	}, &evalset.Dataset{
+		Judge: evalset.Judge{
+			Provider:   "anthropic",
+			Model:      "claude-sonnet-4-5",
+			Prompt:     "Judge carefully.",
+			Assertions: []string{"factuality"},
+		},
+	})
+	if got.EvalProvider != "openai" {
+		t.Fatalf("expected CLI provider to win, got %+v", got)
+	}
+	if got.EvalModel != "claude-sonnet-4-5" {
+		t.Fatalf("expected dataset model to fill missing CLI model, got %+v", got)
+	}
+	if len(got.Assertions) != 1 || got.Assertions[0] != "g-eval" {
+		t.Fatalf("expected CLI assertions to win, got %+v", got.Assertions)
+	}
+}
+
+func TestRunUsesDefaultJudgeModelWhenAssertionsRequested(t *testing.T) {
+	svc := newTestService()
+	svc.WithJudgeScorers(fakeJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath: "unused.yaml",
+		Assertions:  []string{AssertionLLMRubric},
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Input.EvalProvider != "openai" || report.Input.EvalModel != "gpt-5.2" {
+		t.Fatalf("expected normalized judge config in report input, got %+v", report.Input)
+	}
+	if report.LLMEvaluation == nil || report.LLMEvaluation.Provider != "openai" || report.LLMEvaluation.Model != "gpt-5.2" {
+		t.Fatalf("expected default judge metadata, got %+v", report.LLMEvaluation)
+	}
+}
+
+func TestRunUsesDatasetJudgeConfigWhenPresent(t *testing.T) {
+	svc := newTestService()
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{
+			Judge: evalset.Judge{
+				Provider:   "openai",
+				Model:      "gpt-5.2",
+				Assertions: []string{AssertionLLMRubric},
+			},
+			Cases: []evalset.Case{
+				{ID: "a", Source: "hello", TargetLocale: "fr", Reference: "HELLO"},
+			},
+		}, nil
+	}
+	svc.WithJudgeScorers(fakeJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath: "unused.yaml",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Input.EvalProvider != "openai" || report.Input.EvalModel != "gpt-5.2" {
+		t.Fatalf("expected dataset judge config in report input, got %+v", report.Input)
+	}
+	if report.LLMEvaluation == nil || report.LLMEvaluation.Provider != "openai" || report.LLMEvaluation.Model != "gpt-5.2" {
+		t.Fatalf("expected dataset judge metadata, got %+v", report.LLMEvaluation)
+	}
+}
+
+func TestInputJSONOmitsUnsetJudgeFieldsAndUsesJSONNames(t *testing.T) {
+	content, err := json.Marshal(Input{EvalSetPath: "set.yaml"})
+	if err != nil {
+		t.Fatalf("marshal input: %v", err)
+	}
+	text := string(content)
+	if !strings.Contains(text, `"evalSetPath":"set.yaml"`) {
+		t.Fatalf("expected json field name evalSetPath, got %s", text)
+	}
+	if strings.Contains(text, "EvalProvider") || strings.Contains(text, `"evalProvider":""`) || strings.Contains(text, `"assertions":null`) {
+		t.Fatalf("expected unset judge fields to be omitted, got %s", text)
+	}
+}
+
+func TestSummarizeExperimentsAggregatesByExperimentID(t *testing.T) {
+	score := 0.8
+	summaries := summarizeExperiments([]RunResult{
+		{
+			ExperimentID:        "exp-a",
+			LatencyMS:           10,
+			Scores:              map[string]float64{"reference": 1},
+			JudgeResults:        map[string]JudgeResult{"judge:factuality": {Score: &score}},
+			JudgeAggregateScore: &score,
+			Quality:             scoring.Result{WeightedAggregate: 0.9, HardFails: []string{scoring.HardFailPlaceholderDrop}},
+			FinalScore:          0.85,
+			Decision:            "pass",
+		},
+		{
+			ExperimentID: "exp-a",
+			LatencyMS:    20,
+			Scores:       map[string]float64{"reference": 0.5},
+			Quality:      scoring.Result{WeightedAggregate: 0.7},
+			FinalScore:   0.7,
+			Decision:     "review",
+			Error:        "boom",
+		},
+		{
+			ExperimentID: "exp-b",
+			LatencyMS:    15,
+			Quality:      scoring.Result{WeightedAggregate: 0.6},
+			FinalScore:   0.6,
+			Decision:     "pass",
+		},
+	})
+	if len(summaries) != 2 {
+		t.Fatalf("expected 2 experiment summaries, got %+v", summaries)
+	}
+	if summaries[0].ExperimentID != "exp-a" || summaries[0].RunCount != 2 || summaries[0].SuccessfulRuns != 1 || summaries[0].FailedRuns != 1 {
+		t.Fatalf("unexpected exp-a summary: %+v", summaries[0])
+	}
+	if summaries[0].AverageJudgeScore == nil || *summaries[0].AverageJudgeScore != 0.8 {
+		t.Fatalf("expected exp-a judge summary, got %+v", summaries[0])
+	}
+	if summaries[0].AverageScoreByName["judge:factuality"] != 0.8 {
+		t.Fatalf("expected exp-a assertion average, got %+v", summaries[0].AverageScoreByName)
+	}
+	if summaries[0].HardFailCounts[scoring.HardFailPlaceholderDrop] != 1 {
+		t.Fatalf("expected exp-a placeholder hard fail count, got %+v", summaries[0].HardFailCounts)
+	}
+	if summaries[1].ExperimentID != "exp-b" || summaries[1].RunCount != 1 {
+		t.Fatalf("unexpected exp-b summary: %+v", summaries[1])
+	}
+}
+
+func TestRunAppliesDeterministicAssertions(t *testing.T) {
+	svc := newTestService()
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{Cases: []evalset.Case{
+			{
+				ID:           "a",
+				Source:       "Save account settings",
+				TargetLocale: "fr-FR",
+				Assertions: []evalset.Assertion{
+					{Type: "contains", Value: "parametres"},
+					{Type: "not_contains", Value: "legacy-login"},
+				},
+			},
+		}}, nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Enregistrer les parametres du compte", nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath:  "unused.yaml",
+		Profiles:     []string{"default"},
+		Providers:    []string{"openai"},
+		Models:       []string{"model-a"},
+		Prompts:      []string{"prompt A"},
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if len(report.Runs) != 1 || len(report.Runs[0].AssertionResults) != 2 {
+		t.Fatalf("expected assertion results, got %+v", report.Runs)
+	}
+	for _, result := range report.Runs[0].AssertionResults {
+		if !result.Passed {
+			t.Fatalf("expected deterministic assertions to pass, got %+v", report.Runs[0].AssertionResults)
+		}
+	}
+}
+
+func TestRunFailsOnAssertionThresholdMiss(t *testing.T) {
+	svc := newTestService()
+	threshold := 0.9
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{Cases: []evalset.Case{
+			{
+				ID:           "a",
+				Source:       "Save account settings",
+				TargetLocale: "fr-FR",
+				Assertions: []evalset.Assertion{
+					{Type: "judge.factuality", Threshold: &threshold},
+				},
+			},
+		}}, nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Enregistrer les parametres du compte", nil
+	}
+	svc.WithJudgeScorers(fakeStrongJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath:  "unused.yaml",
+		Profiles:     []string{"default"},
+		Providers:    []string{"openai"},
+		Models:       []string{"model-a"},
+		Prompts:      []string{"prompt A"},
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Runs[0].Decision != "fail" || report.Runs[0].FinalScore != 0 {
+		t.Fatalf("expected assertion threshold miss to fail run, got %+v", report.Runs[0])
+	}
+}
+
+func TestRunTreatsAssertionErrorsAsReviewNotFailure(t *testing.T) {
+	svc := newTestService()
+	threshold := 0.7
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		return &evalset.Dataset{Cases: []evalset.Case{
+			{
+				ID:           "a",
+				Source:       "Save account settings",
+				TargetLocale: "fr-FR",
+				Reference:    "Enregistrer les parametres du compte",
+				Assertions: []evalset.Assertion{
+					{Type: "judge.factuality", Threshold: &threshold},
+				},
+			},
+		}}, nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "Enregistrer les parametres du compte", nil
+	}
+	svc.WithJudgeScorers(fakeFailingJudgeScorer{})
+
+	report, err := svc.Run(context.Background(), Input{
+		EvalSetPath:  "unused.yaml",
+		EvalProvider: "openai",
+		EvalModel:    "judge-model",
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Runs[0].Decision != "review" {
+		t.Fatalf("expected assertion error to downgrade to review, got %+v", report.Runs[0])
+	}
+	if report.Runs[0].FinalScore == 0 {
+		t.Fatalf("expected assertion error to preserve calibrated score, got %+v", report.Runs[0])
+	}
+	if len(report.Runs[0].AssertionResults) != 1 || report.Runs[0].AssertionResults[0].Error == "" {
+		t.Fatalf("expected assertion error to be recorded, got %+v", report.Runs[0].AssertionResults)
+	}
+}
+
+func TestAggregateRunsTracksJudgeFailureModesByAssertion(t *testing.T) {
+	agg := aggregateRuns([]RunResult{
+		{Decision: "review", JudgeResults: map[string]JudgeResult{"judge:factuality": {Error: "bad schema"}}},
+		{Decision: "fail", JudgeResults: map[string]JudgeResult{"judge:g-eval": {Error: "timeout"}}},
+	})
+	if agg.JudgeFailureCounts["judge:factuality"] != 1 || agg.JudgeFailureCounts["judge:g-eval"] != 1 {
+		t.Fatalf("expected assertion-scoped judge failure counts, got %+v", agg.JudgeFailureCounts)
 	}
 }
 
@@ -478,6 +914,9 @@ func TestLLMJudgeScorerUsesOriginalSourceAndCustomPrompt(t *testing.T) {
 	if !strings.Contains(gotReq.SystemPrompt, "judge prompt") {
 		t.Fatalf("expected custom judge system prompt, got %q", gotReq.SystemPrompt)
 	}
+	if !strings.Contains(gotReq.SystemPrompt, "Write the rationale in English.") {
+		t.Fatalf("expected english rationale instruction, got %q", gotReq.SystemPrompt)
+	}
 	if !strings.Contains(gotReq.SystemPrompt, "Eval case context:") || !strings.Contains(gotReq.SystemPrompt, "homepage headline") {
 		t.Fatalf("expected eval context in system prompt, got %q", gotReq.SystemPrompt)
 	}
@@ -520,6 +959,7 @@ func TestLLMJudgeScorerSanitizesEvalCaseContextInSystemPrompt(t *testing.T) {
 type testService struct {
 	*Service
 	writes []string
+	dirs   []string
 }
 
 func newTestService() *testService {
@@ -541,6 +981,10 @@ func newTestService() *testService {
 			t.writes = append(t.writes, path)
 			return nil
 		},
+		mkdirAll: func(path string, _ os.FileMode) error {
+			t.dirs = append(t.dirs, path)
+			return nil
+		},
 		now:    func() time.Time { return now },
 		numCPU: func() int { return 2 },
 	}
@@ -554,7 +998,7 @@ func TestBuildExperimentsUsesCartesianProduct(t *testing.T) {
 		Providers: []string{"openai", "anthropic"},
 		Models:    []string{"m1"},
 		Prompts:   []string{"x", "y"},
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("build experiments: %v", err)
 	}
@@ -563,6 +1007,49 @@ func TestBuildExperimentsUsesCartesianProduct(t *testing.T) {
 	}
 	if experiments[0].id == "" {
 		t.Fatalf("expected experiment IDs to be populated")
+	}
+}
+
+func TestBuildExperimentsUsesDatasetExperimentsWhenCLIUnset(t *testing.T) {
+	dataset := &evalset.Dataset{
+		Experiments: []evalset.Experiment{
+			{ID: "openai-mini", Provider: "openai", Model: "gpt-4.1-mini", Prompt: "p1"},
+			{Provider: "anthropic", Model: "claude-sonnet-4-5"},
+		},
+	}
+	experiments, err := buildExperiments(Input{}, dataset)
+	if err != nil {
+		t.Fatalf("build experiments: %v", err)
+	}
+	if len(experiments) != 2 {
+		t.Fatalf("expected 2 dataset experiments, got %d", len(experiments))
+	}
+	if experiments[0].id != "openai-mini" {
+		t.Fatalf("expected explicit experiment id, got %+v", experiments[0])
+	}
+	if experiments[1].profile != "default" || experiments[1].prompt == "" {
+		t.Fatalf("expected defaults for missing dataset experiment fields, got %+v", experiments[1])
+	}
+}
+
+func TestBuildExperimentsCLIOverridesDatasetExperiments(t *testing.T) {
+	dataset := &evalset.Dataset{
+		Experiments: []evalset.Experiment{
+			{ID: "openai-mini", Provider: "openai", Model: "gpt-4.1-mini"},
+		},
+	}
+	experiments, err := buildExperiments(Input{
+		Providers: []string{"anthropic"},
+		Models:    []string{"claude-sonnet-4-5"},
+	}, dataset)
+	if err != nil {
+		t.Fatalf("build experiments: %v", err)
+	}
+	if len(experiments) != 1 {
+		t.Fatalf("expected CLI to define the experiment set, got %d", len(experiments))
+	}
+	if experiments[0].provider != "anthropic" || experiments[0].model != "claude-sonnet-4-5" {
+		t.Fatalf("expected CLI experiments to win, got %+v", experiments[0])
 	}
 }
 
@@ -646,5 +1133,18 @@ func zeroLatency(runs []RunResult) {
 func zeroCaseLatency(summaries []CaseSummary) {
 	for i := range summaries {
 		summaries[i].AverageLatencyMS = 0
+	}
+}
+
+func zeroExperimentLatency(summaries []ExperimentSummary) {
+	for i := range summaries {
+		summaries[i].AverageLatencyMS = 0
+	}
+}
+
+func zeroAggregateBreakdownLatency(items map[string]AggregateBreakdown) {
+	for key, item := range items {
+		item.AverageLatencyMS = 0
+		items[key] = item
 	}
 }

@@ -1,0 +1,2720 @@
+{
+  "generatedAt": "2026-03-10T09:51:46.853595Z",
+  "input": {
+    "evalSetPath": "./eval_dataset/article_001.yaml",
+    "outputPath": "./artifacts/article_001_report.json",
+    "evalProvider": "openai",
+    "evalModel": "gpt-5.4",
+    "assertions": [
+      "llm-rubric",
+      "factuality",
+      "context-faithfulness",
+      "context-recall"
+    ]
+  },
+  "aggregate": {
+    "totalRuns": 32,
+    "successfulRuns": 32,
+    "failedRuns": 0,
+    "averageLatencyMs": 11891.107,
+    "averageScoreByName": {
+      "judge:context-faithfulness": 0.757,
+      "judge:context-recall": 0.737,
+      "judge:factuality": 0.752,
+      "judge:llm-rubric": 0.78
+    },
+    "averageJudgeScore": 0.757,
+    "weightedScore": 0.744,
+    "finalScore": 0.743,
+    "hardFailCounts": {
+      "malformed_icu": 4,
+      "placeholder_integrity_failed": 4
+    },
+    "decisionCounts": {
+      "fail": 6,
+      "pass": 11,
+      "review": 15
+    },
+    "byLocale": {
+      "vi-VN": {
+        "totalRuns": 32,
+        "successfulRuns": 32,
+        "failedRuns": 0,
+        "averageLatencyMs": 11891.107,
+        "averageJudgeScore": 0.757,
+        "weightedScore": 0.744,
+        "finalScore": 0.743,
+        "hardFailCounts": {
+          "malformed_icu": 4,
+          "placeholder_integrity_failed": 4
+        },
+        "decisionCounts": {
+          "fail": 6,
+          "pass": 11,
+          "review": 15
+        }
+      }
+    }
+  },
+  "llmEvaluation": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-5.4",
+    "prompt": "You are an expert translation evaluator.\nScore the candidate translation from 0.0 to 1.0.\nConsider accuracy, fluency, terminology, tone, locale fit, and placeholder preservation.\nUse the reference only as optional style and tone guidance, not as an exact-match target.\nWrite the rationale in English.\nReturn strict JSON with at least this shape: {\"score\":0.0,\"rationale\":\"brief explanation in English\"}.",
+    "assertions": [
+      "context-faithfulness",
+      "context-recall",
+      "factuality",
+      "llm-rubric"
+    ],
+    "aggregateScore": 0.756,
+    "averageScoreByName": {
+      "judge:context-faithfulness": 0.757,
+      "judge:context-recall": 0.737,
+      "judge:factuality": 0.752,
+      "judge:llm-rubric": 0.78
+    },
+    "successfulJudges": 128
+  },
+  "runs": [
+    {
+      "caseId": "aftex-2013-conference::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{{target}}:\nTrong bài phát biểu khai mạc tại Hội nghị, Chủ tịch AFTEX Việt Nam, ông Vũ Đức Giang, đã gửi lời chào trân trọng và bày tỏ lòng biết ơn chân thành đến tất cả các đại biểu tham dự Hội nghị, đồng thời mong muốn tình hữu báo và hợp tác của AFTEX ngày càng phát triển mạnh mẽ hơn.\nHội nghị AFTEX - 2013 được tổ chức giữa vô vàn khó khăn và phức tạp trong nền kinh tế toàn cầu; ngành dệt may khu vực ASEAN cũng như mỗi quốc gia thành viên đều phải đối mặt với sự cạnh tranh ngày càng tăng từ nhiều quốc gia khác. Điều này đòi hỏi AFTEX phải đề xuất nhiều chương trình thực tiễn giúp các doanh nghiệp dệt may tồn tại và phát triển dựa trên hợp tác, chủ động tham gia vào chuỗi cung ứng, và khai thác lợi thế cạnh tranh hiện có của các nền kinh tế.\nĐây cũng là cơ hội để các thành viên dừng lại để tổng kết thách thức cũng như những gì cần phải làm trong tương lai. Ngoài chương trình thường niên của các cuộc họp Hội nghị AFTEX, hội nghị này đã thảo luận kỹ lưỡng về việc mở rộng hợp tác dệt may giữa các nước ASEAN và Trung Quốc; tổ chức các công cụ và nguồn lực để triển khai hợp tác này vì lợi ích và phát triển của ngành dệt may ở từng quốc gia trong khu vực và toàn bộ khu vực…\nTại Hội nghị, đại diện ngành dệt may từ Hội đồng Kinh doanh Trung Quốc - ASEAN (CABC) và Liên đoàn đã ký Ký kết một Biên bản Ghi nhớ thiết lập một liên minh hợp tác trong ngành dệt may Đông - Đông Nam Á nhằm tối đa hóa lợi ích từ Khu vực Thương mại Tự do giữa Trung Quốc và Đông Nam Á (CAFTA), mở rộng hợp tác thương mại và đầu tư, tạo ra chuỗi công nghiệp thuận lợi, thúc đẩy sự phát triển lành mạnh và bền vững của ngành dệt may trong khu vực, cũng như củng cố ngành công nghiệp của cả CABC và AFTEX.\nTheo Vinatex",
+      "latencyMs": 24132.236,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.91,
+          "rationale": "The candidate is largely faithful to the source and preserves the main facts, structure, and intent. It correctly conveys the opening remarks, the difficult global economic context, the need for practical programs and supply-chain participation, the discussion on ASEAN-China textile cooperation, and the signing of an MoU involving CABC and AFTEX. However, there are a few wording issues and slight deviations: 'tình hữu báo' appears to be an error for 'tình hữu nghị'; 'organizing machinery and resources' is rendered as 'tổ chức các công cụ và nguồn lực,' which is awkward and slightly shifts meaning; and 'Asia-Southeast Asia textile industry' becomes 'Đông - Đông Nam Á,' which is inaccurate because 'Asia' is broader than 'East Asia.' These are mostly translation inaccuracies rather than unsupported additions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.94,
+          "rationale": "The candidate preserves nearly all material facts from the source: the opening remarks by Mr. Vu Duc Giang, his welcome and thanks to delegates, the wish for stronger AFTEX friendship/cooperation, the difficult global economic context, rising competition for ASEAN textile industries, the need for practical programs based on cooperation/supply chains/competitive advantages, the opportunity to review challenges and future tasks, the conference’s discussion on expanding ASEAN-China textile cooperation and organizing resources, and the signing of an MoU between CABC and the Federation/AFTEX side to build a cooperative alliance and leverage CAFTA for trade, investment, industrial chains, sustainable development, and strengthening both sides. Minor issues reduce recall slightly: 'tình hữu báo' is a typo/distortion of 'friendship', 'Đông - Đông Nam Á' shifts 'Asia–Southeast Asia', and 'organizing machinery' is rendered less precisely as 'tools'. These do not substantially remove core facts.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 16,
+            "expectedFacts": 17
+          }
+        },
+        "judge:factuality": {
+          "score": 0.82,
+          "rationale": "The candidate translation is largely faithful to the source and aligns closely with the reference. Most key facts are preserved: speaker identity, AFTEX 2013 context, challenges in the global economy, need for practical programs, cooperation between ASEAN and China, and the signing of an MoU involving CABC and the Federation. However, there are several wording issues and a few inaccuracies: 'tình hữu báo' is an apparent typo/incorrect rendering of 'friendship'; 'dừng lại để tổng kết' and 'các công cụ và nguồn lực' are less accurate than the source/reference's meaning of reviewing/evaluating and organizing machinery/resources; 'Đông - Đông Nam Á' narrows/shifts the original 'Asia-Southeast Asia'; and 'đã ký Ký kết' is redundant/ungrammatical. These issues reduce accuracy somewhat but do not substantially alter the core meaning.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "'tình hữu báo' is an incorrect rendering not supported by the source/reference",
+              "'Đông - Đông Nam Á' shifts the original 'Asia-Southeast Asia textile industry' to 'East - Southeast Asia'",
+              "'các công cụ và nguồn lực' is a less faithful rendering of 'organizing machinery and resources'"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.71,
+          "rationale": "The translation preserves most of the source meaning and is generally understandable in vi-VN, but it contains several notable issues: a likely typo/mistranslation ('tình hữu báo' instead of 'tình hữu nghị'), awkward phrasing ('dừng lại để tổng kết thách thức', 'tổ chức các công cụ và nguồn lực'), and a duplication/error ('đã ký Ký kết'). Terminology is mostly consistent for textile/economic terms, though some choices are less idiomatic than the reference. Fluency is acceptable but uneven, with some unnatural constructions. Locale fit is broadly appropriate for Vietnam. Formatting safety is good because the placeholder '{{target}}' is preserved and no tags are broken. Policy tone is clear and non-apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.845,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.7951153324287652,
+        "weightedAggregate": 0.78,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.795,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.803,
+      "decision": "review"
+    },
+    {
+      "caseId": "aftex-2013-conference::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Trong bài phát biểu khai mạc tại Hội nghị, Chủ tịch AFTEX Việt Nam, ông Vu Duc Giang, đã gửi lời chào đón và lời cảm ơn chân thành đến tất cả các đại biểu tham dự Hội nghị và mong muốn mối quan hệ bạn bè và hợp tác của AFTEX ngày càng phát triển.\nHội nghị AFTEX - 2013 được tổ chức trong bối cảnh nhiều khó khăn và phức tạp trong nền kinh tế toàn cầu; Ngành dệt may trong khu vực ASEAN cũng như từng quốc gia thành viên phải đối mặt với sự cạnh tranh ngày càng tăng từ nhiều quốc gia. Điều này đòi hỏi AFTEX phải đề xuất nhiều chương trình thực tiễn để giúp các doanh nghiệp dệt may tồn tại và phát triển dựa trên hợp tác, tích cực tham gia vào chuỗi cung ứng và tận dụng những lợi thế cạnh tranh hiện có của các nền kinh tế.\nĐây cũng là cơ hội để các thành viên nhìn lại và đánh giá những thách thức cũng như những điều cần thực hiện trong tương lai. Ngoài các chương trình nghị sự thông thường tại các cuộc họp AFTEX, Hội nghị này đã thảo luận sâu sắc về việc mở rộng hợp tác dệt may giữa các nước ASEAN và Trung Quốc; tổ chức máy móc và nguồn lực để thực hiện hợp tác này nhằm mang lại lợi ích và phát triển cho ngành dệt may của từng quốc gia trong khu vực và toàn khu vực...\nTại Hội nghị, các đại diện từ ngành dệt may thuộc Tổ chức Kinh doanh Trung Quốc - ASEAN (CABC) và Liên đoàn đã ký Bản ghi nhớ hợp tác thành lập một liên minh hợp tác trong ngành dệt may của châu Á - Đông Nam Á để tối đa hóa lợi ích của Khu Thương mại Tự do giữa Trung Quốc và Đông Nam Á (CAFTA), mở rộng hợp tác thương mại và đầu tư, tạo ra các chuỗi công nghiệp thuận lợi, thúc đẩy sự phát triển lành mạnh và bền vững của ngành dệt may trong khu vực, cũng như củng cố các ngành của CABC và AFTEX.",
+      "latencyMs": 16109.366,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.9,
+          "rationale": "The candidate is largely faithful to the source and conveys all main points without adding substantive new information. Meanings such as the welcome remarks, economic difficulties, need for practical programs, discussion of ASEAN-China textile cooperation, and the MOU are preserved. Minor issues are mostly lexical/translation choices rather than unsupported additions: 'organizing machinery and resources' is rendered awkwardly as 'tổ chức máy móc và nguồn lực', and 'China-ASEAN Business Council' is translated less precisely as 'Tổ chức Kinh doanh Trung Quốc - ASEAN'. The omission of 'According to Vinatex' slightly reduces completeness, but there are no clear unsupported claims.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.93,
+          "rationale": "The candidate preserves nearly all material facts from the source: the opening remarks by Mr. Vu Duc Giang, his welcome and thanks to delegates, the wish for stronger AFTEX friendship/cooperation, the difficult global economic context, rising competition for ASEAN/member-country textile industries, the need for practical programs based on cooperation/supply chains/competitive advantages, the conference as a chance to review challenges and future tasks, discussion of expanding ASEAN-China textile cooperation plus organizing resources, and the signing of an MoU between CABC and the Federation to form a cooperative alliance and pursue CAFTA-related trade, investment, industrial-chain, and sustainable-development benefits. Minor losses/issues: the attribution 'According to Vinatex' is omitted, and a few terms are slightly less precise or awkward ('Tổ chức Kinh doanh' for Business Council, 'tổ chức máy móc' for organizing machinery/apparatus, 'củng cố các ngành' for strengthen the industries). These do not substantially remove core facts, but one factual attribution line is missing.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 14,
+            "expectedFacts": 15
+          }
+        },
+        "judge:factuality": {
+          "score": 0.88,
+          "rationale": "The candidate translation is largely faithful to the source and closely matches the reference in meaning. It correctly preserves the main facts, actors, and overall structure. However, there are a few wording issues that reduce factual precision: 'tổ chức máy móc và nguồn lực' mistranslates 'organizing machinery and resources' in context, sounding like physical machinery rather than organizational apparatus; 'Tổ chức Kinh doanh Trung Quốc - ASEAN' is a less accurate rendering of 'China-ASEAN Business Council'; and 'củng cố các ngành của CABC và AFTEX' is a slightly awkward/less precise rendering of 'strengthen the industries of both CABC and AFTEX.' Also, the final attribution 'According to Vinatex' is omitted. No major contradictions or fabricated content are present.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Omission of the final attribution 'According to Vinatex'",
+              "'Tổ chức Kinh doanh Trung Quốc - ASEAN' is an imprecise rendering of 'China-ASEAN Business Council (CABC)'",
+              "'tổ chức máy móc và nguồn lực' is a misleading rendering in context"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.79,
+          "rationale": "The translation preserves most of the source meaning and reads generally naturally in Vietnamese, but it has several notable issues: the personal name is left unlocalized as 'Vu Duc Giang' instead of 'Vũ Đức Giang'; 'friendship and cooperation' is rendered awkwardly as 'mối quan hệ bạn bè và hợp tác'; 'organizing machinery and resources' is mistranslated as 'tổ chức máy móc và nguồn lực' instead of organizational structure/apparatus and resources; 'Federation' becomes the vague 'Liên đoàn'; and the final source line 'According to Vinatex' is omitted. Terminology is mixed, with some acceptable renderings but also awkward choices like 'Tổ chức Kinh doanh Trung Quốc - ASEAN' for CABC and 'chuỗi công nghiệp thuận lợi.' Fluency is mostly good but includes several literal or unnatural phrases. Locale fit is generally acceptable for vi-VN, aside from the missing Vietnamese diacritics in the name. No placeholders or tags were at risk, and formatting is mostly preserved. Policy tone is clear and concise, though some wording is stiff.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.875,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.7748976807639837,
+        "weightedAggregate": 0.777,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.775,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.811,
+      "decision": "review"
+    },
+    {
+      "caseId": "aftex-2013-conference::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Trong lời phát biểu khai mạc tại Hội nghị, Chủ tịch AFTEX Việt Nam, ông Vũ Đức Giang, bày tỏ lời chào mừng nồng nhiệt và lòng biết ơn chân thành tới tất cả các đại biểu tham dự Hội nghị và chúc tình hữu nghị cũng như hợp tác của AFTEX ngày càng được củng cố, phát triển.\n\nHội nghị AFTEX - 2013 được tổ chức trong bối cảnh nhiều khó khăn và phức tạp của nền kinh tế toàn cầu; ngành dệt may trong khu vực ASEAN cũng như từng nước thành viên đang phải đối mặt với sự cạnh tranh ngày càng gia tăng từ nhiều quốc gia. Điều này đòi hỏi AFTEX phải đề xuất nhiều chương trình thiết thực nhằm giúp doanh nghiệp dệt may tồn tại và phát triển trên cơ sở hợp tác, chủ động tham gia chuỗi cung ứng và tận dụng các lợi thế cạnh tranh hiện có của các nền kinh tế.\n\nĐây cũng là cơ hội để các thành viên nhìn lại và đánh giá những thách thức cũng như những việc cần làm trong tương lai. Bên cạnh các chương trình nghị sự thường lệ tại các cuộc họp định kỳ của AFTEX, hội nghị này đã thảo luận kỹ về việc mở rộng hợp tác dệt may giữa các nước ASEAN và Trung Quốc; tổ chức bộ máy và huy động nguồn lực để triển khai sự hợp tác này vì lợi ích và sự phát triển của ngành dệt may của từng quốc gia trong khối cũng như của cả khối...\n\nTại Hội nghị, các đại diện ngành dệt may từ China-ASEAN Business Council (CABC) và Liên đoàn đã ký Bản Ghi nhớ về việc thành lập một liên minh hợp tác trong ngành dệt may khu vực châu Á - Đông Nam Á nhằm tối đa hóa lợi ích từ Khu vực Thương mại Tự do giữa Trung Quốc và Đông Nam Á (CAFTA), mở rộng hợp tác thương mại và đầu tư, tạo ra các chuỗi công nghiệp có lợi thế, thúc đẩy sự phát triển lành mạnh và bền vững của ngành dệt may trong khu vực, đồng thời tăng cường năng lực cho cả CABC và AFTEX.\n\nTheo Vinatex",
+      "latencyMs": 17908.153,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.97,
+          "rationale": "The candidate is highly faithful to the source and reference. It preserves all key facts: opening remarks by Vu Duc Giang, the difficult global economic context, increasing competition, the need for practical programs, discussion of ASEAN-China textile cooperation, and the signing of an MoU between CABC and the Federation/AFTEX. The wording is slightly freer in places but remains semantically consistent. No clear unsupported additions are present; minor phrasing shifts such as 'huy động nguồn lực' and 'tăng cường năng lực' are acceptable interpretive renderings of organizing resources and strengthening the industries.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source/reference. It includes the opening remarks by Mr. Vu Duc Giang, his welcome and gratitude to delegates, and the wish for AFTEX friendship/cooperation to grow. It preserves the 2013 conference context of global economic difficulties, rising competition for ASEAN/member-country textile industries, and the need for practical AFTEX programs based on cooperation, supply-chain participation, and use of competitive advantages. It also keeps the conference purpose of reviewing challenges/future tasks, the regular agenda plus expanded ASEAN-China textile cooperation, and organizing resources for implementation for the benefit of each country and the bloc. Finally, it preserves the signing of an MoU between CABC representatives and the Federation to establish a cooperative alliance in the Asia–Southeast Asia textile industry, with all major aims: maximizing CAFTA benefits, expanding trade and investment cooperation, creating advantageous industrial chains, promoting healthy and sustainable regional textile development, and strengthening both CABC and AFTEX. 'According to Vinatex' is also preserved. Differences are only stylistic/lexical, not factual.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 12,
+            "expectedFacts": 12
+          }
+        },
+        "judge:factuality": {
+          "score": 0.97,
+          "rationale": "The candidate translation is highly consistent with the source and closely matches the reference. It preserves all key facts: speaker identity, welcome and gratitude, the difficult global economic context, increasing competition, the need for practical programs, discussion topics, and the signing of an MoU between CABC and the Federation. Minor deviations are stylistic rather than factual, such as rendering 'strengthen the industries of both CABC and AFTEX' as 'tăng cường năng lực cho cả CABC và AFTEX,' which is a slight interpretation shift but still broadly grounded. No clear contradictions or fabricated details are present.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.9,
+          "rationale": "The translation preserves the source meaning well and reads naturally in Vietnamese. Terminology is generally appropriate, though a few choices are less standard or slightly interpretive, such as 'Bản Ghi nhớ' instead of the more common 'Biên bản ghi nhớ' and 'tăng cường năng lực' for 'strengthen the industries.' Locale fit is strong for vi-VN, and formatting is safe with names, acronyms, and structure preserved. Policy tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.96,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.8313090418353576,
+        "weightedAggregate": 0.783,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.831,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.845,
+      "decision": "review"
+    },
+    {
+      "caseId": "aftex-2013-conference::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Trong bài phát biểu khai mạc tại Hội nghị, Chủ tịch AFTEX Việt Nam, ông Vũ Đức Giang, đã gửi lời chào nồng nhiệt và lời biết ơn chân thành tới tất cả đại biểu tham dự Hội nghị và mong mối quan hệ hữu nghị cũng như sự hợp tác của AFTEX ngày càng được củng cố mạnh mẽ hơn theo từng ngày.\nHội nghị AFTEX - 2013 được tổ chức giữa muôn vàn khó khăn và phức tạp trong nền kinh tế toàn cầu; ngành công nghiệp dệt may ở khu vực ASEAN cũng như từng nước thành viên đang đối mặt với sự cạnh tranh ngày càng gia tăng từ nhiều nước. Điều này đòi hỏi AFTEX đề xuất nhiều chương trình thiết thực nhằm giúp các doanh nghiệp dệt may tồn tại và phát triển dựa trên sự hợp tác, chủ động tham gia vào chuỗi cung ứng, và tận dụng lợi thế cạnh tranh hiện có của các nền kinh tế.\nĐây cũng là cơ hội để các thành viên nhìn lại và đánh giá những thách thức cũng như những việc cần làm trong tương lai. Bên cạnh các chương trình làm việc thường lệ tại các cuộc họp AFTEX định kỳ, hội nghị này đã thảo luận kỹ lưỡng về việc mở rộng hợp tác dệt may giữa các nước ASEAN và Trung Quốc; tổ chức máy móc và nguồn lực để thực hiện sự hợp tác này nhằm mang lại lợi ích và sự phát triển cho ngành dệt may của mỗi nước trong khối cũng như cho cả khối...\nTại Hội nghị, đại diện ngành dệt may từ Hội đồng Doanh nghiệp Trung Quốc-ASEAN (CABC) và Liên đoàn đã ký một Bản ghi nhớ (MOU) thiết lập một liên minh hợp tác trong ngành dệt may châu Á - Đông Nam Á nhằm tối đa hóa lợi ích của Khu vực Thương mại Tự do giữa Trung Quốc và Đông Nam Á (CAFTA), mở rộng hợp tác thương mại và đầu tư, tạo ra các chuỗi công nghiệp thuận lợi, thúc đẩy sự phát triển lành mạnh và bền vững của ngành dệt may trong vùng, cũng như tăng cường các ngành công nghiệp của cả CABC và AFTEX.\nTheo Vinatex",
+      "latencyMs": 52930.041,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.96,
+          "rationale": "The candidate is highly faithful to the source and reference. It preserves all key facts, actors, purposes, and sequence of events without adding substantive new information. Wording is slightly freer in places, but meaning remains consistent. One minor issue is the phrase 'tổ chức máy móc và nguồn lực,' where 'máy móc' could be read literally as machinery, while the source/reference more likely means organizational apparatus/structure. This is a translation choice rather than a clear unsupported addition.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.95,
+          "rationale": "The candidate preserves nearly all material facts from the source: Mr. Vu Duc Giang's opening remarks, welcome and gratitude to delegates, wish for stronger AFTEX friendship/cooperation, the difficult global economic context, rising competition for ASEAN/member-country textile industries, the need for practical AFTEX programs to help firms survive and develop through cooperation/supply-chain participation/use of competitive advantages, the conference as a chance to review challenges and future tasks, discussion of expanding ASEAN-China textile cooperation and organizing resources to implement it for member/bloc benefit, the signing of an MOU between CABC and the Federation to establish an Asia–Southeast Asia textile alliance, and the goals related to CAFTA, trade/investment, industrial chains, sustainable development, and strengthening both sides. One minor nuance is weakened/awkwardly rendered: 'organizing machinery and resources' becomes 'tổ chức máy móc và nguồn lực,' which sounds less accurate, but the core fact is still present.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 15,
+            "expectedFacts": 16
+          }
+        },
+        "judge:factuality": {
+          "score": 0.92,
+          "rationale": "The candidate translation is largely faithful to the source and closely matches the reference. It preserves the main facts, entities, chronology, and overall meaning. Minor issues: 'organizing machinery and resources' is translated as 'tổ chức máy móc và nguồn lực,' where 'máy móc' is awkward and may misrepresent 'bộ máy'/'organizational apparatus'; 'các chương trình làm việc thường lệ' slightly shifts 'regular agendas'; and 'Khu vực Thương mại Tự do' vs. 'Vùng tự do thương mại' is a stylistic variation, not a factual error. No clear fabricated content or contradictions were introduced.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.81,
+          "rationale": "The translation preserves most of the source meaning and is generally fluent in Vietnamese. Terminology is mostly appropriate, but there are some less natural or slightly inaccurate choices, such as \"tổ chức máy móc\" for \"organizing machinery and resources,\" \"Bản ghi nhớ (MOU)\" instead of the more standard \"Biên bản ghi nhớ,\" and some phrasing that feels calqued from the source. Locale fit is good for vi-VN, with suitable register and names. Formatting is safe, with key entities and abbreviations preserved. Policy tone is clear and neutral.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.91,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.8037634408602151,
+        "weightedAggregate": 0.78,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.804,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.826,
+      "decision": "review"
+    },
+    {
+      "caseId": "icu-files-uploaded::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{{target}}: { {count, plural, một {# tệp đã tải lên} các tệp khác {# tệp đã tải lên}} }\n\n**Giải thích**:  \n- Cấu trúc ngữ pháp \"count, plural, one\" được dịch thành **\"một (số\"** và **\"các (số khác\"** trong tiếng Việt, phù hợp với cách dùng danh số từ \"count\".\n- Từ **\"other\"** được dịch là **\"các\"** ở đây mang nghĩa \"số khác\" thay vì \"các\" chung giữa \"one\" và \"others\".\n- Vị trí thay thế `#` và các đại từ chỉ số (`{# file uploaded}`) được giữ nguyên.\n- Định dạng **\"một… outros…\"** là cách chỉ số chính xác trong tiếng Việt.",
+      "latencyMs": 23942.586,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0,
+          "rationale": "The candidate is not faithful to the source ICU message or the Vietnamese reference. It adds unsupported text ('{{target}}:' and an explanatory block), changes ICU syntax incorrectly, and mistranslates plural category keywords ('one'/'other' should remain ICU category keys, not be translated to 'một' and 'các tệp khác'). It also includes incorrect/unsupported claims in the explanation, such as saying this is appropriate Vietnamese plural handling and using malformed wording like 'một… outros…'.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Added extra text '{{target}}:' not present in the source",
+              "Added an explanatory section not present in the source",
+              "Changed ICU plural category keys 'one' and 'other' into Vietnamese words instead of preserving ICU syntax",
+              "Used invalid/unsupported ICU structure with extra braces and malformed categories",
+              "Claimed that 'one' should be translated as 'một' and 'other' as 'các'/'số khác' in this ICU pattern",
+              "Claimed the '#'-placeholder structure was preserved, despite the overall ICU message being malformed",
+              "Claimed 'một… outros…' is an accurate Vietnamese format; this is unsupported and incorrect"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.29,
+          "rationale": "The candidate preserves the core idea of a pluralized upload message with the count placeholder and the meaning 'files uploaded'. However, it fails to preserve several material facts: it adds extraneous text ('{{target}}:'), uses invalid/incorrect ICU plural category labels in Vietnamese ('một', 'các tệp khác' instead of keeping ICU keys like 'one' and 'other'), introduces malformed brace syntax, and includes unsupported explanatory content not part of the translation. So only some core semantic facts are preserved, while important structural and format facts are not.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 7
+          }
+        },
+        "judge:factuality": {
+          "score": 0.08,
+          "rationale": "The candidate is largely inconsistent with the source and reference. It changes ICU plural category keywords from `one`/`other` to Vietnamese words (`một`, `các tệp khác`), which is invalid for ICU message syntax. It also adds extraneous text like `{{target}}:` and extra braces not present in the source. The explanatory notes contain unsupported and incorrect claims (including malformed phrases and `outros`). While the core phrase `# tệp đã tải lên` roughly matches the meaning, the overall translation is not factually faithful to the source format.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Changed ICU plural selectors `one` and `other` into translated text (`một`, `các tệp khác`) instead of preserving valid ICU syntax",
+              "Added extraneous wrapper `{{target}}:` not present in the source",
+              "Added extra braces and malformed structure not supported by the source",
+              "Explanation claims about translating `count, plural, one` into Vietnamese words are unsupported and incorrect",
+              "Explanation includes `outros`, which is unrelated and fabricated in this Vietnamese translation context"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.08,
+          "rationale": "The candidate is largely incorrect. It does not preserve the ICU plural syntax from the source, introduces extra wrapper text and braces (e.g. '{{target}}:'), mistranslates plural category labels ('one'/'other' rendered as Vietnamese words instead of kept as ICU selectors), and adds explanatory content that is not part of the translation. Fluency is poor and the output is not suitable for vi-VN localization. Formatting safety is severely compromised because the message pattern is broken.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.113,
+      "quality": {
+        "placeholderIntegrity": 0,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.10810810810810813,
+        "weightedAggregate": 0,
+        "hardFails": [
+          "malformed_icu",
+          "placeholder_integrity_failed"
+        ],
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 0,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.108,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "decision": "fail"
+    },
+    {
+      "caseId": "icu-files-uploaded::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{count, plural, one {# tệp đã tải lên} other {# các tệp đã tải lên}}",
+      "latencyMs": 1241.008,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.92,
+          "rationale": "The candidate preserves the ICU plural structure and the core meaning ('# file(s) uploaded') without adding new information. The word order differs from the reference but remains natural and faithful in Vietnamese. A minor issue is that 'các' in the 'other' branch is slightly more explicit than the source/reference and can sound less natural with a number placeholder, but it does not materially change the meaning.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": [
+              "The addition of 'các' in 'other' is a slight stylistic addition not present in the source/reference, though it does not significantly alter meaning."
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.5,
+          "rationale": "The candidate preserves the core meaning of a pluralized upload status message and keeps both plural categories with the # placeholder. However, it does not fully preserve the reference/source phrasing consistently: the 'one' branch is acceptable, but the 'other' branch adds 'các' ('# các tệp đã tải lên'), which is unnecessary and awkward with a numeric placeholder in Vietnamese. Thus most, but not all, material facts are preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 4
+          }
+        },
+        "judge:factuality": {
+          "score": 0.92,
+          "rationale": "The candidate preserves the ICU plural structure and the core meaning ('# file(s) uploaded'). It is factually consistent with the source. Minor issue: the 'other' branch adds 'các' ('# các tệp đã tải lên'), which is unnecessary and somewhat awkward with a numeric placeholder, but it does not change the meaning. No contradictions or fabricated content.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.84,
+          "rationale": "The candidate preserves the core meaning and keeps the ICU plural structure and placeholders intact. Terminology is acceptable ('tệp' for 'file', 'đã tải lên' for 'uploaded'), though the phrasing is less consistent with the reference and slightly unnatural in Vietnamese, especially the plural form 'các tệp đã tải lên' after '#'. Vietnamese does not require plural inflection here, so having different one/other wording is unnecessary. Locale fit is generally fine for vi-VN. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.795,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.4444444444444445,
+        "weightedAggregate": 0.744,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.444,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.762,
+      "decision": "review"
+    },
+    {
+      "caseId": "icu-files-uploaded::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{count, plural, one {# tệp tin đã được tải lên} other {# tệp tin đã được tải lên}}",
+      "latencyMs": 6092.085,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.96,
+          "rationale": "The candidate is faithful to the source meaning and preserves the ICU plural structure correctly for Vietnamese. It conveys '# file(s) uploaded' without adding new meaning. The only difference is wording: 'tệp tin' instead of 'tệp', and a more passive phrasing 'đã được tải lên' versus 'đã tải lên'. These are stylistic and still accurate, not unsupported additions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "All material facts are preserved: the plural ICU structure is retained, both one and other categories are present, the count placeholder (#) is preserved, and the meaning 'file(s) uploaded' is accurately conveyed in Vietnamese. The candidate differs only in wording ('tệp tin' and passive phrasing), not in material content.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 4,
+            "expectedFacts": 4
+          }
+        },
+        "judge:factuality": {
+          "score": 0.98,
+          "rationale": "The candidate is factually consistent with the source and matches the ICU plural structure correctly. It preserves the meaning for both one and other cases and keeps the # placeholder. The wording differs from the reference ('tệp tin' vs 'tệp', passive order), but this is a stylistic variation rather than a factual error. No contradictions or unsupported additions are present.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.9,
+          "rationale": "The candidate preserves the core meaning and correctly keeps the ICU plural structure and placeholder intact. Terminology is acceptable for vi-VN, though \"tệp tin\" is slightly less preferred than the more natural \"tệp\" in the reference. Fluency is good but somewhat less natural than standard Vietnamese UI phrasing; \"đã được tải lên\" is understandable yet a bit passive/heavy compared with \"Đã tải lên\". Locale fit is solid for vi-VN. Formatting is fully preserved. Policy tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.96,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.4,
+        "weightedAggregate": 0.74,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.4,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.817,
+      "decision": "review"
+    },
+    {
+      "caseId": "icu-files-uploaded::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{count, plural, one {# tệp đã tải lên} other {# tệp đã tải lên}}",
+      "latencyMs": 11057.491,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.96,
+          "rationale": "The candidate is faithful to the source meaning and preserves the ICU plural structure and placeholder. It conveys the same message in Vietnamese, with only a stylistic word-order difference from the reference ('# tệp đã tải lên' vs 'Đã tải lên # tệp'). No unsupported meaning or additions are introduced.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source: the plural ICU structure, the count placeholder (#), the uploaded-file meaning, and both plural categories used in the reference. The wording differs stylistically from the reference but does not omit or alter any material information.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 4,
+            "expectedFacts": 4
+          }
+        },
+        "judge:factuality": {
+          "score": 0.98,
+          "rationale": "The candidate translation is factually consistent with the source and matches the meaning of the reference. It correctly preserves the plural structure, the count placeholder (#), and the meaning 'uploaded files'. The only difference is word order ('# tệp đã tải lên' instead of 'Đã tải lên # tệp'), which is a stylistic variation in Vietnamese, not a factual error.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.93,
+          "rationale": "The candidate preserves the plural-message meaning accurately and keeps the ICU placeholders and structure intact. Terminology is appropriate for vi-VN, though the phrasing differs from the reference style and is slightly less natural than the more standard Vietnamese order 'Đã tải lên # tệp'. Locale fit is acceptable because Vietnamese does not require plural variation here. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.968,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.4615384615384615,
+        "weightedAggregate": 0.746,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.462,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.824,
+      "decision": "review"
+    },
+    {
+      "caseId": "icu-inbox-count::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{{target}}: {{count, plural, =0 {{No messages}} 1 {{# message}} other {{# messages}}}}",
+      "latencyMs": 13958.524,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0,
+          "rationale": "The candidate is not faithful to the source or the Vietnamese target locale. It leaves the English phrases untranslated ('No messages', '# message', '# messages'), adds unsupported wrapper text/placeholders ('{{target}}:'), and alters the ICU plural syntax by using '1' instead of the source category 'one' while also introducing extra braces. These are unsupported changes and make the translation incorrect for vi-VN.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Added unsupported wrapper text '{{target}}:'",
+              "Left source English content untranslated: 'No messages', '# message', '# messages'",
+              "Changed ICU plural category from 'one' to '1'",
+              "Introduced extra braces/invalid ICU formatting not supported by the source"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0,
+          "rationale": "The candidate does not preserve the material facts from the source/reference. It leaves the text largely untranslated, adds extraneous template placeholders ('{{target}}'), changes ICU plural syntax from '=0'/'one' to an incorrect mix including '1', and keeps English message text instead of Vietnamese. Therefore none of the required localized message facts are correctly preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 0,
+            "expectedFacts": 4
+          }
+        },
+        "judge:factuality": {
+          "score": 0,
+          "rationale": "The candidate is not a valid Vietnamese translation and largely copies the English source content instead of translating it. It also introduces unsupported placeholder/wrapper text ('{{target}}:'), changes ICU plural syntax incorrectly ('one' -\u003e '1'), and adds extra braces, making it structurally inconsistent with the source/reference. Therefore it is not factually consistent with the source for vi-VN.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Untranslated English strings: 'No messages', '# message', '# messages'",
+              "Added unsupported text: '{{target}}:'",
+              "Incorrect ICU category change from 'one' to '1'",
+              "Extra braces and malformed message structure"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.12,
+          "rationale": "The candidate does not translate the source into Vietnamese and instead introduces extra placeholders/wrapping ({{target}} and doubled braces), which changes the meaning and likely breaks ICU formatting. Plural category syntax is also incorrect for the source pattern, and terminology is not localized. Fluency and locale fit are very poor because the text remains in English rather than vi-VN. Policy tone is concise and non-apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.03,
+      "quality": {
+        "placeholderIntegrity": 0,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.22222222222222224,
+        "weightedAggregate": 0,
+        "hardFails": [
+          "malformed_icu",
+          "placeholder_integrity_failed"
+        ],
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 0,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.222,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "decision": "fail"
+    },
+    {
+      "caseId": "icu-inbox-count::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{đếm, số lượng, =0 {Không có thông điệp} một {# thông điệp} khác {# thông điệp}}",
+      "latencyMs": 770.755,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.08,
+          "rationale": "The candidate is not faithful to the source ICU message format or the reference meaning. It changes the variable name from 'count' to 'đếm', the plural type keyword from 'plural' to 'số lượng', and the category selectors from 'one'/'other' to 'một'/'khác', which are unsupported and would break ICU syntax. It also changes 'messages' to 'thông điệp' instead of the reference 'tin nhắn'. While 'thông điệp' is semantically related, the larger issue is that the ICU structure is not preserved.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Changed ICU variable name 'count' to 'đếm'",
+              "Changed ICU keyword 'plural' to 'số lượng'",
+              "Changed plural selectors 'one' and 'other' to 'một' and 'khác'",
+              "Used 'thông điệp' instead of the reference term 'tin nhắn'"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.2,
+          "rationale": "The candidate preserves only the general idea of pluralized message counting, but it misses several material facts from the source/reference. It changes the variable name from 'count' to 'đếm', changes the ICU plural keyword 'plural' to 'số lượng', changes required category keys 'one' and 'other' to Vietnamese words 'một' and 'khác', and changes 'messages'/'tin nhắn' to 'thông điệp'. Only the =0 case meaning is broadly preserved. Most structural and lexical facts are not preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 1,
+            "expectedFacts": 5
+          }
+        },
+        "judge:factuality": {
+          "score": 0.08,
+          "rationale": "The candidate is not factually consistent with the source ICU plural message or the reference. It incorrectly changes the variable name from 'count' to 'đếm', changes the plural selector keywords from the required ICU forms ('plural', 'one', 'other') to Vietnamese words ('số lượng', 'một', 'khác'), and changes the message term from 'messages/tin nhắn' to 'thông điệp'. These are unsupported alterations and would also break the ICU structure. Only the general zero/one/other intent is loosely preserved.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Changed ICU variable name 'count' to 'đếm'",
+              "Changed ICU keyword 'plural' to 'số lượng'",
+              "Changed ICU selector 'one' to 'một'",
+              "Changed ICU selector 'other' to 'khác'",
+              "Replaced 'messages'/'tin nhắn' with 'thông điệp' without support from source/reference"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.3,
+          "rationale": "The candidate translation is largely incorrect because it changes the ICU variable and plural syntax from the source (`count, plural`) to Vietnamese words (`đếm, số lượng`) and replaces category keys (`one`, `other`) with translated words, which breaks functionality and does not preserve the source structure. Terminology is also weak: `thông điệp` is understandable but does not match the expected UI term `tin nhắn`. Fluency of the Vietnamese phrases themselves is acceptable, and locale fit is generally fine for vi-VN, but formatting safety is poor due to altered placeholders and ICU control tokens. Policy tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.165,
+      "quality": {
+        "placeholderIntegrity": 0,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.3225806451612903,
+        "weightedAggregate": 0,
+        "hardFails": [
+          "malformed_icu",
+          "placeholder_integrity_failed"
+        ],
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 0,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.323,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "decision": "fail"
+    },
+    {
+      "caseId": "icu-inbox-count::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{count, plural, =0 {Không có tin nhắn} one {# tin nhắn} other {# tin nhắn}}",
+      "latencyMs": 4024.41,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and faithfully preserves the ICU plural structure and meaning of the source without adding or changing any content.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "All material facts from the source are preserved in the candidate. The plural structure, the =0 case ('No messages' → 'Không có tin nhắn'), and the one/other cases ('# message' / '# messages' → '# tin nhắn') are all present and match the reference exactly.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 3,
+            "expectedFacts": 3
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and faithfully preserves the ICU plural structure and meaning of the source for Vietnamese. There are no inconsistencies or unsupported additions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the source meaning. ICU plural syntax, placeholders, and braces are intact. Terminology is appropriate and natural for vi-VN, and the phrasing is fluent and concise. Policy tone is clear and non-apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "icu-inbox-count::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{count, plural, =0 {Không có tin nhắn} one {# tin nhắn} other {# tin nhắn}}",
+      "latencyMs": 13577.764,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and faithfully preserves the ICU plural structure and meaning of the source without adding or omitting any information.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "All material facts from the source are preserved in the candidate. The plural structure, count variable, zero case meaning ('No messages'), and singular/plural message cases are all correctly retained and match the reference translation for vi-VN.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 4,
+            "expectedFacts": 4
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference and faithfully preserves the ICU plural structure and meaning of the source for Vietnamese. There are no unsupported additions, omissions, or contradictions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the source meaning and the reference translation. ICU plural syntax and placeholders are preserved correctly, terminology is appropriate, and the Vietnamese is natural for vi-VN. Policy tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "icu-welcome-user::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Chào mừng bạn {\\{name\\}}:",
+      "latencyMs": 9396.437,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.12,
+          "rationale": "The candidate is not faithful to the source/reference. It incorrectly alters the placeholder from \"{name}\" to \"{\\{name\\}}\", introducing unsupported escaping/braces, and it adds a trailing colon that is not present in the source. The rest of the phrase conveys the greeting, but these extra characters make it inaccurate for localization.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Changed placeholder \"{name}\" to \"{\\{name\\}}\"",
+              "Added trailing colon \":\" not present in the source"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0,
+          "rationale": "The candidate preserves only the general greeting but fails to preserve the placeholder correctly and changes the sentence ending/punctuation. Expected facts: (1) greeting meaning 'Welcome back', (2) direct address 'bạn', (3) placeholder exactly as {name}. Covered facts: greeting and direct address only; the placeholder is malformed as {\\{name\\}} and an extra colon is added.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 3
+          }
+        },
+        "judge:factuality": {
+          "score": 0.12,
+          "rationale": "The candidate preserves the general welcome meaning, but it is not factually consistent with the source/reference because the placeholder is incorrectly transformed from '{name}' into '{\\{name\\}}', which changes the variable syntax and would likely break interpolation. It also adds a trailing colon not present in the source or reference.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Incorrect placeholder syntax '{\\{name\\}}' instead of '{name}'",
+              "Added trailing colon ':' not present in the source"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.56,
+          "rationale": "Meaning is only partially preserved: the candidate says 'Welcome you' rather than 'Welcome back,' and the placeholder is corrupted and a colon is added. Terminology is acceptable for a simple UI string, but fluency is somewhat awkward without 'quay lại.' Locale fit for vi-VN is generally fine. Formatting safety is poor because the placeholder syntax was altered. Policy tone is clear and neutral.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.2,
+      "quality": {
+        "placeholderIntegrity": 0,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.6,
+        "weightedAggregate": 0,
+        "hardFails": [
+          "malformed_icu",
+          "placeholder_integrity_failed"
+        ],
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 0,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.6,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "decision": "fail"
+    },
+    {
+      "caseId": "icu-welcome-user::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Chào mừng trở lại, {name}",
+      "latencyMs": 408.156,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.95,
+          "rationale": "The candidate is faithful to the source meaning and preserves the placeholder correctly. It conveys 'Welcome back' naturally in Vietnamese. The only minor difference from the reference is that it omits 'bạn', making it slightly less personal, but this is not an unsupported addition or distortion.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.5,
+          "rationale": "The candidate preserves the core greeting and the placeholder {name}, but it omits the material pronoun/object 'bạn' present in the source meaning ('Welcome back, {name}' / 'Welcome back to you, {name}'). This makes the translation less aligned with the reference and slightly less natural in vi-VN. Of 2 material facts, 1 is fully preserved and 1 is only partially preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 1,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 0.93,
+          "rationale": "The candidate translation is factually consistent with the source meaning: 'Chào mừng trở lại, {name}' accurately conveys 'Welcome back, {name}'. It preserves the placeholder {name} correctly. Compared with the reference, it omits 'bạn', making it slightly less natural/polite in Vietnamese, but this is a stylistic difference rather than a factual error.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.95,
+          "rationale": "The candidate accurately preserves the meaning of the source and keeps the placeholder unchanged. Terminology is appropriate, and the sentence is fluent and natural in Vietnamese. Locale fit is strong for vi-VN, though the reference phrasing ('bạn quay lại') is slightly more idiomatic and personable than 'trở lại'. Policy tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.833,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.7272727272727272,
+        "weightedAggregate": 0.773,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.727,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.794,
+      "decision": "review"
+    },
+    {
+      "caseId": "icu-welcome-user::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Chào mừng bạn trở lại, {name}",
+      "latencyMs": 2803.277,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.98,
+          "rationale": "The candidate is faithful to the source and matches the reference in meaning. 'trở lại' and 'quay lại' are both natural Vietnamese renderings of 'back' in this context. The placeholder {name} is preserved correctly, and there are no unsupported additions or omissions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source: the greeting/welcome-back meaning, the placeholder {name}, and the direct address. 'trở lại' is a natural synonym of 'quay lại' in Vietnamese, so no material content is lost or changed.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 3,
+            "expectedFacts": 3
+          }
+        },
+        "judge:factuality": {
+          "score": 0.97,
+          "rationale": "The candidate is factually consistent with the source. 'Chào mừng bạn trở lại, {name}' accurately conveys 'Welcome back, {name}' in Vietnamese and preserves the placeholder {name}. It differs slightly from the reference wording ('quay lại' vs. 'trở lại'), but both mean 'back/return' and are natural in vi-VN. No contradiction or unsupported content is introduced.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.97,
+          "rationale": "The candidate accurately preserves the meaning of the source and keeps the placeholder unchanged. Terminology is appropriate, and the Vietnamese is fluent and natural for vi-VN. Locale fit is good, though the reference phrasing 'quay lại' is slightly more idiomatic than 'trở lại' in some UI contexts. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.98,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.8333333333333334,
+        "weightedAggregate": 0.783,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.833,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.852,
+      "decision": "pass"
+    },
+    {
+      "caseId": "icu-welcome-user::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Chào mừng quay lại, {name}",
+      "latencyMs": 4408.547,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.96,
+          "rationale": "The candidate is faithful to the source meaning and preserves the placeholder correctly. It omits the pronoun 'bạn' that appears in the reference, making it slightly less natural/polite in Vietnamese, but this is not an unsupported addition or meaning change.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.8,
+          "rationale": "The candidate preserves the core meaning of a welcome-back message and the placeholder {name}. However, it omits the material pronoun 'bạn' present in the source/reference, which makes the Vietnamese less natural and slightly less faithful in addressing the user directly. Most material facts are preserved, but not all.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 4,
+            "expectedFacts": 5
+          }
+        },
+        "judge:factuality": {
+          "score": 0.93,
+          "rationale": "The candidate translation is largely faithful to the source meaning: it conveys 'Welcome back, {name}' and preserves the placeholder correctly. Compared with the reference, it omits 'bạn', making it slightly less natural/polished in Vietnamese, but this is not a factual inconsistency. No unsupported additions or contradictions are present.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.92,
+          "rationale": "The candidate preserves the meaning accurately and keeps the placeholder unchanged. It is fluent and understandable in Vietnamese, but it is slightly less natural than the reference because adding 'bạn' makes the greeting sound more idiomatic and complete in vi-VN. Terminology is appropriate, locale conventions are fine, formatting is safe, and the tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.903,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.9090909090909091,
+        "weightedAggregate": 0.791,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.909,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.83,
+      "decision": "review"
+    },
+    {
+      "caseId": "raheem-sterling-melissa-clarke::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "{{target}}:\nMặc dù vẫn rất trẻ, thành tích lãng mạn của Raheem Sterling, một cầu thủ chơi bóng đá hứa hẹn cho Liverpool, đã giúp anh nhận được sự tôn trọng ngay cả từ những chàng trai nổi tiếng từng tiếp xúc. Ngôi sao trẻ của The Kop hiện đang nắm giữ trái tim của một trong những người đẹp hấp dẫn nhất nước Anh, Melissa Clarke.\nCùng với màn trình diễn ấn tượng mà Liverpool thực hiện, tên tuổi của Raheem Sterling cũng ngày càng được biết đến rộng rãi hơn. Tuy nhiên, hai năm trước, ngôi sao emerging của The Kop “trở nên nổi tiếng” khi anh làm cha cho một bé gái ở tuổi 17. Đây là kết quả của một mối quan hệ giữa Sterling và bạn gái 23 tuổi của anh, Melissa Clarke.\nVẻ đẹp quyến rũ của Melissa Clarke\nBản lĩnh sắc nổi bật, tình yêu và tính cách quyến rũ đã giúp Sultan của Foggy Albion không mất đi những đường cong gợi cảm cùng vẻ đẹp thu hút của một trong những người đẹp gợi cảm nhất nước Anh. Melissa hiện là một MC (lập bìa) tài năng và thường xuyên xuất hiện trên các tạp chí dành riêng cho nam giới với vai trò người mẫu khỏa thân.\nVẻ đẹp rực lực đã giúp Sterling trở thành người cha từ tuổi 17:\nBạn gái khỏa thân của cầu thủ Liverpool\nNhững hình ảnh châm ngọc từ thập kỷ 90\nBộ sưu tập ảnh nóng bắt các WAG của Liverpool\nVẻ đẹp rất gợi cảm trong đồ lót ngọt ngào.\nTheo Akmen.",
+      "latencyMs": 36716.679,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.38,
+          "rationale": "The candidate mostly follows the source structure and main facts, but it contains multiple mistranslations, awkward insertions, and unsupported wording not grounded in the source. Key factual content like Sterling, Liverpool, Melissa Clarke, father at 17, and her work as MC/nude model is preserved, but several phrases introduce meaning not present in the source or distort it.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "\"những chàng trai nổi tiếng từng tiếp xúc\" for \"renowned playboys\" adds unsupported meaning",
+              "\"ngôi sao emerging\" leaves untranslated English and is not faithful to the source wording",
+              "\"Bản lĩnh sắc nổi bật, tình yêu và tính cách quyến rũ đã giúp Sultan của Foggy Albion\" is unsupported and does not correspond to the source sentence about her remaining attractive despite being a mother",
+              "\"MC (lập bìa)\" adds unsupported content not in the source",
+              "\"Những hình ảnh châm ngọc từ thập kỷ 90\" distorts \"Scorching images of the 90s beauty\" and introduces unsupported wording",
+              "\"Bộ sưu tập ảnh nóng bắt các WAG của Liverpool\" adds/distorts meaning not present in the source",
+              "\"Vẻ đẹp rất gợi cảm trong đồ lót ngọt ngào\" adds unsupported wording such as \"ngọt ngào\""
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.76,
+          "rationale": "Most core facts are preserved: Sterling is a young promising Liverpool winger, is dating Melissa Clarke, became a father to a baby girl at 17 two years earlier, Melissa was 23, she remains attractive despite being a mother, works as an MC, appears in men's magazines as a nude model, and the source ends with Akmen. However, several material details are distorted or mistranslated: 'renowned playboys' becomes awkward/incorrect, 'emerging star' is left partly untranslated, the sentence about Melissa preserving her curves is badly corrupted, 'one of the most seductive beauties in Foggy Albion' is mistranslated, and the photo-caption/list items are rendered inaccurately ('90s beauty', WAGs collection, lingerie line). Thus not all material facts are fully preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 13,
+            "expectedFacts": 17
+          }
+        },
+        "judge:factuality": {
+          "score": 0.36,
+          "rationale": "The candidate preserves some core facts (Sterling, Liverpool, Melissa Clarke, father at 17, Melissa as MC/nude model), but it contains many mistranslations, awkward literal renderings, and unsupported additions that distort meaning. Examples include rendering 'renowned playboys' as 'những chàng trai nổi tiếng từng tiếp xúc', inserting English 'emerging', and especially the paragraph about Melissa, which invents phrases like 'Bản lĩnh sắc nổi bật, tình yêu và tính cách quyến rũ', 'Sultan của Foggy Albion', and 'MC (lập bìa)' not supported by the source. Several headline lines are also mistranslated or nonsensical ('hình ảnh châm ngọc từ thập kỷ 90', 'ảnh nóng bắt các WAG', 'đồ lót ngọt ngào'). Overall, the translation is only partially faithful and includes substantial hallucinated or corrupted content.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": false,
+            "hallucinations": [
+              "'những chàng trai nổi tiếng từng tiếp xúc' for 'renowned playboys'",
+              "'ngôi sao emerging' inserts unsupported English word",
+              "'Bản lĩnh sắc nổi bật, tình yêu và tính cách quyến rũ' is invented",
+              "'Sultan của Foggy Albion' is fabricated and changes meaning",
+              "'MC (lập bìa)' is unsupported",
+              "'Những hình ảnh châm ngọc từ thập kỷ 90' mistranslates 'Scorching images of the 90s beauty'",
+              "'Bộ sưu tập ảnh nóng bắt các WAG của Liverpool' is nonsensical and unsupported",
+              "'đồ lót ngọt ngào' adds unsupported meaning"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.46,
+          "rationale": "The candidate preserves some core facts but contains multiple mistranslations and awkward wording that significantly reduce accuracy and naturalness. Key errors include mistranslating 'playboys,' leaving English words like 'emerging,' and producing nonsensical phrases such as 'Bản lĩnh sắc nổi bật' and 'châm ngọc.' Terminology is inconsistent for football and entertainment terms, though names and major entities are retained. Locale fit for vi-VN is acceptable overall, but the text reads unnatural and partly machine-translated. Formatting safety is mostly good because the placeholder and paragraph structure are preserved. Policy tone is neutral and not apologetic, but clarity is weak due to garbled phrasing.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.49,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.6666666666666667,
+        "weightedAggregate": 0.767,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.667,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.67,
+      "decision": "review"
+    },
+    {
+      "caseId": "raheem-sterling-melissa-clarke::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Mặc dù vẫn còn rất trẻ, những thành tích lãng mạn của Raheem Sterling, một cầu thủ cánh trái đầy triển vọng cho Liverpool, đã giúp anh nhận được sự tôn trọng, thậm chí còn từ những người đàn ông nổi tiếng. Những ngôi sao của The Kop hiện tại đã chiếm được trái tim của một trong những người phụ nữ quyến rũ nhất của Anh, Melissa Clarke.\nCùng với màn trình diễn ấn tượng mà Liverpool đã tạo ra, tên tuổi của Raheem Sterling cũng trở nên nổi tiếng hơn. Tuy nhiên, hai năm trước, \"ngôi sao\" của The Kop đã \"được nổi tiếng\" khi anh trở thành cha của một bé gái 17 tuổi. Đây là kết quả của một mối quan hệ giữa Sterling và bạn gái 23 tuổi của anh, Melissa Clarke.\nVẻ đẹp quyến rũ của Melissa Clarke\nMặc dù là một người mẹ, người yêu của Sterling vẫn giữ được vóc dáng và vẻ đẹp thu hút của một trong những người đẹp quyến rũ nhất ở Albion. Melissa hiện là một người dẫn chương trình, và cô cũng thường xuyên xuất hiện trong các tạp chí dành cho nam giới với vai trò là người mẫu nude.\nVẻ đẹp nóng bỏng đã khiến Sterling làm cha khi 17 tuổi:\nNgười yêu nude của cầu thủ Liverpool\nHình ảnh quyến rũ của những năm 1990\nMột bộ sưu tập ảnh nóng của các \"WAGs\" (vợ và con của cầu thủ) ở Liverpool\nMột người phụ nữ quyến rũ với đồ lót.\nTheo Akmen.",
+      "latencyMs": 7822.779,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.72,
+          "rationale": "The candidate largely follows the source content and preserves most key facts (Sterling, Melissa Clarke, father at 17, her job as MC/host and nude model, photo-caption lines). However, it contains several mistranslations and slight unsupported additions: 'cầu thủ cánh trái' specifies left winger though the source only says winger; 'những người đàn ông nổi tiếng' omits the 'playboys' meaning; 'một bé gái 17 tuổi' is a clear factual distortion from 'at the age of 17'; and 'WAGs' is incorrectly explained as 'wives and children of players,' which is not supported by the source. These issues reduce faithfulness, though the overall content remains mostly aligned.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Raheem Sterling is described as a 'left winger' ('cầu thủ cánh trái'), while the source only says 'winger'.",
+              "The candidate says Sterling became father of 'a 17-year-old baby girl' ('một bé gái 17 tuổi'), which distorts the source meaning 'became a father at age 17'.",
+              "'WAGs' is glossed as 'wives and children of players' ('vợ và con của cầu thủ'), an unsupported and incorrect addition not present in the source."
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.79,
+          "rationale": "Most material facts are preserved: Sterling is described as very young, a promising Liverpool winger, romantically linked to Melissa Clarke; his fame increased with Liverpool's performances; two years earlier he became father of a baby girl at age 17 with his 23-year-old girlfriend Melissa; Melissa is still attractive despite being a mother, works as an MC/presenter, appears in men's magazines as a nude model; and the closing photo-caption/list items plus source attribution are largely present. However, several facts are mistranslated or weakened: 'renowned playboys' becomes generic 'famous men', 'holds the heart of' becomes the reverse ('won her heart'), the crucial fact 'at age 17' is distorted into 'father of a 17-year-old baby girl', 'Foggy Albion' is simplified, and '90s beauty' is mistranslated as 'images of the 1990s'.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 11,
+            "expectedFacts": 14
+          }
+        },
+        "judge:factuality": {
+          "score": 0.63,
+          "rationale": "The candidate is largely faithful to the source structure and main facts, but it contains several mistranslations and awkward renderings that distort meaning. Most notably, it says Sterling became 'father of a 17-year-old baby girl' instead of becoming a father at age 17, mistranslates 'renowned playboys' as 'famous men,' changes 'rising star' to just 'star,' and renders '90s beauty' as 'images of the 1990s,' which is incorrect in context. It also incorrectly glosses WAGs as 'wives and children of players' instead of players' wives/girlfriends. No major fabricated content is added, but there are multiple meaning errors.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "'một bé gái 17 tuổi' misstates the age attachment; source says he became a father at age 17",
+              "'những người đàn ông nổi tiếng' weakens/mistranslates 'renowned playboys'",
+              "'Hình ảnh quyến rũ của những năm 1990' misreads '90s beauty' as the decade itself",
+              "'WAGs' explained as 'vợ và con của cầu thủ' is incorrect; it refers to wives and girlfriends"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.46,
+          "rationale": "The translation preserves the general topic and structure but contains several serious meaning errors and awkward phrasings. Key accuracy issues include mistranslating 'playboys' as 'những người đàn ông nổi tiếng', rendering 'holds the heart' unnaturally, and the major error 'trở thành cha của một bé gái 17 tuổi' instead of becoming a father at age 17. Terminology is mixed: 'MC' is changed to a more neutral equivalent, but football/media terms like 'The Kop' and 'WAGs' are handled inconsistently and the gloss for WAGs is incorrect ('wives and children' rather than wives/girlfriends). Fluency is uneven with multiple unnatural constructions such as 'được nổi tiếng' and agreement issues like 'Những ngôi sao của The Kop hiện tại'. Locale fit is acceptable for vi-VN overall, but some wording is calqued and not idiomatic Vietnamese sports/entertainment style. Formatting is mostly preserved with paragraphing and names intact, and no placeholders/tags were damaged. Policy tone is not concise or neutral because the text retains sensational and sexualized phrasing, though that reflects the source.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.65,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.6481113320079522,
+        "weightedAggregate": 0.765,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.648,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.725,
+      "decision": "review"
+    },
+    {
+      "caseId": "raheem-sterling-melissa-clarke::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Mặc dù còn rất trẻ, những thành tích tình trường của Raheem Sterling, một tiền đạo cánh triển vọng của Liverpool, đã khiến anh được tôn trọng ngay cả bởi những tay đào hoa nổi tiếng. Ngôi sao trẻ của The Kop hiện đang nắm giữ trái tim của một trong những nhan sắc quyến rũ nhất nước Anh, Melissa Clarke.\n\nCùng với màn trình diễn ấn tượng mà Liverpool tạo ra, tên tuổi Raheem Sterling cũng trở nên nổi tiếng hơn. Tuy nhiên, hai năm trước, ngôi sao trẻ của The Kop đã \"nổi tiếng\" khi anh trở thành cha của một bé gái ở tuổi 17. Đây là kết quả của mối quan hệ giữa Sterling và bạn gái 23 tuổi của anh, Melissa Clarke.\n\nVẻ đẹp quyến rũ không thể chối từ của Melissa Clarke\n\nDù đã là một bà mẹ, người tình của Sterling vẫn chưa mất đi những đường cong nóng bỏng cùng sắc đẹp quyến rũ của một trong những nhan sắc gợi cảm nhất ở xứ sương mù. Melissa hiện là một MC tài năng, và cô cũng thường xuyên xuất hiện trên các tạp chí dành cho nam giới với vai trò người mẫu khỏa thân.\n\nVẻ đẹp bốc lửa đã khiến Sterling trở thành cha ở tuổi 17:\nBạn gái khỏa thân của cầu thủ Liverpool\nNhững hình ảnh bốc lửa của người đẹp 9x\nBộ sưu tập ảnh nóng của các WAGs Liverpool\nMột người đẹp tuyệt sắc trong nội y.\n\nTheo Akmen.",
+      "latencyMs": 19988.897,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.98,
+          "rationale": "The candidate is highly faithful to the source and matches the reference closely. It preserves the key facts, tone, and structure: Sterling's young age, relationship with Melissa Clarke, becoming a father at 17, her age, her work as an MC and nude model, and the promotional subheadings. Differences are minor paraphrases such as 'được tôn trọng' for 'earned him respect' and 'mối quan hệ' for 'mối tình', which do not introduce unsupported meaning. No clear unsupported additions are present.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.98,
+          "rationale": "The candidate preserves nearly all material facts from the source: Sterling is young, a promising Liverpool winger, respected even by famous playboys for his romantic success, involved with Melissa Clarke, became father of a baby girl at 17 two years earlier, Melissa was 23, she remains attractive despite being a mother, works as an MC, and appears in men’s magazines as a nude model. It also preserves the headline/list items and attribution to Akmen. Minor differences are stylistic rather than factual, such as wording shifts like 'được tôn trọng' for 'earned him respect' and 'một người đẹp tuyệt sắc trong nội y' for 'a stunning beauty in lingerie.'",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 13,
+            "expectedFacts": 13
+          }
+        },
+        "judge:factuality": {
+          "score": 0.96,
+          "rationale": "The candidate translation is highly consistent with the source and closely matches the reference. It preserves the main facts: Sterling is young, a promising Liverpool winger, in a relationship with Melissa Clarke, became a father at 17 with his 23-year-old girlfriend, and Melissa is an MC and nude model. Minor wording shifts are present but do not materially alter meaning. One slight issue is 'tiền đạo cánh' for 'winger,' which is acceptable but somewhat less precise than the reference's 'cầu thủ chạy cánh.' Also, 'được tôn trọng ngay cả bởi những tay đào hoa nổi tiếng' is a natural rendering of 'earned him respect even from renowned playboys.' No clear contradictions or fabricated details were introduced.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.88,
+          "rationale": "The translation preserves the overall meaning well and reads naturally in Vietnamese. Terminology is mostly appropriate, though there are a few less precise choices such as \"tiền đạo cánh\" for \"winger\" and some phrasing that feels slightly literal. Locale fit for vi-VN is strong, with suitable style and conventions. Formatting and structure are preserved correctly. Policy tone is clear and direct, though the content remains sensational/tabloid in style rather than neutral.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.95,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.7540322580645162,
+        "weightedAggregate": 0.775,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.754,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.836,
+      "decision": "review"
+    },
+    {
+      "caseId": "raheem-sterling-melissa-clarke::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Mặc dù vẫn còn rất trẻ, những thành tích tình ái của Raheem Sterling, một cầu thủ chạy cánh đầy triển vọng của Liverpool, đã mang lại cho anh sự tôn trọng tới từ cả những quý ông đào hoa nổi tiếng. Ngôi sao trẻ của The Kop hiện đang nắm giữ trái tim của một trong những mỹ nhân quyến rũ nhất nước Anh, Melissa Clarke.\nCùng với màn trình diễn ấn tượng mà Liverpool đã tạo ra, tên tuổi của Raheem Sterling cũng đã trở nên nổi tiếng hơn. Tuy nhiên, hai năm trước, ngôi sao đang lên của The Kop 'trở nên nổi tiếng' khi anh trở thành cha của một bé gái ở tuổi 17. Điều này là kết quả của mối quan hệ giữa Sterling và bạn gái 23 tuổi của anh, Melissa Clarke.\nVẻ đẹp không thể cưỡng lại của Melissa Clarke\nDù đã là một người mẹ, người tình của Sterling vẫn không mất đi những đường cong nóng bỏng cùng với vẻ đẹp mê hoặc của một trong những người đẹp quyến rũ nhất xứ Anh sương mù. Melissa hiện là một MC tài năng, và cô cũng thường xuyên xuất hiện trên các tạp chí dành cho nam giới với vai trò là một người mẫu khỏa thân.\nVẻ đẹp rực lửa đã khiến Sterling trở thành cha ở tuổi 17:\nBạn gái khỏa thân của cầu thủ Liverpool\nNhững hình ảnh nóng bỏng của mỹ nhân thập niên 90\nMột tuyển tập những bức ảnh nóng bỏng của các WAG Liverpool\nMột vẻ đẹp tuyệt vời trong đồ lót.\nTheo Akmen.",
+      "latencyMs": 53234.77,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.96,
+          "rationale": "The candidate is highly faithful to the source and closely matches the reference in Vietnamese. It preserves the main facts, tone, and structure without adding substantive new information. Minor wording shifts such as 'quý ông đào hoa nổi tiếng' for 'renowned playboys,' 'xứ Anh sương mù' for 'Foggy Albion,' and 'mỹ nhân thập niên 90' for '90s beauty' are stylistic/localization choices rather than unsupported additions. No clear factual additions are introduced.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.94,
+          "rationale": "The candidate preserves nearly all material facts from the source: Sterling is a young promising Liverpool winger; his romantic reputation earns respect from famous playboys; he is with Melissa Clarke, described as one of England's most alluring beauties; his fame has grown alongside Liverpool's performances; two years earlier he became the father of a baby girl at age 17; the child resulted from his relationship with 23-year-old Melissa Clarke; Melissa is still curvy and seductive despite being a mother; she is a talented MC and also appears in men's magazines as a nude model; and the closing photo-caption style lines plus attribution to Akmen are all retained. Minor shifts exist in phrasing, such as 'Foggy Albion' rendered more loosely and 'beauty of the 90s' rendered as 'mỹ nhân thập niên 90,' but these do not materially alter the facts.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 12,
+            "expectedFacts": 13
+          }
+        },
+        "judge:factuality": {
+          "score": 0.94,
+          "rationale": "The candidate translation is largely faithful to the source and closely matches the reference. It preserves the main claims about Raheem Sterling, Melissa Clarke, the age details, her occupation, and the list-like captions. The wording is generally accurate and natural in Vietnamese. Minor issues: 'quý ông đào hoa nổi tiếng' softens/shifts the meaning of 'renowned playboys'; 'xứ Anh sương mù' is a less standard rendering of 'Foggy Albion' than 'xứ Sương mù'; 'mỹ nhân thập niên 90' is a slightly interpretive rendering of '90s beauty' and may be less precise than 'người đẹp 9x'. These are small stylistic/nuance differences rather than factual contradictions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.89,
+          "rationale": "The translation preserves the source meaning well and reads naturally in Vietnamese. Terminology is generally appropriate, though a few choices are slightly awkward or less idiomatic for this context (e.g., 'thành tích tình ái', 'quý ông đào hoa', and 'mỹ nhân thập niên 90' for '90s beauty'). Locale fit for vi-VN is solid overall, with acceptable style and phrasing, though some expressions feel calqued from the source. Formatting and named entities are preserved safely. Policy tone is clear and direct, but the content remains sensationalized because it follows the source closely.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.933,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.735408560311284,
+        "weightedAggregate": 0.774,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.735,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.83,
+      "decision": "review"
+    },
+    {
+      "caseId": "ui-checkout-button::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Hoàn tất mua hàng",
+      "latencyMs": 876.516,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and faithfully conveys the source text 'Complete purchase' in Vietnamese. There are no unsupported additions or deviations.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and preserves all material facts from the source: the action 'Complete' and the object 'purchase.' No information is omitted, altered, or added.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and accurately conveys the source text 'Complete purchase' in Vietnamese. There are no unsupported additions, contradictions, or omissions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and accurately conveys the source meaning. Terminology is appropriate for e-commerce, the phrasing is natural in Vietnamese, and it fits the vi-VN locale. There are no formatting or placeholder issues. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-checkout-button::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Hoàn tất mua hàng",
+      "latencyMs": 555.761,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and faithfully conveys the source text 'Complete purchase' in Vietnamese without adding or omitting any meaning.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and preserves all material facts from the source: the action 'Complete' and the object 'purchase', appropriately rendered for vi-VN.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and accurately conveys the source text 'Complete purchase' in Vietnamese. There are no inconsistencies, omissions, or unsupported additions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and accurately conveys the source meaning. Terminology is appropriate for e-commerce in Vietnamese, the phrasing is fluent and natural for vi-VN, locale fit is fully acceptable, and there are no formatting or placeholder issues. Tone is clear and concise without being apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-checkout-button::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Hoàn tất mua hàng",
+      "latencyMs": 2553.169,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and faithfully conveys the source text in Vietnamese without adding or omitting any meaning.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and preserves all material facts from the source: the imperative action to complete a purchase, with no omissions or additions.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 1,
+            "expectedFacts": 1
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and accurately conveys the source text 'Complete purchase' in Vietnamese. There are no contradictions, unsupported additions, or omissions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the source meaning. Terminology is appropriate for an e-commerce checkout context, the Vietnamese phrasing is natural and concise, locale fit is fine for vi-VN, and there are no formatting or placeholder issues. Tone is clear and direct.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-checkout-button::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Hoàn tất thanh toán",
+      "latencyMs": 4875.351,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.62,
+          "rationale": "The candidate is a plausible UI translation but it shifts the meaning from the broader action 'Complete purchase' to the narrower action 'Complete payment'. This is not fully faithful to the source, though it is close in common e-commerce contexts. No extra unsupported content is added beyond this semantic narrowing.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Translates 'purchase' as 'payment' ('thanh toán'), which narrows the meaning of the source."
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.5,
+          "rationale": "The source has 2 material facts: (1) the action is to complete/finalize, and (2) the object is the purchase/buying process. The candidate preserves fact (1) with 'Hoàn tất' but shifts fact (2) from 'purchase' to 'payment' ('thanh toán'), which is narrower/different in meaning. Therefore only 1 of 2 material facts is preserved.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 1,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 0.62,
+          "rationale": "The candidate is understandable and plausible in e-commerce UI, but it shifts the meaning from the source. 'Complete purchase' is best matched by the reference 'Hoàn tất mua hàng' (finish the purchase/buying process). The candidate 'Hoàn tất thanh toán' means 'Complete payment/checkout,' which is narrower and refers specifically to the payment step. This is a semantic deviation rather than a fully incorrect translation.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Semantic shift from 'purchase' to 'payment/checkout' in the candidate translation."
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.86,
+          "rationale": "The candidate accurately conveys the call-to-action meaning of completing a purchase and is natural in Vietnamese. Terminology differs slightly from the reference: 'thanh toán' emphasizes payment rather than the broader act of purchase, so it is acceptable but not the closest match to the suggested wording. Locale fit is fine for vi-VN, and there are no formatting risks. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.65,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.5,
+        "weightedAggregate": 0.75,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.5,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.715,
+      "decision": "review"
+    },
+    {
+      "caseId": "ui-password-reset::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Xóa mật khẩu",
+      "latencyMs": 28194.004,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0,
+          "rationale": "The candidate is not faithful to the source. 'Reset password' means setting the password again, while 'Xóa mật khẩu' means 'Delete/Remove password,' which changes the meaning significantly. This is an unsupported and incorrect translation.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "Interprets 'reset' as 'delete/remove' instead of 'set again'"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0,
+          "rationale": "The candidate does not preserve the core meaning. The source 'Reset password' means setting the password again, while 'Xóa mật khẩu' means 'Delete/remove password'. The material fact about resetting is lost.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 0,
+            "expectedFacts": 1
+          }
+        },
+        "judge:factuality": {
+          "score": 0,
+          "rationale": "The candidate translation is not factually consistent with the source. 'Reset password' means 'Đặt lại mật khẩu' in Vietnamese, while 'Xóa mật khẩu' means 'Delete/remove password,' which changes the meaning entirely.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": [
+              "Translated 'reset' as 'delete/remove', which contradicts the source meaning."
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.53,
+          "rationale": "The candidate is fluent Vietnamese, but it changes the meaning: 'Xóa mật khẩu' means 'Delete/remove password,' while the source 'Reset password' should be 'Đặt lại mật khẩu.' Terminology is incorrect for common UI usage, though locale and formatting are fine. Tone is concise and direct.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.133,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.5714285714285715,
+        "weightedAggregate": 0.757,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.571,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.539,
+      "decision": "fail"
+    },
+    {
+      "caseId": "ui-password-reset::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Khôi phục mật khẩu",
+      "latencyMs": 9144.559,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0.9,
+          "rationale": "The candidate is faithful to the source meaning in context. 'Khôi phục mật khẩu' conveys restoring/recovering a password, which is very close to 'Reset password.' It differs from the reference 'Đặt lại mật khẩu' in wording and is slightly less standard for UI localization, but it does not introduce unsupported content or change the core intent.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 0.5,
+          "rationale": "The candidate preserves the core idea about a password recovery/reset action, but it does not fully match the specific wording of 'Reset password.' In Vietnamese, 'Khôi phục mật khẩu' means 'Recover/restore password,' while the reference 'Đặt lại mật khẩu' more precisely conveys 'Reset password.' Thus, the main fact is partially preserved but with a semantic shift.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 1,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 0.82,
+          "rationale": "The candidate translation is generally consistent with the source meaning, but it is less precise than the reference. 'Reset password' is best rendered as 'Đặt lại mật khẩu'. 'Khôi phục mật khẩu' means 'recover/restore password', which can imply retrieving a lost password rather than resetting it. This is a minor semantic shift, not a full contradiction.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.73,
+          "rationale": "The candidate is understandable and fluent Vietnamese, but accuracy is only partial because 'Reset password' is more precisely rendered as 'Đặt lại mật khẩu' rather than 'Khôi phục mật khẩu', which leans toward 'restore/recover password'. Terminology is acceptable but not the standard UI phrasing suggested by the reference. Locale fit is fine for vi-VN, and there are no formatting or placeholder issues. The tone is concise and not apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.737,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.5,
+        "weightedAggregate": 0.75,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.5,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.745,
+      "decision": "review"
+    },
+    {
+      "caseId": "ui-password-reset::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Đặt lại mật khẩu",
+      "latencyMs": 2337.105,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and faithfully renders the source text 'Reset password' into Vietnamese without any unsupported additions or omissions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "All material facts are preserved. The candidate exactly matches the reference translation for the source text 'Reset password' in the target locale vi-VN.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and is fully consistent with the source text 'Reset password' in Vietnamese (vi-VN). There are no unsupported additions, omissions, or contradictions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the meaning of the source. Terminology is correct and standard for Vietnamese UI text, the phrasing is natural and appropriate for vi-VN, and there are no formatting or placeholder issues. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-password-reset::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Đặt lại mật khẩu",
+      "latencyMs": 3152.931,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and is fully faithful to the source text. There are no unsupported additions or omissions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source. It exactly matches the reference translation for the target locale (vi-VN): 'Đặt lại mật khẩu'.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and accurately conveys the source text 'Reset password' in Vietnamese. There are no inconsistencies, omissions, or unsupported additions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and accurately conveys the source meaning in natural Vietnamese for vi-VN. Terminology is appropriate, locale fit is fully acceptable, and there are no formatting or placeholder issues. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-save-settings::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-lfm2-24b",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "lfm2:24b",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Lưu cài đặt {{target}}: {{input}}",
+      "latencyMs": 1685.071,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 0,
+          "rationale": "The candidate is not faithful to the source. The source text only says 'Save settings', but the candidate adds unsupported placeholder content '{{target}}: {{input}}' that is not present in the source or reference.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": false,
+            "unsupportedClaims": [
+              "{{target}}: {{input}}"
+            ]
+          }
+        },
+        "judge:context-recall": {
+          "score": 0,
+          "rationale": "The source contains 2 material facts: the imperative action 'Save' and the object 'settings'. The candidate preserves these via 'Lưu cài đặt' but adds unsupported placeholder content '{{target}}: {{input}}' that is not present in the source, so it does not faithfully preserve only the source meaning.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 0.15,
+          "rationale": "The candidate includes the correct translation for 'Save settings' ('Lưu cài đặt') but adds unsupported placeholder content '{{target}}: {{input}}' that is not present in the source or reference. This is an over-translation and introduces fabricated material.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": false,
+            "hallucinations": [
+              "{{target}}: {{input}}"
+            ]
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 0.37,
+          "rationale": "The core phrase 'Save settings' is translated correctly as 'Lưu cài đặt', but the candidate adds extra placeholders and content ('{{target}}: {{input}}') that are not present in the source, so accuracy is significantly reduced. Terminology is otherwise appropriate, and the Vietnamese is fluent for the translated portion. Locale fit is acceptable for vi-VN. Formatting safety is weak because placeholders were introduced unnecessarily rather than preserving the source structure. Policy tone is concise and non-apologetic.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 0.13,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 0,
+        "referenceNormalized": 0,
+        "referenceSimilarity": 0.7499999999999999,
+        "weightedAggregate": 0.775,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 0,
+          "referenceNormalized": 0,
+          "referenceSimilarity": 0.75,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 0.549,
+      "decision": "fail"
+    },
+    {
+      "caseId": "ui-save-settings::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "ollama-translategemma",
+      "profile": "default",
+      "provider": "ollama",
+      "model": "translategemma",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Lưu cài đặt",
+      "latencyMs": 713.657,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and is fully faithful to the source text with no unsupported additions or omissions.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source and matches the reference translation exactly. It correctly conveys the imperative UI action 'Save settings' in the target locale vi-VN as 'Lưu cài đặt'.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and is fully consistent with the source text 'Save settings' in Vietnamese.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the source meaning. Terminology is appropriate, the Vietnamese is natural for vi-VN UI text, and there are no formatting or placeholder issues. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-save-settings::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-mini",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-mini",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Lưu cài đặt",
+      "latencyMs": 2615.96,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and faithfully renders the source text 'Save settings' into Vietnamese without adding or omitting any meaning.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "All material facts are preserved. The candidate translation exactly matches the reference translation for the source text 'Save settings' in the target locale vi-VN.",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 3,
+            "expectedFacts": 3
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and is fully consistent with the source text 'Save settings' for the vi-VN locale.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the source meaning. Terminology is correct, the Vietnamese phrasing is natural and appropriate for vi-VN UI text, and there are no formatting or placeholder issues. Tone is clear and concise.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    },
+    {
+      "caseId": "ui-save-settings::vi-VN",
+      "targetLocale": "vi-VN",
+      "experimentId": "openai-gpt-5-nano",
+      "profile": "default",
+      "provider": "openai",
+      "model": "gpt-5-nano",
+      "prompt": "Translate to {{target}}: {{input}}",
+      "translated": "Lưu cài đặt",
+      "latencyMs": 3287.386,
+      "judgeResults": {
+        "judge:context-faithfulness": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference translation and faithfully renders the source text 'Save settings' into Vietnamese without adding or omitting any meaning.",
+          "details": {
+            "assertion": "context-faithfulness",
+            "faithful": true,
+            "unsupportedClaims": []
+          }
+        },
+        "judge:context-recall": {
+          "score": 1,
+          "rationale": "The candidate preserves all material facts from the source and matches the reference translation exactly: it conveys the imperative action to save settings in the target locale Vietnamese (vi-VN).",
+          "details": {
+            "assertion": "context-recall",
+            "coveredFacts": 2,
+            "expectedFacts": 2
+          }
+        },
+        "judge:factuality": {
+          "score": 1,
+          "rationale": "The candidate translation exactly matches the reference translation and faithfully renders the source text 'Save settings' into Vietnamese. There are no inconsistencies, omissions, or unsupported additions.",
+          "details": {
+            "assertion": "factuality",
+            "grounded": true,
+            "hallucinations": []
+          }
+        },
+        "judge:llm-rubric": {
+          "score": 1,
+          "rationale": "The candidate exactly matches the reference and fully preserves the meaning of the source. Terminology is appropriate and standard for Vietnamese UI text, the phrasing is natural and concise for vi-VN, locale considerations are satisfied, and there are no formatting or placeholder issues. Tone is clear and direct.",
+          "details": {
+            "assertion": "llm-rubric"
+          }
+        }
+      },
+      "judgeAggregateScore": 1,
+      "quality": {
+        "placeholderIntegrity": 1,
+        "tagIntegrity": 1,
+        "lengthCompliance": 1,
+        "termCompliance": 1,
+        "localeValidity": 1,
+        "referenceExact": 1,
+        "referenceNormalized": 1,
+        "referenceSimilarity": 1,
+        "weightedAggregate": 1,
+        "details": {
+          "lengthCompliance": 1,
+          "localeValidity": 1,
+          "placeholderIntegrity": 1,
+          "referenceExact": 1,
+          "referenceNormalized": 1,
+          "referenceSimilarity": 1,
+          "tagIntegrity": 1,
+          "termCompliance": 1
+        }
+      },
+      "finalScore": 1,
+      "decision": "pass"
+    }
+  ],
+  "caseSummaries": [
+    {
+      "caseId": "aftex-2013-conference::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 27769.949,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.935,
+        "judge:context-recall": 0.955,
+        "judge:factuality": 0.898,
+        "judge:llm-rubric": 0.803
+      },
+      "averageJudgeScore": 0.898,
+      "weightedScore": 0.78,
+      "finalScore": 0.821,
+      "decisionCounts": {
+        "review": 4
+      }
+    },
+    {
+      "caseId": "icu-files-uploaded::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 10583.293,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.71,
+        "judge:context-recall": 0.698,
+        "judge:factuality": 0.74,
+        "judge:llm-rubric": 0.688
+      },
+      "averageJudgeScore": 0.709,
+      "weightedScore": 0.558,
+      "finalScore": 0.601,
+      "hardFailCounts": {
+        "malformed_icu": 1,
+        "placeholder_integrity_failed": 1
+      },
+      "decisionCounts": {
+        "fail": 1,
+        "review": 3
+      }
+    },
+    {
+      "caseId": "icu-inbox-count::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 8082.863,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.52,
+        "judge:context-recall": 0.55,
+        "judge:factuality": 0.52,
+        "judge:llm-rubric": 0.605
+      },
+      "averageJudgeScore": 0.549,
+      "weightedScore": 0.5,
+      "finalScore": 0.5,
+      "hardFailCounts": {
+        "malformed_icu": 2,
+        "placeholder_integrity_failed": 2
+      },
+      "decisionCounts": {
+        "fail": 2,
+        "pass": 2
+      }
+    },
+    {
+      "caseId": "icu-welcome-user::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 4254.104,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.753,
+        "judge:context-recall": 0.575,
+        "judge:factuality": 0.738,
+        "judge:llm-rubric": 0.85
+      },
+      "averageJudgeScore": 0.729,
+      "weightedScore": 0.587,
+      "finalScore": 0.619,
+      "hardFailCounts": {
+        "malformed_icu": 1,
+        "placeholder_integrity_failed": 1
+      },
+      "decisionCounts": {
+        "fail": 1,
+        "pass": 1,
+        "review": 2
+      }
+    },
+    {
+      "caseId": "raheem-sterling-melissa-clarke::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 29440.781,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.76,
+        "judge:context-recall": 0.868,
+        "judge:factuality": 0.722,
+        "judge:llm-rubric": 0.673
+      },
+      "averageJudgeScore": 0.756,
+      "weightedScore": 0.77,
+      "finalScore": 0.765,
+      "decisionCounts": {
+        "review": 4
+      }
+    },
+    {
+      "caseId": "ui-checkout-button::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 2215.199,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.905,
+        "judge:context-recall": 0.875,
+        "judge:factuality": 0.905,
+        "judge:llm-rubric": 0.965
+      },
+      "averageJudgeScore": 0.913,
+      "weightedScore": 0.938,
+      "finalScore": 0.929,
+      "decisionCounts": {
+        "pass": 3,
+        "review": 1
+      }
+    },
+    {
+      "caseId": "ui-password-reset::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 10707.15,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.725,
+        "judge:context-recall": 0.625,
+        "judge:factuality": 0.705,
+        "judge:llm-rubric": 0.815
+      },
+      "averageJudgeScore": 0.718,
+      "weightedScore": 0.877,
+      "finalScore": 0.821,
+      "decisionCounts": {
+        "fail": 1,
+        "pass": 2,
+        "review": 1
+      }
+    },
+    {
+      "caseId": "ui-save-settings::vi-VN",
+      "runCount": 4,
+      "successfulRuns": 4,
+      "failedRuns": 0,
+      "averageLatencyMs": 2075.519,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.75,
+        "judge:context-recall": 0.75,
+        "judge:factuality": 0.788,
+        "judge:llm-rubric": 0.843
+      },
+      "averageJudgeScore": 0.783,
+      "weightedScore": 0.944,
+      "finalScore": 0.887,
+      "decisionCounts": {
+        "fail": 1,
+        "pass": 3
+      }
+    }
+  ],
+  "experimentSummaries": [
+    {
+      "experimentId": "ollama-lfm2-24b",
+      "runCount": 8,
+      "successfulRuns": 8,
+      "failedRuns": 0,
+      "averageLatencyMs": 17362.757,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.301,
+        "judge:context-recall": 0.374,
+        "judge:factuality": 0.316,
+        "judge:llm-rubric": 0.479
+      },
+      "averageJudgeScore": 0.368,
+      "weightedScore": 0.51,
+      "finalScore": 0.445,
+      "hardFailCounts": {
+        "malformed_icu": 3,
+        "placeholder_integrity_failed": 3
+      },
+      "decisionCounts": {
+        "fail": 5,
+        "pass": 1,
+        "review": 2
+      }
+    },
+    {
+      "experimentId": "ollama-translategemma",
+      "runCount": 8,
+      "successfulRuns": 8,
+      "failedRuns": 0,
+      "averageLatencyMs": 4595.755,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.809,
+        "judge:context-recall": 0.678,
+        "judge:factuality": 0.783,
+        "judge:llm-rubric": 0.759
+      },
+      "averageJudgeScore": 0.757,
+      "weightedScore": 0.726,
+      "finalScore": 0.73,
+      "hardFailCounts": {
+        "malformed_icu": 1,
+        "placeholder_integrity_failed": 1
+      },
+      "decisionCounts": {
+        "fail": 1,
+        "pass": 2,
+        "review": 5
+      }
+    },
+    {
+      "experimentId": "openai-gpt-5-mini",
+      "runCount": 8,
+      "successfulRuns": 8,
+      "failedRuns": 0,
+      "averageLatencyMs": 7290.382,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.986,
+        "judge:context-recall": 0.998,
+        "judge:factuality": 0.985,
+        "judge:llm-rubric": 0.956
+      },
+      "averageJudgeScore": 0.981,
+      "weightedScore": 0.885,
+      "finalScore": 0.919,
+      "decisionCounts": {
+        "pass": 5,
+        "review": 3
+      }
+    },
+    {
+      "experimentId": "openai-gpt-5-nano",
+      "runCount": 8,
+      "successfulRuns": 8,
+      "failedRuns": 0,
+      "averageLatencyMs": 18315.535,
+      "averageScoreByName": {
+        "judge:context-faithfulness": 0.933,
+        "judge:context-recall": 0.899,
+        "judge:factuality": 0.924,
+        "judge:llm-rubric": 0.926
+      },
+      "averageJudgeScore": 0.921,
+      "weightedScore": 0.855,
+      "finalScore": 0.878,
+      "decisionCounts": {
+        "pass": 3,
+        "review": 5
+      }
+    }
+  ]
+}

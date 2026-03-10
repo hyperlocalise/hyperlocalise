@@ -7,11 +7,88 @@ Use an eval set to measure translation quality on the strings that matter most t
 
 ## Choose a file format
 
-You can store eval sets as JSON, JSONC, or CSV.
+Use YAML for eval sets.
 
-- use JSON or JSONC when you want nested structure and explicit metadata
-- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
-- in CSV, separate multiple tags with semicolons (`ui;short;icu`)
+- group one shared source string under `tests`
+- define one or more locale variants under `locales`
+- optionally define model variants under `experiments`
+- optionally define judge config under `judge`
+- put trusted target-side text under `reference`
+- add `assert` only when you need explicit pass/fail expectations
+
+### YAML example
+
+```yaml
+version: "1"
+metadata:
+  owner: localization
+  suite: release-gate
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
+
+### Minimal example
+
+```yaml
+tests:
+  - id: save-button
+    vars:
+      source: "Save"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer"
+```
+
+### Format rules
+
+- `experiments[]` is optional
+- `experiments[].provider` and `experiments[].model` are required when an experiment is present
+- `experiments[].id`, `experiments[].profile`, and `experiments[].prompt` are optional
+- `judge` is optional
+- `judge.provider`, `judge.model`, `judge.prompt`, and `judge.assertions[]` are optional
+- `tests[].id` is required
+- `tests[].vars.source` is required
+- `tests[].locales[]` must contain at least one locale
+- `tests[].locales[].locale` is required
+- `vars.query` is accepted as an alias for `vars.source`
+- `vars.context` is optional
+- `locales[].reference` is optional but is the normal target-side field when you have a trusted translation
+- top-level `assert` is optional and applies to every locale variant in the test
+- locale-level `assert` is optional and is appended for that locale only
+
+### Experiment rules
+
+- use `experiments` when you want the eval set itself to define which models are run
+- if CLI experiment flags are unset, dataset `experiments` are used
+- if you pass CLI `--profile`, `--provider`, `--model`, or `--prompt`, the CLI overrides dataset `experiments`
+
+### Judge rules
+
+- use `judge` when you want the eval set itself to define the LLM judge configuration
+- `judge.assertions` accepts the same assertion names as CLI `--assertion`
+- CLI `--eval-provider`, `--eval-model`, `--eval-prompt`, and `--assertion` override dataset `judge` field by field
+- if judge evaluation is requested and neither CLI nor YAML sets provider/model, Hyperlocalise defaults to `openai` and `gpt-5.2`
 
 ## Pick representative coverage
 
@@ -26,10 +103,31 @@ Include a mix of string types so you can detect regressions across different con
 
 For each case, store a stable id and include enough context for reviewers.
 
-- add target locale and source text
-- include screenshots, feature names, or intent notes in `context`
-- add optional `reference` text when you already have a trusted translation
-- label cases with tags and optional bucket or group so you can slice reports by area
+- keep the shared source text in `vars.source`
+- include screenshots, feature names, or intent notes in `vars.context`
+- put locale-specific references under each locale entry when you already have trusted translations
+- keep ids stable so expanded cases stay comparable across runs
+
+## Use assertions intentionally
+
+`assert` is optional. If you omit it, the eval run still produces heuristic scores, optional judge scores, and report diagnostics.
+
+Use deterministic assertions when you know exactly what must appear in the output.
+
+- `contains`
+- `not_contains`
+- `equals`
+
+Use judge assertions when you want threshold-based scoring.
+
+- `judge.translation_quality`
+- `judge.factuality`
+- `judge.g_eval`
+- `judge.model_graded_closedqa`
+- `judge.answer_relevance`
+- `judge.context_faithfulness`
+- `judge.context_recall`
+- `judge.context_relevance`
 
 ## Maintain quality over time
 

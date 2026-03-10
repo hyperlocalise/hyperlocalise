@@ -22,35 +22,103 @@ hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 
 Run one or more experiment variants across your eval set.
 
+### Eval flow
+
+```text
+eval set
+  |
+  v
+expand experiment matrix
+  |
+  v
+translate each case with each experiment
+  |
+  +--> heuristic lane
+  |      - placeholder / ICU / tag checks
+  |      - length / forbidden-term / locale checks
+  |      - reference similarity
+  |
+  +--> judge lane (optional)
+  |      - llm-rubric
+  |      - factuality
+  |      - g-eval
+  |      - model-graded-closedqa
+  |      - answer-relevance
+  |      - context-faithfulness
+  |      - context-recall
+  |
+  v
+per-run result
+  - quality.weightedAggregate
+  - judgeAggregateScore
+  - finalScore
+  - decision
+  |
+  v
+report aggregates
+  - overall aggregate
+  - byLocale
+```
+
 ### What this command does
 
 1. Loads the eval dataset from `--eval-set`.
-2. Expands experiment variants from your selected profiles, providers, models, and prompt override.
+2. Expands experiment variants from dataset `experiments` or from your selected profiles, providers, models, and prompt override.
 3. Executes every case against every experiment variant.
 4. Scores each translation with the built-in heuristic lane.
 5. Optionally adds an LLM judge lane when you pass both `--eval-provider` and `--eval-model`.
-6. Writes a JSON report when you pass `--output`.
-7. Prints a concise per-experiment summary table.
+6. Reconciles heuristic quality and successful judge scores into a per-run `finalScore`.
+7. Writes a JSON report when you pass `--output`.
+8. Prints a concise per-experiment summary table.
 
 ### Flags
 
-- `--eval-set`: path to eval dataset (`.json`, `.jsonc`, `.csv`) (required)
+- `--eval-set`: path to eval dataset (`.yaml`, `.yml`) (required)
 - `--profile`: profile name override (repeatable)
 - `--provider`: provider override (repeatable)
 - `--model`: model override (repeatable)
 - `--prompt-file`: prompt file override
 - `--prompt`: inline prompt override (mutually exclusive with `--prompt-file`)
-- `--eval-provider`: provider for LLM evaluation
-- `--eval-model`: model for LLM evaluation
+- `--eval-provider`: provider for LLM evaluation. Defaults to `openai` when judge eval is requested.
+- `--eval-model`: model for LLM evaluation. Defaults to `gpt-5.2` when judge eval is requested.
 - `--eval-prompt-file`: evaluation prompt file override
 - `--eval-prompt`: inline evaluation prompt override (mutually exclusive with `--eval-prompt-file`)
+- `--assertion`: judge assertion to run (repeatable). Supported values: `llm-rubric`, `factuality`, `g-eval`, `model-graded-closedqa`, `answer-relevance`, `context-faithfulness`, `context-recall`
 - `--output`: JSON output report path
 
-LLM evaluation mode turns on only when you pass both `--eval-provider` and `--eval-model`.
+LLM evaluation mode turns on when you request judge evaluation, either explicitly with `--eval-provider`, `--eval-model`, `--eval-prompt`, or `--assertion`, or implicitly through eval-set judge assertions.
+
+If judge evaluation is requested and you omit provider/model, Hyperlocalise defaults to `openai` and `gpt-5.2`.
 
 Your translation flags keep their current meaning. The `--eval-*` flags only control the judge lane.
 
 Reference translations are optional in LLM evaluation mode. When present, the evaluator uses them as style and tone guidance.
+
+In the YAML eval-set format, `reference` is the normal target-side field. `assert` is optional.
+
+Dataset-level `experiments` and `judge` are optional. If you define them in YAML and do not pass CLI overrides, `eval run` uses those settings directly.
+
+If you pass any of `--profile`, `--provider`, `--model`, or `--prompt`, the CLI experiment matrix overrides dataset `experiments`.
+
+If you pass any of `--eval-provider`, `--eval-model`, `--eval-prompt`, or `--assertion`, those CLI values override dataset `judge` fields.
+
+If you pass no `--assertion`, the default judge assertion is `llm-rubric`.
+
+Unknown assertion names fail fast.
+
+### How scoring works
+
+- `quality.weightedAggregate` is the built-in heuristic score for the run.
+- `judgeAggregateScore` is the average of successful judge assertions for that run.
+- `finalScore` is the reconciled score used for diagnosis in the report.
+- `decision` is a coarse outcome for the run: `pass`, `review`, or `fail`.
+
+Current reconciliation rules:
+
+- translation errors force `finalScore=0` and `decision=fail`
+- heuristic hard fails force `finalScore=0` and `decision=fail`
+- when the judge lane is unavailable, `finalScore` falls back to the heuristic score
+- when both lanes are available, `finalScore = 0.65 * heuristic + 0.35 * judge`
 
 ### Summary table fields
 
@@ -65,7 +133,7 @@ Run with defaults from your configuration and write a report:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.jsonc \
+  --eval-set ./evalsets/core.yaml \
   --output ./artifacts/eval-report.json
 ```
 
@@ -73,7 +141,7 @@ Run a matrix of profiles and provider/model overrides:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.csv \
+  --eval-set ./evalsets/core.yaml \
   --profile default \
   --profile fast \
   --provider openai \
@@ -86,7 +154,7 @@ Run with a prompt file override:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --prompt-file ./prompts/translation-eval.txt
 ```
 
@@ -94,10 +162,24 @@ Run with LLM evaluation using an inline judge prompt:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider openai \
   --eval-model gpt-4.1-mini \
   --eval-prompt "Score translation quality from 0.0 to 1.0 and explain briefly." \
+  --output ./artifacts/eval-report.json
+```
+
+Run multiple assertion judges in one pass:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/core.yaml \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --assertion g-eval \
+  --assertion context-faithfulness \
   --output ./artifacts/eval-report.json
 ```
 
@@ -105,12 +187,201 @@ Run with LLM evaluation using a judge prompt file:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider anthropic \
   --eval-model claude-sonnet-4-5 \
   --eval-prompt-file ./prompts/eval-judge.txt \
   --output ./artifacts/eval-report.json
 ```
+
+Use eval in CI and inspect the saved report:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/release-gate.yaml \
+  --provider openai \
+  --model gpt-4.1-mini \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --output ./artifacts/eval-candidate.json
+```
+
+### Report example
+
+Example eval set:
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
+
+Example with explicit assertions:
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+    assert:
+      - type: judge.translation_quality
+        threshold: 0.85
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+        assert:
+          - type: contains
+            value: "compte"
+```
+
+Run a dataset that already defines Ollama experiments:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./eval_dataset/article_001.yaml \
+  --output ./artifacts/eval-report.json
+```
+
+Trimmed example of the JSON written by `--output`:
+
+```json
+{
+  "aggregate": {
+    "weightedScore": 0.812,
+    "averageJudgeScore": 0.847,
+    "finalScore": 0.824,
+    "decisionCounts": {
+      "pass": 18,
+      "review": 3,
+      "fail": 1
+    },
+    "byLocale": {
+      "fr-FR": {
+        "totalRuns": 10,
+        "finalScore": 0.851
+      },
+      "de-DE": {
+        "totalRuns": 12,
+        "finalScore": 0.802
+      }
+    }
+  },
+  "experimentSummaries": [
+    {
+      "experimentId": "ollama-translategemma",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.838,
+      "weightedScore": 0.806,
+      "finalScore": 0.817,
+      "decisionCounts": {
+        "pass": 8,
+        "review": 3
+      }
+    },
+    {
+      "experimentId": "ollama-lfm2-24b",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.856,
+      "weightedScore": 0.819,
+      "finalScore": 0.832,
+      "decisionCounts": {
+        "pass": 10,
+        "review": 1
+      }
+    }
+  ],
+  "llmEvaluation": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "assertions": [
+      "llm-rubric",
+      "factuality"
+    ],
+    "aggregateScore": 0.847,
+    "averageScoreByName": {
+      "judge:llm-rubric": 0.835,
+      "judge:factuality": 0.859
+    },
+    "failedByName": {
+      "judge:factuality": 1
+    }
+  },
+  "runs": [
+    {
+      "caseId": "checkout.cta",
+      "targetLocale": "fr-FR",
+      "assertionResults": [
+        {
+          "type": "judge.translation_quality",
+          "passed": true,
+          "threshold": 0.85,
+          "score": 0.88
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "expected": "compte"
+        }
+      ],
+      "judgeAggregateScore": 0.88,
+      "quality": {
+        "weightedAggregate": 0.91
+      },
+      "finalScore": 0.9,
+      "decision": "pass",
+      "judgeResults": {
+        "judge:llm-rubric": {
+          "score": 0.86
+        },
+        "judge:factuality": {
+          "score": 0.9,
+          "details": {
+            "grounded": true,
+            "hallucinations": []
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+Use the top-level report for trend tracking and the per-run records for diagnosis:
+
+- `experimentSummaries` is the fastest way to compare model variants by `finalScore`, `weightedScore`, or pass/review/fail mix.
+- `aggregate.byLocale` is the fastest way to localize regressions.
+- `llmEvaluation.averageScoreByName` shows which assertion family is dragging the judge lane down.
+- `assertionResults` shows whether explicit eval-set expectations passed.
+- `judgeResults` details explain assertion-specific failures, such as hallucinations, unsupported claims, or missing context facts.
 
 ## eval compare
 
@@ -130,6 +401,13 @@ The workflow stays the same: run `eval run` first, then run `eval compare`.
 ### CI behavior
 
 `eval compare` prefers the LLM aggregate score when both reports include a usable LLM judge aggregate. Otherwise, it falls back to the heuristic weighted score.
+
+This means `eval compare` currently gates on:
+
+- LLM judge aggregate when LLM evaluation was enabled in both reports
+- heuristic aggregate when no LLM judge aggregate is available
+
+It does not currently gate on `finalScore`.
 
 The command exits with an error when:
 

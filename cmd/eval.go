@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"charm.land/lipgloss/v2"
+	"github.com/mattn/go-isatty"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc/scoring"
 	"github.com/spf13/cobra"
@@ -26,6 +28,7 @@ type evalRunOptions struct {
 	evalModel      string
 	evalPromptFile string
 	evalPrompt     string
+	assertions     []string
 	outputPath     string
 }
 
@@ -34,14 +37,6 @@ type evalCompareOptions struct {
 	baselinePath  string
 	minScore      float64
 	maxRegression float64
-}
-
-type experimentSummary struct {
-	ID                    string
-	AverageScore          float64
-	PassRate              float64
-	PlaceholderViolations int
-	AverageLatencyMS      float64
 }
 
 func newEvalCmd() *cobra.Command {
@@ -85,9 +80,14 @@ func newEvalRunCmd() *cobra.Command {
 				EvalProvider: o.evalProvider,
 				EvalModel:    o.evalModel,
 				EvalPrompt:   evalPrompt,
+				Assertions:   o.assertions,
 				OutputPath:   o.outputPath,
 			}
 			if err := input.Validate(); err != nil {
+				return err
+			}
+
+			if err := logEvalRunStart(cmd.ErrOrStderr(), input); err != nil {
 				return err
 			}
 
@@ -96,20 +96,25 @@ func newEvalRunCmd() *cobra.Command {
 				return fmt.Errorf("run eval: %w", err)
 			}
 
-			return writeExperimentSummary(cmd.OutOrStdout(), summarizeExperiments(report.Runs), false)
+			if err := logEvalRunComplete(cmd.ErrOrStderr(), report); err != nil {
+				return err
+			}
+
+			return writeExperimentSummary(cmd.OutOrStdout(), report.ExperimentSummaries, false)
 		},
 	}
 
-	cmd.Flags().StringVar(&o.evalSetPath, "eval-set", "", "path to eval dataset (json, jsonc, csv)")
+	cmd.Flags().StringVar(&o.evalSetPath, "eval-set", "", "path to eval dataset (yaml, yml)")
 	cmd.Flags().StringArrayVar(&o.profiles, "profile", nil, "profile name to evaluate (repeatable)")
 	cmd.Flags().StringArrayVar(&o.providers, "provider", nil, "provider override (repeatable)")
 	cmd.Flags().StringArrayVar(&o.models, "model", nil, "model override (repeatable)")
 	cmd.Flags().StringVar(&o.promptFile, "prompt-file", "", "path to prompt file override")
 	cmd.Flags().StringVar(&o.prompt, "prompt", "", "inline prompt override")
-	cmd.Flags().StringVar(&o.evalProvider, "eval-provider", "", "provider for LLM evaluation")
-	cmd.Flags().StringVar(&o.evalModel, "eval-model", "", "model for LLM evaluation")
+	cmd.Flags().StringVar(&o.evalProvider, "eval-provider", "", "provider for LLM evaluation (defaults to openai when judge eval is requested)")
+	cmd.Flags().StringVar(&o.evalModel, "eval-model", "", "model for LLM evaluation (defaults to gpt-5.2 when judge eval is requested)")
 	cmd.Flags().StringVar(&o.evalPromptFile, "eval-prompt-file", "", "path to evaluation prompt file override")
 	cmd.Flags().StringVar(&o.evalPrompt, "eval-prompt", "", "inline evaluation prompt override")
+	cmd.Flags().StringArrayVar(&o.assertions, "assertion", nil, "judge assertions (repeatable): llm-rubric, factuality, g-eval, model-graded-closedqa, answer-relevance, context-faithfulness, context-recall")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
 
 	return cmd
@@ -151,7 +156,7 @@ func newEvalCompareCmd() *cobra.Command {
 			}
 			regression := baselineScore - candidateScore
 
-			if err := writeExperimentSummary(cmd.OutOrStdout(), summarizeExperiments(candidate.Runs), true); err != nil {
+			if err := writeExperimentSummary(cmd.OutOrStdout(), candidate.ExperimentSummaries, true); err != nil {
 				return err
 			}
 
@@ -249,73 +254,190 @@ func loadEvalReport(path string) (evalsvc.Report, error) {
 	return report, nil
 }
 
-func summarizeExperiments(runs []evalsvc.RunResult) []experimentSummary {
-	type accumulator struct {
-		totalRuns             int
-		successRuns           int
-		totalScore            float64
-		totalLatency          float64
-		placeholderViolations int
-	}
-
-	byExperiment := map[string]*accumulator{}
-	for _, run := range runs {
-		acc := byExperiment[run.ExperimentID]
-		if acc == nil {
-			acc = &accumulator{}
-			byExperiment[run.ExperimentID] = acc
-		}
-		acc.totalRuns++
-		if run.Error == "" {
-			acc.successRuns++
-		}
-		acc.totalScore += run.Quality.WeightedAggregate
-		acc.totalLatency += run.LatencyMS
-		for _, hardFail := range run.Quality.HardFails {
-			if hardFail == scoring.HardFailPlaceholderDrop {
-				acc.placeholderViolations++
-			}
-		}
-	}
-
-	summaries := make([]experimentSummary, 0, len(byExperiment))
-	for id, acc := range byExperiment {
-		total := float64(acc.totalRuns)
-		summaries = append(summaries, experimentSummary{
-			ID:                    id,
-			AverageScore:          acc.totalScore / total,
-			PassRate:              float64(acc.successRuns) / total,
-			PlaceholderViolations: acc.placeholderViolations,
-			AverageLatencyMS:      acc.totalLatency / total,
-		})
-	}
-
-	sort.Slice(summaries, func(i, j int) bool {
-		return summaries[i].ID < summaries[j].ID
-	})
-
-	return summaries
-}
-
-func writeExperimentSummary(w io.Writer, summaries []experimentSummary, includeHeader bool) error {
+func writeExperimentSummary(w io.Writer, summaries []evalsvc.ExperimentSummary, includeHeader bool) error {
+	styles := newEvalSummaryStyles(w)
 	if includeHeader {
 		if _, err := fmt.Fprintln(w, "candidate experiment summary:"); err != nil {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintln(w, "experiment | score | pass_rate | placeholder_violations | latency_ms"); err != nil {
+	scoreColumns := experimentScoreColumns(summaries)
+	header := []string{"experiment", "score", "pass_rate", "placeholder_violations", "latency_ms"}
+	header = append(header, scoreColumns...)
+	if _, err := fmt.Fprintln(w, strings.Join(header, " | ")); err != nil {
 		return err
 	}
 	for _, summary := range summaries {
+		passRate := 0.0
+		if summary.RunCount > 0 {
+			passCount := summary.SuccessfulRuns
+			if summary.DecisionCounts != nil {
+				passCount = summary.DecisionCounts["pass"]
+			}
+			passRate = float64(passCount) / float64(summary.RunCount)
+		}
+		placeholderViolations := 0
+		if summary.HardFailCounts != nil {
+			placeholderViolations = summary.HardFailCounts[scoring.HardFailPlaceholderDrop]
+		}
+		row := []string{
+			summary.ExperimentID,
+			styles.renderScore(summary.WeightedScore),
+			styles.renderPassRate(passRate),
+			fmt.Sprintf("%d", placeholderViolations),
+			fmt.Sprintf("%.1f", summary.AverageLatencyMS),
+		}
+		for _, column := range scoreColumns {
+			row = append(row, formatExperimentScore(styles, summary.AverageScoreByName, column))
+		}
+		if _, err := fmt.Fprintln(w, strings.Join(row, " | ")); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func experimentScoreColumns(summaries []evalsvc.ExperimentSummary) []string {
+	seen := map[string]struct{}{}
+	columns := make([]string, 0)
+	for _, summary := range summaries {
+		for name := range summary.AverageScoreByName {
+			label := experimentScoreLabel(name)
+			if _, ok := seen[label]; ok {
+				continue
+			}
+			seen[label] = struct{}{}
+			columns = append(columns, label)
+		}
+	}
+	sort.Strings(columns)
+	return columns
+}
+
+func formatExperimentScore(styles evalSummaryStyles, scores map[string]float64, column string) string {
+	if len(scores) == 0 {
+		return "-"
+	}
+	for name, score := range scores {
+		if experimentScoreLabel(name) == column {
+			return styles.renderScore(score)
+		}
+	}
+	return "-"
+}
+
+func experimentScoreLabel(name string) string {
+	label := strings.TrimSpace(name)
+	label = strings.TrimPrefix(label, "judge:")
+	return label
+}
+
+type evalSummaryStyles struct {
+	good   lipgloss.Style
+	warn   lipgloss.Style
+	bad    lipgloss.Style
+	colors bool
+}
+
+func newEvalSummaryStyles(w io.Writer) evalSummaryStyles {
+	styles := evalSummaryStyles{}
+	file, ok := w.(*os.File)
+	if !ok {
+		return styles
+	}
+	if !isatty.IsTerminal(file.Fd()) && !isatty.IsCygwinTerminal(file.Fd()) {
+		return styles
+	}
+	return evalSummaryStyles{
+		good:   lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true),
+		warn:   lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true),
+		bad:    lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true),
+		colors: true,
+	}
+}
+
+func (s evalSummaryStyles) renderScore(score float64) string {
+	text := fmt.Sprintf("%.3f", score)
+	if !s.colors {
+		return text
+	}
+	switch {
+	case score >= 0.85:
+		return s.good.Render(text)
+	case score >= 0.70:
+		return s.warn.Render(text)
+	default:
+		return s.bad.Render(text)
+	}
+}
+
+func (s evalSummaryStyles) renderPassRate(passRate float64) string {
+	text := fmt.Sprintf("%.1f%%", passRate*100)
+	if !s.colors {
+		return text
+	}
+	switch {
+	case passRate >= 0.90:
+		return s.good.Render(text)
+	case passRate >= 0.70:
+		return s.warn.Render(text)
+	default:
+		return s.bad.Render(text)
+	}
+}
+
+func logEvalRunStart(w io.Writer, input evalsvc.Input) error {
+	if _, err := fmt.Fprintf(w, "eval: starting dataset=%s\n", input.EvalSetPath); err != nil {
+		return err
+	}
+	if input.OutputPath != "" {
+		if _, err := fmt.Fprintf(w, "eval: report output=%s\n", input.OutputPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func logEvalRunComplete(w io.Writer, report evalsvc.Report) error {
+	experimentCount := len(report.ExperimentSummaries)
+	caseCount := len(report.CaseSummaries)
+	totalRuns := report.Aggregate.TotalRuns
+
+	if _, err := fmt.Fprintf(
+		w,
+		"eval: completed cases=%d experiments=%d runs=%d successful=%d failed=%d\n",
+		caseCount,
+		experimentCount,
+		totalRuns,
+		report.Aggregate.SuccessfulRuns,
+		report.Aggregate.FailedRuns,
+	); err != nil {
+		return err
+	}
+
+	if report.LLMEvaluation != nil && report.LLMEvaluation.Enabled {
+		assertions := strings.Join(report.LLMEvaluation.Assertions, ",")
+		if assertions == "" {
+			assertions = "none"
+		}
 		if _, err := fmt.Fprintf(
 			w,
-			"%s | %.3f | %.1f%% | %d | %.1f\n",
-			summary.ID,
-			summary.AverageScore,
-			summary.PassRate*100,
-			summary.PlaceholderViolations,
-			summary.AverageLatencyMS,
+			"eval: judge provider=%s model=%s assertions=%s\n",
+			report.LLMEvaluation.Provider,
+			report.LLMEvaluation.Model,
+			assertions,
 		); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintln(w, "eval: judge disabled"); err != nil {
+			return err
+		}
+	}
+
+	if report.Input.OutputPath != "" {
+		if _, err := fmt.Fprintf(w, "eval: wrote report=%s\n", report.Input.OutputPath); err != nil {
 			return err
 		}
 	}

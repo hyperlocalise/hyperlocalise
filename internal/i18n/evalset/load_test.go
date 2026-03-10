@@ -7,257 +7,279 @@ import (
 	"testing"
 )
 
-func TestLoadJSONAndJSONC(t *testing.T) {
-	testCases := []struct {
-		name        string
-		filename    string
-		content     string
-		errContains string
-	}{
-		{
-			name:     "decode valid jsonc dataset",
-			filename: "evalset.jsonc",
-			content: `{
-			  // schema metadata for tooling
-			  "version": "v1",
-			  "metadata": {
-			    "owner": "l10n",
-			    "domain": "checkout"
-			  },
-			  "cases": [
-			    {
-			      "id": "ui.pay.cta",
-			      "source": "Pay now",
-			      "targetLocale": "fr-FR",
-			      "context": "Primary CTA on checkout page",
-			      "reference": "Payer maintenant",
-			      "tags": ["ui", "short"],
-			      "bucket": "checkout",
-			      "group": "critical"
-			    }
-			  ]
-			}`,
-		},
-		{
-			name:     "reject unknown fields",
-			filename: "evalset.json",
-			content: `{
-			  "cases": [
-			    {
-			      "id": "a",
-			      "source": "Hello",
-			      "targetLocale": "es-ES",
-			      "unknown": true
-			    }
-			  ]
-			}`,
-			errContains: "unknown field",
-		},
-		{
-			name:     "validate non-empty cases",
-			filename: "evalset.json",
-			content: `{
-			  "cases": []
-			}`,
-			errContains: "cases: must not be empty",
-		},
-		{
-			name:     "validate required source",
-			filename: "evalset.json",
-			content: `{
-			  "cases": [
-			    {
-			      "id": "a",
-			      "source": "",
-			      "targetLocale": "de-DE"
-			    }
-			  ]
-			}`,
-			errContains: "source: must not be empty",
-		},
-		{
-			name:     "validate required target locale",
-			filename: "evalset.json",
-			content: `{
-			  "cases": [
-			    {
-			      "id": "a",
-			      "source": "Settings",
-			      "targetLocale": ""
-			    }
-			  ]
-			}`,
-			errContains: "targetLocale: must not be empty",
-		},
-		{
-			name:     "validate empty id",
-			filename: "evalset.json",
-			content: `{
-			  "cases": [
-			    {
-			      "id": "   ",
-			      "source": "Settings",
-			      "targetLocale": "fr-FR"
-			    }
-			  ]
-			}`,
-			errContains: "id: must not be empty",
-		},
-		{
-			name:     "validate duplicate id with whitespace",
-			filename: "evalset.json",
-			content: `{
-			  "cases": [
-			    {
-			      "id": "dup",
-			      "source": "One",
-			      "targetLocale": "ja-JP"
-			    },
-			    {
-			      "id": "dup ",
-			      "source": "Two",
-			      "targetLocale": "ja-JP"
-			    }
-			  ]
-			}`,
-			errContains: "duplicate id",
-		},
+func TestLoadYAMLAndExpandLocales(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "evalset.yaml")
+	content := `
+version: "1"
+metadata:
+  owner: l10n
+judge:
+  provider: openai
+  model: gpt-5.2
+  prompt: "Score translation quality."
+  assertions:
+    - llm-rubric
+    - factuality
+experiments:
+  - id: openai-mini
+    provider: openai
+    model: gpt-4.1-mini
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA"
+    assert:
+      - type: judge.translation_quality
+        threshold: 0.85
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+        assert:
+          - type: contains
+            value: "compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write evalset: %v", err)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), tc.filename)
-			if err := os.WriteFile(path, []byte(tc.content), 0o644); err != nil {
-				t.Fatalf("write evalset: %v", err)
-			}
-
-			dataset, err := Load(path)
-			if tc.errContains != "" {
-				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tc.errContains)
-				}
-
-				if !strings.Contains(err.Error(), tc.errContains) {
-					t.Fatalf("expected error containing %q, got %q", tc.errContains, err.Error())
-				}
-
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("Load() error = %v", err)
-			}
-
-			if dataset == nil {
-				t.Fatalf("Load() dataset is nil")
-			}
-
-			if len(dataset.Cases) != 1 {
-				t.Fatalf("expected 1 case, got %d", len(dataset.Cases))
-			}
-
-			if dataset.Cases[0].ID != "ui.pay.cta" {
-				t.Fatalf("expected case id ui.pay.cta, got %q", dataset.Cases[0].ID)
-			}
-		})
+	dataset, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if dataset == nil {
+		t.Fatalf("Load() dataset is nil")
+	}
+	if len(dataset.Cases) != 2 {
+		t.Fatalf("expected 2 expanded cases, got %d", len(dataset.Cases))
+	}
+	if len(dataset.Experiments) != 1 || dataset.Experiments[0].ID != "openai-mini" {
+		t.Fatalf("expected dataset experiments to load, got %+v", dataset.Experiments)
+	}
+	if dataset.Judge.Provider != "openai" || dataset.Judge.Model != "gpt-5.2" || len(dataset.Judge.Assertions) != 2 {
+		t.Fatalf("expected dataset judge config to load, got %+v", dataset.Judge)
+	}
+	if dataset.Cases[0].ID != "checkout-cta::de-DE" && dataset.Cases[0].ID != "checkout-cta::fr-FR" {
+		t.Fatalf("unexpected expanded case id: %q", dataset.Cases[0].ID)
+	}
+	var fr Case
+	for _, tc := range dataset.Cases {
+		if tc.TargetLocale == "fr-FR" {
+			fr = tc
+			break
+		}
+	}
+	if fr.Reference != "Enregistrer les parametres du compte" {
+		t.Fatalf("unexpected locale reference: %+v", fr)
+	}
+	if len(fr.Assertions) != 2 {
+		t.Fatalf("expected shared+locale assertions on fr case, got %+v", fr.Assertions)
 	}
 }
 
-func TestLoadCSV(t *testing.T) {
+func TestLoadSupportsQueryAlias(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "evalset.yaml")
+	content := `
+tests:
+  - id: capital-france
+    vars:
+      query: "What is the capital of France?"
+    locales:
+      - locale: en-US
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write evalset: %v", err)
+	}
+
+	dataset, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if dataset.Cases[0].Source != "What is the capital of France?" {
+		t.Fatalf("expected query alias to populate source, got %+v", dataset.Cases[0])
+	}
+}
+
+func TestLoadValidationErrors(t *testing.T) {
 	testCases := []struct {
 		name        string
 		content     string
 		errContains string
 	}{
 		{
-			name: "decode valid csv dataset",
-			content: strings.Join([]string{
-				"id,source,targetLocale,context,reference,tags,bucket,group",
-				`ui.pay.cta,Pay now,fr-FR,Primary CTA,Payer maintenant,"ui;short",checkout,critical`,
-			}, "\n"),
+			name: "reject unsupported judge assertion",
+			content: `
+judge:
+  assertions:
+    - nope
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "judge.assertions[0]: unsupported assertion type",
 		},
 		{
-			name: "reject unknown csv header",
-			content: strings.Join([]string{
-				"id,source,targetLocale,unknown",
-				"a,Hello,es-ES,x",
-			}, "\n"),
-			errContains: "unknown header",
+			name: "reject experiment without provider",
+			content: `
+experiments:
+  - model: gpt-4.1-mini
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "experiments[0].provider: must not be empty",
 		},
 		{
-			name: "reject missing required csv header",
-			content: strings.Join([]string{
-				"id,source",
-				"a,Hello",
-			}, "\n"),
-			errContains: "missing required header \"targetLocale\"",
-		},
-		{
-			name: "validate required source from csv",
-			content: strings.Join([]string{
-				"id,source,targetLocale",
-				"a,,de-DE",
-			}, "\n"),
-			errContains: "source: must not be empty",
-		},
-		{
-			name: "validate required target locale from csv",
-			content: strings.Join([]string{
-				"id,source,targetLocale",
-				"a,Settings,",
-			}, "\n"),
-			errContains: "targetLocale: must not be empty",
-		},
-		{
-			name: "validate unique id from csv",
-			content: strings.Join([]string{
-				"id,source,targetLocale",
-				"dup,One,ja-JP",
-				"dup,Two,ja-JP",
-			}, "\n"),
+			name: "reject duplicate experiment ids",
+			content: `
+experiments:
+  - id: a
+    provider: openai
+    model: gpt-4.1-mini
+  - id: a
+    provider: anthropic
+    model: claude-sonnet-4-5
+tests:
+  - id: test-a
+    vars:
+      source: "Hello"
+    locales:
+      - locale: fr-FR
+`,
 			errContains: "duplicate id",
+		},
+		{
+			name: "reject unknown fields",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+      unknown: true
+    locales:
+      - locale: es-ES
+`,
+			errContains: "field unknown not found",
+		},
+		{
+			name: "require tests",
+			content: `
+tests: []
+`,
+			errContains: "tests: must not be empty",
+		},
+		{
+			name: "require id",
+			content: `
+tests:
+  - id: " "
+    vars:
+      source: "Hello"
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "id: must not be empty",
+		},
+		{
+			name: "require source",
+			content: `
+tests:
+  - id: a
+    vars: {}
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "vars.source: must not be empty",
+		},
+		{
+			name: "require locales",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    locales: []
+`,
+			errContains: "locales: must not be empty",
+		},
+		{
+			name: "require locale",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    locales:
+      - locale: ""
+`,
+			errContains: "locale: must not be empty",
+		},
+		{
+			name: "reject unsupported assertion type",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    assert:
+      - type: nope
+        threshold: 0.5
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "unsupported assertion type",
+		},
+		{
+			name: "judge assertions need threshold",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    assert:
+      - type: judge.factuality
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "threshold: is required",
+		},
+		{
+			name: "deterministic assertions need value",
+			content: `
+tests:
+  - id: a
+    vars:
+      source: "Hello"
+    assert:
+      - type: contains
+    locales:
+      - locale: fr-FR
+`,
+			errContains: "value: must not be empty",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "evalset.csv")
+			path := filepath.Join(t.TempDir(), "evalset.yaml")
 			if err := os.WriteFile(path, []byte(tc.content), 0o644); err != nil {
 				t.Fatalf("write evalset: %v", err)
 			}
 
-			dataset, err := Load(path)
-			if tc.errContains != "" {
-				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tc.errContains)
-				}
-
-				if !strings.Contains(err.Error(), tc.errContains) {
-					t.Fatalf("expected error containing %q, got %q", tc.errContains, err.Error())
-				}
-
-				return
+			_, err := Load(path)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.errContains)
 			}
-
-			if err != nil {
-				t.Fatalf("Load() error = %v", err)
-			}
-
-			if dataset == nil {
-				t.Fatalf("Load() dataset is nil")
-			}
-
-			if len(dataset.Cases) != 1 {
-				t.Fatalf("expected 1 case, got %d", len(dataset.Cases))
-			}
-
-			if dataset.Cases[0].ID != "ui.pay.cta" {
-				t.Fatalf("expected case id ui.pay.cta, got %q", dataset.Cases[0].ID)
-			}
-
-			tags := dataset.Cases[0].Tags
-			if len(tags) != 2 || tags[0] != "ui" || tags[1] != "short" {
-				t.Fatalf("expected tags [ui short], got %#v", tags)
+			if !strings.Contains(err.Error(), tc.errContains) {
+				t.Fatalf("expected error containing %q, got %q", tc.errContains, err.Error())
 			}
 		})
 	}
