@@ -204,6 +204,28 @@ func TestWriteExperimentSummaryUsesDecisionPassRate(t *testing.T) {
 	}
 }
 
+func TestWriteExperimentSummaryUsesZeroPassRateWithoutDecisions(t *testing.T) {
+	out := bytes.NewBuffer(nil)
+	err := writeExperimentSummary(out, []evalsvc.ExperimentSummary{
+		{
+			ExperimentID:     "default|openai|gpt|prompt",
+			RunCount:         2,
+			SuccessfulRuns:   2,
+			AverageLatencyMS: 15,
+			WeightedScore:    0.75,
+		},
+	}, false)
+	if err != nil {
+		t.Fatalf("write experiment summary: %v", err)
+	}
+	if !strings.Contains(out.String(), "0.0%") {
+		t.Fatalf("expected zero pass rate without decision counts, got %q", out.String())
+	}
+	if strings.Contains(out.String(), "100.0%") {
+		t.Fatalf("unexpected transport-success pass rate fallback, got %q", out.String())
+	}
+}
+
 func TestEvalCompareFailsOnRegressionThreshold(t *testing.T) {
 	dir := t.TempDir()
 	candidatePath := filepath.Join(dir, "candidate.json")

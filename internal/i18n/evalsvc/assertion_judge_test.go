@@ -110,3 +110,13 @@ func TestAssertionJudgeScorerGEvalParsesDimensions(t *testing.T) {
 		t.Fatalf("expected dimensions in details, got %+v", out.Details)
 	}
 }
+
+func TestParseContextFaithfulnessJudgeResultDefaultsFaithfulToOne(t *testing.T) {
+	out, err := parseContextFaithfulnessJudgeResult(`{"rationale":"ok","faithful":true,"unsupportedClaims":["minor nuance"]}`)
+	if err != nil {
+		t.Fatalf("parse context faithfulness: %v", err)
+	}
+	if out.Score == nil || *out.Score != 1 {
+		t.Fatalf("expected faithful default score of 1, got %+v", out.Score)
+	}
+}

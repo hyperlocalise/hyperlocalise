@@ -447,6 +447,34 @@ func TestAggregateLLMEvaluationDeterministic(t *testing.T) {
 	}
 }
 
+func TestAggregateLLMEvaluationIncludesOnlyConfiguredAndRequiredAssertions(t *testing.T) {
+	in := Input{EvalSetPath: "set.json", EvalProvider: "openai", EvalModel: "judge-model"}
+	cases := []evalset.Case{{
+		ID:         "a",
+		Assertions: []evalset.Assertion{{Type: "judge.factuality"}},
+	}}
+	got := aggregateLLMEvaluation(in, nil, cases)
+	if got == nil {
+		t.Fatalf("expected llm evaluation payload")
+	}
+	want := []string{AssertionFactuality}
+	if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
+		t.Fatalf("expected required test-level assertions only, got %+v", got.Assertions)
+	}
+}
+
+func TestAggregateLLMEvaluationUsesDefaultAssertionWhenNoneConfigured(t *testing.T) {
+	in := Input{EvalSetPath: "set.json", EvalProvider: "openai", EvalModel: "judge-model"}
+	got := aggregateLLMEvaluation(in, nil, nil)
+	if got == nil {
+		t.Fatalf("expected llm evaluation payload")
+	}
+	want := []string{AssertionLLMRubric}
+	if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
+		t.Fatalf("expected default llm-rubric assertion when none configured, got %+v", got.Assertions)
+	}
+}
+
 func TestAggregateRunsIncludesBreakdownsAndCalibratedFinalScore(t *testing.T) {
 	svc := newTestService()
 	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
