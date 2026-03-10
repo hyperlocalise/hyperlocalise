@@ -541,6 +541,25 @@ func TestNormalizeEvalInputUsesDatasetJudgeConfig(t *testing.T) {
 	}
 }
 
+func TestNormalizeEvalInputCanonicalizesDatasetJudgeAssertions(t *testing.T) {
+	got := normalizeEvalInput(Input{
+		EvalSetPath: "set.yaml",
+	}, &evalset.Dataset{
+		Judge: evalset.Judge{
+			Assertions: []string{"llm_rubric", "judge.factuality", "g_eval"},
+		},
+	})
+	want := []string{AssertionLLMRubric, AssertionFactuality, AssertionGEval}
+	if len(got.Assertions) != len(want) {
+		t.Fatalf("expected canonical dataset judge assertions, got %+v", got.Assertions)
+	}
+	for i := range want {
+		if got.Assertions[i] != want[i] {
+			t.Fatalf("expected canonical dataset judge assertions %v, got %+v", want, got.Assertions)
+		}
+	}
+}
+
 func TestNormalizeEvalInputCLIOverridesDatasetJudgeConfig(t *testing.T) {
 	got := normalizeEvalInput(Input{
 		EvalSetPath:  "set.yaml",

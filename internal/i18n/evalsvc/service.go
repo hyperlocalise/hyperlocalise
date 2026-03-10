@@ -47,7 +47,7 @@ func (in Input) Validate() error {
 	}
 
 	for _, assertion := range in.Assertions {
-		kind := strings.ToLower(strings.TrimSpace(assertion))
+		kind := canonicalJudgeAssertion(assertion)
 		if kind == "" {
 			return fmt.Errorf("--assertion must not be empty")
 		}
@@ -435,8 +435,11 @@ func normalizeEvalInput(in Input, dataset *evalset.Dataset) Input {
 			in.EvalPrompt = strings.TrimSpace(dataset.Judge.Prompt)
 		}
 		if len(in.Assertions) == 0 && len(dataset.Judge.Assertions) > 0 {
-			in.Assertions = append([]string(nil), dataset.Judge.Assertions...)
+			in.Assertions = canonicalJudgeAssertions(dataset.Judge.Assertions)
 		}
+	}
+	if len(in.Assertions) > 0 {
+		in.Assertions = canonicalJudgeAssertions(in.Assertions)
 	}
 	if !evalRequested(in, cases) {
 		return in
@@ -926,13 +929,7 @@ func normalizedAssertions(assertions []string) []string {
 	if len(assertions) == 0 {
 		return []string{AssertionLLMRubric}
 	}
-	out := make([]string, 0, len(assertions))
-	for _, assertion := range assertions {
-		kind := strings.ToLower(strings.TrimSpace(assertion))
-		if kind != "" {
-			out = append(out, kind)
-		}
-	}
+	out := canonicalJudgeAssertions(assertions)
 	if len(out) == 0 {
 		return []string{AssertionLLMRubric}
 	}
@@ -1119,6 +1116,27 @@ func normalizeEvalAssertionType(value string) string {
 	kind := strings.ToLower(strings.TrimSpace(value))
 	kind = strings.ReplaceAll(kind, "-", "_")
 	return kind
+}
+
+func canonicalJudgeAssertion(value string) string {
+	kind := strings.ToLower(strings.TrimSpace(value))
+	if kind == "" {
+		return ""
+	}
+	if judgeKind, ok := evalJudgeAssertionKind(normalizeEvalAssertionType(kind)); ok {
+		return judgeKind
+	}
+	return kind
+}
+
+func canonicalJudgeAssertions(assertions []string) []string {
+	out := make([]string, 0, len(assertions))
+	for _, assertion := range assertions {
+		if kind := canonicalJudgeAssertion(assertion); kind != "" {
+			out = append(out, kind)
+		}
+	}
+	return out
 }
 
 func evalJudgeAssertionKind(kind string) (string, bool) {

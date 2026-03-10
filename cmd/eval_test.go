@@ -141,6 +141,7 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 					RunCount:         2,
 					SuccessfulRuns:   1,
 					FailedRuns:       1,
+					DecisionCounts:   map[string]int{"pass": 1, "review": 1},
 					AverageLatencyMS: 15,
 					WeightedScore:    0.75,
 					HardFailCounts:   map[string]int{scoring.HardFailPlaceholderDrop: 1},
@@ -177,6 +178,29 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "eval: judge provider=openai model=gpt-5.2 assertions=llm-rubric") {
 		t.Fatalf("expected judge log, got %q", out.String())
+	}
+}
+
+func TestWriteExperimentSummaryUsesDecisionPassRate(t *testing.T) {
+	out := bytes.NewBuffer(nil)
+	err := writeExperimentSummary(out, []evalsvc.ExperimentSummary{
+		{
+			ExperimentID:     "default|openai|gpt|prompt",
+			RunCount:         4,
+			SuccessfulRuns:   4,
+			DecisionCounts:   map[string]int{"pass": 1, "review": 2, "fail": 1},
+			AverageLatencyMS: 15,
+			WeightedScore:    0.75,
+		},
+	}, false)
+	if err != nil {
+		t.Fatalf("write experiment summary: %v", err)
+	}
+	if !strings.Contains(out.String(), "25.0%") {
+		t.Fatalf("expected decision-based pass rate, got %q", out.String())
+	}
+	if strings.Contains(out.String(), "100.0%") {
+		t.Fatalf("unexpected transport-success pass rate, got %q", out.String())
 	}
 }
 
