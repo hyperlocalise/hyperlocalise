@@ -410,7 +410,7 @@ func parseContextFaithfulnessJudgeResult(raw string) (JudgeResult, error) {
 		return JudgeResult{}, err
 	}
 	score := 0.0
-	if faithful && len(unsupportedClaims) == 0 {
+	if faithful {
 		score = 1
 	}
 	if explicit, err := parseOptionalScore(payload, "score"); err != nil {

@@ -926,14 +926,7 @@ func round3(v float64) float64 {
 }
 
 func normalizedAssertions(assertions []string) []string {
-	if len(assertions) == 0 {
-		return []string{AssertionLLMRubric}
-	}
-	out := canonicalJudgeAssertions(assertions)
-	if len(out) == 0 {
-		return []string{AssertionLLMRubric}
-	}
-	return out
+	return canonicalJudgeAssertions(assertions)
 }
 
 func finalizeRun(run *RunResult) {

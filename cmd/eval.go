@@ -270,7 +270,7 @@ func writeExperimentSummary(w io.Writer, summaries []evalsvc.ExperimentSummary, 
 	for _, summary := range summaries {
 		passRate := 0.0
 		if summary.RunCount > 0 {
-			passCount := summary.SuccessfulRuns
+			passCount := 0
 			if summary.DecisionCounts != nil {
 				passCount = summary.DecisionCounts["pass"]
 			}
