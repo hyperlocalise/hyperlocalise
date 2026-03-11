@@ -15,7 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var evalRunFunc = evalsvc.Run
+var (
+	evalRunFunc             = evalsvc.Run
+	evalRunWithProgressFunc = evalsvc.RunWithProgress
+	evalRunDashboardFunc    = runEvalDashboard
+)
 
 type evalRunOptions struct {
 	evalSetPath    string
@@ -30,6 +34,8 @@ type evalRunOptions struct {
 	evalPrompt     string
 	assertions     []string
 	outputPath     string
+	baselinePath   string
+	interactive    bool
 }
 
 type evalCompareOptions struct {
@@ -86,6 +92,16 @@ func newEvalRunCmd() *cobra.Command {
 			if err := input.Validate(); err != nil {
 				return err
 			}
+			if !o.interactive && strings.TrimSpace(o.baselinePath) != "" {
+				return fmt.Errorf("--baseline is supported only with --interactive on eval run")
+			}
+
+			if o.interactive {
+				return evalRunDashboardFunc(cmd.OutOrStdout(), evalDashboardOptions{
+					Input:        input,
+					BaselinePath: o.baselinePath,
+				})
+			}
 
 			if err := logEvalRunStart(cmd.ErrOrStderr(), input); err != nil {
 				return err
@@ -116,6 +132,8 @@ func newEvalRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.evalPrompt, "eval-prompt", "", "inline evaluation prompt override")
 	cmd.Flags().StringArrayVar(&o.assertions, "assertion", nil, "judge assertions (repeatable): llm-rubric, factuality, g-eval, model-graded-closedqa, answer-relevance, context-faithfulness, context-recall")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
+	cmd.Flags().StringVar(&o.baselinePath, "baseline", "", "baseline eval report JSON path for interactive comparison")
+	cmd.Flags().BoolVarP(&o.interactive, "interactive", "i", false, "render interactive eval dashboard in TTY")
 
 	return cmd
 }

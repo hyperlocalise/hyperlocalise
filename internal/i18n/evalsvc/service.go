@@ -192,6 +192,26 @@ type AggregateBreakdown struct {
 	DecisionCounts     map[string]int `json:"decisionCounts,omitempty"`
 }
 
+type ProgressEventKind string
+
+const (
+	ProgressEventPlanned      ProgressEventKind = "planned"
+	ProgressEventRunStarted   ProgressEventKind = "run_started"
+	ProgressEventRunCompleted ProgressEventKind = "run_completed"
+)
+
+type ProgressEvent struct {
+	Kind           ProgressEventKind `json:"kind"`
+	CaseCount      int               `json:"caseCount,omitempty"`
+	TotalRuns      int               `json:"totalRuns,omitempty"`
+	StartedRuns    int               `json:"startedRuns,omitempty"`
+	CompletedRuns  int               `json:"completedRuns,omitempty"`
+	SuccessfulRuns int               `json:"successfulRuns,omitempty"`
+	FailedRuns     int               `json:"failedRuns,omitempty"`
+	ExperimentIDs  []string          `json:"experimentIds,omitempty"`
+	Run            *RunResult        `json:"run,omitempty"`
+}
+
 // ScoreInput is passed to scorer implementations.
 type ScoreInput struct {
 	Case       evalset.Case
@@ -248,6 +268,10 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
+func RunWithProgress(ctx context.Context, in Input, progress func(ProgressEvent)) (Report, error) {
+	return New().RunWithProgress(ctx, in, progress)
+}
+
 func (s *Service) WithReferenceScorers(scorers ...ReferenceScorer) *Service {
 	s.referenceScorers = append([]ReferenceScorer(nil), scorers...)
 	return s
@@ -259,6 +283,10 @@ func (s *Service) WithJudgeScorers(scorers ...JudgeScorer) *Service {
 }
 
 func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
+	return s.RunWithProgress(ctx, in, nil)
+}
+
+func (s *Service) RunWithProgress(ctx context.Context, in Input, progress func(ProgressEvent)) (Report, error) {
 	if err := in.Validate(); err != nil {
 		return Report{}, err
 	}
@@ -294,7 +322,14 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		s.qualityEvaluator = scoring.NewEvaluator()
 	}
 
-	runs, err := s.execute(ctx, cases, experiments, referenceScorers, judgeScorers, workerCount)
+	emitProgress(progress, ProgressEvent{
+		Kind:          ProgressEventPlanned,
+		CaseCount:     len(cases),
+		TotalRuns:     len(cases) * len(experiments),
+		ExperimentIDs: progressExperimentIDs(experiments),
+	})
+
+	runs, err := s.execute(ctx, cases, experiments, referenceScorers, judgeScorers, workerCount, progress)
 	if err != nil {
 		return Report{}, err
 	}
@@ -325,6 +360,21 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 
 	return report, nil
+}
+
+func emitProgress(progress func(ProgressEvent), event ProgressEvent) {
+	if progress == nil {
+		return
+	}
+	progress(event)
+}
+
+func progressExperimentIDs(experiments []experiment) []string {
+	ids := make([]string, 0, len(experiments))
+	for _, exp := range experiments {
+		ids = append(ids, exp.id)
+	}
+	return ids
 }
 
 func (s *Service) resolveJudgeScorers(in Input, cases []evalset.Case) []JudgeScorer {
@@ -480,13 +530,14 @@ func normalizedOrDefault(values []string, fallback string) []string {
 	return out
 }
 
-func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments []experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer, workerCount int) ([]RunResult, error) {
+func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments []experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer, workerCount int, progress func(ProgressEvent)) ([]RunResult, error) {
 	type job struct {
 		tc  evalset.Case
 		exp experiment
 	}
 
 	jobs := make(chan job)
+	started := make(chan RunResult, workerCount)
 	results := make(chan RunResult)
 
 	var wg sync.WaitGroup
@@ -495,6 +546,15 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 		go func() {
 			defer wg.Done()
 			for item := range jobs {
+				started <- RunResult{
+					CaseID:       item.tc.ID,
+					TargetLocale: item.tc.TargetLocale,
+					ExperimentID: item.exp.id,
+					Profile:      item.exp.profile,
+					Provider:     item.exp.provider,
+					Model:        item.exp.model,
+					Prompt:       item.exp.prompt,
+				}
 				results <- s.executeSingle(ctx, item.tc, item.exp, referenceScorers, judgeScorers)
 			}
 		}()
@@ -511,11 +571,44 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 
 	expected := len(cases) * len(experiments)
 	runs := make([]RunResult, 0, expected)
-	for range expected {
-		runs = append(runs, <-results)
+	startedRuns := 0
+	completedRuns := 0
+	successfulRuns := 0
+	failedRuns := 0
+	for completedRuns < expected {
+		select {
+		case run := <-started:
+			startedRuns++
+			runCopy := run
+			emitProgress(progress, ProgressEvent{
+				Kind:        ProgressEventRunStarted,
+				TotalRuns:   expected,
+				StartedRuns: startedRuns,
+				Run:         &runCopy,
+			})
+		case run := <-results:
+			runs = append(runs, run)
+			completedRuns++
+			if strings.TrimSpace(run.Error) == "" {
+				successfulRuns++
+			} else {
+				failedRuns++
+			}
+			runCopy := run
+			emitProgress(progress, ProgressEvent{
+				Kind:           ProgressEventRunCompleted,
+				TotalRuns:      expected,
+				StartedRuns:    startedRuns,
+				CompletedRuns:  completedRuns,
+				SuccessfulRuns: successfulRuns,
+				FailedRuns:     failedRuns,
+				Run:            &runCopy,
+			})
+		}
 	}
 
 	wg.Wait()
+	close(started)
 	close(results)
 
 	sort.Slice(runs, func(i, j int) bool {

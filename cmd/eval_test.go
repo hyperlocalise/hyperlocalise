@@ -3,11 +3,14 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc"
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/evalsvc/scoring"
 )
@@ -108,6 +111,173 @@ func TestEvalRunPassesEvalPromptFromFile(t *testing.T) {
 	}
 	if got.EvalPrompt != "judge prompt" {
 		t.Fatalf("expected eval prompt from file, got %q", got.EvalPrompt)
+	}
+}
+
+func TestEvalRunInteractiveRequiresTTY(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--interactive"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected interactive tty error")
+	}
+	if !strings.Contains(err.Error(), "--interactive requires a TTY input and output") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalRunInteractiveUsesDashboard(t *testing.T) {
+	prev := evalRunDashboardFunc
+	var got evalDashboardOptions
+	evalRunDashboardFunc = func(_ io.Writer, in evalDashboardOptions) error {
+		got = in
+		return nil
+	}
+	t.Cleanup(func() { evalRunDashboardFunc = prev })
+
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--interactive", "--output", "report.json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("eval run interactive: %v", err)
+	}
+	if got.Input.EvalSetPath != "set.json" || got.Input.OutputPath != "report.json" {
+		t.Fatalf("unexpected dashboard input: %+v", got)
+	}
+}
+
+func TestEvalDashboardFinishedDoesNotQuit(t *testing.T) {
+	model := newEvalDashboardModel(evalDashboardOptions{Input: evalsvc.Input{EvalSetPath: "set.json"}}, nil, func() {})
+
+	updated, cmd := model.Update(evalFinishedMsg{
+		report: evalsvc.Report{Input: evalsvc.Input{EvalSetPath: "set.json"}},
+		err:    errors.New("boom"),
+	})
+	if cmd != nil {
+		if msg := cmd(); msg != nil {
+			if _, ok := msg.(tea.QuitMsg); ok {
+				t.Fatalf("did not expect finish to quit interactive dashboard")
+			}
+		}
+	}
+
+	typed, ok := updated.(evalDashboardModel)
+	if !ok {
+		t.Fatalf("unexpected model type %T", updated)
+	}
+	if !typed.done || typed.runErr == nil {
+		t.Fatalf("expected finished state to be retained, got %+v", typed)
+	}
+}
+
+func TestEvalRunRejectsBaselineWithoutInteractive(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--baseline", "baseline.json"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected baseline interactive guard")
+	}
+	if !strings.Contains(err.Error(), "supported only with --interactive") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvalRunInteractivePassesBaseline(t *testing.T) {
+	prev := evalRunDashboardFunc
+	var got evalDashboardOptions
+	evalRunDashboardFunc = func(_ io.Writer, in evalDashboardOptions) error {
+		got = in
+		return nil
+	}
+	t.Cleanup(func() { evalRunDashboardFunc = prev })
+
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--interactive", "--baseline", "baseline.json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("eval run interactive with baseline: %v", err)
+	}
+	if got.BaselinePath != "baseline.json" {
+		t.Fatalf("expected baseline path, got %+v", got)
+	}
+}
+
+func TestEvalDashboardDrilldownSwitchesToCasesView(t *testing.T) {
+	model := newEvalDashboardModel(evalDashboardOptions{Input: evalsvc.Input{EvalSetPath: "set.json"}}, nil, func() {})
+	model.experimentOrder = []string{"exp-a"}
+	model.experiments["exp-a"] = &evalExperimentProgress{
+		experimentID:   "exp-a",
+		totalRuns:      2,
+		startedRuns:    2,
+		completedRuns:  2,
+		successfulRuns: 2,
+		passCount:      2,
+	}
+	model.refreshTable()
+	model.drilldown()
+	if model.view != evalDashboardViewCases || model.drillExperiment != "exp-a" {
+		t.Fatalf("expected drilldown into cases, got view=%v drill=%q", model.view, model.drillExperiment)
+	}
+}
+
+func TestEvalDashboardRefreshTableDoesNotPanicWhenSwitchingViews(t *testing.T) {
+	model := newEvalDashboardModel(evalDashboardOptions{Input: evalsvc.Input{EvalSetPath: "set.json"}}, nil, func() {})
+	model.scoreColumns = []string{"factuality"}
+	model.experimentOrder = []string{"exp-a"}
+	model.experiments["exp-a"] = &evalExperimentProgress{
+		experimentID:     "exp-a",
+		totalRuns:        1,
+		startedRuns:      1,
+		completedRuns:    1,
+		successfulRuns:   1,
+		weightedScoreSum: 0.8,
+		scoreSums:        map[string]float64{"factuality": 0.9},
+		scoreCounts:      map[string]int{"factuality": 1},
+	}
+	model.runs = []evalsvc.RunResult{{
+		CaseID:       "case-a",
+		ExperimentID: "exp-a",
+		LatencyMS:    10,
+		Decision:     "pass",
+		Quality:      scoring.Result{WeightedAggregate: 0.8},
+		FinalScore:   0.82,
+	}}
+	model.runIndex[runKey(model.runs[0])] = model.runs[0]
+
+	model.refreshTable()
+	model.view = evalDashboardViewCases
+	model.refreshTable()
+	model.view = evalDashboardViewErrors
+	model.refreshTable()
+}
+
+func TestEvalDashboardFinalSummaryIncludesBaselineDelta(t *testing.T) {
+	model := newEvalDashboardModel(
+		evalDashboardOptions{
+			Input:        evalsvc.Input{EvalSetPath: "set.json", OutputPath: "candidate.json"},
+			BaselinePath: "baseline.json",
+		},
+		&evalsvc.Report{
+			Aggregate: evalsvc.Aggregate{WeightedScore: 0.7},
+		},
+		func() {},
+	)
+	model.done = true
+	model.report = &evalsvc.Report{
+		Input:     evalsvc.Input{EvalSetPath: "set.json", OutputPath: "candidate.json"},
+		Aggregate: evalsvc.Aggregate{WeightedScore: 0.8},
+	}
+	got := model.finalSummaryLine()
+	if !strings.Contains(got, "baseline_delta=+0.100") {
+		t.Fatalf("expected baseline delta in summary, got %q", got)
 	}
 }
 
