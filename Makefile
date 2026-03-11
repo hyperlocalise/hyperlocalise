@@ -30,7 +30,7 @@ bootstrap: ## download tool and module dependencies
 
 .PHONY: test
 test: clean ## run tests with JSON output and coverage
-	go test -json -cover -parallel=1 -coverprofile=coverage.out ./... > test-report.jsonl
+	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
 
 
