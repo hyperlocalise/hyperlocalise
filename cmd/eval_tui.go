@@ -1006,7 +1006,13 @@ func reasonForRun(run evalsvc.RunResult) string {
 			return result.Type + " failed"
 		}
 	}
-	for name, result := range run.JudgeResults {
+	judgeNames := make([]string, 0, len(run.JudgeResults))
+	for name := range run.JudgeResults {
+		judgeNames = append(judgeNames, name)
+	}
+	sort.Strings(judgeNames)
+	for _, name := range judgeNames {
+		result := run.JudgeResults[name]
 		if strings.TrimSpace(result.Error) != "" {
 			return experimentScoreLabel(name) + ": " + result.Error
 		}
