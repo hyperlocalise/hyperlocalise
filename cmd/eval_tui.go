@@ -234,6 +234,7 @@ func runEvalDashboard(w io.Writer, opts evalDashboardOptions) error {
 	}()
 
 	finalModel, err := program.Run()
+	cancel()
 	if err != nil {
 		wg.Wait()
 		return err
@@ -601,7 +602,13 @@ func (m *evalDashboardModel) recordFailureBuckets(run evalsvc.RunResult) {
 	if strings.TrimSpace(run.Error) != "" {
 		record(classifyRunError(run.Error), run.Error)
 	}
-	for name, result := range run.JudgeResults {
+	judgeNames := make([]string, 0, len(run.JudgeResults))
+	for name := range run.JudgeResults {
+		judgeNames = append(judgeNames, name)
+	}
+	sort.Strings(judgeNames)
+	for _, name := range judgeNames {
+		result := run.JudgeResults[name]
 		if strings.TrimSpace(result.Error) != "" {
 			record("judge:"+experimentScoreLabel(name), result.Error)
 		}
@@ -1341,13 +1348,14 @@ func floatPtr(v float64) *float64 { return &v }
 func runKey(run evalsvc.RunResult) string { return run.CaseID + "|" + run.ExperimentID }
 
 func evalTrim(value string, maxWidth int) string {
-	if maxWidth <= 0 || len(value) <= maxWidth {
+	runes := []rune(value)
+	if maxWidth <= 0 || len(runes) <= maxWidth {
 		return value
 	}
 	if maxWidth <= 3 {
-		return value[:maxWidth]
+		return string(runes[:maxWidth])
 	}
-	return value[:maxWidth-3] + "..."
+	return string(runes[:maxWidth-3]) + "..."
 }
 
 func slicesContains(values []string, want string) bool {
