@@ -6,12 +6,12 @@ experiments:
     provider: ollama
     model: lfm2:24b
 
-  - id: openai-gpt-5-nano
-    provider: openai
-    model: gpt-5-nano
-  - id: openai-gpt-5-mini
-    provider: openai
-    model: gpt-5-mini
+  # - id: openai-gpt-5-nano
+  #   provider: openai
+  #   model: gpt-5-nano
+  # - id: openai-gpt-5-mini
+  #   provider: openai
+  #   model: gpt-5-mini
 judge:
   provider: openai
   model: gpt-5.4
@@ -100,3 +100,637 @@ tests:
     locales:
       - locale: vi-VN
         reference: "Chào mừng bạn quay lại, {name}"
+  - id: icu-cart-total-number-currency
+    vars:
+      source: "Cart total: {amount, number, ::currency/USD}"
+    locales:
+      - locale: vi-VN
+        reference: "Tổng giỏ hàng: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+  - id: icu-discount-percent-number
+    vars:
+      source: "You saved {discount, number, ::percent}"
+    locales:
+      - locale: vi-VN
+        reference: "Bạn đã tiết kiệm {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+  - id: icu-price-with-two-numbers
+    vars:
+      source: "From {min, number} to {max, number} items"
+    locales:
+      - locale: vi-VN
+        reference: "Từ {min, number} đến {max, number} mục"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
+  - id: icu-short-date
+    vars:
+      source: "Trial ends on {endDate, date, ::yMMMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Bản dùng thử kết thúc vào {endDate, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+  - id: icu-time-with-zone
+    vars:
+      source: "Meeting starts at {startTime, time, ::Hm}"
+    locales:
+      - locale: vi-VN
+        reference: "Cuộc họp bắt đầu lúc {startTime, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
+  - id: icu-date-and-time-mixed
+    vars:
+      source: "Last synced {syncedAt, date, ::yyyyMMdd} at {syncedAt, time, ::Hm}"
+    locales:
+      - locale: vi-VN
+        reference: "Đồng bộ lần cuối vào {syncedAt, date, ::yyyyMMdd} lúc {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+  - id: icu-gender-select
+    vars:
+      source: "{gender, select, male {He updated his profile} female {She updated her profile} other {They updated their profile}}"
+    locales:
+      - locale: vi-VN
+        reference: "{gender, select, male {Anh ấy đã cập nhật hồ sơ của mình} female {Cô ấy đã cập nhật hồ sơ của mình} other {Họ đã cập nhật hồ sơ của họ}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
+  - id: icu-select-with-name
+    vars:
+      source: "{gender, select, male {Welcome back, Mr. {lastName}} female {Welcome back, Ms. {lastName}} other {Welcome back, {lastName}}}"
+    locales:
+      - locale: vi-VN
+        reference: "{gender, select, male {Chào mừng ông {lastName} quay lại} female {Chào mừng bà {lastName} quay lại} other {Chào mừng {lastName} quay lại}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+  - id: icu-invite-count-offset
+    vars:
+      source: "{count, plural, offset:1 =0 {No one accepted} =1 {{host} accepted} one {{host} and one other accepted} other {{host} and # others accepted}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, offset:1 =0 {Không ai chấp nhận} =1 {{host} đã chấp nhận} one {{host} và một người khác đã chấp nhận} other {{host} và # người khác đã chấp nhận}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
+  - id: icu-selectordinal-ranking
+    vars:
+      source: "You finished {place, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in the leaderboard"
+    locales:
+      - locale: vi-VN
+        reference: "Bạn đã đứng thứ {place, selectordinal, one {#} two {#} few {#} other {#}} trên bảng xếp hạng"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+  - id: icu-nested-select-plural
+    vars:
+      source: "{gender, select, male {{count, plural, =0 {He has no tasks} one {He has one task} other {He has # tasks}}} female {{count, plural, =0 {She has no tasks} one {She has one task} other {She has # tasks}}} other {{count, plural, =0 {They have no tasks} one {They have one task} other {They have # tasks}}}}"
+    locales:
+      - locale: vi-VN
+        reference: "{gender, select, male {{count, plural, =0 {Anh ấy không có tác vụ nào} one {Anh ấy có một tác vụ} other {Anh ấy có # tác vụ}}} female {{count, plural, =0 {Cô ấy không có tác vụ nào} one {Cô ấy có một tác vụ} other {Cô ấy có # tác vụ}}} other {{count, plural, =0 {Họ không có tác vụ nào} one {Họ có một tác vụ} other {Họ có # tác vụ}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
+  - id: icu-plural-with-number-skeleton
+    vars:
+      source: "{count, plural, =0 {No invoices due} one {{amount, number, ::currency/USD} is due today} other {{amount, number, ::currency/USD} are due across # invoices}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Không có hóa đơn nào đến hạn} one {{amount, number, ::currency/USD} đến hạn hôm nay} other {{amount, number, ::currency/USD} đến hạn trên # hóa đơn}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+  - id: icu-quoted-braces
+    vars:
+      source: "Use '{' and '}' to wrap {fieldName} in the template"
+    locales:
+      - locale: vi-VN
+        reference: "Dùng '{' và '}' để bao quanh {fieldName} trong mẫu"
+        assert:
+          - type: contains
+            value: "{fieldName}"
+  - id: icu-apostrophe-escaped
+    vars:
+      source: "Don''t remove {name} from the list"
+    locales:
+      - locale: vi-VN
+        reference: "Đừng xóa {name} khỏi danh sách"
+        assert:
+          - type: contains
+            value: "{name}"
+  - id: icu-rich-notification
+    vars:
+      source: "{count, plural, =0 {{user} has no new alerts as of {checkedAt, time, ::Hm}} one {{user} has one new alert worth {amount, number, ::currency/USD}} other {{user} has # new alerts worth {amount, number, ::currency/USD}}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {{user} không có cảnh báo mới tính đến {checkedAt, time, ::Hm}} one {{user} có một cảnh báo mới trị giá {amount, number, ::currency/USD}} other {{user} có # cảnh báo mới trị giá {amount, number, ::currency/USD}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
+  - id: icu-subscription-renews-on-date
+    vars:
+      source: "Your subscription renews on {renewalDate, date, ::yMMMMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Gói thuê bao của bạn sẽ gia hạn vào {renewalDate, date, ::yMMMMd}"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
+  - id: icu-subscription-price-summary
+    vars:
+      source: "Next charge: {amount, number, ::currency/USD} every {months, plural, one {month} other {# months}}"
+    locales:
+      - locale: vi-VN
+        reference: "Khoản phí tiếp theo: {amount, number, ::currency/USD} mỗi {months, plural, one {tháng} other {# tháng}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+  - id: icu-seat-usage
+    vars:
+      source: "{usedSeats, number} of {totalSeats, number} seats assigned"
+    locales:
+      - locale: vi-VN
+        reference: "Đã phân bổ {usedSeats, number} trên {totalSeats, number} ghế"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
+  - id: icu-api-rate-limit-reset
+    vars:
+      source: "Rate limit resets at {resetAt, time, ::Hm}"
+    locales:
+      - locale: vi-VN
+        reference: "Giới hạn tốc độ sẽ được đặt lại lúc {resetAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+  - id: icu-security-login-attempts
+    vars:
+      source: "{attempts, plural, =0 {No failed login attempts} one {1 failed login attempt} other {# failed login attempts}} in the last {window, number} hours"
+    locales:
+      - locale: vi-VN
+        reference: "{attempts, plural, =0 {Không có lần đăng nhập thất bại nào} one {1 lần đăng nhập thất bại} other {# lần đăng nhập thất bại}} trong {window, number} giờ qua"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
+  - id: icu-password-expires
+    vars:
+      source: "Your password expires in {days, plural, one {# day} other {# days}}"
+    locales:
+      - locale: vi-VN
+        reference: "Mật khẩu của bạn sẽ hết hạn sau {days, plural, one {# ngày} other {# ngày}}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+  - id: icu-export-ready
+    vars:
+      source: "Export ready at {completedAt, time, ::Hm} on {completedAt, date, ::yMMMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Bản xuất đã sẵn sàng lúc {completedAt, time, ::Hm} vào ngày {completedAt, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+  - id: icu-report-generation-progress
+    vars:
+      source: "Processed {done, number} of {total, number} records"
+    locales:
+      - locale: vi-VN
+        reference: "Đã xử lý {done, number} trên {total, number} bản ghi"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
+  - id: icu-comment-replies
+    vars:
+      source: "{count, plural, =0 {No replies yet} one {# reply} other {# replies}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Chưa có phản hồi nào} one {# phản hồi} other {# phản hồi}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+  - id: icu-file-storage-usage
+    vars:
+      source: "{used, number} GB of {limit, number} GB used"
+    locales:
+      - locale: vi-VN
+        reference: "Đã dùng {used, number} GB trên {limit, number} GB"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
+  - id: icu-shipping-estimate
+    vars:
+      source: "Estimated delivery: {deliveryDate, date, ::EEEyMMMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Dự kiến giao hàng: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+  - id: icu-order-status-select
+    vars:
+      source: "{status, select, pending {Your order is pending} paid {Your order has been paid} shipped {Your order has shipped} delivered {Your order was delivered} other {Your order is being processed}}"
+    locales:
+      - locale: vi-VN
+        reference: "{status, select, pending {Đơn hàng của bạn đang chờ xử lý} paid {Đơn hàng của bạn đã được thanh toán} shipped {Đơn hàng của bạn đã được gửi đi} delivered {Đơn hàng của bạn đã được giao} other {Đơn hàng của bạn đang được xử lý}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
+  - id: icu-refund-summary
+    vars:
+      source: "Refund of {amount, number, ::currency/USD} issued on {issuedAt, date, ::yMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Khoản hoàn tiền {amount, number, ::currency/USD} đã được phát hành vào {issuedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+  - id: icu-calendar-event-start
+    vars:
+      source: "{title} starts in {minutes, plural, one {# minute} other {# minutes}}"
+    locales:
+      - locale: vi-VN
+        reference: "{title} sẽ bắt đầu sau {minutes, plural, one {# phút} other {# phút}}"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
+  - id: icu-calendar-rsvp
+    vars:
+      source: "{response, select, yes {You are attending} no {You are not attending} maybe {You might attend} other {Please respond}} by {deadline, date, ::yMMMd}"
+    locales:
+      - locale: vi-VN
+        reference: "{response, select, yes {Bạn sẽ tham dự} no {Bạn sẽ không tham dự} maybe {Bạn có thể sẽ tham dự} other {Vui lòng phản hồi}} trước {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+  - id: icu-workflow-step-progress
+    vars:
+      source: "Step {current, number} of {total, number}: {stepName}"
+    locales:
+      - locale: vi-VN
+        reference: "Bước {current, number} trên {total, number}: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
+  - id: icu-deployment-status
+    vars:
+      source: "{environment, select, production {Production} staging {Staging} development {Development} other {Unknown}} deploy started at {startedAt, time, ::Hm}"
+    locales:
+      - locale: vi-VN
+        reference: "Triển khai {environment, select, production {Production} staging {Staging} development {Development} other {Unknown}} bắt đầu lúc {startedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+  - id: icu-build-errors
+    vars:
+      source: "{count, plural, =0 {Build passed with no errors} one {Build failed with 1 error} other {Build failed with # errors}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Bản dựng đã vượt qua mà không có lỗi} one {Bản dựng thất bại với 1 lỗi} other {Bản dựng thất bại với # lỗi}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+  - id: icu-support-ticket-priority
+    vars:
+      source: "{priority, select, low {Low priority} medium {Medium priority} high {High priority} urgent {Urgent priority} other {Priority not set}} ticket updated {updatedAt, time, ::Hm}"
+    locales:
+      - locale: vi-VN
+        reference: "Phiếu hỗ trợ {priority, select, low {ưu tiên thấp} medium {ưu tiên trung bình} high {ưu tiên cao} urgent {ưu tiên khẩn cấp} other {chưa đặt mức ưu tiên}} được cập nhật lúc {updatedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+  - id: icu-team-members-invited
+    vars:
+      source: "{count, plural, =0 {No team members invited} one {# team member invited} other {# team members invited}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Chưa mời thành viên nhóm nào} one {Đã mời # thành viên nhóm} other {Đã mời # thành viên nhóm}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+  - id: icu-billing-overdue-notice
+    vars:
+      source: "Invoice overdue by {days, plural, one {# day} other {# days}}. Amount due: {amount, number, ::currency/USD}"
+    locales:
+      - locale: vi-VN
+        reference: "Hóa đơn đã quá hạn {days, plural, one {# ngày} other {# ngày}}. Số tiền phải trả: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+  - id: icu-livestream-viewers
+    vars:
+      source: "{count, plural, =0 {No one is watching} one {# person is watching} other {# people are watching}}"
+    locales:
+      - locale: vi-VN
+        reference: "{count, plural, =0 {Không có ai đang xem} one {# người đang xem} other {# người đang xem}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+  - id: icu-loyalty-points-earned
+    vars:
+      source: "You earned {points, number} points on {earnedAt, date, ::yMd}"
+    locales:
+      - locale: vi-VN
+        reference: "Bạn đã nhận được {points, number} điểm vào {earnedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+  - id: app-sign-in
+    vars:
+      source: "Sign in to continue"
+    locales:
+      - locale: vi-VN
+        reference: "Đăng nhập để tiếp tục"
+  - id: app-create-account
+    vars:
+      source: "Create your account"
+    locales:
+      - locale: vi-VN
+        reference: "Tạo tài khoản của bạn"
+  - id: app-forgot-password-link
+    vars:
+      source: "Forgot your password?"
+    locales:
+      - locale: vi-VN
+        reference: "Quên mật khẩu?"
+  - id: app-email-verification-sent
+    vars:
+      source: "Verification email sent"
+    locales:
+      - locale: vi-VN
+        reference: "Đã gửi email xác minh"
+  - id: app-invalid-credentials
+    vars:
+      source: "Incorrect email or password"
+    locales:
+      - locale: vi-VN
+        reference: "Email hoặc mật khẩu không chính xác"
+  - id: app-session-expired
+    vars:
+      source: "Your session has expired. Please sign in again."
+    locales:
+      - locale: vi-VN
+        reference: "Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại."
+  - id: app-save-changes
+    vars:
+      source: "Save changes"
+    locales:
+      - locale: vi-VN
+        reference: "Lưu thay đổi"
+  - id: app-discard-draft
+    vars:
+      source: "Discard draft"
+    locales:
+      - locale: vi-VN
+        reference: "Hủy bản nháp"
+  - id: app-changes-saved
+    vars:
+      source: "Changes saved successfully"
+    locales:
+      - locale: vi-VN
+        reference: "Đã lưu thay đổi thành công"
+  - id: app-delete-workspace
+    vars:
+      source: "Delete workspace"
+    locales:
+      - locale: vi-VN
+        reference: "Xóa không gian làm việc"
+  - id: app-member-role-admin
+    vars:
+      source: "Administrator"
+    locales:
+      - locale: vi-VN
+        reference: "Quản trị viên"
+  - id: app-invite-team
+    vars:
+      source: "Invite your team"
+    locales:
+      - locale: vi-VN
+        reference: "Mời nhóm của bạn"
+  - id: app-billing-history
+    vars:
+      source: "Billing history"
+    locales:
+      - locale: vi-VN
+        reference: "Lịch sử thanh toán"
+  - id: app-update-payment-method
+    vars:
+      source: "Update payment method"
+    locales:
+      - locale: vi-VN
+        reference: "Cập nhật phương thức thanh toán"
+  - id: app-download-invoice
+    vars:
+      source: "Download invoice"
+    locales:
+      - locale: vi-VN
+        reference: "Tải hóa đơn xuống"
+  - id: app-subscription-canceled
+    vars:
+      source: "Your subscription has been canceled"
+    locales:
+      - locale: vi-VN
+        reference: "Gói thuê bao của bạn đã bị hủy"
+  - id: app-start-free-trial
+    vars:
+      source: "Start free trial"
+    locales:
+      - locale: vi-VN
+        reference: "Bắt đầu dùng thử miễn phí"
+  - id: app-search-placeholder
+    vars:
+      source: "Search projects, files, and people"
+    locales:
+      - locale: vi-VN
+        reference: "Tìm kiếm dự án, tệp và mọi người"
+  - id: app-no-results
+    vars:
+      source: "No results found"
+    locales:
+      - locale: vi-VN
+        reference: "Không tìm thấy kết quả"
+  - id: app-filter-by-status
+    vars:
+      source: "Filter by status"
+    locales:
+      - locale: vi-VN
+        reference: "Lọc theo trạng thái"
+  - id: app-sort-newest-first
+    vars:
+      source: "Newest first"
+    locales:
+      - locale: vi-VN
+        reference: "Mới nhất trước"
+  - id: app-export-csv
+    vars:
+      source: "Export as CSV"
+    locales:
+      - locale: vi-VN
+        reference: "Xuất dưới dạng CSV"
+  - id: app-sync-in-progress
+    vars:
+      source: "Sync in progress"
+    locales:
+      - locale: vi-VN
+        reference: "Đang đồng bộ"
+  - id: app-sync-failed
+    vars:
+      source: "Sync failed. Try again."
+    locales:
+      - locale: vi-VN
+        reference: "Đồng bộ thất bại. Hãy thử lại."
+  - id: app-upload-file
+    vars:
+      source: "Upload file"
+    locales:
+      - locale: vi-VN
+        reference: "Tải tệp lên"
+  - id: app-drag-drop
+    vars:
+      source: "Drag and drop files here"
+    locales:
+      - locale: vi-VN
+        reference: "Kéo và thả tệp vào đây"
+  - id: app-processing-request
+    vars:
+      source: "We are processing your request"
+    locales:
+      - locale: vi-VN
+        reference: "Chúng tôi đang xử lý yêu cầu của bạn"
+  - id: app-feature-not-available
+    vars:
+      source: "This feature is not available on your current plan"
+    locales:
+      - locale: vi-VN
+        reference: "Tính năng này không khả dụng trong gói hiện tại của bạn"
+  - id: app-upgrade-plan
+    vars:
+      source: "Upgrade your plan"
+    locales:
+      - locale: vi-VN
+        reference: "Nâng cấp gói của bạn"
+  - id: app-view-audit-log
+    vars:
+      source: "View audit log"
+    locales:
+      - locale: vi-VN
+        reference: "Xem nhật ký kiểm tra"
+  - id: app-security-settings
+    vars:
+      source: "Security settings"
+    locales:
+      - locale: vi-VN
+        reference: "Cài đặt bảo mật"
+  - id: app-enable-two-factor
+    vars:
+      source: "Enable two-factor authentication"
+    locales:
+      - locale: vi-VN
+        reference: "Bật xác thực hai yếu tố"
+  - id: app-copy-link
+    vars:
+      source: "Copy link"
+    locales:
+      - locale: vi-VN
+        reference: "Sao chép liên kết"
+  - id: app-link-copied
+    vars:
+      source: "Link copied to clipboard"
+    locales:
+      - locale: vi-VN
+        reference: "Đã sao chép liên kết vào bộ nhớ tạm"
+  - id: app-comment-added
+    vars:
+      source: "Comment added"
+    locales:
+      - locale: vi-VN
+        reference: "Đã thêm bình luận"
+  - id: app-resolve-conversation
+    vars:
+      source: "Resolve conversation"
+    locales:
+      - locale: vi-VN
+        reference: "Đánh dấu cuộc trò chuyện là đã xử lý"
+  - id: app-mark-all-read
+    vars:
+      source: "Mark all as read"
+    locales:
+      - locale: vi-VN
+        reference: "Đánh dấu tất cả là đã đọc"
+  - id: app-empty-notifications
+    vars:
+      source: "You're all caught up"
+    locales:
+      - locale: vi-VN
+        reference: "Bạn đã xem hết mọi cập nhật"
+  - id: app-create-first-project
+    vars:
+      source: "Create your first project"
+    locales:
+      - locale: vi-VN
+        reference: "Tạo dự án đầu tiên của bạn"
+  - id: app-onboarding-finish
+    vars:
+      source: "Finish setup"
+    locales:
+      - locale: vi-VN
+        reference: "Hoàn tất thiết lập"
+  - id: app-try-again-later
+    vars:
+      source: "Something went wrong. Please try again later."
+    locales:
+      - locale: vi-VN
+        reference: "Đã xảy ra lỗi. Vui lòng thử lại sau."

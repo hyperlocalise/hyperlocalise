@@ -155,6 +155,64 @@ func TestRunAccountsForErrors(t *testing.T) {
 	}
 }
 
+func TestRunWithProgressEmitsPlannedStartedAndCompletedEvents(t *testing.T) {
+	svc := newTestService()
+	events := make([]ProgressEvent, 0)
+
+	report, err := svc.RunWithProgress(context.Background(), Input{
+		EvalSetPath: "unused.json",
+		Profiles:    []string{"default"},
+		Providers:   []string{"openai"},
+		Models:      []string{"model-a"},
+		Prompts:     []string{"prompt A"},
+	}, func(event ProgressEvent) {
+		events = append(events, event)
+	})
+	if err != nil {
+		t.Fatalf("run with progress: %v", err)
+	}
+	if report.Aggregate.TotalRuns != 2 {
+		t.Fatalf("expected 2 total runs, got %d", report.Aggregate.TotalRuns)
+	}
+	if len(events) != 5 {
+		t.Fatalf("expected planned + 2 started + 2 completed events, got %+v", events)
+	}
+	if events[0].Kind != ProgressEventPlanned || events[0].CaseCount != 2 || events[0].TotalRuns != 2 {
+		t.Fatalf("unexpected planned event: %+v", events[0])
+	}
+	if len(events[0].ExperimentIDs) != 1 || events[0].ExperimentIDs[0] == "" {
+		t.Fatalf("expected experiment ids in planned event, got %+v", events[0])
+	}
+	startedCount := 0
+	completedCount := 0
+	for _, event := range events[1:] {
+		switch event.Kind {
+		case ProgressEventRunStarted:
+			startedCount++
+			if event.Run == nil {
+				t.Fatalf("expected started event run payload, got %+v", event)
+			}
+		case ProgressEventRunCompleted:
+			completedCount++
+			if event.Run == nil {
+				t.Fatalf("expected completed event run payload, got %+v", event)
+			}
+		default:
+			t.Fatalf("unexpected progress event: %+v", event)
+		}
+	}
+	if startedCount != 2 || completedCount != 2 {
+		t.Fatalf("expected 2 started and 2 completed events, got %+v", events)
+	}
+	last := events[len(events)-1]
+	if last.Kind != ProgressEventRunCompleted || last.CompletedRuns != 2 {
+		t.Fatalf("unexpected final completed event: %+v", last)
+	}
+	if last.SuccessfulRuns+last.FailedRuns != 2 {
+		t.Fatalf("unexpected final progress counters: %+v", last)
+	}
+}
+
 func TestRunAggregatesScorersAndPersistsReport(t *testing.T) {
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "report.json")
