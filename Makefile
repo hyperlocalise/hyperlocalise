@@ -12,7 +12,7 @@ help: ## list makefile targets
 
 .PHONY: bump
 bump: ## update go dependencies
-	go get -u
+	go get -u ./...
 	go mod tidy
 
 .PHONY: check-build
