@@ -37,14 +37,22 @@ func (f *fakeLocalStore) ApplyPull(_ context.Context, plan ApplyPullPlan) (Apply
 
 type fakeAdapter struct {
 	pullResult storage.PullResult
+	pullCount  int
 	pushReq    storage.PushRequest
 	pushResult storage.PushResult
 	pushErr    error
+	name       string
 }
 
-func (f *fakeAdapter) Name() string                       { return "fake" }
+func (f *fakeAdapter) Name() string {
+	if strings.TrimSpace(f.name) != "" {
+		return f.name
+	}
+	return "fake"
+}
 func (f *fakeAdapter) Capabilities() storage.Capabilities { return storage.Capabilities{} }
 func (f *fakeAdapter) Pull(_ context.Context, _ storage.PullRequest) (storage.PullResult, error) {
+	f.pullCount++
 	return f.pullResult, nil
 }
 
@@ -232,6 +240,49 @@ func TestPushUpdatesRemoteWhenMismatchIsSafe(t *testing.T) {
 	}
 	if got := len(report.Conflicts); got != 0 {
 		t.Fatalf("expected 0 conflicts, got %d", got)
+	}
+}
+
+func TestPushPOEditorSkipsRemoteBaselineAndUploadsDirectly(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{
+				Key:    "hello",
+				Locale: "fr",
+				Value:  "bonjour local curated",
+				Provenance: storage.EntryProvenance{
+					Origin: storage.OriginHuman,
+					State:  storage.StateCurated,
+				},
+			}},
+		},
+	}
+	adapter := &fakeAdapter{
+		name:       "poeditor",
+		pushResult: storage.PushResult{Applied: []storage.EntryID{{Key: "hello", Locale: "fr"}}},
+	}
+
+	report, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+		Read:    LocalReadRequest{Locales: []string{"fr"}},
+		Options: PushOptions{DryRun: false},
+	})
+	if err != nil {
+		t.Fatalf("push sync: %v", err)
+	}
+	if got := adapter.pullCount; got != 0 {
+		t.Fatalf("expected no remote baseline pull, got %d", got)
+	}
+	if got := len(adapter.pushReq.Entries); got != 1 {
+		t.Fatalf("expected direct upload of local entries, got %d", got)
+	}
+	if got := len(report.Updates); got != 1 {
+		t.Fatalf("expected 1 reported upload entry, got %d", got)
+	}
+	if got := len(report.Applied); got != 1 {
+		t.Fatalf("expected 1 applied entry, got %d", got)
 	}
 }
 

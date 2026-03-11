@@ -15,7 +15,8 @@ const (
 )
 
 type LocalReadRequest struct {
-	Locales []string
+	Locales     []string
+	SourcePaths []string
 }
 
 type PullOptions struct {
@@ -51,6 +52,7 @@ type PullInput struct {
 	Request storage.PullRequest
 	Read    LocalReadRequest
 	Options PullOptions
+	Scope   Scope
 }
 
 type PushInput struct {
@@ -58,6 +60,15 @@ type PushInput struct {
 	Local   LocalStore
 	Read    LocalReadRequest
 	Options PushOptions
+	Scope   Scope
+}
+
+type Scope struct {
+	Entries map[storage.EntryID]ScopedEntry
+}
+
+type ScopedEntry struct {
+	Namespace string
 }
 
 type Report struct {
@@ -91,6 +102,7 @@ func (s *Service) Pull(ctx context.Context, in PullInput) (Report, error) {
 	if err != nil {
 		return Report{}, fmt.Errorf("pull remote snapshot: %w", err)
 	}
+	remoteResult.Snapshot = filterSnapshot(remoteResult.Snapshot, in.Scope)
 
 	report := buildPullReport(localSnapshot, remoteResult.Snapshot, in.Options)
 	report.Action = "pull"
@@ -122,14 +134,48 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 		return Report{}, fmt.Errorf("build local push snapshot: %w", err)
 	}
 
+	if strings.EqualFold(strings.TrimSpace(in.Adapter.Name()), "poeditor") {
+		report, pushReq := buildUploadOnlyPushReport(localSnapshot)
+		report.Action = "push"
+		pushReq.Locales = append([]string(nil), in.Read.Locales...)
+		pushReq.Options = make(map[string]string, 1)
+		if len(in.Read.SourcePaths) == 0 {
+			pushReq.Options["scope"] = "full"
+		} else {
+			pushReq.Options["scope"] = "partial"
+		}
+		if in.Options.DryRun || len(pushReq.Entries) == 0 {
+			return report, nil
+		}
+
+		pushResult, err := in.Adapter.Push(ctx, pushReq)
+		report.Applied = append(report.Applied, pushResult.Applied...)
+		report.Skipped = append(report.Skipped, pushResult.Skipped...)
+		report.Conflicts = append(report.Conflicts, pushResult.Conflicts...)
+		report.Warnings = append(report.Warnings, pushResult.Warnings...)
+		if err != nil {
+			return report, fmt.Errorf("push remote changes: %w", err)
+		}
+
+		return report, nil
+	}
+
 	remoteResult, err := in.Adapter.Pull(ctx, storage.PullRequest{Locales: in.Read.Locales})
 	if err != nil {
 		return Report{}, fmt.Errorf("pull remote baseline: %w", err)
 	}
+	remoteResult.Snapshot = filterSnapshot(remoteResult.Snapshot, in.Scope)
 
 	report, pushReq := buildPushReport(localSnapshot, remoteResult.Snapshot, in.Options)
 	report.Action = "push"
 	report.Warnings = append(report.Warnings, remoteResult.Warnings...)
+	pushReq.Locales = append([]string(nil), in.Read.Locales...)
+	pushReq.Options = make(map[string]string, 1)
+	if len(in.Read.SourcePaths) == 0 {
+		pushReq.Options["scope"] = "full"
+	} else {
+		pushReq.Options["scope"] = "partial"
+	}
 
 	if in.Options.FailOnConflict && len(report.Conflicts) > 0 {
 		return report, fmt.Errorf("push conflicts detected: %d", len(report.Conflicts))
@@ -148,6 +194,35 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 	}
 
 	return report, nil
+}
+
+func buildUploadOnlyPushReport(local storage.CatalogSnapshot) (Report, storage.PushRequest) {
+	report := Report{
+		Updates: append([]storage.Entry(nil), local.Entries...),
+	}
+	pushReq := storage.PushRequest{
+		Entries: append([]storage.Entry(nil), local.Entries...),
+	}
+	sortReport(&report)
+	return report, pushReq
+}
+
+func filterSnapshot(snapshot storage.CatalogSnapshot, scope Scope) storage.CatalogSnapshot {
+	if len(scope.Entries) == 0 {
+		return snapshot
+	}
+
+	filtered := make([]storage.Entry, 0, len(snapshot.Entries))
+	for _, entry := range snapshot.Entries {
+		if scoped, ok := scope.Entries[entry.ID()]; ok {
+			if strings.TrimSpace(entry.Namespace) == "" {
+				entry.Namespace = scoped.Namespace
+			}
+			filtered = append(filtered, entry)
+		}
+	}
+	snapshot.Entries = filtered
+	return snapshot
 }
 
 func buildPullReport(local, remote storage.CatalogSnapshot, opts PullOptions) Report {

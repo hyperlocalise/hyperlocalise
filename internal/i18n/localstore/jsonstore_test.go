@@ -93,6 +93,120 @@ func TestJSONStoreBuildPushSnapshotUsesSameReadPath(t *testing.T) {
 	}
 }
 
+func TestJSONStoreBuildPushSnapshotParsesFormatJSJSON(t *testing.T) {
+	dir := t.TempDir()
+	langDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	content := `{
+  "auth.signIn.title": {"defaultMessage": "Dang nhap"},
+  "billing.trialNotice": {"defaultMessage": "Ban dung thu den {date}."}
+}
+`
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write locale file: %v", err)
+	}
+
+	store := mustNewStore(t, filepath.Join(dir, "lang", "[locale].json"))
+	snap, err := store.BuildPushSnapshot(context.Background(), syncsvc.LocalReadRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("build push snapshot: %v", err)
+	}
+	if got := len(snap.Entries); got != 2 {
+		t.Fatalf("expected 2 entries, got %d", got)
+	}
+	if got := snap.Entries[0].Value; strings.TrimSpace(got) == "" {
+		t.Fatalf("expected non-empty parsed value")
+	}
+}
+
+func TestJSONStoreBuildPushSnapshotIncludesSourceLocaleForPOEditorWhenSelected(t *testing.T) {
+	dir := t.TempDir()
+	langDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "en.json"), []byte("{\"hello\":\"Hello\"}\n"), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"hello\":\"Bonjour\"}\n"), 0o644); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	store, err := NewJSONStore(&config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{
+			"json": {Files: []config.BucketFileMapping{{From: filepath.Join(langDir, "en.json"), To: filepath.Join(langDir, "[locale].json")}}},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {Targets: []string{"fr"}, Buckets: []string{"json"}},
+		},
+		LLM: config.LLMConfig{
+			Profiles: map[string]config.LLMProfile{"default": {Provider: "openai", Model: "gpt-4.1-mini"}},
+		},
+		Storage: &config.StorageConfig{Adapter: "poeditor"},
+	})
+	if err != nil {
+		t.Fatalf("new json store: %v", err)
+	}
+
+	snap, err := store.BuildPushSnapshot(context.Background(), syncsvc.LocalReadRequest{Locales: []string{"fr", "en"}})
+	if err != nil {
+		t.Fatalf("build push snapshot: %v", err)
+	}
+	locales := make(map[string]struct{})
+	for _, entry := range snap.Entries {
+		locales[entry.Locale] = struct{}{}
+	}
+	if _, ok := locales["en"]; !ok {
+		t.Fatalf("expected source locale entry in push snapshot, got %+v", snap.Entries)
+	}
+	if _, ok := locales["fr"]; !ok {
+		t.Fatalf("expected target locale entry in push snapshot, got %+v", snap.Entries)
+	}
+}
+
+func TestJSONStoreBuildPushSnapshotSkipsSourceLocaleWhenNotSelected(t *testing.T) {
+	dir := t.TempDir()
+	langDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "en.json"), []byte("{\"hello\":\"Hello\"}\n"), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"hello\":\"Bonjour\"}\n"), 0o644); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	store, err := NewJSONStore(&config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{
+			"json": {Files: []config.BucketFileMapping{{From: filepath.Join(langDir, "en.json"), To: filepath.Join(langDir, "[locale].json")}}},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {Targets: []string{"fr"}, Buckets: []string{"json"}},
+		},
+		LLM: config.LLMConfig{
+			Profiles: map[string]config.LLMProfile{"default": {Provider: "openai", Model: "gpt-4.1-mini"}},
+		},
+		Storage: &config.StorageConfig{Adapter: "poeditor"},
+	})
+	if err != nil {
+		t.Fatalf("new json store: %v", err)
+	}
+
+	snap, err := store.BuildPushSnapshot(context.Background(), syncsvc.LocalReadRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("build push snapshot: %v", err)
+	}
+	for _, entry := range snap.Entries {
+		if entry.Locale == "en" {
+			t.Fatalf("did not expect source locale entry when not selected, got %+v", snap.Entries)
+		}
+	}
+}
 func TestJSONStoreLocaleDirTemplateSupportsSourceRoot(t *testing.T) {
 	dir := t.TempDir()
 	docsDir := filepath.Join(dir, "docs")
@@ -145,6 +259,17 @@ func TestEntryMetaIDStable(t *testing.T) {
 func mustNewStore(t *testing.T, pattern string) *JSONStore {
 	t.Helper()
 
+	sourcePath := filepath.Join(filepath.Dir(filepath.Dir(pattern)), "lang", "en.json")
+	if strings.Contains(pattern, "{{localeDir}}") {
+		sourcePath = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(pattern))), "docs", "index.json")
+	}
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\"hello\":\"Hello\"}\n"), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
 	store, err := NewJSONStore(&config.I18NConfig{
 		Locales: config.LocaleConfig{
 			Source:  "en",
@@ -153,7 +278,7 @@ func mustNewStore(t *testing.T, pattern string) *JSONStore {
 		Buckets: map[string]config.BucketConfig{
 			"json": {
 				Files: []config.BucketFileMapping{{
-					From: "lang/en.json",
+					From: sourcePath,
 					To:   pattern,
 				}},
 			},

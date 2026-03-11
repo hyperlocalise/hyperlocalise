@@ -11,18 +11,47 @@ import (
 )
 
 type fakeClient struct {
-	terms        []TermTranslation
+	available    []string
+	exportOut    []TermTranslation
 	listRevision string
-	upsertIn     UpsertTranslationsInput
+	uploads      []UploadFileInput
 }
 
 func (f *fakeClient) ListTerms(_ context.Context, _ ListTermsInput) ([]TermTranslation, string, error) {
-	return f.terms, f.listRevision, nil
+	return nil, "", nil
 }
 
-func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
-	f.upsertIn = in
-	return "rev2", nil
+func (f *fakeClient) ListProjectTerms(_ context.Context, _ ListTermsInput) ([]TermKey, string, error) {
+	return nil, "", nil
+}
+
+func (f *fakeClient) AvailableLanguages(_ context.Context, _ string) ([]string, error) {
+	return f.available, nil
+}
+
+func (f *fakeClient) AddTerms(_ context.Context, _ TermMutationInput) (string, error) {
+	return "", nil
+}
+
+func (f *fakeClient) DeleteTerms(_ context.Context, _ TermMutationInput) (string, error) {
+	return "", nil
+}
+
+func (f *fakeClient) UpsertTranslations(_ context.Context, _ UpsertTranslationsInput) (string, error) {
+	return "", nil
+}
+
+func (f *fakeClient) ExportFile(_ context.Context, _ ExportFileInput) ([]TermTranslation, string, error) {
+	return f.exportOut, f.listRevision, nil
+}
+
+func (f *fakeClient) UploadFile(_ context.Context, in UploadFileInput) (UploadFileResult, string, error) {
+	f.uploads = append(f.uploads, in)
+	return UploadFileResult{
+		TermsParsed:         len(in.Entries),
+		TranslationsParsed:  len(in.Entries),
+		TranslationsUpdated: len(in.Entries),
+	}, "rev2", nil
 }
 
 func TestParseConfigUsesEnvToken(t *testing.T) {
@@ -53,11 +82,10 @@ func TestParseConfigRejectsInlineToken(t *testing.T) {
 	}
 }
 
-func TestAdapterPullMapsTermContextLanguage(t *testing.T) {
+func TestAdapterPullUsesExportedFileEntries(t *testing.T) {
 	client := &fakeClient{
-		terms: []TermTranslation{
-			{Term: "hello", Context: "home", Locale: "fr", Value: "bonjour"},
-		},
+		exportOut:    []TermTranslation{{Term: "hello", Locale: "fr", Value: "bonjour"}},
+		available:    []string{"fr"},
 		listRevision: "rev1",
 	}
 	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
@@ -73,14 +101,63 @@ func TestAdapterPullMapsTermContextLanguage(t *testing.T) {
 		t.Fatalf("expected 1 entry, got %d", got)
 	}
 	entry := result.Snapshot.Entries[0]
-	if entry.Key != "hello" || entry.Context != "home" || entry.Locale != "fr" || entry.Value != "bonjour" {
+	if entry.Key != "hello" || entry.Locale != "fr" || entry.Value != "bonjour" {
 		t.Fatalf("unexpected entry mapping: %+v", entry)
 	}
 }
 
-func TestAdapterPushGroupsEntries(t *testing.T) {
-	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+func TestAdapterPushUploadsGroupedLocales(t *testing.T) {
+	client := &fakeClient{available: []string{"fr", "en-us"}}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token", SourceLanguage: "en"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+	})
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(client.uploads); got != 1 {
+		t.Fatalf("expected 1 upload, got %d", got)
+	}
+	if got := client.uploads[0].Locale; got != "fr" {
+		t.Fatalf("expected fr upload, got %+v", client.uploads[0])
+	}
+	if got := client.uploads[0].Updating; got != "translations" {
+		t.Fatalf("expected translations mode, got %q", got)
+	}
+}
+
+func TestAdapterPushSourceLocaleUsesTermsTranslationsAndFullSync(t *testing.T) {
+	client := &fakeClient{available: []string{"en-us"}}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token", SourceLanguage: "en-US"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.Push(context.Background(), storage.PushRequest{
+		Options: map[string]string{"scope": "full"},
+		Entries: []storage.Entry{{Key: "hello", Locale: "en-US", Value: "Hello"}},
+	})
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(client.uploads); got != 1 {
+		t.Fatalf("expected 1 upload, got %d", got)
+	}
+	if got := client.uploads[0].Updating; got != "terms_translations" {
+		t.Fatalf("expected terms_translations mode, got %q", got)
+	}
+	if !client.uploads[0].SyncTerms {
+		t.Fatalf("expected full-scope source upload to sync terms")
+	}
+}
+
+func TestAdapterPushRejectsContextForUploadMode(t *testing.T) {
+	client := &fakeClient{available: []string{"fr"}}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token", SourceLanguage: "en"}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -88,11 +165,48 @@ func TestAdapterPushGroupsEntries(t *testing.T) {
 	_, err = adapter.Push(context.Background(), storage.PushRequest{
 		Entries: []storage.Entry{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
 	})
+	if err == nil || !strings.Contains(err.Error(), "does not support entry context") {
+		t.Fatalf("expected context rejection, got %v", err)
+	}
+}
+
+func TestAdapterNormalizesLocalesToPOEditorCodes(t *testing.T) {
+	client := &fakeClient{available: []string{"en-us", "vi", "zh-Hans"}}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token", SourceLanguage: "en-US"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Locale: "vi-VN", Value: "Xin chao"}},
+	})
 	if err != nil {
 		t.Fatalf("push: %v", err)
 	}
-	if got := len(client.upsertIn.Entries); got != 1 {
-		t.Fatalf("expected 1 upsert entry, got %d", got)
+	if got := client.uploads[0].Locale; got != "vi" {
+		t.Fatalf("expected vi-VN normalized to vi, got %q", got)
+	}
+}
+
+func TestAdapterLocaleMapOverrideWins(t *testing.T) {
+	client := &fakeClient{available: []string{"en-us", "vi", "vi-VN"}}
+	adapter, err := NewWithClient(Config{
+		ProjectID:      "123",
+		APIToken:       "token",
+		SourceLanguage: "en-US",
+		LocaleMap:      map[string]string{"vi-VN": "vi-VN"},
+	}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+	_, err = adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Locale: "vi-VN", Value: "Xin chao"}},
+	})
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := client.uploads[0].Locale; got != "vi-VN" {
+		t.Fatalf("expected locale override preserved, got %q", got)
 	}
 }
 
@@ -120,8 +234,8 @@ func TestAdapterNameAndCapabilities(t *testing.T) {
 	}
 
 	caps := adapter.Capabilities()
-	if !caps.SupportsContext {
-		t.Fatalf("expected SupportsContext")
+	if caps.SupportsContext {
+		t.Fatalf("expected SupportsContext=false")
 	}
 	if caps.SupportsVersions {
 		t.Fatalf("expected SupportsVersions=false")

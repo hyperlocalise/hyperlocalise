@@ -2,15 +2,18 @@ package poeditor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
 )
 
 func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
@@ -23,137 +26,133 @@ func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
 	}
 }
 
-func TestHTTPClientListTermsFiltersLocales(t *testing.T) {
+func TestHTTPClientExportFileDownloadsJSON(t *testing.T) {
+	var serverURL string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/terms/list" {
+		switch r.URL.Path {
+		case "/projects/export":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read body: %v", err)
+			}
+			values, err := url.ParseQuery(string(body))
+			if err != nil {
+				t.Fatalf("parse form body: %v", err)
+			}
+			if got := values.Get("language"); got != "fr" {
+				t.Fatalf("unexpected language: %q", got)
+			}
+			_, _ = fmt.Fprintf(w, `{"result":{"url":"%s/download/fr.json"}}`, serverURL)
+		case "/download/fr.json":
+			_, _ = fmt.Fprint(w, `{"hello":"bonjour","bye":"au revoir"}`)
+		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		if ct := r.Header.Get("Content-Type"); !strings.Contains(ct, "application/x-www-form-urlencoded") {
-			t.Fatalf("unexpected content-type: %s", ct)
-		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read body: %v", err)
-		}
-		values, err := url.ParseQuery(string(body))
-		if err != nil {
-			t.Fatalf("parse form body: %v", err)
-		}
-		if got := values.Get("api_token"); got != "token" {
-			t.Fatalf("unexpected api_token: %q", got)
-		}
-		if got := values.Get("id"); got != "123" {
-			t.Fatalf("unexpected project id: %q", got)
-		}
-
-		_, _ = fmt.Fprint(w, `{
-			"result":{"code":"200","message":"OK"},
-			"terms":[
-				{"term":"hello","context":"home","translations":[
-					{"language":"fr","content":"bonjour"},
-					{"language":"de","content":"hallo"}
-				]},
-				{"term":"bye","context":"","translations":[
-					{"language":"fr","content":"au revoir"}
-				]}
-			]
-		}`)
 	}))
 	defer srv.Close()
+	serverURL = srv.URL
 
-	client := &HTTPClient{
-		baseURL: srv.URL,
-		http:    srv.Client(),
-	}
-
-	entries, revision, err := client.ListTerms(context.Background(), ListTermsInput{
+	client := &HTTPClient{baseURL: srv.URL, http: srv.Client()}
+	entries, revision, err := client.ExportFile(context.Background(), ExportFileInput{
 		ProjectID: "123",
 		APIToken:  "token",
 		Locales:   []string{"fr"},
+		Type:      "key_value_json",
 	})
 	if err != nil {
-		t.Fatalf("list terms: %v", err)
+		t.Fatalf("export file: %v", err)
 	}
 	if revision == "" {
 		t.Fatalf("expected revision")
 	}
 	if got := len(entries); got != 2 {
-		t.Fatalf("expected 2 filtered entries, got %d", got)
-	}
-	for _, e := range entries {
-		if e.Locale != "fr" {
-			t.Fatalf("expected filtered locale fr, got %+v", e)
-		}
+		t.Fatalf("expected 2 entries, got %d", got)
 	}
 }
 
-func TestHTTPClientUpsertTranslationsSendsGroupedPayload(t *testing.T) {
-	var calls []struct {
-		Path   string
-		Values url.Values
-	}
-
+func TestHTTPClientAvailableLanguagesReadsCodes(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("read body: %v", err)
+		if r.URL.Path != "/languages/available" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
-		values, err := url.ParseQuery(string(body))
-		if err != nil {
-			t.Fatalf("parse query: %v", err)
-		}
-		calls = append(calls, struct {
-			Path   string
-			Values url.Values
-		}{Path: r.URL.Path, Values: values})
-
-		_, _ = fmt.Fprint(w, `{"result":{"code":"200","message":"OK"}}`)
+		_, _ = fmt.Fprint(w, `{"result":{"languages":[{"code":"en-us"},{"code":"vi"},{"code":"zh-Hans"}]}}`)
 	}))
 	defer srv.Close()
 
-	client := &HTTPClient{
-		baseURL: srv.URL,
-		http:    srv.Client(),
+	client := &HTTPClient{baseURL: srv.URL, http: srv.Client()}
+	codes, err := client.AvailableLanguages(context.Background(), "token")
+	if err != nil {
+		t.Fatalf("available languages: %v", err)
+	}
+	if got := len(codes); got != 3 {
+		t.Fatalf("expected 3 codes, got %+v", codes)
+	}
+}
+
+func TestHTTPClientUploadFileUsesMultipartForm(t *testing.T) {
+	expectedFile, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "tests", "key_value_json", "en-US.json"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
 	}
 
-	revision, err := client.UpsertTranslations(context.Background(), UpsertTranslationsInput{
+	uploads := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/projects/upload" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if !strings.Contains(r.Header.Get("Content-Type"), "multipart/form-data") {
+			t.Fatalf("unexpected content type: %s", r.Header.Get("Content-Type"))
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		uploads++
+		if got := r.FormValue("language"); got != "en" {
+			t.Fatalf("unexpected language: %q", got)
+		}
+		if got := r.FormValue("updating"); got != "translations" {
+			t.Fatalf("unexpected updating: %q", got)
+		}
+		files := r.MultipartForm.File["file"]
+		if len(files) != 1 {
+			t.Fatalf("expected 1 uploaded file, got %d", len(files))
+		}
+		if got := files[0].Filename; got != "en.json" {
+			t.Fatalf("unexpected uploaded filename: %q", got)
+		}
+		file, err := files[0].Open()
+		if err != nil {
+			t.Fatalf("open uploaded file: %v", err)
+		}
+		defer func() { _ = file.Close() }()
+		body, err := io.ReadAll(file)
+		if err != nil {
+			t.Fatalf("read uploaded file: %v", err)
+		}
+		if strings.TrimSpace(string(body)) != strings.TrimSpace(string(expectedFile)) {
+			t.Fatalf("unexpected uploaded body: %s", string(body))
+		}
+		_, _ = fmt.Fprint(w, `{"result":{"terms":{"parsed":0,"added":0,"deleted":0},"translations":{"parsed":1,"added":0,"updated":1}}}`)
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{baseURL: srv.URL, http: srv.Client()}
+	out, _, err := client.UploadFile(context.Background(), UploadFileInput{
 		ProjectID: "123",
 		APIToken:  "token",
-		Entries: []TermTranslation{
-			{Term: "hello", Context: "home", Locale: "fr", Value: "bonjour"},
-			{Term: "bye", Locale: "fr", Value: "au revoir"},
-			{Term: "skip", Locale: "", Value: "x"},
-			{Term: "hello", Locale: "de", Value: "hallo"},
-		},
+		Locale:    "en",
+		Type:      "key_value_json",
+		Updating:  "translations",
+		Entries:   []storage.Entry{{Key: "hello", Locale: "en", Value: "bonjour"}},
 	})
 	if err != nil {
-		t.Fatalf("upsert translations: %v", err)
+		t.Fatalf("upload file: %v", err)
 	}
-	if revision == "" {
-		t.Fatalf("expected revision")
+	if uploads != 1 {
+		t.Fatalf("expected 1 upload, got %d", uploads)
 	}
-	if got := len(calls); got != 2 {
-		t.Fatalf("expected 2 locale-grouped calls, got %d", got)
-	}
-
-	for _, call := range calls {
-		if call.Path != "/translations/update" {
-			t.Fatalf("unexpected path: %s", call.Path)
-		}
-		if call.Values.Get("api_token") != "token" || call.Values.Get("id") != "123" {
-			t.Fatalf("unexpected auth/id form values: %+v", call.Values)
-		}
-		raw := call.Values.Get("data")
-		if raw == "" {
-			t.Fatalf("missing data payload")
-		}
-		var payload []map[string]string
-		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-			t.Fatalf("decode data payload: %v", err)
-		}
-		if len(payload) == 0 {
-			t.Fatalf("expected non-empty payload")
-		}
+	if out.TranslationsUpdated != 1 {
+		t.Fatalf("unexpected upload result: %+v", out)
 	}
 }
 

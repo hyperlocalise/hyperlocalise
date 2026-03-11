@@ -765,6 +765,11 @@ func (m *runInteractiveModel) applyTableSelection(value string) {
 }
 
 func (m *runInteractiveModel) continueFromFileStep() {
+	if len(m.selectedFiles) == 0 && m.selectedFile == "" && (m.tableFilter != "" || m.directoryScope != "") {
+		for _, path := range m.filteredVisibleFiles() {
+			m.selectedFiles[path] = struct{}{}
+		}
+	}
 	if len(m.selectedFiles) == 1 {
 		for path := range m.selectedFiles {
 			m.selectedFile = path
@@ -1288,6 +1293,46 @@ func (m runInteractiveModel) fileSelectionSummary() string {
 	return fmt.Sprintf("%d files selected", count)
 }
 
+func (m runInteractiveModel) effectiveSourcePaths() []string {
+	if len(m.selectedFiles) > 0 {
+		return sortedStringKeysFromSet(m.selectedFiles)
+	}
+	if m.selectedFile != "" {
+		return []string{m.selectedFile}
+	}
+	if m.tableFilter != "" || m.directoryScope != "" {
+		return m.filteredVisibleFiles()
+	}
+	return nil
+}
+
+func (m runInteractiveModel) filteredVisibleFiles() []string {
+	paths := make([]string, 0)
+	for _, value := range m.tableValues {
+		if value == "" {
+			continue
+		}
+		paths = append(paths, value)
+	}
+	if len(paths) > 0 {
+		return paths
+	}
+	seen := map[string]struct{}{}
+	for _, task := range m.catalog.TaskIndex {
+		if !m.matchesTask(task, "file") {
+			continue
+		}
+		if m.directoryScope != "" && !isWithinPath(task.SourcePath, m.directoryScope) {
+			continue
+		}
+		if m.tableFilter != "" && !strings.Contains(strings.ToLower(task.SourcePath), strings.ToLower(m.tableFilter)) {
+			continue
+		}
+		seen[task.SourcePath] = struct{}{}
+	}
+	return sortedStringKeysFromSet(seen)
+}
+
 func (m runInteractiveModel) helpBindings() runInteractiveHelp {
 	switch m.currentStep() {
 	case runInteractiveStepFile:
@@ -1356,10 +1401,8 @@ func (m runInteractiveModel) finalOptions() runOptions {
 	} else {
 		final.targetLocales = nil
 	}
-	if len(m.selectedFiles) > 0 {
-		final.sourcePaths = sortedStringKeysFromSet(m.selectedFiles)
-	} else if m.selectedFile != "" {
-		final.sourcePaths = []string{m.selectedFile}
+	if files := m.effectiveSourcePaths(); len(files) > 0 {
+		final.sourcePaths = files
 	} else {
 		final.sourcePaths = nil
 	}

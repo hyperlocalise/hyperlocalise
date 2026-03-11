@@ -35,6 +35,14 @@
         },
       ],
     },
+    "tests_key_value_json": {
+      "files": [
+        {
+          "from": "tests/key_value_json/en-US.json",
+          "to": "tests/key_value_json/[locale].json",
+        },
+      ],
+    },
     "tests_jsonc": {
       "files": [
         {
@@ -148,6 +156,7 @@
       "buckets": [
         "tests_arb",
         "tests_json",
+        "tests_key_value_json",
         "tests_jsonc",
         "tests_formatjs",
         "tests_xlf",
@@ -210,6 +219,13 @@
         "profile": "ollama",
       },
     ],
+  },
+  "storage": {
+    "adapter": "poeditor",
+    "config": {
+      "projectID": "824396",
+      "apiTokenEnv": "POEDITOR_API_TOKEN",
+    },
   },
   // Optional local cache foundation for run pipeline (disabled by default).
   // "cache": {

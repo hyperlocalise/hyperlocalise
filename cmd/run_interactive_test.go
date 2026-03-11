@@ -121,6 +121,36 @@ func TestRunInteractiveFinalOptionsIncludeMultipleSelectedFiles(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveFinalOptionsUseFilteredFilesWhenNoExplicitSelection(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{
+			ConfigPath: "/tmp/i18n.jsonc",
+			Files: []runsvc.SelectionFile{
+				{Path: "/tmp/content/en/a.json"},
+				{Path: "/tmp/content/en/b.json"},
+			},
+			TaskIndex: []runsvc.SelectionTaskIndex{
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/a.json", TaskCount: 1},
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/b.json", TaskCount: 1},
+			},
+		},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+
+	model.mode = runInteractiveModeFile
+	model.steps = runInteractiveStepsForMode(model.mode)
+	model.stepPos = 1
+	model.refreshStep()
+	model.tableFilter = "a.json"
+	model.refreshStep()
+	model.continueFromFileStep()
+
+	final := model.finalOptions()
+	if len(final.sourcePaths) != 1 || final.sourcePaths[0] != "/tmp/content/en/a.json" {
+		t.Fatalf("expected filtered source path, got %#v", final.sourcePaths)
+	}
+}
+
 func TestRunInteractiveSpaceTogglesFileSelection(t *testing.T) {
 	model := newRunInteractiveModel(
 		runsvc.SelectionCatalog{

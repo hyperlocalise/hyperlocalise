@@ -10,6 +10,7 @@ import (
 
 type SelectionCatalog struct {
 	ConfigPath    string                  `json:"configPath,omitempty"`
+	SourceLocale  string                  `json:"sourceLocale,omitempty"`
 	TotalTasks    int                     `json:"totalTasks"`
 	TotalFiles    int                     `json:"totalFiles"`
 	Groups        []SelectionGroup        `json:"groups,omitempty"`
@@ -88,8 +89,9 @@ func (s *Service) BuildSelectionCatalog(configPath string) (SelectionCatalog, er
 	}
 
 	catalog := SelectionCatalog{
-		ConfigPath: configPath,
-		TotalTasks: len(planned),
+		ConfigPath:   configPath,
+		SourceLocale: cfg.Locales.Source,
+		TotalTasks:   len(planned),
 	}
 
 	groupAgg := map[string]*SelectionGroup{}

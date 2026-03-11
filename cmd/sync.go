@@ -19,7 +19,9 @@ import (
 
 type syncCommonOptions struct {
 	configPath            string
+	interactive           bool
 	locales               []string
+	sourcePaths           []string
 	dryRun                bool
 	output                string
 	failOnConflict        bool
@@ -28,7 +30,7 @@ type syncCommonOptions struct {
 
 func defaultSyncCommonOptions() syncCommonOptions {
 	return syncCommonOptions{
-		dryRun:                true,
+		dryRun:                false,
 		output:                "text",
 		failOnConflict:        true,
 		applyCuratedOverDraft: true,
@@ -48,8 +50,10 @@ func newSyncCmd() *cobra.Command {
 }
 
 func addSyncCommonFlags(cmd *cobra.Command, o *syncCommonOptions) {
+	cmd.Flags().BoolVarP(&o.interactive, "interactive", "i", false, "launch interactive sync selector in TTY")
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config")
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "target locale(s) to sync")
+	cmd.Flags().StringSliceVar(&o.sourcePaths, "file", nil, "source file(s) to sync")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", o.dryRun, "preview changes without applying")
 	cmd.Flags().StringVar(&o.output, "output", o.output, "output format: text, json, or markdown")
 	cmd.Flags().BoolVar(&o.failOnConflict, "fail-on-conflict", o.failOnConflict, "return error if conflicts are detected")
@@ -93,6 +97,10 @@ func newSyncRuntime(configPath string) (*syncRuntime, error) {
 		remote: adapter,
 		svc:    syncsvc.New(),
 	}, nil
+}
+
+func (rt *syncRuntime) resolveScope(req syncsvc.LocalReadRequest) (syncsvc.Scope, error) {
+	return rt.local.ResolveScope(req)
 }
 
 func writeSyncReport(cmd *cobra.Command, report syncsvc.Report, output string) error {
