@@ -934,7 +934,7 @@ func (m evalDashboardModel) selectedDetail() string {
 		lines := []string{
 			fmt.Sprintf("selected experiment=%s", meta.experimentID),
 			fmt.Sprintf("quality pass=%d review=%d fail=%d transport_failed=%d judge_failures=%d assertion_failures=%d", progress.passCount, progress.reviewCount, progress.failCount, progress.transportFailures, progress.judgeFailures, progress.assertionFailures),
-			fmt.Sprintf("next action: enter to inspect case-level runs; tab for assertions/errors"),
+			"next action: enter to inspect case-level runs; tab for assertions/errors",
 		}
 		if m.baseline != nil {
 			if delta := m.baselineExperimentDelta(meta.experimentID, evalDashboardAverageValue(progress.weightedScoreSum, progress.completedRuns)); delta != nil {
