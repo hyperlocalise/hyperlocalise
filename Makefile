@@ -10,6 +10,11 @@ default: help
 help: ## list makefile targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: bump
+bump: ## update go dependencies
+	go get -u ./...
+	go mod tidy
+
 .PHONY: check-build
 check-build: ## check golang build
 	@go build -ldflags "-X main.version=$(version)" -o /dev/null
