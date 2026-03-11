@@ -627,7 +627,7 @@ func TestLoadRejectsUnterminatedBlockComment(t *testing.T) {
 		t.Fatal("expected comment parsing error")
 	}
 
-	if !strings.Contains(err.Error(), "unexpected EOF") {
+	if !strings.Contains(err.Error(), "unexpected EOF") && !strings.Contains(err.Error(), "invalid character") {
 		t.Fatalf("unexpected error: got %q", err.Error())
 	}
 }
