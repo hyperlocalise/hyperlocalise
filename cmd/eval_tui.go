@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -222,7 +223,10 @@ func runEvalDashboard(w io.Writer, opts evalDashboardOptions) error {
 		tea.WithInput(os.Stdin),
 	)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		report, err := evalRunWithProgressFunc(ctx, opts.Input, func(event evalsvc.ProgressEvent) {
 			program.Send(evalProgressMsg{event: event})
 		})
@@ -231,8 +235,10 @@ func runEvalDashboard(w io.Writer, opts evalDashboardOptions) error {
 
 	finalModel, err := program.Run()
 	if err != nil {
+		wg.Wait()
 		return err
 	}
+	wg.Wait()
 
 	typed, ok := finalModel.(evalDashboardModel)
 	if !ok {
@@ -427,7 +433,7 @@ func (m evalDashboardModel) View() tea.View {
 	if m.done {
 		progressLine = progressLine + "  press q to exit"
 	}
-	legend := m.metaStyle.Render("legend: status done/running/pending | score >=0.85 green, >=0.70 amber, else red")
+	legend := m.metaStyle.Render("legend: status done/running/pending | score >=0.85 green, >=0.70 amber, else red | pass_rate >=0.90 green, >=0.70 amber, else red")
 
 	parts := []string{title, scope, judgeLine, progressBar, progressLine, legend}
 	if m.filtering {

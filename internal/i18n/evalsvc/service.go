@@ -579,13 +579,7 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 		select {
 		case run := <-started:
 			startedRuns++
-			runCopy := run
-			emitProgress(progress, ProgressEvent{
-				Kind:        ProgressEventRunStarted,
-				TotalRuns:   expected,
-				StartedRuns: startedRuns,
-				Run:         &runCopy,
-			})
+			emitRunStartedProgress(progress, expected, startedRuns, run)
 		case run := <-results:
 			runs = append(runs, run)
 			completedRuns++
@@ -607,6 +601,17 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 		}
 	}
 
+	for {
+		select {
+		case run := <-started:
+			startedRuns++
+			emitRunStartedProgress(progress, expected, startedRuns, run)
+		default:
+			goto drained
+		}
+	}
+
+drained:
 	wg.Wait()
 	close(started)
 	close(results)
@@ -619,6 +624,16 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 	})
 
 	return runs, nil
+}
+
+func emitRunStartedProgress(progress func(ProgressEvent), totalRuns, startedRuns int, run RunResult) {
+	runCopy := run
+	emitProgress(progress, ProgressEvent{
+		Kind:        ProgressEventRunStarted,
+		TotalRuns:   totalRuns,
+		StartedRuns: startedRuns,
+		Run:         &runCopy,
+	})
 }
 
 func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer) RunResult {
