@@ -44,9 +44,8 @@ type Adapter struct {
 	cfg    Config
 	client Client
 
-	supportedOnce sync.Once
-	supportedSet  map[string]string
-	supportedErr  error
+	supportedMu  sync.RWMutex
+	supportedSet map[string]string
 }
 
 func New(raw json.RawMessage) (storage.StorageAdapter, error) {
@@ -405,24 +404,33 @@ func (a *Adapter) configLocaleOverride(locale string) (string, bool) {
 }
 
 func (a *Adapter) supportedLanguages(ctx context.Context) (map[string]string, error) {
-	a.supportedOnce.Do(func() {
-		codes, err := a.client.AvailableLanguages(ctx, a.cfg.APIToken)
-		if err != nil {
-			a.supportedErr = err
-			return
-		}
-		a.supportedSet = make(map[string]string, len(codes))
-		for _, code := range codes {
-			trimmed := strings.TrimSpace(code)
-			if trimmed == "" {
-				continue
-			}
-			a.supportedSet[strings.ToLower(trimmed)] = trimmed
-		}
-	})
-	if a.supportedErr != nil {
-		return nil, a.supportedErr
+	a.supportedMu.RLock()
+	if a.supportedSet != nil {
+		supported := a.supportedSet
+		a.supportedMu.RUnlock()
+		return supported, nil
 	}
+	a.supportedMu.RUnlock()
+
+	a.supportedMu.Lock()
+	defer a.supportedMu.Unlock()
+	if a.supportedSet != nil {
+		return a.supportedSet, nil
+	}
+
+	codes, err := a.client.AvailableLanguages(ctx, a.cfg.APIToken)
+	if err != nil {
+		return nil, err
+	}
+	supported := make(map[string]string, len(codes))
+	for _, code := range codes {
+		trimmed := strings.TrimSpace(code)
+		if trimmed == "" {
+			continue
+		}
+		supported[strings.ToLower(trimmed)] = trimmed
+	}
+	a.supportedSet = supported
 	return a.supportedSet, nil
 }
 

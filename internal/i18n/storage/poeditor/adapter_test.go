@@ -3,6 +3,7 @@ package poeditor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 type fakeClient struct {
 	available    []string
+	availableErr error
 	exportOut    []TermTranslation
 	listRevision string
 	uploads      []UploadFileInput
@@ -26,6 +28,11 @@ func (f *fakeClient) ListProjectTerms(_ context.Context, _ ListTermsInput) ([]Te
 }
 
 func (f *fakeClient) AvailableLanguages(_ context.Context, _ string) ([]string, error) {
+	if f.availableErr != nil {
+		err := f.availableErr
+		f.availableErr = nil
+		return nil, err
+	}
 	return f.available, nil
 }
 
@@ -207,6 +214,30 @@ func TestAdapterLocaleMapOverrideWins(t *testing.T) {
 	}
 	if got := client.uploads[0].Locale; got != "vi-VN" {
 		t.Fatalf("expected locale override preserved, got %q", got)
+	}
+}
+
+func TestAdapterSupportedLanguagesRetriesAfterFailure(t *testing.T) {
+	client := &fakeClient{
+		available:    []string{"fr"},
+		availableErr: errors.New("temporary outage"),
+	}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token", SourceLanguage: "en"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.supportedLanguages(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "temporary outage") {
+		t.Fatalf("expected transient failure, got %v", err)
+	}
+
+	supported, err := adapter.supportedLanguages(context.Background())
+	if err != nil {
+		t.Fatalf("expected retry to succeed, got %v", err)
+	}
+	if got := supported["fr"]; got != "fr" {
+		t.Fatalf("expected cached locale after retry, got %#v", supported)
 	}
 }
 

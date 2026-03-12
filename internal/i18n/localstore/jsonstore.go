@@ -116,7 +116,8 @@ func (s *JSONStore) ResolveScope(req syncsvc.LocalReadRequest) (syncsvc.Scope, e
 	}
 
 	for _, mapping := range selectedMappings {
-		for key, context := range mapping.EntryContext {
+		for key := range mapping.SourceEntries {
+			context := mapping.EntryContext[key]
 			for _, locale := range locales {
 				scope.Entries[storage.EntryID{
 					Key:     key,

@@ -207,6 +207,31 @@ func TestJSONStoreBuildPushSnapshotSkipsSourceLocaleWhenNotSelected(t *testing.T
 		}
 	}
 }
+
+func TestJSONStoreResolveScopeIncludesContextlessKeys(t *testing.T) {
+	store := &JSONStore{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		},
+		mappings: []fileMapping{{
+			Namespace:     "ns",
+			SourceEntries: map[string]string{"plain": "Hello", "withContext": "Hi"},
+			EntryContext:  map[string]string{"withContext": "greeting"},
+		}},
+	}
+
+	scope, err := store.ResolveScope(syncsvc.LocalReadRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("resolve scope: %v", err)
+	}
+	if _, ok := scope.Entries[storage.EntryID{Key: "plain", Locale: "fr"}]; !ok {
+		t.Fatalf("expected contextless key in scope, got %+v", scope.Entries)
+	}
+	if _, ok := scope.Entries[storage.EntryID{Key: "withContext", Context: "greeting", Locale: "fr"}]; !ok {
+		t.Fatalf("expected contextual key in scope, got %+v", scope.Entries)
+	}
+}
+
 func TestJSONStoreLocaleDirTemplateSupportsSourceRoot(t *testing.T) {
 	dir := t.TempDir()
 	docsDir := filepath.Join(dir, "docs")
