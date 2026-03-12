@@ -405,6 +405,9 @@ func (m syncInteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.execute = false
 				return m, tea.Quit
 			}
+			if m.step == syncInteractiveStepRun {
+				m.cancelRun()
+			}
 			m.step--
 			m.refresh()
 			return m, nil
