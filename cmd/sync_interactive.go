@@ -149,6 +149,7 @@ type syncInteractiveModel struct {
 	runErr     error
 	runStarted bool
 	runMsgs    chan tea.Msg
+	runCancel  context.CancelFunc
 	runLogs    []string
 
 	width   int
@@ -339,6 +340,7 @@ func (m syncInteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.report = &msg.report
 		m.runErr = msg.err
 		m.finishedAt = time.Now()
+		m.cancelRun()
 		m.execute = msg.err == nil
 		m.done = msg.err == nil
 		if msg.err != nil {
@@ -390,6 +392,7 @@ func (m syncInteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			m.cancelRun()
 			m.done = true
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.ToggleHelp):
@@ -645,6 +648,7 @@ func (m *syncInteractiveModel) refresh() {
 		m.runErr = nil
 		m.runStarted = false
 		m.runMsgs = nil
+		m.runCancel = nil
 		m.runLogs = nil
 		m.tableValues = nil
 		m.tableRows = m.pendingExecutionRows()
@@ -970,28 +974,39 @@ func (m *syncInteractiveModel) startRunCmd() tea.Cmd {
 	}
 	m.runStarted = true
 	m.runMsgs = make(chan tea.Msg, 8)
+	ctx, cancel := context.WithCancel(context.Background())
+	m.runCancel = cancel
 	action := m.action
 	options := m.finalOptions()
 	extra := m.extra
 	go func(ch chan tea.Msg) {
+		defer close(ch)
+		defer cancel()
 		report, err := executeSyncInteractive(
+			ctx,
 			action,
 			options,
 			extra,
 			func(rows []table.Row) {
-				ch <- syncExecutionPlanMsg{rows: rows}
+				sendSyncInteractiveMsg(ctx, ch, syncExecutionPlanMsg{rows: rows})
 			},
 			func(line string) {
-				ch <- syncExecutionLogMsg{line: line}
+				sendSyncInteractiveMsg(ctx, ch, syncExecutionLogMsg{line: line})
 			},
 			func(phase string, complete, total int) {
-				ch <- syncExecutionStageMsg{phase: phase, complete: complete, total: total}
+				sendSyncInteractiveMsg(ctx, ch, syncExecutionStageMsg{phase: phase, complete: complete, total: total})
 			},
 		)
-		ch <- syncExecutionFinishedMsg{report: report, err: err}
-		close(ch)
+		sendSyncInteractiveMsg(ctx, ch, syncExecutionFinishedMsg{report: report, err: err})
 	}(m.runMsgs)
 	return waitForSyncInteractiveMsg(m.runMsgs)
+}
+
+func (m *syncInteractiveModel) cancelRun() {
+	if m.runCancel != nil {
+		m.runCancel()
+		m.runCancel = nil
+	}
 }
 
 func (m syncInteractiveModel) finalOptions() syncCommonOptions {
@@ -1087,6 +1102,7 @@ func waitForSyncInteractiveMsg(ch <-chan tea.Msg) tea.Cmd {
 }
 
 func executeSyncInteractive(
+	ctx context.Context,
 	action string,
 	options syncCommonOptions,
 	extra syncInteractiveExtra,
@@ -1095,9 +1111,15 @@ func executeSyncInteractive(
 	progress func(phase string, complete, total int),
 ) (syncsvc.Report, error) {
 	log := func(line string) {
+		if ctx.Err() != nil {
+			return
+		}
 		if logf != nil {
 			logf(line)
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return syncsvc.Report{}, err
 	}
 	if progress != nil {
 		progress("initializing", 0, 5)
@@ -1124,6 +1146,9 @@ func executeSyncInteractive(
 		plan(rows)
 		log(fmt.Sprintf("queued entries: %d", len(rows)))
 	}
+	if err := ctx.Err(); err != nil {
+		return syncsvc.Report{}, err
+	}
 	scope, err := rt.resolveScope(readReq)
 	if err != nil {
 		return syncsvc.Report{}, fmt.Errorf("resolve sync scope: %w", err)
@@ -1137,7 +1162,7 @@ func executeSyncInteractive(
 	log("syncing remote storage")
 	switch action {
 	case "pull":
-		report, err := rt.svc.Pull(context.Background(), syncsvc.PullInput{
+		report, err := rt.svc.Pull(ctx, syncsvc.PullInput{
 			Adapter: rt.remote,
 			Local:   rt.local,
 			Request: storage.PullRequest{
@@ -1158,7 +1183,7 @@ func executeSyncInteractive(
 		log(fmt.Sprintf("pull result: creates=%d updates=%d conflicts=%d warnings=%d", len(report.Creates), len(report.Updates), len(report.Conflicts), len(report.Warnings)))
 		return report, err
 	default:
-		report, err := rt.svc.Push(context.Background(), syncsvc.PushInput{
+		report, err := rt.svc.Push(ctx, syncsvc.PushInput{
 			Adapter: rt.remote,
 			Local:   rt.local,
 			Read:    readReq,
@@ -1174,6 +1199,15 @@ func executeSyncInteractive(
 		}
 		log(fmt.Sprintf("push result: creates=%d updates=%d applied=%d conflicts=%d warnings=%d", len(report.Creates), len(report.Updates), len(report.Applied), len(report.Conflicts), len(report.Warnings)))
 		return report, err
+	}
+}
+
+func sendSyncInteractiveMsg(ctx context.Context, ch chan<- tea.Msg, msg tea.Msg) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case ch <- msg:
+		return true
 	}
 }
 
