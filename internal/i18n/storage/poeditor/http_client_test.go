@@ -156,6 +156,16 @@ func TestHTTPClientUploadFileUsesMultipartForm(t *testing.T) {
 	}
 }
 
+func TestEncodeEntriesJSONRejectsDuplicateKeys(t *testing.T) {
+	_, err := encodeEntriesJSON([]storage.Entry{
+		{Key: "hello", Locale: "fr", Value: "bonjour"},
+		{Key: "hello", Locale: "fr", Value: "salut"},
+	})
+	if err == nil || !strings.Contains(err.Error(), `duplicate key "hello"`) {
+		t.Fatalf("expected duplicate key error, got %v", err)
+	}
+}
+
 func TestHTTPClientPostFormHTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "boom", http.StatusBadRequest)

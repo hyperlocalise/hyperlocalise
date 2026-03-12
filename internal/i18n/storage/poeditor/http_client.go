@@ -424,6 +424,9 @@ func orderedLocales(byLocale map[string][]map[string]string, sourceLanguage stri
 func encodeEntriesJSON(entries []storage.Entry) ([]byte, error) {
 	values := make(map[string]string, len(entries))
 	for _, entry := range entries {
+		if _, exists := values[entry.Key]; exists {
+			return nil, fmt.Errorf("duplicate key %q in upload payload for locale %q", entry.Key, entry.Locale)
+		}
 		values[entry.Key] = entry.Value
 	}
 	return json.Marshal(values)
