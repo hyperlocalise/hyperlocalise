@@ -276,7 +276,7 @@ func newSyncInteractiveModel(action string, catalog runsvc.SelectionCatalog, see
 	for _, locale := range m.catalogLocales() {
 		selected := containsString(seed.locales, locale)
 		if len(seed.locales) == 0 {
-			selected = !(m.action == "push" && strings.EqualFold(strings.TrimSpace(locale), strings.TrimSpace(m.catalog.SourceLocale)))
+			selected = m.action != "push" || !strings.EqualFold(strings.TrimSpace(locale), strings.TrimSpace(m.catalog.SourceLocale))
 		}
 		if selected {
 			m.selectedLocales[locale] = struct{}{}

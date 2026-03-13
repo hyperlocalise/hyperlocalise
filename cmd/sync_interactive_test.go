@@ -133,7 +133,7 @@ func TestSyncInteractiveBackClearsListFilterBeforeLeavingStep(t *testing.T) {
 	model.list.SetFilterText("dry")
 	model.list.SetFilterState(list.Filtering)
 
-	nextModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape }))
+	nextModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEscape}))
 	typed := nextModel.(syncInteractiveModel)
 	if typed.step != syncInteractiveStepOptions {
 		t.Fatalf("expected to stay on options step, got %v", typed.step)
