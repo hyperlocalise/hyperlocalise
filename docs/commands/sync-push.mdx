@@ -19,14 +19,17 @@ hyperlocalise sync push [--config <path>] [flags]
 
 `sync push` defaults to dry-run mode and conflict failure.
 
+If you use `--interactive`, the TUI starts with target locales selected by default. The source locale is available as an explicit opt-in when your adapter or workflow needs it. Choosing `--output json` or `--output markdown` prints the final report after the TUI exits.
+
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
 - `--dry-run`: preview only (default `true`)
-- `--output`: `text` or `json`
+- `--output`: `text`, `json`, or `markdown`
 - `--fail-on-conflict`: return error when conflicts are detected (default `true`)
 - `--force-conflicts`: allow overwrite for mismatch cases where policy allows (default `false`)
+- `--interactive`, `-i`: launch a TTY selector for locales, files, and flags
 
 ## Example
 

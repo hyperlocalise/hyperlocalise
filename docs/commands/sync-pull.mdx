@@ -19,19 +19,22 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 `sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
 
+If you use `--interactive`, the TUI lets you choose locales, files, and flags before running. Choosing `--output json` or `--output markdown` prints the final report after the TUI exits.
+
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
 - `--dry-run`: preview only (default `true`)
-- `--output`: `text` or `json`
+- `--output`: `text`, `json`, or `markdown`
 - `--fail-on-conflict`: return error when conflicts are detected (default `true`)
 - `--apply-curated-over-draft`: allow curated remote values to replace local draft values (default `true`)
+- `--interactive`, `-i`: launch a TTY selector for locales, files, and flags
 
 ## Example
 
 ```bash
-hyperlocalise sync pull --locale es-ES --output json
+hyperlocalise sync pull --locale es-ES --output markdown
 ```
 
 See [conflict handling](/troubleshooting/conflicts) for resolution strategy.

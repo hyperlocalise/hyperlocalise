@@ -211,15 +211,7 @@ func runSyncInteractiveWizard(action string, seed syncCommonOptions, extra syncI
 	if !ok {
 		return syncInteractiveResult{}, fmt.Errorf("unexpected interactive model type %T", finalModel)
 	}
-	if typed.runErr != nil {
-		return syncInteractiveResult{}, typed.runErr
-	}
-
-	return syncInteractiveResult{
-		options: typed.finalOptions(),
-		extra:   typed.extra,
-		execute: false,
-	}, nil
+	return finalizeSyncInteractiveResult(typed, output)
 }
 
 func newSyncInteractiveModel(action string, catalog runsvc.SelectionCatalog, seed syncCommonOptions, extra syncInteractiveExtra) syncInteractiveModel {
@@ -231,7 +223,7 @@ func newSyncInteractiveModel(action string, catalog runsvc.SelectionCatalog, see
 	l.SetShowTitle(false)
 	l.SetFilteringEnabled(true)
 	l.AdditionalShortHelpKeys = keys.ShortHelp
-	l.AdditionalFullHelpKeys = func() []key.Binding { return []key.Binding{keys.Back, keys.ToggleHelp, keys.Quit} }
+	l.AdditionalFullHelpKeys = func() []key.Binding { return []key.Binding{keys.Filter, keys.Back, keys.ToggleHelp, keys.Quit} }
 
 	styles := table.DefaultStyles()
 	styles.Header = styles.Header.Bold(true).Foreground(lipgloss.Color("39"))
@@ -282,9 +274,9 @@ func newSyncInteractiveModel(action string, catalog runsvc.SelectionCatalog, see
 	}
 
 	for _, locale := range m.catalogLocales() {
-		selected := len(seed.locales) == 0 || containsString(seed.locales, locale)
-		if m.action == "push" && locale == strings.TrimSpace(m.catalog.SourceLocale) {
-			selected = true
+		selected := containsString(seed.locales, locale)
+		if len(seed.locales) == 0 {
+			selected = !(m.action == "push" && strings.EqualFold(strings.TrimSpace(locale), strings.TrimSpace(m.catalog.SourceLocale)))
 		}
 		if selected {
 			m.selectedLocales[locale] = struct{}{}
@@ -392,14 +384,27 @@ func (m syncInteractiveModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			if m.list.SettingFilter() {
+				break
+			}
 			m.cancelRun()
 			m.done = true
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.ToggleHelp):
+			if m.list.SettingFilter() {
+				break
+			}
 			m.help.ShowAll = !m.help.ShowAll
 			m.list.Help.ShowAll = m.help.ShowAll
 			return m, nil
 		case key.Matches(msg, m.keys.Back):
+			if m.step != syncInteractiveStepFile && m.step != syncInteractiveStepRun {
+				if m.list.SettingFilter() || m.list.IsFiltered() {
+					m.list.ResetFilter()
+					m.list.ResetSelected()
+					return m, nil
+				}
+			}
 			if m.step == syncInteractiveStepLocale {
 				m.done = true
 				m.execute = false
@@ -608,7 +613,7 @@ func (m *syncInteractiveModel) refresh() {
 		items := []list.Item{
 			syncInteractiveListItem{title: checkboxTitle(m.options.dryRun, "Dry run"), description: "preview without applying", value: "dry-run"},
 			syncInteractiveListItem{title: checkboxTitle(m.options.failOnConflict, "Fail on conflict"), description: "return an error when conflicts exist", value: "fail-on-conflict"},
-			syncInteractiveListItem{title: "Output: " + strings.ToLower(strings.TrimSpace(m.options.output)), description: "cycle text -> json -> markdown", value: "output"},
+			syncInteractiveListItem{title: "Output: " + strings.ToLower(strings.TrimSpace(m.options.output)), description: "emit report after exit: text -> json -> markdown", value: "output"},
 		}
 		if m.action == "pull" {
 			items = append(items, syncInteractiveListItem{
@@ -917,10 +922,6 @@ func (m syncInteractiveModel) footer() string {
 
 func (m *syncInteractiveModel) toggleCurrentLocale() {
 	if item, ok := m.list.SelectedItem().(syncInteractiveListItem); ok {
-		if m.action == "push" && strings.EqualFold(strings.TrimSpace(item.value), strings.TrimSpace(m.catalog.SourceLocale)) {
-			m.selectedLocales[item.value] = struct{}{}
-			return
-		}
 		toggleStringSet(m.selectedLocales, item.value)
 	}
 }
@@ -1142,7 +1143,7 @@ func executeSyncInteractive(
 	}
 	log(fmt.Sprintf("loading local entries: locales=%d files=%d", len(options.locales), len(options.sourcePaths)))
 	if plan != nil {
-		rows, err := executionPlanRows(action, rt, readReq)
+		rows, err := executionPlanRows(ctx, action, rt, readReq)
 		if err != nil {
 			return syncsvc.Report{}, fmt.Errorf("build execution plan: %w", err)
 		}
@@ -1214,16 +1215,19 @@ func sendSyncInteractiveMsg(ctx context.Context, ch chan<- tea.Msg, msg tea.Msg)
 	}
 }
 
-func executionPlanRows(action string, rt *syncRuntime, readReq syncsvc.LocalReadRequest) ([]table.Row, error) {
+func executionPlanRows(ctx context.Context, action string, rt *syncRuntime, readReq syncsvc.LocalReadRequest) ([]table.Row, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var (
 		snapshot storage.CatalogSnapshot
 		err      error
 	)
 	switch action {
 	case "pull":
-		snapshot, err = rt.local.ReadSnapshot(context.Background(), readReq)
+		snapshot, err = rt.local.ReadSnapshot(ctx, readReq)
 	default:
-		snapshot, err = rt.local.BuildPushSnapshot(context.Background(), readReq)
+		snapshot, err = rt.local.BuildPushSnapshot(ctx, readReq)
 	}
 	if err != nil {
 		return nil, err
@@ -1247,6 +1251,26 @@ func executionPlanRows(action string, rt *syncRuntime, readReq syncsvc.LocalRead
 		rows = append(rows, table.Row{"-", "-", "empty", "no local entries matched"})
 	}
 	return rows, nil
+}
+
+func finalizeSyncInteractiveResult(model syncInteractiveModel, output io.Writer) (syncInteractiveResult, error) {
+	if model.report != nil {
+		switch strings.ToLower(strings.TrimSpace(model.options.output)) {
+		case "json", "md", "markdown":
+			if err := writeSyncReportWriter(output, *model.report, model.options.output); err != nil {
+				return syncInteractiveResult{}, fmt.Errorf("write interactive sync report: %w", err)
+			}
+		}
+	}
+	if model.runErr != nil {
+		return syncInteractiveResult{}, model.runErr
+	}
+
+	return syncInteractiveResult{
+		options: model.finalOptions(),
+		extra:   model.extra,
+		execute: false,
+	}, nil
 }
 
 func (m syncInteractiveModel) catalogLocales() []string {

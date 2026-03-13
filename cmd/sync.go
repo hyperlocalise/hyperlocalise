@@ -104,10 +104,14 @@ func (rt *syncRuntime) resolveScope(req syncsvc.LocalReadRequest) (syncsvc.Scope
 }
 
 func writeSyncReport(cmd *cobra.Command, report syncsvc.Report, output string) error {
+	return writeSyncReportWriter(cmd.OutOrStdout(), report, output)
+}
+
+func writeSyncReportWriter(w io.Writer, report syncsvc.Report, output string) error {
 	switch strings.ToLower(strings.TrimSpace(output)) {
 	case "", "text":
 		_, err := fmt.Fprintf(
-			cmd.OutOrStdout(),
+			w,
 			"action=%s creates=%d updates=%d unchanged=%d conflicts=%d risky=%d applied=%d skipped=%d warnings=%d\n",
 			report.Action,
 			len(report.Creates),
@@ -121,11 +125,11 @@ func writeSyncReport(cmd *cobra.Command, report syncsvc.Report, output string) e
 		)
 		return err
 	case "json":
-		enc := json.NewEncoder(cmd.OutOrStdout())
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	case "md", "markdown":
-		return writeSyncMarkdown(cmd.OutOrStdout(), report)
+		return writeSyncMarkdown(w, report)
 	default:
 		return fmt.Errorf("unsupported output format %q", output)
 	}
