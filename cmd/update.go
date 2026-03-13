@@ -22,8 +22,8 @@ import (
 
 const (
 	githubReleaseAPIBase = "https://api.github.com/repos/quiet-circles/hyperlocalise/releases"
+	githubRawContentBase = "https://raw.githubusercontent.com/quiet-circles/hyperlocalise"
 	installerAssetName   = "install.sh"
-	checksumsAssetName   = "checksums.txt"
 )
 
 type githubRelease struct {
@@ -37,14 +37,15 @@ type githubReleaseAsset struct {
 }
 
 var (
-	selfUpdateRunner = runSelfUpdate
-	updateHTTPClient = &http.Client{Timeout: 10 * time.Second}
+	selfUpdateRunner   = runSelfUpdate
+	updateHTTPClient   = &http.Client{Timeout: 10 * time.Second}
+	selfUpdateExecutor = executeUpdateInstaller
 )
 
 func newUpdateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:          "update [version]",
-		Short:        "Update hyperlocalise with checksum-verified installer",
+		Short:        "Update hyperlocalise using the tagged bootstrap installer",
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -68,43 +69,12 @@ func runSelfUpdate(ctx context.Context, version string, stdout io.Writer, stderr
 		return err
 	}
 
-	installerAsset, err := findInstallerAsset(release.Assets)
+	script, err := downloadInstallerScript(ctx, release.TagName)
 	if err != nil {
 		return err
 	}
 
-	checksumsAsset, err := findAssetByName(release.Assets, checksumsAssetName)
-	if err != nil {
-		return fmt.Errorf("release %s: %w", release.TagName, err)
-	}
-
-	script, err := downloadAsset(ctx, installerAsset.BrowserDownloadURL)
-	if err != nil {
-		return fmt.Errorf("download installer asset: %w", err)
-	}
-
-	checksums, err := downloadAsset(ctx, checksumsAsset.BrowserDownloadURL)
-	if err != nil {
-		return fmt.Errorf("download checksums asset: %w", err)
-	}
-
-	expectedDigest, err := checksumForAsset(checksums, installerAsset.Name)
-	if err != nil {
-		return fmt.Errorf("resolve installer checksum: %w", err)
-	}
-
-	actualDigest := sha256Hex(script)
-	if actualDigest != expectedDigest {
-		return fmt.Errorf("installer checksum mismatch: expected %s got %s", expectedDigest, actualDigest)
-	}
-
-	command := exec.CommandContext(ctx, "bash")
-	command.Stdin = bytes.NewReader(script)
-	command.Stdout = stdout
-	command.Stderr = stderr
-	command.Env = append(os.Environ(), "VERSION="+release.TagName)
-
-	if err := command.Run(); err != nil {
+	if err := selfUpdateExecutor(ctx, script, release.TagName, stdout, stderr); err != nil {
 		return fmt.Errorf("run installer command: %w", err)
 	}
 
@@ -157,8 +127,29 @@ func fetchRelease(ctx context.Context, version string) (*githubRelease, error) {
 	return &release, nil
 }
 
-func findInstallerAsset(assets []githubReleaseAsset) (*githubReleaseAsset, error) {
-	return findAssetByName(assets, installerAssetName)
+func downloadInstallerScript(ctx context.Context, tag string) ([]byte, error) {
+	scriptURL := installerScriptURL(tag)
+	script, err := downloadAsset(ctx, scriptURL)
+	if err != nil {
+		return nil, fmt.Errorf("download installer script for %s: %w", tag, err)
+	}
+	if len(bytes.TrimSpace(script)) == 0 {
+		return nil, fmt.Errorf("download installer script for %s: empty response", tag)
+	}
+	return script, nil
+}
+
+func installerScriptURL(tag string) string {
+	return fmt.Sprintf("%s/%s/%s", githubRawContentBase, url.PathEscape(tag), installerAssetName)
+}
+
+func executeUpdateInstaller(ctx context.Context, script []byte, version string, stdout io.Writer, stderr io.Writer) error {
+	command := exec.CommandContext(ctx, "bash")
+	command.Stdin = bytes.NewReader(script)
+	command.Stdout = stdout
+	command.Stderr = stderr
+	command.Env = append(os.Environ(), "VERSION="+version)
+	return command.Run()
 }
 
 func downloadAsset(ctx context.Context, assetURL string) ([]byte, error) {
