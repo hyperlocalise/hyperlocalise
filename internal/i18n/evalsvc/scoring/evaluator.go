@@ -232,17 +232,6 @@ var (
 	markdownTokenPattern     = regexp.MustCompile(`(\*\*|__|~~|` + "`" + `|\[[^\]]*\]\([^\)]*\)|#+\s)`)
 )
 
-func placeholderIntegrityScore(source, translated string) float64 {
-	sourceInv, sourceErr := icuparser.ParseInvariant(source)
-	sourceCounts, sourceTotal := placeholderTokenCounts(source, sourceInv, sourceErr)
-	if sourceTotal == 0 {
-		return 1
-	}
-	translatedInv, translatedErr := icuparser.ParseInvariant(translated)
-	translatedCounts, _ := placeholderTokenCounts(translated, translatedInv, translatedErr)
-	return tokenIntegrityScore(sourceCounts, sourceTotal, translatedCounts)
-}
-
 func tokenIntegrityScore(sourceCount map[string]int, sourceTotal int, translatedCount map[string]int) float64 {
 	if sourceTotal == 0 {
 		return 1
@@ -252,15 +241,6 @@ func tokenIntegrityScore(sourceCount map[string]int, sourceTotal int, translated
 		matched += min(count, translatedCount[token])
 	}
 	return float64(matched) / float64(sourceTotal)
-}
-
-func tagIntegrityScore(source, translated string) float64 {
-	sourceCounts, sourceTotal := tagTokenCounts(source)
-	if sourceTotal == 0 {
-		return 1
-	}
-	translatedCounts, _ := tagTokenCounts(translated)
-	return tokenIntegrityScore(sourceCounts, sourceTotal, translatedCounts)
 }
 
 func lengthComplianceScore(source, translated string, hasUITag bool) float64 {
@@ -332,21 +312,6 @@ func hasLetter(text string) bool {
 		}
 	}
 	return false
-}
-
-func tagTokens(s string) []string {
-	counts, total := tagTokenCounts(s)
-	if total == 0 {
-		return nil
-	}
-	tokens := make([]string, 0, total)
-	for token, count := range counts {
-		for range count {
-			tokens = append(tokens, token)
-		}
-	}
-	sort.Strings(tokens)
-	return tokens
 }
 
 func tagTokenCounts(s string) (map[string]int, int) {
@@ -513,10 +478,6 @@ func tokenF1Normalized(reference, candidate string) float64 {
 		return 0
 	}
 	return 2 * precision * recall / (precision + recall)
-}
-
-func tokenize(s string) []string {
-	return tokenizeNormalized(normalizeText(s))
 }
 
 func tokenizeNormalized(s string) []string {
