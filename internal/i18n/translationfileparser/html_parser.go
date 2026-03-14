@@ -1,0 +1,251 @@
+package translationfileparser
+
+// HTML file parser: extracts translatable text from open/close tag content.
+// Inline tags within a text segment are replaced with sentinel placeholders
+// so that the LLM translates clean prose while the markup is restored on marshal.
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"regexp"
+	"strings"
+
+	"golang.org/x/net/html"
+)
+
+// HTMLParser parses HTML files into translatable string segments.
+type HTMLParser struct{}
+
+func (p HTMLParser) Parse(content []byte) (map[string]string, error) {
+	_, entries := parseHTMLDocument(content)
+	return entries, nil
+}
+
+// htmlPart is a segment of an HTML document: either a non-translatable literal
+// or a translatable chunk whose inline tags have been replaced with placeholders.
+type htmlPart struct {
+	literal      string
+	key          string
+	source       string            // translatable text with inline-tag placeholders
+	placeholders map[string]string // placeholder token → original tag bytes
+}
+
+type htmlDocument struct {
+	parts []htmlPart
+}
+
+// HTMLRenderDiagnostics records keys that fell back to source text during render.
+type HTMLRenderDiagnostics struct {
+	SourceFallbackKeys []string
+}
+
+// htmlBlockElements flush the accumulated inline buffer when their start or end
+// tag is encountered. Text directly inside these elements is a translation unit.
+var htmlBlockElements = map[string]bool{
+	"address": true, "article": true, "aside": true, "blockquote": true,
+	"caption": true, "dd": true, "details": true, "dialog": true,
+	"div": true, "dl": true, "dt": true, "fieldset": true,
+	"figcaption": true, "figure": true, "footer": true, "form": true,
+	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
+	"header": true, "hgroup": true, "li": true, "main": true,
+	"nav": true, "ol": true, "p": true, "pre": true, "section": true,
+	"summary": true, "table": true, "tbody": true, "td": true, "tfoot": true,
+	"th": true, "thead": true, "tr": true, "ul": true,
+	"label": true, "button": true, "legend": true, "option": true,
+}
+
+// htmlSkipElements cause all content until the matching close tag to be emitted
+// verbatim without any translation extraction.
+var htmlSkipElements = map[string]bool{
+	"head": true, "script": true, "style": true,
+}
+
+var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
+
+// parseHTMLDocument tokenizes content into literal and translatable parts,
+// returning the document and a map of key → source (with placeholders).
+func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
+	var doc htmlDocument
+	entries := map[string]string{}
+	occurrences := map[string]int{}
+
+	z := html.NewTokenizer(bytes.NewReader(content))
+
+	skipDepth := 0
+	var buffer strings.Builder
+
+	appendLiteral := func(s string) {
+		doc.parts = append(doc.parts, htmlPart{literal: s})
+	}
+
+	flushBuffer := func() {
+		raw := buffer.String()
+		buffer.Reset()
+		if raw == "" {
+			return
+		}
+		if strings.TrimSpace(raw) == "" {
+			appendLiteral(raw)
+			return
+		}
+		placeholdered, placeholders, plainText, _ := protectHTMLInlineSyntax(raw)
+		if !isTranslatableChunk(plainText) {
+			appendLiteral(raw)
+			return
+		}
+		key := htmlSegmentKey(placeholdered, occurrences)
+		entries[key] = placeholdered
+		doc.parts = append(doc.parts, htmlPart{
+			key:          key,
+			source:       placeholdered,
+			placeholders: placeholders,
+		})
+	}
+
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			flushBuffer()
+			break
+		}
+
+		// Copy raw bytes before any TagName call which may advance internal state.
+		raw := string(z.Raw())
+
+		if skipDepth > 0 {
+			if tt == html.EndTagToken {
+				tn, _ := z.TagName()
+				if htmlSkipElements[string(tn)] {
+					skipDepth--
+				}
+			} else if tt == html.StartTagToken {
+				tn, _ := z.TagName()
+				if htmlSkipElements[string(tn)] {
+					skipDepth++
+				}
+			}
+			appendLiteral(raw)
+			continue
+		}
+
+		switch tt {
+		case html.DoctypeToken, html.CommentToken:
+			flushBuffer()
+			appendLiteral(raw)
+
+		case html.StartTagToken:
+			tn, _ := z.TagName()
+			tagName := string(tn)
+			if htmlSkipElements[tagName] {
+				flushBuffer()
+				skipDepth++
+				appendLiteral(raw)
+			} else if htmlBlockElements[tagName] {
+				flushBuffer()
+				appendLiteral(raw)
+			} else {
+				// Inline element: accumulate into the text buffer.
+				buffer.WriteString(raw)
+			}
+
+		case html.EndTagToken:
+			tn, _ := z.TagName()
+			tagName := string(tn)
+			if htmlBlockElements[tagName] {
+				flushBuffer()
+				appendLiteral(raw)
+			} else {
+				buffer.WriteString(raw)
+			}
+
+		case html.SelfClosingTagToken, html.TextToken:
+			buffer.WriteString(raw)
+		}
+	}
+
+	return doc, entries
+}
+
+// protectHTMLInlineSyntax replaces every HTML tag in segment with a sentinel
+// placeholder. Returns the placeholdered string, the placeholder map, the plain
+// text (tags removed), and a malformed flag (always false; reserved for future use).
+func protectHTMLInlineSyntax(segment string) (string, map[string]string, string, bool) {
+	var rendered strings.Builder
+	var plain strings.Builder
+	placeholders := map[string]string{}
+	placeholderCount := 0
+
+	appendPlaceholder := func(literal string) string {
+		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", placeholderCount, literal)))
+		ph := fmt.Sprintf("\x1eHLHTPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), placeholderCount)
+		placeholderCount++
+		placeholders[ph] = literal
+		return ph
+	}
+
+	pos := 0
+	for _, match := range htmlTagPattern.FindAllStringIndex(segment, -1) {
+		text := segment[pos:match[0]]
+		rendered.WriteString(text)
+		plain.WriteString(text)
+		rendered.WriteString(appendPlaceholder(segment[match[0]:match[1]]))
+		pos = match[1]
+	}
+	tail := segment[pos:]
+	rendered.WriteString(tail)
+	plain.WriteString(tail)
+
+	return rendered.String(), placeholders, plain.String(), false
+}
+
+// htmlSegmentKey generates a stable SHA-256-based key for a translatable segment.
+// Duplicate content gets a numeric suffix: html.abc123def456, html.abc123def456.2, …
+func htmlSegmentKey(segment string, occurrences map[string]int) string {
+	sum := sha256.Sum256([]byte(segment))
+	hash := hex.EncodeToString(sum[:])[:16]
+	count := occurrences[hash]
+	occurrences[hash] = count + 1
+	if count == 0 {
+		return fmt.Sprintf("html.%s", hash)
+	}
+	return fmt.Sprintf("html.%s.%d", hash, count+1)
+}
+
+// expandHTMLPlaceholders replaces sentinel tokens in rendered with their original
+// tag bytes.
+func expandHTMLPlaceholders(rendered string, placeholders map[string]string) string {
+	for ph, original := range placeholders {
+		rendered = strings.ReplaceAll(rendered, ph, original)
+	}
+	return rendered
+}
+
+// MarshalHTML reconstructs template with translated values applied.
+// Keys missing from values fall back to source text and are recorded in diagnostics.
+func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
+	doc, _ := parseHTMLDocument(template)
+	return doc.render(values)
+}
+
+func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagnostics) {
+	var diags HTMLRenderDiagnostics
+	var b strings.Builder
+	for _, part := range d.parts {
+		if part.key == "" {
+			b.WriteString(part.literal)
+			continue
+		}
+		translated, ok := values[part.key]
+		if !ok {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
+			continue
+		}
+		rendered := preserveChunkBoundaryWhitespace(part.source, translated)
+		rendered = expandHTMLPlaceholders(rendered, part.placeholders)
+		b.WriteString(rendered)
+	}
+	return []byte(b.String()), diags
+}
