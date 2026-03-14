@@ -475,7 +475,11 @@ func (m runInteractiveModel) updateTableStep(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case m.currentStep() == runInteractiveStepFile && key.Matches(keyMsg, m.keys.Confirm):
-			m.continueFromFileStep()
+			currentValue := ""
+			if valueIndex := m.currentTableValueIndex(); valueIndex >= 0 && valueIndex < len(m.tableValues) {
+				currentValue = m.tableValues[valueIndex]
+			}
+			m.continueFromFileStep(currentValue)
 			return m, nil
 		}
 	}
@@ -538,13 +542,18 @@ func (m runInteractiveModel) updateReviewStep(msg tea.Msg) (tea.Model, tea.Cmd) 
 
 func (m runInteractiveModel) View() tea.View {
 	selection := m.selectionSummary()
+	metaSelection := selection
+	switch m.currentStep() {
+	case runInteractiveStepBucket, runInteractiveStepFile:
+		metaSelection = m.visibleSelectionSummary()
+	}
 	title := m.titleStyle.Render("hyperlocalise run interactive")
 	meta := m.metaStyle.Render(fmt.Sprintf(
 		"%s  %s  %s  %s",
 		"mode="+emptyDash(string(m.mode)),
-		"tasks="+fmt.Sprintf("%d", selection.TaskCount),
-		"files="+fmt.Sprintf("%d", selection.FileCount),
-		"locales="+fmt.Sprintf("%d", selection.TargetCount),
+		"tasks="+fmt.Sprintf("%d", metaSelection.TaskCount),
+		"files="+fmt.Sprintf("%d", metaSelection.FileCount),
+		"locales="+fmt.Sprintf("%d", metaSelection.TargetCount),
 	))
 
 	var body string
@@ -764,7 +773,10 @@ func (m *runInteractiveModel) applyTableSelection(value string) {
 	m.advance()
 }
 
-func (m *runInteractiveModel) continueFromFileStep() {
+func (m *runInteractiveModel) continueFromFileStep(currentValue string) {
+	if len(m.selectedFiles) == 0 && m.selectedFile == "" && strings.TrimSpace(currentValue) != "" {
+		m.selectedFile = currentValue
+	}
 	if len(m.selectedFiles) == 1 {
 		for path := range m.selectedFiles {
 			m.selectedFile = path
@@ -819,25 +831,29 @@ func (m *runInteractiveModel) refreshFileTablePreservingPosition(page int, absol
 }
 
 func (m *runInteractiveModel) clearSelectionsAfter(step runInteractiveStep) {
+	for i, routeStep := range m.steps {
+		if routeStep != step {
+			continue
+		}
+		for _, nextStep := range m.steps[i+1:] {
+			m.clearSelectionForStep(nextStep)
+		}
+		return
+	}
+}
+
+func (m *runInteractiveModel) clearSelectionForStep(step runInteractiveStep) {
 	switch step {
 	case runInteractiveStepGroup:
-		m.selectedBucket = ""
-		m.selectedTarget = ""
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedGroup = ""
 	case runInteractiveStepBucket:
-		m.selectedTarget = ""
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedBucket = ""
 	case runInteractiveStepTarget:
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedTarget = ""
 	case runInteractiveStepFile:
 		m.selectedFile = ""
 		m.selectedFiles = map[string]struct{}{}
+		m.directoryScope = ""
 	}
 }
 
@@ -944,6 +960,21 @@ func (m runInteractiveModel) selectionSummary() runSelectionSummary {
 	return runSelectionSummary{TaskCount: tasks, FileCount: len(files), TargetCount: len(targets)}
 }
 
+func (m runInteractiveModel) visibleSelectionSummary() runSelectionSummary {
+	files := map[string]struct{}{}
+	targets := map[string]struct{}{}
+	tasks := 0
+	for _, task := range m.catalog.TaskIndex {
+		if !m.matchesVisibleTask(task) {
+			continue
+		}
+		tasks += task.TaskCount
+		files[task.SourcePath] = struct{}{}
+		targets[task.TargetLocale] = struct{}{}
+	}
+	return runSelectionSummary{TaskCount: tasks, FileCount: len(files), TargetCount: len(targets)}
+}
+
 func (m runInteractiveModel) matchesTask(task runsvc.SelectionTaskIndex, ignore string) bool {
 	if ignore != "group" && m.selectedGroup != "" && task.Group != m.selectedGroup {
 		return false
@@ -964,6 +995,32 @@ func (m runInteractiveModel) matchesTask(task runsvc.SelectionTaskIndex, ignore 
 		}
 	}
 	return true
+}
+
+func (m runInteractiveModel) matchesVisibleTask(task runsvc.SelectionTaskIndex) bool {
+	switch m.currentStep() {
+	case runInteractiveStepBucket:
+		if !m.matchesTask(task, "bucket") {
+			return false
+		}
+		if m.tableFilter != "" && !strings.Contains(strings.ToLower(task.Bucket), strings.ToLower(m.tableFilter)) {
+			return false
+		}
+		return true
+	case runInteractiveStepFile:
+		if !m.matchesTask(task, "file") {
+			return false
+		}
+		if m.directoryScope != "" && !isWithinPath(task.SourcePath, m.directoryScope) {
+			return false
+		}
+		if m.tableFilter != "" && !strings.Contains(strings.ToLower(task.SourcePath), strings.ToLower(m.tableFilter)) {
+			return false
+		}
+		return true
+	default:
+		return m.matchesTask(task, "")
+	}
 }
 
 func (m runInteractiveModel) isPrimaryStep(step runInteractiveStep) bool {
@@ -1033,7 +1090,7 @@ func (m runInteractiveModel) bucketRows() ([]table.Row, []string) {
 	rows := make([]table.Row, 0, len(byBucket)+1)
 	values := make([]string, 0, len(byBucket)+1)
 	if !m.isPrimaryStep(runInteractiveStepBucket) {
-		total := m.selectionSummary()
+		total := m.visibleSelectionSummary()
 		rows = append(rows, table.Row{"All buckets", fmt.Sprintf("%d files / %d targets", total.FileCount, total.TargetCount), fmt.Sprintf("%d", total.TaskCount)})
 		values = append(values, "")
 	}
@@ -1075,12 +1132,18 @@ func (m runInteractiveModel) fileRows() ([]table.Row, []string) {
 
 	rows := make([]table.Row, 0, len(byFile)+1)
 	values := make([]string, 0, len(byFile)+1)
-	fileTaskTotal := 0
-	for _, summary := range byFile {
-		fileTaskTotal += summary.tasks
+	visibleBuckets := map[string]struct{}{}
+	for path, summary := range byFile {
+		if m.tableFilter != "" && !strings.Contains(strings.ToLower(path), strings.ToLower(m.tableFilter)) {
+			continue
+		}
+		for bucket := range summary.buckets {
+			visibleBuckets[bucket] = struct{}{}
+		}
 	}
 	if !m.isPrimaryStep(runInteractiveStepFile) {
-		rows = append(rows, table.Row{m.fileSelectionMarker(""), "All files", fmt.Sprintf("%d buckets / %d targets", len(m.availableBuckets()), len(m.availableTargetSet())), fmt.Sprintf("%d", fileTaskTotal)})
+		total := m.visibleSelectionSummary()
+		rows = append(rows, table.Row{m.fileSelectionMarker(""), "All files", fmt.Sprintf("%d buckets / %d targets", len(visibleBuckets), total.TargetCount), fmt.Sprintf("%d", total.TaskCount)})
 		values = append(values, "")
 	}
 	keys := sortedMapKeys(byFile)
@@ -1109,17 +1172,6 @@ func (m runInteractiveModel) fileSelectionMarker(path string) string {
 		return "[x]"
 	}
 	return "[ ]"
-}
-
-func (m runInteractiveModel) availableBuckets() []string {
-	seen := map[string]struct{}{}
-	for _, task := range m.catalog.TaskIndex {
-		if !m.matchesTask(task, "bucket") {
-			continue
-		}
-		seen[task.Bucket] = struct{}{}
-	}
-	return sortedStringKeysFromSet(seen)
 }
 
 func (m runInteractiveModel) optionItems() []runInteractiveListItem {

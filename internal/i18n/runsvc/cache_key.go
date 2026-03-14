@@ -106,3 +106,13 @@ func exactCacheKey(task Task) string {
 		"\nretrieval_corpus_snapshot_version=" + strings.TrimSpace(task.RAGSnapshot)
 	return hashSourceText(canonical)
 }
+
+func lockTaskHash(task Task) string {
+	precomputeStableTaskCacheFields(&task)
+	canonical := task.stableExactCacheKeyPrefix +
+		"\nretrieval_corpus_snapshot_version=" + strings.TrimSpace(task.RAGSnapshot) +
+		"\ncontext_key=" + strings.TrimSpace(task.ContextKey) +
+		"\ncontext_provider=" + strings.TrimSpace(task.ContextProvider) +
+		"\ncontext_model=" + strings.TrimSpace(task.ContextModel)
+	return hashSourceText(canonical)
+}

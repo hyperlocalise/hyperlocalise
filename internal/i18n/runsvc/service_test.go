@@ -1253,6 +1253,114 @@ func TestRunSkipsCompletedLocaleBatchAndFlushesFromCheckpoint(t *testing.T) {
 	}
 }
 
+func TestRunMigratesLegacyCompletedLockEntriesOnSkip(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	entryID := taskIdentity(targetPath, "hello")
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	lockState := &lockfile.File{
+		LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+		RunCompleted: map[string]lockfile.RunCompletion{
+			entryID: {SourceHash: hashSourceText("Hello")},
+		},
+		RunCheckpoint: map[string]lockfile.RunCheckpoint{},
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) { return lockState, nil }
+
+	saveCalls := 0
+	var saved lockfile.File
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		saveCalls++
+		saved = f
+		return nil
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("translate should not be called for migrated lock skip")
+		return "", nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.SkippedByLock != 1 || report.ExecutableTotal != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	if saveCalls != 1 {
+		t.Fatalf("expected one migration save, got %d", saveCalls)
+	}
+	completion, ok := saved.RunCompleted[entryID]
+	if !ok {
+		t.Fatalf("expected migrated completion entry, got %+v", saved.RunCompleted)
+	}
+	if completion.TaskHash == "" {
+		t.Fatalf("expected migrated task hash, got %+v", completion)
+	}
+}
+
+func TestRunDryRunDoesNotMigrateLegacyCompletedLockEntries(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	entryID := taskIdentity(targetPath, "hello")
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{
+			LocaleStates: map[string]lockfile.LocaleCheckpoint{},
+			RunCompleted: map[string]lockfile.RunCompletion{
+				entryID: {SourceHash: hashSourceText("Hello")},
+			},
+			RunCheckpoint: map[string]lockfile.RunCheckpoint{},
+		}, nil
+	}
+	svc.saveLock = func(_ string, _ lockfile.File) error {
+		t.Fatal("saveLock should not be called during dry run")
+		return nil
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("translate should not be called during dry-run skip")
+		return "", nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.SkippedByLock != 1 || report.ExecutableTotal != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+}
+
 func TestRunFailsWhenCheckpointStagingConflicts(t *testing.T) {
 	svc := newTestService()
 	sourceAPath := "/tmp/source-a.json"

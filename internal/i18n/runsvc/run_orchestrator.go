@@ -40,6 +40,16 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		return Report{}, err
 	}
 	legacyPromptWarnings := warningsForLegacyPrompts(planned)
+	if in.ExperimentalContextMemory {
+		scope, maxChars, normalizeErr := normalizeContextMemoryOptions(in)
+		if normalizeErr != nil {
+			return Report{}, normalizeErr
+		}
+		reportScope := scope
+		in.ContextMemoryScope = reportScope
+		in.ContextMemoryMaxChars = maxChars
+		assignContextKeys(planned, reportScope)
+	}
 
 	state, err := s.loadLock(in.LockPath)
 	if err != nil {
@@ -48,7 +58,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force)
+	report, executable, checkpointStaged, lockMigrated, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force)
 	if err != nil {
 		return Report{}, err
 	}
@@ -56,14 +66,8 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	report.ConfigPath = in.ConfigPath
 	report.Warnings = append(report.Warnings, legacyPromptWarnings...)
 	if in.ExperimentalContextMemory {
-		scope, maxChars, normalizeErr := normalizeContextMemoryOptions(in)
-		if normalizeErr != nil {
-			return report, normalizeErr
-		}
 		report.ContextMemoryEnabled = true
-		report.ContextMemoryScope = scope
-		in.ContextMemoryScope = scope
-		in.ContextMemoryMaxChars = maxChars
+		report.ContextMemoryScope = in.ContextMemoryScope
 	}
 	emitter.emit(Event{Kind: EventPlanned, PlannedTotal: report.PlannedTotal, SkippedByLock: report.SkippedByLock, ExecutableTotal: report.ExecutableTotal})
 
@@ -73,6 +77,11 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 
 	if in.DryRun || (len(executable) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
+		if !in.DryRun && lockMigrated {
+			if err := s.saveLock(in.LockPath, *state); err != nil {
+				return report, fmt.Errorf("persist lock migration: %w", err)
+			}
+		}
 		emitter.emit(completedEvent(report))
 		return report, nil
 	}
@@ -169,25 +178,37 @@ func initializeLockState(state *lockfile.File) {
 	}
 }
 
-func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, force bool) (Report, []Task, map[string]stagedOutput, error) {
+func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, force bool) (Report, []Task, map[string]stagedOutput, bool, error) {
 	report := Report{PlannedTotal: len(planned)}
 	executable := make([]Task, 0, len(planned))
 	checkpointStaged := map[string]stagedOutput{}
+	lockMigrated := false
 	if force {
 		report.Executable = append(report.Executable, planned...)
 		report.ExecutableTotal = len(planned)
-		return report, planned, checkpointStaged, nil
+		return report, planned, checkpointStaged, lockMigrated, nil
 	}
 
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := hashSourceText(task.SourceText)
-		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && cp.SourceHash == sourceHash {
+		taskHash := lockTaskHash(task)
+		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash) {
+			if strings.TrimSpace(cp.TaskHash) == "" {
+				cp.TaskHash = taskHash
+				checkpoints[identity] = cp
+				lockMigrated = true
+			}
 			if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
-				return Report{}, nil, nil, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
+				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 			}
 		}
-		if c, ok := completed[identity]; ok && c.SourceHash == sourceHash {
+		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash) {
+			if strings.TrimSpace(c.TaskHash) == "" {
+				c.TaskHash = taskHash
+				completed[identity] = c
+				lockMigrated = true
+			}
 			report.SkippedByLock++
 			report.Skipped = append(report.Skipped, task)
 			continue
@@ -196,7 +217,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 		executable = append(executable, task)
 	}
 	report.ExecutableTotal = len(executable)
-	return report, executable, checkpointStaged, nil
+	return report, executable, checkpointStaged, lockMigrated, nil
 }
 
 func ensureActiveRunID(state *lockfile.File) string {
@@ -207,8 +228,28 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash string) bool {
+	if strings.TrimSpace(completion.TaskHash) != "" {
+		return completion.TaskHash == taskHash
+	}
+	return completion.SourceHash == sourceHash
+}
+
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash string) bool {
+	if strings.TrimSpace(checkpoint.TaskHash) != "" {
+		return checkpoint.TaskHash == taskHash
+	}
+	return checkpoint.SourceHash == sourceHash
+}
+
 func nextRunID(now time.Time) string {
 	return "run_" + strconv.FormatInt(now.UnixNano(), 10)
+}
+
+func assignContextKeys(tasks []Task, scope string) {
+	for i := range tasks {
+		tasks[i].ContextKey = contextMemoryKey(tasks[i], scope)
+	}
 }
 
 func (s *Service) clearRunCheckpoints(lockPath string, state *lockfile.File) error {
