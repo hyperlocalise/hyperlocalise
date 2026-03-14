@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -511,7 +512,7 @@ func TestAggregateLLMEvaluationIncludesOnlyConfiguredAndRequiredAssertions(t *te
 		ID:         "a",
 		Assertions: []evalset.Assertion{{Type: "judge.factuality"}},
 	}}
-	got := aggregateLLMEvaluation(in, nil, cases)
+	got := aggregateLLMEvaluation(in, nil, prepareCases(cases))
 	if got == nil {
 		t.Fatalf("expected llm evaluation payload")
 	}
@@ -1155,7 +1156,7 @@ func TestExecuteSingleCapturesArtifacts(t *testing.T) {
 		return fmt.Sprintf("%s->%s", req.Source, req.TargetLanguage), nil
 	}, qualityEvaluator: scoring.NewEvaluator()}
 
-	run := svc.executeSingle(context.Background(), evalset.Case{ID: "case-1", Source: "hello", TargetLocale: "fr"}, experiment{
+	run := svc.executeSingle(context.Background(), preparedCase{Case: evalset.Case{ID: "case-1", Source: "hello", TargetLocale: "fr"}}, experiment{
 		id:       "exp-1",
 		profile:  "default",
 		provider: "openai",
@@ -1185,11 +1186,14 @@ func TestExecuteSingleSanitizesEvalCaseContextInSystemPrompt(t *testing.T) {
 		return req.Source, nil
 	}, qualityEvaluator: scoring.NewEvaluator()}
 
-	_ = svc.executeSingle(context.Background(), evalset.Case{
-		ID:           "case-1",
-		Source:       "hello",
-		TargetLocale: "fr",
-		Context:      "  ctx-a\n" + longCtx + "\rctx-b ",
+	_ = svc.executeSingle(context.Background(), preparedCase{
+		Case: evalset.Case{
+			ID:           "case-1",
+			Source:       "hello",
+			TargetLocale: "fr",
+			Context:      "  ctx-a\n" + longCtx + "\rctx-b ",
+		},
+		sanitizedContext: sanitizeEvalCaseContext("  ctx-a\n" + longCtx + "\rctx-b "),
 	}, experiment{
 		id:       "exp-1",
 		profile:  "default",
@@ -1207,6 +1211,144 @@ func TestExecuteSingleSanitizesEvalCaseContextInSystemPrompt(t *testing.T) {
 	}
 	if len([]rune(parts[1])) > maxEvalCaseContextLen {
 		t.Fatalf("expected eval context to be capped at %d runes, got %d", maxEvalCaseContextLen, len([]rune(parts[1])))
+	}
+}
+
+func TestSharedAccumulatorKeepsAggregateAndSummaryMathAligned(t *testing.T) {
+	judgeA := 0.8
+	judgeB := 0.4
+	runs := []RunResult{
+		{
+			CaseID:              "case-a",
+			TargetLocale:        "fr-FR",
+			ExperimentID:        "exp-1",
+			LatencyMS:           10,
+			Scores:              map[string]float64{"reference": 1},
+			JudgeResults:        map[string]JudgeResult{"judge:factuality": {Score: &judgeA}},
+			JudgeAggregateScore: &judgeA,
+			Quality:             scoring.Result{WeightedAggregate: 0.9, HardFails: []string{scoring.HardFailPlaceholderDrop}},
+			FinalScore:          0.85,
+			Decision:            "pass",
+		},
+		{
+			CaseID:       "case-a",
+			TargetLocale: "fr-FR",
+			ExperimentID: "exp-2",
+			LatencyMS:    30,
+			Scores:       map[string]float64{"reference": 0.5},
+			JudgeResults: map[string]JudgeResult{"judge:factuality": {Error: "timeout"}},
+			Quality:      scoring.Result{WeightedAggregate: 0.6},
+			FinalScore:   0.4,
+			Decision:     "review",
+			Error:        "boom",
+		},
+		{
+			CaseID:              "case-b",
+			TargetLocale:        "de-DE",
+			ExperimentID:        "exp-1",
+			LatencyMS:           20,
+			JudgeResults:        map[string]JudgeResult{"judge:factuality": {Score: &judgeB}},
+			JudgeAggregateScore: &judgeB,
+			Quality:             scoring.Result{WeightedAggregate: 0.7},
+			FinalScore:          0.65,
+			Decision:            "review",
+		},
+	}
+
+	agg := aggregateRuns(runs)
+	if agg.TotalRuns != 3 || agg.SuccessfulRuns != 2 || agg.FailedRuns != 1 {
+		t.Fatalf("unexpected aggregate counters: %+v", agg)
+	}
+	if agg.AverageScoreByName["reference"] != 0.75 || agg.AverageScoreByName["judge:factuality"] != 0.6 {
+		t.Fatalf("unexpected aggregate averages: %+v", agg.AverageScoreByName)
+	}
+	if !reflect.DeepEqual(agg.ByLocale["fr-FR"], aggregateBreakdown(runs[:2])) {
+		t.Fatalf("expected locale breakdown to match shared accumulator output, got %+v", agg.ByLocale["fr-FR"])
+	}
+	if !reflect.DeepEqual(agg.ByLocale["de-DE"], aggregateBreakdown(runs[2:])) {
+		t.Fatalf("expected locale breakdown to match shared accumulator output, got %+v", agg.ByLocale["de-DE"])
+	}
+
+	caseSummaries := summarizeCases(runs)
+	if len(caseSummaries) != 2 {
+		t.Fatalf("expected 2 case summaries, got %+v", caseSummaries)
+	}
+	if caseSummaries[0].CaseID != "case-a" || caseSummaries[0].RunCount != 2 || caseSummaries[0].AverageScoreByName["reference"] != 0.75 {
+		t.Fatalf("unexpected case-a summary: %+v", caseSummaries[0])
+	}
+	if caseSummaries[1].CaseID != "case-b" || caseSummaries[1].RunCount != 1 || caseSummaries[1].AverageJudgeScore == nil || *caseSummaries[1].AverageJudgeScore != 0.4 {
+		t.Fatalf("unexpected case-b summary: %+v", caseSummaries[1])
+	}
+
+	experimentSummaries := summarizeExperiments(runs)
+	if len(experimentSummaries) != 2 {
+		t.Fatalf("expected 2 experiment summaries, got %+v", experimentSummaries)
+	}
+	if experimentSummaries[0].ExperimentID != "exp-1" || experimentSummaries[0].RunCount != 2 || experimentSummaries[0].AverageJudgeScore == nil || *experimentSummaries[0].AverageJudgeScore != 0.6 {
+		t.Fatalf("unexpected exp-1 summary: %+v", experimentSummaries[0])
+	}
+	if experimentSummaries[1].ExperimentID != "exp-2" || experimentSummaries[1].FailedRuns != 1 {
+		t.Fatalf("unexpected exp-2 summary: %+v", experimentSummaries[1])
+	}
+}
+
+func TestRunWithProgressStopsPromptlyOnCancellation(t *testing.T) {
+	svc := newTestService()
+	svc.loadEvalset = func(_ string) (*evalset.Dataset, error) {
+		cases := make([]evalset.Case, 32)
+		for i := range cases {
+			cases[i] = evalset.Case{
+				ID:           fmt.Sprintf("case-%02d", i),
+				Source:       fmt.Sprintf("source-%02d", i),
+				TargetLocale: "fr-FR",
+			}
+		}
+		return &evalset.Dataset{Cases: cases}, nil
+	}
+
+	var started atomic.Int32
+	svc.translate = func(ctx context.Context, req translator.Request) (string, error) {
+		started.Add(1)
+		if req.Source == "source-00" {
+			time.Sleep(15 * time.Millisecond)
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(5 * time.Millisecond):
+			return strings.ToUpper(req.Source), nil
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	events := make([]ProgressEvent, 0, 8)
+	start := time.Now()
+	_, err := svc.RunWithProgress(ctx, Input{
+		EvalSetPath: "unused.json",
+		Profiles:    []string{"default"},
+		Providers:   []string{"openai"},
+		Models:      []string{"model-a"},
+		Prompts:     []string{"prompt A", "prompt B"},
+		Concurrency: 4,
+	}, func(event ProgressEvent) {
+		events = append(events, event)
+		if event.Kind == ProgressEventRunStarted && event.StartedRuns == 3 {
+			cancel()
+		}
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+	if time.Since(start) > time.Second {
+		t.Fatalf("expected cancellation to return promptly")
+	}
+	if int(started.Load()) >= 64 {
+		t.Fatalf("expected cancellation to stop scheduling before all runs started, got %d", started.Load())
+	}
+	if len(events) == 0 || events[0].Kind != ProgressEventPlanned {
+		t.Fatalf("expected planned event before cancellation, got %+v", events)
 	}
 }
 
