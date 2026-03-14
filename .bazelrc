@@ -1,0 +1,21 @@
+common --enable_bzlmod
+common --announce_rc
+common --show_timestamps
+common --keep_going
+common --remote_upload_local_results=true
+
+build --verbose_failures
+build --worker_sandboxing
+
+test --test_output=errors
+test --test_summary=detailed
+
+build:ci --color=yes
+build:ci --curses=no
+build:ci --show_result=20
+build:ci --bes_upload_mode=wait_for_upload_complete
+
+test:ci --color=yes
+test:ci --curses=no
+test:ci --show_result=20
+test:ci --bes_upload_mode=wait_for_upload_complete
