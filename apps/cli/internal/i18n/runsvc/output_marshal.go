@@ -149,26 +149,7 @@ func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[s
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
-	targetTemplate, err := s.readFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
-			return content, htmlRenderWarnings(path, diags), nil
-		}
-		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
-	}
-
-	// Target exists: re-parse it and merge staged entries so existing translations
-	// are preserved for segments not in stagedEntries.
-	targetEntries, _ := translationfileparser.HTMLParser{}.Parse(targetTemplate)
-	merged := make(map[string]string, len(targetEntries)+len(stagedEntries))
-	for k, v := range targetEntries {
-		merged[k] = v
-	}
-	for k, v := range stagedEntries {
-		merged[k] = v
-	}
-	content, diags := translationfileparser.MarshalHTML(sourceTemplate, merged)
+	content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
 	return content, htmlRenderWarnings(path, diags), nil
 }
 

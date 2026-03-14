@@ -62,7 +62,10 @@ var htmlSkipElements = map[string]bool{
 	"head": true, "script": true, "style": true,
 }
 
-var htmlTagPattern = regexp.MustCompile(`<[^>]*>`)
+// htmlTagPattern matches a complete HTML tag, including attribute values that
+// may themselves contain '>'. It skips over double- and single-quoted strings
+// before consuming any bare character that is not '>'.
+var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
 
 // parseHTMLDocument tokenizes content into literal and translatable parts,
 // returning the document and a map of key → source (with placeholders).
@@ -244,6 +247,11 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 		}
 		rendered := preserveChunkBoundaryWhitespace(part.source, translated)
 		rendered = expandHTMLPlaceholders(rendered, part.placeholders)
+		if strings.ContainsRune(rendered, '\x1e') || strings.ContainsRune(rendered, '\x1f') {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
+			continue
+		}
 		b.WriteString(rendered)
 	}
 	return []byte(b.String()), diags
