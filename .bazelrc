@@ -1,8 +1,6 @@
 common --enable_bzlmod
 common --announce_rc
 common --show_timestamps
-common --keep_going
-common --remote_upload_local_results=true
 
 build --verbose_failures
 build --worker_sandboxing
@@ -10,6 +8,8 @@ build --worker_sandboxing
 test --test_output=errors
 test --test_summary=detailed
 
+build:ci --keep_going
+build:ci --remote_upload_local_results=true
 build:ci --color=yes
 build:ci --curses=no
 build:ci --show_result=20
