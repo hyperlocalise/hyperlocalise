@@ -689,6 +689,23 @@ test-root                      run root-module tests with JSON output and covera
 test-workspace                 run root and nested-module tests
 ```
 
+# Bazel Commands
+```sh
+# Build all deployable entrypoints
+bazel build //:cli //:api-gateway //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/projectsvc:projectsvc //services/workflowsvc:workflowsvc
+
+# Run Bazel-backed tests
+bazel test //apps/cli/cmd:cmd_test //apps/api-gateway:server_test
+
+# Build or test a single target
+bazel build //apps/cli:cli
+bazel test //apps/cli/cmd:cmd_test
+
+# Inspect the Bazel graph
+bazel query //...
+bazel query 'kind(go_binary, //...)'
+```
+
 # Release
 - Create and push a semantic version tag to trigger release CI:
   ```sh
