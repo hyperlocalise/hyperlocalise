@@ -115,12 +115,13 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 		raw := string(z.Raw())
 
 		if skipDepth > 0 {
-			if tt == html.EndTagToken {
+			switch tt {
+			case html.EndTagToken:
 				tn, _ := z.TagName()
 				if htmlSkipElements[string(tn)] {
 					skipDepth--
 				}
-			} else if tt == html.StartTagToken {
+			case html.StartTagToken:
 				tn, _ := z.TagName()
 				if htmlSkipElements[string(tn)] {
 					skipDepth++
@@ -137,12 +138,11 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 
 		case html.StartTagToken:
 			tn, _ := z.TagName()
-			tagName := string(tn)
-			if htmlSkipElements[tagName] {
+			if htmlSkipElements[string(tn)] {
 				flushBuffer()
 				skipDepth++
 				appendLiteral(raw)
-			} else if htmlBlockElements[tagName] {
+			} else if htmlBlockElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
 			} else {
@@ -152,8 +152,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 
 		case html.EndTagToken:
 			tn, _ := z.TagName()
-			tagName := string(tn)
-			if htmlBlockElements[tagName] {
+			if htmlBlockElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
 			} else {
