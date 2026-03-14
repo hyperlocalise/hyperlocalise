@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package hyperlocalise.tms.memory.v1;
+
+option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/tms/memory/v1;memoryv1";
+
+import "hyperlocalise/common/v1/common.proto";
+
+service MemoryService {
+  rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse);
+}
+
+message TranslationMemoryEntry {
+  string id = 1;
+  string source_locale = 2;
+  string target_locale = 3;
+  string source_text = 4;
+  string target_text = 5;
+}
+
+message ListEntriesRequest {
+  hyperlocalise.common.v1.PageRequest page = 1;
+}
+
+message ListEntriesResponse {
+  repeated TranslationMemoryEntry items = 1;
+  hyperlocalise.common.v1.PageResponse page = 2;
+}

@@ -1,0 +1,30 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "MODULE.bazel",
+    "go.mod",
+    "go.sum",
+    "go.work",
+])
+
+gazelle(name = "gazelle")
+
+alias(
+    name = "cli",
+    actual = "//apps/cli:cli",
+)
+
+alias(
+    name = "api-gateway",
+    actual = "//apps/api-gateway:api-gateway",
+)
+
+filegroup(
+    name = "contracts",
+    srcs = [
+        "//api/openapi/tms-public:openapi",
+        "//api/proto:contracts",
+    ],
+)

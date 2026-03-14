@@ -1,0 +1,23 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "service_lib",
+    srcs = ["internal/service/service.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/services/memorysvc/internal/service",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//domains/glossary",
+        "//domains/tm",
+    ],
+)
+
+go_binary(
+    name = "memorysvc",
+    srcs = ["cmd/memorysvc/main.go"],
+    embed = [":service_lib"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/platform/config",
+        "//pkg/platform/observability",
+    ],
+)

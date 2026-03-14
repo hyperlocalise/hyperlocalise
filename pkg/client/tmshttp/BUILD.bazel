@@ -1,0 +1,9 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "tmshttp",
+    srcs = ["client.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/pkg/client/tmshttp",
+    visibility = ["//visibility:public"],
+    deps = ["//pkg/api/openapi"],
+)
