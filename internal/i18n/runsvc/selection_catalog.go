@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strings"
 )
 
 type SelectionCatalog struct {
@@ -72,6 +71,58 @@ type SelectionTaskIndex struct {
 	TaskCount    int    `json:"taskCount"`
 }
 
+type selectionTaskIndexKey struct {
+	Group        string
+	Bucket       string
+	TargetLocale string
+	SourcePath   string
+}
+
+type stringSet map[string]struct{}
+
+func (s stringSet) add(value string) {
+	s[value] = struct{}{}
+}
+
+func (s stringSet) sortedValues() []string {
+	values := make([]string, 0, len(s))
+	for value := range s {
+		values = append(values, value)
+	}
+	slices.Sort(values)
+	return values
+}
+
+type selectionGroupAgg struct {
+	taskCount     int
+	buckets       stringSet
+	targetLocales stringSet
+	files         stringSet
+}
+
+type selectionBucketAgg struct {
+	taskCount     int
+	groups        stringSet
+	targetLocales stringSet
+	files         stringSet
+}
+
+type selectionTargetLocaleAgg struct {
+	taskCount int
+	groups    stringSet
+	buckets   stringSet
+	files     stringSet
+}
+
+type selectionFileAgg struct {
+	path          string
+	directory     string
+	taskCount     int
+	groups        stringSet
+	buckets       stringSet
+	targetLocales stringSet
+}
+
 func BuildSelectionCatalog(configPath string) (SelectionCatalog, error) {
 	return New().BuildSelectionCatalog(configPath)
 }
@@ -87,66 +138,86 @@ func (s *Service) BuildSelectionCatalog(configPath string) (SelectionCatalog, er
 		return SelectionCatalog{}, err
 	}
 
+	return buildSelectionCatalogFromTasks(configPath, planned), nil
+}
+
+func buildSelectionCatalogFromTasks(configPath string, planned []Task) SelectionCatalog {
 	catalog := SelectionCatalog{
 		ConfigPath: configPath,
 		TotalTasks: len(planned),
 	}
 
-	groupAgg := map[string]*SelectionGroup{}
-	bucketAgg := map[string]*SelectionBucket{}
-	targetAgg := map[string]*SelectionTargetLocale{}
-	fileAgg := map[string]*SelectionFile{}
-	taskAgg := map[string]*SelectionTaskIndex{}
+	groupAgg := map[string]*selectionGroupAgg{}
+	bucketAgg := map[string]*selectionBucketAgg{}
+	targetAgg := map[string]*selectionTargetLocaleAgg{}
+	fileAgg := map[string]*selectionFileAgg{}
+	taskAgg := map[selectionTaskIndexKey]*SelectionTaskIndex{}
 
 	for _, task := range planned {
 		groupEntry := groupAgg[task.GroupName]
 		if groupEntry == nil {
-			groupEntry = &SelectionGroup{Name: task.GroupName}
+			groupEntry = &selectionGroupAgg{
+				buckets:       stringSet{},
+				targetLocales: stringSet{},
+				files:         stringSet{},
+			}
 			groupAgg[task.GroupName] = groupEntry
 		}
-		groupEntry.TaskCount++
+		groupEntry.taskCount++
+		groupEntry.buckets.add(task.BucketName)
+		groupEntry.targetLocales.add(task.TargetLocale)
+		groupEntry.files.add(task.SourcePath)
 
 		bucketEntry := bucketAgg[task.BucketName]
 		if bucketEntry == nil {
-			bucketEntry = &SelectionBucket{Name: task.BucketName}
+			bucketEntry = &selectionBucketAgg{
+				groups:        stringSet{},
+				targetLocales: stringSet{},
+				files:         stringSet{},
+			}
 			bucketAgg[task.BucketName] = bucketEntry
 		}
-		bucketEntry.TaskCount++
+		bucketEntry.taskCount++
+		bucketEntry.groups.add(task.GroupName)
+		bucketEntry.targetLocales.add(task.TargetLocale)
+		bucketEntry.files.add(task.SourcePath)
 
 		targetEntry := targetAgg[task.TargetLocale]
 		if targetEntry == nil {
-			targetEntry = &SelectionTargetLocale{Locale: task.TargetLocale}
+			targetEntry = &selectionTargetLocaleAgg{
+				groups:  stringSet{},
+				buckets: stringSet{},
+				files:   stringSet{},
+			}
 			targetAgg[task.TargetLocale] = targetEntry
 		}
-		targetEntry.TaskCount++
+		targetEntry.taskCount++
+		targetEntry.groups.add(task.GroupName)
+		targetEntry.buckets.add(task.BucketName)
+		targetEntry.files.add(task.SourcePath)
 
 		fileEntry := fileAgg[task.SourcePath]
 		if fileEntry == nil {
-			fileEntry = &SelectionFile{
-				Path:      task.SourcePath,
-				Directory: filepath.Dir(task.SourcePath),
+			fileEntry = &selectionFileAgg{
+				path:          task.SourcePath,
+				directory:     filepath.Dir(task.SourcePath),
+				groups:        stringSet{},
+				buckets:       stringSet{},
+				targetLocales: stringSet{},
 			}
 			fileAgg[task.SourcePath] = fileEntry
 		}
-		fileEntry.TaskCount++
+		fileEntry.taskCount++
+		fileEntry.groups.add(task.GroupName)
+		fileEntry.buckets.add(task.BucketName)
+		fileEntry.targetLocales.add(task.TargetLocale)
 
-		addUniqueString(&groupEntry.Buckets, task.BucketName)
-		addUniqueString(&groupEntry.TargetLocales, task.TargetLocale)
-		addUniqueString(&groupEntry.Files, task.SourcePath)
-
-		addUniqueString(&bucketEntry.Groups, task.GroupName)
-		addUniqueString(&bucketEntry.TargetLocales, task.TargetLocale)
-		addUniqueString(&bucketEntry.Files, task.SourcePath)
-
-		addUniqueString(&targetEntry.Groups, task.GroupName)
-		addUniqueString(&targetEntry.Buckets, task.BucketName)
-		addUniqueString(&targetEntry.Files, task.SourcePath)
-
-		addUniqueString(&fileEntry.Groups, task.GroupName)
-		addUniqueString(&fileEntry.Buckets, task.BucketName)
-		addUniqueString(&fileEntry.TargetLocales, task.TargetLocale)
-
-		taskKey := strings.Join([]string{task.GroupName, task.BucketName, task.TargetLocale, task.SourcePath}, "\x00")
+		taskKey := selectionTaskIndexKey{
+			Group:        task.GroupName,
+			Bucket:       task.BucketName,
+			TargetLocale: task.TargetLocale,
+			SourcePath:   task.SourcePath,
+		}
 		if taskIndex := taskAgg[taskKey]; taskIndex != nil {
 			taskIndex.TaskCount++
 		} else {
@@ -162,30 +233,67 @@ func (s *Service) BuildSelectionCatalog(configPath string) (SelectionCatalog, er
 
 	catalog.TotalFiles = len(fileAgg)
 	catalog.Groups = make([]SelectionGroup, 0, len(groupAgg))
-	for _, item := range groupAgg {
-		finalizeGroup(item)
-		catalog.Groups = append(catalog.Groups, *item)
+	for name, item := range groupAgg {
+		group := SelectionGroup{
+			Name:          name,
+			Buckets:       item.buckets.sortedValues(),
+			TargetLocales: item.targetLocales.sortedValues(),
+			Files:         item.files.sortedValues(),
+			TaskCount:     item.taskCount,
+		}
+		group.BucketCount = len(group.Buckets)
+		group.TargetCount = len(group.TargetLocales)
+		group.FileCount = len(group.Files)
+		catalog.Groups = append(catalog.Groups, group)
 	}
 	sort.Slice(catalog.Groups, func(i, j int) bool { return catalog.Groups[i].Name < catalog.Groups[j].Name })
 
 	catalog.Buckets = make([]SelectionBucket, 0, len(bucketAgg))
-	for _, item := range bucketAgg {
-		finalizeBucket(item)
-		catalog.Buckets = append(catalog.Buckets, *item)
+	for name, item := range bucketAgg {
+		bucket := SelectionBucket{
+			Name:          name,
+			Groups:        item.groups.sortedValues(),
+			TargetLocales: item.targetLocales.sortedValues(),
+			Files:         item.files.sortedValues(),
+			TaskCount:     item.taskCount,
+		}
+		bucket.GroupCount = len(bucket.Groups)
+		bucket.TargetCount = len(bucket.TargetLocales)
+		bucket.FileCount = len(bucket.Files)
+		catalog.Buckets = append(catalog.Buckets, bucket)
 	}
 	sort.Slice(catalog.Buckets, func(i, j int) bool { return catalog.Buckets[i].Name < catalog.Buckets[j].Name })
 
 	catalog.TargetLocales = make([]SelectionTargetLocale, 0, len(targetAgg))
-	for _, item := range targetAgg {
-		finalizeTargetLocale(item)
-		catalog.TargetLocales = append(catalog.TargetLocales, *item)
+	for locale, item := range targetAgg {
+		target := SelectionTargetLocale{
+			Locale:    locale,
+			Groups:    item.groups.sortedValues(),
+			Buckets:   item.buckets.sortedValues(),
+			Files:     item.files.sortedValues(),
+			TaskCount: item.taskCount,
+		}
+		target.GroupCount = len(target.Groups)
+		target.BucketCount = len(target.Buckets)
+		target.FileCount = len(target.Files)
+		catalog.TargetLocales = append(catalog.TargetLocales, target)
 	}
 	sort.Slice(catalog.TargetLocales, func(i, j int) bool { return catalog.TargetLocales[i].Locale < catalog.TargetLocales[j].Locale })
 
 	catalog.Files = make([]SelectionFile, 0, len(fileAgg))
 	for _, item := range fileAgg {
-		finalizeFile(item)
-		catalog.Files = append(catalog.Files, *item)
+		file := SelectionFile{
+			Path:          item.path,
+			Directory:     item.directory,
+			Groups:        item.groups.sortedValues(),
+			Buckets:       item.buckets.sortedValues(),
+			TargetLocales: item.targetLocales.sortedValues(),
+			TaskCount:     item.taskCount,
+		}
+		file.GroupCount = len(file.Groups)
+		file.BucketCount = len(file.Buckets)
+		file.TargetCount = len(file.TargetLocales)
+		catalog.Files = append(catalog.Files, file)
 	}
 	sort.Slice(catalog.Files, func(i, j int) bool { return catalog.Files[i].Path < catalog.Files[j].Path })
 
@@ -196,52 +304,17 @@ func (s *Service) BuildSelectionCatalog(configPath string) (SelectionCatalog, er
 	sort.Slice(catalog.TaskIndex, func(i, j int) bool {
 		left := catalog.TaskIndex[i]
 		right := catalog.TaskIndex[j]
-		return strings.Join([]string{left.Group, left.Bucket, left.TargetLocale, left.SourcePath}, "\x00") <
-			strings.Join([]string{right.Group, right.Bucket, right.TargetLocale, right.SourcePath}, "\x00")
+		if left.Group != right.Group {
+			return left.Group < right.Group
+		}
+		if left.Bucket != right.Bucket {
+			return left.Bucket < right.Bucket
+		}
+		if left.TargetLocale != right.TargetLocale {
+			return left.TargetLocale < right.TargetLocale
+		}
+		return left.SourcePath < right.SourcePath
 	})
 
-	return catalog, nil
-}
-
-func addUniqueString(values *[]string, value string) {
-	if slices.Contains(*values, value) {
-		return
-	}
-	*values = append(*values, value)
-}
-
-func finalizeGroup(item *SelectionGroup) {
-	slices.Sort(item.Buckets)
-	slices.Sort(item.TargetLocales)
-	slices.Sort(item.Files)
-	item.BucketCount = len(item.Buckets)
-	item.TargetCount = len(item.TargetLocales)
-	item.FileCount = len(item.Files)
-}
-
-func finalizeBucket(item *SelectionBucket) {
-	slices.Sort(item.Groups)
-	slices.Sort(item.TargetLocales)
-	slices.Sort(item.Files)
-	item.GroupCount = len(item.Groups)
-	item.TargetCount = len(item.TargetLocales)
-	item.FileCount = len(item.Files)
-}
-
-func finalizeTargetLocale(item *SelectionTargetLocale) {
-	slices.Sort(item.Groups)
-	slices.Sort(item.Buckets)
-	slices.Sort(item.Files)
-	item.GroupCount = len(item.Groups)
-	item.BucketCount = len(item.Buckets)
-	item.FileCount = len(item.Files)
-}
-
-func finalizeFile(item *SelectionFile) {
-	slices.Sort(item.Groups)
-	slices.Sort(item.Buckets)
-	slices.Sort(item.TargetLocales)
-	item.GroupCount = len(item.Groups)
-	item.BucketCount = len(item.Buckets)
-	item.TargetCount = len(item.TargetLocales)
+	return catalog
 }

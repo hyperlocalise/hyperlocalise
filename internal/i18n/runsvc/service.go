@@ -229,10 +229,13 @@ func Run(ctx context.Context, in Input) (Report, error) {
 func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string) ([]Task, error) {
 	parser := s.newParser()
 	sourceCache := map[string]plannedSourceSnapshot{}
+	resolvedSourcesCache := map[string][]string{}
 	groups := sortedGroupNames(cfg.Groups)
 	buckets := sortedBucketNames(cfg.Buckets)
 	filteredBucket := strings.TrimSpace(onlyBucket)
 	filteredGroup := strings.TrimSpace(onlyGroup)
+	glossaryVersion := resolveGlossaryVersion(cfg)
+	ragSnapshot := resolveRetrievalSnapshot(cfg)
 	filteredTargets, err := normalizeTargetLocales(onlyTargetLocales)
 	if err != nil {
 		return nil, fmt.Errorf("planning tasks: %w", err)
@@ -306,9 +309,13 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 
 			for _, file := range bucket.Files {
 				sourcePattern := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
-				sources, err := resolveSourcePaths(sourcePattern)
-				if err != nil {
-					return nil, fmt.Errorf("planning tasks: resolve source paths for %q: %w", sourcePattern, err)
+				sources, ok := resolvedSourcesCache[sourcePattern]
+				if !ok {
+					sources, err = resolveSourcePaths(sourcePattern)
+					if err != nil {
+						return nil, fmt.Errorf("planning tasks: resolve source paths for %q: %w", sourcePattern, err)
+					}
+					resolvedSourcesCache[sourcePattern] = sources
 				}
 				if len(sources) == 0 {
 					return nil, fmt.Errorf("planning tasks: source pattern %q matched no files", sourcePattern)
@@ -366,8 +373,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								BucketName:      bucketName,
 								ParserMode:      parserMode,
 								PromptVersion:   promptVersion,
-								GlossaryVersion: resolveGlossaryVersion(cfg),
-								RAGSnapshot:     resolveRetrievalSnapshot(cfg),
+								GlossaryVersion: glossaryVersion,
+								RAGSnapshot:     ragSnapshot,
 							}
 							precomputeStableTaskCacheFields(&task)
 							tasks = append(tasks, task)
