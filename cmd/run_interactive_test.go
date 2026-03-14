@@ -121,6 +121,31 @@ func TestRunInteractiveFinalOptionsIncludeMultipleSelectedFiles(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveTargetModePreservesSelectedTargetAfterGroupAndBucket(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{ConfigPath: "/tmp/i18n.jsonc"},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+
+	model.mode = runInteractiveModeTarget
+	model.steps = runInteractiveStepsForMode(model.mode)
+	model.stepPos = 1
+	model.applyListSelection("fr")
+	model.applyListSelection("default")
+	model.applyTableSelection("ui")
+
+	final := model.finalOptions()
+	if len(final.targetLocales) != 1 || final.targetLocales[0] != "fr" {
+		t.Fatalf("expected target mode to preserve selected target, got %#v", final.targetLocales)
+	}
+	if final.group != "default" {
+		t.Fatalf("expected group to be preserved, got %q", final.group)
+	}
+	if final.bucket != "ui" {
+		t.Fatalf("expected bucket to be preserved, got %q", final.bucket)
+	}
+}
+
 func TestRunInteractiveSpaceTogglesFileSelection(t *testing.T) {
 	model := newRunInteractiveModel(
 		runsvc.SelectionCatalog{

@@ -831,25 +831,30 @@ func (m *runInteractiveModel) refreshFileTablePreservingPosition(page int, absol
 }
 
 func (m *runInteractiveModel) clearSelectionsAfter(step runInteractiveStep) {
+	for i, routeStep := range m.steps {
+		if routeStep != step {
+			continue
+		}
+		for _, nextStep := range m.steps[i+1:] {
+			m.clearSelectionForStep(nextStep)
+		}
+		return
+	}
+	m.clearSelectionForStep(step)
+}
+
+func (m *runInteractiveModel) clearSelectionForStep(step runInteractiveStep) {
 	switch step {
 	case runInteractiveStepGroup:
-		m.selectedBucket = ""
-		m.selectedTarget = ""
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedGroup = ""
 	case runInteractiveStepBucket:
-		m.selectedTarget = ""
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedBucket = ""
 	case runInteractiveStepTarget:
-		m.selectedFile = ""
-		m.selectedFiles = map[string]struct{}{}
-		m.directoryScope = ""
+		m.selectedTarget = ""
 	case runInteractiveStepFile:
 		m.selectedFile = ""
 		m.selectedFiles = map[string]struct{}{}
+		m.directoryScope = ""
 	}
 }
 
