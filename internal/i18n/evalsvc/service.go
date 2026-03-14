@@ -239,6 +239,32 @@ type experiment struct {
 	prompt   string
 }
 
+type preparedCase struct {
+	evalset.Case
+	sanitizedContext string
+}
+
+type runStats struct {
+	totalRuns          int
+	successfulRuns     int
+	failedRuns         int
+	totalLatency       float64
+	totalWeighted      float64
+	totalFinal         float64
+	totalJudge         float64
+	totalJudgeCount    int
+	scoreSums          map[string]float64
+	scoreCounts        map[string]int
+	hardFailCounts     map[string]int
+	judgeFailureCounts map[string]int
+	decisionCounts     map[string]int
+}
+
+type executionEvent struct {
+	kind ProgressEventKind
+	run  RunResult
+}
+
 type Service struct {
 	loadEvalset func(path string) (*evalset.Dataset, error)
 	translate   func(ctx context.Context, req translator.Request) (string, error)
@@ -302,7 +328,7 @@ func (s *Service) RunWithProgress(ctx context.Context, in Input, progress func(P
 		return Report{}, err
 	}
 
-	cases := append([]evalset.Case(nil), dataset.Cases...)
+	cases := prepareCases(dataset.Cases)
 	if len(requiredJudgeAssertions(cases)) > 0 && !in.LLMEvaluationEnabled() {
 		return Report{}, fmt.Errorf("eval set requires judge assertions; set --eval-provider and --eval-model")
 	}
@@ -377,7 +403,18 @@ func progressExperimentIDs(experiments []experiment) []string {
 	return ids
 }
 
-func (s *Service) resolveJudgeScorers(in Input, cases []evalset.Case) []JudgeScorer {
+func prepareCases(cases []evalset.Case) []preparedCase {
+	out := make([]preparedCase, len(cases))
+	for i, tc := range cases {
+		out[i] = preparedCase{
+			Case:             tc,
+			sanitizedContext: sanitizeEvalCaseContext(tc.Context),
+		}
+	}
+	return out
+}
+
+func (s *Service) resolveJudgeScorers(in Input, cases []preparedCase) []JudgeScorer {
 	required := effectiveJudgeAssertions(in.Assertions, cases)
 	if !in.LLMEvaluationEnabled() {
 		return nil
@@ -510,7 +547,7 @@ func evalRequested(in Input, cases []evalset.Case) bool {
 	if strings.TrimSpace(in.EvalPrompt) != "" || len(in.Assertions) > 0 {
 		return true
 	}
-	return len(requiredJudgeAssertions(cases)) > 0
+	return len(requiredJudgeAssertions(prepareCases(cases))) > 0
 }
 
 func normalizedOrDefault(values []string, fallback string) []string {
@@ -530,32 +567,49 @@ func normalizedOrDefault(values []string, fallback string) []string {
 	return out
 }
 
-func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments []experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer, workerCount int, progress func(ProgressEvent)) ([]RunResult, error) {
+func (s *Service) execute(ctx context.Context, cases []preparedCase, experiments []experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer, workerCount int, progress func(ProgressEvent)) ([]RunResult, error) {
 	type job struct {
-		tc  evalset.Case
+		tc  preparedCase
 		exp experiment
 	}
 
-	jobs := make(chan job)
-	started := make(chan RunResult, workerCount)
-	results := make(chan RunResult)
+	jobs := make(chan job, workerCount)
+	events := make(chan executionEvent, workerCount*2)
 
 	var wg sync.WaitGroup
-	for range workerCount {
+	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for item := range jobs {
-				started <- RunResult{
-					CaseID:       item.tc.ID,
-					TargetLocale: item.tc.TargetLocale,
-					ExperimentID: item.exp.id,
-					Profile:      item.exp.profile,
-					Provider:     item.exp.provider,
-					Model:        item.exp.model,
-					Prompt:       item.exp.prompt,
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case item, ok := <-jobs:
+					if !ok {
+						return
+					}
+					startedRun := RunResult{
+						CaseID:       item.tc.ID,
+						TargetLocale: item.tc.TargetLocale,
+						ExperimentID: item.exp.id,
+						Profile:      item.exp.profile,
+						Provider:     item.exp.provider,
+						Model:        item.exp.model,
+						Prompt:       item.exp.prompt,
+					}
+					select {
+					case events <- executionEvent{kind: ProgressEventRunStarted, run: startedRun}:
+					case <-ctx.Done():
+						return
+					}
+					completedRun := s.executeSingle(ctx, item.tc, item.exp, referenceScorers, judgeScorers)
+					select {
+					case events <- executionEvent{kind: ProgressEventRunCompleted, run: completedRun}:
+					case <-ctx.Done():
+						return
+					}
 				}
-				results <- s.executeSingle(ctx, item.tc, item.exp, referenceScorers, judgeScorers)
 			}
 		}()
 	}
@@ -564,9 +618,18 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 		defer close(jobs)
 		for _, tc := range cases {
 			for _, exp := range experiments {
-				jobs <- job{tc: tc, exp: exp}
+				select {
+				case <-ctx.Done():
+					return
+				case jobs <- job{tc: tc, exp: exp}:
+				}
 			}
 		}
+	}()
+
+	go func() {
+		wg.Wait()
+		close(events)
 	}()
 
 	expected := len(cases) * len(experiments)
@@ -575,12 +638,15 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 	completedRuns := 0
 	successfulRuns := 0
 	failedRuns := 0
-	for completedRuns < expected {
-		select {
-		case run := <-started:
+
+	for event := range events {
+		switch event.kind {
+		case ProgressEventRunStarted:
+			run := event.run
 			startedRuns++
 			emitRunStartedProgress(progress, expected, startedRuns, run)
-		case run := <-results:
+		case ProgressEventRunCompleted:
+			run := event.run
 			runs = append(runs, run)
 			completedRuns++
 			if strings.TrimSpace(run.Error) == "" {
@@ -601,20 +667,9 @@ func (s *Service) execute(ctx context.Context, cases []evalset.Case, experiments
 		}
 	}
 
-	for {
-		select {
-		case run := <-started:
-			startedRuns++
-			emitRunStartedProgress(progress, expected, startedRuns, run)
-		default:
-			goto drained
-		}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-
-drained:
-	wg.Wait()
-	close(started)
-	close(results)
 
 	sort.Slice(runs, func(i, j int) bool {
 		if runs[i].CaseID != runs[j].CaseID {
@@ -636,13 +691,13 @@ func emitRunStartedProgress(progress func(ProgressEvent), totalRuns, startedRuns
 	})
 }
 
-func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer) RunResult {
+func (s *Service) executeSingle(ctx context.Context, tc preparedCase, exp experiment, referenceScorers []ReferenceScorer, judgeScorers []JudgeScorer) RunResult {
 	systemPrompt := exp.prompt
-	if caseCtx := sanitizeEvalCaseContext(tc.Context); caseCtx != "" {
+	if tc.sanitizedContext != "" {
 		if sp := strings.TrimSpace(systemPrompt); sp != "" {
-			systemPrompt = sp + "\n\nEval case context (do not translate or repeat):\n" + caseCtx
+			systemPrompt = sp + "\n\nEval case context (do not translate or repeat):\n" + tc.sanitizedContext
 		} else {
-			systemPrompt = "Eval case context (do not translate or repeat):\n" + caseCtx
+			systemPrompt = "Eval case context (do not translate or repeat):\n" + tc.sanitizedContext
 		}
 	}
 	req := translator.Request{
@@ -677,7 +732,7 @@ func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experi
 	}
 	run.Quality = s.qualityEvaluator.Evaluate(tc.Source, translated, tc.Reference, tc.TargetLocale, nil)
 
-	scoreInput := ScoreInput{Case: tc, Request: req, Translated: translated}
+	scoreInput := ScoreInput{Case: tc.Case, Request: req, Translated: translated}
 	for _, scorer := range referenceScorers {
 		score, scoreErr := scorer.ScoreReference(ctx, scoreInput)
 		if scoreErr != nil {
@@ -708,7 +763,7 @@ func (s *Service) executeSingle(ctx context.Context, tc evalset.Case, exp experi
 	return run
 }
 
-func aggregateLLMEvaluation(in Input, runs []RunResult, cases []evalset.Case) *LLMEvaluation {
+func aggregateLLMEvaluation(in Input, runs []RunResult, cases []preparedCase) *LLMEvaluation {
 	if !in.LLMEvaluationEnabled() {
 		return nil
 	}
@@ -763,86 +818,99 @@ func aggregateLLMEvaluation(in Input, runs []RunResult, cases []evalset.Case) *L
 	return llm
 }
 
+func newRunStats() *runStats {
+	return &runStats{}
+}
+
+func (s *runStats) add(run RunResult) {
+	s.totalRuns++
+	s.totalLatency += run.LatencyMS
+	s.totalWeighted += run.Quality.WeightedAggregate
+	s.totalFinal += run.FinalScore
+	if run.Error != "" {
+		s.failedRuns++
+	} else {
+		s.successfulRuns++
+	}
+	if run.JudgeAggregateScore != nil {
+		s.totalJudge += *run.JudgeAggregateScore
+		s.totalJudgeCount++
+	}
+	if run.Decision != "" {
+		if s.decisionCounts == nil {
+			s.decisionCounts = map[string]int{}
+		}
+		s.decisionCounts[run.Decision]++
+	}
+	for _, cat := range run.Quality.HardFails {
+		if s.hardFailCounts == nil {
+			s.hardFailCounts = map[string]int{}
+		}
+		s.hardFailCounts[cat]++
+	}
+	for name, result := range run.JudgeResults {
+		if result.Score != nil {
+			if s.scoreSums == nil {
+				s.scoreSums = map[string]float64{}
+				s.scoreCounts = map[string]int{}
+			}
+			s.scoreSums[name] += *result.Score
+			s.scoreCounts[name]++
+		}
+		if strings.TrimSpace(result.Error) != "" {
+			if s.judgeFailureCounts == nil {
+				s.judgeFailureCounts = map[string]int{}
+			}
+			s.judgeFailureCounts[name]++
+		}
+	}
+	for name, score := range run.Scores {
+		if s.scoreSums == nil {
+			s.scoreSums = map[string]float64{}
+			s.scoreCounts = map[string]int{}
+		}
+		s.scoreSums[name] += score
+		s.scoreCounts[name]++
+	}
+}
+
+func (s *runStats) averageScoreByName() map[string]float64 {
+	if len(s.scoreSums) == 0 {
+		return nil
+	}
+	out := make(map[string]float64, len(s.scoreSums))
+	for name, sum := range s.scoreSums {
+		out[name] = round3(sum / float64(s.scoreCounts[name]))
+	}
+	return out
+}
+
+func (s *runStats) averageJudgeScore() *float64 {
+	if s.totalJudgeCount == 0 {
+		return nil
+	}
+	score := round3(s.totalJudge / float64(s.totalJudgeCount))
+	return &score
+}
+
 func aggregateRuns(runs []RunResult) Aggregate {
-	agg := Aggregate{TotalRuns: len(runs)}
-	if len(runs) == 0 {
-		return agg
-	}
-
-	totalLatency := 0.0
-	totalWeighted := 0.0
-	totalFinal := 0.0
-	totalJudge := 0.0
-	totalJudgeCount := 0
-	scoreSums := map[string]float64{}
-	scoreCounts := map[string]int{}
-	hardFailCounts := map[string]int{}
-	judgeFailureCounts := map[string]int{}
-	decisionCounts := map[string]int{}
-	byLocale := map[string][]RunResult{}
+	stats := newRunStats()
+	byLocale := map[string]*runStats{}
 	for _, run := range runs {
-		totalLatency += run.LatencyMS
-		totalWeighted += run.Quality.WeightedAggregate
-		totalFinal += run.FinalScore
-		if run.Error != "" {
-			agg.FailedRuns++
-		} else {
-			agg.SuccessfulRuns++
-		}
-		if run.JudgeAggregateScore != nil {
-			totalJudge += *run.JudgeAggregateScore
-			totalJudgeCount++
-		}
-		if run.Decision != "" {
-			decisionCounts[run.Decision]++
-		}
+		stats.add(run)
 		if locale := strings.TrimSpace(run.TargetLocale); locale != "" {
-			byLocale[locale] = append(byLocale[locale], run)
-		}
-		for _, cat := range run.Quality.HardFails {
-			hardFailCounts[cat]++
-		}
-		for name, result := range run.JudgeResults {
-			if result.Score != nil {
-				scoreSums[name] += *result.Score
-				scoreCounts[name]++
+			if byLocale[locale] == nil {
+				byLocale[locale] = newRunStats()
 			}
-			if strings.TrimSpace(result.Error) != "" {
-				judgeFailureCounts[name]++
-			}
-		}
-		for name, score := range run.Scores {
-			scoreSums[name] += score
-			scoreCounts[name]++
+			byLocale[locale].add(run)
 		}
 	}
 
-	agg.AverageLatencyMS = round3(totalLatency / float64(len(runs)))
-	agg.WeightedScore = round3(totalWeighted / float64(len(runs)))
-	agg.FinalScore = round3(totalFinal / float64(len(runs)))
-	if totalJudgeCount > 0 {
-		score := round3(totalJudge / float64(totalJudgeCount))
-		agg.AverageJudgeScore = &score
-	}
-	if len(scoreSums) > 0 {
-		agg.AverageScoreByName = map[string]float64{}
-		for name, sum := range scoreSums {
-			agg.AverageScoreByName[name] = round3(sum / float64(scoreCounts[name]))
-		}
-	}
-	if len(hardFailCounts) > 0 {
-		agg.HardFailCounts = hardFailCounts
-	}
-	if len(judgeFailureCounts) > 0 {
-		agg.JudgeFailureCounts = judgeFailureCounts
-	}
-	if len(decisionCounts) > 0 {
-		agg.DecisionCounts = decisionCounts
-	}
+	agg := stats.aggregate()
 	if len(byLocale) > 0 {
 		agg.ByLocale = map[string]AggregateBreakdown{}
-		for key, list := range byLocale {
-			agg.ByLocale[key] = aggregateBreakdown(list)
+		for key, localeStats := range byLocale {
+			agg.ByLocale[key] = localeStats.breakdown()
 		}
 	}
 
@@ -850,9 +918,12 @@ func aggregateRuns(runs []RunResult) Aggregate {
 }
 
 func summarizeCases(runs []RunResult) []CaseSummary {
-	byCase := map[string][]RunResult{}
+	byCase := map[string]*runStats{}
 	for _, run := range runs {
-		byCase[run.CaseID] = append(byCase[run.CaseID], run)
+		if byCase[run.CaseID] == nil {
+			byCase[run.CaseID] = newRunStats()
+		}
+		byCase[run.CaseID].add(run)
 	}
 
 	caseIDs := make([]string, 0, len(byCase))
@@ -863,86 +934,19 @@ func summarizeCases(runs []RunResult) []CaseSummary {
 
 	summaries := make([]CaseSummary, 0, len(caseIDs))
 	for _, caseID := range caseIDs {
-		list := byCase[caseID]
-		summary := CaseSummary{CaseID: caseID, RunCount: len(list)}
-
-		totalLatency := 0.0
-		totalWeighted := 0.0
-		totalFinal := 0.0
-		totalJudge := 0.0
-		totalJudgeCount := 0
-		scoreSums := map[string]float64{}
-		scoreCounts := map[string]int{}
-		hardFailCounts := map[string]int{}
-		judgeFailureCounts := map[string]int{}
-		decisionCounts := map[string]int{}
-		for _, run := range list {
-			totalLatency += run.LatencyMS
-			totalWeighted += run.Quality.WeightedAggregate
-			totalFinal += run.FinalScore
-			if run.Error != "" {
-				summary.FailedRuns++
-			} else {
-				summary.SuccessfulRuns++
-			}
-			if run.JudgeAggregateScore != nil {
-				totalJudge += *run.JudgeAggregateScore
-				totalJudgeCount++
-			}
-			if run.Decision != "" {
-				decisionCounts[run.Decision]++
-			}
-			for name, score := range run.Scores {
-				scoreSums[name] += score
-				scoreCounts[name]++
-			}
-			for _, cat := range run.Quality.HardFails {
-				hardFailCounts[cat]++
-			}
-			for name, result := range run.JudgeResults {
-				if result.Score != nil {
-					scoreSums[name] += *result.Score
-					scoreCounts[name]++
-				}
-				if strings.TrimSpace(result.Error) != "" {
-					judgeFailureCounts[name]++
-				}
-			}
-		}
-
-		summary.AverageLatencyMS = round3(totalLatency / float64(len(list)))
-		summary.WeightedScore = round3(totalWeighted / float64(len(list)))
-		summary.FinalScore = round3(totalFinal / float64(len(list)))
-		if totalJudgeCount > 0 {
-			score := round3(totalJudge / float64(totalJudgeCount))
-			summary.AverageJudgeScore = &score
-		}
-		if len(scoreSums) > 0 {
-			summary.AverageScoreByName = map[string]float64{}
-			for name, sum := range scoreSums {
-				summary.AverageScoreByName[name] = round3(sum / float64(scoreCounts[name]))
-			}
-		}
-		if len(hardFailCounts) > 0 {
-			summary.HardFailCounts = hardFailCounts
-		}
-		if len(judgeFailureCounts) > 0 {
-			summary.JudgeFailureCounts = judgeFailureCounts
-		}
-		if len(decisionCounts) > 0 {
-			summary.DecisionCounts = decisionCounts
-		}
-
-		summaries = append(summaries, summary)
+		summaries = append(summaries, byCase[caseID].caseSummary(caseID))
 	}
 
 	return summaries
 }
 
 func summarizeExperiments(runs []RunResult) []ExperimentSummary {
-	byExperiment := map[string][]RunResult{}
+	byExperiment := map[string]*runStats{}
 	for _, run := range runs {
-		byExperiment[run.ExperimentID] = append(byExperiment[run.ExperimentID], run)
+		if byExperiment[run.ExperimentID] == nil {
+			byExperiment[run.ExperimentID] = newRunStats()
+		}
+		byExperiment[run.ExperimentID].add(run)
 	}
 
 	experimentIDs := make([]string, 0, len(byExperiment))
@@ -953,77 +957,7 @@ func summarizeExperiments(runs []RunResult) []ExperimentSummary {
 
 	summaries := make([]ExperimentSummary, 0, len(experimentIDs))
 	for _, experimentID := range experimentIDs {
-		list := byExperiment[experimentID]
-		summary := ExperimentSummary{ExperimentID: experimentID, RunCount: len(list)}
-
-		totalLatency := 0.0
-		totalWeighted := 0.0
-		totalFinal := 0.0
-		totalJudge := 0.0
-		totalJudgeCount := 0
-		scoreSums := map[string]float64{}
-		scoreCounts := map[string]int{}
-		hardFailCounts := map[string]int{}
-		judgeFailureCounts := map[string]int{}
-		decisionCounts := map[string]int{}
-		for _, run := range list {
-			totalLatency += run.LatencyMS
-			totalWeighted += run.Quality.WeightedAggregate
-			totalFinal += run.FinalScore
-			if run.Error != "" {
-				summary.FailedRuns++
-			} else {
-				summary.SuccessfulRuns++
-			}
-			if run.JudgeAggregateScore != nil {
-				totalJudge += *run.JudgeAggregateScore
-				totalJudgeCount++
-			}
-			if run.Decision != "" {
-				decisionCounts[run.Decision]++
-			}
-			for name, score := range run.Scores {
-				scoreSums[name] += score
-				scoreCounts[name]++
-			}
-			for _, cat := range run.Quality.HardFails {
-				hardFailCounts[cat]++
-			}
-			for name, result := range run.JudgeResults {
-				if result.Score != nil {
-					scoreSums[name] += *result.Score
-					scoreCounts[name]++
-				}
-				if strings.TrimSpace(result.Error) != "" {
-					judgeFailureCounts[name]++
-				}
-			}
-		}
-
-		summary.AverageLatencyMS = round3(totalLatency / float64(len(list)))
-		summary.WeightedScore = round3(totalWeighted / float64(len(list)))
-		summary.FinalScore = round3(totalFinal / float64(len(list)))
-		if totalJudgeCount > 0 {
-			score := round3(totalJudge / float64(totalJudgeCount))
-			summary.AverageJudgeScore = &score
-		}
-		if len(scoreSums) > 0 {
-			summary.AverageScoreByName = map[string]float64{}
-			for name, sum := range scoreSums {
-				summary.AverageScoreByName[name] = round3(sum / float64(scoreCounts[name]))
-			}
-		}
-		if len(hardFailCounts) > 0 {
-			summary.HardFailCounts = hardFailCounts
-		}
-		if len(judgeFailureCounts) > 0 {
-			summary.JudgeFailureCounts = judgeFailureCounts
-		}
-		if len(decisionCounts) > 0 {
-			summary.DecisionCounts = decisionCounts
-		}
-
-		summaries = append(summaries, summary)
+		summaries = append(summaries, byExperiment[experimentID].experimentSummary(experimentID))
 	}
 
 	return summaries
@@ -1033,11 +967,116 @@ func round3(v float64) float64 {
 	return math.Round(v*1000) / 1000
 }
 
+func (s *runStats) aggregate() Aggregate {
+	out := Aggregate{
+		TotalRuns:      s.totalRuns,
+		SuccessfulRuns: s.successfulRuns,
+		FailedRuns:     s.failedRuns,
+	}
+	if s.totalRuns == 0 {
+		return out
+	}
+	out.AverageLatencyMS = round3(s.totalLatency / float64(s.totalRuns))
+	out.WeightedScore = round3(s.totalWeighted / float64(s.totalRuns))
+	out.FinalScore = round3(s.totalFinal / float64(s.totalRuns))
+	out.AverageJudgeScore = s.averageJudgeScore()
+	out.AverageScoreByName = s.averageScoreByName()
+	if len(s.hardFailCounts) > 0 {
+		out.HardFailCounts = s.hardFailCounts
+	}
+	if len(s.judgeFailureCounts) > 0 {
+		out.JudgeFailureCounts = s.judgeFailureCounts
+	}
+	if len(s.decisionCounts) > 0 {
+		out.DecisionCounts = s.decisionCounts
+	}
+	return out
+}
+
+func (s *runStats) breakdown() AggregateBreakdown {
+	out := AggregateBreakdown{
+		TotalRuns:      s.totalRuns,
+		SuccessfulRuns: s.successfulRuns,
+		FailedRuns:     s.failedRuns,
+	}
+	if s.totalRuns == 0 {
+		return out
+	}
+	out.AverageLatencyMS = round3(s.totalLatency / float64(s.totalRuns))
+	out.WeightedScore = round3(s.totalWeighted / float64(s.totalRuns))
+	out.FinalScore = round3(s.totalFinal / float64(s.totalRuns))
+	out.AverageJudgeScore = s.averageJudgeScore()
+	if len(s.hardFailCounts) > 0 {
+		out.HardFailCounts = s.hardFailCounts
+	}
+	if len(s.judgeFailureCounts) > 0 {
+		out.JudgeFailureCounts = s.judgeFailureCounts
+	}
+	if len(s.decisionCounts) > 0 {
+		out.DecisionCounts = s.decisionCounts
+	}
+	return out
+}
+
+func (s *runStats) caseSummary(caseID string) CaseSummary {
+	out := CaseSummary{
+		CaseID:         caseID,
+		RunCount:       s.totalRuns,
+		SuccessfulRuns: s.successfulRuns,
+		FailedRuns:     s.failedRuns,
+	}
+	if s.totalRuns == 0 {
+		return out
+	}
+	out.AverageLatencyMS = round3(s.totalLatency / float64(s.totalRuns))
+	out.WeightedScore = round3(s.totalWeighted / float64(s.totalRuns))
+	out.FinalScore = round3(s.totalFinal / float64(s.totalRuns))
+	out.AverageJudgeScore = s.averageJudgeScore()
+	out.AverageScoreByName = s.averageScoreByName()
+	if len(s.hardFailCounts) > 0 {
+		out.HardFailCounts = s.hardFailCounts
+	}
+	if len(s.judgeFailureCounts) > 0 {
+		out.JudgeFailureCounts = s.judgeFailureCounts
+	}
+	if len(s.decisionCounts) > 0 {
+		out.DecisionCounts = s.decisionCounts
+	}
+	return out
+}
+
+func (s *runStats) experimentSummary(experimentID string) ExperimentSummary {
+	out := ExperimentSummary{
+		ExperimentID:   experimentID,
+		RunCount:       s.totalRuns,
+		SuccessfulRuns: s.successfulRuns,
+		FailedRuns:     s.failedRuns,
+	}
+	if s.totalRuns == 0 {
+		return out
+	}
+	out.AverageLatencyMS = round3(s.totalLatency / float64(s.totalRuns))
+	out.WeightedScore = round3(s.totalWeighted / float64(s.totalRuns))
+	out.FinalScore = round3(s.totalFinal / float64(s.totalRuns))
+	out.AverageJudgeScore = s.averageJudgeScore()
+	out.AverageScoreByName = s.averageScoreByName()
+	if len(s.hardFailCounts) > 0 {
+		out.HardFailCounts = s.hardFailCounts
+	}
+	if len(s.judgeFailureCounts) > 0 {
+		out.JudgeFailureCounts = s.judgeFailureCounts
+	}
+	if len(s.decisionCounts) > 0 {
+		out.DecisionCounts = s.decisionCounts
+	}
+	return out
+}
+
 func normalizedAssertions(assertions []string) []string {
 	return canonicalJudgeAssertions(assertions)
 }
 
-func effectiveJudgeAssertions(globalAssertions []string, cases []evalset.Case) []string {
+func effectiveJudgeAssertions(globalAssertions []string, cases []preparedCase) []string {
 	configured := normalizedAssertions(globalAssertions)
 	required := requiredJudgeAssertions(cases)
 	merged := mergeAssertionKinds(configured, required)
@@ -1185,7 +1224,7 @@ func hasAssertionErrors(results []AssertionResult) bool {
 	return false
 }
 
-func requiredJudgeAssertions(cases []evalset.Case) []string {
+func requiredJudgeAssertions(cases []preparedCase) []string {
 	kinds := make([]string, 0)
 	seen := map[string]struct{}{}
 	for _, tc := range cases {
@@ -1274,58 +1313,9 @@ func evalJudgeAssertionKind(kind string) (string, bool) {
 }
 
 func aggregateBreakdown(runs []RunResult) AggregateBreakdown {
-	out := AggregateBreakdown{TotalRuns: len(runs)}
-	if len(runs) == 0 {
-		return out
-	}
-	totalLatency := 0.0
-	totalWeighted := 0.0
-	totalFinal := 0.0
-	totalJudge := 0.0
-	totalJudgeCount := 0
-	hardFailCounts := map[string]int{}
-	judgeFailureCounts := map[string]int{}
-	decisionCounts := map[string]int{}
+	stats := newRunStats()
 	for _, run := range runs {
-		totalLatency += run.LatencyMS
-		totalWeighted += run.Quality.WeightedAggregate
-		totalFinal += run.FinalScore
-		if run.Error != "" {
-			out.FailedRuns++
-		} else {
-			out.SuccessfulRuns++
-		}
-		if run.JudgeAggregateScore != nil {
-			totalJudge += *run.JudgeAggregateScore
-			totalJudgeCount++
-		}
-		if run.Decision != "" {
-			decisionCounts[run.Decision]++
-		}
-		for _, cat := range run.Quality.HardFails {
-			hardFailCounts[cat]++
-		}
-		for name, result := range run.JudgeResults {
-			if strings.TrimSpace(result.Error) != "" {
-				judgeFailureCounts[name]++
-			}
-		}
+		stats.add(run)
 	}
-	out.AverageLatencyMS = round3(totalLatency / float64(len(runs)))
-	out.WeightedScore = round3(totalWeighted / float64(len(runs)))
-	out.FinalScore = round3(totalFinal / float64(len(runs)))
-	if totalJudgeCount > 0 {
-		score := round3(totalJudge / float64(totalJudgeCount))
-		out.AverageJudgeScore = &score
-	}
-	if len(hardFailCounts) > 0 {
-		out.HardFailCounts = hardFailCounts
-	}
-	if len(judgeFailureCounts) > 0 {
-		out.JudgeFailureCounts = judgeFailureCounts
-	}
-	if len(decisionCounts) > 0 {
-		out.DecisionCounts = decisionCounts
-	}
-	return out
+	return stats.breakdown()
 }

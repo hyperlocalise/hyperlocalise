@@ -71,14 +71,21 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	srcTrimmed := strings.TrimSpace(source)
 	translatedTrimmed := strings.TrimSpace(translated)
 	referenceTrimmed := strings.TrimSpace(reference)
+	sourceAnalysis := analyzeScoringText(srcTrimmed)
+	translatedAnalysis := analyzeScoringText(translatedTrimmed)
+	referenceNormalized := ""
+	if referenceTrimmed != "" {
+		referenceNormalized = normalizeText(referenceTrimmed)
+	}
+	tagFlags := analyzeTags(tags)
 
-	result.PlaceholderIntegrity = placeholderIntegrityScore(srcTrimmed, translatedTrimmed)
-	result.TagIntegrity = tagIntegrityScore(srcTrimmed, translatedTrimmed)
-	result.LengthCompliance = lengthComplianceScore(srcTrimmed, translatedTrimmed, tags)
-	result.TermCompliance = termComplianceScore(translatedTrimmed, tags)
+	result.PlaceholderIntegrity = tokenIntegrityScore(sourceAnalysis.placeholderCounts, sourceAnalysis.placeholderTotal, translatedAnalysis.placeholderCounts)
+	result.TagIntegrity = tokenIntegrityScore(sourceAnalysis.tagCounts, sourceAnalysis.tagTotal, translatedAnalysis.tagCounts)
+	result.LengthCompliance = lengthComplianceScore(srcTrimmed, translatedTrimmed, tagFlags.hasUI)
+	result.TermCompliance = termComplianceScore(translatedTrimmed, tagFlags.forbiddenTerms)
 	result.LocaleValidity = localeValidityScore(targetLocale, translatedTrimmed)
-	lengthApplicable := hasTag(tags, "ui")
-	termApplicable := hasForbiddenTermTag(tags)
+	lengthApplicable := tagFlags.hasUI
+	termApplicable := len(tagFlags.forbiddenTerms) > 0
 	result.Details["placeholderIntegrity"] = round3(result.PlaceholderIntegrity)
 	result.Details["tagIntegrity"] = round3(result.TagIntegrity)
 	result.Details["lengthCompliance"] = round3(result.LengthCompliance)
@@ -89,16 +96,14 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	if translatedTrimmed == "" {
 		hardFailSet[HardFailEmptyOutput] = struct{}{}
 	}
-	if normalizeText(source) == normalizeText(translated) {
+	if sourceAnalysis.normalized == translatedAnalysis.normalized {
 		hardFailSet[HardFailSourceCopied] = struct{}{}
 	}
 
-	srcInv, srcErr := icuparser.ParseInvariant(srcTrimmed)
-	translatedInv, translatedErr := icuparser.ParseInvariant(translatedTrimmed)
-	if srcErr == nil && (len(srcInv.Placeholders) > 0 || len(srcInv.ICUBlocks) > 0) && translatedErr != nil {
+	if sourceAnalysis.icuErr == nil && sourceAnalysis.hasICUContent && translatedAnalysis.icuErr != nil {
 		hardFailSet[HardFailMalformedICU] = struct{}{}
 	}
-	if srcErr == nil && translatedErr == nil && !sameBlocks(srcInv.ICUBlocks, translatedInv.ICUBlocks) {
+	if sourceAnalysis.icuErr == nil && translatedAnalysis.icuErr == nil && !sameBlocks(sourceAnalysis.icuBlocks, translatedAnalysis.icuBlocks) {
 		hardFailSet[HardFailPlaceholderDrop] = struct{}{}
 	}
 	if result.PlaceholderIntegrity < 1 {
@@ -136,10 +141,10 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 			exact = 1
 		}
 		norm := 0.0
-		if normalizeText(translatedTrimmed) == normalizeText(referenceTrimmed) {
+		if translatedAnalysis.normalized == referenceNormalized {
 			norm = 1
 		}
-		sim := tokenF1(referenceTrimmed, translatedTrimmed)
+		sim := tokenF1Normalized(referenceNormalized, translatedAnalysis.normalized)
 		result.ReferenceExact = &exact
 		result.ReferenceNormalized = &norm
 		result.ReferenceSimilarity = &sim
@@ -167,6 +172,59 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	return result
 }
 
+type scoringTextAnalysis struct {
+	normalized        string
+	placeholderCounts map[string]int
+	placeholderTotal  int
+	tagCounts         map[string]int
+	tagTotal          int
+	icuBlocks         []icuparser.BlockSignature
+	icuErr            error
+	hasICUContent     bool
+}
+
+type tagAnalysis struct {
+	hasUI          bool
+	forbiddenTerms []string
+}
+
+func analyzeScoringText(text string) scoringTextAnalysis {
+	inv, err := icuparser.ParseInvariant(text)
+	placeholderCounts, placeholderTotal := placeholderTokenCounts(text, inv, err)
+	tagCounts, tagTotal := tagTokenCounts(text)
+	return scoringTextAnalysis{
+		normalized:        normalizeText(text),
+		placeholderCounts: placeholderCounts,
+		placeholderTotal:  placeholderTotal,
+		tagCounts:         tagCounts,
+		tagTotal:          tagTotal,
+		icuBlocks:         inv.ICUBlocks,
+		icuErr:            err,
+		hasICUContent:     len(inv.Placeholders) > 0 || len(inv.ICUBlocks) > 0,
+	}
+}
+
+func analyzeTags(tags []string) tagAnalysis {
+	out := tagAnalysis{}
+	for _, tag := range tags {
+		normalizedTag := strings.ToLower(strings.TrimSpace(tag))
+		if normalizedTag == "" {
+			continue
+		}
+		if normalizedTag == "ui" {
+			out.hasUI = true
+			continue
+		}
+		if strings.HasPrefix(normalizedTag, "forbidden:") {
+			term := strings.TrimSpace(strings.TrimPrefix(normalizedTag, "forbidden:"))
+			if term != "" {
+				out.forbiddenTerms = append(out.forbiddenTerms, term)
+			}
+		}
+	}
+	return out
+}
+
 var (
 	bracePlaceholderPattern  = regexp.MustCompile(`\{\s*([A-Za-z_$][A-Za-z0-9_.$-]*)\s*\}`)
 	printfPlaceholderPattern = regexp.MustCompile(`%(?:\[[0-9]+\])?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?[hlLzjt]*[bcdeEfFgGosxXqvTt]`)
@@ -175,51 +233,38 @@ var (
 )
 
 func placeholderIntegrityScore(source, translated string) float64 {
-	sourceTokens := placeholderTokens(source)
-	if len(sourceTokens) == 0 {
+	sourceInv, sourceErr := icuparser.ParseInvariant(source)
+	sourceCounts, sourceTotal := placeholderTokenCounts(source, sourceInv, sourceErr)
+	if sourceTotal == 0 {
 		return 1
 	}
-	translatedTokens := placeholderTokens(translated)
+	translatedInv, translatedErr := icuparser.ParseInvariant(translated)
+	translatedCounts, _ := placeholderTokenCounts(translated, translatedInv, translatedErr)
+	return tokenIntegrityScore(sourceCounts, sourceTotal, translatedCounts)
+}
 
-	sourceCount := map[string]int{}
-	for _, token := range sourceTokens {
-		sourceCount[token]++
+func tokenIntegrityScore(sourceCount map[string]int, sourceTotal int, translatedCount map[string]int) float64 {
+	if sourceTotal == 0 {
+		return 1
 	}
-	translatedCount := map[string]int{}
-	for _, token := range translatedTokens {
-		translatedCount[token]++
-	}
-
 	matched := 0
 	for token, count := range sourceCount {
 		matched += min(count, translatedCount[token])
 	}
-	return float64(matched) / float64(len(sourceTokens))
+	return float64(matched) / float64(sourceTotal)
 }
 
 func tagIntegrityScore(source, translated string) float64 {
-	sourceTokens := tagTokens(source)
-	if len(sourceTokens) == 0 {
+	sourceCounts, sourceTotal := tagTokenCounts(source)
+	if sourceTotal == 0 {
 		return 1
 	}
-	translatedTokens := tagTokens(translated)
-	sourceCount := map[string]int{}
-	translatedCount := map[string]int{}
-	for _, token := range sourceTokens {
-		sourceCount[token]++
-	}
-	for _, token := range translatedTokens {
-		translatedCount[token]++
-	}
-	matched := 0
-	for token, count := range sourceCount {
-		matched += min(count, translatedCount[token])
-	}
-	return float64(matched) / float64(len(sourceTokens))
+	translatedCounts, _ := tagTokenCounts(translated)
+	return tokenIntegrityScore(sourceCounts, sourceTotal, translatedCounts)
 }
 
-func lengthComplianceScore(source, translated string, tags []string) float64 {
-	if !hasTag(tags, "ui") {
+func lengthComplianceScore(source, translated string, hasUITag bool) float64 {
+	if !hasUITag {
 		return 1
 	}
 	srcLen := len([]rune(strings.TrimSpace(source)))
@@ -238,17 +283,9 @@ func lengthComplianceScore(source, translated string, tags []string) float64 {
 	return 1
 }
 
-func termComplianceScore(translated string, tags []string) float64 {
+func termComplianceScore(translated string, forbiddenTerms []string) float64 {
 	translatedLower := strings.ToLower(translated)
-	for _, tag := range tags {
-		normalizedTag := strings.ToLower(strings.TrimSpace(tag))
-		if !strings.HasPrefix(normalizedTag, "forbidden:") {
-			continue
-		}
-		term := strings.TrimSpace(strings.TrimPrefix(normalizedTag, "forbidden:"))
-		if term == "" {
-			continue
-		}
+	for _, term := range forbiddenTerms {
 		if strings.Contains(translatedLower, term) {
 			return 0
 		}
@@ -297,34 +334,33 @@ func hasLetter(text string) bool {
 	return false
 }
 
-func hasTag(tags []string, target string) bool {
-	for _, tag := range tags {
-		if strings.EqualFold(strings.TrimSpace(tag), target) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasForbiddenTermTag(tags []string) bool {
-	for _, tag := range tags {
-		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(tag)), "forbidden:") {
-			return true
-		}
-	}
-	return false
-}
-
 func tagTokens(s string) []string {
-	tokens := make([]string, 0)
-	for _, match := range htmlTagPattern.FindAllString(s, -1) {
-		tokens = append(tokens, "html:"+strings.ToLower(strings.TrimSpace(match)))
+	counts, total := tagTokenCounts(s)
+	if total == 0 {
+		return nil
 	}
-	for _, match := range markdownTokenPattern.FindAllString(s, -1) {
-		tokens = append(tokens, "md:"+strings.TrimSpace(match))
+	tokens := make([]string, 0, total)
+	for token, count := range counts {
+		for range count {
+			tokens = append(tokens, token)
+		}
 	}
 	sort.Strings(tokens)
 	return tokens
+}
+
+func tagTokenCounts(s string) (map[string]int, int) {
+	tokens := make(map[string]int)
+	total := 0
+	for _, match := range htmlTagPattern.FindAllString(s, -1) {
+		tokens["html:"+strings.ToLower(strings.TrimSpace(match))]++
+		total++
+	}
+	for _, match := range markdownTokenPattern.FindAllString(s, -1) {
+		tokens["md:"+strings.TrimSpace(match)]++
+		total++
+	}
+	return tokens, total
 }
 
 func unicodeRangeTableForScript(script string) *unicode.RangeTable {
@@ -395,24 +431,43 @@ func unicodeRangeTableForScript(script string) *unicode.RangeTable {
 }
 
 func placeholderTokens(s string) []string {
-	tokens := make([]string, 0)
 	inv, err := icuparser.ParseInvariant(s)
-	if err == nil {
-		for _, ph := range inv.Placeholders {
-			tokens = append(tokens, fmt.Sprintf("icu:%s", ph))
-		}
-		for _, block := range inv.ICUBlocks {
-			tokens = append(tokens, fmt.Sprintf("icu-block:%s:%s:%s", block.Arg, block.Type, strings.Join(block.Options, ",")))
-		}
+	counts, total := placeholderTokenCounts(s, inv, err)
+	if total == 0 {
+		return nil
 	}
-	for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-		tokens = append(tokens, fmt.Sprintf("brace:%s", match[1]))
-	}
-	for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
-		tokens = append(tokens, fmt.Sprintf("printf:%s", match))
+	tokens := make([]string, 0, total)
+	for token, count := range counts {
+		for range count {
+			tokens = append(tokens, token)
+		}
 	}
 	sort.Strings(tokens)
 	return dedupAdjacent(tokens)
+}
+
+func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[string]int, int) {
+	tokens := make(map[string]int)
+	total := 0
+	if err == nil {
+		for _, ph := range inv.Placeholders {
+			tokens[fmt.Sprintf("icu:%s", ph)]++
+			total++
+		}
+		for _, block := range inv.ICUBlocks {
+			tokens[fmt.Sprintf("icu-block:%s:%s:%s", block.Arg, block.Type, strings.Join(block.Options, ","))]++
+			total++
+		}
+	}
+	for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
+		tokens[fmt.Sprintf("brace:%s", match[1])]++
+		total++
+	}
+	for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
+		tokens[fmt.Sprintf("printf:%s", match)]++
+		total++
+	}
+	return tokens, total
 }
 
 func sameBlocks(a, b []icuparser.BlockSignature) bool {
@@ -428,8 +483,12 @@ func sameBlocks(a, b []icuparser.BlockSignature) bool {
 }
 
 func tokenF1(reference, candidate string) float64 {
-	r := tokenize(reference)
-	c := tokenize(candidate)
+	return tokenF1Normalized(normalizeText(reference), normalizeText(candidate))
+}
+
+func tokenF1Normalized(reference, candidate string) float64 {
+	r := tokenizeNormalized(reference)
+	c := tokenizeNormalized(candidate)
 	if len(r) == 0 && len(c) == 0 {
 		return 1
 	}
@@ -457,7 +516,10 @@ func tokenF1(reference, candidate string) float64 {
 }
 
 func tokenize(s string) []string {
-	s = normalizeText(s)
+	return tokenizeNormalized(normalizeText(s))
+}
+
+func tokenizeNormalized(s string) []string {
 	if s == "" {
 		return nil
 	}

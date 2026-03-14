@@ -44,6 +44,12 @@ bench-runsvc: ## run focused runsvc benchmarks
 	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./internal/i18n/runsvc
 
 
+.PHONY: bench-evalsvc
+bench-evalsvc: ## run focused evalsvc benchmarks
+	go test -run '^$$' -bench 'BenchmarkRunLargeBatch' -benchmem -benchtime=20x ./internal/i18n/evalsvc
+	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./internal/i18n/evalsvc/scoring
+
+
 .PHONY: clean
 clean: ## clean up environment
 	@rm -rf coverage.out test-report.jsonl dist/ $(projectname)
