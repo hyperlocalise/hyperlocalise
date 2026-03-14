@@ -38,7 +38,7 @@ make check-build
 ```bash
 make run
 # or
-go run -ldflags "-X main.version=dev" main.go
+go run -ldflags "-X main.version=dev" ./apps/cli
 ```
 
 ## Cài đặt bản nhị phân cục bộ
@@ -50,10 +50,10 @@ hyperlocalise version
 
 ## Vị trí các mã khóa
 
-- `cmd/`: Cobra commands, flags, and CLI output behavior
-- `internal/config/`: `i18n.jsonc` parsing and validation
-- `internal/i18n/runsvc/`: `run` planning and execution flow
-- `internal/i18n/syncsvc/`: sync orchestration and conflict logic
+- `apps/cli/cmd/`: Cobra commands, flags, and CLI output behavior
+- `pkg/i18nconfig/`: `i18n.jsonc` parsing and validation
+- `apps/cli/internal/i18n/runsvc/`: `run` planning and execution flow
+- `apps/cli/internal/i18n/syncsvc/`: sync orchestration and conflict logic
 - `internal/i18n/storage/`: hợp đồng và tích hợp nhà cung cấp
 
 ## Trước khi mở một PR

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package hyperlocalise.common.v1;
+
+option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1;commonv1";
+
+message Empty {}
+
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+}
+
+message ResourceRef {
+  string id = 1;
+  string project_id = 2;
+}

@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --output json --fail-on-conflict --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
 为了在 CI 中将远程更改应用到本地文件，请切换到：
 
 ```bash
-go run . sync pull --output json --fail-on-conflict --dry-run=false
+go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
 ### 计划性推送同步（已启用，处于活动状态）
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --output json --fail-on-conflict --dry-run=false
+      - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
 ```
 
 对于不修改数据的验证，请使用：
 
 ```bash
-go run . sync push --output json --fail-on-conflict --dry-run=true
+go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
 ```
 
 对于允许写入的作业，建议使用受保护的环境、审批流程和最小权限的服务凭据。

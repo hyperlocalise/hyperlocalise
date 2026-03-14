@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --output json --fail-on-conflict --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
 To apply remote changes to local files in CI, switch to:
 
 ```bash
-go run . sync pull --output json --fail-on-conflict --dry-run=false
+go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
 ### Scheduled push sync (write-enabled, active)
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --output json --fail-on-conflict --dry-run=false
+      - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
 ```
 
 For a non-mutating validation pass, use:
 
 ```bash
-go run . sync push --output json --fail-on-conflict --dry-run=true
+go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
 ```
 
 For write-enabled jobs, prefer protected environments, approval gates, and least-privilege service credentials.

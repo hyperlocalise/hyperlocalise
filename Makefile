@@ -3,6 +3,8 @@ version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
 golangci_lint_version?=v2.10.1
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
+workspace_test_modules=./apps/api-gateway/... ./services/jobsvc/... ./services/memorysvc/... ./services/projectsvc/... ./services/workflowsvc/...
+workspace_build_targets=./apps/cli ./apps/api-gateway ./services/jobsvc/cmd/jobsvc ./services/memorysvc/cmd/memorysvc ./services/projectsvc/cmd/projectsvc ./services/workflowsvc/cmd/workflowsvc
 
 default: help
 
@@ -17,15 +19,18 @@ bump: ## update go dependencies
 
 .PHONY: check-build
 check-build: ## check golang build
-	@go build -ldflags "-X main.version=$(version)" -o /dev/null
+	@go build -ldflags "-X main.version=$(version)" -o /dev/null ./apps/cli
+	@for target in $(filter-out ./apps/cli,$(workspace_build_targets)); do \
+		go build -o /dev/null $$target; \
+	done
 
 .PHONY: install
 install: ## install golang binary
-	@go install -ldflags "-X main.version=$(version)"
+	@go install -ldflags "-X main.version=$(version)" ./apps/cli
 
 .PHONY: run
 run: ## run the app
-	@go run -ldflags "-X main.version=$(version)"  main.go
+	@go run -ldflags "-X main.version=$(version)" ./apps/cli
 
 .PHONY: bootstrap
 bootstrap: ## download tool and module dependencies
@@ -33,21 +38,30 @@ bootstrap: ## download tool and module dependencies
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(golangci_lint_version)
 
 
-.PHONY: test
-test: clean ## run tests with JSON output and coverage
+.PHONY: test-root
+test-root: clean ## run root-module tests with JSON output and coverage
 	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
+
+.PHONY: test-workspace
+test-workspace: clean ## run root and nested-module tests
+	go test -cover -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out | sort -rnk3
+	go test $(workspace_test_modules)
+
+.PHONY: test
+test: test-workspace ## run workspace-wide tests
 
 
 .PHONY: bench-runsvc
 bench-runsvc: ## run focused runsvc benchmarks
-	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./internal/i18n/runsvc
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
 
 
 .PHONY: bench-evalsvc
 bench-evalsvc: ## run focused evalsvc benchmarks
-	go test -run '^$$' -bench 'BenchmarkRunLargeBatch' -benchmem -benchtime=20x ./internal/i18n/evalsvc
-	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./internal/i18n/evalsvc/scoring
+	go test -run '^$$' -bench 'BenchmarkRunLargeBatch' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc
+	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc/scoring
 
 
 .PHONY: clean
@@ -56,7 +70,7 @@ clean: ## clean up environment
 
 
 .PHONY: cover
-cover: ## display test coverage
+cover: ## display root-module test coverage
 	go test -v -race $(shell go list ./... | grep -v /vendor/) -v -coverprofile=coverage.out
 	go tool cover -func=coverage.out
 
@@ -78,9 +92,17 @@ precommit: ## run local CI validation flow
 	make fmt
 	git diff --exit-code
 	make lint
-	make test
+	make test-workspace
 	make check-build
 
 .PHONY: staticcheck
 staticcheck: ## run staticcheck directly
 	go tool staticcheck ./...
+
+.PHONY: bazel-build
+bazel-build: ## build Bazel-scaffolded targets
+	bazel build //:cli //:api-gateway //services/projectsvc:projectsvc //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/workflowsvc:workflowsvc
+
+.PHONY: bazel-test
+bazel-test: ## run Bazel-scaffolded tests
+	bazel test //apps/api-gateway:server_test //apps/cli/cmd:cmd_test

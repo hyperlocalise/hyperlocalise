@@ -1,0 +1,8 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["buf.yaml"])
+
+filegroup(
+    name = "contracts",
+    srcs = glob(["**/*.proto"]) + ["buf.yaml"],
+)

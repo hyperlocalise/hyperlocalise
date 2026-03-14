@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync pull --output json --fail-on-conflict --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
 Để áp dụng các thay đổi từ xa đối với các tệp cục bộ trong CI, hãy chuyển sang:
 
 ```bash
-go run . sync pull --output json --fail-on-conflict --dry-run=false
+go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
 ### Đẩy đồng bộ theo lịch (bật, đang hoạt động)
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run . sync push --output json --fail-on-conflict --dry-run=false
+      - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
 ```
 
 Để thực hiện kiểm tra không làm thay đổi dữ liệu, hãy sử dụng:
 
 ```bash
-go run . sync push --output json --fail-on-conflict --dry-run=true
+go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
 ```
 
 Đối với các công việc cho phép ghi, hãy ưu tiên sử dụng môi trường được bảo vệ, các cơ chế kiểm soát và thông tin xác thực dịch vụ có quyền hạn tối thiểu.

@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "poeditor",
+    srcs = ["adapter.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/internal/i18n/storage/poeditor",
+    visibility = ["//visibility:public"],
+    deps = ["//internal/i18n/storage"],
+)

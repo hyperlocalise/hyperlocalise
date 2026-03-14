@@ -1,6 +1,8 @@
 # hyperlocalise
 
-A high-performance localization CLI built in Go for modern development workflows — lightweight, fast, and dependency-minimal.
+Hyperlocalise is the AI-native localization infrastructure for modern apps.
+
+It combines an automation-first CLI, contract-driven APIs, and emerging TMS application layers for teams that want localization workflows to live inside engineering systems instead of beside them.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/quiet-circles/hyperlocalise)](https://goreportcard.com/report/github.com/quiet-circles/hyperlocalise)
 
@@ -8,7 +10,7 @@ A high-performance localization CLI built in Go for modern development workflows
 <!--ts-->
    * [hyperlocalise](#hyperlocalise)
    * [Features](#features)
-   * [Commands](#commands)
+   * [CLI](#cli)
    * [LLM Providers](#llm-providers)
    * [Storage Adapters](#storage-adapters)
    * [Project Layout](#project-layout)
@@ -19,6 +21,10 @@ A high-performance localization CLI built in Go for modern development workflows
 <!--te-->
 
 # Features
+- AI-native localization workflow orchestration for modern apps and teams
+- Local-first CLI for translation generation, evaluation, sync, and status checks
+- Emerging monorepo layout for CLI, TMS backend services, public APIs, and frontend layers
+- OpenAPI-ready public integration surface and protobuf/gRPC-oriented internal service contracts
 - [goreleaser](https://goreleaser.com/) releases publishing multi-arch (`amd64`/`arm64`) binaries for macOS and Linux, plus `.deb` and `.rpm` packages.
 - [golangci-lint](https://golangci-lint.run/) for linting and formatting
 - [cobra](https://cobra.dev/) setup including tests
@@ -56,7 +62,11 @@ npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocal
 
 This uses the [skills.sh](https://skills.sh) installer via `npx`.
 
-# Commands
+# CLI
+
+The CLI remains the most complete way to use Hyperlocalise today. It is the operator-facing interface for local translation workflows, evaluation, sync, machine-readable reporting, and automation-friendly execution inside CI or developer environments.
+
+## Commands
 
 ```
 hyperlocalise [flags]
@@ -73,6 +83,15 @@ Available Commands:
   update      update hyperlocalise using the bootstrap installer
   version     hyperlocalise version
 ```
+
+## CLI Commands
+
+The current CLI surface is organized around four core workflows:
+
+- `run` for translation generation and file updates
+- `eval` for quality scoring and report comparison
+- `sync` for storage adapter pull and push operations
+- `status` for translation coverage and review visibility
 
 ## run
 
@@ -632,19 +651,32 @@ Environment variable: `SMARTLING_USER_SECRET`
 For more details on the storage system and sync model, see [`internal/i18n/storage/README.md`](internal/i18n/storage/README.md).
 
 # Project Layout
-* [assets/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/assets) => docs, images, etc
-* [cmd/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/cmd)  => commandline configurations (flags, subcommands)
-* [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/internal)  => packages that are only for project internal purposes
-* [`go.mod`](go.mod) `tool` directives => tracks CLI tooling versions (for example `golangci-lint`, `gofumpt`, `gci`, `goimports`, `staticcheck`) in a Go 1.24+ compatible way
-- [`scripts/`](scripts/) => build scripts 
+* [apps/cli/](apps/cli/) => canonical CLI application entrypoint used by GoReleaser and local Go commands
+* [apps/api-gateway/](apps/api-gateway/) => public TMS HTTP gateway for OpenAPI-backed integrations
+* [apps/web/](apps/web/) => Vite SPA for the TMS frontend layer
+* [services/](services/) => internal service deployables for projects, jobs, memory, and workflows
+* [api/openapi/](api/openapi/) => external API source-of-truth
+* [api/proto/](api/proto/) => internal gRPC contract source-of-truth
+* [pkg/api/](pkg/api/) => generated or transport-facing contract packages
+* [pkg/client/](pkg/client/) => reusable TMS HTTP/gRPC client layers
+* [pkg/platform/](pkg/platform/) => shared runtime config, auth, observability, and transport helpers
+* [domains/](domains/) => transport-agnostic business-domain packages extracted over time
+* [apps/cli/cmd/](apps/cli/cmd/) => CLI command graph and command handlers
+* [apps/cli/internal/](apps/cli/internal/) => CLI-only support packages such as env loading and terminal progress rendering
+* [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/internal) => shared internals still pending extraction into domain or platform packages
+* [`go.work`](go.work) => stitches the root module and deployable service modules into one workspace
+* [`MODULE.bazel`](MODULE.bazel) => Bazel module entrypoint for the monorepo scaffold
+* [`scripts/`](scripts/) => build scripts 
 
 # Makefile Targets
 ```sh
 $> make
+bazel-build                    build Bazel-scaffolded targets
+bazel-test                     run Bazel-scaffolded tests
 bootstrap                      download tool and module dependencies
 check-build                    check golang build
 clean                          clean up environment
-cover                          display test coverage
+cover                          display root-module test coverage
 fmt                            format go files
 help                           list makefile targets
 install                        install golang binary
@@ -652,7 +684,26 @@ lint                           lint go files
 precommit                      run local CI validation flow
 run                            run the app
 staticcheck                    run staticcheck directly
-test                           run tests with JSON output and coverage
+test                           run workspace-wide tests
+test-root                      run root-module tests with JSON output and coverage
+test-workspace                 run root and nested-module tests
+```
+
+# Bazel Commands
+```sh
+# Build all deployable entrypoints
+bazel build //:cli //:api-gateway //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/projectsvc:projectsvc //services/workflowsvc:workflowsvc
+
+# Run Bazel-backed tests
+bazel test //apps/cli/cmd:cmd_test //apps/api-gateway:server_test
+
+# Build or test a single target
+bazel build //apps/cli:cli
+bazel test //apps/cli/cmd:cmd_test
+
+# Inspect the Bazel graph
+bazel query //...
+bazel query 'kind(go_binary, //...)'
 ```
 
 # Release
@@ -663,6 +714,7 @@ test                           run tests with JSON output and coverage
   ```
 - Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
 - GoReleaser config: [`.goreleaser.yml`](.goreleaser.yml)
+- GoReleaser builds the CLI from `apps/cli/main.go` while keeping the binary name `hyperlocalise`
 - Published artifacts include:
   - `darwin/amd64`, `darwin/arm64` archives
   - `linux/amd64`, `linux/arm64` archives
