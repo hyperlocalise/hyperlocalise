@@ -177,6 +177,37 @@ func TestRunInteractiveSpaceKeepsCurrentFilePage(t *testing.T) {
 	}
 }
 
+func TestRunInteractiveEnterOnFileStepSelectsHighlightedFile(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{
+			ConfigPath: "/tmp/i18n.jsonc",
+			Files: []runsvc.SelectionFile{
+				{Path: "/tmp/content/en/a.json"},
+				{Path: "/tmp/content/en/b.json"},
+			},
+			TaskIndex: []runsvc.SelectionTaskIndex{
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/a.json", TaskCount: 2},
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/b.json", TaskCount: 3},
+			},
+		},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+	model.mode = runInteractiveModeFile
+	model.steps = runInteractiveStepsForMode(model.mode)
+	model.stepPos = 1
+	model.refreshStep()
+	model.table.SetCursor(1)
+
+	nextModel, _ := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyEnter}))
+	typed := nextModel.(runInteractiveModel)
+	if typed.currentStep() != runInteractiveStepTarget {
+		t.Fatalf("expected enter to continue to target step, got %v", typed.currentStep())
+	}
+	if typed.selectedFile != "/tmp/content/en/b.json" {
+		t.Fatalf("expected enter to select highlighted file, got %q", typed.selectedFile)
+	}
+}
+
 func TestRunInteractiveFilterResetsListSelectionBeforeFiltering(t *testing.T) {
 	model := newRunInteractiveModel(
 		runsvc.SelectionCatalog{ConfigPath: "/tmp/i18n.jsonc"},
@@ -212,6 +243,62 @@ func TestRunInteractiveEscClearsTableFilter(t *testing.T) {
 	typed := nextModel.(runInteractiveModel)
 	if typed.tableFilter != "" || typed.filter.Value() != "" || typed.filtering {
 		t.Fatalf("expected esc to clear table filter state")
+	}
+}
+
+func TestRunInteractiveBucketViewCountsUseFilteredRows(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{
+			ConfigPath: "/tmp/i18n.jsonc",
+			TaskIndex: []runsvc.SelectionTaskIndex{
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/ui.json", TaskCount: 2},
+				{Group: "default", Bucket: "marketing", TargetLocale: "fr", SourcePath: "/tmp/content/en/marketing.json", TaskCount: 3},
+			},
+		},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+	model.mode = runInteractiveModeGroup
+	model.steps = runInteractiveStepsForMode(model.mode)
+	model.stepPos = 2
+	model.tableFilter = "ui"
+	model.refreshStep()
+
+	view := fmt.Sprint(model.View())
+	if !strings.Contains(view, "tasks=2  files=1  locales=1") {
+		t.Fatalf("expected filtered counts in bucket view, got %s", view)
+	}
+	rows, _ := model.bucketRows()
+	if len(rows) == 0 {
+		t.Fatal("expected bucket rows")
+	}
+	if got := strings.Join(rows[0], " "); !strings.Contains(got, "All buckets") || !strings.Contains(got, "1 files / 1 targets") || !strings.Contains(got, "2") {
+		t.Fatalf("expected all-buckets row to reflect filtered rows, got %q", got)
+	}
+}
+
+func TestRunInteractiveFileRowsAllRowUsesFilteredTaskTotal(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{
+			ConfigPath: "/tmp/i18n.jsonc",
+			TaskIndex: []runsvc.SelectionTaskIndex{
+				{Group: "default", Bucket: "ui", TargetLocale: "fr", SourcePath: "/tmp/content/en/ui.json", TaskCount: 2},
+				{Group: "default", Bucket: "marketing", TargetLocale: "es", SourcePath: "/tmp/content/en/marketing.json", TaskCount: 3},
+			},
+		},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+	model.mode = runInteractiveModeGroup
+	model.steps = runInteractiveStepsForMode(model.mode)
+	model.stepPos = 4
+	model.tableFilter = "ui"
+	model.refreshStep()
+
+	rows, _ := model.fileRows()
+	if len(rows) == 0 {
+		t.Fatal("expected file rows")
+	}
+	if got := strings.Join(rows[0], " "); !strings.Contains(got, "All files") || !strings.Contains(got, "2") || !strings.Contains(got, "1 buckets / 1 targets") {
+		t.Fatalf("expected filtered totals in all-files row, got %q", got)
 	}
 }
 
