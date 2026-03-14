@@ -14,8 +14,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify
+  bazel-build-test:
+    name: Bazel Build/Test
+    runs-on: ubuntu-latest
+    env:
+      BUILDBUDDY_ENDPOINT: grpcs://remote.buildbuddy.io
+      BUILDBUDDY_RESULTS_URL: https://app.buildbuddy.io/invocation/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+
+      - name: Configure BuildBuddy
+        id: buildbuddy
+        shell: bash
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+        run: |
+          rc_path="$RUNNER_TEMP/buildbuddy.bazelrc"
+          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
+            printf '%s\n' \
+              "common --bes_backend=${BUILDBUDDY_ENDPOINT}" \
+              "common --bes_results_url=${BUILDBUDDY_RESULTS_URL}" \
+              "common --remote_cache=${BUILDBUDDY_ENDPOINT}" \
+              "common --remote_timeout=10m" \
+              "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" \
+              >"${rc_path}"
+            echo "extra_bazelrc=--bazelrc=${rc_path}" >>"${GITHUB_OUTPUT}"
+          else
+            echo "extra_bazelrc=" >>"${GITHUB_OUTPUT}"
+            echo "BuildBuddy secret unavailable; continuing with local-only Bazel execution."
+          fi
+
+      - name: Bazel build
+        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli
+
+      - name: Bazel test
+        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test
+
+  go-quality:
+    name: Go Quality
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +68,16 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: make precommit
-        run: make precommit
+      - name: Verify formatting
+        run: |
+          make fmt
+          git diff --exit-code
 
-      - name: make bench-runsvc
-        run: make bench-runsvc
+      - name: Lint
+        run: make lint
+
+      - name: Workspace tests
+        run: make test-workspace
+
+      - name: Check builds
+        run: make check-build

@@ -6,12 +6,12 @@ go_library(
     importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/progressui",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_charmbracelet_bubbles_v2//progress",
-        "@com_github_charmbracelet_bubbles_v2//spinner",
-        "@com_github_charmbracelet_bubbles_v2//stopwatch",
-        "@com_github_charmbracelet_bubbletea_v2//:bubbletea",
-        "@com_github_charmbracelet_lipgloss_v2//:lipgloss",
+        "@land_charm_bubbles_v2//progress",
+        "@land_charm_bubbles_v2//spinner",
+        "@land_charm_bubbles_v2//stopwatch",
+        "@land_charm_bubbletea_v2//:bubbletea",
+        "@land_charm_lipgloss_v2//:lipgloss",
         "@com_github_charmbracelet_log//:log",
-        "@com_github_mattn_go_isatty//:go_isatty",
+        "@com_github_mattn_go_isatty//:go-isatty",
     ],
 )
