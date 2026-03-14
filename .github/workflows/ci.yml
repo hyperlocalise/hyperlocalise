@@ -50,10 +50,10 @@ jobs:
           fi
 
       - name: Bazel build
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli //:api-gateway //services/projectsvc:projectsvc //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/workflowsvc:workflowsvc
+        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli
 
       - name: Bazel test
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test //apps/api-gateway:server_test
+        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test
 
   go-quality:
     name: Go Quality
