@@ -5,5 +5,5 @@ go_library(
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalset",
     visibility = ["//visibility:public"],
-    deps = ["@in_gopkg_yaml_v3//:yaml"],
+    deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
 )

@@ -15,7 +15,5 @@ build:ci --curses=no
 build:ci --show_result=20
 build:ci --bes_upload_mode=wait_for_upload_complete
 
-test:ci --color=yes
-test:ci --curses=no
-test:ci --show_result=20
-test:ci --bes_upload_mode=wait_for_upload_complete
+test:ci --test_output=errors
+test:ci --test_summary=detailed

@@ -2,11 +2,11 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "translator",
-    srcs = ["translator.go"],
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/quiet-circles/hyperlocalise/internal/i18n/translator",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_openai_openai_go_v2//:openai",
+        "@com_github_openai_openai_go_v2//:openai-go",
         "@com_github_openai_openai_go_v2//option",
     ],
 )
