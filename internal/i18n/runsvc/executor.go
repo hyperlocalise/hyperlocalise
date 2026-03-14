@@ -3,6 +3,7 @@ package runsvc
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -77,9 +78,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	staged := map[string]stagedOutput{}
 	for targetPath, output := range initialStaged {
 		entries := map[string]string{}
-		for key, value := range output.entries {
-			entries[key] = value
-		}
+		maps.Copy(entries, output.entries)
 		staged[targetPath] = stagedOutput{entries: entries, sourcePath: output.sourcePath, sourceLocale: output.sourceLocale, targetLocale: output.targetLocale}
 	}
 
@@ -197,9 +196,7 @@ func (s *Service) precomputeContextMemory(ctx context.Context, state *executorSt
 	jobs := make(chan string)
 	var wg sync.WaitGroup
 	for range workerCount {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for {
 				select {
 				case <-ctx.Done():
@@ -211,7 +208,7 @@ func (s *Service) precomputeContextMemory(ctx context.Context, state *executorSt
 					_ = s.resolveTaskContextMemory(ctx, Task{ContextKey: key}, state, emitter)
 				}
 			}
-		}()
+		})
 	}
 
 	for key := range state.contextPlan.Groups {
@@ -388,7 +385,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 	}
 }
 
-func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, l1 cache.ExactCache, emitter *eventEmitter, wg *sync.WaitGroup, cancel context.CancelFunc) {
+func (s *Service) runWorker(ctx context.Context, jobs <-chan Task, completions chan<- taskCompletion, targetFailures chan<- string, state *executorState, l1 cache.ExactCache, emitter *eventEmitter, wg *sync.WaitGroup, _ context.CancelFunc) {
 	defer wg.Done()
 	for {
 		select {
@@ -491,6 +488,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	precomputeExecutionTaskCacheFields(&task)
 	cacheKey := exactCacheKey(task)
 	taskHash := lockTaskHash(task)
+	sourceHash := hashSourceText(task.SourceText)
 	if l1 != nil {
 		cachedValue, hit, err := l1.Get(ctx, cacheKey)
 		if err != nil {
@@ -504,7 +502,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 				return false
 			}
 			select {
-			case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: cachedValue, sourceHash: hashSourceText(task.SourceText), taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+			case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: cachedValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 				state.reportMu.Lock()
 				state.report.Succeeded++
 				succeeded := state.report.Succeeded
@@ -543,7 +541,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 			TargetLocale: task.TargetLocale,
 			Provider:     task.Provider,
 			Model:        task.Model,
-			SourceHash:   hashSourceText(task.SourceText),
+			SourceHash:   sourceHash,
 		}); err != nil {
 			state.reportMu.Lock()
 			state.report.Warnings = append(state.report.Warnings, fmt.Sprintf(`cache_l1_put_failed target=%q key=%q error=%q`, task.TargetPath, task.EntryKey, err.Error()))
@@ -557,7 +555,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	}
 
 	select {
-	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: translated, sourceHash: hashSourceText(task.SourceText), taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: translated, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 		state.reportMu.Lock()
 		state.report.Succeeded++
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))

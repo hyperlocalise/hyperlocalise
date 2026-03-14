@@ -134,4 +134,47 @@ func TestBuildSelectionCatalogAggregatesGlobbedFiles(t *testing.T) {
 	if len(catalog.TaskIndex) != 4 {
 		t.Fatalf("expected four group/bucket/locale/file combinations, got %d", len(catalog.TaskIndex))
 	}
+	if catalog.Files[0].Path != sourceA {
+		t.Fatalf("expected files to be sorted, got first path %q", catalog.Files[0].Path)
+	}
+	if catalog.TaskIndex[0].SourcePath != sourceA || catalog.TaskIndex[0].TargetLocale != "de" {
+		t.Fatalf("unexpected first task index entry: %+v", catalog.TaskIndex[0])
+	}
+	if catalog.TaskIndex[3].SourcePath != sourceB || catalog.TaskIndex[3].TargetLocale != "fr" {
+		t.Fatalf("unexpected last task index entry: %+v", catalog.TaskIndex[3])
+	}
+}
+
+func TestBuildSelectionCatalogAggregatesTaskIndexCounts(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	configPath := filepath.Join(dir, "i18n.jsonc")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello","bye":"Bye"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "strings.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	catalog, err := BuildSelectionCatalog(configPath)
+	if err != nil {
+		t.Fatalf("build catalog: %v", err)
+	}
+	if len(catalog.TaskIndex) != 1 {
+		t.Fatalf("expected one aggregated task index row, got %d", len(catalog.TaskIndex))
+	}
+	if catalog.TaskIndex[0].TaskCount != 2 {
+		t.Fatalf("expected aggregated task count 2, got %d", catalog.TaskIndex[0].TaskCount)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -98,8 +99,8 @@ func BenchmarkPlanTasksSharedSourceMappings(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if _, err := svc.planTasks(&cfg, "", "", nil, nil); err != nil {
 			b.Fatalf("planTasks: %v", err)
 		}
@@ -156,12 +157,21 @@ func BenchmarkRunLargeBatch(b *testing.B) {
 	}
 }
 
+func BenchmarkBuildSelectionCatalog(b *testing.B) {
+	planned := benchmarkSelectionCatalogTasks(20, 3, 100)
+	b.ReportAllocs()
+
+	for b.Loop() {
+		_ = buildSelectionCatalogFromTasks("/tmp/i18n.jsonc", planned)
+	}
+}
+
 var benchmarkCacheKeySink string
 
 func benchmarkPlanningConfig(sourcePath, targetPath string, groups int) config.I18NConfig {
 	cfg := testConfig(sourcePath, targetPath)
 	cfg.Groups = make(map[string]config.GroupConfig, groups)
-	for i := 0; i < groups; i++ {
+	for i := range groups {
 		cfg.Groups[fmt.Sprintf("group_%02d", i)] = config.GroupConfig{
 			Targets: []string{"fr"},
 			Buckets: []string{"ui"},
@@ -173,7 +183,7 @@ func benchmarkPlanningConfig(sourcePath, targetPath string, groups int) config.I
 func benchmarkJSONEntries(count int) string {
 	var b strings.Builder
 	b.WriteByte('{')
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i > 0 {
 			b.WriteByte(',')
 		}
@@ -188,7 +198,7 @@ func benchmarkRunService(entryCount, localeCount int) *Service {
 	sourcePath := "/tmp/source.json"
 	targetPaths := make([]string, 0, localeCount)
 	targetLocales := make([]string, 0, localeCount)
-	for i := 0; i < localeCount; i++ {
+	for i := range localeCount {
 		targetLocales = append(targetLocales, fmt.Sprintf("l%02d", i))
 		targetPaths = append(targetPaths, fmt.Sprintf("/tmp/out-%02d.json", i))
 	}
@@ -242,10 +252,8 @@ func benchmarkRunService(entryCount, localeCount int) *Service {
 		case sourcePath:
 			return []byte(sourceContent), nil
 		default:
-			for _, targetPath := range targetPaths {
-				if path == targetPath {
-					return []byte(`{}`), nil
-				}
+			if slices.Contains(targetPaths, path) {
+				return []byte(`{}`), nil
 			}
 			return nil, filepath.ErrBadPattern
 		}
@@ -259,4 +267,27 @@ func benchmarkRunService(entryCount, localeCount int) *Service {
 		return "T(" + req.Source + ")", nil
 	}
 	return svc
+}
+
+func benchmarkSelectionCatalogTasks(fileCount, groupCount, entriesPerFile int) []Task {
+	tasks := make([]Task, 0, fileCount*groupCount*3*entriesPerFile)
+	targets := []string{"fr", "de", "es"}
+	for groupIndex := range groupCount {
+		groupName := fmt.Sprintf("group_%02d", groupIndex)
+		for fileIndex := range fileCount {
+			sourcePath := filepath.ToSlash(filepath.Join("/tmp/content/en", fmt.Sprintf("file_%02d.json", fileIndex)))
+			for _, target := range targets {
+				for entryIndex := range entriesPerFile {
+					tasks = append(tasks, Task{
+						GroupName:    groupName,
+						BucketName:   "ui",
+						TargetLocale: target,
+						SourcePath:   sourcePath,
+						EntryKey:     fmt.Sprintf("key_%03d", entryIndex),
+					})
+				}
+			}
+		}
+	}
+	return tasks
 }
