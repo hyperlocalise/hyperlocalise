@@ -35,11 +35,17 @@ func (c *Client) ListProjects(ctx context.Context) ([]openapi.Project, error) {
 	if err != nil {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
-	defer resp.Body.Close()
 
 	var payload openapi.ProjectListResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			return nil, fmt.Errorf("decode response: %w (close body: %v)", err, closeErr)
+		}
+
 		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return nil, fmt.Errorf("close response body: %w", err)
 	}
 
 	return payload.Items, nil

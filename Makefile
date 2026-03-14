@@ -46,8 +46,8 @@ bench-runsvc: ## run focused runsvc benchmarks
 
 .PHONY: bench-evalsvc
 bench-evalsvc: ## run focused evalsvc benchmarks
-	go test -run '^$$' -bench 'BenchmarkRunLargeBatch' -benchmem -benchtime=20x ./internal/i18n/evalsvc
-	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./internal/i18n/evalsvc/scoring
+	go test -run '^$$' -bench 'BenchmarkRunLargeBatch' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc
+	go test -run '^$$' -bench 'Benchmark(EvaluatorEvaluate|PlaceholderTokens|TokenF1|NormalizeText)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/evalsvc/scoring
 
 
 .PHONY: clean
