@@ -171,6 +171,12 @@ Flutter ARB format support in `run`:
 - `.arb` files are supported for source and target mappings.
 - Only message keys are translated; metadata keys such as `@key` are preserved, and `@@locale` is normalized to the target locale when writing `.arb` outputs.
 
+HTML format support in `run`:
+- `.html` files are supported for source and target mappings.
+- Text content inside block-level elements (`<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.) is extracted and translated.
+- Inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) are preserved as structural placeholders so the LLM translates clean prose.
+- `<script>`, `<style>`, and `<head>` content is never translated.
+
 Prune workflow recommendation:
 - Run `hyperlocalise run --dry-run --prune` regularly (for example weekly or before releases) to review stale-key candidates.
 - Apply approved cleanup with `hyperlocalise run --prune` in a dedicated change so key deletions are easy to audit.
