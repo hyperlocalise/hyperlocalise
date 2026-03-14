@@ -4,7 +4,7 @@ project_name: hyperlocalise
 
 builds:
   - id: hyperlocalise
-    main: ./main.go
+    main: ./apps/cli/main.go
     binary: hyperlocalise
     env:
       - CGO_ENABLED=0

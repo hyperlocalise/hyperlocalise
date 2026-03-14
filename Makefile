@@ -17,15 +17,15 @@ bump: ## update go dependencies
 
 .PHONY: check-build
 check-build: ## check golang build
-	@go build -ldflags "-X main.version=$(version)" -o /dev/null
+	@go build -ldflags "-X main.version=$(version)" -o /dev/null ./apps/cli
 
 .PHONY: install
 install: ## install golang binary
-	@go install -ldflags "-X main.version=$(version)"
+	@go install -ldflags "-X main.version=$(version)" ./apps/cli
 
 .PHONY: run
 run: ## run the app
-	@go run -ldflags "-X main.version=$(version)"  main.go
+	@go run -ldflags "-X main.version=$(version)" ./apps/cli
 
 .PHONY: bootstrap
 bootstrap: ## download tool and module dependencies
@@ -41,7 +41,7 @@ test: clean ## run tests with JSON output and coverage
 
 .PHONY: bench-runsvc
 bench-runsvc: ## run focused runsvc benchmarks
-	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./internal/i18n/runsvc
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
 
 
 .PHONY: bench-evalsvc
@@ -84,3 +84,11 @@ precommit: ## run local CI validation flow
 .PHONY: staticcheck
 staticcheck: ## run staticcheck directly
 	go tool staticcheck ./...
+
+.PHONY: bazel-build
+bazel-build: ## build Bazel-scaffolded targets
+	bazel build //apps/api-gateway:api-gateway //services/projectsvc:projectsvc //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/workflowsvc:workflowsvc
+
+.PHONY: bazel-test
+bazel-test: ## run Bazel-scaffolded tests
+	bazel test //apps/api-gateway:server_test

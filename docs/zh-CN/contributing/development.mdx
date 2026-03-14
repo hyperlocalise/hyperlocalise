@@ -38,7 +38,7 @@ make check-build
 ```bash
 make run
 # or
-go run -ldflags "-X main.version=dev" main.go
+go run -ldflags "-X main.version=dev" ./apps/cli
 ```
 
 ## 安装本地二进制文件
@@ -50,10 +50,10 @@ hyperlocalise version
 
 ## 关键代码位置
 
-- `cmd/`: Cobra commands, flags, and CLI output behavior
-- `internal/config/`：`i18n.jsonc` 的解析和验证
-- `internal/i18n/runsvc/`：`run` 规划和执行流程
-- `internal/i18n/syncsvc/`: sync orchestration and conflict logic
+- `apps/cli/cmd/`: Cobra commands, flags, and CLI output behavior
+- `pkg/i18nconfig/`：`i18n.jsonc` 的解析和验证
+- `apps/cli/internal/i18n/runsvc/`：`run` 规划和执行流程
+- `apps/cli/internal/i18n/syncsvc/`: sync orchestration and conflict logic
 - `internal/i18n/storage/`: 适配器合同和提供商集成
 
 ## 在提交 PR 之前
