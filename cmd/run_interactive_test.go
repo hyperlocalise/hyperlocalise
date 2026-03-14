@@ -521,3 +521,34 @@ func TestRunInteractiveRightAdjustsWorkers(t *testing.T) {
 		t.Fatalf("expected workers to increase to 3, got %d", typed.options.workers)
 	}
 }
+
+func TestRunInteractiveClearSelectionsAfterNoOpsWhenStepNotInRoute(t *testing.T) {
+	model := newRunInteractiveModel(
+		runsvc.SelectionCatalog{ConfigPath: "/tmp/i18n.jsonc"},
+		runOptions{configPath: "/tmp/i18n.jsonc"},
+	)
+	model.steps = []runInteractiveStep{
+		runInteractiveStepGroup,
+		runInteractiveStepBucket,
+		runInteractiveStepTarget,
+		runInteractiveStepFile,
+	}
+	model.selectedGroup = "docs"
+	model.selectedBucket = "ui"
+	model.selectedTarget = "fr"
+	model.selectedFile = "/tmp/content/en/a.json"
+	model.selectedFiles = map[string]struct{}{"/tmp/content/en/a.json": {}}
+	model.directoryScope = "/tmp/content/en"
+
+	model.clearSelectionsAfter(runInteractiveStepOptions)
+
+	if model.selectedGroup != "docs" || model.selectedBucket != "ui" || model.selectedTarget != "fr" || model.selectedFile != "/tmp/content/en/a.json" {
+		t.Fatalf("expected selections to remain unchanged, got group=%q bucket=%q target=%q file=%q", model.selectedGroup, model.selectedBucket, model.selectedTarget, model.selectedFile)
+	}
+	if len(model.selectedFiles) != 1 {
+		t.Fatalf("expected selected files to remain unchanged, got %+v", model.selectedFiles)
+	}
+	if model.directoryScope != "/tmp/content/en" {
+		t.Fatalf("expected directory scope to remain unchanged, got %q", model.directoryScope)
+	}
+}

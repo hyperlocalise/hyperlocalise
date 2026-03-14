@@ -840,7 +840,6 @@ func (m *runInteractiveModel) clearSelectionsAfter(step runInteractiveStep) {
 		}
 		return
 	}
-	m.clearSelectionForStep(step)
 }
 
 func (m *runInteractiveModel) clearSelectionForStep(step runInteractiveStep) {

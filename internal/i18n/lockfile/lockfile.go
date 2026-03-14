@@ -26,6 +26,7 @@ type LocaleCheckpoint struct {
 
 type RunCompletion struct {
 	SourceHash string `json:"source_hash,omitempty"`
+	TaskHash   string `json:"task_hash,omitempty"`
 }
 
 type RunCheckpoint struct {
@@ -36,6 +37,7 @@ type RunCheckpoint struct {
 	EntryKey     string    `json:"entry_key,omitempty"`
 	Value        string    `json:"value,omitempty"`
 	SourceHash   string    `json:"source_hash,omitempty"`
+	TaskHash     string    `json:"task_hash,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 

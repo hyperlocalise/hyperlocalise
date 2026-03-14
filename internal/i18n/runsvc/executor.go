@@ -34,6 +34,7 @@ type taskCompletion struct {
 	entryKey     string
 	value        string
 	sourceHash   string
+	taskHash     string
 	targetPath   string
 	sourcePath   string
 	targetLocale string
@@ -322,7 +323,10 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				}
 				continue
 			}
-			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{SourceHash: completion.sourceHash}
+			lockState.RunCompleted[completion.identity] = lockfile.RunCompletion{
+				SourceHash: completion.sourceHash,
+				TaskHash:   completion.taskHash,
+			}
 			lockState.RunCheckpoint[completion.identity] = lockfile.RunCheckpoint{
 				RunID:        activeRunID,
 				TargetPath:   completion.targetPath,
@@ -331,6 +335,7 @@ func (s *Service) runLockWriter(ctx context.Context, completions <-chan taskComp
 				EntryKey:     completion.entryKey,
 				Value:        completion.value,
 				SourceHash:   completion.sourceHash,
+				TaskHash:     completion.taskHash,
 				UpdatedAt:    s.now(),
 			}
 			pendingPersisted[completion.identity] = struct{}{}
@@ -485,6 +490,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	}
 	precomputeExecutionTaskCacheFields(&task)
 	cacheKey := exactCacheKey(task)
+	taskHash := lockTaskHash(task)
 	if l1 != nil {
 		cachedValue, hit, err := l1.Get(ctx, cacheKey)
 		if err != nil {
@@ -498,7 +504,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 				return false
 			}
 			select {
-			case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: cachedValue, sourceHash: hashSourceText(task.SourceText), targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+			case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: cachedValue, sourceHash: hashSourceText(task.SourceText), taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 				state.reportMu.Lock()
 				state.report.Succeeded++
 				succeeded := state.report.Succeeded
@@ -551,7 +557,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	}
 
 	select {
-	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: translated, sourceHash: hashSourceText(task.SourceText), targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: translated, sourceHash: hashSourceText(task.SourceText), taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 		state.reportMu.Lock()
 		state.report.Succeeded++
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))
