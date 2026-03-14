@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "lokalise",
+    srcs = ["adapter.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/internal/i18n/storage/lokalise",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/storage",
+        "@com_github_lokalise_go_lokalise_api_v5//:go_lokalise_api_v5",
+    ],
+)

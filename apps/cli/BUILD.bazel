@@ -1,6 +1,8 @@
-package(default_visibility = ["//visibility:public"])
+load("@rules_go//go:def.bzl", "go_binary")
 
-filegroup(
+go_binary(
     name = "cli",
     srcs = ["main.go"],
+    visibility = ["//visibility:public"],
+    deps = ["//apps/cli/cmd"],
 )

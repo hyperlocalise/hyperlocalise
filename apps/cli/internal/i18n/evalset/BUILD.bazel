@@ -1,0 +1,9 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "evalset",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalset",
+    visibility = ["//visibility:public"],
+    deps = ["@in_gopkg_yaml_v3//:yaml"],
+)

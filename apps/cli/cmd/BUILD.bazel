@@ -1,6 +1,56 @@
-package(default_visibility = ["//visibility:public"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-filegroup(
-    name = "sources",
-    srcs = glob(["*.go", "templates/**"]),
+go_library(
+    name = "cmd",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    embedsrcs = ["templates/i18n.jsonc"],
+    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/cmd",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//apps/cli/internal/envloader",
+        "//apps/cli/internal/i18n/evalsvc",
+        "//apps/cli/internal/i18n/evalsvc/scoring",
+        "//apps/cli/internal/i18n/localstore",
+        "//apps/cli/internal/i18n/pathresolver",
+        "//apps/cli/internal/i18n/runsvc",
+        "//apps/cli/internal/i18n/storage/bootstrap",
+        "//apps/cli/internal/i18n/storageregistry",
+        "//apps/cli/internal/i18n/syncsvc",
+        "//apps/cli/internal/progressui",
+        "//internal/i18n/storage",
+        "//internal/i18n/translationfileparser",
+        "//pkg/i18nconfig",
+        "@com_github_charmbracelet_bubbles_v2//filepicker",
+        "@com_github_charmbracelet_bubbles_v2//help",
+        "@com_github_charmbracelet_bubbles_v2//key",
+        "@com_github_charmbracelet_bubbles_v2//list",
+        "@com_github_charmbracelet_bubbles_v2//paginator",
+        "@com_github_charmbracelet_bubbles_v2//progress",
+        "@com_github_charmbracelet_bubbles_v2//table",
+        "@com_github_charmbracelet_bubbles_v2//textinput",
+        "@com_github_charmbracelet_bubbletea_v2//:bubbletea",
+        "@com_github_charmbracelet_lipgloss_v2//:lipgloss",
+        "@com_github_masterminds_semver_v3//:semver",
+        "@com_github_mattn_go_isatty//:go_isatty",
+        "@com_github_spf13_cobra//:cobra",
+        "@com_github_spf13_cobra//doc",
+    ],
+)
+
+go_test(
+    name = "cmd_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":cmd"],
+    deps = [
+        "//apps/cli/internal/i18n/evalsvc",
+        "//apps/cli/internal/i18n/evalsvc/scoring",
+        "//apps/cli/internal/i18n/runsvc",
+        "//apps/cli/internal/i18n/syncsvc",
+        "//internal/i18n/storage",
+        "//pkg/i18nconfig",
+        "@com_github_charmbracelet_bubbles_v2//list",
+        "@com_github_charmbracelet_bubbletea_v2//:bubbletea",
+        "@com_github_masterminds_semver_v3//:semver",
+        "@com_github_spf13_cobra//:cobra",
+    ],
 )

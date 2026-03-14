@@ -1,8 +1,8 @@
 load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "openapi",
+    name = "storage",
     srcs = ["types.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/api/openapi",
+    importpath = "github.com/quiet-circles/hyperlocalise/internal/i18n/storage",
     visibility = ["//visibility:public"],
 )

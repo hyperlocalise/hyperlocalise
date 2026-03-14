@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "progressui",
+    srcs = ["renderer.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/progressui",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_charmbracelet_bubbles_v2//progress",
+        "@com_github_charmbracelet_bubbles_v2//spinner",
+        "@com_github_charmbracelet_bubbles_v2//stopwatch",
+        "@com_github_charmbracelet_bubbletea_v2//:bubbletea",
+        "@com_github_charmbracelet_lipgloss_v2//:lipgloss",
+        "@com_github_charmbracelet_log//:log",
+        "@com_github_mattn_go_isatty//:go_isatty",
+    ],
+)

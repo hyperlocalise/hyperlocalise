@@ -676,7 +676,7 @@ bazel-test                     run Bazel-scaffolded tests
 bootstrap                      download tool and module dependencies
 check-build                    check golang build
 clean                          clean up environment
-cover                          display test coverage
+cover                          display root-module test coverage
 fmt                            format go files
 help                           list makefile targets
 install                        install golang binary
@@ -684,7 +684,9 @@ lint                           lint go files
 precommit                      run local CI validation flow
 run                            run the app
 staticcheck                    run staticcheck directly
-test                           run tests with JSON output and coverage
+test                           run workspace-wide tests
+test-root                      run root-module tests with JSON output and coverage
+test-workspace                 run root and nested-module tests
 ```
 
 # Release

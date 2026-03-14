@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "localstore",
+    srcs = ["jsonstore.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/localstore",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//apps/cli/internal/i18n/pathresolver",
+        "//apps/cli/internal/i18n/syncsvc",
+        "//internal/i18n/storage",
+        "//pkg/i18nconfig",
+    ],
+)
