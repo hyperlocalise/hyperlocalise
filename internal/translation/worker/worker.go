@@ -1,0 +1,177 @@
+package worker
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"time"
+
+	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
+	"github.com/uptrace/bun"
+)
+
+// Processor polls Postgres-backed outbox rows and advances job state.
+type Processor struct {
+	repository *store.Repository
+	clock      func() time.Time
+}
+
+// NewProcessor constructs a translation worker processor.
+func NewProcessor(repository *store.Repository) *Processor {
+	return &Processor{
+		repository: repository,
+		clock: func() time.Time {
+			return time.Now().UTC()
+		},
+	}
+}
+
+// Run polls until the context is cancelled.
+func (p *Processor) Run(ctx context.Context, pollInterval time.Duration, batchSize int) error {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		if err := p.processBatch(ctx, batchSize); err != nil {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func (p *Processor) processBatch(ctx context.Context, batchSize int) error {
+	events, err := p.repository.ListPendingOutboxEvents(ctx, batchSize)
+	if err != nil {
+		return fmt.Errorf("load pending outbox events: %w", err)
+	}
+
+	for idx := range events {
+		if err := p.processEvent(ctx, &events[idx]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Processor) processEvent(ctx context.Context, event *store.OutboxEventModel) error {
+	var payload translationapp.JobQueuedPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return fmt.Errorf("decode queued job event %s: %w", event.ID, err)
+	}
+
+	job, err := p.repository.GetJob(ctx, payload.JobID, payload.ProjectID)
+	if err != nil {
+		return fmt.Errorf("load queued translation job %s: %w", payload.JobID, err)
+	}
+
+	err = p.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if updateErr := p.repository.UpdateJobStatus(
+			ctx,
+			tx,
+			job.ID,
+			store.JobStatusQueued,
+			store.JobStatusRunning,
+			"",
+			nil,
+			nil,
+		); updateErr != nil {
+			return updateErr
+		}
+
+		outcomeKind, outcomePayload, completedAt, outcomeErr := p.buildStubOutcome(job)
+		if outcomeErr != nil {
+			return outcomeErr
+		}
+
+		if updateErr := p.repository.UpdateJobStatus(
+			ctx,
+			tx,
+			job.ID,
+			store.JobStatusRunning,
+			store.JobStatusSucceeded,
+			outcomeKind,
+			outcomePayload,
+			&completedAt,
+		); updateErr != nil {
+			return updateErr
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("process translation job %s: %w", job.ID, err)
+	}
+
+	processedAt := p.clock()
+	if err := p.repository.MarkOutboxEventProcessed(ctx, event.ID, processedAt); err != nil {
+		return err
+	}
+
+	log.Printf("processed translation job %s from outbox event %s", job.ID, event.ID)
+
+	return nil
+}
+
+func (p *Processor) buildStubOutcome(job *store.TranslationJobModel) (string, []byte, time.Time, error) {
+	completedAt := p.clock()
+
+	switch job.Type {
+	case store.JobTypeString:
+		input, err := translationapp.DecodeStringInput(job.InputPayload)
+		if err != nil {
+			return "", nil, time.Time{}, err
+		}
+
+		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
+		for _, locale := range input.GetTargetLocales() {
+			translations = append(translations, &translationv1.StringTranslation{
+				Locale: locale,
+				Text:   fmt.Sprintf("TODO(%s): translate %q", locale, input.GetSourceText()),
+			})
+		}
+
+		payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobResult{
+			Translations: translations,
+		})
+		if err != nil {
+			return "", nil, time.Time{}, err
+		}
+
+		// TODO: Replace the placeholder result builder with a real translation executor
+		// once provider selection, retries, and model prompting are defined.
+		return "string_result", payload, completedAt, nil
+	case store.JobTypeFile:
+		input, err := translationapp.DecodeFileInput(job.InputPayload)
+		if err != nil {
+			return "", nil, time.Time{}, err
+		}
+
+		translations := make([]*translationv1.FileTranslation, 0, len(input.GetTargetLocales()))
+		for _, locale := range input.GetTargetLocales() {
+			translations = append(translations, &translationv1.FileTranslation{
+				Locale:  locale,
+				FileUri: fmt.Sprintf("%s.%s.todo", input.GetFileUri(), locale),
+			})
+		}
+
+		payload, err := translationapp.EncodeProto(&translationv1.FileTranslationJobResult{
+			Translations: translations,
+		})
+		if err != nil {
+			return "", nil, time.Time{}, err
+		}
+
+		return "file_result", payload, completedAt, nil
+	default:
+		return "", nil, time.Time{}, fmt.Errorf("unsupported job type %q", job.Type)
+	}
+}

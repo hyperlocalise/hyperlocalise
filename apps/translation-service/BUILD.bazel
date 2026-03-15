@@ -6,6 +6,10 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [
         "//api/services/translation:translation",
+        "//internal/translation/app:app",
+        "//internal/translation/config:config",
+        "//internal/translation/queue:queue",
+        "//internal/translation/store:store",
         "//pkg/api/proto/hyperlocalise/translation/v1:v1",
         "@org_golang_google_grpc//:grpc",
     ],
