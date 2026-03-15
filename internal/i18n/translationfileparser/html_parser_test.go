@@ -332,6 +332,137 @@ func TestHTMLParserParseFixture(t *testing.T) {
 	}
 }
 
+// --- MarshalHTMLWithTargetFallback tests ---
+
+func TestHTMLMarshalWithTargetFallbackHappyPath(t *testing.T) {
+	source := []byte(`<p>Hello</p><p>World</p>`)
+	target := []byte(`<p>Bonjour</p><p>Monde</p>`)
+
+	out, diags := MarshalHTMLWithTargetFallback(source, target, map[string]string{})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallbacks, got %v", diags.SourceFallbackKeys)
+	}
+	s := string(out)
+	if !strings.Contains(s, "Bonjour") || !strings.Contains(s, "Monde") {
+		t.Fatalf("expected target translations used as fallback, got: %s", s)
+	}
+}
+
+func TestHTMLMarshalWithTargetFallbackStagedValueTakesPriority(t *testing.T) {
+	source := []byte(`<p>Hello</p>`)
+	target := []byte(`<p>Bonjour</p>`)
+
+	entries, err := HTMLParser{}.Parse(source)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	// Provide a staged value that differs from the target.
+	staged := make(map[string]string)
+	for k := range entries {
+		staged[k] = "Hola"
+	}
+
+	out, diags := MarshalHTMLWithTargetFallback(source, target, staged)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	s := string(out)
+	if strings.Contains(s, "Bonjour") {
+		t.Fatalf("expected staged value to take priority over target, got: %s", s)
+	}
+	if !strings.Contains(s, "Hola") {
+		t.Fatalf("expected staged value in output, got: %s", s)
+	}
+}
+
+func TestHTMLMarshalWithTargetFallbackLengthMismatch(t *testing.T) {
+	// Source has more segments than target; extra segments fall back to source text.
+	source := []byte(`<p>One</p><p>Two</p><p>Three</p>`)
+	target := []byte(`<p>Un</p><p>Deux</p>`)
+
+	out, diags := MarshalHTMLWithTargetFallback(source, target, map[string]string{})
+	s := string(out)
+	if !strings.Contains(s, "Un") || !strings.Contains(s, "Deux") {
+		t.Fatalf("expected first two segments translated, got: %s", s)
+	}
+	// Third segment has no target and no staged value — must fall back to source.
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected 1 source fallback for extra segment, got %d: %v", len(diags.SourceFallbackKeys), diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(s, "Three") {
+		t.Fatalf("expected source text for extra segment, got: %s", s)
+	}
+}
+
+func TestHTMLMarshalWithTargetFallbackPositionalAlignment(t *testing.T) {
+	// Source has two segments; staged covers position 0.
+	// Target position 1 ("Deux") must align with source position 1 ("Two").
+	source := []byte(`<p>One</p><p>Two</p>`)
+	target := []byte(`<p>Un</p><p>Deux</p>`)
+
+	entries, err := HTMLParser{}.Parse(source)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	// Stage only the first segment.
+	staged := make(map[string]string)
+	i := 0
+	for k := range entries {
+		if i == 0 {
+			staged[k] = "Uno"
+		}
+		i++
+		if i > 1 {
+			break
+		}
+	}
+
+	out, diags := MarshalHTMLWithTargetFallback(source, target, staged)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	s := string(out)
+	if !strings.Contains(s, "Deux") {
+		t.Fatalf("expected target position 1 used for source position 1, got: %s", s)
+	}
+}
+
+func TestHTMLParserPreExcludedFromTranslation(t *testing.T) {
+	content := []byte(`<p>Here is an example:</p>
+<pre>
+  const x = 1;
+  console.log(x);
+</pre>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	combined := strings.Join(mapValues(got), "\n")
+	if strings.Contains(combined, "const x") {
+		t.Fatalf("expected pre content excluded from translation, got %q", combined)
+	}
+	if !strings.Contains(combined, "Here is an example:") {
+		t.Fatalf("expected paragraph text included, got %q", combined)
+	}
+}
+
+func TestHTMLMarshalPreContentPreservedVerbatim(t *testing.T) {
+	template := []byte(`<p>Intro</p><pre>  code here  </pre>`)
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	out, _ := MarshalHTML(template, entries)
+	s := string(out)
+	if !strings.Contains(s, "  code here  ") {
+		t.Fatalf("expected pre content preserved verbatim, got: %s", s)
+	}
+}
+
 func TestHTMLMarshalFixtureRoundTrip(t *testing.T) {
 	template := readFixture(t, "tests/html/en-US.html")
 

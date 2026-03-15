@@ -50,7 +50,7 @@ var htmlBlockElements = map[string]bool{
 	"figcaption": true, "figure": true, "footer": true, "form": true,
 	"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true,
 	"header": true, "hgroup": true, "li": true, "main": true,
-	"nav": true, "ol": true, "p": true, "pre": true, "section": true,
+	"nav": true, "ol": true, "p": true, "section": true,
 	"summary": true, "table": true, "tbody": true, "td": true, "tfoot": true,
 	"th": true, "thead": true, "tr": true, "ul": true,
 	"label": true, "button": true, "legend": true, "option": true,
@@ -59,7 +59,7 @@ var htmlBlockElements = map[string]bool{
 // htmlSkipElements cause all content until the matching close tag to be emitted
 // verbatim without any translation extraction.
 var htmlSkipElements = map[string]bool{
-	"head": true, "script": true, "style": true,
+	"head": true, "script": true, "style": true, "pre": true,
 }
 
 // htmlTagPattern matches a complete HTML tag, including attribute values that
