@@ -1,8 +1,16 @@
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["buf.yaml"])
+exports_files([
+    "buf.gen.yaml",
+    "buf.yaml",
+    "README.md",
+])
 
 filegroup(
     name = "contracts",
-    srcs = glob(["**/*.proto"]) + ["buf.yaml"],
+    srcs = glob(["**/*.proto"]) + [
+        "README.md",
+        "buf.gen.yaml",
+        "buf.yaml",
+    ],
 )

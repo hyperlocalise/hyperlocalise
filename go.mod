@@ -13,6 +13,7 @@ require (
 	github.com/lokalise/go-lokalise-api/v5 v5.0.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/openai/openai-go/v2 v2.7.1
+	github.com/quiet-circles/hyperlocalise/services/translationsvc v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
@@ -257,6 +258,8 @@ require (
 	mvdan.cc/gofumpt v0.9.2 // indirect
 	mvdan.cc/unparam v0.0.0-20251027182757-5beb8c8f8f15 // indirect
 )
+
+replace github.com/quiet-circles/hyperlocalise/services/translationsvc => ./services/translationsvc
 
 tool (
 	github.com/daixiang0/gci

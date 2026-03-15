@@ -6,5 +6,7 @@ use (
 	./services/jobsvc
 	./services/memorysvc
 	./services/projectsvc
+	./services/translationsvc
+	./services/translationworker
 	./services/workflowsvc
 )

@@ -11,7 +11,7 @@ servers:
 tags:
   - name: Projects
   - name: Resources
-  - name: Jobs
+  - name: TranslationJobs
   - name: TranslationMemory
   - name: Glossaries
   - name: Workflows
@@ -40,35 +40,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ResourceListResponse"
-  /v1/jobs:
+  /v1/translation-jobs:
     get:
-      tags: [Jobs]
-      operationId: listJobs
-      summary: List jobs
+      tags: [TranslationJobs]
+      operationId: listTranslationJobs
+      summary: List translation jobs
       responses:
         "200":
-          description: A list of jobs.
+          description: A list of translation jobs.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/JobListResponse"
+                $ref: "#/components/schemas/TranslationJobListResponse"
     post:
-      tags: [Jobs]
-      operationId: createJob
-      summary: Submit a job
+      tags: [TranslationJobs]
+      operationId: createTranslationJob
+      summary: Submit a translation job
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateJobRequest"
+              $ref: "#/components/schemas/CreateTranslationJobRequest"
       responses:
         "202":
-          description: Job accepted.
+          description: Translation job accepted.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Job"
+                $ref: "#/components/schemas/TranslationJob"
+  /v1/translation-jobs/{id}:
+    get:
+      tags: [TranslationJobs]
+      operationId: getTranslationJob
+      summary: Get a translation job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Translation job detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranslationJob"
+  /v1/translation-jobs/{id}:cancel:
+    post:
+      tags: [TranslationJobs]
+      operationId: cancelTranslationJob
+      summary: Cancel a translation job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "202":
+          description: Translation job cancellation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranslationJob"
+  /v1/translation-jobs/{id}:retry:
+    post:
+      tags: [TranslationJobs]
+      operationId: retryTranslationJob
+      summary: Retry a translation job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "202":
+          description: Translation job retry accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranslationJob"
   /v1/translation-memory:
     get:
       tags: [TranslationMemory]
@@ -135,21 +189,66 @@ components:
           type: string
         format:
           type: string
-    Job:
+    TranslationJob:
       type: object
-      required: [id, kind, status]
+      required: [id, projectId, status, mode, sourceLocale, targetLocale, itemCount, progress, configSnapshotId, createdAt, updatedAt]
       properties:
         id:
           type: string
-        kind:
+        projectId:
           type: string
         status:
           type: string
-        projectId:
+        mode:
+          type: string
+        sourceLocale:
+          type: string
+        targetLocale:
+          type: string
+        itemCount:
+          type: integer
+        progress:
+          $ref: "#/components/schemas/TranslationJobProgress"
+        sourceArtifactUri:
+          type: string
+        outputArtifactUri:
+          type: string
+        inlineOutput:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranslationInlineOutput"
+        configSnapshotId:
+          type: string
+        errorCode:
+          type: string
+        errorMessage:
           type: string
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TranslationJobProgress:
+      type: object
+      required: [total, succeeded, failed, canceled]
+      properties:
+        total:
+          type: integer
+        succeeded:
+          type: integer
+        failed:
+          type: integer
+        canceled:
+          type: integer
+    TranslationInlineOutput:
+      type: object
+      required: [key, text]
+      properties:
+        key:
+          type: string
+        text:
+          type: string
     TranslationMemoryEntry:
       type: object
       required: [id, sourceLocale, targetLocale, sourceText, targetText]
@@ -184,18 +283,68 @@ components:
           type: string
         state:
           type: string
-    CreateJobRequest:
+    CreateTranslationJobRequest:
       type: object
-      required: [projectId, kind]
+      required: [projectId, sourceLocale, targetLocale]
       properties:
         projectId:
           type: string
-        kind:
+        sourceLocale:
           type: string
-        resourceIds:
+        targetLocale:
+          type: string
+        providerProfile:
+          type: string
+        glossaryId:
+          type: string
+        styleGuideId:
+          type: string
+        idempotencyKey:
+          type: string
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+        inlinePayload:
+          $ref: "#/components/schemas/TranslationInlinePayload"
+        artifactPayload:
+          $ref: "#/components/schemas/TranslationArtifactPayload"
+    TranslationInlinePayload:
+      type: object
+      required: [items]
+      properties:
+        items:
           type: array
           items:
+            $ref: "#/components/schemas/TranslationInlineItem"
+    TranslationInlineItem:
+      type: object
+      required: [key, text]
+      properties:
+        key:
+          type: string
+        text:
+          type: string
+        context:
+          type: string
+        maxLength:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties:
             type: string
+    TranslationArtifactPayload:
+      type: object
+      required: [inputUri, contentType]
+      properties:
+        inputUri:
+          type: string
+        contentType:
+          type: string
+        parserHint:
+          type: string
+        path:
+          type: string
     ProjectListResponse:
       type: object
       required: [items]
@@ -212,14 +361,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Resource"
-    JobListResponse:
+    TranslationJobListResponse:
       type: object
       required: [items]
       properties:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/Job"
+            $ref: "#/components/schemas/TranslationJob"
     TranslationMemoryListResponse:
       type: object
       required: [items]

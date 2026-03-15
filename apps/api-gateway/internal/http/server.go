@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	openapi "github.com/quiet-circles/hyperlocalise/pkg/api/openapi"
 	"github.com/quiet-circles/hyperlocalise/pkg/client/tmsgrpc"
 	platformconfig "github.com/quiet-circles/hyperlocalise/pkg/platform/config"
 	"github.com/quiet-circles/hyperlocalise/pkg/platform/observability"
 )
+
+const idempotencyHeader = "Idempotency-Key"
 
 type Server struct {
 	httpServer *http.Server
@@ -43,86 +47,109 @@ func registerRoutes(mux *http.ServeMux, backend tmsgrpc.Backend, logger *observa
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
-	mux.HandleFunc(openapi.ProjectsPath, func(w http.ResponseWriter, r *http.Request) {
-		projects, err := backend.ListProjects(r.Context())
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-
-		writeJSON(w, http.StatusOK, openapi.ProjectListResponse{Items: projects})
-	})
-
-	mux.HandleFunc(openapi.ResourcesPath, func(w http.ResponseWriter, r *http.Request) {
-		resources, err := backend.ListResources(r.Context())
-		if err != nil {
-			writeError(w, err)
-			return
-		}
-
-		writeJSON(w, http.StatusOK, openapi.ResourceListResponse{Items: resources})
-	})
-
-	mux.HandleFunc(openapi.JobsPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(openapi.TranslationJobsPath, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			jobs, err := backend.ListJobs(r.Context())
+			filter, err := parseListFilter(r)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, openapi.ErrorResponse{Error: err.Error()})
+				return
+			}
+			items, err := backend.ListTranslationJobs(r.Context(), filter)
 			if err != nil {
 				writeError(w, err)
 				return
 			}
-
-			writeJSON(w, http.StatusOK, openapi.JobListResponse{Items: jobs})
+			writeJSON(w, http.StatusOK, openapi.TranslationJobListResponse{Items: items})
 		case http.MethodPost:
-			var req openapi.CreateJobRequest
+			var req openapi.CreateTranslationJobRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				writeJSON(w, http.StatusBadRequest, openapi.ErrorResponse{Error: "invalid JSON body"})
 				return
 			}
-
-			job, err := backend.CreateJob(r.Context(), req)
+			job, err := backend.CreateTranslationJob(r.Context(), req, r.Header.Get(idempotencyHeader))
 			if err != nil {
 				writeError(w, err)
 				return
 			}
-
 			writeJSON(w, http.StatusAccepted, job)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
 
-	mux.HandleFunc(openapi.TranslationMemoryPath, func(w http.ResponseWriter, r *http.Request) {
-		items, err := backend.ListTranslationMemory(r.Context())
-		if err != nil {
-			writeError(w, err)
+	mux.HandleFunc(openapi.TranslationJobsPath+"/", func(w http.ResponseWriter, r *http.Request) {
+		id, action := parseJobPath(r.URL.Path)
+		if id == "" {
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		writeJSON(w, http.StatusOK, openapi.TranslationMemoryListResponse{Items: items})
-	})
-
-	mux.HandleFunc(openapi.GlossariesPath, func(w http.ResponseWriter, r *http.Request) {
-		items, err := backend.ListGlossaries(r.Context())
-		if err != nil {
-			writeError(w, err)
-			return
+		switch {
+		case action == "" && r.Method == http.MethodGet:
+			job, err := backend.GetTranslationJob(r.Context(), id)
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, job)
+		case action == "cancel" && r.Method == http.MethodPost:
+			job, err := backend.CancelTranslationJob(r.Context(), id)
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			writeJSON(w, http.StatusAccepted, job)
+		case action == "retry" && r.Method == http.MethodPost:
+			job, err := backend.RetryTranslationJob(r.Context(), id)
+			if err != nil {
+				writeError(w, err)
+				return
+			}
+			writeJSON(w, http.StatusAccepted, job)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
-
-		writeJSON(w, http.StatusOK, openapi.GlossaryListResponse{Items: items})
 	})
 
-	mux.HandleFunc(openapi.WorkflowsPath, func(w http.ResponseWriter, r *http.Request) {
-		items, err := backend.ListWorkflows(r.Context())
+	logger.Printf("registered translation HTTP routes")
+}
+
+func parseListFilter(r *http.Request) (tmsgrpc.TranslationJobFilter, error) {
+	query := r.URL.Query()
+	filter := tmsgrpc.TranslationJobFilter{
+		ProjectID:    strings.TrimSpace(query.Get("projectId")),
+		Status:       strings.TrimSpace(query.Get("status")),
+		TargetLocale: strings.TrimSpace(query.Get("targetLocale")),
+		Cursor:       strings.TrimSpace(query.Get("cursor")),
+	}
+
+	if raw := strings.TrimSpace(query.Get("createdAfter")); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
 		if err != nil {
-			writeError(w, err)
-			return
+			return tmsgrpc.TranslationJobFilter{}, errors.New("createdAfter must be RFC3339")
 		}
+		filter.CreatedAfter = parsed
+	}
+	if raw := strings.TrimSpace(query.Get("limit")); raw != "" {
+		limit, err := strconv.Atoi(raw)
+		if err != nil {
+			return tmsgrpc.TranslationJobFilter{}, errors.New("limit must be an integer")
+		}
+		filter.Limit = limit
+	}
+	return filter, nil
+}
 
-		writeJSON(w, http.StatusOK, openapi.WorkflowListResponse{Items: items})
-	})
-
-	logger.Printf("registered TMS HTTP routes")
+func parseJobPath(rawPath string) (string, string) {
+	path := strings.TrimPrefix(rawPath, openapi.TranslationJobsPath+"/")
+	if path == rawPath {
+		return "", ""
+	}
+	if actionIndex := strings.Index(path, ":"); actionIndex >= 0 {
+		return path[:actionIndex], path[actionIndex+1:]
+	}
+	return path, ""
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -136,8 +163,15 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 
 func writeError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
-	if errors.Is(err, tmsgrpc.ErrNotFound) {
+	switch {
+	case errors.Is(err, tmsgrpc.ErrNotFound):
 		status = http.StatusNotFound
+	case errors.Is(err, tmsgrpc.ErrConflict):
+		status = http.StatusConflict
+	default:
+		if strings.Contains(strings.ToLower(err.Error()), "required") || strings.Contains(strings.ToLower(err.Error()), "invalid") {
+			status = http.StatusBadRequest
+		}
 	}
 
 	writeJSON(w, status, openapi.ErrorResponse{Error: sanitizeError(err)})
