@@ -1,0 +1,109 @@
+package main
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"log"
+	"sync"
+
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	cloudevent "github.com/cloudevents/sdk-go/v2/event"
+	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
+	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/worker"
+)
+
+type pubSubCloudEvent struct {
+	Message      pubSubMessage `json:"message"`
+	Subscription string        `json:"subscription"`
+}
+
+type pubSubMessage struct {
+	Data       string            `json:"data"`
+	Attributes map[string]string `json:"attributes"`
+	MessageID  string            `json:"messageId"`
+}
+
+var (
+	processorOnce sync.Once
+	processorInst *worker.Processor
+	processorErr  error
+)
+
+func init() {
+	functions.CloudEvent("HandleJobQueued", HandleJobQueued)
+}
+
+// HandleJobQueued processes one Pub/Sub CloudEvent for a queued translation job.
+func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
+	processor, err := getProcessor()
+	if err != nil {
+		return err
+	}
+
+	payload, err := decodePayload(cloudEvent)
+	if err != nil {
+		return err
+	}
+
+	return processor.ProcessJobQueuedEvent(ctx, payload)
+}
+
+func getProcessor() (*worker.Processor, error) {
+	processorOnce.Do(func() {
+		cfg := translationconfig.LoadWorkerConfig()
+		if cfg.DatabaseURL == "" {
+			processorErr = fmt.Errorf("DATABASE_URL is required")
+			return
+		}
+
+		db, err := store.OpenPostgres(cfg.DatabaseURL)
+		if err != nil {
+			processorErr = fmt.Errorf("open postgres: %w", err)
+			return
+		}
+
+		// TODO: Add a closer hook for local development once the Cloud Function is wrapped
+		// with a local runner. In the deployed function runtime the shared DB handle should
+		// stay warm across invocations.
+		log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
+		processorInst = worker.NewProcessor(store.NewRepository(db))
+	})
+
+	if processorErr != nil {
+		return nil, processorErr
+	}
+
+	return processorInst, nil
+}
+
+func decodePayload(cloudEvent cloudevent.Event) (translationapp.JobQueuedPayload, error) {
+	var payload translationapp.JobQueuedPayload
+
+	var envelope pubSubCloudEvent
+	if err := cloudEvent.DataAs(&envelope); err != nil {
+		return payload, fmt.Errorf("decode pubsub cloud event: %w", err)
+	}
+
+	if envelope.Message.Data == "" {
+		return payload, fmt.Errorf("pubsub message data is required")
+	}
+
+	decodedData, err := base64.StdEncoding.DecodeString(envelope.Message.Data)
+	if err != nil {
+		return payload, fmt.Errorf("decode pubsub message data: %w", err)
+	}
+
+	if err := json.Unmarshal(decodedData, &payload); err != nil {
+		return payload, fmt.Errorf("decode pubsub job payload: %w", err)
+	}
+
+	if payload.JobID == "" || payload.ProjectID == "" {
+		return payload, fmt.Errorf("pubsub payload must include job_id and project_id")
+	}
+
+	return payload, nil
+}

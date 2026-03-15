@@ -73,6 +73,13 @@ func (s *Service) CreateJob(
 		UpdatedAt:   jobModel.UpdatedAt,
 	}
 
+	queuedPayload.EventID = eventID
+	outboxPayload, err = encodeJSON(queuedPayload)
+	if err != nil {
+		return nil, err
+	}
+	eventModel.Payload = outboxPayload
+
 	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		if insertErr := s.repository.InsertJob(ctx, tx, jobModel); insertErr != nil {
 			return insertErr

@@ -15,6 +15,7 @@ import (
 
 // JobQueuedPayload is the outbox payload for a queued translation job.
 type JobQueuedPayload struct {
+	EventID    string `json:"event_id"`
 	JobID      string `json:"job_id"`
 	ProjectID  string `json:"project_id"`
 	Type       string `json:"type"`

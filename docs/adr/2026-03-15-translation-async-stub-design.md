@@ -14,10 +14,10 @@ The initial queue target is Google Pub/Sub, but SQS may be added later.
 
 ## Decision
 
-We split the deployment into two binaries:
+We split the deployment into a service binary and a GCP Cloud Function:
 
 - `apps/translation-service` handles gRPC requests, validates input, stores queued jobs, and records outbox events.
-- `apps/translation-worker` runs independently, polls pending outbox records as a temporary fallback, advances job state, and writes stub results.
+- `apps/translation-worker-gcp` is a Google Cloud Pub/Sub-triggered function that handles one queued job event per invocation, advances job state, and writes stub results.
 
 Shared behavior lives under `internal/translation`:
 
@@ -26,6 +26,8 @@ Shared behavior lives under `internal/translation`:
 - `queue` defines a broker-agnostic publisher interface and a stub adapter.
 - `worker` contains the async processing loop.
 - `config` contains runtime configuration loading.
+
+AWS delivery is intentionally deferred. If AWS support is added later, it should get its own adapter and entrypoint package rather than overloading the GCP deployment path.
 
 ## Data Flow
 
@@ -37,9 +39,9 @@ Shared behavior lives under `internal/translation`:
 4. calls a stub queue publisher
 5. returns the queued job resource
 
-The worker now:
+The Cloud Function now:
 
-1. polls pending outbox rows
+1. receives a Pub/Sub message containing the queued job payload
 2. loads the referenced job
 3. transitions the job from `QUEUED` to `RUNNING`
 4. writes a placeholder success result
@@ -48,8 +50,8 @@ The worker now:
 ## Deferred Work
 
 - Add SQL migrations for `translation_jobs` and `outbox_events`.
-- Replace the stub queue publisher with a real Pub/Sub adapter.
+- Replace the stub queue publisher with a real Pub/Sub adapter and deploy wiring.
 - Add an SQS adapter behind the same queue interface.
 - Move broker dispatch to a dedicated outbox dispatcher instead of publishing in the gRPC path.
-- Add retries, leasing, idempotency, dead-letter handling, and multi-worker safe claiming.
+- Add retries, idempotency, dead-letter handling, and delivery semantics for repeated Pub/Sub invocations.
 - Replace placeholder translation results with real translator execution.
