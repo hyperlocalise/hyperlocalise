@@ -2,9 +2,4 @@ go 1.26
 
 use (
 	.
-	./apps/api-gateway
-	./services/jobsvc
-	./services/memorysvc
-	./services/projectsvc
-	./services/workflowsvc
 )

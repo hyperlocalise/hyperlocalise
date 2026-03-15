@@ -652,20 +652,15 @@ For more details on the storage system and sync model, see [`internal/i18n/stora
 
 # Project Layout
 * [apps/cli/](apps/cli/) => canonical CLI application entrypoint used by GoReleaser and local Go commands
-* [apps/api-gateway/](apps/api-gateway/) => public TMS HTTP gateway for OpenAPI-backed integrations
-* [apps/web/](apps/web/) => Vite SPA for the TMS frontend layer
-* [services/](services/) => internal service deployables for projects, jobs, memory, and workflows
-* [api/openapi/](api/openapi/) => external API source-of-truth
-* [api/proto/](api/proto/) => internal gRPC contract source-of-truth
-* [pkg/api/](pkg/api/) => generated or transport-facing contract packages
-* [pkg/client/](pkg/client/) => reusable TMS HTTP/gRPC client layers
+* [apps/web/](apps/web/) => Vite frontend workspace
+* [api/proto/](api/proto/) => protobuf contract workspace
+* [pkg/api/](pkg/api/) => API package namespace
 * [pkg/platform/](pkg/platform/) => shared runtime config, auth, observability, and transport helpers
-* [domains/](domains/) => transport-agnostic business-domain packages extracted over time
 * [apps/cli/cmd/](apps/cli/cmd/) => CLI command graph and command handlers
 * [apps/cli/internal/](apps/cli/internal/) => CLI-only support packages such as env loading and terminal progress rendering
 * [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/internal) => shared internals still pending extraction into domain or platform packages
-* [`go.work`](go.work) => stitches the root module and deployable service modules into one workspace
-* [`MODULE.bazel`](MODULE.bazel) => Bazel module entrypoint for the monorepo scaffold
+* [`go.work`](go.work) => Go workspace configuration
+* [`MODULE.bazel`](MODULE.bazel) => Bazel module entrypoint
 * [`scripts/`](scripts/) => build scripts 
 
 # Makefile Targets
@@ -691,11 +686,11 @@ test-workspace                 run root and nested-module tests
 
 # Bazel Commands
 ```sh
-# Build all deployable entrypoints
-bazel build //:cli //:api-gateway //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/projectsvc:projectsvc //services/workflowsvc:workflowsvc
+# Build the main entrypoint
+bazel build //:cli
 
 # Run Bazel-backed tests
-bazel test //apps/cli/cmd:cmd_test //apps/api-gateway:server_test
+bazel test //apps/cli/cmd:cmd_test
 
 # Build or test a single target
 bazel build //apps/cli:cli

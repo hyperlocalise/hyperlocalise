@@ -3,8 +3,8 @@ version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
 golangci_lint_version?=v2.10.1
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
-workspace_test_modules=./apps/api-gateway/... ./services/jobsvc/... ./services/memorysvc/... ./services/projectsvc/... ./services/workflowsvc/...
-workspace_build_targets=./apps/cli ./apps/api-gateway ./services/jobsvc/cmd/jobsvc ./services/memorysvc/cmd/memorysvc ./services/projectsvc/cmd/projectsvc ./services/workflowsvc/cmd/workflowsvc
+workspace_test_modules=
+workspace_build_targets=./apps/cli
 
 default: help
 
@@ -101,8 +101,8 @@ staticcheck: ## run staticcheck directly
 
 .PHONY: bazel-build
 bazel-build: ## build Bazel-scaffolded targets
-	bazel build //:cli //:api-gateway //services/projectsvc:projectsvc //services/jobsvc:jobsvc //services/memorysvc:memorysvc //services/workflowsvc:workflowsvc
+	bazel build //:cli
 
 .PHONY: bazel-test
 bazel-test: ## run Bazel-scaffolded tests
-	bazel test //apps/api-gateway:server_test //apps/cli/cmd:cmd_test
+	bazel test //apps/cli/cmd:cmd_test
