@@ -50,7 +50,7 @@ jobs:
           fi
 
       - name: Bazel build
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli
+        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli //services/translationsvc:translationsvc
 
       - name: Bazel test
         run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test

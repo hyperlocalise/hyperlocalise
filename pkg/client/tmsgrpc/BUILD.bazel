@@ -5,5 +5,9 @@ go_library(
     srcs = ["client.go"],
     importpath = "github.com/quiet-circles/hyperlocalise/pkg/client/tmsgrpc",
     visibility = ["//visibility:public"],
-    deps = ["//pkg/api/openapi"],
+    deps = [
+        "//domains/translation",
+        "//pkg/api/openapi",
+        "//services/translationsvc",
+    ],
 )
