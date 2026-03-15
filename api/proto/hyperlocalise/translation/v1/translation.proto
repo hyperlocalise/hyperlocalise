@@ -41,10 +41,9 @@ message TranslationJob {
   string project_id = 2;
   Type type = 3;
   Status status = 4;
-  string created_at = 5;
-  string updated_at = 6;
-  string completed_at = 7;
-  string error_message = 8;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
 
   oneof input {
     StringTranslationJobInput string_input = 9;
