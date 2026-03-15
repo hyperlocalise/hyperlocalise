@@ -404,18 +404,15 @@ func TestHTMLMarshalWithTargetFallbackPositionalAlignment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	// Stage only the first segment.
-	staged := make(map[string]string)
-	i := 0
-	for k := range entries {
-		if i == 0 {
-			staged[k] = "Uno"
-		}
-		i++
-		if i > 1 {
+
+	var keyForOne string
+	for k, v := range entries {
+		if strings.Contains(v, "One") {
+			keyForOne = k
 			break
 		}
 	}
+	staged := map[string]string{keyForOne: "Uno"}
 
 	out, diags := MarshalHTMLWithTargetFallback(source, target, staged)
 	if len(diags.SourceFallbackKeys) != 0 {
