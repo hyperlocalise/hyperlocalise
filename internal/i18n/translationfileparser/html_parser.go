@@ -69,9 +69,19 @@ var htmlSkipElements = map[string]bool{
 // Assumption: attribute values are always quoted. Unquoted attribute values
 // containing '>' (invalid HTML) are not handled and will cause the regex to
 // split the tag at the first bare '>'. In practice this is not a problem
-// because golang.org/x/net/html normalises tokens before we see z.Raw(), so
-// the segments passed to protectHTMLInlineSyntax contain well-formed tags.
+// because only tokens that golang.org/x/net/html successfully tokenized as
+// tag tokens reach protectHTMLInlineSyntax; those tokens are syntactically
+// complete (begin with '<', end with '>') even though z.Raw() returns the
+// original unmodified bytes.
 var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
+
+// htmlStructuralElements are container tags that are always emitted as
+// literals rather than buffered as inline content. This prevents </body>,
+// </html>, etc. from being wrapped in a translation unit when orphaned inline
+// content appears directly before them.
+var htmlStructuralElements = map[string]bool{
+	"html": true, "body": true, "template": true, "colgroup": true,
+}
 
 // parseHTMLDocument tokenizes content into literal and translatable parts,
 // returning the document and a map of key → source (with placeholders).
@@ -151,7 +161,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 				flushBuffer()
 				skipDepth++
 				appendLiteral(raw)
-			} else if htmlBlockElements[string(tn)] {
+			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
 			} else {
@@ -161,7 +171,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 
 		case html.EndTagToken:
 			tn, _ := z.TagName()
-			if htmlBlockElements[string(tn)] {
+			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
 			} else {

@@ -168,6 +168,9 @@ func htmlRenderWarnings(path string, diags translationfileparser.HTMLRenderDiagn
 	}
 	keys := slices.Clone(diags.SourceFallbackKeys)
 	slices.Sort(keys)
+	// Compact is a defensive guard: each key should appear at most once because
+	// every htmlPart has a unique key. If that invariant ever breaks, Compact
+	// ensures len(keys) reflects unique keys, not total fallback occurrences.
 	keys = slices.Compact(keys)
 	if len(keys) > 3 {
 		return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
