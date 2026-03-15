@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package hyperlocalise.translation.v1;
 
+import "google/protobuf/timestamp.proto";
 import "hyperlocalise/common/v1/common.proto";
 
 option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
@@ -64,19 +65,27 @@ message GetTranslationJobStatusRequest {
   hyperlocalise.common.v1.ResourceRef translation_job = 1;
 }
 
+message TranslationJobStatus {
+  string id = 1;
+  string project_id = 2;
+  TranslationJob.Status status = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+}
+
 message ListTranslationJobsRequest {
   string project_id = 1;
-  int32 page_size = 2;
-  string cursor = 3;
-  TranslationJob.Type type = 4;
-  TranslationJob.Status status = 5;
+  hyperlocalise.common.v1.PageRequest page = 2;
+  TranslationJob.Type type = 3;
+  TranslationJob.Status status = 4;
 }
 
 message ListTranslationJobsResponse {
   repeated TranslationJob jobs = 1;
-  string next_cursor = 2;
+  hyperlocalise.common.v1.PageResponse page = 2;
 }
 
 message GetTranslationJobStatusResponse {
-  TranslationJob job = 1;
+  TranslationJobStatus job = 1;
 }
