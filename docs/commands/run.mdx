@@ -53,12 +53,12 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 - MDX `import` and `export` lines
 - JSX/MDX component tags and attribute values
 
-For HTML (`.html`), `run` translates text content inside block-level elements and preserves non-translatable structure:
+For HTML (`.html`), `run` translates text content inside block-level elements:
 
-- `<script>`, `<style>`, and `<head>` content
-- inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) — these are protected as placeholders and restored verbatim after translation
-- HTML entities (`&amp;`, `&lt;`, etc.)
-- HTML comments
+- `<script>`, `<style>`, and `<head>` content is never translated and is preserved verbatim
+- inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) — tag markup is protected as placeholders and restored verbatim after translation, but the surrounding prose **is** translated
+- HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip
+- HTML comments are preserved verbatim
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 

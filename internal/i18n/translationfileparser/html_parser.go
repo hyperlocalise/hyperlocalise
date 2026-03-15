@@ -9,7 +9,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"regexp"
+	"slices"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -19,8 +21,8 @@ import (
 type HTMLParser struct{}
 
 func (p HTMLParser) Parse(content []byte) (map[string]string, error) {
-	_, entries := parseHTMLDocument(content)
-	return entries, nil
+	_, entries, err := parseHTMLDocument(content)
+	return entries, err
 }
 
 // htmlPart is a segment of an HTML document: either a non-translatable literal
@@ -84,8 +86,9 @@ var htmlStructuralElements = map[string]bool{
 }
 
 // parseHTMLDocument tokenizes content into literal and translatable parts,
-// returning the document and a map of key → source (with placeholders).
-func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
+// returning the document, a map of key → source (with placeholders), and any
+// non-EOF tokenizer error.
+func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) {
 	var doc htmlDocument
 	entries := map[string]string{}
 	occurrences := map[string]int{}
@@ -126,6 +129,9 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
+			if err := z.Err(); err != nil && err != io.EOF {
+				return doc, entries, err
+			}
 			flushBuffer()
 			break
 		}
@@ -178,12 +184,21 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string) {
 				buffer.WriteString(raw)
 			}
 
-		case html.SelfClosingTagToken, html.TextToken:
+		case html.SelfClosingTagToken:
+			tn, _ := z.TagName()
+			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
+				flushBuffer()
+				appendLiteral(raw)
+			} else {
+				buffer.WriteString(raw)
+			}
+
+		case html.TextToken:
 			buffer.WriteString(raw)
 		}
 	}
 
-	return doc, entries
+	return doc, entries, nil
 }
 
 // protectHTMLInlineSyntax replaces every HTML tag in segment with a sentinel
@@ -234,10 +249,15 @@ func htmlSegmentKey(segment string, occurrences map[string]int) string {
 }
 
 // expandHTMLPlaceholders replaces sentinel tokens in rendered with their original
-// tag bytes.
+// tag bytes. Tokens are expanded longest-first to avoid partial-prefix collisions.
 func expandHTMLPlaceholders(rendered string, placeholders map[string]string) string {
-	for ph, original := range placeholders {
-		rendered = strings.ReplaceAll(rendered, ph, original)
+	keys := make([]string, 0, len(placeholders))
+	for ph := range placeholders {
+		keys = append(keys, ph)
+	}
+	slices.SortFunc(keys, func(a, b string) int { return len(b) - len(a) })
+	for _, ph := range keys {
+		rendered = strings.ReplaceAll(rendered, ph, placeholders[ph])
 	}
 	return rendered
 }
@@ -245,7 +265,7 @@ func expandHTMLPlaceholders(rendered string, placeholders map[string]string) str
 // MarshalHTML reconstructs template with translated values applied.
 // Keys missing from values fall back to source text and are recorded in diagnostics.
 func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
-	doc, _ := parseHTMLDocument(template)
+	doc, _, _ := parseHTMLDocument(template)
 	return doc.render(values)
 }
 
@@ -262,8 +282,8 @@ func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderD
 // in the source, the fallback may associate the wrong target translation with some
 // segments. Affected segments beyond the end of targetParts fall back to source text.
 func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
-	sourceDoc, _ := parseHTMLDocument(sourceTemplate)
-	targetDoc, _ := parseHTMLDocument(targetTemplate)
+	sourceDoc, _, _ := parseHTMLDocument(sourceTemplate)
+	targetDoc, _, _ := parseHTMLDocument(targetTemplate)
 
 	// Collect target translatable parts in document order.
 	targetParts := make([]htmlPart, 0)
