@@ -27,11 +27,14 @@ Each `TranslationJob` carries:
   - string jobs return locale/text pairs
   - file jobs return locale/file URI pairs
 - structured error payload for failed jobs, including code/message/details.
+- lightweight status polling also includes the structured error payload when a job fails.
 
 String translation jobs also support optional translator guidance on input:
 
 - `context`: short product or UI context for the source text
 - `max_length`: per-locale output length constraint
+
+File translation jobs use a typed `file_format` enum rather than a free-form string.
 
 ## How to use Buf
 

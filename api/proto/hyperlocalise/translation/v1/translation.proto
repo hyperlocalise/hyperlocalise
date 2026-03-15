@@ -21,8 +21,16 @@ message StringTranslationJobInput {
 
 // Input for a translation job that translates a file referenced by URI.
 message FileTranslationJobInput {
+  enum FileFormat {
+    FILE_FORMAT_UNSPECIFIED = 0;
+    FILE_FORMAT_XLIFF = 1;
+    FILE_FORMAT_JSON = 2;
+    FILE_FORMAT_PO = 3;
+    FILE_FORMAT_CSV = 4;
+  }
+
   string file_uri = 1;
-  string file_format = 2;
+  FileFormat file_format = 2;
   string source_locale = 3;
   repeated string target_locales = 4;
   map<string, string> metadata = 5;
@@ -137,6 +145,8 @@ message TranslationJobStatus {
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp updated_at = 6;
   google.protobuf.Timestamp completed_at = 7;
+  // Populated when status is STATUS_FAILED.
+  TranslationJobError error = 8;
 }
 
 // Lists translation jobs for a project with optional filtering.
