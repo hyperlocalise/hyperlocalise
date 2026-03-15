@@ -31,7 +31,6 @@ Each `TranslationJob` carries:
 String translation jobs also support optional translator guidance on input:
 
 - `context`: short product or UI context for the source text
-- `description`: longer free-form translation instructions
 - `max_length`: per-locale output length constraint
 
 ## How to use Buf
