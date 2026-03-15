@@ -77,7 +77,7 @@ fmt: ## format go files
 
 .PHONY: lint
 lint: ## lint go files
-	$(golangci_lint_bin) run
+	$(golangci_lint_bin) run ./...
 
 
 .PHONY: precommit

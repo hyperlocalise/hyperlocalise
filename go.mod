@@ -18,6 +18,7 @@ require (
 	github.com/tidwall/jsonc v0.3.3
 	github.com/yuin/goldmark v1.7.16
 	golang.org/x/text v0.35.0
+	google.golang.org/genproto v0.0.0-20250818200422-3122310a409c
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/yaml.v3 v3.0.1
@@ -268,3 +269,5 @@ tool (
 	honnef.co/go/tools/cmd/staticcheck
 	mvdan.cc/gofumpt
 )
+
+exclude google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
