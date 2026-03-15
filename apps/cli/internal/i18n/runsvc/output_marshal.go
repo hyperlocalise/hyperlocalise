@@ -149,7 +149,16 @@ func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[s
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
-	content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
+	targetTemplate, err := s.readFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
+			return content, htmlRenderWarnings(path, diags), nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	content, diags := translationfileparser.MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate, stagedEntries)
 	return content, htmlRenderWarnings(path, diags), nil
 }
 
@@ -157,7 +166,13 @@ func htmlRenderWarnings(path string, diags translationfileparser.HTMLRenderDiagn
 	if len(diags.SourceFallbackKeys) == 0 {
 		return nil
 	}
-	return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (first key: %s)", len(diags.SourceFallbackKeys), path, diags.SourceFallbackKeys[0])}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func markdownRenderWarnings(path string, diags translationfileparser.MarkdownRenderDiagnostics) []string {

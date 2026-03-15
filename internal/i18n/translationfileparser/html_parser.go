@@ -231,6 +231,47 @@ func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderD
 	return doc.render(values)
 }
 
+// MarshalHTMLWithTargetFallback is like MarshalHTML but also accepts an existing
+// target file. For source keys absent from values, it recovers translations by
+// structural position: the i-th translatable segment in the target file is used as
+// the fallback for the i-th translatable segment in the source template.
+//
+// This preserves translations from previous runs and manual edits in the target
+// file when only a subset of segments is present in values.
+func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
+	sourceDoc, _ := parseHTMLDocument(sourceTemplate)
+	targetDoc, _ := parseHTMLDocument(targetTemplate)
+
+	// Collect target translatable parts in document order.
+	targetParts := make([]htmlPart, 0)
+	for _, p := range targetDoc.parts {
+		if p.key != "" {
+			targetParts = append(targetParts, p)
+		}
+	}
+
+	// Build merged values: staged entries take priority; fill the rest by position.
+	merged := make(map[string]string, len(values)+len(targetParts))
+	for k, v := range values {
+		merged[k] = v
+	}
+	si := 0
+	for _, p := range sourceDoc.parts {
+		if p.key == "" {
+			continue
+		}
+		if _, ok := merged[p.key]; !ok && si < len(targetParts) {
+			// Expand the target part's own placeholders to get the raw translated
+			// HTML content (literal tags restored), then store it as the value for
+			// the source key. render() will treat it as an already-expanded string.
+			merged[p.key] = expandHTMLPlaceholders(targetParts[si].source, targetParts[si].placeholders)
+		}
+		si++
+	}
+
+	return sourceDoc.render(merged)
+}
+
 func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagnostics) {
 	var diags HTMLRenderDiagnostics
 	var b strings.Builder
