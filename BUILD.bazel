@@ -17,6 +17,11 @@ alias(
     actual = "//apps/cli:cli",
 )
 
+alias(
+    name = "translation-service",
+    actual = "//apps/translation-service:translation-service",
+)
+
 filegroup(
     name = "contracts",
     srcs = ["//api/proto:contracts"],
