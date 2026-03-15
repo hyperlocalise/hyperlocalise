@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "translation",
+    srcs = ["service.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/api/services/translation",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/api/proto/hyperlocalise/translation/v1:v1",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+    ],
+)
