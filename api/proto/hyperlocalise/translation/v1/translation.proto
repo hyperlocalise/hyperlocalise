@@ -88,7 +88,6 @@ message TranslationJob {
     STATUS_RUNNING = 2;
     STATUS_SUCCEEDED = 3;
     STATUS_FAILED = 4;
-    STATUS_CANCELED = 5;
   }
 
   string id = 1;
