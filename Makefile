@@ -3,6 +3,7 @@ version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
 golangci_lint_version?=v2.10.1
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
+fmt_go_files:=$(filter-out %.pb.go,$(shell git ls-files '*.go'))
 default: help
 
 .PHONY: help
@@ -70,8 +71,8 @@ cover: ## display root-module test coverage
 
 .PHONY: fmt
 fmt: ## format go files
-	go tool gofumpt -w .
-	go tool gci write .
+	go tool gofumpt -w $(fmt_go_files)
+	go tool gci write $(fmt_go_files)
 
 
 .PHONY: lint
