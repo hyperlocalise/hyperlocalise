@@ -6,7 +6,7 @@ require (
 	ariga.io/atlas-provider-bun v0.0.3
 	charm.land/bubbles/v2 v2.0.0
 	charm.land/bubbletea/v2 v2.0.2
-	charm.land/lipgloss/v2 v2.0.1
+	charm.land/lipgloss/v2 v2.0.2
 	cloud.google.com/go/pubsub/v2 v2.0.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -23,7 +23,7 @@ require (
 	github.com/tidwall/jsonc v0.3.3
 	github.com/uptrace/bun v1.2.18
 	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
-	github.com/uptrace/bun/driver/sqliteshim v1.2.11
+	github.com/uptrace/bun/driver/sqliteshim v1.2.18
 	github.com/yuin/goldmark v1.7.16
 	golang.org/x/text v0.35.0
 	google.golang.org/grpc v1.75.0
@@ -36,17 +36,17 @@ require (
 	github.com/alecthomas/kong v1.14.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/ncruces/go-strftime v0.1.9 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/uptrace/bun/dialect/mssqldialect v1.2.18 // indirect
 	github.com/uptrace/bun/dialect/mysqldialect v1.2.18 // indirect
 	github.com/uptrace/bun/dialect/oracledialect v1.2.18 // indirect
 	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
-	modernc.org/libc v1.61.13 // indirect
+	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.8.2 // indirect
-	modernc.org/sqlite v1.36.0 // indirect
+	modernc.org/memory v1.11.0 // indirect
+	modernc.org/sqlite v1.46.1 // indirect
 )
 
 require (
@@ -197,7 +197,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/macabu/inamedparam v0.2.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
-	github.com/mailru/easyjson v0.9.1 // indirect
+	github.com/mailru/easyjson v0.9.2 // indirect
 	github.com/manuelarte/embeddedstructfieldcheck v0.4.0 // indirect
 	github.com/manuelarte/funcorder v0.5.0 // indirect
 	github.com/maratori/testableexamples v1.0.1 // indirect
@@ -297,7 +297,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
+	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
