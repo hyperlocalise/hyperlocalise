@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package hyperlocalise.translation.v1;
+
+import "hyperlocalise/common/v1/common.proto";
+
+option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
+
+message StringTranslationJobInput {
+  string source_text = 1;
+  string source_locale = 2;
+  repeated string target_locales = 3;
+  map<string, string> metadata = 4;
+}
+
+message FileTranslationJobInput {
+  string file_uri = 1;
+  string file_format = 2;
+  string source_locale = 3;
+  repeated string target_locales = 4;
+  map<string, string> metadata = 5;
+}
+
+message TranslationJob {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_STRING = 1;
+    TYPE_FILE = 2;
+  }
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_QUEUED = 1;
+    STATUS_RUNNING = 2;
+    STATUS_SUCCEEDED = 3;
+    STATUS_FAILED = 4;
+    STATUS_CANCELED = 5;
+  }
+
+  string id = 1;
+  string project_id = 2;
+  Type type = 3;
+  Status status = 4;
+  string created_at = 5;
+  string updated_at = 6;
+  string completed_at = 7;
+  string error_message = 8;
+
+  oneof input {
+    StringTranslationJobInput string_input = 9;
+    FileTranslationJobInput file_input = 10;
+  }
+}
+
+message CreateTranslationJobRequest {
+  string project_id = 1;
+
+  oneof input {
+    StringTranslationJobInput string_input = 2;
+    FileTranslationJobInput file_input = 3;
+  }
+}
+
+message GetTranslationJobStatusRequest {
+  hyperlocalise.common.v1.ResourceRef translation_job = 1;
+}
+
+message ListTranslationJobsRequest {
+  string project_id = 1;
+  int32 page_size = 2;
+  string cursor = 3;
+  TranslationJob.Type type = 4;
+  TranslationJob.Status status = 5;
+}
+
+message ListTranslationJobsResponse {
+  repeated TranslationJob jobs = 1;
+  string next_cursor = 2;
+}
+
+message GetTranslationJobStatusResponse {
+  TranslationJob job = 1;
+}
