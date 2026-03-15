@@ -1,8 +1,10 @@
 package store
 
-import "time"
+import (
+	"time"
 
-import "github.com/uptrace/bun"
+	"github.com/uptrace/bun"
+)
 
 const (
 	JobTypeString = "string"

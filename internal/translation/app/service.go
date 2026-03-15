@@ -12,10 +12,8 @@ import (
 	"github.com/uptrace/bun"
 )
 
-var (
-	// ErrInvalidArgument reports invalid input at the application boundary.
-	ErrInvalidArgument = errors.New("invalid translation request")
-)
+// ErrInvalidArgument reports invalid input at the application boundary.
+var ErrInvalidArgument = errors.New("invalid translation request")
 
 // Service orchestrates translation job storage and async dispatch.
 type Service struct {
