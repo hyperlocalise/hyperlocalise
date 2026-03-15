@@ -32,7 +32,6 @@ bootstrap: ## download tool and module dependencies
 	go mod download
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(golangci_lint_version)
 
-
 .PHONY: test-root
 test-root: clean ## run root-module tests with JSON output and coverage
 	go test -cover -coverprofile=coverage.out ./...

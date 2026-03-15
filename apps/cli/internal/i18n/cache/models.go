@@ -1,31 +1,46 @@
 package cache
 
-import "time"
+import (
+	"time"
+
+	"github.com/uptrace/bun"
+)
+
+// CHECK constraints for TranslationMemoryEntry.
+// These are enforced in ensureTMTableConstraints() in service.go.
+const (
+	TMProvenanceCheck = "check (provenance in ('curated','draft','llm','tms','unknown'))"
+	TMSourceCheck     = "check (source in ('run','sync_pull','sync_push','manual','import','legacy','unknown'))"
+)
 
 // ExactCacheEntry stores exact-match translations for deterministic reuse.
 type ExactCacheEntry struct {
-	ID           uint   `gorm:"primaryKey"`
-	CacheKey     string `gorm:"size:512;uniqueIndex;not null"`
-	SourceLocale string `gorm:"size:32;index;not null"`
-	TargetLocale string `gorm:"size:32;index;not null"`
-	Provider     string `gorm:"size:64;index;not null"`
-	Model        string `gorm:"size:128;index;not null"`
-	SourceHash   string `gorm:"size:128;index;not null"`
-	Value        string `gorm:"type:text;not null"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	bun.BaseModel `bun:"table:exact_cache_entries,alias:ece"`
+
+	ID           uint64    `bun:"id,pk,autoincrement"`
+	CacheKey     string    `bun:"cache_key,unique,notnull"`
+	SourceLocale string    `bun:"source_locale,notnull"`
+	TargetLocale string    `bun:"target_locale,notnull"`
+	Provider     string    `bun:"provider,notnull"`
+	Model        string    `bun:"model,notnull"`
+	SourceHash   string    `bun:"source_hash,notnull"`
+	Value        string    `bun:"value,type:text,notnull"`
+	CreatedAt    time.Time `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	UpdatedAt    time.Time `bun:"updated_at,nullzero,notnull,default:current_timestamp"`
 }
 
 // TranslationMemoryEntry stores L2 memory candidates.
 type TranslationMemoryEntry struct {
-	ID             uint         `gorm:"primaryKey"`
-	SourceLocale   string       `gorm:"size:32;uniqueIndex:idx_tm_locales_text,priority:1;not null"`
-	TargetLocale   string       `gorm:"size:32;uniqueIndex:idx_tm_locales_text,priority:2;not null"`
-	SourceText     string       `gorm:"type:text;uniqueIndex:idx_tm_locales_text,priority:3;not null"`
-	TranslatedText string       `gorm:"type:text;not null"`
-	Score          float64      `gorm:"not null;default:0"`
-	Provenance     TMProvenance `gorm:"size:32;index;not null;default:unknown;check:provenance IN ('curated','draft','llm','tms','unknown')"`
-	Source         TMSource     `gorm:"size:64;index;not null;default:unknown;check:source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown')"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	bun.BaseModel `bun:"table:translation_memory_entries,alias:tme"`
+
+	ID             uint64       `bun:"id,pk,autoincrement"`
+	SourceLocale   string       `bun:"source_locale,notnull"`
+	TargetLocale   string       `bun:"target_locale,notnull"`
+	SourceText     string       `bun:"source_text,type:text,notnull"`
+	TranslatedText string       `bun:"translated_text,type:text,notnull"`
+	Score          float64      `bun:"score,notnull,default:0"`
+	Provenance     TMProvenance `bun:"provenance,notnull,default:'unknown'"`
+	Source         TMSource     `bun:"source,notnull,default:'unknown'"`
+	CreatedAt      time.Time    `bun:"created_at,nullzero,notnull,default:current_timestamp"`
+	UpdatedAt      time.Time    `bun:"updated_at,nullzero,notnull,default:current_timestamp"`
 }
