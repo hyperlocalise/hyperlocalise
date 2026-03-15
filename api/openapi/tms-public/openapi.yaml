@@ -173,56 +173,50 @@ components:
           type: string
     TranslationJob:
       type: object
-      required: [id, projectId, status, mode, sourceLocale, targetLocale, itemCount, progress, configSnapshotId, createdAt, updatedAt]
+      required: [id, status, sourceLocale, targetLocale, createdAt, updatedAt]
       properties:
         id:
           type: string
-        projectId:
-          type: string
         status:
-          type: string
-        mode:
           type: string
         sourceLocale:
           type: string
         targetLocale:
           type: string
-        itemCount:
-          type: integer
-        progress:
-          $ref: "#/components/schemas/TranslationJobProgress"
-        sourceArtifactUri:
-          type: string
-        outputArtifactUri:
-          type: string
-        inlineOutput:
-          type: array
-          items:
-            $ref: "#/components/schemas/TranslationInlineOutput"
-        configSnapshotId:
-          type: string
-        errorCode:
-          type: string
-        errorMessage:
-          type: string
+        error:
+          $ref: "#/components/schemas/TranslationJobError"
+        inlineResult:
+          $ref: "#/components/schemas/TranslationInlineResult"
+        artifactResult:
+          $ref: "#/components/schemas/TranslationArtifactResult"
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
-    TranslationJobProgress:
+    TranslationJobError:
       type: object
-      required: [total, succeeded, failed, canceled]
+      required: [code, message]
       properties:
-        total:
-          type: integer
-        succeeded:
-          type: integer
-        failed:
-          type: integer
-        canceled:
-          type: integer
+        code:
+          type: string
+        message:
+          type: string
+    TranslationInlineResult:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TranslationInlineOutput"
+    TranslationArtifactResult:
+      type: object
+      required: [outputArtifactUri]
+      properties:
+        outputArtifactUri:
+          type: string
     TranslationInlineOutput:
       type: object
       required: [key, text]

@@ -140,24 +140,29 @@ func mapJob(job translation.Job) openapi.TranslationJob {
 			Text: item.Text,
 		})
 	}
-	return openapi.TranslationJob{
-		ID:                job.ID,
-		ProjectID:         job.ProjectID,
-		Status:            job.Status,
-		Mode:              job.Mode,
-		SourceLocale:      job.SourceLocale,
-		TargetLocale:      job.TargetLocale,
-		ItemCount:         job.ItemCount,
-		Progress:          openapi.TranslationJobProgress(job.Progress),
-		SourceArtifactURI: job.SourceArtifactURI,
-		OutputArtifactURI: job.OutputArtifactURI,
-		InlineOutput:      output,
-		ConfigSnapshotID:  job.ConfigSnapshotID,
-		ErrorCode:         job.ErrorCode,
-		ErrorMessage:      job.ErrorMessage,
-		CreatedAt:         job.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:         job.UpdatedAt.Format(time.RFC3339),
+	mapped := openapi.TranslationJob{
+		ID:           job.ID,
+		Status:       job.Status,
+		SourceLocale: job.SourceLocale,
+		TargetLocale: job.TargetLocale,
+		CreatedAt:    job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    job.UpdatedAt.Format(time.RFC3339),
 	}
+	if job.ErrorCode != "" || job.ErrorMessage != "" {
+		mapped.Error = &openapi.TranslationJobError{
+			Code:    job.ErrorCode,
+			Message: job.ErrorMessage,
+		}
+	}
+	if len(output) > 0 {
+		mapped.InlineResult = &openapi.TranslationInlineResult{Items: output}
+	}
+	if job.OutputArtifactURI != "" {
+		mapped.ArtifactResult = &openapi.TranslationArtifactResult{
+			OutputArtifactURI: job.OutputArtifactURI,
+		}
+	}
+	return mapped
 }
 
 func chooseIdempotencyKey(header string, body string) string {

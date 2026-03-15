@@ -354,6 +354,7 @@ func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, 
 			return translation.Job{}, fmt.Errorf("marshal artifact output: %w", err)
 		}
 		encoded = marshaled
+		s.jobs[id] = job
 	}
 	s.mu.Unlock()
 
@@ -572,7 +573,7 @@ func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJ
 	var plannedSegments []translation.Segment
 	switch mode {
 	case translation.ModeInline:
-		inlineChecksum, segments := planInline(jobID, now, *input.InlinePayload)
+		inlineChecksum, segments := s.planInlineLocked(jobID, now, *input.InlinePayload)
 		inputRow.InlinePayloadChecksum = inlineChecksum
 		plannedSegments = segments
 	case translation.ModeArtifact:
@@ -588,6 +589,9 @@ func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJ
 		plannedSegments = segments
 		s.artifacts[jobID] = artifacts
 		job.SourceArtifactURI = artifactInput.InputURI
+	}
+	if len(plannedSegments) == 0 {
+		return translation.Job{}, fmt.Errorf("%w: artifact produced no translatable segments", ErrInvalidArgument)
 	}
 
 	job.ItemCount = len(plannedSegments)
@@ -810,14 +814,14 @@ func newConfigSnapshot(id string, now time.Time, providerProfile string, input t
 	}
 }
 
-func planInline(jobID string, now time.Time, payload translation.InlinePayload) (string, []translation.Segment) {
+func (s *Service) planInlineLocked(jobID string, now time.Time, payload translation.InlinePayload) (string, []translation.Segment) {
 	items := make([]translation.InlineItem, len(payload.Items))
 	copy(items, payload.Items)
 
 	segments := make([]translation.Segment, 0, len(items))
 	for idx, item := range items {
 		segments = append(segments, translation.Segment{
-			ID:         fmt.Sprintf("seg_inline_%06d", idx+1),
+			ID:         s.nextIDLocked("seg"),
 			JobID:      jobID,
 			SegmentKey: item.Key,
 			SourceText: item.Text,

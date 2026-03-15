@@ -47,11 +47,11 @@ func TestCreateTranslationJobReturnsAccepted(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &job); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if job.ProjectID != "proj_demo" {
-		t.Fatalf("expected projectId proj_demo, got %q", job.ProjectID)
+	if job.SourceLocale != "en" {
+		t.Fatalf("expected sourceLocale en, got %q", job.SourceLocale)
 	}
-	if job.Mode != "inline" {
-		t.Fatalf("expected mode inline, got %q", job.Mode)
+	if job.TargetLocale != "fr" {
+		t.Fatalf("expected targetLocale fr, got %q", job.TargetLocale)
 	}
 }
 

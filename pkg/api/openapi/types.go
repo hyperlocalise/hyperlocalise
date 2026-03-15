@@ -69,29 +69,28 @@ type ErrorResponse struct {
 }
 
 type TranslationJob struct {
-	ID                string                    `json:"id"`
-	ProjectID         string                    `json:"projectId"`
-	Status            string                    `json:"status"`
-	Mode              string                    `json:"mode"`
-	SourceLocale      string                    `json:"sourceLocale"`
-	TargetLocale      string                    `json:"targetLocale"`
-	ItemCount         int                       `json:"itemCount"`
-	Progress          TranslationJobProgress    `json:"progress"`
-	SourceArtifactURI string                    `json:"sourceArtifactUri,omitempty"`
-	OutputArtifactURI string                    `json:"outputArtifactUri,omitempty"`
-	InlineOutput      []TranslationInlineOutput `json:"inlineOutput,omitempty"`
-	ConfigSnapshotID  string                    `json:"configSnapshotId"`
-	ErrorCode         string                    `json:"errorCode,omitempty"`
-	ErrorMessage      string                    `json:"errorMessage,omitempty"`
-	CreatedAt         string                    `json:"createdAt"`
-	UpdatedAt         string                    `json:"updatedAt"`
+	ID             string                     `json:"id"`
+	Status         string                     `json:"status"`
+	SourceLocale   string                     `json:"sourceLocale"`
+	TargetLocale   string                     `json:"targetLocale"`
+	Error          *TranslationJobError       `json:"error,omitempty"`
+	InlineResult   *TranslationInlineResult   `json:"inlineResult,omitempty"`
+	ArtifactResult *TranslationArtifactResult `json:"artifactResult,omitempty"`
+	CreatedAt      string                     `json:"createdAt"`
+	UpdatedAt      string                     `json:"updatedAt"`
 }
 
-type TranslationJobProgress struct {
-	Total     int `json:"total"`
-	Succeeded int `json:"succeeded"`
-	Failed    int `json:"failed"`
-	Canceled  int `json:"canceled"`
+type TranslationJobError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type TranslationInlineResult struct {
+	Items []TranslationInlineOutput `json:"items"`
+}
+
+type TranslationArtifactResult struct {
+	OutputArtifactURI string `json:"outputArtifactUri"`
 }
 
 type TranslationInlineOutput struct {
