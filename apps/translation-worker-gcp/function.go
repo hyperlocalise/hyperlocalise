@@ -28,9 +28,8 @@ type pubSubMessage struct {
 }
 
 var (
-	processorOnce sync.Once
+	processorMu   sync.Mutex
 	processorInst *worker.Processor
-	processorErr  error
 )
 
 func init() {
@@ -53,29 +52,28 @@ func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 }
 
 func getProcessor() (*worker.Processor, error) {
-	processorOnce.Do(func() {
-		cfg := translationconfig.LoadWorkerConfig()
-		if cfg.DatabaseURL == "" {
-			processorErr = fmt.Errorf("DATABASE_URL is required")
-			return
-		}
+	processorMu.Lock()
+	defer processorMu.Unlock()
 
-		db, err := store.OpenPostgres(cfg.DatabaseURL)
-		if err != nil {
-			processorErr = fmt.Errorf("open postgres: %w", err)
-			return
-		}
-
-		// TODO: Add a closer hook for local development once the Cloud Function is wrapped
-		// with a local runner. In the deployed function runtime the shared DB handle should
-		// stay warm across invocations.
-		log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
-		processorInst = worker.NewProcessor(store.NewRepository(db))
-	})
-
-	if processorErr != nil {
-		return nil, processorErr
+	if processorInst != nil {
+		return processorInst, nil
 	}
+
+	cfg := translationconfig.LoadWorkerConfig()
+	if cfg.DatabaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+
+	db, err := store.OpenPostgres(cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("open postgres: %w", err)
+	}
+
+	// TODO: Add a closer hook for local development once the Cloud Function is wrapped
+	// with a local runner. In the deployed function runtime the shared DB handle should
+	// stay warm across invocations.
+	log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
+	processorInst = worker.NewProcessor(store.NewRepository(db))
 	return processorInst, nil
 }
 
