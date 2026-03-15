@@ -203,76 +203,78 @@ func checkTableExists(sqlDB *sql.DB, tableName string) (bool, error) {
 func migrateSchema(db *bun.DB) error {
 	ctx := context.Background()
 
-	// Create ExactCacheEntry table
-	_, err := db.NewCreateTable().
-		Model((*ExactCacheEntry)(nil)).
-		IfNotExists().
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("create exact_cache_entries table: %w", err)
-	}
-
-	// Create indexes for ExactCacheEntry
-	indexes := []struct {
-		name    string
-		columns string
-		unique  bool
-	}{
-		{"idx_exact_cache_key", "cache_key", true},
-		{"idx_exact_source_locale", "source_locale", false},
-		{"idx_exact_target_locale", "target_locale", false},
-		{"idx_exact_provider", "provider", false},
-		{"idx_exact_model", "model", false},
-		{"idx_exact_source_hash", "source_hash", false},
-	}
-
-	for _, idx := range indexes {
-		uniqueStr := ""
-		if idx.unique {
-			uniqueStr = "UNIQUE "
+	return db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// Create ExactCacheEntry table
+		_, err := tx.NewCreateTable().
+			Model((*ExactCacheEntry)(nil)).
+			IfNotExists().
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("create exact_cache_entries table: %w", err)
 		}
-		sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON exact_cache_entries(%s)",
-			uniqueStr, idx.name, idx.columns)
-		if _, err := db.ExecContext(ctx, sql); err != nil {
-			return fmt.Errorf("create index %s: %w", idx.name, err)
+
+		// Create indexes for ExactCacheEntry
+		indexes := []struct {
+			name    string
+			columns string
+			unique  bool
+		}{
+			{"idx_exact_cache_key", "cache_key", true},
+			{"idx_exact_source_locale", "source_locale", false},
+			{"idx_exact_target_locale", "target_locale", false},
+			{"idx_exact_provider", "provider", false},
+			{"idx_exact_model", "model", false},
+			{"idx_exact_source_hash", "source_hash", false},
 		}
-	}
 
-	// Create TranslationMemoryEntry table
-	_, err = db.NewCreateTable().
-		Model((*TranslationMemoryEntry)(nil)).
-		IfNotExists().
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("create translation_memory_entries table: %w", err)
-	}
-
-	// Create indexes for TranslationMemoryEntry
-	tmIndexes := []struct {
-		name    string
-		columns string
-		unique  bool
-	}{
-		{"idx_tm_locales_text", "source_locale, target_locale, source_text", true},
-		{"idx_tm_provenance", "provenance", false},
-		{"idx_tm_source", "source", false},
-		{"idx_tm_source_locale", "source_locale", false},
-		{"idx_tm_target_locale", "target_locale", false},
-	}
-
-	for _, idx := range tmIndexes {
-		uniqueStr := ""
-		if idx.unique {
-			uniqueStr = "UNIQUE "
+		for _, idx := range indexes {
+			uniqueStr := ""
+			if idx.unique {
+				uniqueStr = "UNIQUE "
+			}
+			sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON exact_cache_entries(%s)",
+				uniqueStr, idx.name, idx.columns)
+			if _, err := tx.ExecContext(ctx, sql); err != nil {
+				return fmt.Errorf("create index %s: %w", idx.name, err)
+			}
 		}
-		sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON translation_memory_entries(%s)",
-			uniqueStr, idx.name, idx.columns)
-		if _, err := db.ExecContext(ctx, sql); err != nil {
-			return fmt.Errorf("create index %s: %w", idx.name, err)
-		}
-	}
 
-	return nil
+		// Create TranslationMemoryEntry table
+		_, err = tx.NewCreateTable().
+			Model((*TranslationMemoryEntry)(nil)).
+			IfNotExists().
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("create translation_memory_entries table: %w", err)
+		}
+
+		// Create indexes for TranslationMemoryEntry
+		tmIndexes := []struct {
+			name    string
+			columns string
+			unique  bool
+		}{
+			{"idx_tm_locales_text", "source_locale, target_locale, source_text", true},
+			{"idx_tm_provenance", "provenance", false},
+			{"idx_tm_source", "source", false},
+			{"idx_tm_source_locale", "source_locale", false},
+			{"idx_tm_target_locale", "target_locale", false},
+		}
+
+		for _, idx := range tmIndexes {
+			uniqueStr := ""
+			if idx.unique {
+				uniqueStr = "UNIQUE "
+			}
+			sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON translation_memory_entries(%s)",
+				uniqueStr, idx.name, idx.columns)
+			if _, err := tx.ExecContext(ctx, sql); err != nil {
+				return fmt.Errorf("create index %s: %w", idx.name, err)
+			}
+		}
+
+		return nil
+	})
 }
 
 func ensureTMTableConstraints(db *bun.DB) error {
