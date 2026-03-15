@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
@@ -10,7 +11,7 @@ import (
 	translationservice "github.com/quiet-circles/hyperlocalise/api/services/translation"
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
+	queueprovider "github.com/quiet-circles/hyperlocalise/internal/translation/queue/provider"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc"
@@ -33,7 +34,20 @@ func main() {
 	}()
 
 	repository := store.NewRepository(db)
-	publisher := queue.NewStubPublisher(cfg.QueueDriver)
+	publisher, err := queueprovider.NewPublisher(context.Background(), queueprovider.Config{
+		Driver:             cfg.QueueDriver,
+		GCPPubSubProjectID: cfg.GCPPubSubProjectID,
+		GCPPubSubTopicID:   cfg.GCPPubSubTopicID,
+	})
+	if err != nil {
+		log.Fatalf("create publisher: %v", err)
+	}
+	defer func() {
+		if closeErr := publisher.Close(); closeErr != nil {
+			log.Printf("close publisher: %v", closeErr)
+		}
+	}()
+
 	app := translationapp.NewService(repository, publisher, cfg.QueueDriver)
 
 	listener, err := net.Listen("tcp", cfg.ListenAddr)

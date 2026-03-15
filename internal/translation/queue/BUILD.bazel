@@ -2,7 +2,7 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "queue",
-    srcs = ["queue.go", "stub.go"],
+    srcs = ["queue.go"],
     importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/queue",
     visibility = ["//visibility:public"],
 )

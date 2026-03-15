@@ -15,6 +15,7 @@ use_repo(
     go_deps,
     "cc_mvdan_gofumpt",
     "co_honnef_go_tools",
+    "com_google_cloud_go_pubsub",
     "com_github_charmbracelet_log",
     "com_github_cloudevents_sdk_go_v2",
     "com_github_crowdin_crowdin_api_client_go",
