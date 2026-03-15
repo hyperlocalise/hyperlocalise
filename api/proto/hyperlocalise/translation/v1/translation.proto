@@ -7,13 +7,21 @@ import "hyperlocalise/common/v1/common.proto";
 
 option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
 
+// Input for a translation job that translates in-memory text.
 message StringTranslationJobInput {
   string source_text = 1;
   string source_locale = 2;
   repeated string target_locales = 3;
   map<string, string> metadata = 4;
+  // Optional translator guidance describing product/UI context for the text.
+  string context = 5;
+  // Optional longer description with additional translation instructions.
+  string description = 6;
+  // Optional maximum length constraint for each translated string.
+  int32 max_length = 7;
 }
 
+// Input for a translation job that translates a file referenced by URI.
 message FileTranslationJobInput {
   string file_uri = 1;
   string file_format = 2;
@@ -22,6 +30,44 @@ message FileTranslationJobInput {
   map<string, string> metadata = 5;
 }
 
+// Translated text for a single target locale.
+message StringTranslation {
+  string locale = 1;
+  string text = 2;
+}
+
+// Translated file location for a single target locale.
+message FileTranslation {
+  string locale = 1;
+  string file_uri = 2;
+}
+
+// Result payload for string-based translation jobs.
+message StringTranslationJobResult {
+  repeated StringTranslation translations = 1;
+}
+
+// Result payload for file-based translation jobs.
+message FileTranslationJobResult {
+  repeated FileTranslation translations = 1;
+}
+
+// Output produced by a completed translation job.
+message TranslationJobResult {
+  oneof result {
+    StringTranslationJobResult string_result = 1;
+    FileTranslationJobResult file_result = 2;
+  }
+}
+
+// Structured failure details for jobs that end in STATUS_FAILED.
+message TranslationJobError {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// Canonical translation job resource.
 message TranslationJob {
   enum Type {
     TYPE_UNSPECIFIED = 0;
@@ -40,18 +86,26 @@ message TranslationJob {
 
   string id = 1;
   string project_id = 2;
+  // Server-derived from the active input/result variant.
   Type type = 3;
   Status status = 4;
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp updated_at = 6;
   google.protobuf.Timestamp completed_at = 7;
 
+  // Exactly one input variant must be set when the job is created.
   oneof input {
     StringTranslationJobInput string_input = 9;
     FileTranslationJobInput file_input = 10;
   }
+
+  // Populated when output is available for the job.
+  TranslationJobResult result = 11;
+  // Populated when status is STATUS_FAILED.
+  TranslationJobError error = 12;
 }
 
+// Creates a new translation job under a project.
 message CreateTranslationJobRequest {
   string project_id = 1;
 
@@ -61,19 +115,33 @@ message CreateTranslationJobRequest {
   }
 }
 
+// Returns the newly created translation job resource.
+message CreateTranslationJobResponse {
+  TranslationJob job = 1;
+}
+
+// Looks up the lightweight status view for a translation job.
 message GetTranslationJobStatusRequest {
   hyperlocalise.common.v1.ResourceRef translation_job = 1;
 }
 
+// Looks up the full translation job resource, including results.
+message GetTranslationJobRequest {
+  hyperlocalise.common.v1.ResourceRef translation_job = 1;
+}
+
+// Lightweight status view used for polling job progress.
 message TranslationJobStatus {
   string id = 1;
   string project_id = 2;
-  TranslationJob.Status status = 3;
-  google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp updated_at = 5;
-  google.protobuf.Timestamp completed_at = 6;
+  TranslationJob.Type type = 3;
+  TranslationJob.Status status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
 }
 
+// Lists translation jobs for a project with optional filtering.
 message ListTranslationJobsRequest {
   string project_id = 1;
   hyperlocalise.common.v1.PageRequest page = 2;
@@ -81,11 +149,26 @@ message ListTranslationJobsRequest {
   TranslationJob.Status status = 4;
 }
 
+// Paged list of translation jobs.
 message ListTranslationJobsResponse {
   repeated TranslationJob jobs = 1;
   hyperlocalise.common.v1.PageResponse page = 2;
 }
 
+// Returns the lightweight job status view.
 message GetTranslationJobStatusResponse {
   TranslationJobStatus job = 1;
+}
+
+// Returns the full translation job resource.
+message GetTranslationJobResponse {
+  TranslationJob job = 1;
+}
+
+// Translation job management API.
+service TranslationService {
+  rpc CreateTranslationJob(CreateTranslationJobRequest) returns (CreateTranslationJobResponse);
+  rpc GetTranslationJob(GetTranslationJobRequest) returns (GetTranslationJobResponse);
+  rpc GetTranslationJobStatus(GetTranslationJobStatusRequest) returns (GetTranslationJobStatusResponse);
+  rpc ListTranslationJobs(ListTranslationJobsRequest) returns (ListTranslationJobsResponse);
 }
