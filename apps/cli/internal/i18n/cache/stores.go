@@ -137,7 +137,7 @@ func (s *exactSQLiteStore) evictIfNeeded(ctx context.Context) error {
 
 	_, err = s.db.NewDelete().
 		Model((*ExactCacheEntry)(nil)).
-		Where("id IN (?)", bun.In(oldIDs)).
+		Where("id IN (?)", bun.List(oldIDs)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("evict exact cache entries: %w", err)
