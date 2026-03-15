@@ -21,7 +21,7 @@ This directory contains Hyperlocalise protobuf contracts and Buf configuration.
 Each `TranslationJob` carries:
 
 - `type`: `TYPE_STRING` or `TYPE_FILE`, derived by the server from the active input/result variant.
-- `status`: queued/running/succeeded/failed/canceled lifecycle.
+- `status`: queued/running/succeeded/failed lifecycle.
 - oneof input payload for the selected job type.
 - terminal outcome payload:
   - string jobs return locale/text pairs
