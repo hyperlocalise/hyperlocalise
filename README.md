@@ -2,7 +2,7 @@
 
 Hyperlocalise is the AI-native localization infrastructure for modern apps.
 
-It combines an automation-first CLI, contract-driven APIs, and emerging TMS application layers for teams that want localization workflows to live inside engineering systems instead of beside them.
+It combines an automation-first CLI and shared localization infrastructure for teams that want localization workflows to live inside engineering systems instead of beside them.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/quiet-circles/hyperlocalise)](https://goreportcard.com/report/github.com/quiet-circles/hyperlocalise)
 
@@ -23,8 +23,7 @@ It combines an automation-first CLI, contract-driven APIs, and emerging TMS appl
 # Features
 - AI-native localization workflow orchestration for modern apps and teams
 - Local-first CLI for translation generation, evaluation, sync, and status checks
-- Emerging monorepo layout for CLI, TMS backend services, public APIs, and frontend layers
-- OpenAPI-ready public integration surface and protobuf/gRPC-oriented internal service contracts
+- CLI-first repository layout with shared runtime, translation, and storage packages
 - [goreleaser](https://goreleaser.com/) releases publishing multi-arch (`amd64`/`arm64`) binaries for macOS and Linux, plus `.deb` and `.rpm` packages.
 - [golangci-lint](https://golangci-lint.run/) for linting and formatting
 - [cobra](https://cobra.dev/) setup including tests

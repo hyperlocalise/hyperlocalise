@@ -3,7 +3,7 @@ export function renderApp(): string {
     <main class="shell">
       <section class="hero">
         <p class="eyebrow">Hyperlocalise</p>
-        <h1>Localization workflows, without the placeholder shell.</h1>
+        <h1>Localization workflows for the code that actually ships.</h1>
         <p class="lede">
           The repository now centers on the CLI and shared localization
           infrastructure that is actually implemented.
@@ -20,7 +20,7 @@ export function renderApp(): string {
         </article>
         <article>
           <h2>Focused Surface</h2>
-          <p>Removed unused service and gateway scaffolding from the workspace.</p>
+          <p>Keep the workspace centered on implemented CLI and shared packages.</p>
         </article>
       </section>
     </main>

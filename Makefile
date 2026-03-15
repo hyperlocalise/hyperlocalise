@@ -3,9 +3,6 @@ version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
 golangci_lint_version?=v2.10.1
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
-workspace_test_modules=
-workspace_build_targets=./apps/cli
-
 default: help
 
 .PHONY: help
@@ -20,9 +17,6 @@ bump: ## update go dependencies
 .PHONY: check-build
 check-build: ## check golang build
 	@go build -ldflags "-X main.version=$(version)" -o /dev/null ./apps/cli
-	@for target in $(filter-out ./apps/cli,$(workspace_build_targets)); do \
-		go build -o /dev/null $$target; \
-	done
 
 .PHONY: install
 install: ## install golang binary
@@ -44,10 +38,9 @@ test-root: clean ## run root-module tests with JSON output and coverage
 	go tool cover -func=coverage.out | sort -rnk3
 
 .PHONY: test-workspace
-test-workspace: clean ## run root and nested-module tests
+test-workspace: clean ## run workspace tests
 	go test -cover -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out | sort -rnk3
-	go test $(workspace_test_modules)
 
 .PHONY: test
 test: test-workspace ## run workspace-wide tests
