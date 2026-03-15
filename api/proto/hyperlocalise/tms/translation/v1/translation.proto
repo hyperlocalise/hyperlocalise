@@ -7,13 +7,19 @@ option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperl
 import "google/protobuf/timestamp.proto";
 import "hyperlocalise/common/v1/common.proto";
 
+// TranslationService exposes the user-facing async translation workflow.
 service TranslationService {
+  // CreateTranslationJob accepts either inline strings or an artifact reference.
   rpc CreateTranslationJob(CreateTranslationJobRequest) returns (TranslationJob);
+  // GetTranslationJob returns the latest observable state of a submitted job.
   rpc GetTranslationJob(GetTranslationJobRequest) returns (TranslationJob);
+  // ListTranslationJobs returns submitted jobs using the shared paging contract.
   rpc ListTranslationJobs(ListTranslationJobsRequest) returns (ListTranslationJobsResponse);
+  // CancelTranslationJob requests cancellation for a job that is not yet terminal.
   rpc CancelTranslationJob(CancelTranslationJobRequest) returns (TranslationJob);
 }
 
+// TranslationJobStatus is the simplified user-facing lifecycle for a translation job.
 enum TranslationJobStatus {
   TRANSLATION_JOB_STATUS_UNSPECIFIED = 0;
   TRANSLATION_JOB_STATUS_PENDING = 1;
@@ -23,12 +29,7 @@ enum TranslationJobStatus {
   TRANSLATION_JOB_STATUS_CANCELED = 5;
 }
 
-enum TranslationJobMode {
-  TRANSLATION_JOB_MODE_UNSPECIFIED = 0;
-  TRANSLATION_JOB_MODE_INLINE = 1;
-  TRANSLATION_JOB_MODE_ARTIFACT = 2;
-}
-
+// TranslationJob is the observable async handle returned to API clients.
 message TranslationJob {
   string id = 1;
   TranslationJobStatus status = 2;
@@ -38,34 +39,43 @@ message TranslationJob {
   google.protobuf.Timestamp updated_at = 6;
   JobError error = 7;
   oneof result {
+    // inline_result is populated for string/item translation requests.
     InlineResult inline_result = 8;
+    // artifact_result is populated for file/artifact translation requests.
     ArtifactResult artifact_result = 9;
   }
 }
 
+// JobError describes a terminal failure visible to the caller.
 message JobError {
   string code = 1;
   string message = 2;
 }
 
+// InlineOutput is a translated keyed item from an inline request.
 message InlineOutput {
   string key = 1;
   string text = 2;
 }
 
+// InlineResult contains translated keyed items for inline jobs.
 message InlineResult {
   repeated InlineOutput items = 1;
 }
 
+// ArtifactResult points to the translated output artifact for file-based jobs.
 message ArtifactResult {
   string output_artifact_uri = 1;
 }
 
+// CreateTranslationJobRequest submits a single job for one target locale.
 message CreateTranslationJobRequest {
+  // idempotency_key deduplicates equivalent create requests from the same caller scope.
   optional string idempotency_key = 1;
   string project_id = 2;
   string source_locale = 3;
   string target_locale = 4;
+  // provider_profile selects a named execution profile without exposing vendor-specific knobs.
   optional string provider_profile = 5;
   oneof payload {
     InlinePayload inline_payload = 6;
@@ -73,22 +83,30 @@ message CreateTranslationJobRequest {
   }
 }
 
+// InlinePayload submits a bounded list of keyed strings to translate.
 message InlinePayload {
   repeated InlineItem items = 1;
 }
 
+// InlineItem is one logical translation unit in an inline request.
 message InlineItem {
   string key = 1;
   string text = 2;
+  // context is auxiliary prompt material for the item, not user-visible output.
   string context = 3;
+  // max_length is a soft output constraint when a caller needs bounded text.
   int32 max_length = 4;
+  // metadata is opaque caller-provided data carried with the item definition.
   map<string, string> metadata = 5;
 }
 
+// ArtifactPayload submits an input artifact that the service will parse into segments.
 message ArtifactPayload {
   string input_uri = 1;
   string content_type = 2;
+  // parser_hint optionally nudges parser selection when the URI/path alone is not enough.
   string parser_hint = 3;
+  // path preserves the logical source path when it differs from the object storage URI.
   string path = 4;
 }
 
@@ -96,6 +114,7 @@ message GetTranslationJobRequest {
   string id = 1;
 }
 
+// ListTranslationJobsRequest supports simple filtering plus shared page-based pagination.
 message ListTranslationJobsRequest {
   string project_id = 1;
   optional TranslationJobStatus status = 2;
