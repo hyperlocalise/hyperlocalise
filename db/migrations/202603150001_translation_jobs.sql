@@ -31,7 +31,8 @@ CREATE TABLE translation_jobs (
 );
 
 CREATE UNIQUE INDEX translation_jobs_dedupe_idx
-    ON translation_jobs (project_id, target_locale, idempotency_key, dedupe_checksum);
+    ON translation_jobs (project_id, target_locale, idempotency_key, dedupe_checksum)
+    WHERE idempotency_key <> '';
 
 CREATE TABLE translation_job_inputs (
     job_id TEXT PRIMARY KEY REFERENCES translation_jobs(id) ON DELETE CASCADE,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,6 +47,11 @@ func registerRoutes(mux *http.ServeMux, backend tmsgrpc.Backend, logger *observa
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	registerNotImplementedRoute(mux, openapi.ProjectsPath)
+	registerNotImplementedRoute(mux, openapi.ResourcesPath)
+	registerNotImplementedRoute(mux, openapi.TranslationMemoryPath)
+	registerNotImplementedRoute(mux, openapi.GlossariesPath)
+	registerNotImplementedRoute(mux, openapi.WorkflowsPath)
 
 	mux.HandleFunc(openapi.TranslationJobsPath, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -106,6 +112,19 @@ func registerRoutes(mux *http.ServeMux, backend tmsgrpc.Backend, logger *observa
 	})
 
 	logger.Printf("registered translation HTTP routes")
+}
+
+func registerNotImplementedRoute(mux *http.ServeMux, route string) {
+	mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusNotImplemented, openapi.ErrorResponse{
+			Error: fmt.Sprintf("%s is not implemented in this service", route),
+		})
+	})
+	mux.HandleFunc(route+"/", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusNotImplemented, openapi.ErrorResponse{
+			Error: fmt.Sprintf("%s is not implemented in this service", route),
+		})
+	})
 }
 
 func parseListFilter(r *http.Request) (tmsgrpc.TranslationJobFilter, error) {

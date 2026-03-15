@@ -490,8 +490,19 @@ func (s *Service) FlushOutbox(ctx context.Context) error {
 			s.segments[entry.JobID] = segments
 			s.jobs[entry.JobID] = recomputeJob(s.jobs[entry.JobID], segments)
 		}
+		s.compactOutboxLocked()
 		s.mu.Unlock()
 	}
+}
+
+func (s *Service) compactOutboxLocked() {
+	live := s.outbox[:0]
+	for _, msg := range s.outbox {
+		if msg.SentAt == nil {
+			live = append(live, msg)
+		}
+	}
+	s.outbox = live
 }
 
 func (s *Service) enqueueExecuteLocked(job translation.Job, segment translation.Segment) {

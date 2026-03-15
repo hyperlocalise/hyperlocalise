@@ -92,6 +92,35 @@ func TestCreateTranslationJobValidationErrorReturnsBadRequest(t *testing.T) {
 	}
 }
 
+func TestLegacyRoutesReturnNotImplemented(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(t)
+	paths := []string{
+		openapi.ProjectsPath,
+		openapi.ResourcesPath,
+		openapi.TranslationMemoryPath,
+		openapi.GlossariesPath,
+		openapi.WorkflowsPath,
+	}
+
+	for _, path := range paths {
+		path := path
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, path, http.NoBody)
+			recorder := httptest.NewRecorder()
+
+			server.httpServer.Handler.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusNotImplemented {
+				t.Fatalf("expected 501, got %d", recorder.Code)
+			}
+		})
+	}
+}
+
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 

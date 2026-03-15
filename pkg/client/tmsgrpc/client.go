@@ -142,7 +142,7 @@ func mapJob(job translation.Job) openapi.TranslationJob {
 	}
 	mapped := openapi.TranslationJob{
 		ID:           job.ID,
-		Status:       job.Status,
+		Status:       mapStatus(job.Status),
 		SourceLocale: job.SourceLocale,
 		TargetLocale: job.TargetLocale,
 		CreatedAt:    job.CreatedAt.Format(time.RFC3339),
@@ -163,6 +163,23 @@ func mapJob(job translation.Job) openapi.TranslationJob {
 		}
 	}
 	return mapped
+}
+
+func mapStatus(status string) string {
+	switch status {
+	case translation.StatusQueued:
+		return "pending"
+	case translation.StatusRunning, translation.StatusFinalizeQueued:
+		return "running"
+	case translation.StatusCompleted:
+		return "succeeded"
+	case translation.StatusFailed:
+		return "failed"
+	case translation.StatusCanceled, translation.StatusCancelRequested:
+		return "canceled"
+	default:
+		return "pending"
+	}
 }
 
 func chooseIdempotencyKey(header string, body string) string {
