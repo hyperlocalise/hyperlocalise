@@ -14,9 +14,9 @@ message StringTranslationJobInput {
   repeated string target_locales = 3;
   map<string, string> metadata = 4;
   // Optional translator guidance describing product/UI context for the text.
-  string context = 5;
+  optional string context = 5;
   // Optional maximum length constraint for each translated string.
-  int32 max_length = 6;
+  optional int32 max_length = 6;
 }
 
 // Input for a translation job that translates a file referenced by URI.
