@@ -65,6 +65,12 @@ var htmlSkipElements = map[string]bool{
 // htmlTagPattern matches a complete HTML tag, including attribute values that
 // may themselves contain '>'. It skips over double- and single-quoted strings
 // before consuming any bare character that is not '>'.
+//
+// Assumption: attribute values are always quoted. Unquoted attribute values
+// containing '>' (invalid HTML) are not handled and will cause the regex to
+// split the tag at the first bare '>'. In practice this is not a problem
+// because golang.org/x/net/html normalises tokens before we see z.Raw(), so
+// the segments passed to protectHTMLInlineSyntax contain well-formed tags.
 var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
 
 // parseHTMLDocument tokenizes content into literal and translatable parts,
@@ -204,6 +210,8 @@ func protectHTMLInlineSyntax(segment string) (string, map[string]string, string,
 
 // htmlSegmentKey generates a stable SHA-256-based key for a translatable segment.
 // Duplicate content gets a numeric suffix: html.abc123def456, html.abc123def456.2, …
+// Suffix numbering mirrors markdownSegmentKey: the first occurrence has no suffix,
+// the second gets .2, the third .3, etc. (there is no .1).
 func htmlSegmentKey(segment string, occurrences map[string]int) string {
 	sum := sha256.Sum256([]byte(segment))
 	hash := hex.EncodeToString(sum[:])[:16]
@@ -238,6 +246,11 @@ func MarshalHTML(template []byte, values map[string]string) ([]byte, HTMLRenderD
 //
 // This preserves translations from previous runs and manual edits in the target
 // file when only a subset of segments is present in values.
+//
+// NOTE: positional alignment is stable only when the source template's segment
+// count and order match the existing target file. If segments are added or removed
+// in the source, the fallback may associate the wrong target translation with some
+// segments. Affected segments beyond the end of targetParts fall back to source text.
 func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, HTMLRenderDiagnostics) {
 	sourceDoc, _ := parseHTMLDocument(sourceTemplate)
 	targetDoc, _ := parseHTMLDocument(targetTemplate)
