@@ -221,22 +221,26 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	minLen := int(float64(queryLen) * (1 - tmLengthFilterRatio))
 	maxLen := int(float64(queryLen) / (1 - tmLengthFilterRatio))
 
-	var rows []TranslationMemoryEntry
-	err := s.db.NewSelect().
-		Model(&rows).
+	rows, err := s.db.NewSelect().
+		Model((*TranslationMemoryEntry)(nil)).
 		Where("source_locale = ?", sourceLocale).
 		Where("target_locale = ?", targetLocale).
 		Where("LENGTH(source_text) BETWEEN ? AND ?", minLen, maxLen).
-		Scan(ctx)
+		Rows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("lookup translation memory entries: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
 
 	// Reusable buffers for levenshtein computation to avoid per-row allocs.
 	var levBuf levBuffers
 
 	results := make([]TMResult, 0, limit)
-	for _, row := range rows {
+	for rows.Next() {
+		var row TranslationMemoryEntry
+		if err := s.db.ScanRow(ctx, rows, &row); err != nil {
+			return nil, fmt.Errorf("scan translation memory row: %w", err)
+		}
 		rowRunes := []rune(strings.ToLower(strings.TrimSpace(row.SourceText)))
 		similarity := normalizedLevenshteinRunes(queryRunes, rowRunes, &levBuf)
 		metadata := TMMetadata{
@@ -263,6 +267,9 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 			results[worstIndex] = candidate
 			sortTMResults(results)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate translation memory rows: %w", err)
 	}
 
 	return results, nil

@@ -14,7 +14,7 @@ env "bun" {
   src = data.external_schema.bun.url
   dev = "sqlite://file::memory:?cache=shared"
   migration {
-    dir = "file://migrations"
+    dir = "file://apps/cli/internal/i18n/cache/migrations"
   }
   format {
     migrate {

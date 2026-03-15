@@ -2,12 +2,16 @@ package cache
 
 import (
 	"context"
-	"errors"
+	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/quiet-circles/hyperlocalise/pkg/i18nconfig"
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/sqlitedialect"
+	"github.com/uptrace/bun/driver/sqliteshim"
 )
 
 func TestNewFromConfigDisabled(t *testing.T) {
@@ -192,7 +196,7 @@ func TestL1PutPersistsMetadataColumns(t *testing.T) {
 	}
 }
 
-func TestL1GetReturnsCachedValueEvenWhenTouchUpdateFails(t *testing.T) {
+func TestL1GetReturnsCachedValueWhenEntryExists(t *testing.T) {
 	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "cache.sqlite")
@@ -209,8 +213,8 @@ func TestL1GetReturnsCachedValueEvenWhenTouchUpdateFails(t *testing.T) {
 
 	// Seed a cache entry
 	if err := svc.L1.Put(context.Background(), ExactCacheWrite{
-		Key:          "k-touch-fail",
-		Value:        "v-touch-fail",
+		Key:          "k-touch",
+		Value:        "v-touch",
 		SourceLocale: "en",
 		TargetLocale: "fr",
 		Provider:     "openai",
@@ -220,29 +224,87 @@ func TestL1GetReturnsCachedValueEvenWhenTouchUpdateFails(t *testing.T) {
 		t.Fatalf("seed cache entry: %v", err)
 	}
 
-	// Create a context with a very short timeout that will likely expire
-	// after the SELECT succeeds but before/during the UPDATE touch
-	shortCtx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
-	defer cancel()
-	time.Sleep(5 * time.Millisecond) // Ensure deadline has passed
-
-	// The Get should still return the cached value even though the touch update will fail
-	// The implementation intentionally ignores touch update errors (see stores.go:64)
-	val, hit, err := svc.L1.Get(shortCtx, "k-touch-fail")
-	// Note: Depending on timing, either the SELECT or UPDATE may fail.
-	// If SELECT fails due to timeout, we expect an error. If SELECT succeeds
-	// but UPDATE fails, the error is ignored and we get the value.
-	// We test that when the cache entry exists, the value is returned.
+	// The Get should return the cached value and update the timestamp
+	val, hit, err := svc.L1.Get(context.Background(), "k-touch")
 	if err != nil {
-		// Context timeout during SELECT is acceptable - verify it's a context error
-		if !errors.Is(err, context.DeadlineExceeded) {
-			t.Fatalf("unexpected error type: %v", err)
-		}
-		// If SELECT timed out, we can't verify the touch update behavior in this test
-		t.Skip("SELECT timed out before touch update - behavior verified by code inspection")
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !hit {
 		t.Fatal("expected cache hit")
+	}
+	if val != "v-touch" {
+		t.Fatalf("expected cached value 'v-touch', got %q", val)
+	}
+}
+
+func TestL1GetReturnsCachedValueWhenTouchFails(t *testing.T) {
+	t.Parallel()
+
+	// This test verifies that when the touch UPDATE fails (lines 64-68 in stores.go),
+	// the cached value is still returned. The UPDATE error is intentionally ignored
+	// with `_, _ = ...` to allow cache hits even when the timestamp update fails.
+
+	// Create a temporary database in a temp dir
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "cache-touch-fail.sqlite")
+	sqldb, err := sql.Open(sqliteshim.ShimName, dbPath+"?_fk=1")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+
+	// Run migrations manually for this test
+	if err := migrateSchema(db); err != nil {
+		t.Fatalf("migrate schema: %v", err)
+	}
+
+	// Create the store
+	store := &exactSQLiteStore{db: db, maxItems: 10}
+
+	// Seed a cache entry
+	if err := store.Put(context.Background(), ExactCacheWrite{
+		Key:          "k-touch-fail",
+		Value:        "v-touch-fail",
+		SourceLocale: "en",
+		TargetLocale: "de",
+		Provider:     "openai",
+		Model:        "gpt-4",
+		SourceHash:   "hash",
+	}); err != nil {
+		t.Fatalf("seed cache entry: %v", err)
+	}
+
+	// Make the database file read-only to simulate a write failure.
+	// SQLite can still read from a read-only file, but writes will fail.
+	if err := os.Chmod(dbPath, 0o444); err != nil {
+		t.Fatalf("chmod read-only: %v", err)
+	}
+	// Also make the directory read-only to prevent creating WAL files
+	if err := os.Chmod(tmpDir, 0o555); err != nil {
+		t.Fatalf("chmod dir read-only: %v", err)
+	}
+	t.Cleanup(func() {
+		// Restore permissions for cleanup
+		_ = os.Chmod(tmpDir, 0o755)
+		_ = os.Chmod(dbPath, 0o644)
+	})
+
+	// Now call Get - the SELECT should succeed (read works), but the UPDATE should fail.
+	// Despite the UPDATE failure, the cached value should be returned due to the
+	// error-swallowing at stores.go lines 64-68.
+	val, hit, getErr := store.Get(context.Background(), "k-touch-fail")
+
+	// The key assertion: even though the UPDATE fails (because file is read-only),
+	// the cached value should still be returned. The SELECT should succeed since
+	// SQLite can read from a read-only file.
+	if getErr != nil {
+		t.Fatalf("Get returned unexpected error: %v", getErr)
+	}
+
+	// Verify we got a cache hit with the correct value
+	if !hit {
+		t.Fatal("expected cache hit but got miss")
 	}
 	if val != "v-touch-fail" {
 		t.Fatalf("expected cached value 'v-touch-fail', got %q", val)

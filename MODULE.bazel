@@ -27,7 +27,6 @@ use_repo(
     "com_github_lokalise_go_lokalise_api_v5",
     "com_github_masterminds_semver_v3",
     "com_github_mattn_go_isatty",
-    "com_github_mattn_go_sqlite3",
     "com_github_openai_openai_go_v2",
     "com_github_spf13_cobra",
     "com_github_subosito_gotenv",

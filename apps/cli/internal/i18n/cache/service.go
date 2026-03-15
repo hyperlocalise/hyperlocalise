@@ -239,11 +239,19 @@ func migrateSchema(db *bun.DB) error {
 			}
 		}
 
-		// Create TranslationMemoryEntry table
-		_, err = tx.NewCreateTable().
-			Model((*TranslationMemoryEntry)(nil)).
-			IfNotExists().
-			Exec(ctx)
+		// Create TranslationMemoryEntry table with CHECK constraints
+		_, err = tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS "translation_memory_entries" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+			"source_locale" TEXT NOT NULL,
+			"target_locale" TEXT NOT NULL,
+			"source_text" TEXT NOT NULL,
+			"translated_text" TEXT NOT NULL,
+			"score" REAL NOT NULL DEFAULT 0,
+			"provenance" TEXT NOT NULL DEFAULT 'unknown' `+TMProvenanceCheck+`,
+			"source" TEXT NOT NULL DEFAULT 'unknown' `+TMSourceCheck+`,
+			"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			"updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)`)
 		if err != nil {
 			return fmt.Errorf("create translation_memory_entries table: %w", err)
 		}
@@ -290,7 +298,8 @@ func ensureTMTableConstraints(db *bun.DB) error {
 	var createSQL string
 	err := db.NewRaw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").
 		Scan(ctx, &createSQL)
-	if err != nil {
+	// ErrNoRows is expected if table doesn't exist yet
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inspect translation_memory_entries schema: %w", err)
 	}
 	if createSQL == "" {
@@ -321,7 +330,7 @@ func ensureTMTableConstraints(db *bun.DB) error {
 			CID       int            `bun:"cid"`
 			Name      string         `bun:"name"`
 			Type      string         `bun:"type"`
-			NotNull   int            `bun:"column:notnull"`
+			NotNull   int            `bun:"notnull"`
 			DfltValue sql.NullString `bun:"dflt_value"`
 			PK        int            `bun:"pk"`
 			Hidden    int            `bun:"hidden"`
@@ -373,10 +382,18 @@ END`)
 		// Patch the existing CREATE TABLE DDL to inject CHECK constraints.
 		newCreateSQL := createSQL
 		if !strings.Contains(strings.ToLower(newCreateSQL), provenanceCheck) {
-			newCreateSQL = patchColumnConstraint(newCreateSQL, "provenance", "CHECK (provenance IN ('curated','draft','llm','tms','unknown'))")
+			var err error
+			newCreateSQL, err = patchColumnConstraint(newCreateSQL, "provenance", "CHECK (provenance IN ('curated','draft','llm','tms','unknown'))")
+			if err != nil {
+				return fmt.Errorf("patch provenance constraint: %w", err)
+			}
 		}
 		if !strings.Contains(strings.ToLower(newCreateSQL), sourceCheck) {
-			newCreateSQL = patchColumnConstraint(newCreateSQL, "source", "CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown'))")
+			var err error
+			newCreateSQL, err = patchColumnConstraint(newCreateSQL, "source", "CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown'))")
+			if err != nil {
+				return fmt.Errorf("patch source constraint: %w", err)
+			}
 		}
 		// Point the DDL at the temp table name.
 		newCreateSQL = strings.Replace(newCreateSQL, "translation_memory_entries", "translation_memory_entries_new", 1)
@@ -426,14 +443,16 @@ END`)
 // patchColumnConstraint appends a CHECK constraint to a column definition
 // inside a CREATE TABLE statement. It finds the column by name and appends
 // the constraint text after the existing column definition.
-func patchColumnConstraint(createSQL, column, constraint string) string {
+func patchColumnConstraint(createSQL, column, constraint string) (string, error) {
 	lines := strings.Split(createSQL, "\n")
 	target := strings.ToLower(column)
+	found := false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(strings.ToLower(line))
 		// Match lines starting with the column name (possibly quoted).
 		col := strings.TrimPrefix(trimmed, `"`)
 		if strings.HasPrefix(col, target+" ") || strings.HasPrefix(col, target+`"`) {
+			found = true
 			clean := strings.TrimRight(lines[i], ", \t")
 			sep := ","
 			if !strings.HasSuffix(strings.TrimRight(line, " \t"), ",") {
@@ -443,5 +462,8 @@ func patchColumnConstraint(createSQL, column, constraint string) string {
 			break
 		}
 	}
-	return strings.Join(lines, "\n")
+	if !found {
+		return "", fmt.Errorf("column %q not found in CREATE TABLE statement", column)
+	}
+	return strings.Join(lines, "\n"), nil
 }

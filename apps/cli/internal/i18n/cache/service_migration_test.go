@@ -21,6 +21,7 @@ func TestNewFromConfigMigratesLegacyTMTableWithConstraints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open legacy db: %v", err)
 	}
+	t.Cleanup(func() { _ = sqldb.Close() })
 
 	_, err = sqldb.Exec(`CREATE TABLE translation_memory_entries (
 id integer PRIMARY KEY AUTOINCREMENT,
@@ -43,10 +44,6 @@ updated_at datetime
 VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`)
 	if err != nil {
 		t.Fatalf("seed legacy row: %v", err)
-	}
-
-	if err := sqldb.Close(); err != nil {
-		t.Fatalf("close legacy sql db: %v", err)
 	}
 
 	svc, err := NewFromConfig(config.CacheConfig{

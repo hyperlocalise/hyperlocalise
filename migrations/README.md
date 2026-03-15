@@ -17,7 +17,7 @@ atlas migrate diff --env bun
 
 ## Apply Migrations
 
-Migrations are automatically applied when the cache service starts. The service uses Bun's migration system.
+The service does not automatically apply Atlas SQL migration files at runtime; instead it creates the schema programmatically using Bun queries when the cache service starts. Atlas migrations are used for development and CI-side schema management.
 
 ## View Schema
 
