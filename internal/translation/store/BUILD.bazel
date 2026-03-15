@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "store",
+    srcs = ["models.go", "postgres.go", "repository.go"],
+    importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/store",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_jackc_pgx_v5//:pgx",
+        "@com_github_jackc_pgx_v5//stdlib",
+        "@com_github_uptrace_bun//:bun",
+        "@com_github_uptrace_bun_dialect_pgdialect//:pgdialect",
+    ],
+)
