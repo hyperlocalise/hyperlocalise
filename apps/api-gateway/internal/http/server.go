@@ -61,12 +61,12 @@ func registerRoutes(mux *http.ServeMux, backend tmsgrpc.Backend, logger *observa
 				writeJSON(w, http.StatusBadRequest, openapi.ErrorResponse{Error: err.Error()})
 				return
 			}
-			items, err := backend.ListTranslationJobs(r.Context(), filter)
+			page, err := backend.ListTranslationJobs(r.Context(), filter)
 			if err != nil {
 				writeError(w, err)
 				return
 			}
-			writeJSON(w, http.StatusOK, openapi.TranslationJobListResponse{Items: items})
+			writeJSON(w, http.StatusOK, page)
 		case http.MethodPost:
 			var req openapi.CreateTranslationJobRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

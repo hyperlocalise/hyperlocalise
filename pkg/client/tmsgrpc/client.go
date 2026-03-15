@@ -21,7 +21,7 @@ var (
 type Backend interface {
 	CreateTranslationJob(ctx context.Context, req openapi.CreateTranslationJobRequest, idempotencyHeader string) (openapi.TranslationJob, error)
 	GetTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error)
-	ListTranslationJobs(ctx context.Context, filter TranslationJobFilter) ([]openapi.TranslationJob, error)
+	ListTranslationJobs(ctx context.Context, filter TranslationJobFilter) (openapi.TranslationJobListResponse, error)
 	CancelTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error)
 }
 
@@ -104,8 +104,8 @@ func (b *StubBackend) GetTranslationJob(ctx context.Context, id string) (openapi
 	return mapJob(job), nil
 }
 
-func (b *StubBackend) ListTranslationJobs(ctx context.Context, filter TranslationJobFilter) ([]openapi.TranslationJob, error) {
-	jobs, err := b.service.ListTranslationJobs(ctx, translation.JobFilter{
+func (b *StubBackend) ListTranslationJobs(ctx context.Context, filter TranslationJobFilter) (openapi.TranslationJobListResponse, error) {
+	page, err := b.service.ListTranslationJobs(ctx, translation.JobFilter{
 		ProjectID:    filter.ProjectID,
 		Status:       filter.Status,
 		TargetLocale: filter.TargetLocale,
@@ -114,14 +114,17 @@ func (b *StubBackend) ListTranslationJobs(ctx context.Context, filter Translatio
 		Cursor:       filter.Cursor,
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return openapi.TranslationJobListResponse{}, mapError(err)
 	}
 
-	items := make([]openapi.TranslationJob, 0, len(jobs))
-	for _, job := range jobs {
+	items := make([]openapi.TranslationJob, 0, len(page.Items))
+	for _, job := range page.Items {
 		items = append(items, mapJob(job))
 	}
-	return items, nil
+	return openapi.TranslationJobListResponse{
+		Items:      items,
+		NextCursor: page.NextCursor,
+	}, nil
 }
 
 func (b *StubBackend) CancelTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error) {

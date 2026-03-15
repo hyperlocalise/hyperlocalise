@@ -131,5 +131,6 @@ type TranslationArtifactPayload struct {
 }
 
 type TranslationJobListResponse struct {
-	Items []TranslationJob `json:"items"`
+	Items      []TranslationJob `json:"items"`
+	NextCursor string           `json:"nextCursor,omitempty"`
 }

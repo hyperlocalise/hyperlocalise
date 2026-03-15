@@ -125,6 +125,11 @@ type JobFilter struct {
 	Cursor       string
 }
 
+type JobPage struct {
+	Items      []Job
+	NextCursor string
+}
+
 type JobInput struct {
 	JobID                 string
 	Mode                  string

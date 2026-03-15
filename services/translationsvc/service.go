@@ -135,7 +135,7 @@ func (s *Service) GetJob(ctx context.Context, id string) (translation.Job, error
 	return cloneJob(job), nil
 }
 
-func (s *Service) ListTranslationJobs(ctx context.Context, filter translation.JobFilter) ([]translation.Job, error) {
+func (s *Service) ListTranslationJobs(ctx context.Context, filter translation.JobFilter) (translation.JobPage, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -158,14 +158,34 @@ func (s *Service) ListTranslationJobs(ctx context.Context, filter translation.Jo
 	}
 
 	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].ID > items[j].ID
+		}
 		return items[i].CreatedAt.After(items[j].CreatedAt)
 	})
 
+	start := 0
+	if filter.Cursor != "" {
+		start = len(items)
+		for idx, job := range items {
+			if job.ID == filter.Cursor {
+				start = idx + 1
+				break
+			}
+		}
+	}
+	if start > len(items) {
+		start = len(items)
+	}
+	items = items[start:]
+
+	page := translation.JobPage{Items: items}
 	if filter.Limit > 0 && len(items) > filter.Limit {
-		items = items[:filter.Limit]
+		page.Items = items[:filter.Limit]
+		page.NextCursor = page.Items[len(page.Items)-1].ID
 	}
 
-	return items, nil
+	return page, nil
 }
 
 func (s *Service) CancelTranslationJob(ctx context.Context, id string) (translation.Job, error) {
@@ -259,11 +279,9 @@ func (s *Service) CompleteSegmentAttempt(ctx context.Context, segmentID string, 
 
 func (s *Service) FailSegmentAttempt(ctx context.Context, segmentID string, code string, message string, latency time.Duration) (translation.Job, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	_ = ctx
 	jobID, segmentIdx, attemptIdx, err := s.lookupSegmentAttemptLocked(segmentID)
 	if err != nil {
+		s.mu.Unlock()
 		return translation.Job{}, err
 	}
 
@@ -285,7 +303,18 @@ func (s *Service) FailSegmentAttempt(ctx context.Context, segmentID string, code
 	s.segments[jobID] = segments
 
 	job := recomputeJob(s.jobs[jobID], segments)
+	enqueueFinalize := allSegmentsTerminal(segments)
+	if enqueueFinalize {
+		s.enqueueFinalizeLocked(job.ID, now)
+	}
 	s.jobs[jobID] = job
+	s.mu.Unlock()
+
+	if enqueueFinalize {
+		if err := s.FlushOutbox(ctx); err != nil {
+			return translation.Job{}, err
+		}
+	}
 
 	return cloneJob(job), nil
 }
@@ -310,17 +339,17 @@ func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, 
 	}
 
 	now := s.clock.Now()
+	finalizeStatus := translation.StatusCompleted
 	switch {
 	case job.Status == translation.StatusCancelRequested:
-		job.Status = translation.StatusCanceled
+		finalizeStatus = translation.StatusCanceled
 	case hasFailedSegments(segments):
-		job.Status = translation.StatusFailed
-	default:
-		job.Status = translation.StatusCompleted
+		finalizeStatus = translation.StatusFailed
 	}
-	job.UpdatedAt = now
 
 	if job.Mode == translation.ModeInline {
+		job.Status = finalizeStatus
+		job.UpdatedAt = now
 		output := make([]translation.InlineOutputItem, 0, len(segments))
 		sort.Slice(segments, func(i, j int) bool {
 			return segments[i].OrderIndex < segments[j].OrderIndex
@@ -354,7 +383,6 @@ func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, 
 			return translation.Job{}, fmt.Errorf("marshal artifact output: %w", err)
 		}
 		encoded = marshaled
-		s.jobs[id] = job
 	}
 	s.mu.Unlock()
 
@@ -374,7 +402,9 @@ func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, 
 	if isTerminalJob(job.Status) && job.OutputArtifactURI != "" {
 		return cloneJob(job), nil
 	}
+	job.Status = finalizeStatus
 	job.OutputArtifactURI = outputURI
+	job.UpdatedAt = now
 	s.artifacts[id] = append(s.artifacts[id], translation.JobArtifact{
 		JobID:       id,
 		Kind:        FinalizeArtifactKind,

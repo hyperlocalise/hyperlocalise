@@ -346,12 +346,83 @@ func TestTerminalJobStatusDerivedFromPersistedSegments(t *testing.T) {
 	if err := handleExecute(context.Background(), svc, fakeExecutor{err: errors.New("bad request")}, dispatcher.ExecuteMessages[0]); err == nil {
 		t.Fatal("expected provider error")
 	}
+	if len(dispatcher.FinalizeMessages) != 1 {
+		t.Fatalf("expected finalize message after terminal failure, got %d", len(dispatcher.FinalizeMessages))
+	}
 	job, err = svc.FinalizeJob(context.Background(), job.ID)
 	if err != nil {
 		t.Fatalf("finalize failed job: %v", err)
 	}
 	if job.Status != translation.StatusFailed {
 		t.Fatalf("expected failed status, got %q", job.Status)
+	}
+}
+
+func TestListTranslationJobsAppliesCursorPagination(t *testing.T) {
+	t.Parallel()
+
+	dispatcher := &translationsvc.MemoryDispatcher{}
+	store := translationsvc.NewMemoryArtifactStore()
+	clock := &mutableClock{current: time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC)}
+	svc := translationsvc.New(dispatcher, store).WithClock(clock)
+
+	create := func(projectID, key string) translation.Job {
+		job, err := svc.CreateTranslationJob(context.Background(), translation.CreateJobInput{
+			ProjectID:    projectID,
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			InlinePayload: &translation.InlinePayload{
+				Items: []translation.InlineItem{{Key: key, Text: "Hello"}},
+			},
+			ConfigSnapshotInput: translation.ConfigSnapshotInput{
+				ProviderFamily:              "openai",
+				ModelID:                     "gpt-5-mini",
+				PromptTemplateVersion:       "v1",
+				SegmentationStrategyVersion: "v1",
+				ValidationPolicyVersion:     "v1",
+			},
+		})
+		if err != nil {
+			t.Fatalf("create job: %v", err)
+		}
+		clock.current = clock.current.Add(time.Second)
+		return job
+	}
+
+	oldest := create("proj_1", "c")
+	middle := create("proj_1", "b")
+	latest := create("proj_1", "a")
+
+	firstPage, err := svc.ListTranslationJobs(context.Background(), translation.JobFilter{
+		ProjectID: "proj_1",
+		Limit:     2,
+	})
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if len(firstPage.Items) != 2 {
+		t.Fatalf("expected 2 items on first page, got %d", len(firstPage.Items))
+	}
+	if firstPage.Items[0].ID != latest.ID || firstPage.Items[1].ID != middle.ID {
+		t.Fatalf("unexpected first page ordering: %+v", firstPage.Items)
+	}
+	if firstPage.NextCursor != firstPage.Items[len(firstPage.Items)-1].ID {
+		t.Fatalf("expected next cursor to match last item, got %q", firstPage.NextCursor)
+	}
+
+	secondPage, err := svc.ListTranslationJobs(context.Background(), translation.JobFilter{
+		ProjectID: "proj_1",
+		Limit:     2,
+		Cursor:    firstPage.NextCursor,
+	})
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if len(secondPage.Items) != 1 || secondPage.Items[0].ID != oldest.ID {
+		t.Fatalf("unexpected second page: %+v", secondPage.Items)
+	}
+	if secondPage.NextCursor != "" {
+		t.Fatalf("expected empty next cursor on final page, got %q", secondPage.NextCursor)
 	}
 }
 
@@ -374,6 +445,14 @@ type fixedClock struct {
 }
 
 func (c fixedClock) Now() time.Time {
+	return c.current
+}
+
+type mutableClock struct {
+	current time.Time
+}
+
+func (c *mutableClock) Now() time.Time {
 	return c.current
 }
 

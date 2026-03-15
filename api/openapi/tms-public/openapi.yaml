@@ -345,6 +345,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TranslationJob"
+        nextCursor:
+          type: string
     TranslationMemoryListResponse:
       type: object
       required: [items]
