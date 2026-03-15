@@ -58,17 +58,18 @@ message FileTranslationJobResult {
   repeated FileTranslation translations = 1;
 }
 
-// Output produced by a completed translation job.
-message TranslationJobResult {
-  oneof result {
-    StringTranslationJobResult string_result = 1;
-    FileTranslationJobResult file_result = 2;
-  }
-}
-
 // Structured failure details for jobs that end in STATUS_FAILED.
 message TranslationJobError {
-  string code = 1;
+  enum Code {
+    CODE_UNSPECIFIED = 0;
+    CODE_INTERNAL = 1;
+    CODE_INVALID_INPUT = 2;
+    CODE_UNSUPPORTED_LOCALE = 3;
+    CODE_FILE_NOT_FOUND = 4;
+    CODE_QUOTA_EXCEEDED = 5;
+  }
+
+  Code code = 1;
   string message = 2;
   map<string, string> details = 3;
 }
@@ -107,10 +108,12 @@ message TranslationJob {
 
   // Exactly one of the following is populated when the job is terminal.
   oneof outcome {
-    // Populated when status is STATUS_SUCCEEDED.
-    TranslationJobResult result = 11;
+    // Populated when status is STATUS_SUCCEEDED and type is TYPE_STRING.
+    StringTranslationJobResult string_result = 11;
+    // Populated when status is STATUS_SUCCEEDED and type is TYPE_FILE.
+    FileTranslationJobResult file_result = 12;
     // Populated when status is STATUS_FAILED.
-    TranslationJobError error = 12;
+    TranslationJobError error = 13;
   }
 }
 

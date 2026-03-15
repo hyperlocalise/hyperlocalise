@@ -23,7 +23,7 @@ Each `TranslationJob` carries:
 - `type`: `TYPE_STRING` or `TYPE_FILE`, derived by the server from the active input/result variant.
 - `status`: queued/running/succeeded/failed/canceled lifecycle.
 - oneof input payload for the selected job type.
-- typed result payload for completed jobs:
+- terminal outcome payload:
   - string jobs return locale/text pairs
   - file jobs return locale/file URI pairs
 - structured error payload for failed jobs, including code/message/details.
@@ -35,6 +35,7 @@ String translation jobs also support optional translator guidance on input:
 - `max_length`: per-locale output length constraint
 
 File translation jobs use a typed `file_format` enum rather than a free-form string.
+Job failures also use a typed error-code enum rather than a free-form string.
 
 ## How to use Buf
 
