@@ -1,8 +1,0 @@
-load("@rules_go//go:def.bzl", "go_library")
-
-go_library(
-    name = "translation",
-    srcs = ["model.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/domains/translation",
-    visibility = ["//visibility:public"],
-)

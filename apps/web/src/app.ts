@@ -2,25 +2,25 @@ export function renderApp(): string {
   return `
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">Hyperlocalise TMS</p>
-        <h1>Gateway-first translation operations.</h1>
+        <p class="eyebrow">Hyperlocalise</p>
+        <h1>Localization workflows for the code that actually ships.</h1>
         <p class="lede">
-          Run project, job, memory, glossary, and workflow operations through a
-          public API while internal services stay transport-isolated.
+          The repository now centers on the CLI and shared localization
+          infrastructure that is actually implemented.
         </p>
       </section>
       <section class="grid">
         <article>
-          <h2>Public API</h2>
-          <p>OpenAPI contracts for integrations and CLI remote workflows.</p>
+          <h2>CLI First</h2>
+          <p>Run generation, evaluation, and sync workflows from the Go CLI.</p>
         </article>
         <article>
-          <h2>Internal Services</h2>
-          <p>Dedicated service boundaries for jobs, memory, projects, and workflows.</p>
+          <h2>Shared Internals</h2>
+          <p>Reuse parser, storage, translation, and runtime support packages.</p>
         </article>
         <article>
-          <h2>CLI Compatibility</h2>
-          <p>Existing local-file workflows stay in the Go CLI while TMS flows expand.</p>
+          <h2>Focused Surface</h2>
+          <p>Keep the workspace centered on implemented CLI and shared packages.</p>
         </article>
       </section>
     </main>
