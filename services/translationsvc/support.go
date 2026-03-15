@@ -14,6 +14,7 @@ type MemoryDispatcher struct {
 	FinalizeMessages []string
 }
 
+// TODO: Replace this test/dev helper with a real Pub/Sub publisher implementation.
 func (d *MemoryDispatcher) PublishExecute(ctx context.Context, msg translation.ExecuteMessage) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -23,6 +24,7 @@ func (d *MemoryDispatcher) PublishExecute(ctx context.Context, msg translation.E
 	return nil
 }
 
+// TODO: Replace this test/dev helper with a real Pub/Sub publisher implementation.
 func (d *MemoryDispatcher) PublishFinalize(ctx context.Context, jobID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -42,6 +44,7 @@ type memoryObject struct {
 	payload     []byte
 }
 
+// TODO: Replace this in-memory store with object storage backed by persisted URIs.
 func NewMemoryArtifactStore() *MemoryArtifactStore {
 	return &MemoryArtifactStore{objects: map[string]memoryObject{}}
 }

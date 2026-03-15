@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("resource not found")
-	ErrConflict = errors.New("resource conflict")
+	ErrNotFound   = errors.New("resource not found")
+	ErrConflict   = errors.New("resource conflict")
+	ErrBadRequest = errors.New("bad request")
 )
 
 type Backend interface {
@@ -22,7 +23,6 @@ type Backend interface {
 	GetTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error)
 	ListTranslationJobs(ctx context.Context, filter TranslationJobFilter) ([]openapi.TranslationJob, error)
 	CancelTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error)
-	RetryTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error)
 }
 
 type TranslationJobFilter struct {
@@ -38,6 +38,7 @@ type StubBackend struct {
 	service *translationsvc.Service
 }
 
+// TODO: Replace this in-memory backend with a generated gRPC client once translation.proto is wired.
 func NewStubBackend() *StubBackend {
 	dispatcher := &translationsvc.MemoryDispatcher{}
 	artifactStore := translationsvc.NewMemoryArtifactStore()
@@ -131,14 +132,6 @@ func (b *StubBackend) CancelTranslationJob(ctx context.Context, id string) (open
 	return mapJob(job), nil
 }
 
-func (b *StubBackend) RetryTranslationJob(ctx context.Context, id string) (openapi.TranslationJob, error) {
-	job, err := b.service.RetryTranslationJob(ctx, id)
-	if err != nil {
-		return openapi.TranslationJob{}, mapError(err)
-	}
-	return mapJob(job), nil
-}
-
 func mapJob(job translation.Job) openapi.TranslationJob {
 	output := make([]openapi.TranslationInlineOutput, 0, len(job.InlineOutput))
 	for _, item := range job.InlineOutput {
@@ -180,6 +173,8 @@ func mapError(err error) error {
 		return fmt.Errorf("%w: %v", ErrNotFound, err)
 	case errors.Is(err, translationsvc.ErrConflict):
 		return fmt.Errorf("%w: %v", ErrConflict, err)
+	case errors.Is(err, translationsvc.ErrInvalidArgument):
+		return fmt.Errorf("%w: %v", ErrBadRequest, err)
 	default:
 		return err
 	}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/quiet-circles/hyperlocalise/domains/translation"
 	"github.com/quiet-circles/hyperlocalise/services/translationsvc"
-	"github.com/quiet-circles/hyperlocalise/services/translationworker"
 )
 
 func TestCreateInlineJobPlansSegmentsAndDispatches(t *testing.T) {
@@ -178,8 +177,7 @@ func TestWorkerSuccessAndFinalizeInline(t *testing.T) {
 		t.Fatalf("create job: %v", err)
 	}
 
-	worker := translationworker.New(svc, fakeExecutor{response: "Bonjour"})
-	if err := worker.HandleExecute(context.Background(), dispatcher.ExecuteMessages[0]); err != nil {
+	if err := handleExecute(context.Background(), svc, fakeExecutor{response: "Bonjour"}, dispatcher.ExecuteMessages[0]); err != nil {
 		t.Fatalf("handle execute: %v", err)
 	}
 
@@ -196,65 +194,6 @@ func TestWorkerSuccessAndFinalizeInline(t *testing.T) {
 	}
 	if len(job.InlineOutput) != 1 || job.InlineOutput[0].Text != "Bonjour" {
 		t.Fatalf("unexpected inline output: %+v", job.InlineOutput)
-	}
-}
-
-func TestRetryCreatesDistinctAttempts(t *testing.T) {
-	t.Parallel()
-
-	svc, dispatcher, _ := newTestService()
-	job, err := svc.CreateTranslationJob(context.Background(), translation.CreateJobInput{
-		ProjectID:    "proj_1",
-		SourceLocale: "en",
-		TargetLocale: "fr",
-		InlinePayload: &translation.InlinePayload{
-			Items: []translation.InlineItem{{Key: "hero.title", Text: "Hello"}},
-		},
-		ConfigSnapshotInput: translation.ConfigSnapshotInput{
-			ProviderFamily:              "openai",
-			ModelID:                     "gpt-5-mini",
-			PromptTemplateVersion:       "v1",
-			SegmentationStrategyVersion: "v1",
-			ValidationPolicyVersion:     "v1",
-		},
-	})
-	if err != nil {
-		t.Fatalf("create job: %v", err)
-	}
-
-	worker := translationworker.New(svc, fakeExecutor{err: errors.New("temporary upstream failure")})
-	err = worker.HandleExecute(context.Background(), dispatcher.ExecuteMessages[0])
-	if err == nil {
-		t.Fatal("expected provider error")
-	}
-
-	job, err = svc.RetryTranslationJob(context.Background(), job.ID)
-	if err != nil {
-		t.Fatalf("retry job: %v", err)
-	}
-	if job.Status != translation.StatusRunning {
-		t.Fatalf("expected running after retry, got %q", job.Status)
-	}
-
-	worker = translationworker.New(svc, fakeExecutor{response: "Bonjour"})
-	latest := dispatcher.ExecuteMessages[len(dispatcher.ExecuteMessages)-1]
-	if err := worker.HandleExecute(context.Background(), latest); err != nil {
-		t.Fatalf("retry execute: %v", err)
-	}
-
-	segments, err := svc.Segments(context.Background(), job.ID)
-	if err != nil {
-		t.Fatalf("segments: %v", err)
-	}
-	attempts, err := svc.Attempts(context.Background(), segments[0].ID)
-	if err != nil {
-		t.Fatalf("attempts: %v", err)
-	}
-	if len(attempts) != 2 {
-		t.Fatalf("expected 2 attempts, got %d", len(attempts))
-	}
-	if attempts[0].Status != translation.AttemptStatusFailed || attempts[1].Status != translation.AttemptStatusSucceeded {
-		t.Fatalf("unexpected attempts: %+v", attempts)
 	}
 }
 
@@ -282,11 +221,10 @@ func TestReplayExecuteMessageDoesNotDuplicateSuccess(t *testing.T) {
 	}
 
 	msg := dispatcher.ExecuteMessages[0]
-	worker := translationworker.New(svc, fakeExecutor{response: "Bonjour"})
-	if err := worker.HandleExecute(context.Background(), msg); err != nil {
+	if err := handleExecute(context.Background(), svc, fakeExecutor{response: "Bonjour"}, msg); err != nil {
 		t.Fatalf("first execute: %v", err)
 	}
-	if err := worker.HandleExecute(context.Background(), msg); err != nil {
+	if err := handleExecute(context.Background(), svc, fakeExecutor{response: "Bonjour"}, msg); err != nil {
 		t.Fatalf("replay execute: %v", err)
 	}
 
@@ -329,8 +267,7 @@ func TestFinalizeArtifactProducesOutputURI(t *testing.T) {
 		t.Fatalf("create job: %v", err)
 	}
 
-	worker := translationworker.New(svc, fakeExecutor{response: "Hallo"})
-	if err := worker.HandleExecute(context.Background(), dispatcher.ExecuteMessages[0]); err != nil {
+	if err := handleExecute(context.Background(), svc, fakeExecutor{response: "Hallo"}, dispatcher.ExecuteMessages[0]); err != nil {
 		t.Fatalf("execute artifact segment: %v", err)
 	}
 	job, err = svc.FinalizeJob(context.Background(), job.ID)
@@ -406,8 +343,7 @@ func TestTerminalJobStatusDerivedFromPersistedSegments(t *testing.T) {
 		t.Fatalf("create job: %v", err)
 	}
 
-	worker := translationworker.New(svc, fakeExecutor{err: errors.New("bad request")})
-	if err := worker.HandleExecute(context.Background(), dispatcher.ExecuteMessages[0]); err == nil {
+	if err := handleExecute(context.Background(), svc, fakeExecutor{err: errors.New("bad request")}, dispatcher.ExecuteMessages[0]); err == nil {
 		t.Fatal("expected provider error")
 	}
 	job, err = svc.FinalizeJob(context.Background(), job.ID)
@@ -424,13 +360,13 @@ type fakeExecutor struct {
 	err      error
 }
 
-func (f fakeExecutor) Translate(ctx context.Context, req translationworker.Request) (translationworker.Response, error) {
+func (f fakeExecutor) Translate(ctx context.Context, req executeRequest) (executeResponse, error) {
 	_ = ctx
 	_ = req
 	if f.err != nil {
-		return translationworker.Response{}, f.err
+		return executeResponse{}, f.err
 	}
-	return translationworker.Response{Text: f.response}, nil
+	return executeResponse{Text: f.response}, nil
 }
 
 type fixedClock struct {
@@ -453,4 +389,52 @@ func withInline(input translation.CreateJobInput, text string) translation.Creat
 		Items: []translation.InlineItem{{Key: "hero.title", Text: text}},
 	}
 	return input
+}
+
+type executeRequest struct {
+	JobID           string
+	SegmentID       string
+	SourceText      string
+	Context         string
+	SourceLocale    string
+	TargetLocale    string
+	Attempt         int
+	ProviderProfile string
+}
+
+type executeResponse struct {
+	Text string
+}
+
+func handleExecute(ctx context.Context, svc *translationsvc.Service, executor fakeExecutor, msg translation.ExecuteMessage) error {
+	segmentMsg, _, err := svc.StartSegmentAttempt(ctx, msg)
+	if err != nil {
+		if errors.Is(err, translation.ErrSegmentNotRunnable) {
+			return nil
+		}
+		return err
+	}
+
+	started := time.Now()
+	result, err := executor.Translate(ctx, executeRequest{
+		JobID:           segmentMsg.JobID,
+		SegmentID:       segmentMsg.SegmentID,
+		SourceText:      segmentMsg.SourceText,
+		Context:         segmentMsg.Context,
+		SourceLocale:    segmentMsg.SourceLocale,
+		TargetLocale:    segmentMsg.TargetLocale,
+		Attempt:         segmentMsg.Attempt,
+		ProviderProfile: segmentMsg.ProviderProfileID,
+	})
+	latency := time.Since(started)
+	if err != nil {
+		_, failErr := svc.FailSegmentAttempt(ctx, segmentMsg.SegmentID, "provider_error", err.Error(), latency)
+		if failErr != nil {
+			return failErr
+		}
+		return err
+	}
+
+	_, _, err = svc.CompleteSegmentAttempt(ctx, segmentMsg.SegmentID, result.Text, latency)
+	return err
 }

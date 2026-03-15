@@ -18,10 +18,12 @@ This replaces the old generic job contract. Translation jobs are now the top-lev
 
 Contract conventions used by the translation API:
 
+- user-facing V1 shape first; internal workflow details stay out of the public contract
 - shared pagination via `hyperlocalise.common.v1.PageRequest` and `PageResponse`
 - `google.protobuf.Timestamp` for temporal fields
-- enums for service-owned state such as job status, mode, and parser hints
+- enums for stable user-facing state such as job status
 - `oneof` result payloads so inline and artifact outputs are mutually exclusive on the wire
+- `optional` only where presence matters; business-required validation stays in service code
 
 ## Tooling
 

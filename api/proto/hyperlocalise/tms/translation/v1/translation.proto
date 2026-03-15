@@ -12,18 +12,15 @@ service TranslationService {
   rpc GetTranslationJob(GetTranslationJobRequest) returns (TranslationJob);
   rpc ListTranslationJobs(ListTranslationJobsRequest) returns (ListTranslationJobsResponse);
   rpc CancelTranslationJob(CancelTranslationJobRequest) returns (TranslationJob);
-  rpc RetryTranslationJob(RetryTranslationJobRequest) returns (TranslationJob);
 }
 
 enum TranslationJobStatus {
   TRANSLATION_JOB_STATUS_UNSPECIFIED = 0;
-  TRANSLATION_JOB_STATUS_QUEUED = 1;
+  TRANSLATION_JOB_STATUS_PENDING = 1;
   TRANSLATION_JOB_STATUS_RUNNING = 2;
-  TRANSLATION_JOB_STATUS_FINALIZE_QUEUED = 3;
-  TRANSLATION_JOB_STATUS_COMPLETED = 4;
-  TRANSLATION_JOB_STATUS_FAILED = 5;
-  TRANSLATION_JOB_STATUS_CANCELED = 6;
-  TRANSLATION_JOB_STATUS_CANCEL_REQUESTED = 7;
+  TRANSLATION_JOB_STATUS_SUCCEEDED = 3;
+  TRANSLATION_JOB_STATUS_FAILED = 4;
+  TRANSLATION_JOB_STATUS_CANCELED = 5;
 }
 
 enum TranslationJobMode {
@@ -32,46 +29,23 @@ enum TranslationJobMode {
   TRANSLATION_JOB_MODE_ARTIFACT = 2;
 }
 
-enum ParserHint {
-  PARSER_HINT_UNSPECIFIED = 0;
-  PARSER_HINT_JSON = 1;
-  PARSER_HINT_JSONC = 2;
-  PARSER_HINT_ARB = 3;
-  PARSER_HINT_XLIFF = 4;
-  PARSER_HINT_PO = 5;
-  PARSER_HINT_MARKDOWN = 6;
-  PARSER_HINT_MDX = 7;
-  PARSER_HINT_STRINGS = 8;
-  PARSER_HINT_STRINGSDICT = 9;
-  PARSER_HINT_CSV = 10;
-}
-
 message TranslationJob {
   string id = 1;
-  string project_id = 2;
-  TranslationJobStatus status = 3;
-  TranslationJobMode mode = 4;
-  string source_locale = 5;
-  string target_locale = 6;
-  int32 item_count = 7;
-  Progress progress = 8;
-  string source_artifact_uri = 9;
-  string config_snapshot_id = 12;
-  string error_code = 13;
-  string error_message = 14;
-  google.protobuf.Timestamp created_at = 15;
-  google.protobuf.Timestamp updated_at = 16;
+  TranslationJobStatus status = 2;
+  string source_locale = 3;
+  string target_locale = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  JobError error = 7;
   oneof result {
-    InlineResult inline_result = 17;
-    ArtifactResult artifact_result = 18;
+    InlineResult inline_result = 8;
+    ArtifactResult artifact_result = 9;
   }
 }
 
-message Progress {
-  int32 total = 1;
-  int32 succeeded = 2;
-  int32 failed = 3;
-  int32 canceled = 4;
+message JobError {
+  string code = 1;
+  string message = 2;
 }
 
 message InlineOutput {
@@ -88,17 +62,14 @@ message ArtifactResult {
 }
 
 message CreateTranslationJobRequest {
-  string idempotency_key = 1;
+  optional string idempotency_key = 1;
   string project_id = 2;
   string source_locale = 3;
   string target_locale = 4;
-  string provider_profile = 5;
-  string glossary_id = 6;
-  string style_guide_id = 7;
-  map<string, string> labels = 8;
+  optional string provider_profile = 5;
   oneof payload {
-    InlinePayload inline_payload = 9;
-    ArtifactPayload artifact_payload = 10;
+    InlinePayload inline_payload = 6;
+    ArtifactPayload artifact_payload = 7;
   }
 }
 
@@ -117,7 +88,7 @@ message InlineItem {
 message ArtifactPayload {
   string input_uri = 1;
   string content_type = 2;
-  ParserHint parser_hint = 3;
+  string parser_hint = 3;
   string path = 4;
 }
 
@@ -127,9 +98,9 @@ message GetTranslationJobRequest {
 
 message ListTranslationJobsRequest {
   string project_id = 1;
-  TranslationJobStatus status = 2;
+  optional TranslationJobStatus status = 2;
   string target_locale = 3;
-  google.protobuf.Timestamp created_after = 4;
+  optional google.protobuf.Timestamp created_after = 4;
   hyperlocalise.common.v1.PageRequest page = 5;
 }
 
@@ -139,9 +110,5 @@ message ListTranslationJobsResponse {
 }
 
 message CancelTranslationJobRequest {
-  string id = 1;
-}
-
-message RetryTranslationJobRequest {
   string id = 1;
 }

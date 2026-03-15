@@ -100,13 +100,6 @@ func registerRoutes(mux *http.ServeMux, backend tmsgrpc.Backend, logger *observa
 				return
 			}
 			writeJSON(w, http.StatusAccepted, job)
-		case action == "retry" && r.Method == http.MethodPost:
-			job, err := backend.RetryTranslationJob(r.Context(), id)
-			if err != nil {
-				writeError(w, err)
-				return
-			}
-			writeJSON(w, http.StatusAccepted, job)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -168,10 +161,8 @@ func writeError(w http.ResponseWriter, err error) {
 		status = http.StatusNotFound
 	case errors.Is(err, tmsgrpc.ErrConflict):
 		status = http.StatusConflict
-	default:
-		if strings.Contains(strings.ToLower(err.Error()), "required") || strings.Contains(strings.ToLower(err.Error()), "invalid") {
-			status = http.StatusBadRequest
-		}
+	case errors.Is(err, tmsgrpc.ErrBadRequest):
+		status = http.StatusBadRequest
 	}
 
 	writeJSON(w, status, openapi.ErrorResponse{Error: sanitizeError(err)})

@@ -105,24 +105,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TranslationJob"
-  /v1/translation-jobs/{id}:retry:
-    post:
-      tags: [TranslationJobs]
-      operationId: retryTranslationJob
-      summary: Retry a translation job
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "202":
-          description: Translation job retry accepted.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TranslationJob"
   /v1/translation-memory:
     get:
       tags: [TranslationMemory]

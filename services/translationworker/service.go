@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/quiet-circles/hyperlocalise/domains/translation"
-	"github.com/quiet-circles/hyperlocalise/services/translationsvc"
 )
 
 type Executor interface {
@@ -32,11 +31,17 @@ type Response struct {
 }
 
 type Service struct {
-	translationService *translationsvc.Service
+	translationService TranslationService
 	executor           Executor
 }
 
-func New(service *translationsvc.Service, executor Executor) *Service {
+type TranslationService interface {
+	StartSegmentAttempt(ctx context.Context, msg translation.ExecuteMessage) (translation.ExecuteMessage, translation.SegmentAttempt, error)
+	FailSegmentAttempt(ctx context.Context, segmentID string, code string, message string, latency time.Duration) (translation.Job, error)
+	CompleteSegmentAttempt(ctx context.Context, segmentID string, translatedText string, latency time.Duration) (translation.Job, bool, error)
+}
+
+func New(service TranslationService, executor Executor) *Service {
 	return &Service{
 		translationService: service,
 		executor:           executor,
@@ -44,9 +49,10 @@ func New(service *translationsvc.Service, executor Executor) *Service {
 }
 
 func (s *Service) HandleExecute(ctx context.Context, msg translation.ExecuteMessage) error {
+	// The worker asks the service to open an attempt before calling the provider.
 	segmentMsg, _, err := s.translationService.StartSegmentAttempt(ctx, msg)
 	if err != nil {
-		if errors.Is(err, translationsvc.ErrSegmentNotRunnable) {
+		if errors.Is(err, translation.ErrSegmentNotRunnable) {
 			return nil
 		}
 		return fmt.Errorf("start attempt: %w", err)
@@ -65,6 +71,7 @@ func (s *Service) HandleExecute(ctx context.Context, msg translation.ExecuteMess
 	})
 	latency := time.Since(started)
 	if err != nil {
+		// Failed executions are recorded as attempts so later retries preserve history.
 		_, failErr := s.translationService.FailSegmentAttempt(ctx, segmentMsg.SegmentID, "provider_error", err.Error(), latency)
 		if failErr != nil {
 			return fmt.Errorf("fail segment attempt: %w", failErr)

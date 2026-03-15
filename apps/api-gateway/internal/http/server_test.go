@@ -78,6 +78,20 @@ func TestGetTranslationJobByID(t *testing.T) {
 	}
 }
 
+func TestCreateTranslationJobValidationErrorReturnsBadRequest(t *testing.T) {
+	t.Parallel()
+
+	server := newTestServer(t)
+	req := httptest.NewRequest(http.MethodPost, openapi.TranslationJobsPath, bytes.NewBufferString(`{"sourceLocale":"en","targetLocale":"fr"}`))
+	recorder := httptest.NewRecorder()
+
+	server.httpServer.Handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", recorder.Code)
+	}
+}
+
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
 

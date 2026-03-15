@@ -23,17 +23,17 @@ const (
 )
 
 var (
-	ErrNotFound           = fmt.Errorf("translation job not found")
-	ErrConflict           = fmt.Errorf("translation job conflict")
-	ErrInvalidArgument    = fmt.Errorf("invalid translation job request")
-	ErrSegmentNotRunnable = fmt.Errorf("translation segment not runnable")
+	ErrNotFound           = translation.ErrNotFound
+	ErrConflict           = translation.ErrConflict
+	ErrInvalidArgument    = translation.ErrInvalidArgument
+	ErrSegmentNotRunnable = translation.ErrSegmentNotRunnable
 )
 
 type Clock interface {
 	Now() time.Time
 }
 
-type Dispatcher interface {
+type Publisher interface {
 	PublishExecute(ctx context.Context, msg translation.ExecuteMessage) error
 	PublishFinalize(ctx context.Context, jobID string) error
 }
@@ -46,7 +46,7 @@ type ArtifactStore interface {
 type Service struct {
 	mu                  sync.Mutex
 	clock               Clock
-	dispatcher          Dispatcher
+	publisher           Publisher
 	artifactStore       ArtifactStore
 	parserStrategy      *translationfileparser.Strategy
 	maxDispatchPerTick  int
@@ -58,6 +58,9 @@ type Service struct {
 	attempts            map[string][]translation.SegmentAttempt
 	artifacts           map[string][]translation.JobArtifact
 	idempotencyRegistry map[string]idempotencyRecord
+	// The outbox keeps persisted intent ahead of transport side effects.
+	// TODO: Move this outbox to Postgres and write it in the same transaction as job/segment state.
+	outbox []translation.OutboxMessage
 }
 
 type idempotencyRecord struct {
@@ -72,10 +75,10 @@ func (realClock) Now() time.Time {
 	return time.Now().UTC()
 }
 
-func New(dispatcher Dispatcher, artifactStore ArtifactStore) *Service {
+func New(publisher Publisher, artifactStore ArtifactStore) *Service {
 	return &Service{
 		clock:               realClock{},
-		dispatcher:          dispatcher,
+		publisher:           publisher,
 		artifactStore:       artifactStore,
 		parserStrategy:      translationfileparser.NewDefaultStrategy(),
 		maxDispatchPerTick:  0,
@@ -86,6 +89,7 @@ func New(dispatcher Dispatcher, artifactStore ArtifactStore) *Service {
 		attempts:            map[string][]translation.SegmentAttempt{},
 		artifacts:           map[string][]translation.JobArtifact{},
 		idempotencyRegistry: map[string]idempotencyRecord{},
+		outbox:              []translation.OutboxMessage{},
 	}
 }
 
@@ -104,14 +108,15 @@ func (s *Service) CreateTranslationJob(ctx context.Context, input translation.Cr
 		return translation.Job{}, err
 	}
 
+	// Persist job state and outbox intent first; transport publish happens after unlock.
 	s.mu.Lock()
-	job, publish, err := s.createJobLocked(ctx, input)
+	job, err := s.createJobLocked(ctx, input)
 	s.mu.Unlock()
 	if err != nil {
 		return translation.Job{}, err
 	}
 
-	if err := s.publishExecuteMessages(ctx, publish); err != nil {
+	if err := s.FlushOutbox(ctx); err != nil {
 		return translation.Job{}, err
 	}
 
@@ -184,53 +189,6 @@ func (s *Service) CancelTranslationJob(ctx context.Context, id string) (translat
 	return cloneJob(job), nil
 }
 
-func (s *Service) RetryTranslationJob(ctx context.Context, id string) (translation.Job, error) {
-	s.mu.Lock()
-	job, ok := s.jobs[id]
-	if !ok {
-		s.mu.Unlock()
-		return translation.Job{}, ErrNotFound
-	}
-
-	if job.Status == translation.StatusCanceled {
-		s.mu.Unlock()
-		return translation.Job{}, ErrConflict
-	}
-
-	now := s.clock.Now()
-	job.Status = translation.StatusRunning
-	job.ErrorCode = ""
-	job.ErrorMessage = ""
-	job.UpdatedAt = now
-	segments := s.segments[id]
-	publish := make([]translation.ExecuteMessage, 0, len(segments))
-	dispatched := 0
-	for idx := range segments {
-		if segments[idx].Status != translation.SegmentStatusFailed {
-			continue
-		}
-		segments[idx].Status = translation.SegmentStatusPending
-		segments[idx].ErrorCode = ""
-		segments[idx].ErrorMessage = ""
-		segments[idx].DispatchedAt = nil
-		segments[idx].UpdatedAt = now
-		msg := s.dispatchSegmentLocked(job, &segments[idx], &dispatched)
-		if msg.SegmentID != "" {
-			publish = append(publish, msg)
-		}
-	}
-	s.jobs[id] = recomputeJob(job, segments)
-	s.segments[id] = segments
-	result := cloneJob(s.jobs[id])
-	s.mu.Unlock()
-
-	if err := s.publishExecuteMessages(ctx, publish); err != nil {
-		return translation.Job{}, err
-	}
-
-	return result, nil
-}
-
 func (s *Service) StartSegmentAttempt(ctx context.Context, msg translation.ExecuteMessage) (translation.ExecuteMessage, translation.SegmentAttempt, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -254,6 +212,7 @@ func (s *Service) StartSegmentAttempt(ctx context.Context, msg translation.Execu
 		}
 
 		now := s.clock.Now()
+		// The worker owns execution, but workflow state transitions remain service-owned.
 		segments[idx].Status = translation.SegmentStatusProcessing
 		segments[idx].UpdatedAt = now
 		s.segments[msg.JobID] = segments
@@ -290,7 +249,7 @@ func (s *Service) CompleteSegmentAttempt(ctx context.Context, segmentID string, 
 	}
 
 	if enqueueFinalize {
-		if err := s.dispatcher.PublishFinalize(ctx, job.ID); err != nil {
+		if err := s.FlushOutbox(ctx); err != nil {
 			return translation.Job{}, false, err
 		}
 	}
@@ -333,18 +292,20 @@ func (s *Service) FailSegmentAttempt(ctx context.Context, segmentID string, code
 
 func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	job, ok := s.jobs[id]
 	if !ok {
+		s.mu.Unlock()
 		return translation.Job{}, ErrNotFound
 	}
 	if isTerminalJob(job.Status) {
+		s.mu.Unlock()
 		return cloneJob(job), nil
 	}
 
 	segments := s.segments[id]
 	if !allSegmentsTerminal(segments) {
+		s.mu.Unlock()
 		return cloneJob(job), nil
 	}
 
@@ -374,32 +335,53 @@ func (s *Service) FinalizeJob(ctx context.Context, id string) (translation.Job, 
 			})
 		}
 		job.InlineOutput = output
-	} else if job.Mode == translation.ModeArtifact {
+		s.jobs[id] = job
+		s.mu.Unlock()
+		return cloneJob(job), nil
+	}
+
+	var encoded []byte
+	if job.Mode == translation.ModeArtifact {
 		payload := make(map[string]string, len(segments))
 		for _, segment := range segments {
 			if segment.Status == translation.SegmentStatusSucceeded {
 				payload[segment.SegmentKey] = segment.OutputText
 			}
 		}
-		encoded, err := json.Marshal(payload)
+		marshaled, err := json.Marshal(payload)
 		if err != nil {
+			s.mu.Unlock()
 			return translation.Job{}, fmt.Errorf("marshal artifact output: %w", err)
 		}
-		outputURI, err := s.artifactStore.Put(ctx, path.Join("translation-jobs", id, "output.json"), "application/json", encoded)
-		if err != nil {
-			return translation.Job{}, fmt.Errorf("store artifact output: %w", err)
-		}
-		job.OutputArtifactURI = outputURI
-		s.artifacts[id] = append(s.artifacts[id], translation.JobArtifact{
-			JobID:       id,
-			Kind:        FinalizeArtifactKind,
-			URI:         outputURI,
-			Checksum:    checksumBytes(encoded),
-			ContentType: "application/json",
-			CreatedAt:   now,
-		})
+		encoded = marshaled
+	}
+	s.mu.Unlock()
+
+	// Artifact writes are deliberately outside the mutex to avoid stalling all job operations.
+	outputURI, err := s.artifactStore.Put(ctx, path.Join("translation-jobs", id, "output.json"), "application/json", encoded)
+	if err != nil {
+		return translation.Job{}, fmt.Errorf("store artifact output: %w", err)
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	job, ok = s.jobs[id]
+	if !ok {
+		return translation.Job{}, ErrNotFound
+	}
+	if isTerminalJob(job.Status) && job.OutputArtifactURI != "" {
+		return cloneJob(job), nil
+	}
+	job.OutputArtifactURI = outputURI
+	s.artifacts[id] = append(s.artifacts[id], translation.JobArtifact{
+		JobID:       id,
+		Kind:        FinalizeArtifactKind,
+		URI:         outputURI,
+		Checksum:    checksumBytes(encoded),
+		ContentType: "application/json",
+		CreatedAt:   now,
+	})
 	s.jobs[id] = job
 
 	return cloneJob(job), nil
@@ -413,19 +395,15 @@ func (s *Service) DispatchPendingSegments(ctx context.Context, id string) error 
 		return ErrNotFound
 	}
 	segments := s.segments[id]
-	publish := make([]translation.ExecuteMessage, 0, len(segments))
 	dispatched := 0
 	for idx := range segments {
-		msg := s.dispatchSegmentLocked(job, &segments[idx], &dispatched)
-		if msg.SegmentID != "" {
-			publish = append(publish, msg)
-		}
+		s.dispatchSegmentLocked(job, &segments[idx], &dispatched)
 	}
 	s.segments[id] = segments
 	s.jobs[id] = recomputeJob(job, segments)
 	s.mu.Unlock()
 
-	return s.publishExecuteMessages(ctx, publish)
+	return s.FlushOutbox(ctx)
 }
 
 func (s *Service) Segments(ctx context.Context, jobID string) ([]translation.Segment, error) {
@@ -453,27 +431,121 @@ func (s *Service) Attempts(ctx context.Context, segmentID string) ([]translation
 	return result, nil
 }
 
-func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJobInput) (translation.Job, []translation.ExecuteMessage, error) {
+func (s *Service) FlushOutbox(ctx context.Context) error {
+	// TODO: Replace this in-memory flush loop with a dedicated dispatcher that drains persisted outbox rows.
+	for {
+		s.mu.Lock()
+		index := -1
+		var entry translation.OutboxMessage
+		for idx, candidate := range s.outbox {
+			if candidate.SentAt == nil {
+				index = idx
+				entry = candidate
+				break
+			}
+		}
+		s.mu.Unlock()
+
+		if index == -1 {
+			return nil
+		}
+
+		// Publish first, then mark the message and any related segment as sent/dispatched.
+		switch entry.Kind {
+		case translation.OutboxKindExecute:
+			if entry.Execute == nil {
+				return fmt.Errorf("outbox execute entry %q missing payload", entry.ID)
+			}
+			if err := s.publisher.PublishExecute(ctx, *entry.Execute); err != nil {
+				return fmt.Errorf("publish execute message: %w", err)
+			}
+		case translation.OutboxKindFinalize:
+			if err := s.publisher.PublishFinalize(ctx, entry.JobID); err != nil {
+				return fmt.Errorf("publish finalize message: %w", err)
+			}
+		default:
+			return fmt.Errorf("unknown outbox kind %q", entry.Kind)
+		}
+
+		s.mu.Lock()
+		now := s.clock.Now()
+		for idx := range s.outbox {
+			if s.outbox[idx].ID == entry.ID && s.outbox[idx].SentAt == nil {
+				s.outbox[idx].SentAt = &now
+				break
+			}
+		}
+		if entry.Kind == translation.OutboxKindExecute {
+			segments := s.segments[entry.JobID]
+			for idx := range segments {
+				if segments[idx].ID != entry.SegmentID {
+					continue
+				}
+				segments[idx].Status = translation.SegmentStatusDispatched
+				segments[idx].UpdatedAt = now
+				segments[idx].DispatchedAt = &now
+				break
+			}
+			s.segments[entry.JobID] = segments
+			s.jobs[entry.JobID] = recomputeJob(s.jobs[entry.JobID], segments)
+		}
+		s.mu.Unlock()
+	}
+}
+
+func (s *Service) enqueueExecuteLocked(job translation.Job, segment translation.Segment) {
+	payload := translation.ExecuteMessage{
+		JobID:             job.ID,
+		SegmentID:         segment.ID,
+		ProviderProfileID: s.snapshots[job.ConfigSnapshotID].ProviderProfile,
+	}
+	s.outbox = append(s.outbox, translation.OutboxMessage{
+		ID:        s.nextIDLocked("outbox"),
+		JobID:     job.ID,
+		SegmentID: segment.ID,
+		Kind:      translation.OutboxKindExecute,
+		Execute:   &payload,
+		CreatedAt: s.clock.Now(),
+	})
+}
+
+func (s *Service) enqueueFinalizeLocked(jobID string, now time.Time) {
+	for _, entry := range s.outbox {
+		if entry.JobID == jobID && entry.Kind == translation.OutboxKindFinalize && entry.SentAt == nil {
+			return
+		}
+	}
+	s.outbox = append(s.outbox, translation.OutboxMessage{
+		ID:        s.nextIDLocked("outbox"),
+		JobID:     jobID,
+		Kind:      translation.OutboxKindFinalize,
+		CreatedAt: now,
+	})
+}
+
+func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJobInput) (translation.Job, error) {
 	_ = ctx
 	now := s.clock.Now()
 	mode := translation.ModeInline
 	if input.ArtifactPayload != nil {
 		mode = translation.ModeArtifact
 	}
+	// TODO: Artifact planning currently happens inside the service lock because state is in-memory.
+	// When persistence is moved to Postgres, split planning I/O from the state write transaction.
 
 	snapshot := newConfigSnapshot(s.nextIDLocked("cfg"), now, input.ProviderProfile, input.ConfigSnapshotInput)
 	requestDigest, err := s.requestDigestLocked(input, snapshot.Checksum)
 	if err != nil {
-		return translation.Job{}, nil, fmt.Errorf("compute request digest: %w", err)
+		return translation.Job{}, fmt.Errorf("compute request digest: %w", err)
 	}
 	if key := strings.TrimSpace(input.IdempotencyKey); key != "" {
 		dedupeKey := buildDedupeKey(input.CallerScope, input.ProjectID, input.TargetLocale, key)
 		if existing, ok := s.idempotencyRegistry[dedupeKey]; ok {
 			if existing.RequestDigest != requestDigest {
-				return translation.Job{}, nil, ErrConflict
+				return translation.Job{}, translation.ErrConflict
 			}
 			job := s.jobs[existing.JobID]
-			return cloneJob(job), nil, nil
+			return cloneJob(job), nil
 		}
 	}
 
@@ -504,9 +576,10 @@ func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJ
 		inputRow.InlinePayloadChecksum = inlineChecksum
 		plannedSegments = segments
 	case translation.ModeArtifact:
+		// Artifact mode reuses the existing parser strategy to normalize files into segments.
 		artifactInput, segments, artifacts, planErr := s.planArtifactLocked(ctx, jobID, now, *input.ArtifactPayload)
 		if planErr != nil {
-			return translation.Job{}, nil, planErr
+			return translation.Job{}, planErr
 		}
 		inputRow.ArtifactInputURI = artifactInput.InputURI
 		inputRow.ArtifactPath = artifactInput.Path
@@ -523,13 +596,9 @@ func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJ
 	s.inputs[jobID] = inputRow
 	s.segments[jobID] = plannedSegments
 
-	publish := make([]translation.ExecuteMessage, 0, len(plannedSegments))
 	dispatched := 0
 	for idx := range plannedSegments {
-		msg := s.dispatchSegmentLocked(job, &plannedSegments[idx], &dispatched)
-		if msg.SegmentID != "" {
-			publish = append(publish, msg)
-		}
+		s.dispatchSegmentLocked(job, &plannedSegments[idx], &dispatched)
 	}
 	s.segments[jobID] = plannedSegments
 	s.jobs[jobID] = recomputeJob(job, plannedSegments)
@@ -543,7 +612,7 @@ func (s *Service) createJobLocked(ctx context.Context, input translation.CreateJ
 		}
 	}
 
-	return cloneJob(s.jobs[jobID]), publish, nil
+	return cloneJob(s.jobs[jobID]), nil
 }
 
 func (s *Service) planArtifactLocked(ctx context.Context, jobID string, now time.Time, payload translation.ArtifactPayload) (translation.ArtifactPayload, []translation.Segment, []translation.JobArtifact, error) {
@@ -623,6 +692,7 @@ func (s *Service) completeSegmentAttemptLocked(ctx context.Context, segmentID st
 	job := recomputeJob(s.jobs[jobID], segments)
 	if allSegmentsTerminal(segments) {
 		job.Status = translation.StatusFinalizeQueued
+		s.enqueueFinalizeLocked(job.ID, now)
 	}
 	s.jobs[jobID] = job
 
@@ -646,40 +716,19 @@ func (s *Service) lookupSegmentAttemptLocked(segmentID string) (string, int, int
 	return "", 0, 0, ErrNotFound
 }
 
-func (s *Service) dispatchSegmentLocked(job translation.Job, segment *translation.Segment, dispatched *int) translation.ExecuteMessage {
+func (s *Service) dispatchSegmentLocked(job translation.Job, segment *translation.Segment, dispatched *int) {
 	if job.Status == translation.StatusCancelRequested || job.Status == translation.StatusCanceled || isTerminalJob(job.Status) {
-		return translation.ExecuteMessage{}
+		return
 	}
 	if segment.Status != translation.SegmentStatusPending {
-		return translation.ExecuteMessage{}
+		return
 	}
 	if s.maxDispatchPerTick > 0 && *dispatched >= s.maxDispatchPerTick {
-		return translation.ExecuteMessage{}
+		return
 	}
-
-	now := s.clock.Now()
-	segment.Status = translation.SegmentStatusDispatched
-	segment.UpdatedAt = now
-	segment.DispatchedAt = &now
 	*dispatched++
-
-	return translation.ExecuteMessage{
-		JobID:             job.ID,
-		SegmentID:         segment.ID,
-		ProviderProfileID: s.snapshots[job.ConfigSnapshotID].ProviderProfile,
-	}
-}
-
-func (s *Service) publishExecuteMessages(ctx context.Context, messages []translation.ExecuteMessage) error {
-	for _, msg := range messages {
-		if msg.SegmentID == "" {
-			continue
-		}
-		if err := s.dispatcher.PublishExecute(ctx, msg); err != nil {
-			return fmt.Errorf("publish execute message: %w", err)
-		}
-	}
-	return nil
+	// Dispatch means "ready to publish"; the segment becomes dispatched only after outbox flush succeeds.
+	s.enqueueExecuteLocked(job, *segment)
 }
 
 func (s *Service) nextIDLocked(prefix string) string {
@@ -712,22 +761,22 @@ func (s *Service) requestDigestLocked(input translation.CreateJobInput, configCh
 
 func validateCreateInput(input translation.CreateJobInput) error {
 	if strings.TrimSpace(input.ProjectID) == "" {
-		return fmt.Errorf("%w: projectId is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: projectId is required", translation.ErrInvalidArgument)
 	}
 	if strings.TrimSpace(input.SourceLocale) == "" {
-		return fmt.Errorf("%w: sourceLocale is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: sourceLocale is required", translation.ErrInvalidArgument)
 	}
 	if strings.TrimSpace(input.TargetLocale) == "" {
-		return fmt.Errorf("%w: targetLocale is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: targetLocale is required", translation.ErrInvalidArgument)
 	}
 	switch {
 	case input.InlinePayload == nil && input.ArtifactPayload == nil:
-		return fmt.Errorf("%w: exactly one payload is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: exactly one payload is required", translation.ErrInvalidArgument)
 	case input.InlinePayload != nil && input.ArtifactPayload != nil:
-		return fmt.Errorf("%w: exactly one payload is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: exactly one payload is required", translation.ErrInvalidArgument)
 	}
 	if input.InlinePayload != nil && len(input.InlinePayload.Items) == 0 {
-		return fmt.Errorf("%w: inlinePayload.items is required", ErrInvalidArgument)
+		return fmt.Errorf("%w: inlinePayload.items is required", translation.ErrInvalidArgument)
 	}
 	return nil
 }

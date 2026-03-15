@@ -7,6 +7,7 @@ Current setup:
 - Atlas config: [`atlas.hcl`](../atlas.hcl)
 - Migration directory: [`db/migrations`](./migrations)
 - Current mode: versioned SQL migrations
+- TODO: Bun ORM models and pgx-backed repositories are not wired yet
 
 At the moment, the repo is configured for:
 

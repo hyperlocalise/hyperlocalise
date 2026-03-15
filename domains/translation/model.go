@@ -186,3 +186,20 @@ type ExecuteMessage struct {
 	SourceLocale      string
 	TargetLocale      string
 }
+
+type OutboxKind string
+
+const (
+	OutboxKindExecute  OutboxKind = "execute"
+	OutboxKindFinalize OutboxKind = "finalize"
+)
+
+type OutboxMessage struct {
+	ID        string
+	JobID     string
+	SegmentID string
+	Kind      OutboxKind
+	Execute   *ExecuteMessage
+	SentAt    *time.Time
+	CreatedAt time.Time
+}
