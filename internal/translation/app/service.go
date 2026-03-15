@@ -17,17 +17,19 @@ var ErrInvalidArgument = errors.New("invalid translation request")
 
 // Service orchestrates translation job storage and async dispatch.
 type Service struct {
-	repository *store.Repository
-	publisher  queue.Publisher
-	clock      Clock
+	repository  *store.Repository
+	publisher   queue.Publisher
+	queueDriver string
+	clock       Clock
 }
 
 // NewService constructs the translation application service.
-func NewService(repository *store.Repository, publisher queue.Publisher) *Service {
+func NewService(repository *store.Repository, publisher queue.Publisher, queueDriver string) *Service {
 	return &Service{
-		repository: repository,
-		publisher:  publisher,
-		clock:      defaultClock,
+		repository:  repository,
+		publisher:   publisher,
+		queueDriver: queueDriver,
+		clock:       defaultClock,
 	}
 }
 
@@ -51,7 +53,7 @@ func (s *Service) CreateJob(
 	}
 
 	headers, err := encodeJSON(map[string]string{
-		"queue_driver": "stub",
+		"queue_driver": s.queueDriver,
 	})
 	if err != nil {
 		return nil, err
@@ -100,7 +102,7 @@ func (s *Service) CreateJob(
 		AggregateID: eventModel.AggregateID,
 		Payload:     eventModel.Payload,
 		Headers: map[string]string{
-			"queue_driver": "stub",
+			"queue_driver": s.queueDriver,
 		},
 	}); publishErr != nil {
 		// TODO: Move broker publication into a dedicated outbox dispatcher so that queue

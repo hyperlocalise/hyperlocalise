@@ -34,7 +34,7 @@ func main() {
 
 	repository := store.NewRepository(db)
 	publisher := queue.NewStubPublisher(cfg.QueueDriver)
-	app := translationapp.NewService(repository, publisher)
+	app := translationapp.NewService(repository, publisher, cfg.QueueDriver)
 
 	listener, err := net.Listen("tcp", cfg.ListenAddr)
 	if err != nil {
