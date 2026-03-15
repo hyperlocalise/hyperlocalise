@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package hyperlocalise.translation.v1;
+
+import "google/protobuf/timestamp.proto";
+import "hyperlocalise/common/v1/common.proto";
+
+option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
+
+// Input for a translation job that translates in-memory text.
+message StringTranslationJobInput {
+  string source_text = 1;
+  string source_locale = 2;
+  repeated string target_locales = 3;
+  map<string, string> metadata = 4;
+  // Optional translator guidance describing product/UI context for the text.
+  optional string context = 5;
+  // Optional maximum length constraint for each translated string.
+  optional int32 max_length = 6;
+}
+
+// Input for a translation job that translates a file referenced by URI.
+message FileTranslationJobInput {
+  enum FileFormat {
+    FILE_FORMAT_UNSPECIFIED = 0;
+    FILE_FORMAT_XLIFF = 1;
+    FILE_FORMAT_JSON = 2;
+    FILE_FORMAT_PO = 3;
+    FILE_FORMAT_CSV = 4;
+  }
+
+  string file_uri = 1;
+  FileFormat file_format = 2;
+  string source_locale = 3;
+  repeated string target_locales = 4;
+  map<string, string> metadata = 5;
+}
+
+// Translated text for a single target locale.
+message StringTranslation {
+  string locale = 1;
+  string text = 2;
+}
+
+// Translated file location for a single target locale.
+message FileTranslation {
+  string locale = 1;
+  string file_uri = 2;
+}
+
+// Result payload for string-based translation jobs.
+message StringTranslationJobResult {
+  repeated StringTranslation translations = 1;
+}
+
+// Result payload for file-based translation jobs.
+message FileTranslationJobResult {
+  repeated FileTranslation translations = 1;
+}
+
+// Structured failure details for jobs that end in STATUS_FAILED.
+message TranslationJobError {
+  enum Code {
+    CODE_UNSPECIFIED = 0;
+    CODE_INTERNAL = 1;
+    CODE_INVALID_INPUT = 2;
+    CODE_UNSUPPORTED_LOCALE = 3;
+    CODE_FILE_NOT_FOUND = 4;
+    CODE_QUOTA_EXCEEDED = 5;
+  }
+
+  Code code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+// Canonical translation job resource.
+message TranslationJob {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_STRING = 1;
+    TYPE_FILE = 2;
+  }
+
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_QUEUED = 1;
+    STATUS_RUNNING = 2;
+    STATUS_SUCCEEDED = 3;
+    STATUS_FAILED = 4;
+  }
+
+  string id = 1;
+  string project_id = 2;
+  // Server-derived from the active input/result variant.
+  Type type = 3;
+  Status status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+
+  // Exactly one input variant must be set when the job is created.
+  oneof input {
+    StringTranslationJobInput string_input = 9;
+    FileTranslationJobInput file_input = 10;
+  }
+
+  // Exactly one of the following is populated when the job is terminal.
+  oneof outcome {
+    // Populated when status is STATUS_SUCCEEDED and type is TYPE_STRING.
+    StringTranslationJobResult string_result = 11;
+    // Populated when status is STATUS_SUCCEEDED and type is TYPE_FILE.
+    FileTranslationJobResult file_result = 12;
+    // Populated when status is STATUS_FAILED.
+    TranslationJobError error = 13;
+  }
+}
+
+// Creates a new translation job under a project.
+message CreateTranslationJobRequest {
+  string project_id = 1;
+
+  oneof input {
+    StringTranslationJobInput string_input = 2;
+    FileTranslationJobInput file_input = 3;
+  }
+}
+
+// Returns the newly created translation job resource.
+message CreateTranslationJobResponse {
+  TranslationJob job = 1;
+}
+
+// Looks up the lightweight status view for a translation job.
+message GetTranslationJobStatusRequest {
+  hyperlocalise.common.v1.ResourceRef translation_job = 1;
+}
+
+// Looks up the full translation job resource, including results.
+message GetTranslationJobRequest {
+  hyperlocalise.common.v1.ResourceRef translation_job = 1;
+}
+
+// Lightweight status view used for polling job progress.
+message TranslationJobStatus {
+  string id = 1;
+  string project_id = 2;
+  TranslationJob.Type type = 3;
+  TranslationJob.Status status = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  // Populated when status is STATUS_FAILED.
+  TranslationJobError error = 8;
+}
+
+// Lists translation jobs for a project with optional filtering.
+message ListTranslationJobsRequest {
+  string project_id = 1;
+  hyperlocalise.common.v1.PageRequest page = 2;
+  // Filter by job type. TYPE_UNSPECIFIED returns jobs of all types.
+  TranslationJob.Type type = 3;
+  // Filter by job status. STATUS_UNSPECIFIED returns jobs in all statuses.
+  TranslationJob.Status status = 4;
+}
+
+// Paged list of translation jobs.
+message ListTranslationJobsResponse {
+  repeated TranslationJob jobs = 1;
+  hyperlocalise.common.v1.PageResponse page = 2;
+}
+
+// Returns the lightweight job status view.
+message GetTranslationJobStatusResponse {
+  TranslationJobStatus job = 1;
+}
+
+// Returns the full translation job resource.
+message GetTranslationJobResponse {
+  TranslationJob job = 1;
+}
+
+// Translation job management API.
+service TranslationService {
+  rpc CreateTranslationJob(CreateTranslationJobRequest) returns (CreateTranslationJobResponse);
+  rpc GetTranslationJob(GetTranslationJobRequest) returns (GetTranslationJobResponse);
+  rpc GetTranslationJobStatus(GetTranslationJobStatusRequest) returns (GetTranslationJobStatusResponse);
+  rpc ListTranslationJobs(ListTranslationJobsRequest) returns (ListTranslationJobsResponse);
+}
