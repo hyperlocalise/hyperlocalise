@@ -2,6 +2,10 @@ package worker
 
 import (
 	"context"
+<<<<<<< HEAD
+=======
+	"encoding/json"
+>>>>>>> 486e714 (.)
 	"fmt"
 	"log"
 	"time"
@@ -12,7 +16,11 @@ import (
 	"github.com/uptrace/bun"
 )
 
+<<<<<<< HEAD
 // Processor advances a single queued job event through the stub workflow.
+=======
+// Processor polls Postgres-backed outbox rows and advances job state.
+>>>>>>> 486e714 (.)
 type Processor struct {
 	repository *store.Repository
 	clock      func() time.Time
@@ -28,8 +36,50 @@ func NewProcessor(repository *store.Repository) *Processor {
 	}
 }
 
+<<<<<<< HEAD
 // ProcessJobQueuedEvent handles a single queued translation job notification.
 func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translationapp.JobQueuedPayload) error {
+=======
+// Run polls until the context is cancelled.
+func (p *Processor) Run(ctx context.Context, pollInterval time.Duration, batchSize int) error {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		if err := p.processBatch(ctx, batchSize); err != nil {
+			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
+}
+
+func (p *Processor) processBatch(ctx context.Context, batchSize int) error {
+	events, err := p.repository.ListPendingOutboxEvents(ctx, batchSize)
+	if err != nil {
+		return fmt.Errorf("load pending outbox events: %w", err)
+	}
+
+	for idx := range events {
+		if err := p.processEvent(ctx, &events[idx]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Processor) processEvent(ctx context.Context, event *store.OutboxEventModel) error {
+	var payload translationapp.JobQueuedPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return fmt.Errorf("decode queued job event %s: %w", event.ID, err)
+	}
+
+>>>>>>> 486e714 (.)
 	job, err := p.repository.GetJob(ctx, payload.JobID, payload.ProjectID)
 	if err != nil {
 		return fmt.Errorf("load queued translation job %s: %w", payload.JobID, err)
@@ -73,6 +123,7 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 		return fmt.Errorf("process translation job %s: %w", job.ID, err)
 	}
 
+<<<<<<< HEAD
 	if payload.EventID != "" {
 		processedAt := p.clock()
 		if err := p.repository.MarkOutboxEventProcessed(ctx, payload.EventID, processedAt); err != nil {
@@ -81,6 +132,14 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 	}
 
 	log.Printf("processed translation job %s from outbox event %s", job.ID, payload.EventID)
+=======
+	processedAt := p.clock()
+	if err := p.repository.MarkOutboxEventProcessed(ctx, event.ID, processedAt); err != nil {
+		return err
+	}
+
+	log.Printf("processed translation job %s from outbox event %s", job.ID, event.ID)
+>>>>>>> 486e714 (.)
 
 	return nil
 }
