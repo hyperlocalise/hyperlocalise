@@ -9,7 +9,7 @@ The service accepts gRPC requests, stores translation jobs in Postgres, and publ
 Set these variables before you start the service:
 
 - `DATABASE_URL`: PostgreSQL connection string for translation jobs and outbox rows
-- `TRANSLATION_QUEUE_DRIVER`: queue provider to use. The current production option is `gcp-pubsub`.
+- `TRANSLATION_QUEUE_DRIVER`: queue provider to use. Use `stub` for local development without GCP credentials; use `gcp-pubsub` in production.
 
 When `TRANSLATION_QUEUE_DRIVER=gcp-pubsub`, also set:
 
@@ -20,6 +20,14 @@ When `TRANSLATION_QUEUE_DRIVER=gcp-pubsub`, also set:
 Optional:
 
 - `LISTEN_ADDR`: gRPC listen address. Defaults to `:8080`.
+
+For quick local testing, set `TRANSLATION_QUEUE_DRIVER=stub` to use the local no-op queue implementation and skip GCP setup:
+
+```bash
+DATABASE_URL=postgres://localhost:5432/hyperlocalise \
+TRANSLATION_QUEUE_DRIVER=stub \
+bazel run //apps/translation-service:translation-service
+```
 
 ## Authentication
 
@@ -37,6 +45,16 @@ Minimum IAM for the configured topic:
 
 ## Run locally
 
+For the fastest local iteration loop, use the stub queue driver:
+
+```bash
+DATABASE_URL=postgres://localhost:5432/hyperlocalise \
+TRANSLATION_QUEUE_DRIVER=stub \
+bazel run //apps/translation-service:translation-service
+```
+
+Switch to `gcp-pubsub` only when you want to exercise the real broker integration:
+
 Run the service with Bazel:
 
 ```bash
@@ -51,6 +69,15 @@ bazel run //apps/translation-service:translation-service
 By default, the server listens on `:8080`.
 
 To override the listen address:
+
+```bash
+DATABASE_URL=postgres://localhost:5432/hyperlocalise \
+TRANSLATION_QUEUE_DRIVER=stub \
+LISTEN_ADDR=:9090 \
+bazel run //apps/translation-service:translation-service
+```
+
+To override the listen address while using GCP Pub/Sub:
 
 ```bash
 DATABASE_URL=postgres://localhost:5432/hyperlocalise \
@@ -98,6 +125,16 @@ Run the container and publish port `8080`:
 docker run --rm \
   -p 8080:8080 \
   -e DATABASE_URL=postgres://host.docker.internal:5432/hyperlocalise \
+  -e TRANSLATION_QUEUE_DRIVER=stub \
+  hyperlocalise/translation-service
+```
+
+To run the container against the real GCP Pub/Sub topic instead:
+
+```bash
+docker run --rm \
+  -p 8080:8080 \
+  -e DATABASE_URL=postgres://host.docker.internal:5432/hyperlocalise \
   -e TRANSLATION_QUEUE_DRIVER=gcp-pubsub \
   -e TRANSLATION_GCP_PUBSUB_PROJECT_ID=my-gcp-project \
   -e TRANSLATION_GCP_PUBSUB_TOPIC=translation-job-queued \
@@ -107,6 +144,17 @@ docker run --rm \
 ```
 
 To override the listen address inside the container:
+
+```bash
+docker run --rm \
+  -p 9090:9090 \
+  -e DATABASE_URL=postgres://host.docker.internal:5432/hyperlocalise \
+  -e TRANSLATION_QUEUE_DRIVER=stub \
+  -e LISTEN_ADDR=:9090 \
+  hyperlocalise/translation-service
+```
+
+To override the listen address inside the container while using GCP Pub/Sub:
 
 ```bash
 docker run --rm \
