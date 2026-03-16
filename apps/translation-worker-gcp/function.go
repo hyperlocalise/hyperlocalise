@@ -103,7 +103,7 @@ func getProcessor() (*worker.Processor, error) {
 }
 
 // decodePayload decodes and validates a JobQueuedPayload from a Pub/Sub CloudEvent envelope.
-// 
+//
 // It extracts the Pub/Sub envelope from the CloudEvent, decodes the base64-encoded
 // message data, unmarshals the JSON into a translationapp.JobQueuedPayload, and
 // returns an error if the envelope is malformed, the message data cannot be decoded
