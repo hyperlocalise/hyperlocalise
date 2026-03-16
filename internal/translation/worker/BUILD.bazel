@@ -1,14 +1,26 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "worker",
-    srcs = ["worker.go"],
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/worker",
     visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/translator:translator",
+        "//internal/translation/app:app",
+        "//internal/translation/store:store",
+        "//pkg/api/proto/hyperlocalise/translation/v1:v1",
+    ],
+)
+
+go_test(
+    name = "worker_test",
+    srcs = ["worker_test.go"],
+    embed = [":worker"],
     deps = [
         "//internal/translation/app:app",
         "//internal/translation/store:store",
         "//pkg/api/proto/hyperlocalise/translation/v1:v1",
-        "@com_github_uptrace_bun//:bun",
+        "@org_golang_google_protobuf//encoding/protojson",
     ],
 )

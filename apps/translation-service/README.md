@@ -4,6 +4,8 @@ This service exposes the `hyperlocalise.translation.v1.TranslationService` gRPC 
 
 The service accepts gRPC requests, stores translation jobs in Postgres, and publishes queued job events to the configured broker.
 
+The async worker uses a process-level LLM profile for `string` jobs. `file` jobs are not implemented yet.
+
 ## Required environment variables
 
 Set these variables before you start the service:
@@ -20,6 +22,15 @@ When `TRANSLATION_QUEUE_DRIVER=gcp-pubsub`, also set:
 Optional:
 
 - `LISTEN_ADDR`: gRPC listen address. Defaults to `:8080`.
+
+Worker-only:
+
+- `TRANSLATION_LLM_PROVIDER`: remote provider used by the async worker. Supported values: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `groq`, `mistral`
+- `TRANSLATION_LLM_MODEL`: model name passed to the selected provider
+- `TRANSLATION_LLM_SYSTEM_PROMPT`: optional system prompt override for worker translations
+- `TRANSLATION_LLM_USER_PROMPT`: optional user prompt override for worker translations
+
+Do not use local providers such as `lmstudio` or `ollama` in the worker runtime.
 
 For quick local testing, set `TRANSLATION_QUEUE_DRIVER=stub` to use the local no-op queue implementation and skip GCP setup:
 

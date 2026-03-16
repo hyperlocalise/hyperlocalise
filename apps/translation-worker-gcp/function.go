@@ -36,7 +36,9 @@ func init() {
 	functions.CloudEvent("HandleJobQueued", HandleJobQueued)
 }
 
-// HandleJobQueued processes one Pub/Sub CloudEvent for a queued translation job.
+// HandleJobQueued handles a Pub/Sub CloudEvent for a queued translation job.
+// It decodes the event payload, obtains the shared processor, and dispatches the job for processing.
+// It returns an error if processor initialization, payload decoding, or job processing fails.
 func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 	processor, err := getProcessor()
 	if err != nil {
@@ -51,6 +53,14 @@ func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 	return processor.ProcessJobQueuedEvent(ctx, payload)
 }
 
+// getProcessor initializes and returns the shared worker.Processor singleton.
+//
+// It acquires an internal mutex to ensure a single instance is created and memoized
+// for the lifetime of the process. The function loads worker configuration, requires
+// that DATABASE_URL is set, opens a PostgreSQL connection, and constructs a translator
+// executor from LLM-related configuration before creating the processor. Initialization
+// details (queue driver, LLM provider, and model) are logged. If any step fails, an
+// error is returned.
 func getProcessor() (*worker.Processor, error) {
 	processorMu.Lock()
 	defer processorMu.Unlock()
@@ -64,6 +74,16 @@ func getProcessor() (*worker.Processor, error) {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
+	executor, err := worker.NewTranslatorExecutor(worker.Config{
+		Provider:     cfg.LLMProvider,
+		Model:        cfg.LLMModel,
+		SystemPrompt: cfg.LLMSystemPrompt,
+		UserPrompt:   cfg.LLMUserPrompt,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	db, err := store.OpenPostgres(cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
@@ -72,11 +92,22 @@ func getProcessor() (*worker.Processor, error) {
 	// TODO: Add a closer hook for local development once the Cloud Function is wrapped
 	// with a local runner. In the deployed function runtime the shared DB handle should
 	// stay warm across invocations.
-	log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
-	processorInst = worker.NewProcessor(store.NewRepository(db))
+	log.Printf(
+		"translation worker function initialized queue_driver=%s llm_provider=%s llm_model=%s",
+		cfg.QueueDriver,
+		cfg.LLMProvider,
+		cfg.LLMModel,
+	)
+	processorInst = worker.NewProcessor(store.NewRepository(db), executor)
 	return processorInst, nil
 }
 
+// decodePayload decodes and validates a JobQueuedPayload from a Pub/Sub CloudEvent envelope.
+//
+// It extracts the Pub/Sub envelope from the CloudEvent, decodes the base64-encoded
+// message data, unmarshals the JSON into a translationapp.JobQueuedPayload, and
+// returns an error if the envelope is malformed, the message data cannot be decoded
+// or unmarshaled, or the resulting payload is missing JobID or ProjectID.
 func decodePayload(cloudEvent cloudevent.Event) (translationapp.JobQueuedPayload, error) {
 	var payload translationapp.JobQueuedPayload
 
