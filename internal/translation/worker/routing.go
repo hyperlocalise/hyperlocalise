@@ -1,0 +1,195 @@
+package worker
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+const (
+	metadataBudgetTargetKey = "budget_target"
+)
+
+// TranslationTask contains all fields needed for routing and translation.
+type TranslationTask struct {
+	SourceText   string
+	SourceLocale string
+	TargetLocale string
+	Metadata     map[string]string
+}
+
+// RoutingDecision captures why provider/model was chosen for a task.
+type RoutingDecision struct {
+	Provider string
+	Model    string
+	Reasons  []string
+}
+
+type modelCapability struct {
+	Name         string
+	QualityScore int
+	CostScore    int
+}
+
+type providerCapability struct {
+	Name              string
+	LanguagePairAllow map[string]struct{}
+	Models            []modelCapability
+}
+
+type routePreference struct {
+	PreferredProviders []string
+	MinQualityScore    int
+	MaxCostScore       int
+}
+
+type languagePairPolicy struct {
+	Pair          string
+	BudgetTargets map[string]routePreference
+	Default       routePreference
+}
+
+type policyEngine struct {
+	registry      []providerCapability
+	policies      map[string]languagePairPolicy
+	fallbackRoute RoutingDecision
+}
+
+func newDefaultPolicyEngine(defaultProvider, defaultModel string) *policyEngine {
+	registry := []providerCapability{
+		{
+			Name:   "openai",
+			Models: []modelCapability{{Name: "gpt-4o-mini", QualityScore: 80, CostScore: 2}, {Name: "gpt-4.1", QualityScore: 96, CostScore: 4}},
+		},
+		{
+			Name:   "anthropic",
+			Models: []modelCapability{{Name: "claude-3-5-haiku", QualityScore: 82, CostScore: 2}, {Name: "claude-3-7-sonnet", QualityScore: 95, CostScore: 4}},
+		},
+		{
+			Name:   "gemini",
+			Models: []modelCapability{{Name: "gemini-2.0-flash", QualityScore: 78, CostScore: 1}, {Name: "gemini-2.5-pro", QualityScore: 94, CostScore: 4}},
+		},
+	}
+
+	pairPolicies := []languagePairPolicy{
+		{
+			Pair: "en->ja",
+			BudgetTargets: map[string]routePreference{
+				"economy": {PreferredProviders: []string{"gemini"}, MinQualityScore: 70, MaxCostScore: 2},
+				"premium": {PreferredProviders: []string{"anthropic", "openai"}, MinQualityScore: 90, MaxCostScore: 5},
+			},
+			Default: routePreference{PreferredProviders: []string{"openai", "anthropic", "gemini"}, MinQualityScore: 80, MaxCostScore: 4},
+		},
+		{
+			Pair: "en->de",
+			BudgetTargets: map[string]routePreference{
+				"economy": {PreferredProviders: []string{"openai", "gemini"}, MinQualityScore: 75, MaxCostScore: 2},
+				"premium": {PreferredProviders: []string{"openai", "anthropic"}, MinQualityScore: 90, MaxCostScore: 5},
+			},
+			Default: routePreference{PreferredProviders: []string{"openai", "gemini", "anthropic"}, MinQualityScore: 80, MaxCostScore: 4},
+		},
+	}
+
+	policies := make(map[string]languagePairPolicy, len(pairPolicies))
+	for _, policy := range pairPolicies {
+		policies[policy.Pair] = policy
+	}
+
+	return &policyEngine{
+		registry: registry,
+		policies: policies,
+		fallbackRoute: RoutingDecision{
+			Provider: defaultProvider,
+			Model:    defaultModel,
+			Reasons: []string{
+				"fallback route from worker configuration",
+			},
+		},
+	}
+}
+
+func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
+	pairKey := strings.ToLower(strings.TrimSpace(task.SourceLocale)) + "->" + strings.ToLower(strings.TrimSpace(task.TargetLocale))
+	budgetTarget := strings.ToLower(strings.TrimSpace(task.Metadata[metadataBudgetTargetKey]))
+	if budgetTarget == "" {
+		budgetTarget = "balanced"
+	}
+
+	reasons := []string{fmt.Sprintf("evaluated language pair policy for %s", pairKey), fmt.Sprintf("budget target=%s", budgetTarget)}
+	preference := routePreference{PreferredProviders: []string{p.fallbackRoute.Provider}, MinQualityScore: 0, MaxCostScore: 5}
+	if policy, ok := p.policies[pairKey]; ok {
+		if rule, ok := policy.BudgetTargets[budgetTarget]; ok {
+			preference = rule
+			reasons = append(reasons, "matched language-pair budget policy")
+		} else {
+			preference = policy.Default
+			reasons = append(reasons, "used language-pair default policy")
+		}
+	} else {
+		reasons = append(reasons, "no specific language-pair policy; using fallback preference")
+	}
+
+	for _, providerName := range preference.PreferredProviders {
+		provider, ok := p.findProvider(providerName)
+		if !ok {
+			reasons = append(reasons, fmt.Sprintf("provider %s missing from capability registry", providerName))
+			continue
+		}
+		if !providerSupportsPair(provider, pairKey) {
+			reasons = append(reasons, fmt.Sprintf("provider %s does not support %s", provider.Name, pairKey))
+			continue
+		}
+		model, ok := selectModel(provider.Models, preference.MinQualityScore, preference.MaxCostScore)
+		if !ok {
+			reasons = append(reasons, fmt.Sprintf("provider %s has no model meeting quality/cost guardrails", provider.Name))
+			continue
+		}
+
+		reasons = append(reasons, fmt.Sprintf("selected %s/%s from capability registry", provider.Name, model.Name))
+		return RoutingDecision{Provider: provider.Name, Model: model.Name, Reasons: reasons}
+	}
+
+	reasons = append(reasons, fmt.Sprintf("fallback to configured route %s/%s", p.fallbackRoute.Provider, p.fallbackRoute.Model))
+	return RoutingDecision{Provider: p.fallbackRoute.Provider, Model: p.fallbackRoute.Model, Reasons: reasons}
+}
+
+func (p *policyEngine) findProvider(providerName string) (providerCapability, bool) {
+	for _, provider := range p.registry {
+		if provider.Name == providerName {
+			return provider, true
+		}
+	}
+	return providerCapability{}, false
+}
+
+func providerSupportsPair(provider providerCapability, pair string) bool {
+	if len(provider.LanguagePairAllow) == 0 {
+		return true
+	}
+	_, ok := provider.LanguagePairAllow[pair]
+	return ok
+}
+
+func selectModel(models []modelCapability, minQualityScore, maxCostScore int) (modelCapability, bool) {
+	candidates := make([]modelCapability, 0, len(models))
+	for _, model := range models {
+		if model.QualityScore < minQualityScore {
+			continue
+		}
+		if model.CostScore > maxCostScore {
+			continue
+		}
+		candidates = append(candidates, model)
+	}
+	if len(candidates) == 0 {
+		return modelCapability{}, false
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].QualityScore == candidates[j].QualityScore {
+			return candidates[i].CostScore < candidates[j].CostScore
+		}
+		return candidates[i].QualityScore > candidates[j].QualityScore
+	})
+	return candidates[0], true
+}
