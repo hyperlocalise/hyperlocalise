@@ -17,8 +17,12 @@ type ServiceConfig struct {
 
 // WorkerConfig configures the translation worker process.
 type WorkerConfig struct {
-	DatabaseURL string
-	QueueDriver string
+	DatabaseURL     string
+	QueueDriver     string
+	LLMProvider     string
+	LLMModel        string
+	LLMSystemPrompt string
+	LLMUserPrompt   string
 }
 
 // LoadServiceConfig loads the runtime configuration for translation-service.
@@ -35,8 +39,12 @@ func LoadServiceConfig() ServiceConfig {
 // LoadWorkerConfig loads the runtime configuration for the translation worker runtime.
 func LoadWorkerConfig() WorkerConfig {
 	return WorkerConfig{
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		QueueDriver: lookupEnv("TRANSLATION_QUEUE_DRIVER", "gcp-pubsub"),
+		DatabaseURL:     os.Getenv("DATABASE_URL"),
+		QueueDriver:     lookupEnv("TRANSLATION_QUEUE_DRIVER", "gcp-pubsub"),
+		LLMProvider:     os.Getenv("TRANSLATION_LLM_PROVIDER"),
+		LLMModel:        os.Getenv("TRANSLATION_LLM_MODEL"),
+		LLMSystemPrompt: os.Getenv("TRANSLATION_LLM_SYSTEM_PROMPT"),
+		LLMUserPrompt:   os.Getenv("TRANSLATION_LLM_USER_PROMPT"),
 	}
 }
 

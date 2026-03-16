@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -9,19 +10,23 @@ import (
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
-	"github.com/uptrace/bun"
 )
+
+// ErrFileJobsNotImplemented reports that async file translation is not implemented yet.
+var ErrFileJobsNotImplemented = errors.New("file translation jobs are not implemented yet")
 
 // Processor advances a single queued job event through the stub workflow.
 type Processor struct {
 	repository *store.Repository
+	executor   stringExecutor
 	clock      func() time.Time
 }
 
 // NewProcessor constructs a translation worker processor.
-func NewProcessor(repository *store.Repository) *Processor {
+func NewProcessor(repository *store.Repository, executor stringExecutor) *Processor {
 	return &Processor{
 		repository: repository,
+		executor:   executor,
 		clock: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -35,42 +40,37 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 		return fmt.Errorf("load queued translation job %s: %w", payload.JobID, err)
 	}
 
-	err = p.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if updateErr := p.repository.UpdateJobStatus(
-			ctx,
-			tx,
-			job.ID,
-			store.JobStatusQueued,
-			store.JobStatusRunning,
-			"",
-			nil,
-			nil,
-		); updateErr != nil {
-			return updateErr
-		}
+	if err := p.repository.UpdateJobStatus(
+		ctx,
+		p.repository.DB(),
+		job.ID,
+		store.JobStatusQueued,
+		store.JobStatusRunning,
+		"",
+		nil,
+		nil,
+	); err != nil {
+		return fmt.Errorf("process translation job %s: %w", job.ID, err)
+	}
 
-		outcomeKind, outcomePayload, completedAt, outcomeErr := p.buildStubOutcome(job)
-		if outcomeErr != nil {
-			return outcomeErr
+	outcomeKind, outcomePayload, completedAt, outcomeErr := p.buildOutcome(ctx, job)
+	if outcomeErr != nil {
+		if failErr := p.failJob(ctx, job, outcomeErr); failErr != nil {
+			return fmt.Errorf("process translation job %s: %w", job.ID, failErr)
 		}
-
-		if updateErr := p.repository.UpdateJobStatus(
+	} else {
+		if err := p.repository.UpdateJobStatus(
 			ctx,
-			tx,
+			p.repository.DB(),
 			job.ID,
 			store.JobStatusRunning,
 			store.JobStatusSucceeded,
 			outcomeKind,
 			outcomePayload,
 			&completedAt,
-		); updateErr != nil {
-			return updateErr
+		); err != nil {
+			return fmt.Errorf("process translation job %s: %w", job.ID, err)
 		}
-
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("process translation job %s: %w", job.ID, err)
 	}
 
 	if payload.EventID != "" {
@@ -85,11 +85,18 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 	return nil
 }
 
-func (p *Processor) buildStubOutcome(job *store.TranslationJobModel) (string, []byte, time.Time, error) {
+func (p *Processor) buildOutcome(
+	ctx context.Context,
+	job *store.TranslationJobModel,
+) (string, []byte, time.Time, error) {
 	completedAt := p.clock()
 
 	switch job.Type {
 	case store.JobTypeString:
+		if p.executor == nil {
+			return "", nil, time.Time{}, fmt.Errorf("string translation executor is not configured")
+		}
+
 		input, err := translationapp.DecodeStringInput(job.InputPayload)
 		if err != nil {
 			return "", nil, time.Time{}, err
@@ -97,9 +104,14 @@ func (p *Processor) buildStubOutcome(job *store.TranslationJobModel) (string, []
 
 		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
 		for _, locale := range input.GetTargetLocales() {
+			text, err := p.executor.Translate(ctx, input.GetSourceText(), locale)
+			if err != nil {
+				return "", nil, time.Time{}, fmt.Errorf("translate locale %q: %w", locale, err)
+			}
+
 			translations = append(translations, &translationv1.StringTranslation{
 				Locale: locale,
-				Text:   fmt.Sprintf("TODO(%s): translate %q", locale, input.GetSourceText()),
+				Text:   text,
 			})
 		}
 
@@ -110,32 +122,37 @@ func (p *Processor) buildStubOutcome(job *store.TranslationJobModel) (string, []
 			return "", nil, time.Time{}, err
 		}
 
-		// TODO: Replace the placeholder result builder with a real translation executor
-		// once provider selection, retries, and model prompting are defined.
 		return "string_result", payload, completedAt, nil
 	case store.JobTypeFile:
-		input, err := translationapp.DecodeFileInput(job.InputPayload)
-		if err != nil {
-			return "", nil, time.Time{}, err
-		}
-
-		translations := make([]*translationv1.FileTranslation, 0, len(input.GetTargetLocales()))
-		for _, locale := range input.GetTargetLocales() {
-			translations = append(translations, &translationv1.FileTranslation{
-				Locale:  locale,
-				FileUri: fmt.Sprintf("%s.%s.todo", input.GetFileUri(), locale),
-			})
-		}
-
-		payload, err := translationapp.EncodeProto(&translationv1.FileTranslationJobResult{
-			Translations: translations,
-		})
-		if err != nil {
-			return "", nil, time.Time{}, err
-		}
-
-		return "file_result", payload, completedAt, nil
+		return "", nil, time.Time{}, ErrFileJobsNotImplemented
 	default:
 		return "", nil, time.Time{}, fmt.Errorf("unsupported job type %q", job.Type)
 	}
+}
+
+func (p *Processor) failJob(ctx context.Context, job *store.TranslationJobModel, outcomeErr error) error {
+	completedAt := p.clock()
+	payload, err := translationapp.EncodeProto(&translationv1.TranslationJobError{
+		Code:    translationv1.TranslationJobError_CODE_INTERNAL,
+		Message: outcomeErr.Error(),
+	})
+	if err != nil {
+		return fmt.Errorf("encode failed job payload: %w", err)
+	}
+
+	if err := p.repository.UpdateJobStatus(
+		ctx,
+		p.repository.DB(),
+		job.ID,
+		store.JobStatusRunning,
+		store.JobStatusFailed,
+		"error",
+		payload,
+		&completedAt,
+	); err != nil {
+		return fmt.Errorf("mark job failed: %w", err)
+	}
+
+	log.Printf("translation job %s failed: %v", job.ID, outcomeErr)
+	return nil
 }

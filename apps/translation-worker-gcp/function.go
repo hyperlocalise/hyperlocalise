@@ -64,6 +64,16 @@ func getProcessor() (*worker.Processor, error) {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
+	executor, err := worker.NewTranslatorExecutor(worker.Config{
+		Provider:     cfg.LLMProvider,
+		Model:        cfg.LLMModel,
+		SystemPrompt: cfg.LLMSystemPrompt,
+		UserPrompt:   cfg.LLMUserPrompt,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	db, err := store.OpenPostgres(cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
@@ -72,8 +82,13 @@ func getProcessor() (*worker.Processor, error) {
 	// TODO: Add a closer hook for local development once the Cloud Function is wrapped
 	// with a local runner. In the deployed function runtime the shared DB handle should
 	// stay warm across invocations.
-	log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
-	processorInst = worker.NewProcessor(store.NewRepository(db))
+	log.Printf(
+		"translation worker function initialized queue_driver=%s llm_provider=%s llm_model=%s",
+		cfg.QueueDriver,
+		cfg.LLMProvider,
+		cfg.LLMModel,
+	)
+	processorInst = worker.NewProcessor(store.NewRepository(db), executor)
 	return processorInst, nil
 }
 
