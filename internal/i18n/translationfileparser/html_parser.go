@@ -330,6 +330,20 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 			continue
 		}
 		rendered := preserveChunkBoundaryWhitespace(part.source, translated)
+		// Ensure every placeholder survived translation. A dropped placeholder
+		// means source markup was lost; fall back rather than emit incomplete HTML.
+		allPresent := true
+		for ph := range part.placeholders {
+			if !strings.Contains(rendered, ph) {
+				allPresent = false
+				break
+			}
+		}
+		if !allPresent {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
+			continue
+		}
 		rendered = expandHTMLPlaceholders(rendered, part.placeholders)
 		if strings.ContainsRune(rendered, '\x1e') || strings.ContainsRune(rendered, '\x1f') {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
