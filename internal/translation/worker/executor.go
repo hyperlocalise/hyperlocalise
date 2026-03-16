@@ -57,9 +57,14 @@ func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 		return nil, fmt.Errorf("translation worker: create translator tool: %w", err)
 	}
 
+	router, err := newDefaultPolicyEngine(provider, strings.TrimSpace(cfg.Model))
+	if err != nil {
+		return nil, err
+	}
+
 	return &translatorExecutor{
 		tool:   tool,
-		router: newDefaultPolicyEngine(provider, strings.TrimSpace(cfg.Model)),
+		router: router,
 		config: Config{
 			Provider:     provider,
 			Model:        strings.TrimSpace(cfg.Model),

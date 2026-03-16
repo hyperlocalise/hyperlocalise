@@ -55,7 +55,7 @@ type policyEngine struct {
 	fallbackRoute RoutingDecision
 }
 
-func newDefaultPolicyEngine(defaultProvider, defaultModel string) *policyEngine {
+func newDefaultPolicyEngine(defaultProvider, defaultModel string) (*policyEngine, error) {
 	registry := []providerCapability{
 		{
 			Name:   "openai",
@@ -95,6 +95,15 @@ func newDefaultPolicyEngine(defaultProvider, defaultModel string) *policyEngine 
 		policies[policy.Pair] = policy
 	}
 
+	provider, ok := findProviderInRegistry(registry, defaultProvider)
+	if !ok {
+		return nil, fmt.Errorf("translation worker: fallback provider %q is not registered", defaultProvider)
+	}
+
+	if _, ok := findModelCapability(provider.Models, defaultModel); !ok {
+		return nil, fmt.Errorf("translation worker: fallback model %q is not registered for provider %q", defaultModel, defaultProvider)
+	}
+
 	return &policyEngine{
 		registry: registry,
 		policies: policies,
@@ -105,11 +114,13 @@ func newDefaultPolicyEngine(defaultProvider, defaultModel string) *policyEngine 
 				"fallback route from worker configuration",
 			},
 		},
-	}
+	}, nil
 }
 
 func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
-	pairKey := strings.ToLower(strings.TrimSpace(task.SourceLocale)) + "->" + strings.ToLower(strings.TrimSpace(task.TargetLocale))
+	sourceLocale := normalizeLocalePolicyKey(task.SourceLocale)
+	targetLocale := normalizeLocalePolicyKey(task.TargetLocale)
+	pairKey := sourceLocale + "->" + targetLocale
 	budgetTarget := strings.ToLower(strings.TrimSpace(task.Metadata[metadataBudgetTargetKey]))
 	if budgetTarget == "" {
 		budgetTarget = "balanced"
@@ -154,12 +165,7 @@ func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
 }
 
 func (p *policyEngine) findProvider(providerName string) (providerCapability, bool) {
-	for _, provider := range p.registry {
-		if provider.Name == providerName {
-			return provider, true
-		}
-	}
-	return providerCapability{}, false
+	return findProviderInRegistry(p.registry, providerName)
 }
 
 func providerSupportsPair(provider providerCapability, pair string) bool {
@@ -192,4 +198,33 @@ func selectModel(models []modelCapability, minQualityScore, maxCostScore int) (m
 		return candidates[i].QualityScore > candidates[j].QualityScore
 	})
 	return candidates[0], true
+}
+
+func findProviderInRegistry(registry []providerCapability, providerName string) (providerCapability, bool) {
+	for _, provider := range registry {
+		if provider.Name == providerName {
+			return provider, true
+		}
+	}
+	return providerCapability{}, false
+}
+
+func findModelCapability(models []modelCapability, modelName string) (modelCapability, bool) {
+	for _, model := range models {
+		if model.Name == modelName {
+			return model, true
+		}
+	}
+	return modelCapability{}, false
+}
+
+func normalizeLocalePolicyKey(locale string) string {
+	normalized := strings.ToLower(strings.TrimSpace(locale))
+	if normalized == "" {
+		return ""
+	}
+
+	return strings.FieldsFunc(normalized, func(r rune) bool {
+		return r == '-' || r == '_'
+	})[0]
 }

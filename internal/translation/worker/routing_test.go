@@ -6,7 +6,10 @@ import (
 )
 
 func TestPolicyEngineSelectLanguagePairAndBudgetPremium(t *testing.T) {
-	engine := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	engine, err := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("new default policy engine: %v", err)
+	}
 
 	decision := engine.Select(TranslationTask{
 		SourceLocale: "en",
@@ -29,7 +32,10 @@ func TestPolicyEngineSelectLanguagePairAndBudgetPremium(t *testing.T) {
 }
 
 func TestPolicyEngineSelectLanguagePairEconomy(t *testing.T) {
-	engine := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	engine, err := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("new default policy engine: %v", err)
+	}
 
 	decision := engine.Select(TranslationTask{
 		SourceLocale: "en",
@@ -48,7 +54,10 @@ func TestPolicyEngineSelectLanguagePairEconomy(t *testing.T) {
 }
 
 func TestPolicyEngineFallbackWhenNoPolicy(t *testing.T) {
-	engine := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	engine, err := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("new default policy engine: %v", err)
+	}
 
 	decision := engine.Select(TranslationTask{SourceLocale: "sv", TargetLocale: "th"})
 	if decision.Provider != "openai" || decision.Model != "gpt-4.1" {
@@ -57,5 +66,39 @@ func TestPolicyEngineFallbackWhenNoPolicy(t *testing.T) {
 	joined := strings.Join(decision.Reasons, " ")
 	if !strings.Contains(joined, "no specific language-pair policy") {
 		t.Fatalf("expected fallback reason, got %v", decision.Reasons)
+	}
+}
+
+func TestPolicyEngineRejectsUnknownFallbackProvider(t *testing.T) {
+	if _, err := newDefaultPolicyEngine("unknown", "gpt-4o-mini"); err == nil || !strings.Contains(err.Error(), `fallback provider "unknown" is not registered`) {
+		t.Fatalf("expected unknown provider error, got %v", err)
+	}
+}
+
+func TestPolicyEngineRejectsUnknownFallbackModel(t *testing.T) {
+	if _, err := newDefaultPolicyEngine("openai", "unknown-model"); err == nil || !strings.Contains(err.Error(), `fallback model "unknown-model" is not registered for provider "openai"`) {
+		t.Fatalf("expected unknown model error, got %v", err)
+	}
+}
+
+func TestPolicyEngineNormalizesLocaleTagsForPolicyLookup(t *testing.T) {
+	engine, err := newDefaultPolicyEngine("openai", "gpt-4o-mini")
+	if err != nil {
+		t.Fatalf("new default policy engine: %v", err)
+	}
+
+	decision := engine.Select(TranslationTask{
+		SourceLocale: " EN_us ",
+		TargetLocale: "ja-JP",
+		Metadata: map[string]string{
+			metadataBudgetTargetKey: "premium",
+		},
+	})
+
+	if decision.Provider != "anthropic" {
+		t.Fatalf("expected anthropic provider, got %q", decision.Provider)
+	}
+	if decision.Model != "claude-3-7-sonnet" {
+		t.Fatalf("expected normalized locale tags to match premium policy, got %q", decision.Model)
 	}
 }

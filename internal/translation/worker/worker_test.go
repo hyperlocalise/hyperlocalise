@@ -152,6 +152,16 @@ func TestNewTranslatorExecutorAcceptsRemoteProvider(t *testing.T) {
 	}
 }
 
+func TestNewTranslatorExecutorRejectsUnknownFallbackModel(t *testing.T) {
+	_, err := NewTranslatorExecutor(Config{
+		Provider: "openai",
+		Model:    "unknown-model",
+	})
+	if err == nil || !strings.Contains(err.Error(), `fallback model "unknown-model" is not registered for provider "openai"`) {
+		t.Fatalf("expected fallback model validation error, got %v", err)
+	}
+}
+
 func TestIsTerminalStatus(t *testing.T) {
 	if !isTerminalStatus(store.JobStatusSucceeded) {
 		t.Fatal("expected succeeded to be terminal")
