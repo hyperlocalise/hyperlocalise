@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/v2"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
 )
 
@@ -15,7 +15,7 @@ type Config struct {
 }
 
 type client interface {
-	Topic(id string) topicHandle
+	Publisher(id string) topicHandle
 	Close() error
 }
 
@@ -32,24 +32,24 @@ type pubsubClient struct {
 	client *pubsub.Client
 }
 
-func (c *pubsubClient) Topic(id string) topicHandle {
-	return &pubsubTopic{topic: c.client.Topic(id)}
+func (c *pubsubClient) Publisher(id string) topicHandle {
+	return &pubsubPublisher{publisher: c.client.Publisher(id)}
 }
 
 func (c *pubsubClient) Close() error {
 	return c.client.Close()
 }
 
-type pubsubTopic struct {
-	topic *pubsub.Topic
+type pubsubPublisher struct {
+	publisher *pubsub.Publisher
 }
 
-func (t *pubsubTopic) Publish(ctx context.Context, message *pubsub.Message) publishResult {
-	return t.topic.Publish(ctx, message)
+func (p *pubsubPublisher) Publish(ctx context.Context, message *pubsub.Message) publishResult {
+	return p.publisher.Publish(ctx, message)
 }
 
-func (t *pubsubTopic) Stop() {
-	t.topic.Stop()
+func (p *pubsubPublisher) Stop() {
+	p.publisher.Stop()
 }
 
 // Publisher publishes neutral queue messages to a configured Google Pub/Sub topic.
@@ -79,7 +79,7 @@ func New(ctx context.Context, cfg Config) (*Publisher, error) {
 func newWithClient(client client, cfg Config) *Publisher {
 	return &Publisher{
 		client: client,
-		topic:  client.Topic(cfg.TopicID),
+		topic:  client.Publisher(cfg.TopicID),
 	}
 }
 

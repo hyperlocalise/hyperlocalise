@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
+	pubsub "cloud.google.com/go/pubsub/v2"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
 )
 
@@ -84,7 +84,7 @@ type fakeClient struct {
 	closed bool
 }
 
-func (c *fakeClient) Topic(_ string) topicHandle {
+func (c *fakeClient) Publisher(_ string) topicHandle {
 	return c.topic
 }
 
