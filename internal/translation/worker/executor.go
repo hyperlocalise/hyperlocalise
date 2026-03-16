@@ -45,7 +45,7 @@ func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 		return nil, fmt.Errorf("translation worker: TRANSLATION_LLM_MODEL is required")
 	}
 	if _, ok := allowedServiceProviders[provider]; !ok {
-		return nil, fmt.Errorf("translation worker: provider %q is not supported in service mode", cfg.Provider)
+		return nil, fmt.Errorf("translation worker: provider %q is not supported in service mode", provider)
 	}
 
 	tool, err := translator.New()
@@ -64,6 +64,7 @@ func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 	}, nil
 }
 
+// Translate executes one string translation request for a target locale.
 func (e *translatorExecutor) Translate(ctx context.Context, source, targetLocale string) (string, error) {
 	translated, err := e.tool.Translate(ctx, translator.Request{
 		Source:         source,

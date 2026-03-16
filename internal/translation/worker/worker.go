@@ -85,6 +85,7 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 	return nil
 }
 
+// buildOutcome executes the job payload and returns the terminal outcome payload.
 func (p *Processor) buildOutcome(
 	ctx context.Context,
 	job *store.TranslationJobModel,
@@ -130,9 +131,13 @@ func (p *Processor) buildOutcome(
 	}
 }
 
+// failJob stores a terminal error payload for a job that could not complete.
 func (p *Processor) failJob(ctx context.Context, job *store.TranslationJobModel, outcomeErr error) error {
 	completedAt := p.clock()
 	payload, err := translationapp.EncodeProto(&translationv1.TranslationJobError{
+		// TODO(adr-2026-03-16-worker-llm-execution): Map worker failures to richer
+		// TranslationJobError codes instead of hardcoding CODE_INTERNAL. See
+		// docs/adr/2026-03-16-translation-worker-llm-execution-design.md.
 		Code:    translationv1.TranslationJobError_CODE_INTERNAL,
 		Message: outcomeErr.Error(),
 	})

@@ -51,6 +51,7 @@ func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 	return processor.ProcessJobQueuedEvent(ctx, payload)
 }
 
+// getProcessor initializes and memoizes the shared worker processor instance.
 func getProcessor() (*worker.Processor, error) {
 	processorMu.Lock()
 	defer processorMu.Unlock()
@@ -92,6 +93,7 @@ func getProcessor() (*worker.Processor, error) {
 	return processorInst, nil
 }
 
+// decodePayload unmarshals the queued job payload from the Pub/Sub envelope.
 func decodePayload(cloudEvent cloudevent.Event) (translationapp.JobQueuedPayload, error) {
 	var payload translationapp.JobQueuedPayload
 

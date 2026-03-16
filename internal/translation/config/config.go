@@ -48,6 +48,7 @@ func LoadWorkerConfig() WorkerConfig {
 	}
 }
 
+// lookupEnv returns the configured value for key or the fallback when unset.
 func lookupEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
