@@ -88,6 +88,8 @@ func (s *Service) ListTranslationJobs(
 	ctx context.Context,
 	request *translationv1.ListTranslationJobsRequest,
 ) (*translationv1.ListTranslationJobsResponse, error) {
+	const maxPageSize int32 = 200
+
 	if request.GetProjectId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "project_id is required")
 	}
@@ -95,6 +97,9 @@ func (s *Service) ListTranslationJobs(
 	pageSize := int32(50)
 	if request.GetPage() != nil && request.GetPage().GetPageSize() > 0 {
 		pageSize = request.GetPage().GetPageSize()
+	}
+	if pageSize > maxPageSize {
+		return nil, status.Errorf(codes.InvalidArgument, "page_size must be <= %d", maxPageSize)
 	}
 
 	jobs, err := s.app.ListJobs(ctx, request.GetProjectId(), request.GetType(), request.GetStatus(), pageSize)

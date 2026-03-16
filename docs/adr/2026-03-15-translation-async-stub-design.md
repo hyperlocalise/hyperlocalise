@@ -28,7 +28,6 @@ Shared behavior lives under `internal/translation`:
 - `config` contains runtime configuration loading.
 
 AWS delivery is intentionally deferred. If AWS support is added later, it should get its own adapter and entrypoint package rather than overloading the GCP deployment path.
-
 ## Data Flow
 
 `CreateTranslationJob` now:

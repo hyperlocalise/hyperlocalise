@@ -8,7 +8,7 @@ go_binary(
         "//api/services/translation:translation",
         "//internal/translation/app:app",
         "//internal/translation/config:config",
-        "//internal/translation/queue:queue",
+        "//internal/translation/queue/provider:provider",
         "//internal/translation/store:store",
         "//pkg/api/proto/hyperlocalise/translation/v1:v1",
         "@org_golang_google_grpc//:grpc",

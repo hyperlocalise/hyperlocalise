@@ -81,7 +81,6 @@ func (s *Service) CreateJob(
 		return nil, err
 	}
 	eventModel.Payload = outboxPayload
-
 	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		if insertErr := s.repository.InsertJob(ctx, tx, jobModel); insertErr != nil {
 			return insertErr

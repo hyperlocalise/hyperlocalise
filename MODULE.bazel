@@ -34,6 +34,7 @@ use_repo(
     "com_github_uptrace_bun",
     "com_github_uptrace_bun_dialect_pgdialect",
     "com_github_yuin_goldmark",
+    "com_google_cloud_go_pubsub_v2",
     "in_gopkg_yaml_v3",
     "io_gorm_driver_sqlite",
     "io_gorm_gorm",

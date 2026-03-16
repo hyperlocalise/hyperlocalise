@@ -74,7 +74,6 @@ func getProcessor() (*worker.Processor, error) {
 	// stay warm across invocations.
 	log.Printf("translation worker function initialized queue_driver=%s", cfg.QueueDriver)
 	processorInst = worker.NewProcessor(store.NewRepository(db))
-
 	return processorInst, nil
 }
 

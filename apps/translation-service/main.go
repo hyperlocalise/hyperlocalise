@@ -1,20 +1,24 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	translationservice "github.com/quiet-circles/hyperlocalise/api/services/translation"
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
+	queueprovider "github.com/quiet-circles/hyperlocalise/internal/translation/queue/provider"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc"
 )
+
+const startupTimeout = 5 * time.Second
 
 func main() {
 	cfg := translationconfig.LoadServiceConfig()
@@ -33,7 +37,26 @@ func main() {
 	}()
 
 	repository := store.NewRepository(db)
-	publisher := queue.NewStubPublisher(cfg.QueueDriver)
+	startupCtx, cancel := context.WithTimeout(context.Background(), startupTimeout)
+	defer cancel()
+
+	publisher, err := queueprovider.NewPublisher(startupCtx, queueprovider.Config{
+		Driver:             cfg.QueueDriver,
+		GCPPubSubProjectID: cfg.GCPPubSubProjectID,
+		GCPPubSubTopicID:   cfg.GCPPubSubTopicID,
+	})
+	if err != nil {
+		if startupCtx.Err() == context.DeadlineExceeded {
+			log.Fatalf("create publisher timed out after %s: %v", startupTimeout, err)
+		}
+		log.Fatalf("create publisher: %v", err)
+	}
+	defer func() {
+		if closeErr := publisher.Close(); closeErr != nil {
+			log.Printf("close publisher: %v", closeErr)
+		}
+	}()
+
 	app := translationapp.NewService(repository, publisher, cfg.QueueDriver)
 
 	listener, err := net.Listen("tcp", cfg.ListenAddr)
