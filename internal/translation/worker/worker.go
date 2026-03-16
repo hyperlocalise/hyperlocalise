@@ -22,7 +22,9 @@ type Processor struct {
 	clock      func() time.Time
 }
 
-// NewProcessor constructs a translation worker processor.
+// NewProcessor constructs a translation worker Processor that uses the provided
+// repository and string executor. The returned Processor has its clock initialized
+// to the current UTC time.
 func NewProcessor(repository *store.Repository, executor stringExecutor) *Processor {
 	return &Processor{
 		repository: repository,

@@ -36,7 +36,9 @@ func init() {
 	functions.CloudEvent("HandleJobQueued", HandleJobQueued)
 }
 
-// HandleJobQueued processes one Pub/Sub CloudEvent for a queued translation job.
+// HandleJobQueued handles a Pub/Sub CloudEvent for a queued translation job.
+// It decodes the event payload, obtains the shared processor, and dispatches the job for processing.
+// It returns an error if processor initialization, payload decoding, or job processing fails.
 func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 	processor, err := getProcessor()
 	if err != nil {
@@ -51,7 +53,14 @@ func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 	return processor.ProcessJobQueuedEvent(ctx, payload)
 }
 
-// getProcessor initializes and memoizes the shared worker processor instance.
+// getProcessor initializes and returns the shared worker.Processor singleton.
+//
+// It acquires an internal mutex to ensure a single instance is created and memoized
+// for the lifetime of the process. The function loads worker configuration, requires
+// that DATABASE_URL is set, opens a PostgreSQL connection, and constructs a translator
+// executor from LLM-related configuration before creating the processor. Initialization
+// details (queue driver, LLM provider, and model) are logged. If any step fails, an
+// error is returned.
 func getProcessor() (*worker.Processor, error) {
 	processorMu.Lock()
 	defer processorMu.Unlock()
@@ -93,7 +102,12 @@ func getProcessor() (*worker.Processor, error) {
 	return processorInst, nil
 }
 
-// decodePayload unmarshals the queued job payload from the Pub/Sub envelope.
+// decodePayload decodes and validates a JobQueuedPayload from a Pub/Sub CloudEvent envelope.
+// 
+// It extracts the Pub/Sub envelope from the CloudEvent, decodes the base64-encoded
+// message data, unmarshals the JSON into a translationapp.JobQueuedPayload, and
+// returns an error if the envelope is malformed, the message data cannot be decoded
+// or unmarshaled, or the resulting payload is missing JobID or ProjectID.
 func decodePayload(cloudEvent cloudevent.Event) (translationapp.JobQueuedPayload, error) {
 	var payload translationapp.JobQueuedPayload
 

@@ -36,7 +36,7 @@ func LoadServiceConfig() ServiceConfig {
 	}
 }
 
-// LoadWorkerConfig loads the runtime configuration for the translation worker runtime.
+// - TRANSLATION_LLM_USER_PROMPT -> LLMUserPrompt
 func LoadWorkerConfig() WorkerConfig {
 	return WorkerConfig{
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
@@ -48,7 +48,7 @@ func LoadWorkerConfig() WorkerConfig {
 	}
 }
 
-// lookupEnv returns the configured value for key or the fallback when unset.
+// lookupEnv returns the value of the environment variable named by key if it is non-empty; otherwise it returns fallback.
 func lookupEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value

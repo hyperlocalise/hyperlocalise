@@ -35,7 +35,10 @@ type translatorExecutor struct {
 	config Config
 }
 
-// NewTranslatorExecutor constructs the default translator-backed string executor.
+// NewTranslatorExecutor creates a translator-backed string executor configured from cfg.
+// It normalizes and lowercases cfg.Provider, requires a non-empty provider and model, and verifies the provider is allowed.
+// The function initializes a translator.Tool and returns a translatorExecutor populated with the normalized provider,
+// trimmed model, and supplied prompts. An error is returned if validation fails or the translator tool cannot be created.
 func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 	provider := strings.TrimSpace(strings.ToLower(cfg.Provider))
 	if provider == "" {
