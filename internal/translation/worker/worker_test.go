@@ -151,3 +151,28 @@ func TestNewTranslatorExecutorAcceptsRemoteProvider(t *testing.T) {
 		t.Fatal("expected executor")
 	}
 }
+
+func TestIsTerminalStatus(t *testing.T) {
+	if !isTerminalStatus(store.JobStatusSucceeded) {
+		t.Fatal("expected succeeded to be terminal")
+	}
+	if !isTerminalStatus(store.JobStatusFailed) {
+		t.Fatal("expected failed to be terminal")
+	}
+	if isTerminalStatus(store.JobStatusRunning) {
+		t.Fatal("did not expect running to be terminal")
+	}
+}
+
+func TestTerminalOutcomeMatches(t *testing.T) {
+	job := &store.TranslationJobModel{
+		OutcomeKind:    "string_result",
+		OutcomePayload: []byte(`{"translations":[{"locale":"fr","text":"bonjour"}]}`),
+	}
+	if !terminalOutcomeMatches(job, "string_result", []byte(`{"translations":[{"locale":"fr","text":"bonjour"}]}`)) {
+		t.Fatal("expected matching terminal outcome")
+	}
+	if terminalOutcomeMatches(job, "error", []byte(`{}`)) {
+		t.Fatal("did not expect mismatched terminal outcome")
+	}
+}

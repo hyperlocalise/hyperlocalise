@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -42,17 +43,12 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 		return fmt.Errorf("load queued translation job %s: %w", payload.JobID, err)
 	}
 
-	if err := p.repository.UpdateJobStatus(
-		ctx,
-		p.repository.DB(),
-		job.ID,
-		store.JobStatusQueued,
-		store.JobStatusRunning,
-		"",
-		nil,
-		nil,
-	); err != nil {
+	job, err = p.ensureJobRunning(ctx, job)
+	if err != nil {
 		return fmt.Errorf("process translation job %s: %w", job.ID, err)
+	}
+	if isTerminalStatus(job.Status) {
+		return p.finishProcessedEvent(ctx, job.ID, payload.EventID)
 	}
 
 	outcomeKind, outcomePayload, completedAt, outcomeErr := p.buildOutcome(ctx, job)
@@ -61,30 +57,12 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 			return fmt.Errorf("process translation job %s: %w", job.ID, failErr)
 		}
 	} else {
-		if err := p.repository.UpdateJobStatus(
-			ctx,
-			p.repository.DB(),
-			job.ID,
-			store.JobStatusRunning,
-			store.JobStatusSucceeded,
-			outcomeKind,
-			outcomePayload,
-			&completedAt,
-		); err != nil {
+		if err := p.completeJobSuccess(ctx, job, outcomeKind, outcomePayload, completedAt); err != nil {
 			return fmt.Errorf("process translation job %s: %w", job.ID, err)
 		}
 	}
 
-	if payload.EventID != "" {
-		processedAt := p.clock()
-		if err := p.repository.MarkOutboxEventProcessed(ctx, payload.EventID, processedAt); err != nil {
-			return err
-		}
-	}
-
-	log.Printf("processed translation job %s from outbox event %s", job.ID, payload.EventID)
-
-	return nil
+	return p.finishProcessedEvent(ctx, job.ID, payload.EventID)
 }
 
 // buildOutcome executes the job payload and returns the terminal outcome payload.
@@ -147,19 +125,149 @@ func (p *Processor) failJob(ctx context.Context, job *store.TranslationJobModel,
 		return fmt.Errorf("encode failed job payload: %w", err)
 	}
 
-	if err := p.repository.UpdateJobStatus(
+	if err := p.persistTerminalStatus(
 		ctx,
-		p.repository.DB(),
-		job.ID,
-		store.JobStatusRunning,
+		job,
 		store.JobStatusFailed,
 		"error",
 		payload,
-		&completedAt,
+		completedAt,
 	); err != nil {
 		return fmt.Errorf("mark job failed: %w", err)
 	}
 
 	log.Printf("translation job %s failed: %v", job.ID, outcomeErr)
 	return nil
+}
+
+// ensureJobRunning advances a queued job to running or accepts an already-running job.
+func (p *Processor) ensureJobRunning(
+	ctx context.Context,
+	job *store.TranslationJobModel,
+) (*store.TranslationJobModel, error) {
+	current, err := p.repository.GetJob(ctx, job.ID, job.ProjectID)
+	if err != nil {
+		return nil, fmt.Errorf("refresh translation job: %w", err)
+	}
+
+	switch current.Status {
+	case store.JobStatusRunning, store.JobStatusSucceeded, store.JobStatusFailed:
+		return current, nil
+	case store.JobStatusQueued:
+		err := p.repository.UpdateJobStatus(
+			ctx,
+			p.repository.DB(),
+			current.ID,
+			store.JobStatusQueued,
+			store.JobStatusRunning,
+			"",
+			nil,
+			nil,
+		)
+		if err == nil {
+			current.Status = store.JobStatusRunning
+			return current, nil
+		}
+		if !errors.Is(err, store.ErrNotFound) {
+			return nil, err
+		}
+
+		current, refreshErr := p.repository.GetJob(ctx, job.ID, job.ProjectID)
+		if refreshErr != nil {
+			return nil, fmt.Errorf("refresh translation job after queued transition: %w", refreshErr)
+		}
+		if current.Status == store.JobStatusRunning || isTerminalStatus(current.Status) {
+			return current, nil
+		}
+		return nil, err
+	default:
+		return nil, fmt.Errorf("unsupported translation job status %q", current.Status)
+	}
+}
+
+// completeJobSuccess stores the success outcome while tolerating retry races.
+func (p *Processor) completeJobSuccess(
+	ctx context.Context,
+	job *store.TranslationJobModel,
+	outcomeKind string,
+	outcomePayload []byte,
+	completedAt time.Time,
+) error {
+	return p.persistTerminalStatus(ctx, job, store.JobStatusSucceeded, outcomeKind, outcomePayload, completedAt)
+}
+
+// persistTerminalStatus writes a terminal job outcome and tolerates replay races.
+func (p *Processor) persistTerminalStatus(
+	ctx context.Context,
+	job *store.TranslationJobModel,
+	newStatus string,
+	outcomeKind string,
+	outcomePayload []byte,
+	completedAt time.Time,
+) error {
+	err := p.repository.UpdateJobStatus(
+		ctx,
+		p.repository.DB(),
+		job.ID,
+		store.JobStatusRunning,
+		newStatus,
+		outcomeKind,
+		outcomePayload,
+		&completedAt,
+	)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, store.ErrNotFound) {
+		return err
+	}
+
+	current, refreshErr := p.repository.GetJob(ctx, job.ID, job.ProjectID)
+	if refreshErr != nil {
+		return fmt.Errorf("refresh translation job after terminal transition: %w", refreshErr)
+	}
+	if current.Status == newStatus && terminalOutcomeMatches(current, outcomeKind, outcomePayload) {
+		return nil
+	}
+	if current.Status != store.JobStatusRunning {
+		return err
+	}
+
+	return p.repository.UpdateJobStatus(
+		ctx,
+		p.repository.DB(),
+		job.ID,
+		store.JobStatusRunning,
+		newStatus,
+		outcomeKind,
+		outcomePayload,
+		&completedAt,
+	)
+}
+
+// finishProcessedEvent marks the queue event processed after the job is terminal.
+func (p *Processor) finishProcessedEvent(ctx context.Context, jobID, eventID string) error {
+	if eventID != "" {
+		processedAt := p.clock()
+		if err := p.repository.MarkOutboxEventProcessed(ctx, eventID, processedAt); err != nil {
+			return err
+		}
+	}
+
+	log.Printf("processed translation job %s from outbox event %s", jobID, eventID)
+	return nil
+}
+
+// isTerminalStatus reports whether a persisted job status is terminal.
+func isTerminalStatus(status string) bool {
+	return status == store.JobStatusSucceeded || status == store.JobStatusFailed
+}
+
+// terminalOutcomeMatches checks whether a persisted terminal outcome matches the expected value.
+func terminalOutcomeMatches(job *store.TranslationJobModel, outcomeKind string, outcomePayload []byte) bool {
+	if job == nil {
+		return false
+	}
+
+	return job.OutcomeKind == outcomeKind && bytes.Equal(job.OutcomePayload, outcomePayload)
 }
