@@ -1,24 +1,29 @@
 package cache
 
 import (
+	"context"
+	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/quiet-circles/hyperlocalise/pkg/i18nconfig"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"github.com/uptrace/bun/driver/sqliteshim"
 )
 
 func TestNewFromConfigMigratesLegacyTMTableWithConstraints(t *testing.T) {
 	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "cache.sqlite")
-	legacyDB, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+
+	// Create legacy table using raw SQL
+	sqldb, err := sql.Open(sqliteshim.ShimName, dbPath)
 	if err != nil {
 		t.Fatalf("open legacy db: %v", err)
 	}
-	if err := legacyDB.Exec(`CREATE TABLE translation_memory_entries (
+	t.Cleanup(func() { _ = sqldb.Close() })
+
+	_, err = sqldb.Exec(`CREATE TABLE translation_memory_entries (
 id integer PRIMARY KEY AUTOINCREMENT,
 source_locale text NOT NULL,
 target_locale text NOT NULL,
@@ -29,20 +34,16 @@ provenance text NOT NULL DEFAULT 'unknown',
 source text NOT NULL DEFAULT 'unknown',
 created_at datetime,
 updated_at datetime
-)`).Error; err != nil {
+)`)
+	if err != nil {
 		t.Fatalf("create legacy tm table: %v", err)
 	}
-	if err := legacyDB.Exec(`INSERT INTO translation_memory_entries
+
+	_, err = sqldb.Exec(`INSERT INTO translation_memory_entries
 (source_locale, target_locale, source_text, translated_text, score, provenance, source)
-VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`).Error; err != nil {
-		t.Fatalf("seed legacy row: %v", err)
-	}
-	sqlDB, err := legacyDB.DB()
+VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`)
 	if err != nil {
-		t.Fatalf("resolve legacy sql db: %v", err)
-	}
-	if err := sqlDB.Close(); err != nil {
-		t.Fatalf("close legacy sql db: %v", err)
+		t.Fatalf("seed legacy row: %v", err)
 	}
 
 	svc, err := NewFromConfig(config.CacheConfig{
@@ -57,7 +58,7 @@ VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`).E
 	t.Cleanup(func() { _ = svc.Close() })
 
 	var createSQL string
-	if err := svc.db.Raw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(&createSQL).Error; err != nil {
+	if err := svc.db.NewRaw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(context.Background(), &createSQL); err != nil {
 		t.Fatalf("load tm table schema: %v", err)
 	}
 	schemaSQL := strings.ToLower(createSQL)
@@ -69,7 +70,10 @@ VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`).E
 	}
 
 	var row TranslationMemoryEntry
-	if err := svc.db.Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Hello").Take(&row).Error; err != nil {
+	if err := svc.db.NewSelect().
+		Model(&row).
+		Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Hello").
+		Scan(context.Background()); err != nil {
 		t.Fatalf("load migrated row: %v", err)
 	}
 	if row.Provenance != TMProvenanceUnknown {

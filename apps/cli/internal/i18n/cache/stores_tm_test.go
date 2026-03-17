@@ -29,7 +29,10 @@ func TestTMUpsertPersistsProvenanceAndSource(t *testing.T) {
 	}
 
 	var row TranslationMemoryEntry
-	if err := svc.db.Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Hello").Take(&row).Error; err != nil {
+	if err := svc.db.NewSelect().
+		Model(&row).
+		Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Hello").
+		Scan(context.Background()); err != nil {
 		t.Fatalf("load tm row: %v", err)
 	}
 	if row.Provenance != TMProvenanceCurated {
@@ -469,7 +472,10 @@ func TestTMUpsertConcurrentWritersKeepSingleCanonicalRow(t *testing.T) {
 	}
 
 	var rows []TranslationMemoryEntry
-	if err := svc.db.Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Concurrent key").Find(&rows).Error; err != nil {
+	if err := svc.db.NewSelect().
+		Model(&rows).
+		Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Concurrent key").
+		Scan(context.Background()); err != nil {
 		t.Fatalf("load concurrent tm rows: %v", err)
 	}
 	if len(rows) != 1 {

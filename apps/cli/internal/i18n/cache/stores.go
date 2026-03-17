@@ -2,14 +2,14 @@ package cache
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"github.com/uptrace/bun"
 )
 
 const (
@@ -43,23 +43,30 @@ func (noopRetriever) Retrieve(_ context.Context, _ string, _ int) ([]RAGDocument
 }
 
 type exactSQLiteStore struct {
-	db       *gorm.DB
+	db       *bun.DB
 	maxItems int
 }
 
 func (s *exactSQLiteStore) Get(ctx context.Context, key string) (string, bool, error) {
 	var row ExactCacheEntry
-	if err := s.db.WithContext(ctx).Where("cache_key = ?", key).Take(&row).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	err := s.db.NewSelect().
+		Model(&row).
+		Where("cache_key = ?", key).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
 			return "", false, nil
 		}
 		return "", false, fmt.Errorf("lookup exact cache: %w", err)
 	}
-	if err := s.db.WithContext(ctx).Model(&ExactCacheEntry{}).Where("id = ?", row.ID).Update("updated_at", time.Now().UTC()).Error; err != nil {
-		// Non-fatal: keep serving valid cache hits even if metadata touch fails.
-		// This only affects LRU recency ordering for eviction.
-		_ = err
-	}
+
+	// Update timestamp (non-fatal: keep serving valid cache hits even if touch fails)
+	_, _ = s.db.NewUpdate().
+		Model((*ExactCacheEntry)(nil)).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", row.ID).
+		Exec(ctx)
+
 	return row.Value, true, nil
 }
 
@@ -72,10 +79,26 @@ func (s *exactSQLiteStore) Put(ctx context.Context, write ExactCacheWrite) error
 		Model:        write.Model,
 		SourceHash:   write.SourceHash,
 		Value:        write.Value,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
 	}
-	if err := s.db.WithContext(ctx).Where("cache_key = ?", write.Key).Assign(entry).FirstOrCreate(&entry).Error; err != nil {
+
+	// Upsert: Insert or Update on conflict
+	_, err := s.db.NewInsert().
+		Model(&entry).
+		On("CONFLICT (cache_key) DO UPDATE").
+		Set("source_locale = EXCLUDED.source_locale").
+		Set("target_locale = EXCLUDED.target_locale").
+		Set("provider = EXCLUDED.provider").
+		Set("model = EXCLUDED.model").
+		Set("source_hash = EXCLUDED.source_hash").
+		Set("value = EXCLUDED.value").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
+	if err != nil {
 		return fmt.Errorf("upsert exact cache: %w", err)
 	}
+
 	if s.maxItems > 0 {
 		if err := s.evictIfNeeded(ctx); err != nil {
 			return err
@@ -85,29 +108,46 @@ func (s *exactSQLiteStore) Put(ctx context.Context, write ExactCacheWrite) error
 }
 
 func (s *exactSQLiteStore) evictIfNeeded(ctx context.Context) error {
-	var count int64
-	if err := s.db.WithContext(ctx).Model(&ExactCacheEntry{}).Count(&count).Error; err != nil {
+	count, err := s.db.NewSelect().
+		Model((*ExactCacheEntry)(nil)).
+		Count(ctx)
+	if err != nil {
 		return fmt.Errorf("count exact cache entries: %w", err)
 	}
-	overflow := int(count) - s.maxItems
+
+	overflow := count - s.maxItems
 	if overflow <= 0 {
 		return nil
 	}
-	var oldIDs []uint
-	if err := s.db.WithContext(ctx).Model(&ExactCacheEntry{}).Order("updated_at asc").Limit(overflow).Pluck("id", &oldIDs).Error; err != nil {
+
+	var oldIDs []uint64
+	err = s.db.NewSelect().
+		Model((*ExactCacheEntry)(nil)).
+		Column("id").
+		Order("updated_at ASC").
+		Limit(overflow).
+		Scan(ctx, &oldIDs)
+	if err != nil {
 		return fmt.Errorf("select exact cache eviction candidates: %w", err)
 	}
+
 	if len(oldIDs) == 0 {
 		return nil
 	}
-	if err := s.db.WithContext(ctx).Delete(&ExactCacheEntry{}, oldIDs).Error; err != nil {
+
+	_, err = s.db.NewDelete().
+		Model((*ExactCacheEntry)(nil)).
+		Where("id IN (?)", bun.List(oldIDs)).
+		Exec(ctx)
+	if err != nil {
 		return fmt.Errorf("evict exact cache entries: %w", err)
 	}
+
 	return nil
 }
 
 type tmSQLiteStore struct {
-	db                  *gorm.DB
+	db                  *bun.DB
 	autoAcceptThreshold float64
 }
 
@@ -128,6 +168,7 @@ func (s *tmSQLiteStore) Upsert(ctx context.Context, write TMWrite) error {
 	if err != nil {
 		return fmt.Errorf("normalize tm source: %w", err)
 	}
+
 	entry := TranslationMemoryEntry{
 		SourceLocale:   write.SourceLocale,
 		TargetLocale:   write.TargetLocale,
@@ -136,21 +177,24 @@ func (s *tmSQLiteStore) Upsert(ctx context.Context, write TMWrite) error {
 		Score:          write.Score,
 		Provenance:     provenance,
 		Source:         source,
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
 	}
-	if err := s.db.WithContext(ctx).
-		Clauses(clause.OnConflict{
-			Columns: []clause.Column{
-				{Name: "source_locale"},
-				{Name: "target_locale"},
-				{Name: "source_text"},
-			},
-			DoUpdates: clause.AssignmentColumns([]string{
-				"translated_text", "score", "provenance", "source", "updated_at",
-			}),
-		}).
-		Create(&entry).Error; err != nil {
+
+	// Upsert with ON CONFLICT DO UPDATE
+	_, err = s.db.NewInsert().
+		Model(&entry).
+		On("CONFLICT (source_locale, target_locale, source_text) DO UPDATE").
+		Set("translated_text = EXCLUDED.translated_text").
+		Set("score = EXCLUDED.score").
+		Set("provenance = EXCLUDED.provenance").
+		Set("source = EXCLUDED.source").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
+	if err != nil {
 		return fmt.Errorf("upsert translation memory entry: %w", err)
 	}
+
 	return nil
 }
 
@@ -177,11 +221,12 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	minLen := int(float64(queryLen) * (1 - tmLengthFilterRatio))
 	maxLen := int(float64(queryLen) / (1 - tmLengthFilterRatio))
 
-	rows, err := s.db.WithContext(ctx).
-		Model(&TranslationMemoryEntry{}).
-		Where("source_locale = ? AND target_locale = ? AND LENGTH(source_text) BETWEEN ? AND ?",
-			sourceLocale, targetLocale, minLen, maxLen).
-		Rows()
+	rows, err := s.db.NewSelect().
+		Model((*TranslationMemoryEntry)(nil)).
+		Where("source_locale = ?", sourceLocale).
+		Where("target_locale = ?", targetLocale).
+		Where("LENGTH(source_text) BETWEEN ? AND ?", minLen, maxLen).
+		Rows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("lookup translation memory entries: %w", err)
 	}
@@ -193,7 +238,7 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	results := make([]TMResult, 0, limit)
 	for rows.Next() {
 		var row TranslationMemoryEntry
-		if err := s.db.ScanRows(rows, &row); err != nil {
+		if err := s.db.ScanRow(ctx, rows, &row); err != nil {
 			return nil, fmt.Errorf("scan translation memory row: %w", err)
 		}
 		rowRunes := []rune(strings.ToLower(strings.TrimSpace(row.SourceText)))
@@ -226,6 +271,7 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate translation memory rows: %w", err)
 	}
+
 	return results, nil
 }
 
