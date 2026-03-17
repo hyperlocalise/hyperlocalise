@@ -304,10 +304,12 @@ func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values
 			continue
 		}
 		if _, ok := merged[p.key]; !ok && si < len(targetParts) {
-			// Expand the target part's own placeholders to get the raw translated
-			// HTML content (literal tags restored), then store it as the value for
-			// the source key. render() will treat it as an already-expanded string.
-			merged[p.key] = expandHTMLPlaceholders(targetParts[si].source, targetParts[si].placeholders)
+			// Store the target's placeholderized source directly. render() will
+			// check that all source placeholder tokens are present (they match when
+			// inline tags are identical, since tokens are keyed on tag literal +
+			// counter) and then expand them. Storing already-expanded HTML would
+			// cause the placeholder-present check in render() to always fail.
+			merged[p.key] = targetParts[si].source
 		}
 		si++
 	}
