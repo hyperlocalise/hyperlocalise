@@ -91,6 +91,14 @@
         },
       ],
     },
+    "tests_html": {
+      "files": [
+        {
+          "from": "tests/html/en-US.html",
+          "to": "tests/html/[locale].html",
+        },
+      ],
+    },
     "tests_md": {
       "files": [
         {
@@ -154,6 +162,7 @@
         "tests_xlif",
         "tests_xliff",
         "tests_po",
+        "tests_html",
         "tests_md",
         "tests_mdx",
         "tests_strings",

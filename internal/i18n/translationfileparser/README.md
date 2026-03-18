@@ -9,6 +9,7 @@
 - `.arb` via `ARBParser` (Flutter Application Resource Bundle)
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
+- `.html` via `HTMLParser`
 - `.md` / `.mdx` via `MarkdownParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
@@ -16,7 +17,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings and Markdown/MDX parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -55,6 +56,16 @@
 - For plural forms, uses `msgstr[0]` as the mapped value.
 - Skips header entry (`msgid ""`).
 - Ignores comments and `msgctxt` for now.
+
+### HTML
+
+- Extracts text content from elements bounded by open/close tags (e.g. `<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.).
+- Keys are stable SHA-256 hashes of the segment source: `html.a1b2c3d4e5f6g7h8`.
+- Inline tags within a translatable segment (`<strong>`, `<em>`, `<a>`, `<span>`, etc.) are replaced with sentinel placeholders so the LLM translates clean prose; placeholders are restored on marshal.
+- `<script>`, `<style>`, and `<head>` content is never extracted.
+- HTML comments and whitespace-only text nodes are emitted verbatim.
+- HTML entities (`&amp;`, `&lt;`, `&#39;`, etc.) are preserved as-is through the translation round-trip.
+- `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold, substituting translated values and restoring all inline-tag placeholders.
 
 ### Markdown
 

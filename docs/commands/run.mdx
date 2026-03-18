@@ -27,9 +27,11 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.arb`
 - `.xlf` and `.xliff`
 - `.po`
+- `.html`
 - `.md`
 - `.mdx`
 - `.strings`
+- `.stringsdict`
 - `.csv`
 
 For JSON (`.json`), `run` supports:
@@ -50,6 +52,13 @@ For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and prese
 - Markdown anchors such as link destinations
 - MDX `import` and `export` lines
 - JSX/MDX component tags and attribute values
+
+For HTML (`.html`), `run` translates text content inside block-level elements:
+
+- `<script>`, `<style>`, `<pre>`, and `<head>` content is never translated and is preserved verbatim
+- inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) — tag markup is protected as placeholders and restored verbatim after translation, but the surrounding prose **is** translated
+- HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip
+- HTML comments are preserved verbatim
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 

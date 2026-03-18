@@ -15,7 +15,7 @@ import (
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".html":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -28,6 +28,9 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string) ([]byte, []string, error) {
 	if ext == ".md" || ext == ".mdx" {
 		return s.marshalMarkdownTarget(path, sourcePath, stagedEntries)
+	}
+	if ext == ".html" {
+		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
 	}
 	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".arb" {
 		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
@@ -138,6 +141,41 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 
 	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries, mdx)
 	return content, markdownRenderWarnings(path, diags), nil
+}
+
+func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
+			return content, htmlRenderWarnings(path, diags), nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	content, diags := translationfileparser.MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate, stagedEntries)
+	return content, htmlRenderWarnings(path, diags), nil
+}
+
+func htmlRenderWarnings(path string, diags translationfileparser.HTMLRenderDiagnostics) []string {
+	if len(diags.SourceFallbackKeys) == 0 {
+		return nil
+	}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	// Compact is a defensive guard: each key should appear at most once because
+	// every htmlPart has a unique key. If that invariant ever breaks, Compact
+	// ensures len(keys) reflects unique keys, not total fallback occurrences.
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func markdownRenderWarnings(path string, diags translationfileparser.MarkdownRenderDiagnostics) []string {
