@@ -209,8 +209,11 @@ func (r *Repository) ListPendingOutboxEvents(ctx context.Context, now time.Time,
 	var events []OutboxEventModel
 	err := r.db.NewSelect().
 		Model((*OutboxEventModel)(nil)).
-		Where("oe.status = ?", OutboxStatusPending).
-		Where("oe.next_attempt_at <= ?", now).
+		Where(
+			"((oe.status = ? AND oe.next_attempt_at <= ?) OR (oe.status = ? AND oe.claim_expires_at <= ?))",
+			OutboxStatusPending, now,
+			OutboxStatusProcessing, now,
+		).
 		OrderExpr("oe.next_attempt_at ASC").
 		OrderExpr("oe.created_at ASC").
 		Limit(limit).
@@ -242,8 +245,11 @@ func (r *Repository) ClaimOutboxEvent(
 		Set("claim_expires_at = ?", claimExpiresAt).
 		Set("updated_at = ?", now).
 		Where("id = ?", eventID).
-		Where("status = ?", OutboxStatusPending).
-		Where("next_attempt_at <= ?", now).
+		Where(
+			"((status = ? AND next_attempt_at <= ?) OR (status = ? AND claim_expires_at <= ?))",
+			OutboxStatusPending, now,
+			OutboxStatusProcessing, now,
+		).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("claim outbox event: %w", err)
@@ -261,8 +267,8 @@ func (r *Repository) ClaimOutboxEvent(
 }
 
 // MarkOutboxEventProcessed marks a queued event as handled by the worker.
-func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID string, processedAt time.Time) error {
-	result, err := r.db.NewUpdate().
+func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID, workerID string, processedAt time.Time) error {
+	query := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusProcessed).
 		Set("updated_at = ?", processedAt).
@@ -270,8 +276,11 @@ func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID strin
 		Set("claimed_by = ''").
 		Set("claimed_at = NULL").
 		Set("claim_expires_at = NULL").
-		Where("id = ?", eventID).
-		Exec(ctx)
+		Where("id = ?", eventID)
+	if workerID != "" {
+		query = query.Where("claimed_by = ?", workerID)
+	}
+	result, err := query.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("mark outbox event processed: %w", err)
 	}
@@ -290,12 +299,12 @@ func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID strin
 // ScheduleOutboxEventRetry releases an event back to the queue with backoff metadata.
 func (r *Repository) ScheduleOutboxEventRetry(
 	ctx context.Context,
-	eventID string,
+	eventID, workerID string,
 	attemptCount int,
 	nextAttemptAt time.Time,
 	lastError string,
 ) error {
-	result, err := r.db.NewUpdate().
+	query := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusPending).
 		Set("attempt_count = ?", attemptCount).
@@ -305,8 +314,11 @@ func (r *Repository) ScheduleOutboxEventRetry(
 		Set("claimed_at = NULL").
 		Set("claim_expires_at = NULL").
 		Set("updated_at = ?", time.Now().UTC()).
-		Where("id = ?", eventID).
-		Exec(ctx)
+		Where("id = ?", eventID)
+	if workerID != "" {
+		query = query.Where("claimed_by = ?", workerID)
+	}
+	result, err := query.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("schedule outbox event retry: %w", err)
 	}
@@ -325,12 +337,12 @@ func (r *Repository) ScheduleOutboxEventRetry(
 // MarkOutboxEventDeadLettered marks a queued event as exhausted and terminal.
 func (r *Repository) MarkOutboxEventDeadLettered(
 	ctx context.Context,
-	eventID string,
+	eventID, workerID string,
 	at time.Time,
 	attemptCount int,
 	lastError string,
 ) error {
-	result, err := r.db.NewUpdate().
+	query := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusDeadLettered).
 		Set("attempt_count = ?", attemptCount).
@@ -341,8 +353,11 @@ func (r *Repository) MarkOutboxEventDeadLettered(
 		Set("claimed_at = NULL").
 		Set("claim_expires_at = NULL").
 		Set("updated_at = ?", at).
-		Where("id = ?", eventID).
-		Exec(ctx)
+		Where("id = ?", eventID)
+	if workerID != "" {
+		query = query.Where("claimed_by = ?", workerID)
+	}
+	result, err := query.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("mark outbox event dead-lettered: %w", err)
 	}

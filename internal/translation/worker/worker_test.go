@@ -91,45 +91,63 @@ func (r *fakeRepository) SaveRunningJobCheckpoint(_ context.Context, jobID, expe
 	return nil
 }
 
-func (r *fakeRepository) MarkOutboxEventProcessed(_ context.Context, eventID string, processedAt time.Time) error {
+func (r *fakeRepository) MarkOutboxEventProcessed(_ context.Context, eventID, workerID string, processedAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	event, ok := r.events[eventID]
 	if !ok {
 		return store.ErrNotFound
 	}
+	if workerID != "" && event.ClaimedBy != workerID {
+		return store.ErrNotFound
+	}
 	event.Status = store.OutboxStatusProcessed
 	event.ProcessedAt = &processedAt
+	event.ClaimedBy = ""
+	event.ClaimedAt = nil
+	event.ClaimExpiresAt = nil
 	r.processed = append(r.processed, eventID)
 	return nil
 }
 
-func (r *fakeRepository) ScheduleOutboxEventRetry(_ context.Context, eventID string, attemptCount int, nextAttemptAt time.Time, lastError string) error {
+func (r *fakeRepository) ScheduleOutboxEventRetry(_ context.Context, eventID, workerID string, attemptCount int, nextAttemptAt time.Time, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	event, ok := r.events[eventID]
 	if !ok {
+		return store.ErrNotFound
+	}
+	if workerID != "" && event.ClaimedBy != workerID {
 		return store.ErrNotFound
 	}
 	event.Status = store.OutboxStatusPending
 	event.AttemptCount = attemptCount
 	event.NextAttemptAt = nextAttemptAt
 	event.LastError = lastError
+	event.ClaimedBy = ""
+	event.ClaimedAt = nil
+	event.ClaimExpiresAt = nil
 	r.retried = append(r.retried, eventID)
 	return nil
 }
 
-func (r *fakeRepository) MarkOutboxEventDeadLettered(_ context.Context, eventID string, at time.Time, attemptCount int, lastError string) error {
+func (r *fakeRepository) MarkOutboxEventDeadLettered(_ context.Context, eventID, workerID string, at time.Time, attemptCount int, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	event, ok := r.events[eventID]
 	if !ok {
 		return store.ErrNotFound
 	}
+	if workerID != "" && event.ClaimedBy != workerID {
+		return store.ErrNotFound
+	}
 	event.Status = store.OutboxStatusDeadLettered
 	event.AttemptCount = attemptCount
 	event.LastError = lastError
 	event.DeadLetteredAt = &at
+	event.ClaimedBy = ""
+	event.ClaimedAt = nil
+	event.ClaimExpiresAt = nil
 	r.deadLettered = append(r.deadLettered, eventID)
 	return nil
 }
@@ -139,7 +157,8 @@ func (r *fakeRepository) ListPendingOutboxEvents(_ context.Context, now time.Tim
 	defer r.mu.Unlock()
 	ids := make([]string, 0, len(r.events))
 	for id, event := range r.events {
-		if event.Status == store.OutboxStatusPending && !event.NextAttemptAt.After(now) {
+		if (event.Status == store.OutboxStatusPending && !event.NextAttemptAt.After(now)) ||
+			(event.Status == store.OutboxStatusProcessing && event.ClaimExpiresAt != nil && !event.ClaimExpiresAt.After(now)) {
 			ids = append(ids, id)
 		}
 	}
@@ -158,7 +177,12 @@ func (r *fakeRepository) ClaimOutboxEvent(_ context.Context, eventID, workerID s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	event, ok := r.events[eventID]
-	if !ok || event.Status != store.OutboxStatusPending || event.NextAttemptAt.After(now) {
+	if !ok {
+		return store.ErrNotFound
+	}
+	isPendingReady := event.Status == store.OutboxStatusPending && !event.NextAttemptAt.After(now)
+	isExpiredLease := event.Status == store.OutboxStatusProcessing && event.ClaimExpiresAt != nil && !event.ClaimExpiresAt.After(now)
+	if !isPendingReady && !isExpiredLease {
 		return store.ErrNotFound
 	}
 	event.Status = store.OutboxStatusProcessing
@@ -437,6 +461,73 @@ func TestRunnerProcessesClaimedEventsInParallel(t *testing.T) {
 		if event.Status != store.OutboxStatusProcessed {
 			t.Fatalf("expected processed event, got %s", event.Status)
 		}
+	}
+}
+
+func TestRunnerReclaimsExpiredLease(t *testing.T) {
+	repo := newFakeRepository()
+	payload, err := json.Marshal(translationapp.JobQueuedPayload{JobID: "job-1", ProjectID: "proj", AttemptCount: 1, MaxAttempts: 5})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	expiredAt := time.Unix(1699999990, 0).UTC()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: mustStringInput(t, "Hello", "fr")}
+	repo.events["evt-1"] = &store.OutboxEventModel{
+		ID:             "evt-1",
+		Payload:        payload,
+		Status:         store.OutboxStatusProcessing,
+		ClaimedBy:      "stale-worker",
+		ClaimExpiresAt: &expiredAt,
+		MaxAttempts:    5,
+	}
+
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return task.TargetLocale + ":ok", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+	}})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	runner := NewRunner(repo, processor, RunnerConfig{WorkerID: "runner-2", WorkerCount: 1, BatchSize: 1, LeaseDuration: time.Minute})
+	runner.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	processed, err := runner.ProcessAvailable(context.Background())
+	if err != nil {
+		t.Fatalf("process available: %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("expected 1 processed event, got %d", processed)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusProcessed {
+		t.Fatalf("expected reclaimed event processed, got %s", repo.events["evt-1"].Status)
+	}
+}
+
+func TestRunnerJoinsWorkerErrors(t *testing.T) {
+	repo := newFakeRepository()
+	for idx := 0; idx < 2; idx++ {
+		eventID := fmt.Sprintf("evt-%d", idx)
+		repo.events[eventID] = &store.OutboxEventModel{
+			ID:            eventID,
+			Payload:       []byte("{"),
+			Status:        store.OutboxStatusPending,
+			NextAttemptAt: time.Unix(1700000000, 0).UTC(),
+			MaxAttempts:   5,
+		}
+	}
+
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return "", RoutingDecision{}, nil
+	}})
+	runner := NewRunner(repo, processor, RunnerConfig{WorkerID: "runner-3", WorkerCount: 2, BatchSize: 2, LeaseDuration: time.Minute})
+	runner.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	processed, err := runner.ProcessAvailable(context.Background())
+	if processed != 2 {
+		t.Fatalf("expected 2 dispatched events, got %d", processed)
+	}
+	if err == nil {
+		t.Fatal("expected joined error")
+	}
+	if !strings.Contains(err.Error(), "evt-0") || !strings.Contains(err.Error(), "evt-1") {
+		t.Fatalf("expected both event errors, got %v", err)
 	}
 }
 

@@ -52,6 +52,9 @@ func NewRunner(repository EventRepository, processor *Processor, cfg RunnerConfi
 	if cfg.WorkerID == "" {
 		cfg.WorkerID = fmt.Sprintf("worker-%d", time.Now().UTC().UnixNano())
 	}
+	if processor != nil {
+		processor.workerID = cfg.WorkerID
+	}
 
 	return &Runner{
 		repository: repository,
@@ -121,10 +124,8 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 			close(jobs)
 			wg.Wait()
 			close(errCh)
-			for err := range errCh {
-				if err != nil {
-					return dispatched, err
-				}
+			if err := collectErrors(errCh); err != nil {
+				return dispatched, errors.Join(ctx.Err(), err)
 			}
 			return dispatched, ctx.Err()
 		case jobs <- event:
@@ -135,11 +136,22 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 	wg.Wait()
 	close(errCh)
 
-	for err := range errCh {
-		if err != nil {
-			return dispatched, err
-		}
+	if err := collectErrors(errCh); err != nil {
+		return dispatched, err
 	}
 
 	return dispatched, nil
+}
+
+func collectErrors(errCh <-chan error) error {
+	var errs []error
+	for err := range errCh {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }

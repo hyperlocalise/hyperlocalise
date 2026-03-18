@@ -24,9 +24,9 @@ type JobRepository interface {
 	MarkJobRunning(ctx context.Context, jobID string) error
 	PersistJobTerminal(ctx context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error
 	SaveRunningJobCheckpoint(ctx context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error
-	MarkOutboxEventProcessed(ctx context.Context, eventID string, processedAt time.Time) error
-	ScheduleOutboxEventRetry(ctx context.Context, eventID string, attemptCount int, nextAttemptAt time.Time, lastError string) error
-	MarkOutboxEventDeadLettered(ctx context.Context, eventID string, at time.Time, attemptCount int, lastError string) error
+	MarkOutboxEventProcessed(ctx context.Context, eventID, workerID string, processedAt time.Time) error
+	ScheduleOutboxEventRetry(ctx context.Context, eventID, workerID string, attemptCount int, nextAttemptAt time.Time, lastError string) error
+	MarkOutboxEventDeadLettered(ctx context.Context, eventID, workerID string, at time.Time, attemptCount int, lastError string) error
 }
 
 // RetryPolicy defines retry scheduling for transient worker failures.
@@ -41,6 +41,7 @@ type Processor struct {
 	repository  JobRepository
 	executor    stringExecutor
 	retryPolicy RetryPolicy
+	workerID    string
 	clock       func() time.Time
 }
 
@@ -241,7 +242,7 @@ func (p *Processor) handleExecutionError(ctx context.Context, job *store.Transla
 			return failErr
 		}
 		if eventID != "" {
-			if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), payload.AttemptCount+1, execErr.Error()); err != nil {
+			if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.workerID, p.clock(), payload.AttemptCount+1, execErr.Error()); err != nil {
 				return err
 			}
 		}
@@ -257,14 +258,14 @@ func (p *Processor) handleExecutionError(ctx context.Context, job *store.Transla
 		if failErr := p.failJob(ctx, job, execErr); failErr != nil {
 			return failErr
 		}
-		if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), attemptCount, execErr.Error()); err != nil {
+		if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.workerID, p.clock(), attemptCount, execErr.Error()); err != nil {
 			return err
 		}
 		return nil
 	}
 
 	nextAttemptAt := p.clock().Add(backoffForAttempt(attemptCount, p.retryPolicy))
-	if err := p.repository.ScheduleOutboxEventRetry(ctx, eventID, attemptCount, nextAttemptAt, execErr.Error()); err != nil {
+	if err := p.repository.ScheduleOutboxEventRetry(ctx, eventID, p.workerID, attemptCount, nextAttemptAt, execErr.Error()); err != nil {
 		return err
 	}
 	return execErr
@@ -409,7 +410,7 @@ func (p *Processor) persistTerminalStatus(
 func (p *Processor) finishProcessedEvent(ctx context.Context, jobID, eventID string) error {
 	if eventID != "" {
 		processedAt := p.clock()
-		if err := p.repository.MarkOutboxEventProcessed(ctx, eventID, processedAt); err != nil {
+		if err := p.repository.MarkOutboxEventProcessed(ctx, eventID, p.workerID, processedAt); err != nil {
 			return err
 		}
 	}
