@@ -8,14 +8,15 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
 
-var allowedServiceProviders = map[string]struct{}{
-	translator.ProviderOpenAI:      {},
-	translator.ProviderAzureOpenAI: {},
-	translator.ProviderAnthropic:   {},
-	translator.ProviderGemini:      {},
-	translator.ProviderBedrock:     {},
-	translator.ProviderGroq:        {},
-	translator.ProviderMistral:     {},
+var allowedServiceProviders = buildAllowedServiceProviders()
+
+func buildAllowedServiceProviders() map[string]struct{} {
+	allowedProviders := make(map[string]struct{}, len(defaultProviderRegistry()))
+	for _, provider := range defaultProviderRegistry() {
+		allowedProviders[provider.Name] = struct{}{}
+	}
+
+	return allowedProviders
 }
 
 // Config configures translation execution for the async worker.

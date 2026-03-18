@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -124,5 +125,35 @@ func TestNormalizeLocalePolicyKeySeparatorOnly(t *testing.T) {
 	}
 	if got := normalizeLocalePolicyKey("__"); got != "" {
 		t.Fatalf("expected empty locale key for separator-only input, got %q", got)
+	}
+}
+
+func TestPolicyEngineRegistryMatchesAllowedServiceProviders(t *testing.T) {
+	registry := defaultProviderRegistry()
+	if len(registry) != len(allowedServiceProviders) {
+		t.Fatalf("expected registry and allowlist to stay in sync, got %d registry providers and %d allowed providers", len(registry), len(allowedServiceProviders))
+	}
+
+	for providerName := range allowedServiceProviders {
+		provider, ok := findProviderInRegistry(registry, providerName)
+		if !ok {
+			t.Fatalf("expected provider %q to exist in policy registry", providerName)
+		}
+		if len(provider.Models) == 0 {
+			t.Fatalf("expected provider %q to have at least one registered model", providerName)
+		}
+		if _, err := newDefaultPolicyEngine(providerName, provider.Models[0].Name); err != nil {
+			t.Fatalf("expected provider %q to build a policy engine: %v", providerName, err)
+		}
+	}
+
+	registryProviders := make([]string, 0, len(registry))
+	for _, provider := range registry {
+		registryProviders = append(registryProviders, provider.Name)
+	}
+	for providerName := range allowedServiceProviders {
+		if !slices.Contains(registryProviders, providerName) {
+			t.Fatalf("expected provider %q to be present in registry list %v", providerName, registryProviders)
+		}
 	}
 }

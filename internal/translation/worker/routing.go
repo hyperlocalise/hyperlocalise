@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
 
 const (
@@ -57,20 +59,7 @@ type policyEngine struct {
 }
 
 func newDefaultPolicyEngine(defaultProvider, defaultModel string) (*policyEngine, error) {
-	registry := []providerCapability{
-		{
-			Name:   "openai",
-			Models: []modelCapability{{Name: "gpt-4o-mini", QualityScore: 80, CostScore: 2}, {Name: "gpt-4.1", QualityScore: 96, CostScore: 4}},
-		},
-		{
-			Name:   "anthropic",
-			Models: []modelCapability{{Name: "claude-3-5-haiku", QualityScore: 82, CostScore: 2}, {Name: "claude-3-7-sonnet", QualityScore: 95, CostScore: 4}},
-		},
-		{
-			Name:   "gemini",
-			Models: []modelCapability{{Name: "gemini-2.0-flash", QualityScore: 78, CostScore: 1}, {Name: "gemini-2.5-pro", QualityScore: 94, CostScore: 4}},
-		},
-	}
+	registry := defaultProviderRegistry()
 
 	pairPolicies := []languagePairPolicy{
 		{
@@ -121,6 +110,39 @@ func newDefaultPolicyEngine(defaultProvider, defaultModel string) (*policyEngine
 			},
 		},
 	}, nil
+}
+
+func defaultProviderRegistry() []providerCapability {
+	return []providerCapability{
+		{
+			Name:   translator.ProviderOpenAI,
+			Models: []modelCapability{{Name: "gpt-4o-mini", QualityScore: 80, CostScore: 2}, {Name: "gpt-4.1", QualityScore: 96, CostScore: 4}},
+		},
+		{
+			Name:   translator.ProviderAzureOpenAI,
+			Models: []modelCapability{{Name: "gpt-4o-mini", QualityScore: 80, CostScore: 2}, {Name: "gpt-4.1", QualityScore: 96, CostScore: 4}},
+		},
+		{
+			Name:   translator.ProviderAnthropic,
+			Models: []modelCapability{{Name: "claude-3-5-haiku", QualityScore: 82, CostScore: 2}, {Name: "claude-3-7-sonnet", QualityScore: 95, CostScore: 4}},
+		},
+		{
+			Name:   translator.ProviderGemini,
+			Models: []modelCapability{{Name: "gemini-2.0-flash", QualityScore: 78, CostScore: 1}, {Name: "gemini-2.5-pro", QualityScore: 94, CostScore: 4}},
+		},
+		{
+			Name:   translator.ProviderBedrock,
+			Models: []modelCapability{{Name: "claude-3-5-haiku", QualityScore: 82, CostScore: 2}, {Name: "claude-3-7-sonnet", QualityScore: 95, CostScore: 4}},
+		},
+		{
+			Name:   translator.ProviderGroq,
+			Models: []modelCapability{{Name: "llama-3.1-8b-instant", QualityScore: 76, CostScore: 1}, {Name: "llama-3.3-70b-versatile", QualityScore: 88, CostScore: 3}},
+		},
+		{
+			Name:   translator.ProviderMistral,
+			Models: []modelCapability{{Name: "mistral-small-latest", QualityScore: 80, CostScore: 2}, {Name: "mistral-large-latest", QualityScore: 91, CostScore: 4}},
+		},
+	}
 }
 
 func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
