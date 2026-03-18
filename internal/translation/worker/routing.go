@@ -50,9 +50,10 @@ type languagePairPolicy struct {
 }
 
 type policyEngine struct {
-	registry      []providerCapability
-	policies      map[string]languagePairPolicy
-	fallbackRoute RoutingDecision
+	registry          []providerCapability
+	policies          map[string]languagePairPolicy
+	globalBudgetRules map[string]routePreference
+	fallbackRoute     RoutingDecision
 }
 
 func newDefaultPolicyEngine(defaultProvider, defaultModel string) (*policyEngine, error) {
@@ -107,6 +108,11 @@ func newDefaultPolicyEngine(defaultProvider, defaultModel string) (*policyEngine
 	return &policyEngine{
 		registry: registry,
 		policies: policies,
+		globalBudgetRules: map[string]routePreference{
+			"economy":  {PreferredProviders: []string{defaultProvider}, MinQualityScore: 0, MaxCostScore: 2},
+			"balanced": {PreferredProviders: []string{defaultProvider}, MinQualityScore: 0, MaxCostScore: 5},
+			"premium":  {PreferredProviders: []string{defaultProvider}, MinQualityScore: 90, MaxCostScore: 5},
+		},
 		fallbackRoute: RoutingDecision{
 			Provider: defaultProvider,
 			Model:    defaultModel,
@@ -127,7 +133,7 @@ func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
 	}
 
 	reasons := []string{fmt.Sprintf("evaluated language pair policy for %s", pairKey), fmt.Sprintf("budget target=%s", budgetTarget)}
-	preference := routePreference{PreferredProviders: []string{p.fallbackRoute.Provider}, MinQualityScore: 0, MaxCostScore: 5}
+	preference := p.getBudgetRule(budgetTarget)
 	if policy, ok := p.policies[pairKey]; ok {
 		if rule, ok := policy.BudgetTargets[budgetTarget]; ok {
 			preference = rule
@@ -137,7 +143,7 @@ func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
 			reasons = append(reasons, "used language-pair default policy")
 		}
 	} else {
-		reasons = append(reasons, "no specific language-pair policy; using fallback preference")
+		reasons = append(reasons, fmt.Sprintf("no specific language-pair policy; applied global budget rule for %s", budgetTarget))
 	}
 
 	for _, providerName := range preference.PreferredProviders {
@@ -166,6 +172,14 @@ func (p *policyEngine) Select(task TranslationTask) RoutingDecision {
 
 func (p *policyEngine) findProvider(providerName string) (providerCapability, bool) {
 	return findProviderInRegistry(p.registry, providerName)
+}
+
+func (p *policyEngine) getBudgetRule(budgetTarget string) routePreference {
+	if rule, ok := p.globalBudgetRules[budgetTarget]; ok {
+		return rule
+	}
+
+	return routePreference{PreferredProviders: []string{p.fallbackRoute.Provider}, MinQualityScore: 0, MaxCostScore: 5}
 }
 
 func providerSupportsPair(provider providerCapability, pair string) bool {
@@ -224,7 +238,12 @@ func normalizeLocalePolicyKey(locale string) string {
 		return ""
 	}
 
-	return strings.FieldsFunc(normalized, func(r rune) bool {
+	parts := strings.FieldsFunc(normalized, func(r rune) bool {
 		return r == '-' || r == '_'
-	})[0]
+	})
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return parts[0]
 }

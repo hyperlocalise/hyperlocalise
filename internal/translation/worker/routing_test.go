@@ -67,6 +67,21 @@ func TestPolicyEngineFallbackWhenNoPolicy(t *testing.T) {
 	if !strings.Contains(joined, "no specific language-pair policy") {
 		t.Fatalf("expected fallback reason, got %v", decision.Reasons)
 	}
+
+	budgetedDecision := engine.Select(TranslationTask{
+		SourceLocale: "sv",
+		TargetLocale: "th",
+		Metadata: map[string]string{
+			metadataBudgetTargetKey: "economy",
+		},
+	})
+	if budgetedDecision.Provider != "openai" || budgetedDecision.Model != "gpt-4o-mini" {
+		t.Fatalf("expected economy guardrail for unknown pair, got %s/%s", budgetedDecision.Provider, budgetedDecision.Model)
+	}
+	joined = strings.Join(budgetedDecision.Reasons, " ")
+	if !strings.Contains(joined, "applied global budget rule for economy") {
+		t.Fatalf("expected global budget reason, got %v", budgetedDecision.Reasons)
+	}
 }
 
 func TestPolicyEngineRejectsUnknownFallbackProvider(t *testing.T) {
@@ -100,5 +115,14 @@ func TestPolicyEngineNormalizesLocaleTagsForPolicyLookup(t *testing.T) {
 	}
 	if decision.Model != "claude-3-7-sonnet" {
 		t.Fatalf("expected normalized locale tags to match premium policy, got %q", decision.Model)
+	}
+}
+
+func TestNormalizeLocalePolicyKeySeparatorOnly(t *testing.T) {
+	if got := normalizeLocalePolicyKey("-"); got != "" {
+		t.Fatalf("expected empty locale key for separator-only input, got %q", got)
+	}
+	if got := normalizeLocalePolicyKey("__"); got != "" {
+		t.Fatalf("expected empty locale key for separator-only input, got %q", got)
 	}
 }
