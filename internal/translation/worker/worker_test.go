@@ -2,8 +2,12 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +25,142 @@ func (f fakeExecutor) Translate(ctx context.Context, task TranslationTask) (stri
 	return f.translate(ctx, task)
 }
 
+type fakeRepository struct {
+	mu           sync.Mutex
+	jobs         map[string]*store.TranslationJobModel
+	events       map[string]*store.OutboxEventModel
+	processed    []string
+	retried      []string
+	deadLettered []string
+	claims       []string
+}
+
+func newFakeRepository() *fakeRepository {
+	return &fakeRepository{
+		jobs:   map[string]*store.TranslationJobModel{},
+		events: map[string]*store.OutboxEventModel{},
+	}
+}
+
+func (r *fakeRepository) GetJob(_ context.Context, jobID, projectID string) (*store.TranslationJobModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	job, ok := r.jobs[jobID]
+	if !ok || job.ProjectID != projectID {
+		return nil, store.ErrNotFound
+	}
+	copy := *job
+	return &copy, nil
+}
+
+func (r *fakeRepository) MarkJobRunning(_ context.Context, jobID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	job, ok := r.jobs[jobID]
+	if !ok || job.Status != store.JobStatusQueued {
+		return store.ErrNotFound
+	}
+	job.Status = store.JobStatusRunning
+	return nil
+}
+
+func (r *fakeRepository) PersistJobTerminal(_ context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	job, ok := r.jobs[jobID]
+	if !ok || job.Status != store.JobStatusRunning {
+		return store.ErrNotFound
+	}
+	job.Status = newStatus
+	job.OutcomeKind = outcomeKind
+	job.OutcomePayload = outcomePayload
+	job.CompletedAt = &completedAt
+	job.CheckpointPayload = nil
+	return nil
+}
+
+func (r *fakeRepository) SaveRunningJobCheckpoint(_ context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	job, ok := r.jobs[jobID]
+	if !ok || job.Status != expectedStatus {
+		return store.ErrNotFound
+	}
+	job.CheckpointPayload = append([]byte(nil), checkpointPayload...)
+	job.LastError = lastError
+	return nil
+}
+
+func (r *fakeRepository) MarkOutboxEventProcessed(_ context.Context, eventID string, processedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	event := r.events[eventID]
+	event.Status = store.OutboxStatusProcessed
+	event.ProcessedAt = &processedAt
+	r.processed = append(r.processed, eventID)
+	return nil
+}
+
+func (r *fakeRepository) ScheduleOutboxEventRetry(_ context.Context, eventID string, attemptCount int, nextAttemptAt time.Time, lastError string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	event := r.events[eventID]
+	event.Status = store.OutboxStatusPending
+	event.AttemptCount = attemptCount
+	event.NextAttemptAt = nextAttemptAt
+	event.LastError = lastError
+	r.retried = append(r.retried, eventID)
+	return nil
+}
+
+func (r *fakeRepository) MarkOutboxEventDeadLettered(_ context.Context, eventID string, at time.Time, attemptCount int, lastError string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	event := r.events[eventID]
+	event.Status = store.OutboxStatusDeadLettered
+	event.AttemptCount = attemptCount
+	event.LastError = lastError
+	event.DeadLetteredAt = &at
+	r.deadLettered = append(r.deadLettered, eventID)
+	return nil
+}
+
+func (r *fakeRepository) ListPendingOutboxEvents(_ context.Context, now time.Time, limit int) ([]store.OutboxEventModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ids := make([]string, 0, len(r.events))
+	for id, event := range r.events {
+		if event.Status == store.OutboxStatusPending && !event.NextAttemptAt.After(now) {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	if limit > 0 && len(ids) > limit {
+		ids = ids[:limit]
+	}
+	result := make([]store.OutboxEventModel, 0, len(ids))
+	for _, id := range ids {
+		result = append(result, *r.events[id])
+	}
+	return result, nil
+}
+
+func (r *fakeRepository) ClaimOutboxEvent(_ context.Context, eventID, workerID string, now time.Time, leaseDuration time.Duration) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	event, ok := r.events[eventID]
+	if !ok || event.Status != store.OutboxStatusPending || event.NextAttemptAt.After(now) {
+		return store.ErrNotFound
+	}
+	event.Status = store.OutboxStatusProcessing
+	event.ClaimedBy = workerID
+	claimExpiresAt := now.Add(leaseDuration)
+	event.ClaimedAt = &now
+	event.ClaimExpiresAt = &claimExpiresAt
+	r.claims = append(r.claims, eventID)
+	return nil
+}
+
 func TestBuildOutcomeStringSuccess(t *testing.T) {
 	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{
 		SourceText:    "Hello",
@@ -30,21 +170,19 @@ func TestBuildOutcomeStringSuccess(t *testing.T) {
 		t.Fatalf("encode input: %v", err)
 	}
 
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Status: store.JobStatusRunning}
 	processor := &Processor{
+		repository: repo,
 		executor: fakeExecutor{
 			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
 				return strings.ToUpper(task.TargetLocale) + ":" + task.SourceText, RoutingDecision{Provider: "openai", Model: "gpt-4o-mini", Reasons: []string{"test route"}}, nil
 			},
 		},
-		clock: func() time.Time {
-			return time.Unix(1700000000, 0).UTC()
-		},
+		clock: func() time.Time { return time.Unix(1700000000, 0).UTC() },
 	}
 
-	outcomeKind, outcomePayload, completedAt, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{
-		Type:         store.JobTypeString,
-		InputPayload: payload,
-	})
+	outcomeKind, outcomePayload, completedAt, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, InputPayload: payload, Status: store.JobStatusRunning})
 	if err != nil {
 		t.Fatalf("build outcome: %v", err)
 	}
@@ -70,16 +208,16 @@ func TestBuildOutcomeStringSuccess(t *testing.T) {
 	}
 }
 
-func TestBuildOutcomeStringFailure(t *testing.T) {
-	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{
-		SourceText:    "Hello",
-		TargetLocales: []string{"fr", "de"},
-	})
+func TestBuildOutcomeStringFailurePersistsCheckpoint(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr", "de"}})
 	if err != nil {
 		t.Fatalf("encode input: %v", err)
 	}
 
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Status: store.JobStatusRunning}
 	processor := &Processor{
+		repository: repo,
 		executor: fakeExecutor{
 			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
 				if task.TargetLocale == "de" {
@@ -91,29 +229,134 @@ func TestBuildOutcomeStringFailure(t *testing.T) {
 		clock: func() time.Time { return time.Unix(1700000000, 0).UTC() },
 	}
 
-	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{
-		Type:         store.JobTypeString,
-		InputPayload: payload,
-	})
+	job := &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, InputPayload: payload, Status: store.JobStatusRunning}
+	_, _, _, err = processor.buildOutcome(context.Background(), job)
 	if err == nil || !strings.Contains(err.Error(), `translate locale "de" with route gemini/gemini-2.0-flash`) {
 		t.Fatalf("expected locale-specific error, got %v", err)
 	}
+	storedJob := repo.jobs["job-1"]
+	checkpoint := &stringCheckpoint{}
+	if err := json.Unmarshal(storedJob.CheckpointPayload, checkpoint); err != nil {
+		t.Fatalf("unmarshal checkpoint: %v", err)
+	}
+	if got := checkpoint.Translations["fr"]; got != "bonjour" {
+		t.Fatalf("expected persisted fr translation, got %q", got)
+	}
 }
 
-func TestBuildOutcomeStringRequiresExecutor(t *testing.T) {
-	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{
-		SourceText:    "Hello",
-		TargetLocales: []string{"fr"},
-	})
+func TestProcessJobQueuedEventResumesWithoutDuplicateWrites(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr", "de"}})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+	checkpointBytes, err := json.Marshal(&stringCheckpoint{Translations: map[string]string{"fr": "bonjour"}})
+	if err != nil {
+		t.Fatalf("marshal checkpoint: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: payload, CheckpointPayload: checkpointBytes}
+	repo.events["evt-1"] = &store.OutboxEventModel{ID: "evt-1", Status: store.OutboxStatusProcessing}
+	calls := map[string]int{}
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		calls[task.TargetLocale]++
+		return map[string]string{"de": "hallo"}[task.TargetLocale], RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+	}})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	err = processor.ProcessJobQueuedEvent(context.Background(), translationapp.JobQueuedPayload{EventID: "evt-1", JobID: "job-1", ProjectID: "proj", AttemptCount: 1, MaxAttempts: 5})
+	if err != nil {
+		t.Fatalf("process queued event: %v", err)
+	}
+	if calls["fr"] != 0 {
+		t.Fatalf("expected fr locale to be skipped, got %d calls", calls["fr"])
+	}
+	if calls["de"] != 1 {
+		t.Fatalf("expected de locale once, got %d", calls["de"])
+	}
+	if repo.jobs["job-1"].Status != store.JobStatusSucceeded {
+		t.Fatalf("expected job succeeded, got %s", repo.jobs["job-1"].Status)
+	}
+	result := &translationv1.StringTranslationJobResult{}
+	if err := protojson.Unmarshal(repo.jobs["job-1"].OutcomePayload, result); err != nil {
+		t.Fatalf("decode result: %v", err)
+	}
+	if got := result.GetTranslations()[0].GetText(); got != "bonjour" {
+		t.Fatalf("unexpected resumed translation for fr: %q", got)
+	}
+	if got := result.GetTranslations()[1].GetText(); got != "hallo" {
+		t.Fatalf("unexpected translation for de: %q", got)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusProcessed {
+		t.Fatalf("expected event processed, got %s", repo.events["evt-1"].Status)
+	}
+}
+
+func TestProcessJobQueuedEventSchedulesRetry(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr"}})
 	if err != nil {
 		t.Fatalf("encode input: %v", err)
 	}
 
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: payload}
+	repo.events["evt-1"] = &store.OutboxEventModel{ID: "evt-1", Status: store.OutboxStatusProcessing, MaxAttempts: 5}
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return "", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, errors.New("rate limited")
+	}}).WithRetryPolicy(RetryPolicy{MaxAttempts: 5, InitialBackoff: 2 * time.Second, MaxBackoff: 10 * time.Second})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	err = processor.ProcessJobQueuedEvent(context.Background(), translationapp.JobQueuedPayload{EventID: "evt-1", JobID: "job-1", ProjectID: "proj", AttemptCount: 1, MaxAttempts: 5})
+	if err == nil || !strings.Contains(err.Error(), "rate limited") {
+		t.Fatalf("expected retryable error, got %v", err)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusPending {
+		t.Fatalf("expected event pending for retry, got %s", repo.events["evt-1"].Status)
+	}
+	if repo.events["evt-1"].AttemptCount != 2 {
+		t.Fatalf("expected attempt count 2, got %d", repo.events["evt-1"].AttemptCount)
+	}
+	if got := repo.events["evt-1"].NextAttemptAt; !got.Equal(time.Unix(1700000002, 0).UTC()) {
+		t.Fatalf("unexpected next attempt at %s", got)
+	}
+	if repo.jobs["job-1"].Status != store.JobStatusRunning {
+		t.Fatalf("expected job to remain running, got %s", repo.jobs["job-1"].Status)
+	}
+}
+
+func TestProcessJobQueuedEventDeadLettersAfterMaxAttempts(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: payload}
+	repo.events["evt-1"] = &store.OutboxEventModel{ID: "evt-1", Status: store.OutboxStatusProcessing, MaxAttempts: 3}
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return "", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, errors.New("rate limited")
+	}}).WithRetryPolicy(RetryPolicy{MaxAttempts: 3, InitialBackoff: time.Second, MaxBackoff: 4 * time.Second})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	err = processor.ProcessJobQueuedEvent(context.Background(), translationapp.JobQueuedPayload{EventID: "evt-1", JobID: "job-1", ProjectID: "proj", AttemptCount: 2, MaxAttempts: 3})
+	if err != nil {
+		t.Fatalf("expected terminal dead-letter handling to ack event, got %v", err)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusDeadLettered {
+		t.Fatalf("expected event dead-lettered, got %s", repo.events["evt-1"].Status)
+	}
+	if repo.jobs["job-1"].Status != store.JobStatusFailed {
+		t.Fatalf("expected job failed, got %s", repo.jobs["job-1"].Status)
+	}
+}
+
+func TestBuildOutcomeStringRequiresExecutor(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
 	processor := &Processor{clock: func() time.Time { return time.Unix(1700000000, 0).UTC() }}
-	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{
-		Type:         store.JobTypeString,
-		InputPayload: payload,
-	})
+	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{Type: store.JobTypeString, InputPayload: payload})
 	if err == nil || !strings.Contains(err.Error(), "executor is not configured") {
 		t.Fatalf("expected missing executor error, got %v", err)
 	}
@@ -121,29 +364,21 @@ func TestBuildOutcomeStringRequiresExecutor(t *testing.T) {
 
 func TestBuildOutcomeFileDeferred(t *testing.T) {
 	processor := &Processor{clock: func() time.Time { return time.Unix(1700000000, 0).UTC() }}
-	_, _, _, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{
-		Type: store.JobTypeFile,
-	})
+	_, _, _, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{Type: store.JobTypeFile})
 	if !errors.Is(err, ErrFileJobsNotImplemented) {
 		t.Fatalf("expected file jobs to be deferred, got %v", err)
 	}
 }
 
 func TestNewTranslatorExecutorRejectsLocalProviders(t *testing.T) {
-	_, err := NewTranslatorExecutor(Config{
-		Provider: "ollama",
-		Model:    "qwen2.5:7b",
-	})
+	_, err := NewTranslatorExecutor(Config{Provider: "ollama", Model: "qwen2.5:7b"})
 	if err == nil || !strings.Contains(err.Error(), `provider "ollama" is not supported`) {
 		t.Fatalf("expected unsupported provider error, got %v", err)
 	}
 }
 
 func TestNewTranslatorExecutorAcceptsRemoteProvider(t *testing.T) {
-	executor, err := NewTranslatorExecutor(Config{
-		Provider: "openai",
-		Model:    "gpt-4o-mini",
-	})
+	executor, err := NewTranslatorExecutor(Config{Provider: "openai", Model: "gpt-4o-mini"})
 	if err != nil {
 		t.Fatalf("new translator executor: %v", err)
 	}
@@ -153,12 +388,46 @@ func TestNewTranslatorExecutorAcceptsRemoteProvider(t *testing.T) {
 }
 
 func TestNewTranslatorExecutorRejectsUnknownFallbackModel(t *testing.T) {
-	_, err := NewTranslatorExecutor(Config{
-		Provider: "openai",
-		Model:    "unknown-model",
-	})
+	_, err := NewTranslatorExecutor(Config{Provider: "openai", Model: "unknown-model"})
 	if err == nil || !strings.Contains(err.Error(), `fallback model "unknown-model" is not registered for provider "openai"`) {
 		t.Fatalf("expected fallback model validation error, got %v", err)
+	}
+}
+
+func TestRunnerProcessesClaimedEventsInParallel(t *testing.T) {
+	repo := newFakeRepository()
+	for idx := 0; idx < 4; idx++ {
+		jobID := fmt.Sprintf("job-%d", idx)
+		eventID := fmt.Sprintf("evt-%d", idx)
+		payload, err := json.Marshal(translationapp.JobQueuedPayload{JobID: jobID, ProjectID: "proj", AttemptCount: 0, MaxAttempts: 5})
+		if err != nil {
+			t.Fatalf("marshal payload: %v", err)
+		}
+		repo.jobs[jobID] = &store.TranslationJobModel{ID: jobID, ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: mustStringInput(t, "Hello", "fr")}
+		repo.events[eventID] = &store.OutboxEventModel{ID: eventID, Payload: payload, Status: store.OutboxStatusPending, NextAttemptAt: time.Unix(1700000000, 0).UTC(), MaxAttempts: 5}
+	}
+
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return task.TargetLocale + ":ok", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+	}})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	runner := NewRunner(repo, processor, RunnerConfig{WorkerID: "runner-1", WorkerCount: 2, BatchSize: 4, LeaseDuration: time.Minute})
+	runner.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	processed, err := runner.ProcessAvailable(context.Background())
+	if err != nil {
+		t.Fatalf("process available: %v", err)
+	}
+	if processed != 4 {
+		t.Fatalf("expected 4 processed events, got %d", processed)
+	}
+	if len(repo.claims) != 4 {
+		t.Fatalf("expected 4 claims, got %d", len(repo.claims))
+	}
+	for _, event := range repo.events {
+		if event.Status != store.OutboxStatusProcessed {
+			t.Fatalf("expected processed event, got %s", event.Status)
+		}
 	}
 }
 
@@ -175,14 +444,20 @@ func TestIsTerminalStatus(t *testing.T) {
 }
 
 func TestTerminalOutcomeMatches(t *testing.T) {
-	job := &store.TranslationJobModel{
-		OutcomeKind:    "string_result",
-		OutcomePayload: []byte(`{"translations":[{"locale":"fr","text":"bonjour"}]}`),
-	}
+	job := &store.TranslationJobModel{OutcomeKind: "string_result", OutcomePayload: []byte(`{"translations":[{"locale":"fr","text":"bonjour"}]}`)}
 	if !terminalOutcomeMatches(job, "string_result", []byte(`{"translations":[{"locale":"fr","text":"bonjour"}]}`)) {
 		t.Fatal("expected matching terminal outcome")
 	}
 	if terminalOutcomeMatches(job, "error", []byte(`{}`)) {
 		t.Fatal("did not expect mismatched terminal outcome")
 	}
+}
+
+func mustStringInput(t *testing.T, source string, locale string) []byte {
+	t.Helper()
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: source, TargetLocales: []string{locale}})
+	if err != nil {
+		t.Fatalf("encode string input: %v", err)
+	}
+	return payload
 }

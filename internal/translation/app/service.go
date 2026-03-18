@@ -15,6 +15,8 @@ import (
 // ErrInvalidArgument reports invalid input at the application boundary.
 var ErrInvalidArgument = errors.New("invalid translation request")
 
+const defaultOutboxMaxAttempts = 5
+
 // Service orchestrates translation job storage and async dispatch.
 type Service struct {
 	repository  *store.Repository
@@ -65,14 +67,17 @@ func (s *Service) CreateJob(
 	}
 
 	eventModel := &store.OutboxEventModel{
-		ID:          eventID,
-		Topic:       queue.TopicJobQueued,
-		AggregateID: jobModel.ID,
-		Payload:     outboxPayload,
-		Headers:     headers,
-		Status:      store.OutboxStatusPending,
-		CreatedAt:   jobModel.CreatedAt,
-		UpdatedAt:   jobModel.UpdatedAt,
+		ID:            eventID,
+		Topic:         queue.TopicJobQueued,
+		AggregateID:   jobModel.ID,
+		Payload:       outboxPayload,
+		Headers:       headers,
+		Status:        store.OutboxStatusPending,
+		AttemptCount:  0,
+		MaxAttempts:   defaultOutboxMaxAttempts,
+		NextAttemptAt: jobModel.CreatedAt,
+		CreatedAt:     jobModel.CreatedAt,
+		UpdatedAt:     jobModel.UpdatedAt,
 	}
 
 	queuedPayload.EventID = eventID
@@ -198,11 +203,13 @@ func (s *Service) newQueuedJob(
 	}
 
 	return job, &JobQueuedPayload{
-		JobID:      job.ID,
-		ProjectID:  job.ProjectID,
-		Type:       job.Type,
-		InputKind:  job.InputKind,
-		OccurredAt: now.Format(time.RFC3339Nano),
+		JobID:        job.ID,
+		ProjectID:    job.ProjectID,
+		Type:         job.Type,
+		InputKind:    job.InputKind,
+		AttemptCount: 0,
+		MaxAttempts:  defaultOutboxMaxAttempts,
+		OccurredAt:   now.Format(time.RFC3339Nano),
 	}, nil
 }
 

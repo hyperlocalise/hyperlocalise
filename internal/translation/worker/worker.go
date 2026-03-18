@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -17,24 +18,60 @@ import (
 // ErrFileJobsNotImplemented reports that async file translation is not implemented yet.
 var ErrFileJobsNotImplemented = errors.New("file translation jobs are not implemented yet")
 
-// Processor advances a single queued job event through the stub workflow.
-type Processor struct {
-	repository *store.Repository
-	executor   stringExecutor
-	clock      func() time.Time
+// JobRepository captures the persistence operations needed by the worker processor.
+type JobRepository interface {
+	GetJob(ctx context.Context, jobID, projectID string) (*store.TranslationJobModel, error)
+	MarkJobRunning(ctx context.Context, jobID string) error
+	PersistJobTerminal(ctx context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error
+	SaveRunningJobCheckpoint(ctx context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error
+	MarkOutboxEventProcessed(ctx context.Context, eventID string, processedAt time.Time) error
+	ScheduleOutboxEventRetry(ctx context.Context, eventID string, attemptCount int, nextAttemptAt time.Time, lastError string) error
+	MarkOutboxEventDeadLettered(ctx context.Context, eventID string, at time.Time, attemptCount int, lastError string) error
 }
 
-// NewProcessor constructs a translation worker Processor that uses the provided
-// repository and string executor. The returned Processor has its clock initialized
-// to the current UTC time.
-func NewProcessor(repository *store.Repository, executor stringExecutor) *Processor {
+// RetryPolicy defines retry scheduling for transient worker failures.
+type RetryPolicy struct {
+	MaxAttempts    int
+	InitialBackoff time.Duration
+	MaxBackoff     time.Duration
+}
+
+// Processor advances a single queued job event through the translation workflow.
+type Processor struct {
+	repository  JobRepository
+	executor    stringExecutor
+	retryPolicy RetryPolicy
+	clock       func() time.Time
+}
+
+// NewProcessor constructs a translation worker Processor.
+func NewProcessor(repository JobRepository, executor stringExecutor) *Processor {
 	return &Processor{
 		repository: repository,
 		executor:   executor,
+		retryPolicy: RetryPolicy{
+			MaxAttempts:    5,
+			InitialBackoff: time.Second,
+			MaxBackoff:     30 * time.Second,
+		},
 		clock: func() time.Time {
 			return time.Now().UTC()
 		},
 	}
+}
+
+// WithRetryPolicy overrides the retry policy used for transient failures.
+func (p *Processor) WithRetryPolicy(policy RetryPolicy) *Processor {
+	if policy.MaxAttempts > 0 {
+		p.retryPolicy.MaxAttempts = policy.MaxAttempts
+	}
+	if policy.InitialBackoff > 0 {
+		p.retryPolicy.InitialBackoff = policy.InitialBackoff
+	}
+	if policy.MaxBackoff > 0 {
+		p.retryPolicy.MaxBackoff = policy.MaxBackoff
+	}
+	return p
 }
 
 // ProcessJobQueuedEvent handles a single queued translation job notification.
@@ -52,18 +89,47 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 		return p.finishProcessedEvent(ctx, job.ID, payload.EventID)
 	}
 
-	outcomeKind, outcomePayload, completedAt, outcomeErr := p.buildOutcome(ctx, job)
-	if outcomeErr != nil {
-		if failErr := p.failJob(ctx, job, outcomeErr); failErr != nil {
-			return fmt.Errorf("process translation job %s: %w", job.ID, failErr)
+	outcomeKind, outcomePayload, completedAt, execErr := p.buildOutcome(ctx, job)
+	if execErr != nil {
+		if handleErr := p.handleExecutionError(ctx, job, payload, execErr); handleErr != nil {
+			return fmt.Errorf("process translation job %s: %w", job.ID, handleErr)
 		}
-	} else {
-		if err := p.completeJobSuccess(ctx, job, outcomeKind, outcomePayload, completedAt); err != nil {
-			return fmt.Errorf("process translation job %s: %w", job.ID, err)
-		}
+		return nil
+	}
+
+	if err := p.completeJobSuccess(ctx, job, outcomeKind, outcomePayload, completedAt); err != nil {
+		return fmt.Errorf("process translation job %s: %w", job.ID, err)
 	}
 
 	return p.finishProcessedEvent(ctx, job.ID, payload.EventID)
+}
+
+type executionError struct {
+	err       error
+	retryable bool
+}
+
+func (e *executionError) Error() string { return e.err.Error() }
+func (e *executionError) Unwrap() error { return e.err }
+
+func retryableErrorf(format string, args ...any) error {
+	return &executionError{err: fmt.Errorf(format, args...), retryable: true}
+}
+
+func permanentErrorf(format string, args ...any) error {
+	return &executionError{err: fmt.Errorf(format, args...), retryable: false}
+}
+
+func isRetryableError(err error) bool {
+	var execErr *executionError
+	if errors.As(err, &execErr) {
+		return execErr.retryable
+	}
+	return false
+}
+
+type stringCheckpoint struct {
+	Translations map[string]string `json:"translations"`
 }
 
 // buildOutcome executes the job payload and returns the terminal outcome payload.
@@ -76,57 +142,169 @@ func (p *Processor) buildOutcome(
 	switch job.Type {
 	case store.JobTypeString:
 		if p.executor == nil {
-			return "", nil, time.Time{}, fmt.Errorf("string translation executor is not configured")
+			return "", nil, time.Time{}, permanentErrorf("string translation executor is not configured")
 		}
 
 		input, err := translationapp.DecodeStringInput(job.InputPayload)
 		if err != nil {
-			return "", nil, time.Time{}, err
+			return "", nil, time.Time{}, permanentErrorf("decode string input: %w", err)
 		}
 
-		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
+		checkpoint, err := decodeCheckpoint(job.CheckpointPayload)
+		if err != nil {
+			return "", nil, time.Time{}, permanentErrorf("decode checkpoint: %w", err)
+		}
+
 		for _, locale := range input.GetTargetLocales() {
+			if _, ok := checkpoint.Translations[locale]; ok {
+				continue
+			}
+
 			task := TranslationTask{
 				SourceText:   input.GetSourceText(),
 				SourceLocale: input.GetSourceLocale(),
 				TargetLocale: locale,
 				Metadata:     input.GetMetadata(),
 			}
-			text, route, err := p.executor.Translate(ctx, task)
-			if err != nil {
-				return "", nil, time.Time{}, fmt.Errorf("translate locale %q with route %s/%s: %w", locale, route.Provider, route.Model, err)
+			text, route, execErr := p.executor.Translate(ctx, task)
+			if execErr != nil {
+				if saveErr := p.persistCheckpoint(ctx, job, checkpoint, execErr.Error()); saveErr != nil {
+					return "", nil, time.Time{}, fmt.Errorf("persist checkpoint after translation failure: %w", saveErr)
+				}
+				return "", nil, time.Time{}, retryableErrorf("translate locale %q with route %s/%s: %w", locale, route.Provider, route.Model, execErr)
 			}
 
 			log.Printf("translation task route source=%s target=%s provider=%s model=%s reasons=%s", task.SourceLocale, task.TargetLocale, route.Provider, route.Model, strings.Join(route.Reasons, " | "))
+			checkpoint.Translations[locale] = text
+			if saveErr := p.persistCheckpoint(ctx, job, checkpoint, ""); saveErr != nil {
+				return "", nil, time.Time{}, fmt.Errorf("persist checkpoint after locale %q: %w", locale, saveErr)
+			}
+		}
 
+		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
+		for _, locale := range input.GetTargetLocales() {
 			translations = append(translations, &translationv1.StringTranslation{
 				Locale: locale,
-				Text:   text,
+				Text:   checkpoint.Translations[locale],
 			})
 		}
 
-		payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobResult{
-			Translations: translations,
-		})
+		payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobResult{Translations: translations})
 		if err != nil {
-			return "", nil, time.Time{}, err
+			return "", nil, time.Time{}, permanentErrorf("encode string result: %w", err)
 		}
 
 		return "string_result", payload, completedAt, nil
 	case store.JobTypeFile:
-		return "", nil, time.Time{}, ErrFileJobsNotImplemented
+		return "", nil, time.Time{}, permanentErrorf("%w", ErrFileJobsNotImplemented)
 	default:
-		return "", nil, time.Time{}, fmt.Errorf("unsupported job type %q", job.Type)
+		return "", nil, time.Time{}, permanentErrorf("unsupported job type %q", job.Type)
 	}
+}
+
+func decodeCheckpoint(payload []byte) (*stringCheckpoint, error) {
+	checkpoint := &stringCheckpoint{Translations: map[string]string{}}
+	if len(payload) == 0 {
+		return checkpoint, nil
+	}
+	if err := json.Unmarshal(payload, checkpoint); err != nil {
+		return nil, err
+	}
+	if checkpoint.Translations == nil {
+		checkpoint.Translations = map[string]string{}
+	}
+	return checkpoint, nil
+}
+
+func (p *Processor) persistCheckpoint(
+	ctx context.Context,
+	job *store.TranslationJobModel,
+	checkpoint *stringCheckpoint,
+	lastError string,
+) error {
+	payload, err := json.Marshal(checkpoint)
+	if err != nil {
+		return fmt.Errorf("marshal checkpoint: %w", err)
+	}
+	if err := p.repository.SaveRunningJobCheckpoint(ctx, job.ID, store.JobStatusRunning, payload, lastError); err != nil {
+		return err
+	}
+	job.CheckpointPayload = payload
+	job.LastError = lastError
+	return nil
+}
+
+func (p *Processor) handleExecutionError(ctx context.Context, job *store.TranslationJobModel, payload translationapp.JobQueuedPayload, execErr error) error {
+	eventID := payload.EventID
+	if !isRetryableError(execErr) {
+		if failErr := p.failJob(ctx, job, execErr); failErr != nil {
+			return failErr
+		}
+		if eventID != "" {
+			if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), 1, execErr.Error()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if eventID == "" {
+		return execErr
+	}
+
+	attemptCount := payload.AttemptCount + 1
+	if attemptCount >= resolveMaxAttempts(payload.MaxAttempts, p.retryPolicy) {
+		if failErr := p.failJob(ctx, job, execErr); failErr != nil {
+			return failErr
+		}
+		if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), attemptCount, execErr.Error()); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	nextAttemptAt := p.clock().Add(backoffForAttempt(attemptCount, p.retryPolicy))
+	if err := p.repository.ScheduleOutboxEventRetry(ctx, eventID, attemptCount, nextAttemptAt, execErr.Error()); err != nil {
+		return err
+	}
+	return execErr
+}
+
+func resolveMaxAttempts(payloadMaxAttempts int, policy RetryPolicy) int {
+	if payloadMaxAttempts > 0 {
+		return payloadMaxAttempts
+	}
+
+	if policy.MaxAttempts > 0 {
+		return policy.MaxAttempts
+	}
+	return 1
+}
+
+func backoffForAttempt(attempt int, policy RetryPolicy) time.Duration {
+	backoff := policy.InitialBackoff
+	if backoff <= 0 {
+		backoff = time.Second
+	}
+	if attempt <= 1 {
+		if policy.MaxBackoff > 0 && backoff > policy.MaxBackoff {
+			return policy.MaxBackoff
+		}
+		return backoff
+	}
+	for idx := 1; idx < attempt; idx++ {
+		backoff *= 2
+		if policy.MaxBackoff > 0 && backoff >= policy.MaxBackoff {
+			return policy.MaxBackoff
+		}
+	}
+	return backoff
 }
 
 // failJob stores a terminal error payload for a job that could not complete.
 func (p *Processor) failJob(ctx context.Context, job *store.TranslationJobModel, outcomeErr error) error {
 	completedAt := p.clock()
 	payload, err := translationapp.EncodeProto(&translationv1.TranslationJobError{
-		// TODO(adr-2026-03-16-worker-llm-execution): Map worker failures to richer
-		// TranslationJobError codes instead of hardcoding CODE_INTERNAL. See
-		// docs/adr/2026-03-16-translation-worker-llm-execution-design.md.
 		Code:    translationv1.TranslationJobError_CODE_INTERNAL,
 		Message: outcomeErr.Error(),
 	})
@@ -163,16 +341,7 @@ func (p *Processor) ensureJobRunning(
 	case store.JobStatusRunning, store.JobStatusSucceeded, store.JobStatusFailed:
 		return current, nil
 	case store.JobStatusQueued:
-		err := p.repository.UpdateJobStatus(
-			ctx,
-			p.repository.DB(),
-			current.ID,
-			store.JobStatusQueued,
-			store.JobStatusRunning,
-			"",
-			nil,
-			nil,
-		)
+		err := p.repository.MarkJobRunning(ctx, current.ID)
 		if err == nil {
 			current.Status = store.JobStatusRunning
 			return current, nil
@@ -214,16 +383,7 @@ func (p *Processor) persistTerminalStatus(
 	outcomePayload []byte,
 	completedAt time.Time,
 ) error {
-	err := p.repository.UpdateJobStatus(
-		ctx,
-		p.repository.DB(),
-		job.ID,
-		store.JobStatusRunning,
-		newStatus,
-		outcomeKind,
-		outcomePayload,
-		&completedAt,
-	)
+	err := p.repository.PersistJobTerminal(ctx, job.ID, newStatus, outcomeKind, outcomePayload, completedAt)
 	if err == nil {
 		return nil
 	}
@@ -242,16 +402,7 @@ func (p *Processor) persistTerminalStatus(
 		return err
 	}
 
-	return p.repository.UpdateJobStatus(
-		ctx,
-		p.repository.DB(),
-		job.ID,
-		store.JobStatusRunning,
-		newStatus,
-		outcomeKind,
-		outcomePayload,
-		&completedAt,
-	)
+	return p.repository.PersistJobTerminal(ctx, job.ID, newStatus, outcomeKind, outcomePayload, completedAt)
 }
 
 // finishProcessedEvent marks the queue event processed after the job is terminal.
