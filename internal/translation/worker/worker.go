@@ -241,7 +241,7 @@ func (p *Processor) handleExecutionError(ctx context.Context, job *store.Transla
 			return failErr
 		}
 		if eventID != "" {
-			if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), 1, execErr.Error()); err != nil {
+			if err := p.repository.MarkOutboxEventDeadLettered(ctx, eventID, p.clock(), payload.AttemptCount+1, execErr.Error()); err != nil {
 				return err
 			}
 		}

@@ -94,7 +94,10 @@ func (r *fakeRepository) SaveRunningJobCheckpoint(_ context.Context, jobID, expe
 func (r *fakeRepository) MarkOutboxEventProcessed(_ context.Context, eventID string, processedAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	event := r.events[eventID]
+	event, ok := r.events[eventID]
+	if !ok {
+		return store.ErrNotFound
+	}
 	event.Status = store.OutboxStatusProcessed
 	event.ProcessedAt = &processedAt
 	r.processed = append(r.processed, eventID)
@@ -104,7 +107,10 @@ func (r *fakeRepository) MarkOutboxEventProcessed(_ context.Context, eventID str
 func (r *fakeRepository) ScheduleOutboxEventRetry(_ context.Context, eventID string, attemptCount int, nextAttemptAt time.Time, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	event := r.events[eventID]
+	event, ok := r.events[eventID]
+	if !ok {
+		return store.ErrNotFound
+	}
 	event.Status = store.OutboxStatusPending
 	event.AttemptCount = attemptCount
 	event.NextAttemptAt = nextAttemptAt
@@ -116,7 +122,10 @@ func (r *fakeRepository) ScheduleOutboxEventRetry(_ context.Context, eventID str
 func (r *fakeRepository) MarkOutboxEventDeadLettered(_ context.Context, eventID string, at time.Time, attemptCount int, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	event := r.events[eventID]
+	event, ok := r.events[eventID]
+	if !ok {
+		return store.ErrNotFound
+	}
 	event.Status = store.OutboxStatusDeadLettered
 	event.AttemptCount = attemptCount
 	event.LastError = lastError

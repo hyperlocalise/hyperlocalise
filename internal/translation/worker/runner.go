@@ -114,6 +114,7 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 		}()
 	}
 
+	dispatched := 0
 	for _, event := range claimed {
 		select {
 		case <-ctx.Done():
@@ -122,11 +123,12 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 			close(errCh)
 			for err := range errCh {
 				if err != nil {
-					return len(claimed), err
+					return dispatched, err
 				}
 			}
-			return len(claimed), ctx.Err()
+			return dispatched, ctx.Err()
 		case jobs <- event:
+			dispatched++
 		}
 	}
 	close(jobs)
@@ -135,9 +137,9 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 
 	for err := range errCh {
 		if err != nil {
-			return len(claimed), err
+			return dispatched, err
 		}
 	}
 
-	return len(claimed), nil
+	return dispatched, nil
 }

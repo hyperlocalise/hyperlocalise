@@ -262,7 +262,7 @@ func (r *Repository) ClaimOutboxEvent(
 
 // MarkOutboxEventProcessed marks a queued event as handled by the worker.
 func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID string, processedAt time.Time) error {
-	_, err := r.db.NewUpdate().
+	result, err := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusProcessed).
 		Set("updated_at = ?", processedAt).
@@ -274,6 +274,14 @@ func (r *Repository) MarkOutboxEventProcessed(ctx context.Context, eventID strin
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("mark outbox event processed: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox processed rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
 	}
 
 	return nil
