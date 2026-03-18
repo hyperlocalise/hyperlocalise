@@ -83,7 +83,7 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 
 	job, err = p.ensureJobRunning(ctx, job)
 	if err != nil {
-		return fmt.Errorf("process translation job %s: %w", job.ID, err)
+		return fmt.Errorf("process translation job %s: %w", payload.JobID, err)
 	}
 	if isTerminalStatus(job.Status) {
 		return p.finishProcessedEvent(ctx, job.ID, payload.EventID)

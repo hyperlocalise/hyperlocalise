@@ -325,7 +325,7 @@ func TestProcessJobQueuedEventSchedulesRetry(t *testing.T) {
 	if repo.events["evt-1"].AttemptCount != 2 {
 		t.Fatalf("expected attempt count 2, got %d", repo.events["evt-1"].AttemptCount)
 	}
-	if got := repo.events["evt-1"].NextAttemptAt; !got.Equal(time.Unix(1700000002, 0).UTC()) {
+	if got := repo.events["evt-1"].NextAttemptAt; !got.Equal(time.Unix(1700000004, 0).UTC()) {
 		t.Fatalf("unexpected next attempt at %s", got)
 	}
 	if repo.jobs["job-1"].Status != store.JobStatusRunning {

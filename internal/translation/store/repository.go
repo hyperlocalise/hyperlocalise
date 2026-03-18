@@ -295,7 +295,7 @@ func (r *Repository) ScheduleOutboxEventRetry(
 	nextAttemptAt time.Time,
 	lastError string,
 ) error {
-	_, err := r.db.NewUpdate().
+	result, err := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusPending).
 		Set("attempt_count = ?", attemptCount).
@@ -311,6 +311,14 @@ func (r *Repository) ScheduleOutboxEventRetry(
 		return fmt.Errorf("schedule outbox event retry: %w", err)
 	}
 
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox retry rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
 	return nil
 }
 
@@ -322,7 +330,7 @@ func (r *Repository) MarkOutboxEventDeadLettered(
 	attemptCount int,
 	lastError string,
 ) error {
-	_, err := r.db.NewUpdate().
+	result, err := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
 		Set("status = ?", OutboxStatusDeadLettered).
 		Set("attempt_count = ?", attemptCount).
@@ -337,6 +345,14 @@ func (r *Repository) MarkOutboxEventDeadLettered(
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("mark outbox event dead-lettered: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox dead-letter rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
 	}
 
 	return nil
