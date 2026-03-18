@@ -8,14 +8,15 @@ import (
 	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
 )
 
-var allowedServiceProviders = map[string]struct{}{
-	translator.ProviderOpenAI:      {},
-	translator.ProviderAzureOpenAI: {},
-	translator.ProviderAnthropic:   {},
-	translator.ProviderGemini:      {},
-	translator.ProviderBedrock:     {},
-	translator.ProviderGroq:        {},
-	translator.ProviderMistral:     {},
+var allowedServiceProviders = buildAllowedServiceProviders()
+
+func buildAllowedServiceProviders() map[string]struct{} {
+	allowedProviders := make(map[string]struct{}, len(defaultProviderRegistry()))
+	for _, provider := range defaultProviderRegistry() {
+		allowedProviders[provider.Name] = struct{}{}
+	}
+
+	return allowedProviders
 }
 
 // Config configures translation execution for the async worker.
@@ -27,12 +28,13 @@ type Config struct {
 }
 
 type stringExecutor interface {
-	Translate(ctx context.Context, source, targetLocale string) (string, error)
+	Translate(ctx context.Context, task TranslationTask) (string, RoutingDecision, error)
 }
 
 type translatorExecutor struct {
 	tool   *translator.Tool
 	config Config
+	router *policyEngine
 }
 
 // NewTranslatorExecutor creates a translator-backed string executor configured from cfg.
@@ -56,8 +58,14 @@ func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 		return nil, fmt.Errorf("translation worker: create translator tool: %w", err)
 	}
 
+	router, err := newDefaultPolicyEngine(provider, strings.TrimSpace(cfg.Model))
+	if err != nil {
+		return nil, err
+	}
+
 	return &translatorExecutor{
-		tool: tool,
+		tool:   tool,
+		router: router,
 		config: Config{
 			Provider:     provider,
 			Model:        strings.TrimSpace(cfg.Model),
@@ -68,18 +76,20 @@ func NewTranslatorExecutor(cfg Config) (*translatorExecutor, error) {
 }
 
 // Translate executes one string translation request for a target locale.
-func (e *translatorExecutor) Translate(ctx context.Context, source, targetLocale string) (string, error) {
+func (e *translatorExecutor) Translate(ctx context.Context, task TranslationTask) (string, RoutingDecision, error) {
+	route := e.router.Select(task)
+
 	translated, err := e.tool.Translate(ctx, translator.Request{
-		Source:         source,
-		TargetLanguage: targetLocale,
-		ModelProvider:  e.config.Provider,
-		Model:          e.config.Model,
+		Source:         task.SourceText,
+		TargetLanguage: task.TargetLocale,
+		ModelProvider:  route.Provider,
+		Model:          route.Model,
 		SystemPrompt:   e.config.SystemPrompt,
 		UserPrompt:     e.config.UserPrompt,
 	})
 	if err != nil {
-		return "", err
+		return "", route, err
 	}
 
-	return translated, nil
+	return translated, route, nil
 }

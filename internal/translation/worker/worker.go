@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
@@ -85,10 +86,18 @@ func (p *Processor) buildOutcome(
 
 		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
 		for _, locale := range input.GetTargetLocales() {
-			text, err := p.executor.Translate(ctx, input.GetSourceText(), locale)
-			if err != nil {
-				return "", nil, time.Time{}, fmt.Errorf("translate locale %q: %w", locale, err)
+			task := TranslationTask{
+				SourceText:   input.GetSourceText(),
+				SourceLocale: input.GetSourceLocale(),
+				TargetLocale: locale,
+				Metadata:     input.GetMetadata(),
 			}
+			text, route, err := p.executor.Translate(ctx, task)
+			if err != nil {
+				return "", nil, time.Time{}, fmt.Errorf("translate locale %q with route %s/%s: %w", locale, route.Provider, route.Model, err)
+			}
+
+			log.Printf("translation task route source=%s target=%s provider=%s model=%s reasons=%s", task.SourceLocale, task.TargetLocale, route.Provider, route.Model, strings.Join(route.Reasons, " | "))
 
 			translations = append(translations, &translationv1.StringTranslation{
 				Locale: locale,

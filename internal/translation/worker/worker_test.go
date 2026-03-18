@@ -14,11 +14,11 @@ import (
 )
 
 type fakeExecutor struct {
-	translate func(ctx context.Context, source, targetLocale string) (string, error)
+	translate func(ctx context.Context, task TranslationTask) (string, RoutingDecision, error)
 }
 
-func (f fakeExecutor) Translate(ctx context.Context, source, targetLocale string) (string, error) {
-	return f.translate(ctx, source, targetLocale)
+func (f fakeExecutor) Translate(ctx context.Context, task TranslationTask) (string, RoutingDecision, error) {
+	return f.translate(ctx, task)
 }
 
 func TestBuildOutcomeStringSuccess(t *testing.T) {
@@ -32,8 +32,8 @@ func TestBuildOutcomeStringSuccess(t *testing.T) {
 
 	processor := &Processor{
 		executor: fakeExecutor{
-			translate: func(_ context.Context, source, targetLocale string) (string, error) {
-				return strings.ToUpper(targetLocale) + ":" + source, nil
+			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+				return strings.ToUpper(task.TargetLocale) + ":" + task.SourceText, RoutingDecision{Provider: "openai", Model: "gpt-4o-mini", Reasons: []string{"test route"}}, nil
 			},
 		},
 		clock: func() time.Time {
@@ -81,11 +81,11 @@ func TestBuildOutcomeStringFailure(t *testing.T) {
 
 	processor := &Processor{
 		executor: fakeExecutor{
-			translate: func(_ context.Context, _ string, targetLocale string) (string, error) {
-				if targetLocale == "de" {
-					return "", errors.New("provider failed")
+			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+				if task.TargetLocale == "de" {
+					return "", RoutingDecision{Provider: "gemini", Model: "gemini-2.0-flash"}, errors.New("provider failed")
 				}
-				return "bonjour", nil
+				return "bonjour", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
 			},
 		},
 		clock: func() time.Time { return time.Unix(1700000000, 0).UTC() },
@@ -95,7 +95,7 @@ func TestBuildOutcomeStringFailure(t *testing.T) {
 		Type:         store.JobTypeString,
 		InputPayload: payload,
 	})
-	if err == nil || !strings.Contains(err.Error(), `translate locale "de"`) {
+	if err == nil || !strings.Contains(err.Error(), `translate locale "de" with route gemini/gemini-2.0-flash`) {
 		t.Fatalf("expected locale-specific error, got %v", err)
 	}
 }
@@ -149,6 +149,16 @@ func TestNewTranslatorExecutorAcceptsRemoteProvider(t *testing.T) {
 	}
 	if executor == nil {
 		t.Fatal("expected executor")
+	}
+}
+
+func TestNewTranslatorExecutorRejectsUnknownFallbackModel(t *testing.T) {
+	_, err := NewTranslatorExecutor(Config{
+		Provider: "openai",
+		Model:    "unknown-model",
+	})
+	if err == nil || !strings.Contains(err.Error(), `fallback model "unknown-model" is not registered for provider "openai"`) {
+		t.Fatalf("expected fallback model validation error, got %v", err)
 	}
 }
 
