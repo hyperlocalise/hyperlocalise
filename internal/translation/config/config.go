@@ -55,7 +55,7 @@ func LoadWorkerConfig() WorkerConfig {
 		LLMUserPrompt:       os.Getenv("TRANSLATION_LLM_USER_PROMPT"),
 		WorkerCount:         lookupEnvInt("TRANSLATION_WORKER_COUNT", 8),
 		ClaimBatchSize:      lookupEnvInt("TRANSLATION_WORKER_BATCH_SIZE", 32),
-		ClaimLeaseDuration:  lookupEnvDuration("TRANSLATION_WORKER_LEASE_DURATION", 30*time.Second),
+		ClaimLeaseDuration:  lookupEnvDuration("TRANSLATION_WORKER_LEASE_DURATION", 10*time.Minute),
 		RetryMaxAttempts:    lookupEnvInt("TRANSLATION_WORKER_MAX_ATTEMPTS", 5),
 		RetryInitialBackoff: lookupEnvDuration("TRANSLATION_WORKER_INITIAL_BACKOFF", 1*time.Second),
 		RetryMaxBackoff:     lookupEnvDuration("TRANSLATION_WORKER_MAX_BACKOFF", 30*time.Second),

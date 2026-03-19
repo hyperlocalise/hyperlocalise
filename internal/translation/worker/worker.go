@@ -77,12 +77,10 @@ func (p *Processor) WithRetryPolicy(policy RetryPolicy) *Processor {
 
 // ProcessJobQueuedEvent handles a single queued translation job notification.
 func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translationapp.JobQueuedPayload) error {
-	job, err := p.repository.GetJob(ctx, payload.JobID, payload.ProjectID)
-	if err != nil {
-		return fmt.Errorf("load queued translation job %s: %w", payload.JobID, err)
-	}
-
-	job, err = p.ensureJobRunning(ctx, job)
+	job, err := p.ensureJobRunning(ctx, &store.TranslationJobModel{
+		ID:        payload.JobID,
+		ProjectID: payload.ProjectID,
+	})
 	if err != nil {
 		return fmt.Errorf("process translation job %s: %w", payload.JobID, err)
 	}
@@ -138,8 +136,6 @@ func (p *Processor) buildOutcome(
 	ctx context.Context,
 	job *store.TranslationJobModel,
 ) (string, []byte, time.Time, error) {
-	completedAt := p.clock()
-
 	switch job.Type {
 	case store.JobTypeString:
 		if p.executor == nil {
@@ -182,6 +178,7 @@ func (p *Processor) buildOutcome(
 			}
 		}
 
+		completedAt := p.clock()
 		translations := make([]*translationv1.StringTranslation, 0, len(input.GetTargetLocales()))
 		for _, locale := range input.GetTargetLocales() {
 			translations = append(translations, &translationv1.StringTranslation{

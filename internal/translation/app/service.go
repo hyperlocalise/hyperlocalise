@@ -61,16 +61,10 @@ func (s *Service) CreateJob(
 		return nil, err
 	}
 
-	outboxPayload, err := encodeJSON(queuedPayload)
-	if err != nil {
-		return nil, err
-	}
-
 	eventModel := &store.OutboxEventModel{
 		ID:            eventID,
 		Topic:         queue.TopicJobQueued,
 		AggregateID:   jobModel.ID,
-		Payload:       outboxPayload,
 		Headers:       headers,
 		Status:        store.OutboxStatusPending,
 		AttemptCount:  0,
@@ -81,7 +75,7 @@ func (s *Service) CreateJob(
 	}
 
 	queuedPayload.EventID = eventID
-	outboxPayload, err = encodeJSON(queuedPayload)
+	outboxPayload, err := encodeJSON(queuedPayload)
 	if err != nil {
 		return nil, err
 	}
