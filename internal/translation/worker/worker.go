@@ -166,7 +166,7 @@ func (p *Processor) buildOutcome(
 			text, route, execErr := p.executor.Translate(ctx, task)
 			if execErr != nil {
 				if saveErr := p.persistCheckpoint(ctx, job, checkpoint, execErr.Error()); saveErr != nil {
-					return "", nil, time.Time{}, fmt.Errorf("persist checkpoint after translation failure: %w", saveErr)
+					return "", nil, time.Time{}, retryableErrorf("persist checkpoint after translation failure: %w", saveErr)
 				}
 				return "", nil, time.Time{}, retryableErrorf("translate locale %q with route %s/%s: %w", locale, route.Provider, route.Model, execErr)
 			}
@@ -174,7 +174,7 @@ func (p *Processor) buildOutcome(
 			log.Printf("translation task route source=%s target=%s provider=%s model=%s reasons=%s", task.SourceLocale, task.TargetLocale, route.Provider, route.Model, strings.Join(route.Reasons, " | "))
 			checkpoint.Translations[locale] = text
 			if saveErr := p.persistCheckpoint(ctx, job, checkpoint, ""); saveErr != nil {
-				return "", nil, time.Time{}, fmt.Errorf("persist checkpoint after locale %q: %w", locale, saveErr)
+				return "", nil, time.Time{}, retryableErrorf("persist checkpoint after locale %q: %w", locale, saveErr)
 			}
 		}
 
@@ -265,7 +265,7 @@ func (p *Processor) handleExecutionError(ctx context.Context, job *store.Transla
 	if err := p.repository.ScheduleOutboxEventRetry(ctx, eventID, p.workerID, attemptCount, nextAttemptAt, execErr.Error()); err != nil {
 		return err
 	}
-	return execErr
+	return nil
 }
 
 func resolveMaxAttempts(payloadMaxAttempts int, policy RetryPolicy) int {

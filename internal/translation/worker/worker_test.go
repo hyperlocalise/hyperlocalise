@@ -29,6 +29,7 @@ type fakeRepository struct {
 	mu           sync.Mutex
 	jobs         map[string]*store.TranslationJobModel
 	events       map[string]*store.OutboxEventModel
+	saveErr      error
 	processed    []string
 	retried      []string
 	deadLettered []string
@@ -82,6 +83,9 @@ func (r *fakeRepository) PersistJobTerminal(_ context.Context, jobID string, new
 func (r *fakeRepository) SaveRunningJobCheckpoint(_ context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.saveErr != nil {
+		return r.saveErr
+	}
 	job, ok := r.jobs[jobID]
 	if !ok || job.Status != expectedStatus {
 		return store.ErrNotFound
@@ -340,8 +344,8 @@ func TestProcessJobQueuedEventSchedulesRetry(t *testing.T) {
 	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
 
 	err = processor.ProcessJobQueuedEvent(context.Background(), translationapp.JobQueuedPayload{EventID: "evt-1", JobID: "job-1", ProjectID: "proj", AttemptCount: 1, MaxAttempts: 5})
-	if err == nil || !strings.Contains(err.Error(), "rate limited") {
-		t.Fatalf("expected retryable error, got %v", err)
+	if err != nil {
+		t.Fatalf("expected scheduled retry to be handled, got %v", err)
 	}
 	if repo.events["evt-1"].Status != store.OutboxStatusPending {
 		t.Fatalf("expected event pending for retry, got %s", repo.events["evt-1"].Status)
@@ -354,6 +358,62 @@ func TestProcessJobQueuedEventSchedulesRetry(t *testing.T) {
 	}
 	if repo.jobs["job-1"].Status != store.JobStatusRunning {
 		t.Fatalf("expected job to remain running, got %s", repo.jobs["job-1"].Status)
+	}
+}
+
+func TestBuildOutcomeCheckpointSaveErrorIsRetryable(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Status: store.JobStatusRunning}
+	repo.saveErr = errors.New("temporary db error")
+	processor := &Processor{
+		repository: repo,
+		executor: fakeExecutor{
+			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+				return "bonjour", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+			},
+		},
+		clock: func() time.Time { return time.Unix(1700000000, 0).UTC() },
+	}
+
+	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, InputPayload: payload, Status: store.JobStatusRunning})
+	if err == nil || !strings.Contains(err.Error(), `persist checkpoint after locale "fr"`) {
+		t.Fatalf("expected checkpoint save error, got %v", err)
+	}
+	if !isRetryableError(err) {
+		t.Fatalf("expected checkpoint save error to be retryable, got %v", err)
+	}
+}
+
+func TestRunnerIgnoresScheduledRetryErrors(t *testing.T) {
+	repo := newFakeRepository()
+	payload, err := json.Marshal(translationapp.JobQueuedPayload{JobID: "job-1", ProjectID: "proj", AttemptCount: 1, MaxAttempts: 5})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusRunning, InputPayload: mustStringInput(t, "Hello", "fr")}
+	repo.events["evt-1"] = &store.OutboxEventModel{ID: "evt-1", Payload: payload, Status: store.OutboxStatusPending, NextAttemptAt: time.Unix(1700000000, 0).UTC(), MaxAttempts: 5}
+
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		return "", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, errors.New("rate limited")
+	}}).WithRetryPolicy(RetryPolicy{MaxAttempts: 5, InitialBackoff: 2 * time.Second, MaxBackoff: 10 * time.Second})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	runner := NewRunner(repo, processor, RunnerConfig{WorkerID: "runner-4", WorkerCount: 1, BatchSize: 1, LeaseDuration: time.Minute})
+	runner.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	processed, err := runner.ProcessAvailable(context.Background())
+	if err != nil {
+		t.Fatalf("expected retry scheduling not to surface as runner error, got %v", err)
+	}
+	if processed != 1 {
+		t.Fatalf("expected 1 dispatched event, got %d", processed)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusPending {
+		t.Fatalf("expected event pending for retry, got %s", repo.events["evt-1"].Status)
 	}
 }
 
