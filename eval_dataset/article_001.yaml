@@ -1,17 +1,23 @@
 experiments:
-  - id: ollama-translategemma
-    provider: ollama
-    model: translategemma
-  - id: ollama-lfm2-24b
-    provider: ollama
-    model: lfm2:24b
+  # - id: ollama-translategemma
+  #   provider: ollama
+  #   model: translategemma
+  # - id: ollama-lfm2-24b
+  #   provider: ollama
+  #   model: lfm2:24b
 
-  # - id: openai-gpt-5-nano
-  #   provider: openai
-  #   model: gpt-5-nano
-  # - id: openai-gpt-5-mini
-  #   provider: openai
-  #   model: gpt-5-mini
+  - id: openai-gpt-5-nano
+    provider: openai
+    model: gpt-5-nano
+  - id: openai-gpt-5-mini
+    provider: openai
+    model: gpt-5-mini
+  - id: openai-gpt-5.4-nano
+    provider: openai
+    model: gpt-5.4-nano
+  - id: openai-gpt-5.4-mini
+    provider: openai
+    model: gpt-5.4-mini
 judge:
   provider: openai
   model: gpt-5.4
@@ -39,13 +45,13 @@ tests:
       - locale: vi-VN
         reference: |
           Mặc dù còn rất trẻ nhưng chiến tích tình trường của Raheem Sterling, cầu thủ chạy cánh đầy tiềm năng Liverpool khiến các tay chơi nổi tiếng “sát gát” cũng phải nể phục. Ngôi sao trẻ The Kop đang nắm giữ trái tim một trong những mỹ nhân gợi cảm nhất nước Anh, Melissa Clarke.
-          Cùng với phong độ ấn tượng mà Liverpool đã tạo ra, tên tuổi của Raheem Sterling cũng được biết đến nhiều hơn. Tuy nhiên, cách đây hai năm, ngôi sao triển vọng của The Kop đã “nổi như cồn” khi trở thành cha của một bé gái ở tuổi 17. Đây là kết quả của mối tình giữa Sterling và cô bạn gái 23 tuổi melissa clarke .
+          Cùng với phong độ ấn tượng mà Liverpool đã tạo ra, tên tuổi của Raheem Sterling cũng được biết đến nhiều hơn. Tuy nhiên, cách đây hai năm, ngôi sao triển vọng của The Kop đã “nổi như cồn” khi trở thành cha của một bé gái ở tuổi 17. Đây là kết quả của mối tình giữa Sterling và cô bạn gái 23 tuổi Melissa Clarke.
           Vẻ đẹp khó cưỡng của Melissa Clarke
           Mặc dù đã là một bà mẹ nhưng người tình Sterling vẫn không mất đi những đường cong nóng bỏng cùng vẻ đẹp hút hồn của một trong những mỹ nhân gợi cảm nhất xứ Sương mù. Melissa hiện là một MC tài năng, ngoài ra cô còn thường xuyên xuất hiện trên các tạp chí dành riêng cho đàn ông trong vai trò mẫu khỏa thân.
           Vẻ đẹp rực lửa khiến Sterling làm bố ở tuổi 17:
           Cô bồ chuyên khỏa thân của tuyển thủ Liverpool
           Những khuôn hình nóng bỏng của người đẹp 9x
-          Bộ sưu tập ảnh nóng của wags Liverpool
+          Bộ sưu tập ảnh nóng của dàn WAGs Liverpool
           Người đẹp nóng bỏng với đồ nội y.
           Theo Akmen.
   - id: aftex-2013-conference
@@ -88,18 +94,48 @@ tests:
     locales:
       - locale: vi-VN
         reference: "{count, plural, one {Đã tải lên # tệp} other {Đã tải lên # tệp}}"
+      - locale: zh-CN
+        reference: "{count, plural, one {已上传 # 个文件} other {已上传 # 个文件}}"
+      - locale: fr-FR
+        reference: "{count, plural, one {# fichier téléchargé} other {# fichiers téléchargés}}"
+      - locale: it-IT
+        reference: "{count, plural, one {# file caricato} other {# file caricati}}"
+      - locale: es-CA
+        reference: "{count, plural, one {# archivo cargado} other {# archivos cargados}}"
+      - locale: ko-KR
+        reference: "{count, plural, one {#개 파일 업로드됨} other {#개 파일 업로드됨}}"
   - id: icu-inbox-count
     vars:
       source: "{count, plural, =0 {No messages} one {# message} other {# messages}}"
     locales:
       - locale: vi-VN
         reference: "{count, plural, =0 {Không có tin nhắn} one {# tin nhắn} other {# tin nhắn}}"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {没有消息} one {# 条消息} other {# 条消息}}"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Pas de messages} one {# message} other {# messages}}"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Nessun messaggio} one {# messaggio} other {# messaggi}}"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Sin mensajes} one {# mensaje} other {# mensajes}}"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {메시지 없음} one {#개의 메시지} other {#개의 메시지}}"
   - id: icu-welcome-user
     vars:
       source: "Welcome back, {name}"
     locales:
       - locale: vi-VN
         reference: "Chào mừng bạn quay lại, {name}"
+      - locale: zh-CN
+        reference: "欢迎回来，{name}"
+      - locale: fr-FR
+        reference: "Bon retour, {name}"
+      - locale: it-IT
+        reference: "Bentornato, {name}"
+      - locale: es-CA
+        reference: "Bienvenido de nuevo, {name}"
+      - locale: ko-KR
+        reference: "다시 오신 것을 환영합니다, {name}"
   - id: icu-cart-total-number-currency
     vars:
       source: "Cart total: {amount, number, ::currency/USD}"
@@ -109,12 +145,62 @@ tests:
         assert:
           - type: contains
             value: "{amount, number, ::currency/USD}"
+      - locale: zh-CN
+        reference: "购物车总计: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: fr-FR
+        reference: "Total du panier: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: it-IT
+        reference: "Totale carrello: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: es-CA
+        reference: "Total del carrito: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: ko-KR
+        reference: "장바구니 합계: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
   - id: icu-discount-percent-number
     vars:
       source: "You saved {discount, number, ::percent}"
     locales:
       - locale: vi-VN
         reference: "Bạn đã tiết kiệm {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+      - locale: zh-CN
+        reference: "您节省了 {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+      - locale: fr-FR
+        reference: "Vous avez économisé {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+      - locale: it-IT
+        reference: "Hai risparmiato {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+      - locale: es-CA
+        reference: "Has ahorrado {discount, number, ::percent}"
+        assert:
+          - type: contains
+            value: "{discount, number, ::percent}"
+      - locale: ko-KR
+        reference: "{discount, number, ::percent} 절약했습니다"
         assert:
           - type: contains
             value: "{discount, number, ::percent}"
@@ -129,12 +215,72 @@ tests:
             value: "{min, number}"
           - type: contains
             value: "{max, number}"
+      - locale: zh-CN
+        reference: "从 {min, number} 到 {max, number} 件商品"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
+      - locale: fr-FR
+        reference: "De {min, number} à {max, number} articles"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
+      - locale: it-IT
+        reference: "Da {min, number} a {max, number} articoli"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
+      - locale: es-CA
+        reference: "De {min, number} a {max, number} artículos"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
+      - locale: ko-KR
+        reference: "{min, number}개부터 {max, number}개까지"
+        assert:
+          - type: contains
+            value: "{min, number}"
+          - type: contains
+            value: "{max, number}"
   - id: icu-short-date
     vars:
       source: "Trial ends on {endDate, date, ::yMMMd}"
     locales:
       - locale: vi-VN
         reference: "Bản dùng thử kết thúc vào {endDate, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+      - locale: zh-CN
+        reference: "试用期于 {endDate, date, ::yMMMd} 结束"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+      - locale: fr-FR
+        reference: "L'essai se termine le {endDate, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+      - locale: it-IT
+        reference: "La prova termina il {endDate, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+      - locale: es-CA
+        reference: "La prueba finaliza el {endDate, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{endDate, date, ::yMMMd}"
+      - locale: ko-KR
+        reference: "체험 기간이 {endDate, date, ::yMMMd}에 종료됩니다"
         assert:
           - type: contains
             value: "{endDate, date, ::yMMMd}"
@@ -147,12 +293,72 @@ tests:
         assert:
           - type: contains
             value: "{startTime, time, ::Hm}"
+      - locale: zh-CN
+        reference: "会议在 {startTime, time, ::Hm} 开始"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
+      - locale: fr-FR
+        reference: "La réunion commence à {startTime, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
+      - locale: it-IT
+        reference: "La riunione inizia alle {startTime, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
+      - locale: es-CA
+        reference: "La reunión comienza a las {startTime, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
+      - locale: ko-KR
+        reference: "회의가 {startTime, time, ::Hm}에 시작됩니다"
+        assert:
+          - type: contains
+            value: "{startTime, time, ::Hm}"
   - id: icu-date-and-time-mixed
     vars:
       source: "Last synced {syncedAt, date, ::yyyyMMdd} at {syncedAt, time, ::Hm}"
     locales:
       - locale: vi-VN
         reference: "Đồng bộ lần cuối vào {syncedAt, date, ::yyyyMMdd} lúc {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+      - locale: zh-CN
+        reference: "上次同步于 {syncedAt, date, ::yyyyMMdd} {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+      - locale: fr-FR
+        reference: "Dernière synchronisation le {syncedAt, date, ::yyyyMMdd} à {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+      - locale: it-IT
+        reference: "Ultima sincronizzazione il {syncedAt, date, ::yyyyMMdd} alle {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+      - locale: es-CA
+        reference: "Última sincronización el {syncedAt, date, ::yyyyMMdd} a las {syncedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{syncedAt, date, ::yyyyMMdd}"
+          - type: contains
+            value: "{syncedAt, time, ::Hm}"
+      - locale: ko-KR
+        reference: "마지막 동기화: {syncedAt, date, ::yyyyMMdd} {syncedAt, time, ::Hm}"
         assert:
           - type: contains
             value: "{syncedAt, date, ::yyyyMMdd}"
@@ -171,12 +377,82 @@ tests:
             value: "female {"
           - type: contains
             value: "other {"
+      - locale: zh-CN
+        reference: "{gender, select, male {他更新了个人资料} female {她更新了个人资料} other {他们更新了个人资料}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
+      - locale: fr-FR
+        reference: "{gender, select, male {Il a mis à jour son profil} female {Elle a mis à jour son profil} other {Ils ont mis à jour leur profil}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
+      - locale: it-IT
+        reference: "{gender, select, male {Ha aggiornato il suo profilo} female {Ha aggiornato il suo profilo} other {Hanno aggiornato il loro profilo}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
+      - locale: es-CA
+        reference: "{gender, select, male {Actualizó su perfil} female {Actualizó su perfil} other {Actualizaron su perfil}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
+      - locale: ko-KR
+        reference: "{gender, select, male {그가 프로필을 업데이트했습니다} female {그녀가 프로필을 업데이트했습니다} other {그들이 프로필을 업데이트했습니다}}"
+        assert:
+          - type: contains
+            value: "male {"
+          - type: contains
+            value: "female {"
+          - type: contains
+            value: "other {"
   - id: icu-select-with-name
     vars:
       source: "{gender, select, male {Welcome back, Mr. {lastName}} female {Welcome back, Ms. {lastName}} other {Welcome back, {lastName}}}"
     locales:
       - locale: vi-VN
         reference: "{gender, select, male {Chào mừng ông {lastName} quay lại} female {Chào mừng bà {lastName} quay lại} other {Chào mừng {lastName} quay lại}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+      - locale: zh-CN
+        reference: "{gender, select, male {欢迎回来，{lastName} 先生} female {欢迎回来，{lastName} 女士} other {欢迎回来，{lastName}}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+      - locale: fr-FR
+        reference: "{gender, select, male {Bon retour, M. {lastName}} female {Bon retour, Mme {lastName}} other {Bon retour, {lastName}}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+      - locale: it-IT
+        reference: "{gender, select, male {Bentornato, Sig. {lastName}} female {Bentornata, Sig.ra {lastName}} other {Bentornato, {lastName}}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+      - locale: es-CA
+        reference: "{gender, select, male {Bienvenido de nuevo, Sr. {lastName}} female {Bienvenida de nuevo, Sra. {lastName}} other {Bienvenido de nuevo, {lastName}}}"
+        assert:
+          - type: contains
+            value: "{lastName}"
+      - locale: ko-KR
+        reference: "{gender, select, male {다시 오신 것을 환영합니다, {lastName}님} female {다시 오신 것을 환영합니다, {lastName}님} other {다시 오신 것을 환영합니다, {lastName}님}}"
         assert:
           - type: contains
             value: "{lastName}"
@@ -191,12 +467,72 @@ tests:
             value: "offset:1"
           - type: contains
             value: "{host}"
+      - locale: zh-CN
+        reference: "{count, plural, offset:1 =0 {没有人接受} =1 {{host} 已接受} one {{host} 和另外一人已接受} other {{host} 和 # 人已接受}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
+      - locale: fr-FR
+        reference: "{count, plural, offset:1 =0 {Personne n'a accepté} =1 {{host} a accepté} one {{host} et une autre personne ont accepté} other {{host} et # autres personnes ont accepté}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
+      - locale: it-IT
+        reference: "{count, plural, offset:1 =0 {Nessuno ha accettato} =1 {{host} ha accettato} one {{host} e un altro hanno accettato} other {{host} e altri # hanno accettato}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
+      - locale: es-CA
+        reference: "{count, plural, offset:1 =0 {Nadie ha aceptado} =1 {{host} ha aceptado} one {{host} y otra persona han aceptado} other {{host} y otras # personas han aceptado}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
+      - locale: ko-KR
+        reference: "{count, plural, offset:1 =0 {수락한 사람이 없습니다} =1 {{host}님이 수락했습니다} one {{host}님 외 1명이 수락했습니다} other {{host}님 외 #명이 수락했습니다}}"
+        assert:
+          - type: contains
+            value: "offset:1"
+          - type: contains
+            value: "{host}"
   - id: icu-selectordinal-ranking
     vars:
       source: "You finished {place, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} in the leaderboard"
     locales:
       - locale: vi-VN
         reference: "Bạn đã đứng thứ {place, selectordinal, one {#} two {#} few {#} other {#}} trên bảng xếp hạng"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+      - locale: zh-CN
+        reference: "您在排行榜上名列第 {place, selectordinal, one {#} two {#} few {#} other {#}}"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+      - locale: fr-FR
+        reference: "Vous avez terminé {place, selectordinal, one {#er} two {#e} few {#e} other {#e}} au classement"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+      - locale: it-IT
+        reference: "Hai finito {place, selectordinal, one {#°} two {#°} few {#°} other {#°}} in classifica"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+      - locale: es-CA
+        reference: "Terminaste {place, selectordinal, one {#.º} two {#.º} few {#.º} other {#.º}} en la clasificación"
+        assert:
+          - type: contains
+            value: "{place, selectordinal,"
+      - locale: ko-KR
+        reference: "순위표에서 {place, selectordinal, one {#위} two {#위} few {#위} other {#위}}를 달성했습니다"
         assert:
           - type: contains
             value: "{place, selectordinal,"
@@ -211,12 +547,72 @@ tests:
             value: "{gender, select,"
           - type: contains
             value: "{count, plural,"
+      - locale: zh-CN
+        reference: "{gender, select, male {{count, plural, =0 {他没有任务} one {他有一个任务} other {他共有 # 个任务}}} female {{count, plural, =0 {她没有任务} one {她有一个任务} other {她共有 # 个任务}}} other {{count, plural, =0 {他们没有任务} one {他们有一个任务} other {他们共有 # 个任务}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
+      - locale: fr-FR
+        reference: "{gender, select, male {{count, plural, =0 {Il n'a pas de tâches} one {Il a une tâche} other {Il a # tâches}}} female {{count, plural, =0 {Elle n'a pas de tâches} one {Elle a une tâche} other {Elle a # tâches}}} other {{count, plural, =0 {Ils n'ont pas de tâches} one {Ils ont une tâche} other {Ils ont # tâches}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
+      - locale: it-IT
+        reference: "{gender, select, male {{count, plural, =0 {Non ha attività} one {Ha un'attività} other {Ha # attività}}} female {{count, plural, =0 {Non ha attività} one {Ha un'attività} other {Ha # attività}}} other {{count, plural, =0 {Non hanno attività} one {Hanno un'attività} other {Hanno # attività}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
+      - locale: es-CA
+        reference: "{gender, select, male {{count, plural, =0 {No tiene tareas} one {Tiene una tarea} other {Tiene # tareas}}} female {{count, plural, =0 {No tiene tareas} one {Tiene una tarea} other {Tiene # tareas}}} other {{count, plural, =0 {No tienen tareas} one {Tienen una tarea} other {Tienen # tareas}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
+      - locale: ko-KR
+        reference: "{gender, select, male {{count, plural, =0 {그는 할 일이 없습니다} one {그는 할 일이 1개 있습니다} other {그는 할 일이 #개 있습니다}}} female {{count, plural, =0 {그녀는 할 일이 없습니다} one {그녀는 할 일이 1개 있습니다} other {그녀는 할 일이 #개 있습니다}}} other {{count, plural, =0 {그들은 할 일이 없습니다} one {그들은 할 일이 1개 있습니다} other {그들은 할 일이 #개 있습니다}}}}"
+        assert:
+          - type: contains
+            value: "{gender, select,"
+          - type: contains
+            value: "{count, plural,"
   - id: icu-plural-with-number-skeleton
     vars:
       source: "{count, plural, =0 {No invoices due} one {{amount, number, ::currency/USD} is due today} other {{amount, number, ::currency/USD} are due across # invoices}}"
     locales:
       - locale: vi-VN
         reference: "{count, plural, =0 {Không có hóa đơn nào đến hạn} one {{amount, number, ::currency/USD} đến hạn hôm nay} other {{amount, number, ::currency/USD} đến hạn trên # hóa đơn}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {没有到期发票} one {{amount, number, ::currency/USD} 今天到期} other {{amount, number, ::currency/USD} 在 # 张发票上到期}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Aucune facture due} one {{amount, number, ::currency/USD} est dû aujourd'hui} other {{amount, number, ::currency/USD} sont dus sur # factures}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Nessuna fattura dovuta} one {{amount, number, ::currency/USD} è dovuto oggi} other {{amount, number, ::currency/USD} sono dovuti su # fatture}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Sin facturas pendientes} one {{amount, number, ::currency/USD} vence hoy} other {{amount, number, ::currency/USD} vencen en # facturas}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {만료된 청구서가 없습니다} one {{amount, number, ::currency/USD} 오늘 만료} other {{amount, number, ::currency/USD} #개 청구서에 만료}}"
         assert:
           - type: contains
             value: "{amount, number, ::currency/USD}"
@@ -229,12 +625,62 @@ tests:
         assert:
           - type: contains
             value: "{fieldName}"
+      - locale: zh-CN
+        reference: "使用 '{' 和 '}' 包裹模板中的 {fieldName}"
+        assert:
+          - type: contains
+            value: "{fieldName}"
+      - locale: fr-FR
+        reference: "Utilisez '{' et '}' pour envelopper {fieldName} dans le modèle"
+        assert:
+          - type: contains
+            value: "{fieldName}"
+      - locale: it-IT
+        reference: "Usa '{' e '}' per racchiudere {fieldName} nel modello"
+        assert:
+          - type: contains
+            value: "{fieldName}"
+      - locale: es-CA
+        reference: "Usa '{' y '}' para envolver {fieldName} en la plantilla"
+        assert:
+          - type: contains
+            value: "{fieldName}"
+      - locale: ko-KR
+        reference: "템플릿에서 {fieldName}을(를) 감싸려면 '{'와 '}'를 사용하세요"
+        assert:
+          - type: contains
+            value: "{fieldName}"
   - id: icu-apostrophe-escaped
     vars:
       source: "Don''t remove {name} from the list"
     locales:
       - locale: vi-VN
         reference: "Đừng xóa {name} khỏi danh sách"
+        assert:
+          - type: contains
+            value: "{name}"
+      - locale: zh-CN
+        reference: "不要从列表中删除 {name}"
+        assert:
+          - type: contains
+            value: "{name}"
+      - locale: fr-FR
+        reference: "Ne retirez pas {name} de la liste"
+        assert:
+          - type: contains
+            value: "{name}"
+      - locale: it-IT
+        reference: "Non rimuovere {name} dall'elenco"
+        assert:
+          - type: contains
+            value: "{name}"
+      - locale: es-CA
+        reference: "No elimines {name} de la lista"
+        assert:
+          - type: contains
+            value: "{name}"
+      - locale: ko-KR
+        reference: "목록에서 {name}을(를) 제거하지 마세요"
         assert:
           - type: contains
             value: "{name}"
@@ -251,6 +697,51 @@ tests:
             value: "{amount, number, ::currency/USD}"
           - type: contains
             value: "{user}"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {{user} 截至 {checkedAt, time, ::Hm} 没有新警报} one {{user} 有价值 {amount, number, ::currency/USD} 的新警报} other {{user} 有价值 {amount, number, ::currency/USD} 的 # 个新警报}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {{user} n'a pas de nouvelles alertes à {checkedAt, time, ::Hm}} one {{user} a une nouvelle alerte d'une valeur de {amount, number, ::currency/USD}} other {{user} a # nouvelles alertes d'une valeur de {amount, number, ::currency/USD}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
+      - locale: it-IT
+        reference: "{count, plural, =0 {{user} non ha nuovi avvisi alle {checkedAt, time, ::Hm}} one {{user} ha un nuovo avviso del valore di {amount, number, ::currency/USD}} other {{user} ha # nuovi avvisi per un valore di {amount, number, ::currency/USD}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
+      - locale: es-CA
+        reference: "{count, plural, =0 {{user} no tiene nuevas alertas a las {checkedAt, time, ::Hm}} one {{user} tiene una nueva alerta por valor de {amount, number, ::currency/USD}} other {{user} tiene # nuevas alertas por valor de {amount, number, ::currency/USD}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {{user}님에게 {checkedAt, time, ::Hm} 기준 새로운 알림이 없습니다} one {{user}님에게 {amount, number, ::currency/USD} 규모의 새로운 알림이 1개 있습니다} other {{user}님에게 {amount, number, ::currency/USD} 규모의 새로운 알림이 #개 있습니다}}}"
+        assert:
+          - type: contains
+            value: "{checkedAt, time, ::Hm}"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{user}"
   - id: icu-subscription-renews-on-date
     vars:
       source: "Your subscription renews on {renewalDate, date, ::yMMMMd}"
@@ -260,12 +751,72 @@ tests:
         assert:
           - type: contains
             value: "{renewalDate, date, ::yMMMMd}"
+      - locale: zh-CN
+        reference: "您的订阅将于 {renewalDate, date, ::yMMMMd} 续订"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
+      - locale: fr-FR
+        reference: "Votre abonnement sera renouvelé le {renewalDate, date, ::yMMMMd}"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
+      - locale: it-IT
+        reference: "Il tuo abbonamento si rinnova il {renewalDate, date, ::yMMMMd}"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
+      - locale: es-CA
+        reference: "Tu suscripción se renueva el {renewalDate, date, ::yMMMMd}"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
+      - locale: ko-KR
+        reference: "구독이 {renewalDate, date, ::yMMMMd}에 갱신됩니다"
+        assert:
+          - type: contains
+            value: "{renewalDate, date, ::yMMMMd}"
   - id: icu-subscription-price-summary
     vars:
       source: "Next charge: {amount, number, ::currency/USD} every {months, plural, one {month} other {# months}}"
     locales:
       - locale: vi-VN
         reference: "Khoản phí tiếp theo: {amount, number, ::currency/USD} mỗi {months, plural, one {tháng} other {# tháng}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+      - locale: zh-CN
+        reference: "下次扣费: {amount, number, ::currency/USD} 每 {months, plural, one {个月} other {# 个月}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+      - locale: fr-FR
+        reference: "Prochain prélèvement: {amount, number, ::currency/USD} tous les {months, plural, one {mois} other {# mois}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+      - locale: it-IT
+        reference: "Addebito successivo: {amount, number, ::currency/USD} ogni {months, plural, one {mese} other {# mesi}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+      - locale: es-CA
+        reference: "Próximo cargo: {amount, number, ::currency/USD} cada {months, plural, one {mes} other {# meses}}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{months, plural,"
+      - locale: ko-KR
+        reference: "다음 청구: {amount, number, ::currency/USD} 매 {months, plural, one {개월} other {#개월}}"
         assert:
           - type: contains
             value: "{amount, number, ::currency/USD}"
@@ -282,12 +833,72 @@ tests:
             value: "{usedSeats, number}"
           - type: contains
             value: "{totalSeats, number}"
+      - locale: zh-CN
+        reference: "已分配 {usedSeats, number} / {totalSeats, number} 个座位"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
+      - locale: fr-FR
+        reference: "{usedSeats, number} places sur {totalSeats, number} attribuées"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
+      - locale: it-IT
+        reference: "{usedSeats, number} di {totalSeats, number} posti assegnati"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
+      - locale: es-CA
+        reference: "{usedSeats, number} de {totalSeats, number} asientos asignados"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
+      - locale: ko-KR
+        reference: "{totalSeats, number}개 중 {usedSeats, number}개 좌석 배정됨"
+        assert:
+          - type: contains
+            value: "{usedSeats, number}"
+          - type: contains
+            value: "{totalSeats, number}"
   - id: icu-api-rate-limit-reset
     vars:
       source: "Rate limit resets at {resetAt, time, ::Hm}"
     locales:
       - locale: vi-VN
         reference: "Giới hạn tốc độ sẽ được đặt lại lúc {resetAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+      - locale: zh-CN
+        reference: "速率限制将在 {resetAt, time, ::Hm} 重置"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+      - locale: fr-FR
+        reference: "La limite de débit se réinitialise à {resetAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+      - locale: it-IT
+        reference: "Il limite di frequenza si ripristina alle {resetAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+      - locale: es-CA
+        reference: "El límite de velocidad se reinicia a las {resetAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{resetAt, time, ::Hm}"
+      - locale: ko-KR
+        reference: "속도 제한이 {resetAt, time, ::Hm}에 재설정됩니다"
         assert:
           - type: contains
             value: "{resetAt, time, ::Hm}"
@@ -302,6 +913,41 @@ tests:
             value: "{attempts, plural,"
           - type: contains
             value: "{window, number}"
+      - locale: zh-CN
+        reference: "{attempts, plural, =0 {没有失败的登录尝试} one {1 次失败的登录尝试} other {# 次失败的登录尝试}} 在过去 {window, number} 小时内"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
+      - locale: fr-FR
+        reference: "{attempts, plural, =0 {Aucune tentative de connexion échouée} one {1 tentative de connexion échouée} other {# tentatives de connexion échouées}} au cours des {window, number} dernières heures"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
+      - locale: it-IT
+        reference: "{attempts, plural, =0 {Nessun tentativo di accesso fallito} one {1 tentativo di accesso fallito} other {# tentativi di accesso falliti}} nelle ultime {window, number} ore"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
+      - locale: es-CA
+        reference: "{attempts, plural, =0 {Sin intentos de inicio de sesión fallidos} one {1 intento de inicio de sesión fallido} other {# intentos de inicio de sesión fallidos}} en las últimas {window, number} horas"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
+      - locale: ko-KR
+        reference: "{attempts, plural, =0 {실패한 로그인 시도 없음} one {1번의 실패한 로그인 시도} other {#번의 실패한 로그인 시도}} 지난 {window, number}시간 동안"
+        assert:
+          - type: contains
+            value: "{attempts, plural,"
+          - type: contains
+            value: "{window, number}"
   - id: icu-password-expires
     vars:
       source: "Your password expires in {days, plural, one {# day} other {# days}}"
@@ -311,12 +957,72 @@ tests:
         assert:
           - type: contains
             value: "{days, plural,"
+      - locale: zh-CN
+        reference: "您的密码将在 {days, plural, one {# 天} other {# 天}} 后过期"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+      - locale: fr-FR
+        reference: "Votre mot de passe expire dans {days, plural, one {# jour} other {# jours}}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+      - locale: it-IT
+        reference: "La tua password scade tra {days, plural, one {# giorno} other {# giorni}}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+      - locale: es-CA
+        reference: "Tu contraseña caduca en {days, plural, one {# día} other {# días}}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+      - locale: ko-KR
+        reference: "비밀번호가 {days, plural, one {#일} other {#일}} 후에 만료됩니다"
+        assert:
+          - type: contains
+            value: "{days, plural,"
   - id: icu-export-ready
     vars:
       source: "Export ready at {completedAt, time, ::Hm} on {completedAt, date, ::yMMMd}"
     locales:
       - locale: vi-VN
         reference: "Bản xuất đã sẵn sàng lúc {completedAt, time, ::Hm} vào ngày {completedAt, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+      - locale: zh-CN
+        reference: "导出已于 {completedAt, date, ::yMMMd} {completedAt, time, ::Hm} 准备就绪"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+      - locale: fr-FR
+        reference: "Export prêt à {completedAt, time, ::Hm} le {completedAt, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+      - locale: it-IT
+        reference: "Esportazione pronta alle {completedAt, time, ::Hm} del {completedAt, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+      - locale: es-CA
+        reference: "Exportación lista a las {completedAt, time, ::Hm} el {completedAt, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{completedAt, time, ::Hm}"
+          - type: contains
+            value: "{completedAt, date, ::yMMMd}"
+      - locale: ko-KR
+        reference: "내보내기가 {completedAt, date, ::yMMMd} {completedAt, time, ::Hm}에 준비되었습니다"
         assert:
           - type: contains
             value: "{completedAt, time, ::Hm}"
@@ -333,12 +1039,72 @@ tests:
             value: "{done, number}"
           - type: contains
             value: "{total, number}"
+      - locale: zh-CN
+        reference: "已处理 {done, number} / {total, number} 条记录"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
+      - locale: fr-FR
+        reference: "{done, number} sur {total, number} enregistrements traités"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
+      - locale: it-IT
+        reference: "Elaborati {done, number} di {total, number} record"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
+      - locale: es-CA
+        reference: "Procesados {done, number} de {total, number} registros"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
+      - locale: ko-KR
+        reference: "{total, number}개 중 {done, number}개 레코드 처리됨"
+        assert:
+          - type: contains
+            value: "{done, number}"
+          - type: contains
+            value: "{total, number}"
   - id: icu-comment-replies
     vars:
       source: "{count, plural, =0 {No replies yet} one {# reply} other {# replies}}"
     locales:
       - locale: vi-VN
         reference: "{count, plural, =0 {Chưa có phản hồi nào} one {# phản hồi} other {# phản hồi}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {还没有回复} one {# 条回复} other {# 条回复}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Pas encore de réponses} one {# réponse} other {# réponses}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Nessuna risposta ancora} one {# risposta} other {# risposte}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Sin respuestas todavía} one {# respuesta} other {# respuestas}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {아직 답변이 없습니다} one {#개의 답변} other {#개의 답변}}"
         assert:
           - type: contains
             value: "{count, plural,"
@@ -353,12 +1119,72 @@ tests:
             value: "{used, number}"
           - type: contains
             value: "{limit, number}"
+      - locale: zh-CN
+        reference: "已使用 {used, number} / {limit, number} GB"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
+      - locale: fr-FR
+        reference: "{used, number} Go sur {limit, number} Go utilisés"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
+      - locale: it-IT
+        reference: "{used, number} GB di {limit, number} GB utilizzati"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
+      - locale: es-CA
+        reference: "{used, number} GB de {limit, number} GB utilizados"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
+      - locale: ko-KR
+        reference: "{limit, number}GB 중 {used, number}GB 사용됨"
+        assert:
+          - type: contains
+            value: "{used, number}"
+          - type: contains
+            value: "{limit, number}"
   - id: icu-shipping-estimate
     vars:
       source: "Estimated delivery: {deliveryDate, date, ::EEEyMMMd}"
     locales:
       - locale: vi-VN
         reference: "Dự kiến giao hàng: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+      - locale: zh-CN
+        reference: "预计送达: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+      - locale: fr-FR
+        reference: "Livraison estimée: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+      - locale: it-IT
+        reference: "Consegna stimata: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+      - locale: es-CA
+        reference: "Entrega estimada: {deliveryDate, date, ::EEEyMMMd}"
+        assert:
+          - type: contains
+            value: "{deliveryDate, date, ::EEEyMMMd}"
+      - locale: ko-KR
+        reference: "예상 배송일: {deliveryDate, date, ::EEEyMMMd}"
         assert:
           - type: contains
             value: "{deliveryDate, date, ::EEEyMMMd}"
@@ -371,12 +1197,72 @@ tests:
         assert:
           - type: contains
             value: "{status, select,"
+      - locale: zh-CN
+        reference: "{status, select, pending {您的订单待处理} paid {您的订单已支付} shipped {您的订单已发货} delivered {您的订单已送达} other {您的订单正在处理中}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
+      - locale: fr-FR
+        reference: "{status, select, pending {Votre commande est en attente} paid {Votre commande a été payée} shipped {Votre commande a été expédiée} delivered {Votre commande a été livrée} other {Votre commande est en cours de traitement}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
+      - locale: it-IT
+        reference: "{status, select, pending {Il tuo ordine è in attesa} paid {Il tuo ordine è stato pagato} shipped {Il tuo ordine è stato spedito} delivered {Il tuo ordine è stato consegnato} other {Il tuo ordine è in fase di elaborazione}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
+      - locale: es-CA
+        reference: "{status, select, pending {Tu pedido está pendiente} paid {Tu pedido ha sido pagado} shipped {Tu pedido ha sido enviado} delivered {Tu pedido ha sido entregado} other {Tu pedido está siendo procesado}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
+      - locale: ko-KR
+        reference: "{status, select, pending {주문 대기 중} paid {주문 결제됨} shipped {주문 배송됨} delivered {주문 배송 완료} other {주문 처리 중}}"
+        assert:
+          - type: contains
+            value: "{status, select,"
   - id: icu-refund-summary
     vars:
       source: "Refund of {amount, number, ::currency/USD} issued on {issuedAt, date, ::yMd}"
     locales:
       - locale: vi-VN
         reference: "Khoản hoàn tiền {amount, number, ::currency/USD} đã được phát hành vào {issuedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+      - locale: zh-CN
+        reference: "{amount, number, ::currency/USD} 的退款已于 {issuedAt, date, ::yMd} 发放"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+      - locale: fr-FR
+        reference: "Remboursement de {amount, number, ::currency/USD} émis le {issuedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+      - locale: it-IT
+        reference: "Rimborso di {amount, number, ::currency/USD} emesso il {issuedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+      - locale: es-CA
+        reference: "Reembolso de {amount, number, ::currency/USD} emitido el {issuedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+          - type: contains
+            value: "{issuedAt, date, ::yMd}"
+      - locale: ko-KR
+        reference: "{amount, number, ::currency/USD} 환불이 {issuedAt, date, ::yMd}에 발급되었습니다"
         assert:
           - type: contains
             value: "{amount, number, ::currency/USD}"
@@ -393,12 +1279,82 @@ tests:
             value: "{title}"
           - type: contains
             value: "{minutes, plural,"
+      - locale: zh-CN
+        reference: "{title} 将在 {minutes, plural, one {# 分钟} other {# 分钟}} 后开始"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
+      - locale: fr-FR
+        reference: "{title} commence dans {minutes, plural, one {# minute} other {# minutes}}"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
+      - locale: it-IT
+        reference: "{title} inizia tra {minutes, plural, one {# minuto} other {# minuti}}"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
+      - locale: es-CA
+        reference: "{title} comienza en {minutes, plural, one {# minuto} other {# minutos}}"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
+      - locale: ko-KR
+        reference: "{title}이(가) {minutes, plural, one {#분} other {#분}} 후 시작됩니다"
+        assert:
+          - type: contains
+            value: "{title}"
+          - type: contains
+            value: "{minutes, plural,"
   - id: icu-calendar-rsvp
     vars:
       source: "{response, select, yes {You are attending} no {You are not attending} maybe {You might attend} other {Please respond}} by {deadline, date, ::yMMMd}"
     locales:
       - locale: vi-VN
         reference: "{response, select, yes {Bạn sẽ tham dự} no {Bạn sẽ không tham dự} maybe {Bạn có thể sẽ tham dự} other {Vui lòng phản hồi}} trước {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+      - locale: zh-CN
+        reference: "{response, select, yes {您将参加} no {您不参加} maybe {您可能会参加} other {请回复}} 截止日期: {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+      - locale: fr-FR
+        reference: "{response, select, yes {Vous assistez} no {Vous n'assistez pas} maybe {Vous pourriez assister} other {Veuillez répondre}} avant le {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+      - locale: it-IT
+        reference: "{response, select, yes {Partecipi} no {Non partecipi} maybe {Potresti partecipare} other {Rispondi}} entro il {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+      - locale: es-CA
+        reference: "{response, select, yes {Asistirás} no {No asistirás} maybe {Podrías asistir} other {Por favor responde}} antes del {deadline, date, ::yMMMd}"
+        assert:
+          - type: contains
+            value: "{response, select,"
+          - type: contains
+            value: "{deadline, date, ::yMMMd}"
+      - locale: ko-KR
+        reference: "{response, select, yes {참여합니다} no {참여하지 않습니다} maybe {참여할 수 있습니다} other {응답해 주세요}} {deadline, date, ::yMMMd}까지"
         assert:
           - type: contains
             value: "{response, select,"
@@ -417,12 +1373,92 @@ tests:
             value: "{total, number}"
           - type: contains
             value: "{stepName}"
+      - locale: zh-CN
+        reference: "第 {current, number} 步，共 {total, number} 步: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
+      - locale: fr-FR
+        reference: "Étape {current, number} sur {total, number}: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
+      - locale: it-IT
+        reference: "Passaggio {current, number} di {total, number}: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
+      - locale: es-CA
+        reference: "Paso {current, number} de {total, number}: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
+      - locale: ko-KR
+        reference: "{total, number}단계 중 {current, number}단계: {stepName}"
+        assert:
+          - type: contains
+            value: "{current, number}"
+          - type: contains
+            value: "{total, number}"
+          - type: contains
+            value: "{stepName}"
   - id: icu-deployment-status
     vars:
       source: "{environment, select, production {Production} staging {Staging} development {Development} other {Unknown}} deploy started at {startedAt, time, ::Hm}"
     locales:
       - locale: vi-VN
         reference: "Triển khai {environment, select, production {Production} staging {Staging} development {Development} other {Unknown}} bắt đầu lúc {startedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+      - locale: zh-CN
+        reference: "{environment, select, production {生产环境} staging {预发布环境} development {开发环境} other {未知}} 部署已于 {startedAt, time, ::Hm} 开始"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+      - locale: fr-FR
+        reference: "Déploiement {environment, select, production {Production} staging {Staging} development {Développement} other {Inconnu}} démarré à {startedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+      - locale: it-IT
+        reference: "Distribuzione {environment, select, production {Produzione} staging {Staging} development {Sviluppo} other {Sconosciuta}} avviata alle {startedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+      - locale: es-CA
+        reference: "Despliegue {environment, select, production {Producción} staging {Staging} development {Desarrollo} other {Desconocido}} iniciado a las {startedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{environment, select,"
+          - type: contains
+            value: "{startedAt, time, ::Hm}"
+      - locale: ko-KR
+        reference: "{environment, select, production {프로덕션} staging {스테이징} development {개발} other {알 수 없음}} 배포가 {startedAt, time, ::Hm}에 시작되었습니다"
         assert:
           - type: contains
             value: "{environment, select,"
@@ -437,12 +1473,72 @@ tests:
         assert:
           - type: contains
             value: "{count, plural,"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {构建成功，无错误} one {构建失败，1 个错误} other {构建失败，# 个错误}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Build réussi sans erreurs} one {Build échoué avec 1 erreur} other {Build échoué avec # erreurs}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Build completato senza errori} one {Build fallito con 1 errore} other {Build fallito con # errori}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Compilación exitosa sin errores} one {Compilación fallida con 1 error} other {Compilación fallida con # errores}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {빌드 성공, 오류 없음} one {빌드 실패, 1개의 오류} other {빌드 실패, #개의 오류}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
   - id: icu-support-ticket-priority
     vars:
       source: "{priority, select, low {Low priority} medium {Medium priority} high {High priority} urgent {Urgent priority} other {Priority not set}} ticket updated {updatedAt, time, ::Hm}"
     locales:
       - locale: vi-VN
         reference: "Phiếu hỗ trợ {priority, select, low {ưu tiên thấp} medium {ưu tiên trung bình} high {ưu tiên cao} urgent {ưu tiên khẩn cấp} other {chưa đặt mức ưu tiên}} được cập nhật lúc {updatedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+      - locale: zh-CN
+        reference: "{priority, select, low {低优先级} medium {中优先级} high {高优先级} urgent {紧急优先级} other {未设置优先级}} 工单已于 {updatedAt, time, ::Hm} 更新"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+      - locale: fr-FR
+        reference: "Ticket {priority, select, low {priorité basse} medium {priorité moyenne} high {priorité haute} urgent {priorité urgente} other {priorité non définie}} mis à jour à {updatedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+      - locale: it-IT
+        reference: "Ticket {priority, select, low {priorità bassa} medium {priorità media} high {priorità alta} urgent {priorità urgente} other {priorità non impostata}} aggiornato alle {updatedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+      - locale: es-CA
+        reference: "Ticket {priority, select, low {prioridad baja} medium {prioridad media} high {prioridad alta} urgent {prioridad urgente} other {prioridad no establecida}} actualizado a las {updatedAt, time, ::Hm}"
+        assert:
+          - type: contains
+            value: "{priority, select,"
+          - type: contains
+            value: "{updatedAt, time, ::Hm}"
+      - locale: ko-KR
+        reference: "{priority, select, low {낮은 우선순위} medium {중간 우선순위} high {높은 우선순위} urgent {긴급 우선순위} other {우선순위 미설정}} 티켓이 {updatedAt, time, ::Hm}에 업데이트되었습니다"
         assert:
           - type: contains
             value: "{priority, select,"
@@ -457,12 +1553,72 @@ tests:
         assert:
           - type: contains
             value: "{count, plural,"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {尚未邀请团队成员} one {已邀请 # 位团队成员} other {已邀请 # 位团队成员}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Aucun membre de l'équipe invité} one {# membre de l'équipe invité} other {# membres de l'équipe invités}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Nessun membro del team invitato} one {# membro del team invitato} other {# membri del team invitati}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Sin miembros del equipo invitados} one {# miembro del equipo invitado} other {# miembros del equipo invitados}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {초대된 팀원이 없습니다} one {#명의 팀원 초대됨} other {#명의 팀원 초대됨}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
   - id: icu-billing-overdue-notice
     vars:
       source: "Invoice overdue by {days, plural, one {# day} other {# days}}. Amount due: {amount, number, ::currency/USD}"
     locales:
       - locale: vi-VN
         reference: "Hóa đơn đã quá hạn {days, plural, one {# ngày} other {# ngày}}. Số tiền phải trả: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: zh-CN
+        reference: "发票已逾期 {days, plural, one {# 天} other {# 天}}。应付金额: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: fr-FR
+        reference: "Facture en retard de {days, plural, one {# jour} other {# jours}}. Montant dû: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: it-IT
+        reference: "Fattura in ritardo di {days, plural, one {# giorno} other {# giorni}}. Importo dovuto: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: es-CA
+        reference: "Factura vencida por {days, plural, one {# día} other {# días}}. Importe a pagar: {amount, number, ::currency/USD}"
+        assert:
+          - type: contains
+            value: "{days, plural,"
+          - type: contains
+            value: "{amount, number, ::currency/USD}"
+      - locale: ko-KR
+        reference: "청구서가 {days, plural, one {#일} other {#일}} 연체되었습니다. 납부 금액: {amount, number, ::currency/USD}"
         assert:
           - type: contains
             value: "{days, plural,"
@@ -477,12 +1633,72 @@ tests:
         assert:
           - type: contains
             value: "{count, plural,"
+      - locale: zh-CN
+        reference: "{count, plural, =0 {没有人正在观看} one {# 人正在观看} other {# 人正在观看}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: fr-FR
+        reference: "{count, plural, =0 {Personne ne regarde} one {# personne regarde} other {# personnes regardent}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: it-IT
+        reference: "{count, plural, =0 {Nessuno sta guardando} one {# persona sta guardando} other {# persone stanno guardando}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: es-CA
+        reference: "{count, plural, =0 {Nadie está viendo} one {# persona está viendo} other {# personas están viendo}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
+      - locale: ko-KR
+        reference: "{count, plural, =0 {시청자가 없습니다} one {#명 시청 중} other {#명 시청 중}}"
+        assert:
+          - type: contains
+            value: "{count, plural,"
   - id: icu-loyalty-points-earned
     vars:
       source: "You earned {points, number} points on {earnedAt, date, ::yMd}"
     locales:
       - locale: vi-VN
         reference: "Bạn đã nhận được {points, number} điểm vào {earnedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+      - locale: zh-CN
+        reference: "您于 {earnedAt, date, ::yMd} 获得了 {points, number} 积分"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+      - locale: fr-FR
+        reference: "Vous avez gagné {points, number} points le {earnedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+      - locale: it-IT
+        reference: "Hai guadagnato {points, number} punti il {earnedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+      - locale: es-CA
+        reference: "Ganaste {points, number} puntos el {earnedAt, date, ::yMd}"
+        assert:
+          - type: contains
+            value: "{points, number}"
+          - type: contains
+            value: "{earnedAt, date, ::yMd}"
+      - locale: ko-KR
+        reference: "{earnedAt, date, ::yMd}에 {points, number}포인트를 적립했습니다"
         assert:
           - type: contains
             value: "{points, number}"
