@@ -96,17 +96,28 @@ var htmlVoidTranslatableAttrs = map[string]string{
 	"img": "alt",
 }
 
+// splitVoidAttrTagPats caches the compiled regexes for each attr name in
+// htmlVoidTranslatableAttrs so they are not recompiled on every token.
+var splitVoidAttrTagPats map[string][2]*regexp.Regexp
+
+func init() {
+	splitVoidAttrTagPats = make(map[string][2]*regexp.Regexp, len(htmlVoidTranslatableAttrs))
+	for _, attr := range htmlVoidTranslatableAttrs {
+		a := regexp.QuoteMeta(attr)
+		splitVoidAttrTagPats[attr] = [2]*regexp.Regexp{
+			regexp.MustCompile(`(?i)\b` + a + `="([^"]*)"`),
+			regexp.MustCompile(`(?i)\b` + a + `='([^']*)'`),
+		}
+	}
+}
+
 // splitVoidAttrTag splits raw around attrName's quoted value.
 // prefix ends just after the opening quote; suffix starts at the closing quote.
 // Returns ok=false when no quoted attribute with that name is present.
 // Go's RE2 engine does not support backreferences, so double- and single-quoted
 // forms are tried separately.
 func splitVoidAttrTag(raw, attrName string) (prefix, rawVal, suffix string, ok bool) {
-	a := regexp.QuoteMeta(attrName)
-	for _, pat := range []*regexp.Regexp{
-		regexp.MustCompile(`(?i)\b` + a + `="([^"]*)"`),
-		regexp.MustCompile(`(?i)\b` + a + `='([^']*)'`),
-	} {
+	for _, pat := range splitVoidAttrTagPats[attrName] {
 		loc := pat.FindStringSubmatchIndex(raw)
 		if loc != nil {
 			// loc[2:4] = group 1 (value span, inside the quotes).
@@ -158,10 +169,10 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 	}
 
 	handleVoidTranslatable := func(raw, attrName string) {
-		flushBuffer()
 		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
 		decoded := html.UnescapeString(rawVal)
 		if found && isTranslatableChunk(decoded) {
+			flushBuffer()
 			key := htmlSegmentKey(decoded, occurrences)
 			entries[key] = decoded
 			doc.parts = append(doc.parts, htmlPart{
@@ -171,7 +182,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 				voidTagSuffix: suffix,
 			})
 		} else {
-			appendLiteral(raw)
+			buffer.WriteString(raw)
 		}
 	}
 

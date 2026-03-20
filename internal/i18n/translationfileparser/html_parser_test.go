@@ -623,3 +623,22 @@ func TestHTMLParserImgInlineWithinParagraph(t *testing.T) {
 		t.Fatalf("expected surrounding text extracted, got entries: %v", got)
 	}
 }
+
+func TestHTMLParserImgWithoutAltDoesNotFragmentProse(t *testing.T) {
+	// <img> without alt must not fragment surrounding prose into separate segments.
+	content := []byte(`<p>See <img src="icon.png"> for details.</p>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 translation unit, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if !strings.Contains(v, "See") || !strings.Contains(v, "details") {
+			t.Fatalf("expected prose kept in one unit, got: %q", v)
+		}
+	}
+}
