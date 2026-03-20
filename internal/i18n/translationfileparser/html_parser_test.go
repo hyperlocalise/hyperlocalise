@@ -624,6 +624,25 @@ func TestHTMLParserImgInlineWithinParagraph(t *testing.T) {
 	}
 }
 
+func TestHTMLParserImgDataAltDoesNotMatchAlt(t *testing.T) {
+	// \balt= would match the "alt" suffix of data-alt="..."; [\s]alt= must not.
+	content := []byte(`<body><img data-alt="icon" alt="A red cat"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry for alt only, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "A red cat" {
+			t.Fatalf("expected alt value extracted, got: %q", v)
+		}
+	}
+}
+
 func TestHTMLParserImgWithoutAltDoesNotFragmentProse(t *testing.T) {
 	// <img> without alt must not fragment surrounding prose into separate segments.
 	content := []byte(`<p>See <img src="icon.png"> for details.</p>`)

@@ -105,8 +105,8 @@ func init() {
 	for _, attr := range htmlVoidTranslatableAttrs {
 		a := regexp.QuoteMeta(attr)
 		splitVoidAttrTagPats[attr] = [2]*regexp.Regexp{
-			regexp.MustCompile(`(?i)\b` + a + `="([^"]*)"`),
-			regexp.MustCompile(`(?i)\b` + a + `='([^']*)'`),
+			regexp.MustCompile(`(?i)[\s]` + a + `="([^"]*)"`),
+			regexp.MustCompile(`(?i)[\s]` + a + `='([^']*)'`),
 		}
 	}
 }
