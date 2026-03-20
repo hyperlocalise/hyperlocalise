@@ -32,6 +32,11 @@ type htmlPart struct {
 	key          string
 	source       string            // translatable text with inline-tag placeholders
 	placeholders map[string]string // placeholder token → original tag bytes
+	// voidTagPrefix/voidTagSuffix are set for void-element attribute parts (e.g. img alt).
+	// prefix ends just after the opening quote; suffix starts at the closing quote.
+	// render() writes: prefix + html.EscapeString(translated) + suffix.
+	voidTagPrefix string
+	voidTagSuffix string
 }
 
 type htmlDocument struct {
@@ -83,6 +88,34 @@ var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`
 // content appears directly before them.
 var htmlStructuralElements = map[string]bool{
 	"html": true, "body": true, "template": true, "colgroup": true,
+}
+
+// htmlImgAltDQ / htmlImgAltSQ locate a quoted alt attribute inside a raw tag.
+// Go's RE2 engine does not support backreferences, so double- and single-quoted
+// forms are handled by separate patterns. Group 1 in each is the attribute value.
+var (
+	htmlImgAltDQ = regexp.MustCompile(`(?i)\balt="([^"]*)"`)
+	htmlImgAltSQ = regexp.MustCompile(`(?i)\balt='([^']*)'`)
+)
+
+// htmlVoidTranslatableAttrs maps void element names to their translatable
+// attribute. The map makes future extension explicit; currently only img/alt.
+var htmlVoidTranslatableAttrs = map[string]string{
+	"img": "alt",
+}
+
+// splitVoidAttrTag splits raw around the alt attribute's quoted value.
+// prefix ends just after the opening quote; suffix starts at the closing quote.
+// Returns ok=false when no quoted alt attribute is present.
+func splitVoidAttrTag(raw string) (prefix, rawVal, suffix string, ok bool) {
+	for _, pat := range []*regexp.Regexp{htmlImgAltDQ, htmlImgAltSQ} {
+		loc := pat.FindStringSubmatchIndex(raw)
+		if loc != nil {
+			// loc[2:4] = group 1 (value span, inside the quotes).
+			return raw[:loc[2]], raw[loc[2]:loc[3]], raw[loc[3]:], true
+		}
+	}
+	return "", "", "", false
 }
 
 // parseHTMLDocument tokenizes content into literal and translatable parts,
@@ -170,6 +203,22 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
+			} else if _, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
+				flushBuffer()
+				prefix, rawVal, suffix, found := splitVoidAttrTag(raw)
+				decoded := html.UnescapeString(rawVal)
+				if found && isTranslatableChunk(decoded) {
+					key := htmlSegmentKey(decoded, occurrences)
+					entries[key] = decoded
+					doc.parts = append(doc.parts, htmlPart{
+						key:           key,
+						source:        decoded,
+						voidTagPrefix: prefix,
+						voidTagSuffix: suffix,
+					})
+				} else {
+					appendLiteral(raw)
+				}
 			} else {
 				// Inline element: accumulate into the text buffer.
 				buffer.WriteString(raw)
@@ -189,6 +238,22 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
+			} else if _, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
+				flushBuffer()
+				prefix, rawVal, suffix, found := splitVoidAttrTag(raw)
+				decoded := html.UnescapeString(rawVal)
+				if found && isTranslatableChunk(decoded) {
+					key := htmlSegmentKey(decoded, occurrences)
+					entries[key] = decoded
+					doc.parts = append(doc.parts, htmlPart{
+						key:           key,
+						source:        decoded,
+						voidTagPrefix: prefix,
+						voidTagSuffix: suffix,
+					})
+				} else {
+					appendLiteral(raw)
+				}
 			} else {
 				buffer.WriteString(raw)
 			}
@@ -321,6 +386,15 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 	var diags HTMLRenderDiagnostics
 	var b strings.Builder
 	for _, part := range d.parts {
+		if part.voidTagPrefix != "" {
+			translated, ok := values[part.key]
+			if !ok {
+				diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+				translated = part.source
+			}
+			b.WriteString(part.voidTagPrefix + html.EscapeString(translated) + part.voidTagSuffix)
+			continue
+		}
 		if part.key == "" {
 			b.WriteString(part.literal)
 			continue
