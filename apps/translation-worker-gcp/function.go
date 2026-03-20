@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -30,7 +31,14 @@ type pubSubMessage struct {
 var (
 	processorMu   sync.Mutex
 	processorInst *worker.Processor
+	processorLoad = func() (jobProcessor, error) {
+		return getProcessor()
+	}
 )
+
+type jobProcessor interface {
+	ProcessJobQueuedEvent(context.Context, translationapp.JobQueuedPayload) error
+}
 
 func init() {
 	functions.CloudEvent("HandleJobQueued", HandleJobQueued)
@@ -40,7 +48,7 @@ func init() {
 // It decodes the event payload, obtains the shared processor, and dispatches the job for processing.
 // It returns an error if processor initialization, payload decoding, or job processing fails.
 func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
-	processor, err := getProcessor()
+	processor, err := processorLoad()
 	if err != nil {
 		return err
 	}
@@ -50,7 +58,14 @@ func HandleJobQueued(ctx context.Context, cloudEvent cloudevent.Event) error {
 		return err
 	}
 
-	return processor.ProcessJobQueuedEvent(ctx, payload)
+	if err := processor.ProcessJobQueuedEvent(ctx, payload); err != nil {
+		if errors.Is(err, worker.ErrEventAlreadyHandled) {
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
 
 // getProcessor initializes and returns the shared worker.Processor singleton.
