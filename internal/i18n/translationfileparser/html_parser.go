@@ -90,25 +90,23 @@ var htmlStructuralElements = map[string]bool{
 	"html": true, "body": true, "template": true, "colgroup": true,
 }
 
-// htmlImgAltDQ / htmlImgAltSQ locate a quoted alt attribute inside a raw tag.
-// Go's RE2 engine does not support backreferences, so double- and single-quoted
-// forms are handled by separate patterns. Group 1 in each is the attribute value.
-var (
-	htmlImgAltDQ = regexp.MustCompile(`(?i)\balt="([^"]*)"`)
-	htmlImgAltSQ = regexp.MustCompile(`(?i)\balt='([^']*)'`)
-)
-
 // htmlVoidTranslatableAttrs maps void element names to their translatable
-// attribute. The map makes future extension explicit; currently only img/alt.
+// attribute name. Add entries here to support additional void elements.
 var htmlVoidTranslatableAttrs = map[string]string{
 	"img": "alt",
 }
 
-// splitVoidAttrTag splits raw around the alt attribute's quoted value.
+// splitVoidAttrTag splits raw around attrName's quoted value.
 // prefix ends just after the opening quote; suffix starts at the closing quote.
-// Returns ok=false when no quoted alt attribute is present.
-func splitVoidAttrTag(raw string) (prefix, rawVal, suffix string, ok bool) {
-	for _, pat := range []*regexp.Regexp{htmlImgAltDQ, htmlImgAltSQ} {
+// Returns ok=false when no quoted attribute with that name is present.
+// Go's RE2 engine does not support backreferences, so double- and single-quoted
+// forms are tried separately.
+func splitVoidAttrTag(raw, attrName string) (prefix, rawVal, suffix string, ok bool) {
+	a := regexp.QuoteMeta(attrName)
+	for _, pat := range []*regexp.Regexp{
+		regexp.MustCompile(`(?i)\b` + a + `="([^"]*)"`),
+		regexp.MustCompile(`(?i)\b` + a + `='([^']*)'`),
+	} {
 		loc := pat.FindStringSubmatchIndex(raw)
 		if loc != nil {
 			// loc[2:4] = group 1 (value span, inside the quotes).
@@ -159,6 +157,24 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		})
 	}
 
+	handleVoidTranslatable := func(raw, attrName string) {
+		flushBuffer()
+		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
+		decoded := html.UnescapeString(rawVal)
+		if found && isTranslatableChunk(decoded) {
+			key := htmlSegmentKey(decoded, occurrences)
+			entries[key] = decoded
+			doc.parts = append(doc.parts, htmlPart{
+				key:           key,
+				source:        decoded,
+				voidTagPrefix: prefix,
+				voidTagSuffix: suffix,
+			})
+		} else {
+			appendLiteral(raw)
+		}
+	}
+
 	for {
 		tt := z.Next()
 		if tt == html.ErrorToken {
@@ -203,22 +219,8 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
-			} else if _, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				flushBuffer()
-				prefix, rawVal, suffix, found := splitVoidAttrTag(raw)
-				decoded := html.UnescapeString(rawVal)
-				if found && isTranslatableChunk(decoded) {
-					key := htmlSegmentKey(decoded, occurrences)
-					entries[key] = decoded
-					doc.parts = append(doc.parts, htmlPart{
-						key:           key,
-						source:        decoded,
-						voidTagPrefix: prefix,
-						voidTagSuffix: suffix,
-					})
-				} else {
-					appendLiteral(raw)
-				}
+			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
+				handleVoidTranslatable(raw, attrName)
 			} else {
 				// Inline element: accumulate into the text buffer.
 				buffer.WriteString(raw)
@@ -238,22 +240,8 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
 				appendLiteral(raw)
-			} else if _, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				flushBuffer()
-				prefix, rawVal, suffix, found := splitVoidAttrTag(raw)
-				decoded := html.UnescapeString(rawVal)
-				if found && isTranslatableChunk(decoded) {
-					key := htmlSegmentKey(decoded, occurrences)
-					entries[key] = decoded
-					doc.parts = append(doc.parts, htmlPart{
-						key:           key,
-						source:        decoded,
-						voidTagPrefix: prefix,
-						voidTagSuffix: suffix,
-					})
-				} else {
-					appendLiteral(raw)
-				}
+			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
+				handleVoidTranslatable(raw, attrName)
 			} else {
 				buffer.WriteString(raw)
 			}
