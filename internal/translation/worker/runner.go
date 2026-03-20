@@ -81,13 +81,14 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
+	dispatched := 0
 	claimed := make([]store.OutboxEventModel, 0, len(events))
 	for _, event := range events {
 		if claimErr := r.repository.ClaimOutboxEvent(ctx, event.ID, r.config.WorkerID, r.clock(), r.config.LeaseDuration); claimErr != nil {
 			if errors.Is(claimErr, store.ErrNotFound) {
 				continue
 			}
-			return len(claimed), claimErr
+			return dispatched, claimErr
 		}
 		claimed = append(claimed, event)
 	}
@@ -116,7 +117,7 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 				payload.AttemptCount = event.AttemptCount
 				payload.MaxAttempts = event.MaxAttempts
 				if err := r.processor.ProcessJobQueuedEvent(ctx, payload); err != nil {
-					if errors.Is(err, ErrRetryScheduled) {
+					if errors.Is(err, ErrRetryScheduled) || errors.Is(err, ErrEventAlreadyHandled) {
 						continue
 					}
 					errCh <- err
@@ -125,7 +126,6 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 		}()
 	}
 
-	dispatched := 0
 	for _, event := range claimed {
 		select {
 		case <-ctx.Done():

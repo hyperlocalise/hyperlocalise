@@ -393,6 +393,30 @@ func TestProcessJobQueuedEventDefersUntilRetryDue(t *testing.T) {
 	}
 }
 
+func TestProcessJobQueuedEventSkipsTerminalOutboxState(t *testing.T) {
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Type: store.JobTypeString, Status: store.JobStatusFailed, InputPayload: mustStringInput(t, "Hello", "fr")}
+	repo.events["evt-1"] = &store.OutboxEventModel{
+		ID:            "evt-1",
+		Status:        store.OutboxStatusDeadLettered,
+		NextAttemptAt: time.Unix(1700000000, 0).UTC(),
+		MaxAttempts:   5,
+	}
+	processor := NewProcessor(repo, fakeExecutor{translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+		t.Fatal("translate should not run for dead-lettered events")
+		return "", RoutingDecision{}, nil
+	}})
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	err := processor.ProcessJobQueuedEvent(context.Background(), translationapp.JobQueuedPayload{EventID: "evt-1", JobID: "job-1", ProjectID: "proj", AttemptCount: 5, MaxAttempts: 5})
+	if !errors.Is(err, ErrEventAlreadyHandled) {
+		t.Fatalf("expected terminal event to short-circuit with handled sentinel, got %v", err)
+	}
+	if repo.events["evt-1"].Status != store.OutboxStatusDeadLettered {
+		t.Fatalf("expected dead-lettered event to remain unchanged, got %s", repo.events["evt-1"].Status)
+	}
+}
+
 func TestBuildOutcomeCheckpointSaveErrorIsRetryable(t *testing.T) {
 	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{SourceText: "Hello", TargetLocales: []string{"fr"}})
 	if err != nil {
@@ -634,6 +658,49 @@ func TestRunnerRequiresProcessor(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "processor is not configured") {
 		t.Fatalf("expected processor configuration error, got %v", err)
 	}
+}
+
+func TestRunnerClaimFailureDoesNotInflateDispatchedCount(t *testing.T) {
+	repo := newFakeRepository()
+	payload, err := json.Marshal(translationapp.JobQueuedPayload{JobID: "job-1", ProjectID: "proj", AttemptCount: 0, MaxAttempts: 5})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	repo.events["evt-1"] = &store.OutboxEventModel{
+		ID:            "evt-1",
+		Payload:       payload,
+		Status:        store.OutboxStatusPending,
+		NextAttemptAt: time.Unix(1700000000, 0).UTC(),
+		MaxAttempts:   5,
+	}
+
+	runner := NewRunner(&claimFailureRepository{fakeRepository: repo, failEventID: "evt-1", err: errors.New("claim failed")}, NewProcessor(repo, fakeExecutor{
+		translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+			return task.TargetLocale, RoutingDecision{}, nil
+		},
+	}), RunnerConfig{WorkerID: "runner-claim", WorkerCount: 1, BatchSize: 1, LeaseDuration: time.Minute})
+	runner.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	processed, err := runner.ProcessAvailable(context.Background())
+	if processed != 0 {
+		t.Fatalf("expected 0 dispatched events, got %d", processed)
+	}
+	if err == nil || !strings.Contains(err.Error(), "claim failed") {
+		t.Fatalf("expected claim error, got %v", err)
+	}
+}
+
+type claimFailureRepository struct {
+	*fakeRepository
+	failEventID string
+	err         error
+}
+
+func (r *claimFailureRepository) ClaimOutboxEvent(ctx context.Context, eventID, workerID string, now time.Time, leaseDuration time.Duration) error {
+	if eventID == r.failEventID {
+		return r.err
+	}
+	return r.fakeRepository.ClaimOutboxEvent(ctx, eventID, workerID, now, leaseDuration)
 }
 
 func TestIsTerminalStatus(t *testing.T) {

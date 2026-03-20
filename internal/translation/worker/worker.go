@@ -21,6 +21,9 @@ var ErrFileJobsNotImplemented = errors.New("file translation jobs are not implem
 // ErrRetryScheduled tells the queue runtime to redeliver later instead of acking now.
 var ErrRetryScheduled = errors.New("translation retry scheduled")
 
+// ErrEventAlreadyHandled tells the queue runtime to ack a duplicate delivery.
+var ErrEventAlreadyHandled = errors.New("translation event already handled")
+
 // JobRepository captures the persistence operations needed by the worker processor.
 type JobRepository interface {
 	GetJob(ctx context.Context, jobID, projectID string) (*store.TranslationJobModel, error)
@@ -122,7 +125,9 @@ func (p *Processor) ensureEventReady(ctx context.Context, eventID string) error 
 
 	switch event.Status {
 	case store.OutboxStatusProcessed, store.OutboxStatusDeadLettered:
-		return nil
+		// Broker redelivery can arrive after we already finalized the event; ack
+		// the duplicate delivery without mutating the terminal outbox state.
+		return fmt.Errorf("%w: event %s already in terminal state %s", ErrEventAlreadyHandled, eventID, event.Status)
 	case store.OutboxStatusPending:
 		now := p.clock()
 		// Pub/Sub may redeliver before our stored backoff window elapses; keep
