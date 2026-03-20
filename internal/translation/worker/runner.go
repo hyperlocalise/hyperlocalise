@@ -68,6 +68,11 @@ func NewRunner(repository EventRepository, processor *Processor, cfg RunnerConfi
 
 // ProcessAvailable claims one batch of available events and drains it with a worker pool.
 func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
+	// Fail fast on misconfiguration before claiming any events and crashing a worker goroutine.
+	if r.processor == nil {
+		return 0, fmt.Errorf("runner processor is not configured")
+	}
+
 	events, err := r.repository.ListPendingOutboxEvents(ctx, r.clock(), r.config.BatchSize)
 	if err != nil {
 		return 0, err
@@ -111,6 +116,9 @@ func (r *Runner) ProcessAvailable(ctx context.Context) (int, error) {
 				payload.AttemptCount = event.AttemptCount
 				payload.MaxAttempts = event.MaxAttempts
 				if err := r.processor.ProcessJobQueuedEvent(ctx, payload); err != nil {
+					if errors.Is(err, ErrRetryScheduled) {
+						continue
+					}
 					errCh <- err
 				}
 			}

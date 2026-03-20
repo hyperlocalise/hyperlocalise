@@ -18,9 +18,13 @@ import (
 // ErrFileJobsNotImplemented reports that async file translation is not implemented yet.
 var ErrFileJobsNotImplemented = errors.New("file translation jobs are not implemented yet")
 
+// ErrRetryScheduled tells the queue runtime to redeliver later instead of acking now.
+var ErrRetryScheduled = errors.New("translation retry scheduled")
+
 // JobRepository captures the persistence operations needed by the worker processor.
 type JobRepository interface {
 	GetJob(ctx context.Context, jobID, projectID string) (*store.TranslationJobModel, error)
+	GetOutboxEvent(ctx context.Context, eventID string) (*store.OutboxEventModel, error)
 	MarkJobRunning(ctx context.Context, jobID string) error
 	PersistJobTerminal(ctx context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error
 	SaveRunningJobCheckpoint(ctx context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error
@@ -77,6 +81,9 @@ func (p *Processor) WithRetryPolicy(policy RetryPolicy) *Processor {
 
 // ProcessJobQueuedEvent handles a single queued translation job notification.
 func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translationapp.JobQueuedPayload) error {
+	if err := p.ensureEventReady(ctx, payload.EventID); err != nil {
+		return fmt.Errorf("process translation job %s: %w", payload.JobID, err)
+	}
 	job, err := p.ensureJobRunning(ctx, &store.TranslationJobModel{
 		ID:        payload.JobID,
 		ProjectID: payload.ProjectID,
@@ -101,6 +108,31 @@ func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translati
 	}
 
 	return p.finishProcessedEvent(ctx, job.ID, payload.EventID)
+}
+
+func (p *Processor) ensureEventReady(ctx context.Context, eventID string) error {
+	if eventID == "" {
+		return nil
+	}
+
+	event, err := p.repository.GetOutboxEvent(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load outbox event %s: %w", eventID, err)
+	}
+
+	switch event.Status {
+	case store.OutboxStatusProcessed, store.OutboxStatusDeadLettered:
+		return nil
+	case store.OutboxStatusPending:
+		now := p.clock()
+		// Pub/Sub may redeliver before our stored backoff window elapses; keep
+		// deferring until the outbox record says the retry is actually due.
+		if event.NextAttemptAt.After(now) {
+			return fmt.Errorf("%w: event %s not due until %s", ErrRetryScheduled, eventID, event.NextAttemptAt.Format(time.RFC3339Nano))
+		}
+	}
+
+	return nil
 }
 
 type executionError struct {
@@ -265,7 +297,9 @@ func (p *Processor) handleExecutionError(ctx context.Context, job *store.Transla
 	if err := p.repository.ScheduleOutboxEventRetry(ctx, eventID, p.workerID, attemptCount, nextAttemptAt, execErr.Error()); err != nil {
 		return err
 	}
-	return nil
+	// Return a non-nil error so the broker keeps the message live and redelivers
+	// it later; otherwise the Cloud Function invocation would ack it permanently.
+	return fmt.Errorf("%w: event %s deferred until %s", ErrRetryScheduled, eventID, nextAttemptAt.Format(time.RFC3339Nano))
 }
 
 func resolveMaxAttempts(payloadMaxAttempts int, policy RetryPolicy) int {

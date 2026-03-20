@@ -200,6 +200,25 @@ func (r *Repository) InsertOutboxEvent(ctx context.Context, db bun.IDB, event *O
 	return nil
 }
 
+// GetOutboxEvent fetches a single outbox event by id.
+func (r *Repository) GetOutboxEvent(ctx context.Context, eventID string) (*OutboxEventModel, error) {
+	event := &OutboxEventModel{}
+	err := r.db.NewSelect().
+		Model(event).
+		Where("oe.id = ?", eventID).
+		Limit(1).
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
+		return nil, fmt.Errorf("select outbox event: %w", err)
+	}
+
+	return event, nil
+}
+
 // ListPendingOutboxEvents returns a bounded batch of claimable outbox events.
 func (r *Repository) ListPendingOutboxEvents(ctx context.Context, now time.Time, limit int) ([]OutboxEventModel, error) {
 	if limit <= 0 {
