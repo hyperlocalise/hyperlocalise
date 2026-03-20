@@ -15,12 +15,14 @@ import (
 
 // JobQueuedPayload is the outbox payload for a queued translation job.
 type JobQueuedPayload struct {
-	EventID    string `json:"event_id"`
-	JobID      string `json:"job_id"`
-	ProjectID  string `json:"project_id"`
-	Type       string `json:"type"`
-	InputKind  string `json:"input_kind"`
-	OccurredAt string `json:"occurred_at"`
+	EventID      string `json:"event_id"`
+	JobID        string `json:"job_id"`
+	ProjectID    string `json:"project_id"`
+	Type         string `json:"type"`
+	InputKind    string `json:"input_kind"`
+	AttemptCount int    `json:"attempt_count,omitempty"`
+	MaxAttempts  int    `json:"max_attempts,omitempty"`
+	OccurredAt   string `json:"occurred_at"`
 }
 
 // JobRecord is the application view of a translation job.
