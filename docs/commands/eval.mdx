@@ -84,6 +84,7 @@ report aggregates
 - `--eval-prompt-file`: evaluation prompt file override
 - `--eval-prompt`: inline evaluation prompt override (mutually exclusive with `--eval-prompt-file`)
 - `--assertion`: judge assertion to run (repeatable). Supported values: `llm-rubric`, `factuality`, `g-eval`, `model-graded-closedqa`, `answer-relevance`, `context-faithfulness`, `context-recall`
+- `--baseline`: baseline eval report JSON path for comparison when using `--interactive`
 - `--output`: JSON output report path
 
 LLM evaluation mode turns on when you request judge evaluation, either explicitly with `--eval-provider`, `--eval-model`, `--eval-prompt`, or `--assertion`, or implicitly through eval-set judge assertions.

@@ -357,7 +357,7 @@ Config:
 
 Environment:
 ```bash
-# Example: https://<resource>.openai.azure.com/openai/v1
+# Required: your Azure OpenAI endpoint URL
 export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
 export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
