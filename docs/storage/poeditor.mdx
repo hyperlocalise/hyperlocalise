@@ -19,8 +19,10 @@ description: "Configure POEditor for sync pull and sync push."
 
 ## Token resolution
 
-1. env var named by `storage.config.apiTokenEnv`
-2. fallback: `POEDITOR_API_TOKEN`
+1. Set the `POEDITOR_API_TOKEN` environment variable (recommended)
+2. Or use a custom env var by setting `apiTokenEnv` in config
+
+If `apiTokenEnv` is omitted, it defaults to `POEDITOR_API_TOKEN`.
 
 ## Optional config fields
 
