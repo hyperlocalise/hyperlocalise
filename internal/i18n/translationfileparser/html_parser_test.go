@@ -606,6 +606,28 @@ func TestHTMLMarshalImgAltFallsBackToSource(t *testing.T) {
 	}
 }
 
+func TestHTMLMarshalImgAltSingleQuoteRoundTrip(t *testing.T) {
+	template := []byte(`<body><img src="cat.png" alt='A red cat'></body>`)
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	translated := make(map[string]string, len(entries))
+	for k := range entries {
+		translated[k] = "Un gato rojo"
+	}
+
+	out, diags := MarshalHTML(template, translated)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(out), "Un gato rojo") {
+		t.Fatalf("expected translated alt in output, got:\n%s", out)
+	}
+}
+
 func TestHTMLParserImgInlineWithinParagraph(t *testing.T) {
 	// <img> within a <p> splits the paragraph into separate segments.
 	content := []byte(`<p>See <img alt="icon" src="icon.png"> for details.</p>`)
@@ -621,6 +643,25 @@ func TestHTMLParserImgInlineWithinParagraph(t *testing.T) {
 	}
 	if !strings.Contains(combined, "details") {
 		t.Fatalf("expected surrounding text extracted, got entries: %v", got)
+	}
+}
+
+func TestHTMLParserImgAltWithSpacesAroundEquals(t *testing.T) {
+	// HTML allows optional whitespace around `=`; ensure alt is still extracted.
+	content := []byte(`<body><img alt = "A red cat"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "A red cat" {
+			t.Fatalf("expected alt value extracted, got: %q", v)
+		}
 	}
 }
 

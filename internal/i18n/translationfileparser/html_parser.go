@@ -32,9 +32,9 @@ type htmlPart struct {
 	key          string
 	source       string            // translatable text with inline-tag placeholders
 	placeholders map[string]string // placeholder token → original tag bytes
-	// voidTagPrefix/voidTagSuffix are set for void-element attribute parts (e.g. img alt).
-	// prefix ends just after the opening quote; suffix starts at the closing quote.
-	// render() writes: prefix + html.EscapeString(translated) + suffix.
+	// isVoidAttr is true when this part is a void-element translatable attribute (e.g. img alt).
+	// render() writes: voidTagPrefix + html.EscapeString(translated) + voidTagSuffix.
+	isVoidAttr    bool
 	voidTagPrefix string
 	voidTagSuffix string
 }
@@ -105,8 +105,8 @@ func init() {
 	for _, attr := range htmlVoidTranslatableAttrs {
 		a := regexp.QuoteMeta(attr)
 		splitVoidAttrTagPats[attr] = [2]*regexp.Regexp{
-			regexp.MustCompile(`(?i)[\s]` + a + `="([^"]*)"`),
-			regexp.MustCompile(`(?i)[\s]` + a + `='([^']*)'`),
+			regexp.MustCompile(`(?i)[\s]` + a + `\s*=\s*"([^"]*)"`),
+			regexp.MustCompile(`(?i)[\s]` + a + `\s*=\s*'([^']*)'`),
 		}
 	}
 }
@@ -178,6 +178,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			doc.parts = append(doc.parts, htmlPart{
 				key:           key,
 				source:        decoded,
+				isVoidAttr:    true,
 				voidTagPrefix: prefix,
 				voidTagSuffix: suffix,
 			})
@@ -385,7 +386,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 	var diags HTMLRenderDiagnostics
 	var b strings.Builder
 	for _, part := range d.parts {
-		if part.voidTagPrefix != "" {
+		if part.isVoidAttr {
 			translated, ok := values[part.key]
 			if !ok {
 				diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
