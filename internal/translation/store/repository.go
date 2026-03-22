@@ -304,6 +304,7 @@ func (r *Repository) ScheduleOutboxEventDeliveryRetry(
 	attemptCount int,
 	nextAttemptAt time.Time,
 	lastError string,
+	now time.Time,
 ) error {
 	query := r.db.NewUpdate().
 		Model((*OutboxEventModel)(nil)).
@@ -314,7 +315,7 @@ func (r *Repository) ScheduleOutboxEventDeliveryRetry(
 		Set("delivery_claimed_by = ''").
 		Set("delivery_claimed_at = NULL").
 		Set("delivery_claim_expires_at = NULL").
-		Set("updated_at = ?", time.Now().UTC()).
+		Set("updated_at = ?", now).
 		Where("id = ?", eventID)
 	if dispatcherID != "" {
 		query = query.Where("delivery_claimed_by = ?", dispatcherID)

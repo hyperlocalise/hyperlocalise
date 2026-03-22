@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	pubsub "cloud.google.com/go/pubsub/v2"
@@ -96,7 +98,8 @@ func main() {
 		log.Fatal("TRANSLATION_GCP_PUBSUB_SUBSCRIPTION is required")
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	client, err := pubsub.NewClient(ctx, cfg.GCPPubSubProjectID)
 	if err != nil {
 		log.Fatalf("create pubsub client: %v", err)
@@ -109,7 +112,7 @@ func main() {
 
 	subscriber := client.Subscriber(cfg.GCPPubSubSubscriptionID)
 	subscriber.ReceiveSettings.NumGoroutines = 1
-	subscriber.ReceiveSettings.MaxOutstandingMessages = cfg.WorkerCount
+	subscriber.ReceiveSettings.MaxOutstandingMessages = 1
 
 	log.Printf(
 		"translation worker pulling subscription=%s project=%s queue_driver=%s",

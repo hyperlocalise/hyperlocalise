@@ -69,7 +69,7 @@ func (r *fakeRepository) MarkOutboxEventPublished(_ context.Context, eventID, di
 	return nil
 }
 
-func (r *fakeRepository) ScheduleOutboxEventDeliveryRetry(_ context.Context, eventID, dispatcherID string, attemptCount int, nextAttemptAt time.Time, lastError string) error {
+func (r *fakeRepository) ScheduleOutboxEventDeliveryRetry(_ context.Context, eventID, dispatcherID string, attemptCount int, nextAttemptAt time.Time, lastError string, _ time.Time) error {
 	event, ok := r.events[eventID]
 	if !ok {
 		return store.ErrNotFound

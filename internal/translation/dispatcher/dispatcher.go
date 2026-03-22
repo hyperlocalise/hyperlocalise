@@ -16,7 +16,7 @@ type Repository interface {
 	ListDispatchableOutboxEvents(ctx context.Context, now time.Time, limit int) ([]store.OutboxEventModel, error)
 	ClaimOutboxEventDelivery(ctx context.Context, eventID, dispatcherID string, now time.Time, leaseDuration time.Duration) error
 	MarkOutboxEventPublished(ctx context.Context, eventID, dispatcherID string, publishedAt time.Time) error
-	ScheduleOutboxEventDeliveryRetry(ctx context.Context, eventID, dispatcherID string, attemptCount int, nextAttemptAt time.Time, lastError string) error
+	ScheduleOutboxEventDeliveryRetry(ctx context.Context, eventID, dispatcherID string, attemptCount int, nextAttemptAt time.Time, lastError string, now time.Time) error
 	MarkOutboxEventDeliveryDeadLettered(ctx context.Context, eventID, dispatcherID string, at time.Time, attemptCount int, lastError string) error
 }
 
@@ -173,7 +173,7 @@ func (d *Dispatcher) handleDeliveryFailure(ctx context.Context, event store.Outb
 	}
 
 	nextAttemptAt := now.Add(backoffForAttempt(attemptCount, d.config.InitialBackoff, d.config.MaxBackoff))
-	if err := d.repository.ScheduleOutboxEventDeliveryRetry(ctx, event.ID, d.config.DispatcherID, attemptCount, nextAttemptAt, cause.Error()); err != nil {
+	if err := d.repository.ScheduleOutboxEventDeliveryRetry(ctx, event.ID, d.config.DispatcherID, attemptCount, nextAttemptAt, cause.Error(), now); err != nil {
 		return err
 	}
 	return fmt.Errorf("scheduled outbox delivery retry for %s: %w", event.ID, cause)
