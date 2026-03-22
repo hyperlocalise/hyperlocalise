@@ -2,9 +2,68 @@
 
 This service exposes the `hyperlocalise.translation.v1.TranslationService` gRPC API.
 
-The service accepts gRPC requests, stores translation jobs in Postgres, and publishes queued job events to the configured broker.
+The service accepts gRPC requests and stores translation jobs in Postgres. Broker delivery is handled asynchronously by the dedicated dispatcher process.
 
 The async worker uses a process-level LLM profile for `string` jobs. `file` jobs are not implemented yet.
+
+## Cloud overview
+
+The cloud translation path has three runtime components:
+
+- `translation-service`: accepts gRPC requests and persists `translation_jobs` plus `outbox_events`
+- `translation-dispatcher-gcp`: polls committed outbox rows and publishes them to the configured broker
+- `translation-worker-gcp`: Cloud Run worker-pool process that pulls a Pub/Sub subscription, claims execution ownership, and runs the translation job
+
+`translation-dispatcher-gcp` is a background process, not an HTTP API. If you run it on Google Cloud, treat it like a worker container. A continuously polling deployment fits best as a long-lived worker service. If you want scheduled drain-only execution instead, adapt it to a Cloud Run Job cadence.
+
+The `outbox_events` table stores both:
+
+- delivery state used by the dispatcher
+- execution state used by the worker
+
+### 1. Request path
+
+```mermaid
+flowchart LR
+    Client["Client"] --> Service["translation-service"]
+
+    subgraph DB["Postgres"]
+        Jobs[("translation_jobs")]
+        Outbox[("outbox_events")]
+    end
+
+    Service -->|"store queued job"| Jobs
+    Service -->|"store outbox row"| Outbox
+    Service -->|"return QUEUED"| Client
+```
+
+### 2. Async delivery and execution
+
+```mermaid
+flowchart LR
+    subgraph DB["Postgres"]
+        Jobs[("translation_jobs")]
+        Outbox[("outbox_events")]
+    end
+
+    Dispatcher["translation-dispatcher-gcp"] -->|"poll + publish"| Outbox
+    Dispatcher --> Broker["Pub/Sub"]
+    Dispatcher -->|"update delivery state"| Outbox
+
+    Broker --> Worker["translation-worker-gcp"]
+
+    Worker -->|"claim execution"| Outbox
+    Worker -->|"run job"| Jobs
+    Worker -->|"update execution state"| Outbox
+```
+
+### Request and execution flow
+
+1. `translation-service` stores the queued job and outbox row in one transaction.
+2. The service returns success as soon as that write commits.
+3. `translation-dispatcher-gcp` reads pending outbox rows and publishes them to Pub/Sub.
+4. `translation-worker-gcp` pulls the message from Pub/Sub and claims execution ownership.
+5. The worker updates the job result and the outbox execution state.
 
 ## Required environment variables
 
@@ -25,12 +84,18 @@ Optional:
 
 Worker-only:
 
+- `TRANSLATION_GCP_PUBSUB_SUBSCRIPTION`: Pub/Sub subscription consumed by the worker process
 - `TRANSLATION_LLM_PROVIDER`: remote provider used by the async worker. Supported values: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `groq`, `mistral`
 - `TRANSLATION_LLM_MODEL`: model name passed to the selected provider
 - `TRANSLATION_LLM_SYSTEM_PROMPT`: optional system prompt override for worker translations
 - `TRANSLATION_LLM_USER_PROMPT`: optional user prompt override for worker translations
 
 Do not use local providers such as `lmstudio` or `ollama` in the worker runtime.
+
+Cloud Run worker notes:
+
+- `translation-worker-gcp` is intended for a Cloud Run worker pool
+- it pulls a Pub/Sub subscription directly instead of serving HTTP
 
 For quick local testing, set `TRANSLATION_QUEUE_DRIVER=stub` to use the local no-op queue implementation and skip GCP setup:
 
@@ -53,6 +118,15 @@ Use one of these authentication paths:
 Minimum IAM for the configured topic:
 
 - `roles/pubsub.publisher`
+
+Dispatcher-only optional settings:
+
+- `TRANSLATION_DISPATCHER_POLL_INTERVAL`: polling interval for pending delivery rows. Defaults to `2s`
+- `TRANSLATION_DISPATCHER_BATCH_SIZE`: max outbox rows claimed per poll. Defaults to `32`
+- `TRANSLATION_DISPATCHER_LEASE_DURATION`: delivery lease duration. Defaults to `30s`
+- `TRANSLATION_DISPATCHER_MAX_ATTEMPTS`: max broker publish attempts before delivery dead-letter. Defaults to `5`
+- `TRANSLATION_DISPATCHER_INITIAL_BACKOFF`: first publish retry backoff. Defaults to `1s`
+- `TRANSLATION_DISPATCHER_MAX_BACKOFF`: max publish retry backoff. Defaults to `30s`
 
 ## Run locally
 
@@ -86,6 +160,17 @@ DATABASE_URL=postgres://localhost:5432/hyperlocalise \
 TRANSLATION_QUEUE_DRIVER=stub \
 LISTEN_ADDR=:9090 \
 bazel run //apps/translation-service:translation-service
+```
+
+Run the dispatcher locally with Bazel:
+
+```bash
+DATABASE_URL=postgres://localhost:5432/hyperlocalise \
+TRANSLATION_QUEUE_DRIVER=gcp-pubsub \
+TRANSLATION_GCP_PUBSUB_PROJECT_ID=my-gcp-project \
+TRANSLATION_GCP_PUBSUB_TOPIC=translation-job-queued \
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+bazel run //apps/translation-dispatcher-gcp:translation-dispatcher-gcp
 ```
 
 To override the listen address while using GCP Pub/Sub:
@@ -126,6 +211,20 @@ Then build the image from the repository root:
 
 ```bash
 docker build -f apps/translation-service/Dockerfile -t hyperlocalise/translation-service .
+```
+
+Build the dispatcher image:
+
+```bash
+bazel build //apps/translation-dispatcher-gcp:translation-dispatcher-gcp
+docker build -f apps/translation-dispatcher-gcp/Dockerfile -t hyperlocalise/translation-dispatcher-gcp .
+```
+
+Build the worker image:
+
+```bash
+bazel build //apps/translation-worker-gcp:translation-worker-gcp
+docker build -f apps/translation-worker-gcp/Dockerfile -t hyperlocalise/translation-worker-gcp .
 ```
 
 ## Run the Docker image
@@ -178,4 +277,17 @@ docker run --rm \
   -v /local/path/service-account.json:/var/secrets/google/service-account.json:ro \
   -e LISTEN_ADDR=:9090 \
   hyperlocalise/translation-service
+```
+
+Run the dispatcher container:
+
+```bash
+docker run --rm \
+  -e DATABASE_URL=postgres://host.docker.internal:5432/hyperlocalise \
+  -e TRANSLATION_QUEUE_DRIVER=gcp-pubsub \
+  -e TRANSLATION_GCP_PUBSUB_PROJECT_ID=my-gcp-project \
+  -e TRANSLATION_GCP_PUBSUB_TOPIC=translation-job-queued \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json \
+  -v /local/path/service-account.json:/var/secrets/google/service-account.json:ro \
+  hyperlocalise/translation-dispatcher-gcp
 ```

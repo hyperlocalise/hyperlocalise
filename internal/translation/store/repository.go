@@ -200,6 +200,178 @@ func (r *Repository) InsertOutboxEvent(ctx context.Context, db bun.IDB, event *O
 	return nil
 }
 
+// ListDispatchableOutboxEvents returns events whose broker delivery is due or whose delivery lease expired.
+func (r *Repository) ListDispatchableOutboxEvents(ctx context.Context, now time.Time, limit int) ([]OutboxEventModel, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	var events []OutboxEventModel
+	err := r.db.NewSelect().
+		Model((*OutboxEventModel)(nil)).
+		Where(
+			"((oe.delivery_status = ? AND oe.delivery_next_attempt_at <= ?) OR (oe.delivery_status = ? AND oe.delivery_claim_expires_at <= ?))",
+			OutboxDeliveryStatusPending, now,
+			OutboxDeliveryStatusProcessing, now,
+		).
+		OrderExpr("oe.delivery_next_attempt_at ASC").
+		OrderExpr("oe.created_at ASC").
+		Limit(limit).
+		Scan(ctx, &events)
+	if err != nil {
+		return nil, fmt.Errorf("list dispatchable outbox events: %w", err)
+	}
+
+	return events, nil
+}
+
+// ClaimOutboxEventDelivery marks an event as in-flight for broker delivery.
+func (r *Repository) ClaimOutboxEventDelivery(
+	ctx context.Context,
+	eventID, dispatcherID string,
+	now time.Time,
+	leaseDuration time.Duration,
+) error {
+	if leaseDuration <= 0 {
+		leaseDuration = 30 * time.Second
+	}
+	claimExpiresAt := now.Add(leaseDuration)
+
+	result, err := r.db.NewUpdate().
+		Model((*OutboxEventModel)(nil)).
+		Set("delivery_status = ?", OutboxDeliveryStatusProcessing).
+		Set("delivery_claimed_by = ?", dispatcherID).
+		Set("delivery_claimed_at = ?", now).
+		Set("delivery_claim_expires_at = ?", claimExpiresAt).
+		Set("updated_at = ?", now).
+		Where("id = ?", eventID).
+		Where(
+			"((delivery_status = ? AND delivery_next_attempt_at <= ?) OR (delivery_status = ? AND delivery_claim_expires_at <= ?))",
+			OutboxDeliveryStatusPending, now,
+			OutboxDeliveryStatusProcessing, now,
+		).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("claim outbox event delivery: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox delivery claim rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// MarkOutboxEventPublished records successful broker delivery without touching execution state.
+func (r *Repository) MarkOutboxEventPublished(ctx context.Context, eventID, dispatcherID string, publishedAt time.Time) error {
+	query := r.db.NewUpdate().
+		Model((*OutboxEventModel)(nil)).
+		Set("delivery_status = ?", OutboxDeliveryStatusPublished).
+		Set("delivery_last_error = ''").
+		Set("published_at = ?", publishedAt).
+		Set("delivery_claimed_by = ''").
+		Set("delivery_claimed_at = NULL").
+		Set("delivery_claim_expires_at = NULL").
+		Set("updated_at = ?", publishedAt).
+		Where("id = ?", eventID)
+	if dispatcherID != "" {
+		query = query.Where("delivery_claimed_by = ?", dispatcherID)
+	}
+	result, err := query.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("mark outbox event published: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox published rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// ScheduleOutboxEventDeliveryRetry releases an event for a later publish retry.
+func (r *Repository) ScheduleOutboxEventDeliveryRetry(
+	ctx context.Context,
+	eventID, dispatcherID string,
+	attemptCount int,
+	nextAttemptAt time.Time,
+	lastError string,
+) error {
+	query := r.db.NewUpdate().
+		Model((*OutboxEventModel)(nil)).
+		Set("delivery_status = ?", OutboxDeliveryStatusPending).
+		Set("delivery_attempt_count = ?", attemptCount).
+		Set("delivery_next_attempt_at = ?", nextAttemptAt).
+		Set("delivery_last_error = ?", lastError).
+		Set("delivery_claimed_by = ''").
+		Set("delivery_claimed_at = NULL").
+		Set("delivery_claim_expires_at = NULL").
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("id = ?", eventID)
+	if dispatcherID != "" {
+		query = query.Where("delivery_claimed_by = ?", dispatcherID)
+	}
+	result, err := query.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("schedule outbox event delivery retry: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox delivery retry rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
+// MarkOutboxEventDeliveryDeadLettered records terminal broker delivery failure.
+func (r *Repository) MarkOutboxEventDeliveryDeadLettered(
+	ctx context.Context,
+	eventID, dispatcherID string,
+	at time.Time,
+	attemptCount int,
+	lastError string,
+) error {
+	query := r.db.NewUpdate().
+		Model((*OutboxEventModel)(nil)).
+		Set("delivery_status = ?", OutboxDeliveryStatusDeadLettered).
+		Set("delivery_attempt_count = ?", attemptCount).
+		Set("delivery_last_error = ?", lastError).
+		Set("delivery_claimed_by = ''").
+		Set("delivery_claimed_at = NULL").
+		Set("delivery_claim_expires_at = NULL").
+		Set("updated_at = ?", at).
+		Where("id = ?", eventID)
+	if dispatcherID != "" {
+		query = query.Where("delivery_claimed_by = ?", dispatcherID)
+	}
+	result, err := query.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("mark outbox event delivery dead-lettered: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("count outbox delivery dead-letter rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 // GetOutboxEvent fetches a single outbox event by id.
 func (r *Repository) GetOutboxEvent(ctx context.Context, eventID string) (*OutboxEventModel, error) {
 	event := &OutboxEventModel{}
