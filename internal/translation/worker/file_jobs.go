@@ -125,7 +125,7 @@ func (p *Processor) buildFileOutcome(
 	translations := make([]*translationv1.FileTranslation, 0, len(input.GetTargetLocales()))
 	for _, locale := range input.GetTargetLocales() {
 		translations = append(translations, &translationv1.FileTranslation{
-			FileId: checkpoint.CompletedLocales[locale],
+			FileId: sourceFile.ID,
 			Locale: locale,
 			Path:   sourceFile.Path,
 		})

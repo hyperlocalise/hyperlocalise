@@ -12,7 +12,6 @@ import (
 
 type gcsStore struct {
 	client            *storage.Client
-	bucket            string
 	signingAccount    string
 	signingPrivateKey []byte
 }
@@ -32,7 +31,6 @@ func newGCSStore(ctx context.Context, cfg Config) (Store, error) {
 
 	return &gcsStore{
 		client:            client,
-		bucket:            cfg.GCPBucket,
 		signingAccount:    cfg.GCPSigningAccount,
 		signingPrivateKey: []byte(cfg.GCPSigningPrivateKey),
 	}, nil

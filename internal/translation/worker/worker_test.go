@@ -613,7 +613,7 @@ func TestBuildOutcomeFileJSONSuccess(t *testing.T) {
 	if len(result.GetTranslations()) != 1 {
 		t.Fatalf("expected one translation, got %d", len(result.GetTranslations()))
 	}
-	if got := result.GetTranslations()[0].GetFileId(); got != "file-1:fr" {
+	if got := result.GetTranslations()[0].GetFileId(); got != "file-1" {
 		t.Fatalf("unexpected file id: %s", got)
 	}
 
