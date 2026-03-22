@@ -12,6 +12,15 @@ const (
 )
 
 const (
+	FileUploadStatusPending   = "pending"
+	FileUploadStatusFinalized = "finalized"
+)
+
+const (
+	FileVariantStatusReady = "ready"
+)
+
+const (
 	JobStatusQueued    = "queued"
 	JobStatusRunning   = "running"
 	JobStatusSucceeded = "succeeded"
@@ -81,4 +90,65 @@ type OutboxEventModel struct {
 	DeliveryClaimedAt      *time.Time `bun:"delivery_claimed_at"`
 	DeliveryClaimExpiresAt *time.Time `bun:"delivery_claim_expires_at"`
 	PublishedAt            *time.Time `bun:"published_at"`
+}
+
+// TranslationFileUploadModel stores pending direct-upload sessions.
+type TranslationFileUploadModel struct {
+	bun.BaseModel `bun:"table:translation_file_uploads,alias:tfu"`
+
+	ID             string     `bun:"id,pk"`
+	ProjectID      string     `bun:"project_id,notnull"`
+	Path           string     `bun:"path,notnull"`
+	FileFormat     string     `bun:"file_format,notnull"`
+	SourceLocale   string     `bun:"source_locale,notnull"`
+	ContentType    string     `bun:"content_type,notnull"`
+	SizeBytes      *int64     `bun:"size_bytes"`
+	ChecksumSHA256 string     `bun:"checksum_sha256"`
+	StorageDriver  string     `bun:"storage_driver,notnull"`
+	Bucket         string     `bun:"bucket,notnull"`
+	ObjectKey      string     `bun:"object_key,notnull"`
+	Status         string     `bun:"status,notnull"`
+	CreatedAt      time.Time  `bun:"created_at,notnull"`
+	UpdatedAt      time.Time  `bun:"updated_at,notnull"`
+	ExpiresAt      time.Time  `bun:"expires_at,notnull"`
+	FinalizedAt    *time.Time `bun:"finalized_at"`
+}
+
+// TranslationFileModel stores the canonical source file record for a project path.
+type TranslationFileModel struct {
+	bun.BaseModel `bun:"table:translation_files,alias:tf"`
+
+	ID             string    `bun:"id,pk"`
+	ProjectID      string    `bun:"project_id,notnull"`
+	Path           string    `bun:"path,notnull"`
+	FileFormat     string    `bun:"file_format,notnull"`
+	SourceLocale   string    `bun:"source_locale,notnull"`
+	ContentType    string    `bun:"content_type,notnull"`
+	SizeBytes      int64     `bun:"size_bytes,notnull"`
+	ChecksumSHA256 string    `bun:"checksum_sha256"`
+	StorageDriver  string    `bun:"storage_driver,notnull"`
+	Bucket         string    `bun:"bucket,notnull"`
+	ObjectKey      string    `bun:"object_key,notnull"`
+	CreatedAt      time.Time `bun:"created_at,notnull"`
+	UpdatedAt      time.Time `bun:"updated_at,notnull"`
+}
+
+// TranslationFileVariantModel stores the current translated file for a locale.
+type TranslationFileVariantModel struct {
+	bun.BaseModel `bun:"table:translation_file_variants,alias:tfv"`
+
+	ID             string    `bun:"id,pk"`
+	FileID         string    `bun:"file_id,notnull"`
+	Locale         string    `bun:"locale,notnull"`
+	Path           string    `bun:"path,notnull"`
+	ContentType    string    `bun:"content_type,notnull"`
+	SizeBytes      int64     `bun:"size_bytes,notnull"`
+	ChecksumSHA256 string    `bun:"checksum_sha256"`
+	StorageDriver  string    `bun:"storage_driver,notnull"`
+	Bucket         string    `bun:"bucket,notnull"`
+	ObjectKey      string    `bun:"object_key,notnull"`
+	LastJobID      string    `bun:"last_job_id,notnull"`
+	Status         string    `bun:"status,notnull"`
+	CreatedAt      time.Time `bun:"created_at,notnull"`
+	UpdatedAt      time.Time `bun:"updated_at,notnull"`
 }

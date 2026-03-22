@@ -11,6 +11,7 @@ import (
 	"time"
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 )
@@ -34,6 +35,9 @@ type JobRepository interface {
 	MarkOutboxEventProcessed(ctx context.Context, eventID, workerID string, processedAt time.Time) error
 	ScheduleOutboxEventRetry(ctx context.Context, eventID, workerID string, attemptCount int, nextAttemptAt time.Time, lastError string) error
 	MarkOutboxEventDeadLettered(ctx context.Context, eventID, workerID string, at time.Time, attemptCount int, lastError string) error
+	GetFile(ctx context.Context, fileID, projectID string) (*store.TranslationFileModel, error)
+	ListFileVariants(ctx context.Context, fileID string) ([]store.TranslationFileVariantModel, error)
+	SaveFileVariant(ctx context.Context, variant *store.TranslationFileVariantModel) error
 }
 
 // RetryPolicy defines retry scheduling for transient worker failures.
@@ -47,6 +51,7 @@ type RetryPolicy struct {
 type Processor struct {
 	repository  JobRepository
 	executor    stringExecutor
+	objectStore objectstore.Store
 	retryPolicy RetryPolicy
 	workerID    string
 	clock       func() time.Time
@@ -79,6 +84,11 @@ func (p *Processor) WithRetryPolicy(policy RetryPolicy) *Processor {
 	if policy.MaxBackoff > 0 {
 		p.retryPolicy.MaxBackoff = policy.MaxBackoff
 	}
+	return p
+}
+
+func (p *Processor) WithObjectStore(store objectstore.Store) *Processor {
+	p.objectStore = store
 	return p
 }
 
@@ -179,6 +189,10 @@ type stringCheckpoint struct {
 	Translations map[string]string `json:"translations"`
 }
 
+type fileCheckpoint struct {
+	CompletedLocales map[string]string `json:"completed_locales"`
+}
+
 // buildOutcome executes the job payload and returns the terminal outcome payload.
 func (p *Processor) buildOutcome(
 	ctx context.Context,
@@ -242,7 +256,7 @@ func (p *Processor) buildOutcome(
 
 		return "string_result", payload, completedAt, nil
 	case store.JobTypeFile:
-		return "", nil, time.Time{}, permanentErrorf("%w", ErrFileJobsNotImplemented)
+		return p.buildFileOutcome(ctx, job)
 	default:
 		return "", nil, time.Time{}, permanentErrorf("unsupported job type %q", job.Type)
 	}

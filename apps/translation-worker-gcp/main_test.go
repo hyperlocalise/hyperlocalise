@@ -80,6 +80,18 @@ func (r *fakeRepository) MarkOutboxEventDeadLettered(_ context.Context, _, _ str
 	return nil
 }
 
+func (r *fakeRepository) GetFile(_ context.Context, _, _ string) (*store.TranslationFileModel, error) {
+	return nil, store.ErrNotFound
+}
+
+func (r *fakeRepository) ListFileVariants(_ context.Context, _ string) ([]store.TranslationFileVariantModel, error) {
+	return nil, nil
+}
+
+func (r *fakeRepository) SaveFileVariant(_ context.Context, _ *store.TranslationFileVariantModel) error {
+	return nil
+}
+
 func TestHandleJobQueuedAcksAlreadyHandledEvents(t *testing.T) {
 	t.Cleanup(func() {
 		runtimeLoad = func() (*handlerRuntime, error) {

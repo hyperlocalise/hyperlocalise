@@ -14,6 +14,7 @@ import (
 	pubsub "cloud.google.com/go/pubsub/v2"
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/worker"
 )
@@ -90,7 +91,7 @@ func (h *handlerRuntime) classifyClaimMiss(ctx context.Context, eventID string, 
 }
 
 func main() {
-	cfg := translationconfig.LoadWorkerConfig()
+	cfg := translationconfig.LoadGCPWorkerConfig()
 	if cfg.GCPPubSubProjectID == "" {
 		log.Fatal("TRANSLATION_GCP_PUBSUB_PROJECT_ID is required")
 	}
@@ -159,9 +160,12 @@ func getRuntime() (*handlerRuntime, error) {
 		return runtimeInst, nil
 	}
 
-	cfg := translationconfig.LoadWorkerConfig()
+	cfg := translationconfig.LoadGCPWorkerConfig()
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+	if cfg.ObjectStoreDriver != objectstore.DriverGCP {
+		return nil, fmt.Errorf("translation-worker-gcp requires TRANSLATION_OBJECT_STORE_DRIVER=%q", objectstore.DriverGCP)
 	}
 
 	executor, err := worker.NewTranslatorExecutor(worker.Config{
@@ -178,10 +182,20 @@ func getRuntime() (*handlerRuntime, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}
+	objectStoreClient, err := objectstore.New(context.Background(), objectstore.Config{
+		Driver:               cfg.ObjectStoreDriver,
+		GCPBucket:            cfg.GCPBucket,
+		GCPSigningAccount:    cfg.GCPSigningAccount,
+		GCPSigningPrivateKey: cfg.GCPSigningPrivateKey,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create object store: %w", err)
+	}
 
 	log.Printf(
-		"translation worker initialized queue_driver=%s llm_provider=%s llm_model=%s",
+		"translation worker initialized queue_driver=%s object_store=%s llm_provider=%s llm_model=%s",
 		cfg.QueueDriver,
+		cfg.ObjectStoreDriver,
 		cfg.LLMProvider,
 		cfg.LLMModel,
 	)
@@ -191,7 +205,7 @@ func getRuntime() (*handlerRuntime, error) {
 			MaxAttempts:    cfg.RetryMaxAttempts,
 			InitialBackoff: cfg.RetryInitialBackoff,
 			MaxBackoff:     cfg.RetryMaxBackoff,
-		}),
+		}).WithObjectStore(objectStoreClient),
 		executionRepo: repository,
 		leaseDuration: cfg.ClaimLeaseDuration,
 	}

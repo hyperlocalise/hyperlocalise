@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
@@ -10,6 +11,7 @@ import (
 	translationservice "github.com/quiet-circles/hyperlocalise/api/services/translation"
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc"
@@ -32,7 +34,16 @@ func main() {
 	}()
 
 	repository := store.NewRepository(db)
-	app := translationapp.NewService(repository, cfg.QueueDriver)
+	objectStoreConfig := objectStoreConfigForService(cfg)
+	storeDriver, err := objectstore.New(context.Background(), objectStoreConfig)
+	if err != nil {
+		log.Fatalf("create object store: %v", err)
+	}
+	bucket, err := objectstore.BucketForDriver(objectStoreConfig)
+	if err != nil {
+		log.Fatalf("resolve object store bucket: %v", err)
+	}
+	app := translationapp.NewService(repository, cfg.QueueDriver, cfg.ObjectStoreDriver, storeDriver, bucket)
 
 	listener, err := net.Listen("tcp", cfg.ListenAddr)
 	if err != nil {
@@ -54,5 +65,29 @@ func main() {
 
 	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("serve grpc: %v", err)
+	}
+}
+
+func objectStoreConfigForService(cfg translationconfig.ServiceConfig) objectstore.Config {
+	switch cfg.ObjectStoreDriver {
+	case objectstore.DriverGCP:
+		return objectstore.Config{
+			Driver:               cfg.ObjectStoreDriver,
+			GCPBucket:            cfg.GCPBucket,
+			GCPSigningAccount:    cfg.GCPSigningAccount,
+			GCPSigningPrivateKey: cfg.GCPSigningPrivateKey,
+		}
+	case objectstore.DriverAWS:
+		return objectstore.Config{
+			Driver:             cfg.ObjectStoreDriver,
+			AWSBucket:          cfg.AWSBucket,
+			AWSRegion:          cfg.AWSRegion,
+			AWSAccessKeyID:     cfg.AWSAccessKeyID,
+			AWSSecretAccessKey: cfg.AWSSecretAccessKey,
+			AWSSessionToken:    cfg.AWSSessionToken,
+			AWSEndpoint:        cfg.AWSEndpoint,
+		}
+	default:
+		return objectstore.Config{Driver: cfg.ObjectStoreDriver}
 	}
 }
