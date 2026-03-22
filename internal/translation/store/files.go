@@ -147,7 +147,7 @@ func (r *Repository) ListFileVariantsByFileIDs(ctx context.Context, fileIDs []st
 	var variants []TranslationFileVariantModel
 	if err := r.db.NewSelect().
 		Model((*TranslationFileVariantModel)(nil)).
-		Where("tfv.file_id IN (?)", bun.In(fileIDs)).
+		Where("tfv.file_id IN (?)", bun.List(fileIDs)).
 		OrderExpr("tfv.file_id ASC").
 		OrderExpr("tfv.locale ASC").
 		Scan(ctx, &variants); err != nil {
