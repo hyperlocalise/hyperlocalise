@@ -1,0 +1,130 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: hyperlocalise
+      POSTGRES_USER: hyperlocalise
+      POSTGRES_PASSWORD: hyperlocalise
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hyperlocalise -d hyperlocalise"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - gcp-postgres-data:/var/lib/postgresql/data
+      - ./migrations/translation/202603220001_translation_outbox_delivery.sql:/docker-entrypoint-initdb.d/001_translation.sql:ro
+
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command:
+      - gcloud
+      - beta
+      - emulators
+      - pubsub
+      - start
+      - --project=hyperlocalise-local
+      - --host-port=0.0.0.0:8085
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - PUBSUB_EMULATOR_HOST=localhost:8085 gcloud pubsub topics list --project=hyperlocalise-local >/dev/null 2>&1
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  pubsub-bootstrap:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    depends_on:
+      pubsub-emulator:
+        condition: service_healthy
+    environment:
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      PUBSUB_PROJECT_ID: hyperlocalise-local
+      PUBSUB_TOPIC: translation-job-queued
+      PUBSUB_SUBSCRIPTION: translation-job-queued-local
+    volumes:
+      - ./scripts/docker/bootstrap_pubsub_gcp.sh:/bootstrap_pubsub_gcp.sh:ro
+    entrypoint: ["/bin/sh", "/bootstrap_pubsub_gcp.sh"]
+    restart: "no"
+
+  translation-service:
+    build:
+      context: .
+      dockerfile: apps/translation-service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@postgres:5432/hyperlocalise?sslmode=disable
+      LISTEN_ADDR: :8080
+      TRANSLATION_QUEUE_DRIVER: gcp-pubsub
+      TRANSLATION_GCP_PUBSUB_PROJECT_ID: hyperlocalise-local
+      TRANSLATION_GCP_PUBSUB_TOPIC: translation-job-queued
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      TRANSLATION_OBJECT_STORE_DRIVER: memory
+    ports:
+      - "8080:8080"
+
+  translation-dispatcher-gcp:
+    build:
+      context: .
+      dockerfile: apps/translation-dispatcher-gcp/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@postgres:5432/hyperlocalise?sslmode=disable
+      TRANSLATION_QUEUE_DRIVER: gcp-pubsub
+      TRANSLATION_GCP_PUBSUB_PROJECT_ID: hyperlocalise-local
+      TRANSLATION_GCP_PUBSUB_TOPIC: translation-job-queued
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      TRANSLATION_DISPATCHER_POLL_INTERVAL: 2s
+      TRANSLATION_DISPATCHER_BATCH_SIZE: 32
+      TRANSLATION_DISPATCHER_LEASE_DURATION: 30s
+      TRANSLATION_DISPATCHER_MAX_ATTEMPTS: 5
+      TRANSLATION_DISPATCHER_INITIAL_BACKOFF: 1s
+      TRANSLATION_DISPATCHER_MAX_BACKOFF: 30s
+
+  translation-worker-gcp:
+    profiles: ["worker"]
+    build:
+      context: .
+      dockerfile: apps/translation-worker-gcp/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@postgres:5432/hyperlocalise?sslmode=disable
+      TRANSLATION_QUEUE_DRIVER: gcp-pubsub
+      TRANSLATION_GCP_PUBSUB_PROJECT_ID: hyperlocalise-local
+      TRANSLATION_GCP_PUBSUB_TOPIC: translation-job-queued
+      TRANSLATION_GCP_PUBSUB_SUBSCRIPTION: translation-job-queued-local
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      TRANSLATION_OBJECT_STORE_DRIVER: gcp
+      TRANSLATION_GCP_STORAGE_BUCKET: ${TRANSLATION_GCP_STORAGE_BUCKET:-}
+      TRANSLATION_GCP_STORAGE_SIGNING_ACCOUNT: ${TRANSLATION_GCP_STORAGE_SIGNING_ACCOUNT:-}
+      TRANSLATION_GCP_STORAGE_SIGNING_PRIVATE_KEY: ${TRANSLATION_GCP_STORAGE_SIGNING_PRIVATE_KEY:-}
+      TRANSLATION_LLM_PROVIDER: ${TRANSLATION_LLM_PROVIDER:-}
+      TRANSLATION_LLM_MODEL: ${TRANSLATION_LLM_MODEL:-}
+      TRANSLATION_LLM_SYSTEM_PROMPT: ${TRANSLATION_LLM_SYSTEM_PROMPT:-}
+      TRANSLATION_LLM_USER_PROMPT: ${TRANSLATION_LLM_USER_PROMPT:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AZURE_OPENAI_BASE_URL: ${AZURE_OPENAI_BASE_URL:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+
+volumes:
+  gcp-postgres-data:

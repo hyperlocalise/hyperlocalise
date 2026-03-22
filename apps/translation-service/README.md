@@ -291,3 +291,62 @@ docker run --rm \
   -v /local/path/service-account.json:/var/secrets/google/service-account.json:ro \
   hyperlocalise/translation-dispatcher-gcp
 ```
+
+## Run the local GCP integration stack with Docker Compose
+
+Use `docker-compose.gcp.yml` when you want a repeatable local queue-path environment with Postgres plus a Pub/Sub emulator. The filename is provider-specific on purpose so the repo can add AWS or other provider stacks later without overloading one shared Compose file.
+
+The default stack starts:
+
+- `postgres`
+- `pubsub-emulator`
+- `pubsub-bootstrap`
+- `translation-service`
+- `translation-dispatcher-gcp`
+
+The worker is available behind the optional `worker` profile because full job execution still needs extra GCS and LLM configuration that queue-path validation does not require.
+
+Build the Bazel binaries first because the Dockerfiles copy artifacts from `bazel-bin/`:
+
+```bash
+bazel build //apps/translation-service:translation-service \
+  //apps/translation-dispatcher-gcp:translation-dispatcher-gcp \
+  //apps/translation-worker-gcp:translation-worker-gcp
+```
+
+Start the default local stack:
+
+```bash
+docker compose -f docker-compose.gcp.yml up --build
+```
+
+Key local defaults inside the stack:
+
+- Postgres: `postgres://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise?sslmode=disable`
+- Pub/Sub emulator: `localhost:8085`
+- gRPC service: `localhost:8080`
+- Topic: `translation-job-queued`
+- Subscription: `translation-job-queued-local`
+
+The service and dispatcher automatically target the emulator through `PUBSUB_EMULATOR_HOST=pubsub-emulator:8085`.
+
+To include the worker, provide the required GCS and LLM environment variables in your shell first, then start the optional profile:
+
+```bash
+export TRANSLATION_GCP_STORAGE_BUCKET=my-local-test-bucket
+export TRANSLATION_GCP_STORAGE_SIGNING_ACCOUNT=my-signer@example.com
+export TRANSLATION_GCP_STORAGE_SIGNING_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----...-----END PRIVATE KEY-----'
+export TRANSLATION_LLM_PROVIDER=openai
+export TRANSLATION_LLM_MODEL=gpt-4.1-mini
+export OPENAI_API_KEY=your-openai-api-key
+
+docker compose -f docker-compose.gcp.yml --profile worker up --build
+```
+
+If you prefer an env file instead of shell exports, use the `.env.worker.example` flow documented in the root `README.md`.
+
+To reset the local database volume and emulator bootstrap state:
+
+```bash
+docker compose -f docker-compose.gcp.yml down -v
+```
