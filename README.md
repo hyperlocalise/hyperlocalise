@@ -61,6 +61,15 @@ npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocal
 
 This uses the [skills.sh](https://skills.sh) installer via `npx`.
 
+## GCP Worker Profile
+
+The GCP worker profile expects GCS signing settings and your selected LLM provider credentials to be forwarded into the container. The simplest local setup is:
+
+```bash
+cp .env.worker.example .env.worker
+docker compose --env-file .env.worker -f docker-compose.gcp.yml --profile worker up
+```
+
 # CLI
 
 The CLI remains the most complete way to use Hyperlocalise today. It is the operator-facing interface for local translation workflows, evaluation, sync, machine-readable reporting, and automation-friendly execution inside CI or developer environments.
