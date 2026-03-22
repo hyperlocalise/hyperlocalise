@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"path"
@@ -216,6 +218,22 @@ func (s *Service) FinalizeFileUpload(
 	}
 	if upload.SizeBytes != nil && *upload.SizeBytes != objectInfo.SizeBytes {
 		return nil, fmt.Errorf("%w: uploaded object size mismatch", ErrInvalidArgument)
+	}
+	if strings.TrimSpace(upload.ChecksumSHA256) != "" {
+		body, err := s.objectStore.GetObject(ctx, objectstore.GetRequest{
+			Object: objectstore.ObjectRef{
+				Driver: upload.StorageDriver,
+				Bucket: upload.Bucket,
+				Key:    upload.ObjectKey,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		sum := sha256.Sum256(body)
+		if got := hex.EncodeToString(sum[:]); !strings.EqualFold(got, strings.TrimSpace(upload.ChecksumSHA256)) {
+			return nil, fmt.Errorf("%w: uploaded object checksum mismatch", ErrInvalidArgument)
+		}
 	}
 
 	now := s.clock()
@@ -456,18 +474,9 @@ func (s *Service) finalizeUploadTx(
 	objectInfo objectstore.ObjectInfo,
 	now time.Time,
 ) (*FileRecord, error) {
-	var fileID string
-	existing, err := s.repository.GetFileByPath(ctx, upload.ProjectID, upload.Path)
-	if err != nil && !errors.Is(err, store.ErrNotFound) {
+	fileID, err := newID("file")
+	if err != nil {
 		return nil, err
-	}
-	if existing != nil {
-		fileID = existing.ID
-	} else {
-		fileID, err = newID("file")
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	model := &store.TranslationFileModel{
@@ -485,11 +494,15 @@ func (s *Service) finalizeUploadTx(
 		UpdatedAt:      now,
 	}
 	model.SizeBytes = objectInfo.SizeBytes
-	if existing != nil {
-		model.CreatedAt = existing.CreatedAt
-	}
-
 	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		existing, lookupErr := s.repository.GetFileByPath(ctx, upload.ProjectID, upload.Path)
+		if lookupErr != nil && !errors.Is(lookupErr, store.ErrNotFound) {
+			return lookupErr
+		}
+		if existing != nil {
+			model.ID = existing.ID
+			model.CreatedAt = existing.CreatedAt
+		}
 		if upsertErr := s.repository.UpsertFile(ctx, tx, model); upsertErr != nil {
 			return upsertErr
 		}
@@ -498,7 +511,11 @@ func (s *Service) finalizeUploadTx(
 	if err != nil {
 		return nil, fmt.Errorf("finalize translation file upload transaction: %w", err)
 	}
-	return s.loadFileRecord(ctx, model)
+	fileModel, err := s.repository.GetFileByPath(ctx, upload.ProjectID, upload.Path)
+	if err != nil {
+		return nil, err
+	}
+	return s.loadFileRecord(ctx, fileModel)
 }
 
 func (s *Service) loadFileRecord(ctx context.Context, model *store.TranslationFileModel) (*FileRecord, error) {

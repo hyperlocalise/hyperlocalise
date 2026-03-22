@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -115,7 +116,8 @@ func (r *Repository) ListFilesByPrefix(ctx context.Context, projectID, prefix st
 		Where("tf.project_id = ?", projectID).
 		OrderExpr("tf.path ASC")
 	if prefix != "" {
-		query = query.Where("tf.path LIKE ?", prefix+"%")
+		escapedPrefix := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
+		query = query.Where("tf.path LIKE ? ESCAPE '\\'", escapedPrefix+"%")
 	}
 
 	var files []TranslationFileModel
