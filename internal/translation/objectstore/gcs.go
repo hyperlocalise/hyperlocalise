@@ -78,7 +78,9 @@ func (s *gcsStore) GetObject(ctx context.Context, req GetRequest) ([]byte, error
 		}
 		return nil, fmt.Errorf("translation object store: open GCS reader: %w", err)
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 	body, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("translation object store: read GCS object: %w", err)

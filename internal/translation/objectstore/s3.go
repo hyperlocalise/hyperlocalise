@@ -107,7 +107,9 @@ func (s *s3Store) GetObject(ctx context.Context, req GetRequest) ([]byte, error)
 		}
 		return nil, fmt.Errorf("translation object store: get S3 object: %w", err)
 	}
-	defer output.Body.Close()
+	defer func() {
+		_ = output.Body.Close()
+	}()
 	body, err := io.ReadAll(output.Body)
 	if err != nil {
 		return nil, fmt.Errorf("translation object store: read S3 object: %w", err)
