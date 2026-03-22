@@ -1,0 +1,23 @@
+name: hyperlocalise-gcp
+runtime: go
+description: GCP Pulumi stack for Hyperlocalise translation services, worker pools, and public API.
+config:
+  gcp:project:
+    description: Google Cloud project ID.
+  gcp:region:
+    default: us-central1
+  hyperlocalise-gcp:project:
+    description: Google Cloud project ID that owns the stack resources.
+  hyperlocalise-gcp:region:
+    default: us-central1
+  hyperlocalise-gcp:databasePassword:
+    secret: true
+    description: Password for the Cloud SQL application user.
+  hyperlocalise-gcp:apiServiceImage:
+    description: OCI image for the public REST API service.
+  hyperlocalise-gcp:translationServiceImage:
+    description: OCI image for the private translation gRPC service.
+  hyperlocalise-gcp:dispatcherImage:
+    description: OCI image for the dispatcher worker pool.
+  hyperlocalise-gcp:workerImage:
+    description: OCI image for the translation worker pool.
