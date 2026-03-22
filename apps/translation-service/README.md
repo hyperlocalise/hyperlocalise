@@ -338,9 +338,12 @@ export TRANSLATION_GCP_STORAGE_SIGNING_ACCOUNT=my-signer@example.com
 export TRANSLATION_GCP_STORAGE_SIGNING_PRIVATE_KEY='-----BEGIN PRIVATE KEY-----...-----END PRIVATE KEY-----'
 export TRANSLATION_LLM_PROVIDER=openai
 export TRANSLATION_LLM_MODEL=gpt-4.1-mini
+export OPENAI_API_KEY=your-openai-api-key
 
 docker compose -f docker-compose.gcp.yml --profile worker up --build
 ```
+
+If you prefer an env file instead of shell exports, use the `.env.worker.example` flow documented in the root `README.md`.
 
 To reset the local database volume and emulator bootstrap state:
 
