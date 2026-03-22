@@ -261,14 +261,23 @@ func (s *Service) ListFileTree(ctx context.Context, projectID, prefix string) ([
 	if err != nil {
 		return nil, err
 	}
+	fileIDs := make([]string, 0, len(files))
+	for idx := range files {
+		fileIDs = append(fileIDs, files[idx].ID)
+	}
+	allVariants, err := s.repository.ListFileVariantsByFileIDs(ctx, fileIDs)
+	if err != nil {
+		return nil, err
+	}
+	variantsByFileID := make(map[string][]store.TranslationFileVariantModel, len(fileIDs))
+	for _, variant := range allVariants {
+		variantsByFileID[variant.FileID] = append(variantsByFileID[variant.FileID], variant)
+	}
 
 	nodes := make([]FileTreeNodeRecord, 0)
 	folders := map[string]struct{}{}
 	for idx := range files {
-		record, loadErr := s.loadFileRecord(ctx, &files[idx])
-		if loadErr != nil {
-			return nil, loadErr
-		}
+		record := fileModelToRecord(&files[idx], variantsByFileID[files[idx].ID])
 		nodes = append(nodes, FileTreeNodeRecord{
 			Type:       "file",
 			Path:       record.Path,
@@ -523,25 +532,7 @@ func (s *Service) loadFileRecord(ctx context.Context, model *store.TranslationFi
 	if err != nil {
 		return nil, err
 	}
-	record := &FileRecord{
-		ID:           model.ID,
-		ProjectID:    model.ProjectID,
-		Path:         model.Path,
-		FileFormat:   model.FileFormat,
-		SourceLocale: model.SourceLocale,
-		CreatedAt:    model.CreatedAt,
-		UpdatedAt:    model.UpdatedAt,
-		Variants:     make([]FileVariantRecord, 0, len(variants)),
-	}
-	for _, variant := range variants {
-		record.Variants = append(record.Variants, FileVariantRecord{
-			Locale:    variant.Locale,
-			FileID:    variant.FileID,
-			Path:      variant.Path,
-			UpdatedAt: variant.UpdatedAt,
-		})
-	}
-	return record, nil
+	return fileModelToRecord(model, variants), nil
 }
 
 func fromProtoJobType(value translationv1.TranslationJob_Type) string {
@@ -596,4 +587,26 @@ func parentCatalogPath(value string) string {
 
 func (s *Service) bucketDriver() string {
 	return s.objectStoreDriver
+}
+
+func fileModelToRecord(model *store.TranslationFileModel, variants []store.TranslationFileVariantModel) *FileRecord {
+	record := &FileRecord{
+		ID:           model.ID,
+		ProjectID:    model.ProjectID,
+		Path:         model.Path,
+		FileFormat:   model.FileFormat,
+		SourceLocale: model.SourceLocale,
+		CreatedAt:    model.CreatedAt,
+		UpdatedAt:    model.UpdatedAt,
+		Variants:     make([]FileVariantRecord, 0, len(variants)),
+	}
+	for _, variant := range variants {
+		record.Variants = append(record.Variants, FileVariantRecord{
+			Locale:    variant.Locale,
+			FileID:    variant.FileID,
+			Path:      variant.Path,
+			UpdatedAt: variant.UpdatedAt,
+		})
+	}
+	return record
 }

@@ -139,6 +139,23 @@ func (r *Repository) ListFileVariants(ctx context.Context, fileID string) ([]Tra
 	return variants, nil
 }
 
+func (r *Repository) ListFileVariantsByFileIDs(ctx context.Context, fileIDs []string) ([]TranslationFileVariantModel, error) {
+	if len(fileIDs) == 0 {
+		return nil, nil
+	}
+
+	var variants []TranslationFileVariantModel
+	if err := r.db.NewSelect().
+		Model((*TranslationFileVariantModel)(nil)).
+		Where("tfv.file_id IN (?)", bun.In(fileIDs)).
+		OrderExpr("tfv.file_id ASC").
+		OrderExpr("tfv.locale ASC").
+		Scan(ctx, &variants); err != nil {
+		return nil, fmt.Errorf("list translation file variants by file ids: %w", err)
+	}
+	return variants, nil
+}
+
 func (r *Repository) GetFileVariant(ctx context.Context, fileID, locale string) (*TranslationFileVariantModel, error) {
 	variant := &TranslationFileVariantModel{}
 	err := r.db.NewSelect().

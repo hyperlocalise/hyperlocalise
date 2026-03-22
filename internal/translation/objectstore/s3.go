@@ -137,7 +137,7 @@ func isS3NotFound(err error) bool {
 		return false
 	}
 	switch apiErr.ErrorCode() {
-	case "NotFound", "NoSuchKey", "404":
+	case "NotFound", "NoSuchKey":
 		return true
 	default:
 		return false

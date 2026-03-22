@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 )
 
 type MemoryStore struct {
@@ -49,8 +48,4 @@ func (s *MemoryStore) StatObject(_ context.Context, req StatRequest) (ObjectInfo
 		return ObjectInfo{}, fmt.Errorf("%w: memory object not found", ErrObjectNotFound)
 	}
 	return ObjectInfo{SizeBytes: int64(len(body))}, nil
-}
-
-func nowUTC() time.Time {
-	return time.Now().UTC()
 }

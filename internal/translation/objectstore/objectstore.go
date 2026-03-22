@@ -91,3 +91,7 @@ func BucketForDriver(cfg Config) (string, error) {
 		return "", fmt.Errorf("translation object store: unsupported driver %q", cfg.Driver)
 	}
 }
+
+func nowUTC() time.Time {
+	return time.Now().UTC()
+}
