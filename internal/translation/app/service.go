@@ -20,16 +20,14 @@ const defaultOutboxMaxAttempts = 5
 // Service orchestrates translation job storage and async dispatch.
 type Service struct {
 	repository  *store.Repository
-	publisher   queue.Publisher
 	queueDriver string
 	clock       Clock
 }
 
 // NewService constructs the translation application service.
-func NewService(repository *store.Repository, publisher queue.Publisher, queueDriver string) *Service {
+func NewService(repository *store.Repository, queueDriver string) *Service {
 	return &Service{
 		repository:  repository,
-		publisher:   publisher,
 		queueDriver: queueDriver,
 		clock:       defaultClock,
 	}
@@ -62,16 +60,20 @@ func (s *Service) CreateJob(
 	}
 
 	eventModel := &store.OutboxEventModel{
-		ID:            eventID,
-		Topic:         queue.TopicJobQueued,
-		AggregateID:   jobModel.ID,
-		Headers:       headers,
-		Status:        store.OutboxStatusPending,
-		AttemptCount:  0,
-		MaxAttempts:   defaultOutboxMaxAttempts,
-		NextAttemptAt: jobModel.CreatedAt,
-		CreatedAt:     jobModel.CreatedAt,
-		UpdatedAt:     jobModel.UpdatedAt,
+		ID:                    eventID,
+		Topic:                 queue.TopicJobQueued,
+		AggregateID:           jobModel.ID,
+		Headers:               headers,
+		Status:                store.OutboxStatusPending,
+		AttemptCount:          0,
+		MaxAttempts:           defaultOutboxMaxAttempts,
+		NextAttemptAt:         jobModel.CreatedAt,
+		DeliveryStatus:        store.OutboxDeliveryStatusPending,
+		DeliveryAttemptCount:  0,
+		DeliveryMaxAttempts:   defaultOutboxMaxAttempts,
+		DeliveryNextAttemptAt: jobModel.CreatedAt,
+		CreatedAt:             jobModel.CreatedAt,
+		UpdatedAt:             jobModel.UpdatedAt,
 	}
 
 	queuedPayload.EventID = eventID
@@ -93,19 +95,6 @@ func (s *Service) CreateJob(
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create translation job transaction: %w", err)
-	}
-
-	if publishErr := s.publisher.Publish(ctx, queue.Message{
-		Topic:       eventModel.Topic,
-		AggregateID: eventModel.AggregateID,
-		Payload:     eventModel.Payload,
-		Headers: map[string]string{
-			"queue_driver": s.queueDriver,
-		},
-	}); publishErr != nil {
-		// TODO: Move broker publication into a dedicated outbox dispatcher so that queue
-		// delivery retries are decoupled from the gRPC request path.
-		return nil, fmt.Errorf("publish queued job message: %w", publishErr)
 	}
 
 	return modelToJobRecord(jobModel), nil

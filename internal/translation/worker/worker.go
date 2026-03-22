@@ -82,6 +82,17 @@ func (p *Processor) WithRetryPolicy(policy RetryPolicy) *Processor {
 	return p
 }
 
+// WithWorkerID returns a shallow copy of the processor bound to one worker identity.
+func (p *Processor) WithWorkerID(workerID string) *Processor {
+	if p == nil {
+		return nil
+	}
+
+	clone := *p
+	clone.workerID = workerID
+	return &clone
+}
+
 // ProcessJobQueuedEvent handles a single queued translation job notification.
 func (p *Processor) ProcessJobQueuedEvent(ctx context.Context, payload translationapp.JobQueuedPayload) error {
 	if err := p.ensureEventReady(ctx, payload.EventID); err != nil {

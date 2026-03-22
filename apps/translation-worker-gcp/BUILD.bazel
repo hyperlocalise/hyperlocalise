@@ -1,16 +1,25 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_test")
 
-go_library(
+go_binary(
     name = "translation-worker-gcp",
-    srcs = ["function.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/translation-worker-gcp",
+    srcs = ["main.go"],
     visibility = ["//visibility:public"],
     deps = [
+        "@com_google_cloud_go_pubsub//:pubsub",
         "//internal/translation/app:app",
         "//internal/translation/config:config",
         "//internal/translation/store:store",
         "//internal/translation/worker:worker",
-        "@com_github_googlecloudplatform_functions_framework_go//functions",
-        "@com_github_cloudevents_sdk_go_v2//event",
+    ],
+)
+
+go_test(
+    name = "translation-worker-gcp_test",
+    srcs = ["main_test.go"],
+    deps = [
+        "@com_google_cloud_go_pubsub//:pubsub",
+        "//internal/translation/app:app",
+        "//internal/translation/store:store",
+        "//internal/translation/worker:worker",
     ],
 )
