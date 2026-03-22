@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
@@ -19,17 +23,23 @@ const defaultOutboxMaxAttempts = 5
 
 // Service orchestrates translation job storage and async dispatch.
 type Service struct {
-	repository  *store.Repository
-	queueDriver string
-	clock       Clock
+	repository        *store.Repository
+	queueDriver       string
+	objectStoreDriver string
+	objectStore       objectstore.Store
+	bucket            string
+	clock             Clock
 }
 
 // NewService constructs the translation application service.
-func NewService(repository *store.Repository, queueDriver string) *Service {
+func NewService(repository *store.Repository, queueDriver, objectStoreDriver string, objectStore objectstore.Store, bucket string) *Service {
 	return &Service{
-		repository:  repository,
-		queueDriver: queueDriver,
-		clock:       defaultClock,
+		repository:        repository,
+		queueDriver:       queueDriver,
+		objectStoreDriver: objectStoreDriver,
+		objectStore:       objectStore,
+		bucket:            bucket,
+		clock:             defaultClock,
 	}
 }
 
@@ -42,7 +52,7 @@ func (s *Service) CreateJob(
 		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
 	}
 
-	jobModel, queuedPayload, err := s.newQueuedJob(request)
+	jobModel, queuedPayload, err := s.newQueuedJob(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +120,210 @@ func (s *Service) GetJob(ctx context.Context, projectID, jobID string) (*JobReco
 	return modelToJobRecord(job), nil
 }
 
+func (s *Service) CreateFileUpload(
+	ctx context.Context,
+	request *translationv1.CreateTranslationFileUploadRequest,
+) (string, string, time.Time, error) {
+	if request.GetProjectId() == "" {
+		return "", "", time.Time{}, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	if strings.TrimSpace(request.GetPath()) == "" {
+		return "", "", time.Time{}, fmt.Errorf("%w: path is required", ErrInvalidArgument)
+	}
+	fileFormat := fromProtoFileFormat(request.GetFileFormat())
+	if fileFormat == "" {
+		return "", "", time.Time{}, fmt.Errorf("%w: file_format is required", ErrInvalidArgument)
+	}
+	if strings.TrimSpace(request.GetSourceLocale()) == "" {
+		return "", "", time.Time{}, fmt.Errorf("%w: source_locale is required", ErrInvalidArgument)
+	}
+	if s.objectStore == nil {
+		return "", "", time.Time{}, fmt.Errorf("translation object store is not configured")
+	}
+
+	now := s.clock()
+	expiresAt := now.Add(15 * time.Minute)
+	uploadID, err := newID("upload")
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	objectKey := buildSourceObjectKey(request.GetProjectId(), uploadID, request.GetPath())
+	upload := &store.TranslationFileUploadModel{
+		ID:             uploadID,
+		ProjectID:      request.GetProjectId(),
+		Path:           cleanCatalogPath(request.GetPath()),
+		FileFormat:     fileFormat,
+		SourceLocale:   request.GetSourceLocale(),
+		ContentType:    strings.TrimSpace(request.GetContentType()),
+		ChecksumSHA256: request.GetChecksumSha256(),
+		StorageDriver:  s.bucketDriver(),
+		Bucket:         s.bucket,
+		ObjectKey:      objectKey,
+		Status:         store.FileUploadStatusPending,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+		ExpiresAt:      expiresAt,
+	}
+	if request.SizeBytes != nil {
+		size := request.GetSizeBytes()
+		upload.SizeBytes = &size
+	}
+	if upload.ContentType == "" {
+		upload.ContentType = "application/octet-stream"
+	}
+	if err := s.repository.InsertFileUpload(ctx, s.repository.DB(), upload); err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	url, err := s.objectStore.CreateUploadURL(ctx, objectstore.UploadRequest{
+		Object:      objectstore.ObjectRef{Driver: upload.StorageDriver, Bucket: upload.Bucket, Key: upload.ObjectKey},
+		ContentType: upload.ContentType,
+		ExpiresAt:   expiresAt,
+	})
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	return uploadID, url, expiresAt, nil
+}
+
+func (s *Service) FinalizeFileUpload(
+	ctx context.Context,
+	projectID, uploadID string,
+) (*FileRecord, error) {
+	if projectID == "" || uploadID == "" {
+		return nil, fmt.Errorf("%w: project_id and upload_id are required", ErrInvalidArgument)
+	}
+	upload, err := s.repository.GetFileUpload(ctx, uploadID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	if upload.Status != store.FileUploadStatusPending {
+		return nil, fmt.Errorf("%w: upload %s is already finalized", ErrInvalidArgument, uploadID)
+	}
+
+	objectInfo, err := s.objectStore.StatObject(ctx, objectstore.StatRequest{
+		Object: objectstore.ObjectRef{
+			Driver: upload.StorageDriver,
+			Bucket: upload.Bucket,
+			Key:    upload.ObjectKey,
+		},
+	})
+	if err != nil {
+		if errors.Is(err, objectstore.ErrObjectNotFound) {
+			return nil, fmt.Errorf("%w: uploaded object is missing", ErrInvalidArgument)
+		}
+		return nil, err
+	}
+	if upload.SizeBytes != nil && *upload.SizeBytes != objectInfo.SizeBytes {
+		return nil, fmt.Errorf("%w: uploaded object size mismatch", ErrInvalidArgument)
+	}
+
+	now := s.clock()
+	file, err := s.finalizeUploadTx(ctx, upload, objectInfo, now)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
+func (s *Service) GetFile(ctx context.Context, projectID, fileID string) (*FileRecord, error) {
+	fileModel, err := s.repository.GetFile(ctx, fileID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return s.loadFileRecord(ctx, fileModel)
+}
+
+func (s *Service) ListFileTree(ctx context.Context, projectID, prefix string) ([]FileTreeNodeRecord, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	cleanPrefix := cleanCatalogPrefix(prefix)
+	files, err := s.repository.ListFilesByPrefix(ctx, projectID, cleanPrefix)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := make([]FileTreeNodeRecord, 0)
+	folders := map[string]struct{}{}
+	for idx := range files {
+		record, loadErr := s.loadFileRecord(ctx, &files[idx])
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		nodes = append(nodes, FileTreeNodeRecord{
+			Type:       "file",
+			Path:       record.Path,
+			Name:       path.Base(record.Path),
+			ParentPath: parentCatalogPath(record.Path),
+			File:       record,
+		})
+
+		current := parentCatalogPath(record.Path)
+		for current != "" && current != cleanPrefix {
+			folders[current] = struct{}{}
+			current = parentCatalogPath(current)
+		}
+	}
+
+	folderPaths := make([]string, 0, len(folders))
+	for folderPath := range folders {
+		if cleanPrefix != "" && !strings.HasPrefix(folderPath, cleanPrefix) {
+			continue
+		}
+		folderPaths = append(folderPaths, folderPath)
+	}
+	sort.Strings(folderPaths)
+	for _, folderPath := range folderPaths {
+		nodes = append(nodes, FileTreeNodeRecord{
+			Type:       "folder",
+			Path:       folderPath,
+			Name:       path.Base(folderPath),
+			ParentPath: parentCatalogPath(folderPath),
+		})
+	}
+
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].Path == nodes[j].Path {
+			return nodes[i].Type < nodes[j].Type
+		}
+		return nodes[i].Path < nodes[j].Path
+	})
+	return nodes, nil
+}
+
+func (s *Service) GetFileDownload(ctx context.Context, projectID, fileID, locale string) (string, time.Time, error) {
+	fileModel, err := s.repository.GetFile(ctx, fileID, projectID)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	ref := objectstore.ObjectRef{
+		Driver: fileModel.StorageDriver,
+		Bucket: fileModel.Bucket,
+		Key:    fileModel.ObjectKey,
+	}
+	if trimmedLocale := strings.TrimSpace(locale); trimmedLocale != "" {
+		variant, variantErr := s.repository.GetFileVariant(ctx, fileID, trimmedLocale)
+		if variantErr != nil {
+			return "", time.Time{}, variantErr
+		}
+		ref = objectstore.ObjectRef{
+			Driver: variant.StorageDriver,
+			Bucket: variant.Bucket,
+			Key:    variant.ObjectKey,
+		}
+	}
+	expiresAt := s.clock().Add(15 * time.Minute)
+	url, err := s.objectStore.CreateDownloadURL(ctx, objectstore.DownloadRequest{
+		Object:    ref,
+		ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	return url, expiresAt, nil
+}
+
 // ListJobs returns a bounded set of jobs for a project.
 func (s *Service) ListJobs(
 	ctx context.Context,
@@ -138,6 +352,7 @@ func (s *Service) ListJobs(
 }
 
 func (s *Service) newQueuedJob(
+	ctx context.Context,
 	request *translationv1.CreateTranslationJobRequest,
 ) (*store.TranslationJobModel, *JobQueuedPayload, error) {
 	now := s.clock()
@@ -171,6 +386,25 @@ func (s *Service) newQueuedJob(
 	case *translationv1.CreateTranslationJobRequest_FileInput:
 		if input.FileInput == nil {
 			return nil, nil, fmt.Errorf("%w: file_input is required", ErrInvalidArgument)
+		}
+		if strings.TrimSpace(input.FileInput.GetSourceFileId()) == "" {
+			return nil, nil, fmt.Errorf("%w: source_file_id is required", ErrInvalidArgument)
+		}
+		if fromProtoFileFormat(input.FileInput.GetFileFormat()) == "" {
+			return nil, nil, fmt.Errorf("%w: file_format is required", ErrInvalidArgument)
+		}
+		if strings.TrimSpace(input.FileInput.GetSourceLocale()) == "" {
+			return nil, nil, fmt.Errorf("%w: source_locale is required", ErrInvalidArgument)
+		}
+		if len(input.FileInput.GetTargetLocales()) == 0 {
+			return nil, nil, fmt.Errorf("%w: target_locales is required", ErrInvalidArgument)
+		}
+		file, lookupErr := s.repository.GetFile(ctx, input.FileInput.GetSourceFileId(), request.GetProjectId())
+		if lookupErr != nil {
+			return nil, nil, lookupErr
+		}
+		if file.FileFormat != fromProtoFileFormat(input.FileInput.GetFileFormat()) {
+			return nil, nil, fmt.Errorf("%w: file_format does not match stored source file", ErrInvalidArgument)
 		}
 
 		payload, marshalErr := EncodeProto(input.FileInput)
@@ -216,6 +450,83 @@ func modelToJobRecord(model *store.TranslationJobModel) *JobRecord {
 	}
 }
 
+func (s *Service) finalizeUploadTx(
+	ctx context.Context,
+	upload *store.TranslationFileUploadModel,
+	objectInfo objectstore.ObjectInfo,
+	now time.Time,
+) (*FileRecord, error) {
+	var fileID string
+	existing, err := s.repository.GetFileByPath(ctx, upload.ProjectID, upload.Path)
+	if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		fileID = existing.ID
+	} else {
+		fileID, err = newID("file")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	model := &store.TranslationFileModel{
+		ID:             fileID,
+		ProjectID:      upload.ProjectID,
+		Path:           upload.Path,
+		FileFormat:     upload.FileFormat,
+		SourceLocale:   upload.SourceLocale,
+		ContentType:    upload.ContentType,
+		ChecksumSHA256: upload.ChecksumSHA256,
+		StorageDriver:  upload.StorageDriver,
+		Bucket:         upload.Bucket,
+		ObjectKey:      upload.ObjectKey,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	model.SizeBytes = objectInfo.SizeBytes
+	if existing != nil {
+		model.CreatedAt = existing.CreatedAt
+	}
+
+	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if upsertErr := s.repository.UpsertFile(ctx, tx, model); upsertErr != nil {
+			return upsertErr
+		}
+		return s.repository.FinalizeFileUpload(ctx, tx, upload.ID, now)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("finalize translation file upload transaction: %w", err)
+	}
+	return s.loadFileRecord(ctx, model)
+}
+
+func (s *Service) loadFileRecord(ctx context.Context, model *store.TranslationFileModel) (*FileRecord, error) {
+	variants, err := s.repository.ListFileVariants(ctx, model.ID)
+	if err != nil {
+		return nil, err
+	}
+	record := &FileRecord{
+		ID:           model.ID,
+		ProjectID:    model.ProjectID,
+		Path:         model.Path,
+		FileFormat:   model.FileFormat,
+		SourceLocale: model.SourceLocale,
+		CreatedAt:    model.CreatedAt,
+		UpdatedAt:    model.UpdatedAt,
+		Variants:     make([]FileVariantRecord, 0, len(variants)),
+	}
+	for _, variant := range variants {
+		record.Variants = append(record.Variants, FileVariantRecord{
+			Locale:    variant.Locale,
+			FileID:    variant.FileID,
+			Path:      variant.Path,
+			UpdatedAt: variant.UpdatedAt,
+		})
+	}
+	return record, nil
+}
+
 func fromProtoJobType(value translationv1.TranslationJob_Type) string {
 	switch value {
 	case translationv1.TranslationJob_TYPE_STRING:
@@ -240,4 +551,32 @@ func fromProtoJobStatus(value translationv1.TranslationJob_Status) string {
 	default:
 		return ""
 	}
+}
+
+func buildSourceObjectKey(projectID, uploadID, filePath string) string {
+	return path.Join("projects", projectID, "source", uploadID, cleanCatalogPath(filePath))
+}
+
+func cleanCatalogPath(value string) string {
+	return strings.TrimPrefix(path.Clean("/"+strings.TrimSpace(value)), "/")
+}
+
+func cleanCatalogPrefix(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	return cleanCatalogPath(trimmed)
+}
+
+func parentCatalogPath(value string) string {
+	dir := path.Dir(value)
+	if dir == "." || dir == "/" {
+		return ""
+	}
+	return dir
+}
+
+func (s *Service) bucketDriver() string {
+	return s.objectStoreDriver
 }

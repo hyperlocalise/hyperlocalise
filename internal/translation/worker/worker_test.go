@@ -12,6 +12,7 @@ import (
 	"time"
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
+	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -29,6 +30,8 @@ type fakeRepository struct {
 	mu           sync.Mutex
 	jobs         map[string]*store.TranslationJobModel
 	events       map[string]*store.OutboxEventModel
+	files        map[string]*store.TranslationFileModel
+	variants     map[string]*store.TranslationFileVariantModel
 	saveErr      error
 	processed    []string
 	retried      []string
@@ -38,8 +41,10 @@ type fakeRepository struct {
 
 func newFakeRepository() *fakeRepository {
 	return &fakeRepository{
-		jobs:   map[string]*store.TranslationJobModel{},
-		events: map[string]*store.OutboxEventModel{},
+		jobs:     map[string]*store.TranslationJobModel{},
+		events:   map[string]*store.OutboxEventModel{},
+		files:    map[string]*store.TranslationFileModel{},
+		variants: map[string]*store.TranslationFileVariantModel{},
 	}
 }
 
@@ -206,6 +211,38 @@ func (r *fakeRepository) ClaimOutboxEvent(_ context.Context, eventID, workerID s
 	event.ClaimedAt = &now
 	event.ClaimExpiresAt = &claimExpiresAt
 	r.claims = append(r.claims, eventID)
+	return nil
+}
+
+func (r *fakeRepository) GetFile(_ context.Context, fileID, projectID string) (*store.TranslationFileModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	file, ok := r.files[fileID]
+	if !ok || file.ProjectID != projectID {
+		return nil, store.ErrNotFound
+	}
+	copy := *file
+	return &copy, nil
+}
+
+func (r *fakeRepository) ListFileVariants(_ context.Context, fileID string) ([]store.TranslationFileVariantModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	var variants []store.TranslationFileVariantModel
+	for _, variant := range r.variants {
+		if variant.FileID == fileID {
+			variants = append(variants, *variant)
+		}
+	}
+	sort.Slice(variants, func(i, j int) bool { return variants[i].Locale < variants[j].Locale })
+	return variants, nil
+}
+
+func (r *fakeRepository) SaveFileVariant(_ context.Context, variant *store.TranslationFileVariantModel) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	copy := *variant
+	r.variants[variant.ID] = &copy
 	return nil
 }
 
@@ -511,11 +548,83 @@ func TestBuildOutcomeStringRequiresExecutor(t *testing.T) {
 	}
 }
 
-func TestBuildOutcomeFileDeferred(t *testing.T) {
-	processor := &Processor{clock: func() time.Time { return time.Unix(1700000000, 0).UTC() }}
-	_, _, _, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{Type: store.JobTypeFile})
-	if !errors.Is(err, ErrFileJobsNotImplemented) {
-		t.Fatalf("expected file jobs to be deferred, got %v", err)
+func TestBuildOutcomeFileJSONSuccess(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.FileTranslationJobInput{
+		SourceFileId:  "file-1",
+		FileFormat:    translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+		SourceLocale:  "en",
+		TargetLocales: []string{"fr"},
+	})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{
+		ID:        "job-1",
+		ProjectID: "proj",
+		Type:      store.JobTypeFile,
+		Status:    store.JobStatusRunning,
+	}
+	repo.files["file-1"] = &store.TranslationFileModel{
+		ID:            "file-1",
+		ProjectID:     "proj",
+		Path:          "content/messages.json",
+		FileFormat:    "json",
+		SourceLocale:  "en",
+		ContentType:   "application/json",
+		StorageDriver: "memory",
+		Bucket:        "translations",
+		ObjectKey:     "projects/proj/source/upload-1/content/messages.json",
+	}
+	memStore := objectstore.NewMemoryStore()
+	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
+		Object: objectstore.ObjectRef{Driver: "memory", Bucket: "translations", Key: "projects/proj/source/upload-1/content/messages.json"},
+		Body:   []byte("{\"hello\":\"Hello\"}"),
+	}); err != nil {
+		t.Fatalf("put source object: %v", err)
+	}
+
+	processor := NewProcessor(repo, fakeExecutor{
+		translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+			return task.TargetLocale + ":" + task.SourceText, RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+		},
+	}).WithObjectStore(memStore)
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	outcomeKind, outcomePayload, _, err := processor.buildOutcome(context.Background(), &store.TranslationJobModel{
+		ID:           "job-1",
+		ProjectID:    "proj",
+		Type:         store.JobTypeFile,
+		Status:       store.JobStatusRunning,
+		InputPayload: payload,
+	})
+	if err != nil {
+		t.Fatalf("build file outcome: %v", err)
+	}
+	if outcomeKind != "file_result" {
+		t.Fatalf("unexpected outcome kind: %s", outcomeKind)
+	}
+
+	result := &translationv1.FileTranslationJobResult{}
+	if err := protojson.Unmarshal(outcomePayload, result); err != nil {
+		t.Fatalf("decode file result: %v", err)
+	}
+	if len(result.GetTranslations()) != 1 {
+		t.Fatalf("expected one translation, got %d", len(result.GetTranslations()))
+	}
+	if got := result.GetTranslations()[0].GetFileId(); got != "file-1:fr" {
+		t.Fatalf("unexpected file id: %s", got)
+	}
+
+	rendered, err := memStore.GetObject(context.Background(), objectstore.GetRequest{
+		Object: objectstore.ObjectRef{Driver: "memory", Bucket: "translations", Key: "projects/proj/variants/file-1/fr/content/messages.json"},
+	})
+	if err != nil {
+		t.Fatalf("get rendered object: %v", err)
+	}
+	if !strings.Contains(string(rendered), "fr:Hello") {
+		t.Fatalf("expected rendered translation, got %q", string(rendered))
 	}
 }
 

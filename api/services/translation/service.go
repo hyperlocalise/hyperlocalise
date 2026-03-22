@@ -10,6 +10,7 @@ import (
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Service exposes the translation gRPC API for deployment as a standalone service.
@@ -38,6 +39,74 @@ func (s *Service) CreateTranslationJob(
 	}
 
 	return &translationv1.CreateTranslationJobResponse{Job: jobProto}, nil
+}
+
+func (s *Service) CreateTranslationFileUpload(
+	ctx context.Context,
+	request *translationv1.CreateTranslationFileUploadRequest,
+) (*translationv1.CreateTranslationFileUploadResponse, error) {
+	uploadID, uploadURL, expiresAt, err := s.app.CreateFileUpload(ctx, request)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &translationv1.CreateTranslationFileUploadResponse{
+		UploadId:  uploadID,
+		UploadUrl: uploadURL,
+		ExpiresAt: timestamppb.New(expiresAt),
+	}, nil
+}
+
+func (s *Service) FinalizeTranslationFileUpload(
+	ctx context.Context,
+	request *translationv1.FinalizeTranslationFileUploadRequest,
+) (*translationv1.FinalizeTranslationFileUploadResponse, error) {
+	file, err := s.app.FinalizeFileUpload(ctx, request.GetProjectId(), request.GetUploadId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &translationv1.FinalizeTranslationFileUploadResponse{File: file.ToProto()}, nil
+}
+
+func (s *Service) GetTranslationFile(
+	ctx context.Context,
+	request *translationv1.GetTranslationFileRequest,
+) (*translationv1.GetTranslationFileResponse, error) {
+	file, err := s.app.GetFile(ctx, request.GetProjectId(), request.GetFileId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &translationv1.GetTranslationFileResponse{File: file.ToProto()}, nil
+}
+
+func (s *Service) ListTranslationFileTree(
+	ctx context.Context,
+	request *translationv1.ListTranslationFileTreeRequest,
+) (*translationv1.ListTranslationFileTreeResponse, error) {
+	nodes, err := s.app.ListFileTree(ctx, request.GetProjectId(), request.GetPrefix())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	response := &translationv1.ListTranslationFileTreeResponse{
+		Nodes: make([]*translationv1.TranslationFileTreeNode, 0, len(nodes)),
+	}
+	for _, node := range nodes {
+		response.Nodes = append(response.Nodes, node.ToProto())
+	}
+	return response, nil
+}
+
+func (s *Service) GetTranslationFileDownload(
+	ctx context.Context,
+	request *translationv1.GetTranslationFileDownloadRequest,
+) (*translationv1.GetTranslationFileDownloadResponse, error) {
+	url, expiresAt, err := s.app.GetFileDownload(ctx, request.GetProjectId(), request.GetFileId(), request.GetLocale())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return &translationv1.GetTranslationFileDownloadResponse{
+		DownloadUrl: url,
+		ExpiresAt:   timestamppb.New(expiresAt),
+	}, nil
 }
 
 func (s *Service) GetTranslationJob(

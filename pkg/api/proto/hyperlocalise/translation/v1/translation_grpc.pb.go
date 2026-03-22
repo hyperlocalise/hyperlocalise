@@ -19,10 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	TranslationService_CreateTranslationJob_FullMethodName    = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationJob"
-	TranslationService_GetTranslationJob_FullMethodName       = "/hyperlocalise.translation.v1.TranslationService/GetTranslationJob"
-	TranslationService_GetTranslationJobStatus_FullMethodName = "/hyperlocalise.translation.v1.TranslationService/GetTranslationJobStatus"
-	TranslationService_ListTranslationJobs_FullMethodName     = "/hyperlocalise.translation.v1.TranslationService/ListTranslationJobs"
+	TranslationService_CreateTranslationJob_FullMethodName          = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationJob"
+	TranslationService_CreateTranslationFileUpload_FullMethodName   = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationFileUpload"
+	TranslationService_FinalizeTranslationFileUpload_FullMethodName = "/hyperlocalise.translation.v1.TranslationService/FinalizeTranslationFileUpload"
+	TranslationService_GetTranslationFile_FullMethodName            = "/hyperlocalise.translation.v1.TranslationService/GetTranslationFile"
+	TranslationService_ListTranslationFileTree_FullMethodName       = "/hyperlocalise.translation.v1.TranslationService/ListTranslationFileTree"
+	TranslationService_GetTranslationFileDownload_FullMethodName    = "/hyperlocalise.translation.v1.TranslationService/GetTranslationFileDownload"
+	TranslationService_GetTranslationJob_FullMethodName             = "/hyperlocalise.translation.v1.TranslationService/GetTranslationJob"
+	TranslationService_GetTranslationJobStatus_FullMethodName       = "/hyperlocalise.translation.v1.TranslationService/GetTranslationJobStatus"
+	TranslationService_ListTranslationJobs_FullMethodName           = "/hyperlocalise.translation.v1.TranslationService/ListTranslationJobs"
 )
 
 // TranslationServiceClient is the client API for TranslationService service.
@@ -32,6 +37,11 @@ const (
 // Translation job management API.
 type TranslationServiceClient interface {
 	CreateTranslationJob(ctx context.Context, in *CreateTranslationJobRequest, opts ...grpc.CallOption) (*CreateTranslationJobResponse, error)
+	CreateTranslationFileUpload(ctx context.Context, in *CreateTranslationFileUploadRequest, opts ...grpc.CallOption) (*CreateTranslationFileUploadResponse, error)
+	FinalizeTranslationFileUpload(ctx context.Context, in *FinalizeTranslationFileUploadRequest, opts ...grpc.CallOption) (*FinalizeTranslationFileUploadResponse, error)
+	GetTranslationFile(ctx context.Context, in *GetTranslationFileRequest, opts ...grpc.CallOption) (*GetTranslationFileResponse, error)
+	ListTranslationFileTree(ctx context.Context, in *ListTranslationFileTreeRequest, opts ...grpc.CallOption) (*ListTranslationFileTreeResponse, error)
+	GetTranslationFileDownload(ctx context.Context, in *GetTranslationFileDownloadRequest, opts ...grpc.CallOption) (*GetTranslationFileDownloadResponse, error)
 	GetTranslationJob(ctx context.Context, in *GetTranslationJobRequest, opts ...grpc.CallOption) (*GetTranslationJobResponse, error)
 	GetTranslationJobStatus(ctx context.Context, in *GetTranslationJobStatusRequest, opts ...grpc.CallOption) (*GetTranslationJobStatusResponse, error)
 	ListTranslationJobs(ctx context.Context, in *ListTranslationJobsRequest, opts ...grpc.CallOption) (*ListTranslationJobsResponse, error)
@@ -49,6 +59,56 @@ func (c *translationServiceClient) CreateTranslationJob(ctx context.Context, in 
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateTranslationJobResponse)
 	err := c.cc.Invoke(ctx, TranslationService_CreateTranslationJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) CreateTranslationFileUpload(ctx context.Context, in *CreateTranslationFileUploadRequest, opts ...grpc.CallOption) (*CreateTranslationFileUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateTranslationFileUploadResponse)
+	err := c.cc.Invoke(ctx, TranslationService_CreateTranslationFileUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) FinalizeTranslationFileUpload(ctx context.Context, in *FinalizeTranslationFileUploadRequest, opts ...grpc.CallOption) (*FinalizeTranslationFileUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinalizeTranslationFileUploadResponse)
+	err := c.cc.Invoke(ctx, TranslationService_FinalizeTranslationFileUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) GetTranslationFile(ctx context.Context, in *GetTranslationFileRequest, opts ...grpc.CallOption) (*GetTranslationFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTranslationFileResponse)
+	err := c.cc.Invoke(ctx, TranslationService_GetTranslationFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) ListTranslationFileTree(ctx context.Context, in *ListTranslationFileTreeRequest, opts ...grpc.CallOption) (*ListTranslationFileTreeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListTranslationFileTreeResponse)
+	err := c.cc.Invoke(ctx, TranslationService_ListTranslationFileTree_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) GetTranslationFileDownload(ctx context.Context, in *GetTranslationFileDownloadRequest, opts ...grpc.CallOption) (*GetTranslationFileDownloadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTranslationFileDownloadResponse)
+	err := c.cc.Invoke(ctx, TranslationService_GetTranslationFileDownload_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +152,11 @@ func (c *translationServiceClient) ListTranslationJobs(ctx context.Context, in *
 // Translation job management API.
 type TranslationServiceServer interface {
 	CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error)
+	CreateTranslationFileUpload(context.Context, *CreateTranslationFileUploadRequest) (*CreateTranslationFileUploadResponse, error)
+	FinalizeTranslationFileUpload(context.Context, *FinalizeTranslationFileUploadRequest) (*FinalizeTranslationFileUploadResponse, error)
+	GetTranslationFile(context.Context, *GetTranslationFileRequest) (*GetTranslationFileResponse, error)
+	ListTranslationFileTree(context.Context, *ListTranslationFileTreeRequest) (*ListTranslationFileTreeResponse, error)
+	GetTranslationFileDownload(context.Context, *GetTranslationFileDownloadRequest) (*GetTranslationFileDownloadResponse, error)
 	GetTranslationJob(context.Context, *GetTranslationJobRequest) (*GetTranslationJobResponse, error)
 	GetTranslationJobStatus(context.Context, *GetTranslationJobStatusRequest) (*GetTranslationJobStatusResponse, error)
 	ListTranslationJobs(context.Context, *ListTranslationJobsRequest) (*ListTranslationJobsResponse, error)
@@ -107,6 +172,21 @@ type UnimplementedTranslationServiceServer struct{}
 
 func (UnimplementedTranslationServiceServer) CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTranslationJob not implemented")
+}
+func (UnimplementedTranslationServiceServer) CreateTranslationFileUpload(context.Context, *CreateTranslationFileUploadRequest) (*CreateTranslationFileUploadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTranslationFileUpload not implemented")
+}
+func (UnimplementedTranslationServiceServer) FinalizeTranslationFileUpload(context.Context, *FinalizeTranslationFileUploadRequest) (*FinalizeTranslationFileUploadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method FinalizeTranslationFileUpload not implemented")
+}
+func (UnimplementedTranslationServiceServer) GetTranslationFile(context.Context, *GetTranslationFileRequest) (*GetTranslationFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTranslationFile not implemented")
+}
+func (UnimplementedTranslationServiceServer) ListTranslationFileTree(context.Context, *ListTranslationFileTreeRequest) (*ListTranslationFileTreeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListTranslationFileTree not implemented")
+}
+func (UnimplementedTranslationServiceServer) GetTranslationFileDownload(context.Context, *GetTranslationFileDownloadRequest) (*GetTranslationFileDownloadResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTranslationFileDownload not implemented")
 }
 func (UnimplementedTranslationServiceServer) GetTranslationJob(context.Context, *GetTranslationJobRequest) (*GetTranslationJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTranslationJob not implemented")
@@ -152,6 +232,96 @@ func _TranslationService_CreateTranslationJob_Handler(srv interface{}, ctx conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TranslationServiceServer).CreateTranslationJob(ctx, req.(*CreateTranslationJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_CreateTranslationFileUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTranslationFileUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).CreateTranslationFileUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_CreateTranslationFileUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).CreateTranslationFileUpload(ctx, req.(*CreateTranslationFileUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_FinalizeTranslationFileUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalizeTranslationFileUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).FinalizeTranslationFileUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_FinalizeTranslationFileUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).FinalizeTranslationFileUpload(ctx, req.(*FinalizeTranslationFileUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_GetTranslationFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTranslationFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).GetTranslationFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_GetTranslationFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).GetTranslationFile(ctx, req.(*GetTranslationFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_ListTranslationFileTree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListTranslationFileTreeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).ListTranslationFileTree(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_ListTranslationFileTree_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).ListTranslationFileTree(ctx, req.(*ListTranslationFileTreeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_GetTranslationFileDownload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTranslationFileDownloadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).GetTranslationFileDownload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_GetTranslationFileDownload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).GetTranslationFileDownload(ctx, req.(*GetTranslationFileDownloadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -220,6 +390,26 @@ var TranslationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateTranslationJob",
 			Handler:    _TranslationService_CreateTranslationJob_Handler,
+		},
+		{
+			MethodName: "CreateTranslationFileUpload",
+			Handler:    _TranslationService_CreateTranslationFileUpload_Handler,
+		},
+		{
+			MethodName: "FinalizeTranslationFileUpload",
+			Handler:    _TranslationService_FinalizeTranslationFileUpload_Handler,
+		},
+		{
+			MethodName: "GetTranslationFile",
+			Handler:    _TranslationService_GetTranslationFile_Handler,
+		},
+		{
+			MethodName: "ListTranslationFileTree",
+			Handler:    _TranslationService_ListTranslationFileTree_Handler,
+		},
+		{
+			MethodName: "GetTranslationFileDownload",
+			Handler:    _TranslationService_GetTranslationFileDownload_Handler,
 		},
 		{
 			MethodName: "GetTranslationJob",

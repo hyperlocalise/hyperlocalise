@@ -29,7 +29,7 @@ message FileTranslationJobInput {
     FILE_FORMAT_CSV = 4;
   }
 
-  string file_uri = 1;
+  string source_file_id = 1;
   FileFormat file_format = 2;
   string source_locale = 3;
   repeated string target_locales = 4;
@@ -44,8 +44,9 @@ message StringTranslation {
 
 // Translated file location for a single target locale.
 message FileTranslation {
-  string locale = 1;
-  string file_uri = 2;
+  string file_id = 1;
+  string locale = 2;
+  string path = 3;
 }
 
 // Result payload for string-based translation jobs.
@@ -56,6 +57,92 @@ message StringTranslationJobResult {
 // Result payload for file-based translation jobs.
 message FileTranslationJobResult {
   repeated FileTranslation translations = 1;
+}
+
+message TranslationFile {
+  string id = 1;
+  string project_id = 2;
+  string path = 3;
+  FileTranslationJobInput.FileFormat file_format = 4;
+  string source_locale = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  repeated TranslationFileVariant variants = 8;
+}
+
+message TranslationFileVariant {
+  string locale = 1;
+  string file_id = 2;
+  string path = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message TranslationFileTreeNode {
+  enum NodeType {
+    NODE_TYPE_UNSPECIFIED = 0;
+    NODE_TYPE_FOLDER = 1;
+    NODE_TYPE_FILE = 2;
+  }
+
+  NodeType type = 1;
+  string path = 2;
+  string name = 3;
+  string parent_path = 4;
+  TranslationFile file = 5;
+}
+
+message CreateTranslationFileUploadRequest {
+  string project_id = 1;
+  string path = 2;
+  FileTranslationJobInput.FileFormat file_format = 3;
+  string source_locale = 4;
+  string content_type = 5;
+  optional int64 size_bytes = 6;
+  optional string checksum_sha256 = 7;
+}
+
+message CreateTranslationFileUploadResponse {
+  string upload_id = 1;
+  string upload_url = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message FinalizeTranslationFileUploadRequest {
+  string project_id = 1;
+  string upload_id = 2;
+}
+
+message FinalizeTranslationFileUploadResponse {
+  TranslationFile file = 1;
+}
+
+message GetTranslationFileRequest {
+  string project_id = 1;
+  string file_id = 2;
+}
+
+message GetTranslationFileResponse {
+  TranslationFile file = 1;
+}
+
+message ListTranslationFileTreeRequest {
+  string project_id = 1;
+  string prefix = 2;
+}
+
+message ListTranslationFileTreeResponse {
+  repeated TranslationFileTreeNode nodes = 1;
+}
+
+message GetTranslationFileDownloadRequest {
+  string project_id = 1;
+  string file_id = 2;
+  optional string locale = 3;
+}
+
+message GetTranslationFileDownloadResponse {
+  string download_url = 1;
+  google.protobuf.Timestamp expires_at = 2;
 }
 
 // Structured failure details for jobs that end in STATUS_FAILED.
@@ -183,6 +270,11 @@ message GetTranslationJobResponse {
 // Translation job management API.
 service TranslationService {
   rpc CreateTranslationJob(CreateTranslationJobRequest) returns (CreateTranslationJobResponse);
+  rpc CreateTranslationFileUpload(CreateTranslationFileUploadRequest) returns (CreateTranslationFileUploadResponse);
+  rpc FinalizeTranslationFileUpload(FinalizeTranslationFileUploadRequest) returns (FinalizeTranslationFileUploadResponse);
+  rpc GetTranslationFile(GetTranslationFileRequest) returns (GetTranslationFileResponse);
+  rpc ListTranslationFileTree(ListTranslationFileTreeRequest) returns (ListTranslationFileTreeResponse);
+  rpc GetTranslationFileDownload(GetTranslationFileDownloadRequest) returns (GetTranslationFileDownloadResponse);
   rpc GetTranslationJob(GetTranslationJobRequest) returns (GetTranslationJobResponse);
   rpc GetTranslationJobStatus(GetTranslationJobStatusRequest) returns (GetTranslationJobStatusResponse);
   rpc ListTranslationJobs(ListTranslationJobsRequest) returns (ListTranslationJobsResponse);

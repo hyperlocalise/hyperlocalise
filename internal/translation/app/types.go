@@ -40,6 +40,32 @@ type JobRecord struct {
 	CompletedAt    *time.Time
 }
 
+type FileVariantRecord struct {
+	Locale    string
+	FileID    string
+	Path      string
+	UpdatedAt time.Time
+}
+
+type FileRecord struct {
+	ID           string
+	ProjectID    string
+	Path         string
+	FileFormat   string
+	SourceLocale string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Variants     []FileVariantRecord
+}
+
+type FileTreeNodeRecord struct {
+	Type       string
+	Path       string
+	Name       string
+	ParentPath string
+	File       *FileRecord
+}
+
 // Clock is used for deterministic testing and timestamping.
 type Clock func() time.Time
 
@@ -231,5 +257,81 @@ func toProtoJobStatus(value string) translationv1.TranslationJob_Status {
 		return translationv1.TranslationJob_STATUS_FAILED
 	default:
 		return translationv1.TranslationJob_STATUS_UNSPECIFIED
+	}
+}
+
+func (r FileRecord) ToProto() *translationv1.TranslationFile {
+	variants := make([]*translationv1.TranslationFileVariant, 0, len(r.Variants))
+	for _, variant := range r.Variants {
+		variants = append(variants, &translationv1.TranslationFileVariant{
+			Locale:    variant.Locale,
+			FileId:    variant.FileID,
+			Path:      variant.Path,
+			UpdatedAt: timestamppb.New(variant.UpdatedAt),
+		})
+	}
+	return &translationv1.TranslationFile{
+		Id:           r.ID,
+		ProjectId:    r.ProjectID,
+		Path:         r.Path,
+		FileFormat:   toProtoFileFormat(r.FileFormat),
+		SourceLocale: r.SourceLocale,
+		CreatedAt:    timestamppb.New(r.CreatedAt),
+		UpdatedAt:    timestamppb.New(r.UpdatedAt),
+		Variants:     variants,
+	}
+}
+
+func (r FileTreeNodeRecord) ToProto() *translationv1.TranslationFileTreeNode {
+	node := &translationv1.TranslationFileTreeNode{
+		Type:       toProtoNodeType(r.Type),
+		Path:       r.Path,
+		Name:       r.Name,
+		ParentPath: r.ParentPath,
+	}
+	if r.File != nil {
+		node.File = r.File.ToProto()
+	}
+	return node
+}
+
+func toProtoFileFormat(value string) translationv1.FileTranslationJobInput_FileFormat {
+	switch value {
+	case "xliff":
+		return translationv1.FileTranslationJobInput_FILE_FORMAT_XLIFF
+	case "json":
+		return translationv1.FileTranslationJobInput_FILE_FORMAT_JSON
+	case "po":
+		return translationv1.FileTranslationJobInput_FILE_FORMAT_PO
+	case "csv":
+		return translationv1.FileTranslationJobInput_FILE_FORMAT_CSV
+	default:
+		return translationv1.FileTranslationJobInput_FILE_FORMAT_UNSPECIFIED
+	}
+}
+
+func fromProtoFileFormat(value translationv1.FileTranslationJobInput_FileFormat) string {
+	switch value {
+	case translationv1.FileTranslationJobInput_FILE_FORMAT_XLIFF:
+		return "xliff"
+	case translationv1.FileTranslationJobInput_FILE_FORMAT_JSON:
+		return "json"
+	case translationv1.FileTranslationJobInput_FILE_FORMAT_PO:
+		return "po"
+	case translationv1.FileTranslationJobInput_FILE_FORMAT_CSV:
+		return "csv"
+	default:
+		return ""
+	}
+}
+
+func toProtoNodeType(value string) translationv1.TranslationFileTreeNode_NodeType {
+	switch value {
+	case "folder":
+		return translationv1.TranslationFileTreeNode_NODE_TYPE_FOLDER
+	case "file":
+		return translationv1.TranslationFileTreeNode_NODE_TYPE_FILE
+	default:
+		return translationv1.TranslationFileTreeNode_NODE_TYPE_UNSPECIFIED
 	}
 }
