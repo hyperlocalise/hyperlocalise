@@ -496,3 +496,209 @@ func TestHTMLMarshalFixtureRoundTrip(t *testing.T) {
 		t.Fatalf("expected no residual placeholder sentinels, got:\n%s", s)
 	}
 }
+
+func TestHTMLParserExtractsImgAlt(t *testing.T) {
+	content := []byte(`<body><img src="cat.png" alt="A red cat"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "A red cat" {
+			t.Fatalf("expected entry value %q, got %q", "A red cat", v)
+		}
+	}
+}
+
+func TestHTMLParserSkipsImgWithNoAlt(t *testing.T) {
+	content := []byte(`<body><img src="cat.png"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 entries, got %d: %v", len(got), got)
+	}
+}
+
+func TestHTMLParserSkipsImgWithEmptyAlt(t *testing.T) {
+	content := []byte(`<body><img src="cat.png" alt=""></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected 0 entries for empty alt, got %d: %v", len(got), got)
+	}
+}
+
+func TestHTMLParserDecodesImgAltEntities(t *testing.T) {
+	content := []byte(`<body><img alt="Cat &amp; dog"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "Cat & dog" {
+			t.Fatalf("expected decoded value %q, got %q", "Cat & dog", v)
+		}
+	}
+}
+
+func TestHTMLMarshalImgAltRoundTrip(t *testing.T) {
+	template := []byte(`<body><img src="cat.png" alt="A red cat" class="banner"></body>`)
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	translated := make(map[string]string, len(entries))
+	for k := range entries {
+		translated[k] = "Un gato rojo"
+	}
+
+	out, diags := MarshalHTML(template, translated)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+
+	s := string(out)
+	if !strings.Contains(s, `alt="Un gato rojo"`) {
+		t.Fatalf("expected translated alt in output, got:\n%s", s)
+	}
+	// Rest of tag must be unchanged.
+	if !strings.Contains(s, `src="cat.png"`) {
+		t.Fatalf("expected src attribute preserved, got:\n%s", s)
+	}
+	if !strings.Contains(s, `class="banner"`) {
+		t.Fatalf("expected class attribute preserved, got:\n%s", s)
+	}
+}
+
+func TestHTMLMarshalImgAltFallsBackToSource(t *testing.T) {
+	template := []byte(`<body><img alt="A red cat"></body>`)
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	_ = entries
+
+	out, diags := MarshalHTML(template, map[string]string{})
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected 1 fallback key, got %v", diags.SourceFallbackKeys)
+	}
+
+	s := string(out)
+	if !strings.Contains(s, `alt="A red cat"`) {
+		t.Fatalf("expected source alt in fallback output, got:\n%s", s)
+	}
+}
+
+func TestHTMLMarshalImgAltSingleQuoteRoundTrip(t *testing.T) {
+	template := []byte(`<body><img src="cat.png" alt='A red cat'></body>`)
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	translated := make(map[string]string, len(entries))
+	for k := range entries {
+		translated[k] = "Un gato rojo"
+	}
+
+	out, diags := MarshalHTML(template, translated)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(out), "Un gato rojo") {
+		t.Fatalf("expected translated alt in output, got:\n%s", out)
+	}
+}
+
+func TestHTMLParserImgInlineWithinParagraph(t *testing.T) {
+	// <img> within a <p> splits the paragraph into separate segments.
+	content := []byte(`<p>See <img alt="icon" src="icon.png"> for details.</p>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	combined := strings.Join(mapValues(got), " ")
+	if !strings.Contains(combined, "icon") {
+		t.Fatalf("expected img alt extracted, got entries: %v", got)
+	}
+	if !strings.Contains(combined, "details") {
+		t.Fatalf("expected surrounding text extracted, got entries: %v", got)
+	}
+}
+
+func TestHTMLParserImgAltWithSpacesAroundEquals(t *testing.T) {
+	// HTML allows optional whitespace around `=`; ensure alt is still extracted.
+	content := []byte(`<body><img alt = "A red cat"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "A red cat" {
+			t.Fatalf("expected alt value extracted, got: %q", v)
+		}
+	}
+}
+
+func TestHTMLParserImgDataAltDoesNotMatchAlt(t *testing.T) {
+	// \balt= would match the "alt" suffix of data-alt="..."; [\s]alt= must not.
+	content := []byte(`<body><img data-alt="icon" alt="A red cat"></body>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry for alt only, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if v != "A red cat" {
+			t.Fatalf("expected alt value extracted, got: %q", v)
+		}
+	}
+}
+
+func TestHTMLParserImgWithoutAltDoesNotFragmentProse(t *testing.T) {
+	// <img> without alt must not fragment surrounding prose into separate segments.
+	content := []byte(`<p>See <img src="icon.png"> for details.</p>`)
+
+	got, err := HTMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected 1 translation unit, got %d: %v", len(got), got)
+	}
+	for _, v := range got {
+		if !strings.Contains(v, "See") || !strings.Contains(v, "details") {
+			t.Fatalf("expected prose kept in one unit, got: %q", v)
+		}
+	}
+}
