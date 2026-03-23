@@ -2,8 +2,11 @@ package translation
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
@@ -19,6 +22,18 @@ type Service struct {
 	translationv1.UnimplementedTranslationServiceServer
 
 	app *translationapp.Service
+}
+
+// listJobsCursorVersion tracks the current opaque page token schema.
+const listJobsCursorVersion = 1
+
+type listJobsPageToken struct {
+	Version   int32  `json:"v"`
+	ProjectID string `json:"project_id"`
+	Type      int32  `json:"type"`
+	Status    int32  `json:"status"`
+	CreatedAt string `json:"created_at"`
+	ID        string `json:"id"`
 }
 
 func NewService(app *translationapp.Service) *Service {
@@ -250,26 +265,122 @@ func (s *Service) ListTranslationJobs(
 		return nil, status.Errorf(codes.InvalidArgument, "page_size must be <= %d", maxPageSize)
 	}
 
-	jobs, err := s.app.ListJobs(ctx, request.GetProjectId(), request.GetType(), request.GetStatus(), pageSize)
+	pageRequest := request.GetPage()
+	pageToken := ""
+	if pageRequest != nil {
+		pageToken = pageRequest.GetPageToken()
+	}
+
+	cursor, err := decodeListJobsPageToken(pageToken, request)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid page_token: %v", err)
+	}
+
+	page, err := s.app.ListJobs(ctx, request.GetProjectId(), request.GetType(), request.GetStatus(), pageSize, cursor)
 	if err != nil {
 		return nil, mapError(err)
 	}
 
 	response := &translationv1.ListTranslationJobsResponse{
-		Jobs: make([]*translationv1.TranslationJob, 0, len(jobs)),
-		// TODO: Add cursor-based pagination once the storage contract is settled.
+		Jobs: make([]*translationv1.TranslationJob, 0, len(page.Jobs)),
 	}
 
-	for idx := range jobs {
-		jobProto, encodeErr := jobs[idx].ToProto()
+	for idx := range page.Jobs {
+		jobProto, encodeErr := page.Jobs[idx].ToProto()
 		if encodeErr != nil {
 			return nil, status.Errorf(codes.Internal, "encode listed translation job: %v", encodeErr)
 		}
 
 		response.Jobs = append(response.Jobs, jobProto)
 	}
+	if page.NextCursor != nil {
+		token, err := encodeListJobsPageToken(page.NextCursor, request)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "encode translation job page token: %v", err)
+		}
+		response.Page = &commonv1.PageResponse{NextPageToken: token}
+	}
 
 	return response, nil
+}
+
+func encodeListJobsPageToken(
+	cursor *translationapp.JobListCursor,
+	request *translationv1.ListTranslationJobsRequest,
+) (string, error) {
+	if cursor == nil {
+		return "", nil
+	}
+	if request == nil {
+		return "", fmt.Errorf("request is required")
+	}
+	if cursor.ID == "" || cursor.CreatedAt.IsZero() {
+		return "", fmt.Errorf("cursor is incomplete")
+	}
+
+	payload, err := json.Marshal(listJobsPageToken{
+		Version:   listJobsCursorVersion,
+		ProjectID: request.GetProjectId(),
+		Type:      int32(request.GetType()),
+		Status:    int32(request.GetStatus()),
+		CreatedAt: cursor.CreatedAt.UTC().Format(time.RFC3339Nano),
+		ID:        cursor.ID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeListJobsPageToken(
+	token string,
+	request *translationv1.ListTranslationJobsRequest,
+) (*translationapp.JobListCursor, error) {
+	if token == "" {
+		return nil, nil
+	}
+	if request == nil {
+		return nil, fmt.Errorf("request is required")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return nil, err
+	}
+
+	var decoded listJobsPageToken
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return nil, err
+	}
+	if decoded.Version != listJobsCursorVersion {
+		return nil, fmt.Errorf("unsupported version %d", decoded.Version)
+	}
+	if decoded.ID == "" || decoded.CreatedAt == "" {
+		return nil, fmt.Errorf("missing cursor fields")
+	}
+	if decoded.ProjectID == "" {
+		return nil, fmt.Errorf("missing project_id")
+	}
+	if decoded.ProjectID != request.GetProjectId() {
+		return nil, fmt.Errorf("page_token does not match project_id")
+	}
+	if decoded.Type != int32(request.GetType()) {
+		return nil, fmt.Errorf("page_token does not match type filter")
+	}
+	if decoded.Status != int32(request.GetStatus()) {
+		return nil, fmt.Errorf("page_token does not match status filter")
+	}
+
+	createdAt, err := time.Parse(time.RFC3339Nano, decoded.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse created_at: %w", err)
+	}
+
+	return &translationapp.JobListCursor{
+		CreatedAt: createdAt.UTC(),
+		ID:        decoded.ID,
+	}, nil
 }
 
 func mapError(err error) error {

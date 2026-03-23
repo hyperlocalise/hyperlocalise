@@ -48,6 +48,16 @@ type JobRecord struct {
 	CompletedAt    *time.Time
 }
 
+type JobListCursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+type JobListPage struct {
+	Jobs       []JobRecord
+	NextCursor *JobListCursor
+}
+
 type FileVariantRecord struct {
 	Locale    string
 	FileID    string

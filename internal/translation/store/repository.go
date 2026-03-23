@@ -17,6 +17,16 @@ type Repository struct {
 	db *bun.DB
 }
 
+type JobListCursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+type JobListPage struct {
+	Jobs       []TranslationJobModel
+	NextCursor *JobListCursor
+}
+
 // NewRepository constructs the Postgres-backed translation repository.
 func NewRepository(db *bun.DB) *Repository {
 	return &Repository{db: db}
@@ -56,12 +66,12 @@ func (r *Repository) GetJob(ctx context.Context, jobID, projectID string) (*Tran
 	return job, nil
 }
 
-// ListJobs lists translation jobs for a project.
-func (r *Repository) ListJobs(
+func (r *Repository) ListJobsPage(
 	ctx context.Context,
 	projectID, jobType, status string,
 	limit int,
-) ([]TranslationJobModel, error) {
+	cursor *JobListCursor,
+) (*JobListPage, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -70,7 +80,22 @@ func (r *Repository) ListJobs(
 		Model((*TranslationJobModel)(nil)).
 		Where("tj.project_id = ?", projectID).
 		OrderExpr("tj.created_at DESC").
-		Limit(limit)
+		OrderExpr("tj.id DESC").
+		Limit(limit + 1)
+
+	return r.listJobsPage(ctx, query, jobType, status, cursor, limit)
+}
+
+func (r *Repository) listJobsPage(
+	ctx context.Context,
+	query *bun.SelectQuery,
+	jobType, status string,
+	cursor *JobListCursor,
+	limit int,
+) (*JobListPage, error) {
+	if query == nil {
+		return nil, fmt.Errorf("list translation jobs: nil query")
+	}
 
 	if jobType != "" {
 		query = query.Where("tj.type = ?", jobType)
@@ -80,12 +105,34 @@ func (r *Repository) ListJobs(
 		query = query.Where("tj.status = ?", status)
 	}
 
+	if cursor != nil {
+		query = query.Where(
+			"(tj.created_at < ? OR (tj.created_at = ? AND tj.id < ?))",
+			cursor.CreatedAt,
+			cursor.CreatedAt,
+			cursor.ID,
+		)
+	}
+
 	var jobs []TranslationJobModel
 	if err := query.Scan(ctx, &jobs); err != nil {
 		return nil, fmt.Errorf("list translation jobs: %w", err)
 	}
 
-	return jobs, nil
+	page := &JobListPage{}
+	if len(jobs) == 0 {
+		page.Jobs = []TranslationJobModel{}
+		return page, nil
+	}
+	if len(jobs) > limit {
+		last := jobs[limit-1]
+		page.NextCursor = &JobListCursor{CreatedAt: last.CreatedAt, ID: last.ID}
+		page.Jobs = jobs[:limit]
+		return page, nil
+	}
+	page.Jobs = jobs
+
+	return page, nil
 }
 
 // UpdateJobStatus updates a job's status and terminal payload.

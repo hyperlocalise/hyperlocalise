@@ -475,28 +475,45 @@ func (s *Service) ListJobs(
 	jobType translationv1.TranslationJob_Type,
 	status translationv1.TranslationJob_Status,
 	pageSize int32,
-) ([]JobRecord, error) {
+	cursor *JobListCursor,
+) (*JobListPage, error) {
 	if err := s.requireProject(ctx, projectID); err != nil {
 		return nil, err
 	}
+	var storeCursor *store.JobListCursor
+	if cursor != nil {
+		storeCursor = &store.JobListCursor{
+			CreatedAt: cursor.CreatedAt,
+			ID:        cursor.ID,
+		}
+	}
 
-	jobs, err := s.repository.ListJobs(
+	page, err := s.repository.ListJobsPage(
 		ctx,
 		projectID,
 		fromProtoJobType(jobType),
 		fromProtoJobStatus(status),
 		int(pageSize),
+		storeCursor,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	records := make([]JobRecord, 0, len(jobs))
-	for idx := range jobs {
-		records = append(records, *modelToJobRecord(&jobs[idx]))
+	records := make([]JobRecord, 0, len(page.Jobs))
+	for idx := range page.Jobs {
+		records = append(records, *modelToJobRecord(&page.Jobs[idx]))
 	}
 
-	return records, nil
+	result := &JobListPage{Jobs: records}
+	if page.NextCursor != nil {
+		result.NextCursor = &JobListCursor{
+			CreatedAt: page.NextCursor.CreatedAt,
+			ID:        page.NextCursor.ID,
+		}
+	}
+
+	return result, nil
 }
 
 func (s *Service) requireProject(ctx context.Context, projectID string) error {
