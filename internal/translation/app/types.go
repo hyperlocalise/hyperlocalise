@@ -26,11 +26,12 @@ type JobQueuedPayload struct {
 }
 
 type ProjectRecord struct {
-	ID          string
-	Name        string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                 string
+	Name               string
+	Description        string
+	TranslationContext string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // JobRecord is the application view of a translation job.
@@ -287,6 +288,9 @@ func (r ProjectRecord) ToProto() *translationv1.Project {
 	}
 	if r.Description != "" {
 		project.Description = &r.Description
+	}
+	if r.TranslationContext != "" {
+		project.TranslationContext = &r.TranslationContext
 	}
 
 	return project

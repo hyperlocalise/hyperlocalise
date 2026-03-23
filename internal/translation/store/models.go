@@ -15,11 +15,12 @@ const (
 type TranslationProjectModel struct {
 	bun.BaseModel `bun:"table:translation_projects,alias:tp"`
 
-	ID          string    `bun:"id,pk"`
-	Name        string    `bun:"name,notnull"`
-	Description string    `bun:"description,notnull"`
-	CreatedAt   time.Time `bun:"created_at,notnull"`
-	UpdatedAt   time.Time `bun:"updated_at,notnull"`
+	ID                 string    `bun:"id,pk"`
+	Name               string    `bun:"name,notnull"`
+	Description        string    `bun:"description,notnull"`
+	TranslationContext string    `bun:"translation_context,notnull"`
+	CreatedAt          time.Time `bun:"created_at,notnull"`
+	UpdatedAt          time.Time `bun:"updated_at,notnull"`
 }
 
 const (

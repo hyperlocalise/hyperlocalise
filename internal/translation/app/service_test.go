@@ -255,8 +255,9 @@ func TestProjectCRUDAndChildValidation(t *testing.T) {
 	}
 
 	project, err := service.CreateProject(context.Background(), &translationv1.CreateProjectRequest{
-		Name:        "Project 1",
-		Description: stringPtr("Original"),
+		Name:               "Project 1",
+		Description:        stringPtr("Original"),
+		TranslationContext: stringPtr("Formal UI strings for finance users"),
 	})
 	if err != nil {
 		t.Fatalf("CreateProject returned error: %v", err)
@@ -272,11 +273,15 @@ func TestProjectCRUDAndChildValidation(t *testing.T) {
 	if fetched.Name != "Project 1" {
 		t.Fatalf("unexpected fetched project name: %s", fetched.Name)
 	}
+	if fetched.TranslationContext != "Formal UI strings for finance users" {
+		t.Fatalf("unexpected fetched translation context: %q", fetched.TranslationContext)
+	}
 
 	updated, err := service.UpdateProject(context.Background(), &translationv1.UpdateProjectRequest{
-		Id:          project.ID,
-		Name:        stringPtr("Project Renamed"),
-		Description: stringPtr(""),
+		Id:                 project.ID,
+		Name:               stringPtr("Project Renamed"),
+		Description:        stringPtr(""),
+		TranslationContext: stringPtr(""),
 	})
 	if err != nil {
 		t.Fatalf("UpdateProject returned error: %v", err)
@@ -286,6 +291,9 @@ func TestProjectCRUDAndChildValidation(t *testing.T) {
 	}
 	if updated.Description != "" {
 		t.Fatalf("expected cleared description, got %q", updated.Description)
+	}
+	if updated.TranslationContext != "" {
+		t.Fatalf("expected cleared translation context, got %q", updated.TranslationContext)
 	}
 
 	projects, err := service.ListProjects(context.Background(), 50)
@@ -450,6 +458,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
 			description TEXT NOT NULL,
+			translation_context TEXT NOT NULL,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		)`,

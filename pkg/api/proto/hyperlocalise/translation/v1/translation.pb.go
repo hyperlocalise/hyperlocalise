@@ -290,14 +290,15 @@ func (TranslationJob_Status) EnumDescriptor() ([]byte, []int) {
 }
 
 type Project struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description        *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	TranslationContext *string                `protobuf:"bytes,4,opt,name=translation_context,json=translationContext,proto3,oneof" json:"translation_context,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Project) Reset() {
@@ -351,6 +352,13 @@ func (x *Project) GetDescription() string {
 	return ""
 }
 
+func (x *Project) GetTranslationContext() string {
+	if x != nil && x.TranslationContext != nil {
+		return *x.TranslationContext
+	}
+	return ""
+}
+
 func (x *Project) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
@@ -366,11 +374,12 @@ func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
 }
 
 type CreateProjectRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description        *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	TranslationContext *string                `protobuf:"bytes,3,opt,name=translation_context,json=translationContext,proto3,oneof" json:"translation_context,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CreateProjectRequest) Reset() {
@@ -413,6 +422,13 @@ func (x *CreateProjectRequest) GetName() string {
 func (x *CreateProjectRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetTranslationContext() string {
+	if x != nil && x.TranslationContext != nil {
+		return *x.TranslationContext
 	}
 	return ""
 }
@@ -646,12 +662,13 @@ func (x *ListProjectsResponse) GetPage() *v1.PageResponse {
 }
 
 type UpdateProjectRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name               *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description        *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	TranslationContext *string                `protobuf:"bytes,4,opt,name=translation_context,json=translationContext,proto3,oneof" json:"translation_context,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *UpdateProjectRequest) Reset() {
@@ -701,6 +718,13 @@ func (x *UpdateProjectRequest) GetName() string {
 func (x *UpdateProjectRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetTranslationContext() string {
+	if x != nil && x.TranslationContext != nil {
+		return *x.TranslationContext
 	}
 	return ""
 }
@@ -2809,20 +2833,24 @@ var File_hyperlocalise_translation_v1_translation_proto protoreflect.FileDescrip
 
 const file_hyperlocalise_translation_v1_translation_proto_rawDesc = "" +
 	"\n" +
-	".hyperlocalise/translation/v1/translation.proto\x12\x1chyperlocalise.translation.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$hyperlocalise/common/v1/common.proto\"\xda\x01\n" +
+	".hyperlocalise/translation/v1/translation.proto\x12\x1chyperlocalise.translation.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$hyperlocalise/common/v1/common.proto\"\xa8\x02\n" +
 	"\aProject\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x129\n" +
+	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x124\n" +
+	"\x13translation_context\x18\x04 \x01(\tH\x01R\x12translationContext\x88\x01\x01\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"a\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	"\f_descriptionB\x16\n" +
+	"\x14_translation_context\"\xaf\x01\n" +
 	"\x14CreateProjectRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
-	"\f_description\"X\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x124\n" +
+	"\x13translation_context\x18\x03 \x01(\tH\x01R\x12translationContext\x88\x01\x01B\x0e\n" +
+	"\f_descriptionB\x16\n" +
+	"\x14_translation_context\"X\n" +
 	"\x15CreateProjectResponse\x12?\n" +
 	"\aproject\x18\x01 \x01(\v2%.hyperlocalise.translation.v1.ProjectR\aproject\"#\n" +
 	"\x11GetProjectRequest\x12\x0e\n" +
@@ -2833,13 +2861,15 @@ const file_hyperlocalise_translation_v1_translation_proto_rawDesc = "" +
 	"\x04page\x18\x01 \x01(\v2$.hyperlocalise.common.v1.PageRequestR\x04page\"\x94\x01\n" +
 	"\x14ListProjectsResponse\x12A\n" +
 	"\bprojects\x18\x01 \x03(\v2%.hyperlocalise.translation.v1.ProjectR\bprojects\x129\n" +
-	"\x04page\x18\x02 \x01(\v2%.hyperlocalise.common.v1.PageResponseR\x04page\"\x7f\n" +
+	"\x04page\x18\x02 \x01(\v2%.hyperlocalise.common.v1.PageResponseR\x04page\"\xcd\x01\n" +
 	"\x14UpdateProjectRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x124\n" +
+	"\x13translation_context\x18\x04 \x01(\tH\x02R\x12translationContext\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_description\"X\n" +
+	"\f_descriptionB\x16\n" +
+	"\x14_translation_context\"X\n" +
 	"\x15UpdateProjectResponse\x12?\n" +
 	"\aproject\x18\x01 \x01(\v2%.hyperlocalise.translation.v1.ProjectR\aproject\"&\n" +
 	"\x14DeleteProjectRequest\x12\x0e\n" +
