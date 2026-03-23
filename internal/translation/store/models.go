@@ -11,6 +11,17 @@ const (
 	JobTypeFile   = "file"
 )
 
+// TranslationProjectModel stores the parent resource for jobs and files.
+type TranslationProjectModel struct {
+	bun.BaseModel `bun:"table:translation_projects,alias:tp"`
+
+	ID          string    `bun:"id,pk"`
+	Name        string    `bun:"name,notnull"`
+	Description string    `bun:"description,notnull"`
+	CreatedAt   time.Time `bun:"created_at,notnull"`
+	UpdatedAt   time.Time `bun:"updated_at,notnull"`
+}
+
 const (
 	FileUploadStatusPending   = "pending"
 	FileUploadStatusFinalized = "finalized"

@@ -25,6 +25,14 @@ type JobQueuedPayload struct {
 	OccurredAt   string `json:"occurred_at"`
 }
 
+type ProjectRecord struct {
+	ID          string
+	Name        string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 // JobRecord is the application view of a translation job.
 type JobRecord struct {
 	ID             string
@@ -258,6 +266,20 @@ func toProtoJobStatus(value string) translationv1.TranslationJob_Status {
 	default:
 		return translationv1.TranslationJob_STATUS_UNSPECIFIED
 	}
+}
+
+func (r ProjectRecord) ToProto() *translationv1.Project {
+	project := &translationv1.Project{
+		Id:        r.ID,
+		Name:      r.Name,
+		CreatedAt: timestamppb.New(r.CreatedAt),
+		UpdatedAt: timestamppb.New(r.UpdatedAt),
+	}
+	if r.Description != "" {
+		project.Description = &r.Description
+	}
+
+	return project
 }
 
 func (r FileRecord) ToProto() *translationv1.TranslationFile {

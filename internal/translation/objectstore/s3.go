@@ -131,6 +131,18 @@ func (s *s3Store) StatObject(ctx context.Context, req StatRequest) (ObjectInfo, 
 	return ObjectInfo{SizeBytes: aws.ToInt64(output.ContentLength)}, nil
 }
 
+func (s *s3Store) DeleteObject(ctx context.Context, req DeleteRequest) error {
+	// S3 DeleteObject is idempotent: deleting a missing key still succeeds.
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(req.Object.Bucket),
+		Key:    aws.String(req.Object.Key),
+	})
+	if err != nil {
+		return fmt.Errorf("translation object store: delete S3 object: %w", err)
+	}
+	return nil
+}
+
 func isS3NotFound(err error) bool {
 	var apiErr smithy.APIError
 	if !errors.As(err, &apiErr) {

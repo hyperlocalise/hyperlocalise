@@ -46,6 +46,10 @@ type StatRequest struct {
 	Object ObjectRef
 }
 
+type DeleteRequest struct {
+	Object ObjectRef
+}
+
 type ObjectInfo struct {
 	SizeBytes int64
 }
@@ -56,6 +60,7 @@ type Store interface {
 	PutObject(ctx context.Context, req PutRequest) error
 	GetObject(ctx context.Context, req GetRequest) ([]byte, error)
 	StatObject(ctx context.Context, req StatRequest) (ObjectInfo, error)
+	DeleteObject(ctx context.Context, req DeleteRequest) error
 }
 
 type Config struct {

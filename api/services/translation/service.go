@@ -7,6 +7,7 @@ import (
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	commonv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,6 +23,84 @@ type Service struct {
 
 func NewService(app *translationapp.Service) *Service {
 	return &Service{app: app}
+}
+
+func (s *Service) CreateProject(
+	ctx context.Context,
+	request *translationv1.CreateProjectRequest,
+) (*translationv1.CreateProjectResponse, error) {
+	project, err := s.app.CreateProject(ctx, request)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &translationv1.CreateProjectResponse{Project: project.ToProto()}, nil
+}
+
+func (s *Service) GetProject(
+	ctx context.Context,
+	request *translationv1.GetProjectRequest,
+) (*translationv1.GetProjectResponse, error) {
+	project, err := s.app.GetProject(ctx, request.GetId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &translationv1.GetProjectResponse{Project: project.ToProto()}, nil
+}
+
+func (s *Service) ListProjects(
+	ctx context.Context,
+	request *translationv1.ListProjectsRequest,
+) (*translationv1.ListProjectsResponse, error) {
+	const maxPageSize int32 = 200
+
+	pageSize := int32(50)
+	if request.GetPage() != nil && request.GetPage().GetPageSize() > 0 {
+		pageSize = request.GetPage().GetPageSize()
+	}
+	if pageSize > maxPageSize {
+		return nil, status.Errorf(codes.InvalidArgument, "page_size must be <= %d", maxPageSize)
+	}
+
+	projects, err := s.app.ListProjects(ctx, pageSize)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	response := &translationv1.ListProjectsResponse{
+		Projects: make([]*translationv1.Project, 0, len(projects)),
+		Page:     &commonv1.PageResponse{},
+		// TODO: Add cursor-based pagination once the storage contract is settled.
+	}
+	for idx := range projects {
+		response.Projects = append(response.Projects, projects[idx].ToProto())
+	}
+
+	return response, nil
+}
+
+func (s *Service) UpdateProject(
+	ctx context.Context,
+	request *translationv1.UpdateProjectRequest,
+) (*translationv1.UpdateProjectResponse, error) {
+	project, err := s.app.UpdateProject(ctx, request)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &translationv1.UpdateProjectResponse{Project: project.ToProto()}, nil
+}
+
+func (s *Service) DeleteProject(
+	ctx context.Context,
+	request *translationv1.DeleteProjectRequest,
+) (*translationv1.DeleteProjectResponse, error) {
+	if err := s.app.DeleteProject(ctx, request.GetId()); err != nil {
+		return nil, mapError(err)
+	}
+
+	return &translationv1.DeleteProjectResponse{}, nil
 }
 
 func (s *Service) CreateTranslationJob(

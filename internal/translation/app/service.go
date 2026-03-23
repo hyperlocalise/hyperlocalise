@@ -45,6 +45,114 @@ func NewService(repository *store.Repository, queueDriver, objectStoreDriver str
 	}
 }
 
+func (s *Service) CreateProject(
+	ctx context.Context,
+	request *translationv1.CreateProjectRequest,
+) (*ProjectRecord, error) {
+	name := strings.TrimSpace(request.GetName())
+	if name == "" {
+		return nil, fmt.Errorf("%w: name is required", ErrInvalidArgument)
+	}
+
+	now := s.clock()
+	projectID, err := newID("proj")
+	if err != nil {
+		return nil, err
+	}
+
+	project := &store.TranslationProjectModel{
+		ID:          projectID,
+		Name:        name,
+		Description: strings.TrimSpace(request.GetDescription()),
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	if err := s.repository.InsertProject(ctx, s.repository.DB(), project); err != nil {
+		return nil, err
+	}
+
+	return modelToProjectRecord(project), nil
+}
+
+func (s *Service) GetProject(ctx context.Context, projectID string) (*ProjectRecord, error) {
+	project, err := s.repository.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	return modelToProjectRecord(project), nil
+}
+
+func (s *Service) ListProjects(ctx context.Context, pageSize int32) ([]ProjectRecord, error) {
+	projects, err := s.repository.ListProjects(ctx, int(pageSize))
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]ProjectRecord, 0, len(projects))
+	for idx := range projects {
+		records = append(records, *modelToProjectRecord(&projects[idx]))
+	}
+
+	return records, nil
+}
+
+func (s *Service) UpdateProject(
+	ctx context.Context,
+	request *translationv1.UpdateProjectRequest,
+) (*ProjectRecord, error) {
+	if strings.TrimSpace(request.GetId()) == "" {
+		return nil, fmt.Errorf("%w: id is required", ErrInvalidArgument)
+	}
+
+	var name *string
+	if request.Name != nil {
+		trimmed := strings.TrimSpace(request.GetName())
+		if trimmed == "" {
+			return nil, fmt.Errorf("%w: name cannot be empty", ErrInvalidArgument)
+		}
+		name = &trimmed
+	}
+
+	var description *string
+	if request.Description != nil {
+		trimmed := strings.TrimSpace(request.GetDescription())
+		description = &trimmed
+	}
+
+	if name == nil && description == nil {
+		return nil, fmt.Errorf("%w: at least one field must be updated", ErrInvalidArgument)
+	}
+
+	project, err := s.repository.UpdateProject(ctx, request.GetId(), name, description, s.clock())
+	if err != nil {
+		return nil, err
+	}
+
+	return modelToProjectRecord(project), nil
+}
+
+func (s *Service) DeleteProject(ctx context.Context, projectID string) error {
+	if strings.TrimSpace(projectID) == "" {
+		return fmt.Errorf("%w: id is required", ErrInvalidArgument)
+	}
+
+	objectRefs, err := s.projectObjectRefs(ctx, projectID)
+	if err != nil {
+		return err
+	}
+	if len(objectRefs) > 0 && s.objectStore == nil {
+		return fmt.Errorf("translation object store is not configured")
+	}
+	for _, ref := range objectRefs {
+		if deleteErr := s.objectStore.DeleteObject(ctx, objectstore.DeleteRequest{Object: ref}); deleteErr != nil && !errors.Is(deleteErr, objectstore.ErrObjectNotFound) {
+			return deleteErr
+		}
+	}
+
+	return s.repository.DeleteProject(ctx, projectID)
+}
+
 // CreateJob persists a queued job and writes an outbox record in the same transaction.
 func (s *Service) CreateJob(
 	ctx context.Context,
@@ -52,6 +160,9 @@ func (s *Service) CreateJob(
 ) (*JobRecord, error) {
 	if request.GetProjectId() == "" {
 		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	if err := s.requireProject(ctx, request.GetProjectId()); err != nil {
+		return nil, err
 	}
 
 	jobModel, queuedPayload, err := s.newQueuedJob(ctx, request)
@@ -128,6 +239,9 @@ func (s *Service) CreateFileUpload(
 ) (string, string, time.Time, error) {
 	if request.GetProjectId() == "" {
 		return "", "", time.Time{}, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	if err := s.requireProject(ctx, request.GetProjectId()); err != nil {
+		return "", "", time.Time{}, err
 	}
 	if strings.TrimSpace(request.GetPath()) == "" {
 		return "", "", time.Time{}, fmt.Errorf("%w: path is required", ErrInvalidArgument)
@@ -256,6 +370,9 @@ func (s *Service) ListFileTree(ctx context.Context, projectID, prefix string) ([
 	if projectID == "" {
 		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
 	}
+	if err := s.requireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
 	cleanPrefix := cleanCatalogPrefix(prefix)
 	files, err := s.repository.ListFilesByPrefix(ctx, projectID, cleanPrefix)
 	if err != nil {
@@ -359,6 +476,10 @@ func (s *Service) ListJobs(
 	status translationv1.TranslationJob_Status,
 	pageSize int32,
 ) ([]JobRecord, error) {
+	if err := s.requireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+
 	jobs, err := s.repository.ListJobs(
 		ctx,
 		projectID,
@@ -376,6 +497,75 @@ func (s *Service) ListJobs(
 	}
 
 	return records, nil
+}
+
+func (s *Service) requireProject(ctx context.Context, projectID string) error {
+	if _, err := s.repository.GetProject(ctx, projectID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) projectObjectRefs(ctx context.Context, projectID string) ([]objectstore.ObjectRef, error) {
+	if _, err := s.repository.GetProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+
+	refs := map[objectstore.ObjectRef]struct{}{}
+	uploads, err := s.repository.ListFileUploadsByProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	for _, upload := range uploads {
+		refs[objectstore.ObjectRef{
+			Driver: upload.StorageDriver,
+			Bucket: upload.Bucket,
+			Key:    upload.ObjectKey,
+		}] = struct{}{}
+	}
+
+	files, err := s.repository.ListFilesByPrefix(ctx, projectID, "")
+	if err != nil {
+		return nil, err
+	}
+	fileIDs := make([]string, 0, len(files))
+	for _, file := range files {
+		fileIDs = append(fileIDs, file.ID)
+		refs[objectstore.ObjectRef{
+			Driver: file.StorageDriver,
+			Bucket: file.Bucket,
+			Key:    file.ObjectKey,
+		}] = struct{}{}
+	}
+
+	variants, err := s.repository.ListFileVariantsByFileIDs(ctx, fileIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, variant := range variants {
+		refs[objectstore.ObjectRef{
+			Driver: variant.StorageDriver,
+			Bucket: variant.Bucket,
+			Key:    variant.ObjectKey,
+		}] = struct{}{}
+	}
+
+	objectRefs := make([]objectstore.ObjectRef, 0, len(refs))
+	for ref := range refs {
+		objectRefs = append(objectRefs, ref)
+	}
+	sort.Slice(objectRefs, func(i, j int) bool {
+		if objectRefs[i].Bucket != objectRefs[j].Bucket {
+			return objectRefs[i].Bucket < objectRefs[j].Bucket
+		}
+		if objectRefs[i].Key != objectRefs[j].Key {
+			return objectRefs[i].Key < objectRefs[j].Key
+		}
+		return objectRefs[i].Driver < objectRefs[j].Driver
+	})
+
+	return objectRefs, nil
 }
 
 func (s *Service) newQueuedJob(
@@ -474,6 +664,20 @@ func modelToJobRecord(model *store.TranslationJobModel) *JobRecord {
 		CreatedAt:      model.CreatedAt,
 		UpdatedAt:      model.UpdatedAt,
 		CompletedAt:    model.CompletedAt,
+	}
+}
+
+func modelToProjectRecord(model *store.TranslationProjectModel) *ProjectRecord {
+	if model == nil {
+		return nil
+	}
+
+	return &ProjectRecord{
+		ID:          model.ID,
+		Name:        model.Name,
+		Description: model.Description,
+		CreatedAt:   model.CreatedAt,
+		UpdatedAt:   model.UpdatedAt,
 	}
 }
 

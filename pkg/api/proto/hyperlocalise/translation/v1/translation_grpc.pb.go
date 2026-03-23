@@ -19,6 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	TranslationService_CreateProject_FullMethodName                 = "/hyperlocalise.translation.v1.TranslationService/CreateProject"
+	TranslationService_GetProject_FullMethodName                    = "/hyperlocalise.translation.v1.TranslationService/GetProject"
+	TranslationService_ListProjects_FullMethodName                  = "/hyperlocalise.translation.v1.TranslationService/ListProjects"
+	TranslationService_UpdateProject_FullMethodName                 = "/hyperlocalise.translation.v1.TranslationService/UpdateProject"
+	TranslationService_DeleteProject_FullMethodName                 = "/hyperlocalise.translation.v1.TranslationService/DeleteProject"
 	TranslationService_CreateTranslationJob_FullMethodName          = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationJob"
 	TranslationService_CreateTranslationFileUpload_FullMethodName   = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationFileUpload"
 	TranslationService_FinalizeTranslationFileUpload_FullMethodName = "/hyperlocalise.translation.v1.TranslationService/FinalizeTranslationFileUpload"
@@ -36,6 +41,11 @@ const (
 //
 // Translation job management API.
 type TranslationServiceClient interface {
+	CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error)
+	GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error)
+	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
+	UpdateProject(ctx context.Context, in *UpdateProjectRequest, opts ...grpc.CallOption) (*UpdateProjectResponse, error)
+	DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error)
 	CreateTranslationJob(ctx context.Context, in *CreateTranslationJobRequest, opts ...grpc.CallOption) (*CreateTranslationJobResponse, error)
 	CreateTranslationFileUpload(ctx context.Context, in *CreateTranslationFileUploadRequest, opts ...grpc.CallOption) (*CreateTranslationFileUploadResponse, error)
 	FinalizeTranslationFileUpload(ctx context.Context, in *FinalizeTranslationFileUploadRequest, opts ...grpc.CallOption) (*FinalizeTranslationFileUploadResponse, error)
@@ -53,6 +63,56 @@ type translationServiceClient struct {
 
 func NewTranslationServiceClient(cc grpc.ClientConnInterface) TranslationServiceClient {
 	return &translationServiceClient{cc}
+}
+
+func (c *translationServiceClient) CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*CreateProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateProjectResponse)
+	err := c.cc.Invoke(ctx, TranslationService_CreateProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*GetProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProjectResponse)
+	err := c.cc.Invoke(ctx, TranslationService_GetProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListProjectsResponse)
+	err := c.cc.Invoke(ctx, TranslationService_ListProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) UpdateProject(ctx context.Context, in *UpdateProjectRequest, opts ...grpc.CallOption) (*UpdateProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateProjectResponse)
+	err := c.cc.Invoke(ctx, TranslationService_UpdateProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteProjectResponse)
+	err := c.cc.Invoke(ctx, TranslationService_DeleteProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *translationServiceClient) CreateTranslationJob(ctx context.Context, in *CreateTranslationJobRequest, opts ...grpc.CallOption) (*CreateTranslationJobResponse, error) {
@@ -151,6 +211,11 @@ func (c *translationServiceClient) ListTranslationJobs(ctx context.Context, in *
 //
 // Translation job management API.
 type TranslationServiceServer interface {
+	CreateProject(context.Context, *CreateProjectRequest) (*CreateProjectResponse, error)
+	GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error)
+	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
+	UpdateProject(context.Context, *UpdateProjectRequest) (*UpdateProjectResponse, error)
+	DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error)
 	CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error)
 	CreateTranslationFileUpload(context.Context, *CreateTranslationFileUploadRequest) (*CreateTranslationFileUploadResponse, error)
 	FinalizeTranslationFileUpload(context.Context, *FinalizeTranslationFileUploadRequest) (*FinalizeTranslationFileUploadResponse, error)
@@ -170,6 +235,21 @@ type TranslationServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedTranslationServiceServer struct{}
 
+func (UnimplementedTranslationServiceServer) CreateProject(context.Context, *CreateProjectRequest) (*CreateProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateProject not implemented")
+}
+func (UnimplementedTranslationServiceServer) GetProject(context.Context, *GetProjectRequest) (*GetProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProject not implemented")
+}
+func (UnimplementedTranslationServiceServer) ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
+}
+func (UnimplementedTranslationServiceServer) UpdateProject(context.Context, *UpdateProjectRequest) (*UpdateProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateProject not implemented")
+}
+func (UnimplementedTranslationServiceServer) DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
+}
 func (UnimplementedTranslationServiceServer) CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTranslationJob not implemented")
 }
@@ -216,6 +296,96 @@ func RegisterTranslationServiceServer(s grpc.ServiceRegistrar, srv TranslationSe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&TranslationService_ServiceDesc, srv)
+}
+
+func _TranslationService_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).CreateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_CreateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).CreateProject(ctx, req.(*CreateProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).GetProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_GetProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).GetProject(ctx, req.(*GetProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_ListProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).ListProjects(ctx, req.(*ListProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_UpdateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).UpdateProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_UpdateProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).UpdateProject(ctx, req.(*UpdateProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).DeleteProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_DeleteProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).DeleteProject(ctx, req.(*DeleteProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _TranslationService_CreateTranslationJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -387,6 +557,26 @@ var TranslationService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "hyperlocalise.translation.v1.TranslationService",
 	HandlerType: (*TranslationServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateProject",
+			Handler:    _TranslationService_CreateProject_Handler,
+		},
+		{
+			MethodName: "GetProject",
+			Handler:    _TranslationService_GetProject_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _TranslationService_ListProjects_Handler,
+		},
+		{
+			MethodName: "UpdateProject",
+			Handler:    _TranslationService_UpdateProject_Handler,
+		},
+		{
+			MethodName: "DeleteProject",
+			Handler:    _TranslationService_DeleteProject_Handler,
+		},
 		{
 			MethodName: "CreateTranslationJob",
 			Handler:    _TranslationService_CreateTranslationJob_Handler,

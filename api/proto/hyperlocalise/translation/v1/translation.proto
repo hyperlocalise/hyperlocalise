@@ -7,6 +7,56 @@ import "hyperlocalise/common/v1/common.proto";
 
 option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
 
+message Project {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message CreateProjectRequest {
+  string name = 1;
+  optional string description = 2;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+}
+
+message GetProjectRequest {
+  string id = 1;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {
+  hyperlocalise.common.v1.PageRequest page = 1;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  hyperlocalise.common.v1.PageResponse page = 2;
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+message UpdateProjectResponse {
+  Project project = 1;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+}
+
+message DeleteProjectResponse {}
+
 // Input for a translation job that translates in-memory text.
 message StringTranslationJobInput {
   string source_text = 1;
@@ -269,6 +319,11 @@ message GetTranslationJobResponse {
 
 // Translation job management API.
 service TranslationService {
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse);
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse);
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
   rpc CreateTranslationJob(CreateTranslationJobRequest) returns (CreateTranslationJobResponse);
   rpc CreateTranslationFileUpload(CreateTranslationFileUploadRequest) returns (CreateTranslationFileUploadResponse);
   rpc FinalizeTranslationFileUpload(FinalizeTranslationFileUploadRequest) returns (FinalizeTranslationFileUploadResponse);
