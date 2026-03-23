@@ -1,9 +1,10 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "store",
     srcs = [
         "files.go",
+        "glossary.go",
         "models.go",
         "postgres.go",
         "projects.go",
@@ -17,4 +18,10 @@ go_library(
         "@com_github_uptrace_bun//:bun",
         "@com_github_uptrace_bun_dialect_pgdialect//:pgdialect",
     ],
+)
+
+go_test(
+    name = "store_test",
+    srcs = ["glossary_test.go"],
+    embed = [":store"],
 )

@@ -164,3 +164,19 @@ type TranslationFileVariantModel struct {
 	CreatedAt      time.Time `bun:"created_at,notnull"`
 	UpdatedAt      time.Time `bun:"updated_at,notnull"`
 }
+
+// TranslationGlossaryTermModel stores project-scoped glossary terms used for retrieval augmentation.
+type TranslationGlossaryTermModel struct {
+	bun.BaseModel `bun:"table:translation_glossary_terms,alias:tgt"`
+
+	ID           string    `bun:"id,pk"`
+	ProjectID    string    `bun:"project_id,notnull"`
+	SourceLocale string    `bun:"source_locale,notnull"`
+	TargetLocale string    `bun:"target_locale,notnull"`
+	SourceTerm   string    `bun:"source_term,notnull"`
+	TargetTerm   string    `bun:"target_term,notnull"`
+	Description  string    `bun:"description,notnull"`
+	PartOfSpeech string    `bun:"part_of_speech,notnull"`
+	CreatedAt    time.Time `bun:"created_at,notnull"`
+	UpdatedAt    time.Time `bun:"updated_at,notnull"`
+}

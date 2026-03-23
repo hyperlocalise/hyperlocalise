@@ -160,6 +160,207 @@ func (s *Service) DeleteProject(ctx context.Context, projectID string) error {
 	return s.repository.DeleteProject(ctx, projectID)
 }
 
+func (s *Service) CreateGlossaryTerm(
+	ctx context.Context,
+	request *translationv1.CreateGlossaryTermRequest,
+) (*GlossaryTermRecord, error) {
+	projectID := strings.TrimSpace(request.GetProjectId())
+	if projectID == "" {
+		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	if err := s.requireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+	input, err := normalizeGlossaryTermInput(request.GetTerm())
+	if err != nil {
+		return nil, err
+	}
+
+	now := s.clock()
+	id, err := newID("term")
+	if err != nil {
+		return nil, err
+	}
+	model := &store.TranslationGlossaryTermModel{
+		ID:           id,
+		ProjectID:    projectID,
+		SourceLocale: input.SourceLocale,
+		TargetLocale: input.TargetLocale,
+		SourceTerm:   input.SourceTerm,
+		TargetTerm:   input.TargetTerm,
+		Description:  input.Description,
+		PartOfSpeech: input.PartOfSpeech,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	if err := s.repository.InsertGlossaryTerm(ctx, s.repository.DB(), model); err != nil {
+		return nil, err
+	}
+	return modelToGlossaryTermRecord(model), nil
+}
+
+func (s *Service) GetGlossaryTerm(ctx context.Context, projectID, id string) (*GlossaryTermRecord, error) {
+	if strings.TrimSpace(projectID) == "" || strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("%w: project_id and id are required", ErrInvalidArgument)
+	}
+	term, err := s.repository.GetGlossaryTerm(ctx, projectID, id)
+	if err != nil {
+		return nil, err
+	}
+	return modelToGlossaryTermRecord(term), nil
+}
+
+func (s *Service) ListGlossaryTerms(ctx context.Context, projectID, sourceLocale, targetLocale string, pageSize int32) ([]GlossaryTermRecord, error) {
+	if strings.TrimSpace(projectID) == "" {
+		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	terms, err := s.repository.ListGlossaryTerms(ctx, store.GlossaryListParams{
+		ProjectID:    projectID,
+		SourceLocale: strings.TrimSpace(sourceLocale),
+		TargetLocale: strings.TrimSpace(targetLocale),
+		Limit:        int(pageSize),
+	})
+	if err != nil {
+		return nil, err
+	}
+	records := make([]GlossaryTermRecord, 0, len(terms))
+	for i := range terms {
+		records = append(records, *modelToGlossaryTermRecord(&terms[i]))
+	}
+	return records, nil
+}
+
+func (s *Service) UpdateGlossaryTerm(
+	ctx context.Context,
+	request *translationv1.UpdateGlossaryTermRequest,
+) (*GlossaryTermRecord, error) {
+	projectID := strings.TrimSpace(request.GetProjectId())
+	id := strings.TrimSpace(request.GetId())
+	if projectID == "" || id == "" {
+		return nil, fmt.Errorf("%w: project_id and id are required", ErrInvalidArgument)
+	}
+
+	var sourceLocale, targetLocale, sourceTerm, targetTerm, description, partOfSpeech *string
+	var err error
+	if request.SourceLocale != nil {
+		sourceLocale, err = normalizeRequiredGlossaryField("source_locale", request.GetSourceLocale())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if request.TargetLocale != nil {
+		targetLocale, err = normalizeRequiredGlossaryField("target_locale", request.GetTargetLocale())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if request.SourceTerm != nil {
+		sourceTerm, err = normalizeRequiredGlossaryField("source_term", request.GetSourceTerm())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if request.TargetTerm != nil {
+		targetTerm, err = normalizeRequiredGlossaryField("target_term", request.GetTargetTerm())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if request.Description != nil {
+		trimmed := strings.TrimSpace(request.GetDescription())
+		description = &trimmed
+	}
+	if request.PartOfSpeech != nil {
+		trimmed := strings.TrimSpace(request.GetPartOfSpeech())
+		partOfSpeech = &trimmed
+	}
+	if sourceLocale == nil && targetLocale == nil && sourceTerm == nil && targetTerm == nil && description == nil && partOfSpeech == nil {
+		return nil, fmt.Errorf("%w: at least one field must be updated", ErrInvalidArgument)
+	}
+
+	term, err := s.repository.UpdateGlossaryTerm(ctx, projectID, id, sourceLocale, targetLocale, sourceTerm, targetTerm, description, partOfSpeech, s.clock())
+	if err != nil {
+		return nil, err
+	}
+	return modelToGlossaryTermRecord(term), nil
+}
+
+func (s *Service) DeleteGlossaryTerm(ctx context.Context, projectID, id string) error {
+	if strings.TrimSpace(projectID) == "" || strings.TrimSpace(id) == "" {
+		return fmt.Errorf("%w: project_id and id are required", ErrInvalidArgument)
+	}
+	return s.repository.DeleteGlossaryTerm(ctx, projectID, id)
+}
+
+func (s *Service) BulkUpsertGlossaryTerms(
+	ctx context.Context,
+	projectID string,
+	terms []*translationv1.GlossaryTermInput,
+) ([]GlossaryTermRecord, error) {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	if err := s.requireProject(ctx, projectID); err != nil {
+		return nil, err
+	}
+	if len(terms) == 0 {
+		return []GlossaryTermRecord{}, nil
+	}
+
+	inputs := make([]store.GlossaryTermInput, 0, len(terms))
+	for _, term := range terms {
+		input, err := normalizeGlossaryTermInput(term)
+		if err != nil {
+			return nil, err
+		}
+		inputs = append(inputs, input)
+	}
+
+	var models []store.TranslationGlossaryTermModel
+	err := s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		var txErr error
+		models, txErr = s.repository.BulkUpsertGlossaryTerms(ctx, tx, projectID, inputs, s.clock())
+		return txErr
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]GlossaryTermRecord, 0, len(models))
+	for i := range models {
+		records = append(records, *modelToGlossaryTermRecord(&models[i]))
+	}
+	return records, nil
+}
+
+func (s *Service) BulkDeleteGlossaryTerms(ctx context.Context, projectID string, ids []string) ([]string, error) {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
+	}
+	trimmedIDs := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if trimmed := strings.TrimSpace(id); trimmed != "" {
+			trimmedIDs = append(trimmedIDs, trimmed)
+		}
+	}
+	if len(trimmedIDs) == 0 {
+		return []string{}, nil
+	}
+
+	var deletedIDs []string
+	err := s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		var txErr error
+		deletedIDs, txErr = s.repository.BulkDeleteGlossaryTerms(ctx, tx, projectID, trimmedIDs)
+		return txErr
+	})
+	if err != nil {
+		return nil, err
+	}
+	return deletedIDs, nil
+}
+
 // CreateJob persists a queued job and writes an outbox record in the same transaction.
 func (s *Service) CreateJob(
 	ctx context.Context,
@@ -704,6 +905,64 @@ func modelToProjectRecord(model *store.TranslationProjectModel) *ProjectRecord {
 		CreatedAt:          model.CreatedAt,
 		UpdatedAt:          model.UpdatedAt,
 	}
+}
+
+func modelToGlossaryTermRecord(model *store.TranslationGlossaryTermModel) *GlossaryTermRecord {
+	if model == nil {
+		return nil
+	}
+
+	return &GlossaryTermRecord{
+		ID:           model.ID,
+		ProjectID:    model.ProjectID,
+		SourceLocale: model.SourceLocale,
+		TargetLocale: model.TargetLocale,
+		SourceTerm:   model.SourceTerm,
+		TargetTerm:   model.TargetTerm,
+		Description:  model.Description,
+		PartOfSpeech: model.PartOfSpeech,
+		CreatedAt:    model.CreatedAt,
+		UpdatedAt:    model.UpdatedAt,
+	}
+}
+
+func normalizeGlossaryTermInput(term *translationv1.GlossaryTermInput) (store.GlossaryTermInput, error) {
+	if term == nil {
+		return store.GlossaryTermInput{}, fmt.Errorf("%w: term is required", ErrInvalidArgument)
+	}
+	sourceLocale, err := normalizeRequiredGlossaryField("source_locale", term.GetSourceLocale())
+	if err != nil {
+		return store.GlossaryTermInput{}, err
+	}
+	targetLocale, err := normalizeRequiredGlossaryField("target_locale", term.GetTargetLocale())
+	if err != nil {
+		return store.GlossaryTermInput{}, err
+	}
+	sourceTerm, err := normalizeRequiredGlossaryField("source_term", term.GetSourceTerm())
+	if err != nil {
+		return store.GlossaryTermInput{}, err
+	}
+	targetTerm, err := normalizeRequiredGlossaryField("target_term", term.GetTargetTerm())
+	if err != nil {
+		return store.GlossaryTermInput{}, err
+	}
+
+	return store.GlossaryTermInput{
+		SourceLocale: *sourceLocale,
+		TargetLocale: *targetLocale,
+		SourceTerm:   *sourceTerm,
+		TargetTerm:   *targetTerm,
+		Description:  strings.TrimSpace(term.GetDescription()),
+		PartOfSpeech: strings.TrimSpace(term.GetPartOfSpeech()),
+	}, nil
+}
+
+func normalizeRequiredGlossaryField(name, value string) (*string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: %s is required", ErrInvalidArgument, name)
+	}
+	return &trimmed, nil
 }
 
 func (s *Service) finalizeUploadTx(

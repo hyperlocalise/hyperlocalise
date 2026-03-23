@@ -32,6 +32,7 @@ type fakeRepository struct {
 	events       map[string]*store.OutboxEventModel
 	files        map[string]*store.TranslationFileModel
 	variants     map[string]*store.TranslationFileVariantModel
+	glossary     []store.TranslationGlossaryTermModel
 	saveErr      error
 	processed    []string
 	retried      []string
@@ -68,6 +69,28 @@ func (r *fakeRepository) GetOutboxEvent(_ context.Context, eventID string) (*sto
 	}
 	copy := *event
 	return &copy, nil
+}
+
+func (r *fakeRepository) SearchGlossaryTerms(_ context.Context, params store.GlossarySearchParams) ([]store.TranslationGlossaryTermModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var terms []store.TranslationGlossaryTermModel
+	query := strings.ToLower(strings.TrimSpace(params.Query))
+	for _, term := range r.glossary {
+		if term.ProjectID != params.ProjectID || term.SourceLocale != params.SourceLocale || term.TargetLocale != params.TargetLocale {
+			continue
+		}
+		if query != "" && !strings.Contains(strings.ToLower(term.SourceTerm), query) && !strings.Contains(query, strings.ToLower(term.SourceTerm)) {
+			continue
+		}
+		terms = append(terms, term)
+		if params.Limit > 0 && len(terms) >= params.Limit {
+			break
+		}
+	}
+
+	return terms, nil
 }
 
 func (r *fakeRepository) MarkJobRunning(_ context.Context, jobID string) error {
@@ -290,6 +313,59 @@ func TestBuildOutcomeStringSuccess(t *testing.T) {
 	}
 	if got := result.GetTranslations()[1].GetText(); got != "DE:Hello" {
 		t.Fatalf("unexpected second translation: %q", got)
+	}
+}
+
+func TestBuildOutcomeStringInjectsGlossaryRuntimeContext(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{
+		SourceText:    "Use account balance",
+		SourceLocale:  "en",
+		TargetLocales: []string{"fr"},
+	})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{ID: "job-1", ProjectID: "proj", Status: store.JobStatusRunning}
+	repo.glossary = []store.TranslationGlossaryTermModel{{
+		ID:           "term-1",
+		ProjectID:    "proj",
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		SourceTerm:   "account balance",
+		TargetTerm:   "solde du compte",
+		Description:  "Banking UI label",
+		PartOfSpeech: "noun",
+	}}
+
+	var seen TranslationTask
+	processor := &Processor{
+		repository: repo,
+		executor: fakeExecutor{
+			translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+				seen = task
+				return "Utilisez le solde du compte", RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+			},
+		},
+		clock: func() time.Time { return time.Unix(1700000000, 0).UTC() },
+	}
+
+	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{
+		ID:           "job-1",
+		ProjectID:    "proj",
+		Type:         store.JobTypeString,
+		Status:       store.JobStatusRunning,
+		InputPayload: payload,
+	})
+	if err != nil {
+		t.Fatalf("build outcome: %v", err)
+	}
+	if !strings.Contains(seen.RuntimeContext, "Glossary terms:") {
+		t.Fatalf("expected glossary header in runtime context, got %q", seen.RuntimeContext)
+	}
+	if !strings.Contains(seen.RuntimeContext, "account balance => solde du compte [noun] - Banking UI label") {
+		t.Fatalf("expected glossary term in runtime context, got %q", seen.RuntimeContext)
 	}
 }
 

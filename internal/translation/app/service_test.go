@@ -313,6 +313,121 @@ func TestProjectCRUDAndChildValidation(t *testing.T) {
 	}
 }
 
+func TestGlossaryTermCRUDAndBulkOperations(t *testing.T) {
+	t.Parallel()
+
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqldb.Close()
+	})
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if err := createTranslationTables(t, db); err != nil {
+		t.Fatalf("create translation tables: %v", err)
+	}
+
+	repository := store.NewRepository(db)
+	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
+	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	projectID := createProjectForTest(t, service, "Project 1")
+
+	created, err := service.CreateGlossaryTerm(context.Background(), &translationv1.CreateGlossaryTermRequest{
+		ProjectId: projectID,
+		Term: &translationv1.GlossaryTermInput{
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			SourceTerm:   "account balance",
+			TargetTerm:   "solde du compte",
+			Description:  ptr("Banking UI label"),
+			PartOfSpeech: ptr("noun"),
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateGlossaryTerm returned error: %v", err)
+	}
+
+	got, err := service.GetGlossaryTerm(context.Background(), projectID, created.ID)
+	if err != nil {
+		t.Fatalf("GetGlossaryTerm returned error: %v", err)
+	}
+	if got.TargetTerm != "solde du compte" {
+		t.Fatalf("unexpected target term: %q", got.TargetTerm)
+	}
+
+	listed, err := service.ListGlossaryTerms(context.Background(), projectID, "en", "fr", 50)
+	if err != nil {
+		t.Fatalf("ListGlossaryTerms returned error: %v", err)
+	}
+	if len(listed) != 1 {
+		t.Fatalf("expected 1 listed term, got %d", len(listed))
+	}
+
+	updated, err := service.UpdateGlossaryTerm(context.Background(), &translationv1.UpdateGlossaryTermRequest{
+		ProjectId:    projectID,
+		Id:           created.ID,
+		TargetTerm:   ptr("solde disponible"),
+		Description:  ptr("Updated"),
+		PartOfSpeech: ptr("noun"),
+	})
+	if err != nil {
+		t.Fatalf("UpdateGlossaryTerm returned error: %v", err)
+	}
+	if updated.TargetTerm != "solde disponible" {
+		t.Fatalf("unexpected updated target term: %q", updated.TargetTerm)
+	}
+
+	terms, err := service.BulkUpsertGlossaryTerms(context.Background(), projectID, []*translationv1.GlossaryTermInput{
+		{
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			SourceTerm:   "account balance",
+			TargetTerm:   "solde courant",
+		},
+		{
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			SourceTerm:   "statement",
+			TargetTerm:   "releve",
+		},
+	})
+	if err != nil {
+		t.Fatalf("BulkUpsertGlossaryTerms returned error: %v", err)
+	}
+	if len(terms) != 2 {
+		t.Fatalf("expected 2 upserted terms, got %d", len(terms))
+	}
+
+	refetched, err := service.GetGlossaryTerm(context.Background(), projectID, created.ID)
+	if err != nil {
+		t.Fatalf("GetGlossaryTerm after upsert returned error: %v", err)
+	}
+	if refetched.TargetTerm != "solde courant" {
+		t.Fatalf("expected natural-key upsert to update existing term, got %q", refetched.TargetTerm)
+	}
+
+	deletedIDs, err := service.BulkDeleteGlossaryTerms(context.Background(), projectID, []string{created.ID, "missing"})
+	if err != nil {
+		t.Fatalf("BulkDeleteGlossaryTerms returned error: %v", err)
+	}
+	if len(deletedIDs) != 1 || deletedIDs[0] != created.ID {
+		t.Fatalf("unexpected deleted ids: %v", deletedIDs)
+	}
+
+	if err := service.DeleteGlossaryTerm(context.Background(), projectID, terms[1].ID); err != nil {
+		t.Fatalf("DeleteGlossaryTerm returned error: %v", err)
+	}
+	if _, err := service.GetGlossaryTerm(context.Background(), projectID, terms[1].ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected deleted glossary term to be missing, got %v", err)
+	}
+}
+
 func TestCreateFileUploadRequiresExistingProject(t *testing.T) {
 	t.Parallel()
 
@@ -556,6 +671,19 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 			updated_at TIMESTAMP NOT NULL,
 			UNIQUE(file_id, locale)
 		)`,
+		`CREATE TABLE IF NOT EXISTS translation_glossary_terms (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
+			source_locale TEXT NOT NULL,
+			target_locale TEXT NOT NULL,
+			source_term TEXT NOT NULL,
+			target_term TEXT NOT NULL,
+			description TEXT NOT NULL,
+			part_of_speech TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL,
+			UNIQUE(project_id, source_locale, target_locale, source_term)
+		)`,
 	}
 
 	for _, statement := range statements {
@@ -564,6 +692,10 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		}
 	}
 	return nil
+}
+
+func ptr(value string) *string {
+	return &value
 }
 
 func createProjectForTest(t *testing.T, service *Service, name string) string {

@@ -104,6 +104,24 @@ CREATE TABLE IF NOT EXISTS translation_file_variants (
   updated_at timestamptz NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS translation_glossary_terms (
+  id text PRIMARY KEY,
+  project_id text NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
+  source_locale text NOT NULL,
+  target_locale text NOT NULL,
+  source_term text NOT NULL,
+  target_term text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  part_of_speech text NOT NULL DEFAULT '',
+  search_vector tsvector GENERATED ALWAYS AS (
+    setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||
+    setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||
+    setweight(to_tsvector('simple', coalesce(description, '')), 'C')
+  ) STORED,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_translation_projects_created_at
   ON translation_projects (created_at DESC);
 
@@ -124,3 +142,13 @@ CREATE INDEX IF NOT EXISTS idx_translation_files_project_path_prefix
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_translation_file_variants_file_locale
   ON translation_file_variants (file_id, locale);
+
+CREATE INDEX IF NOT EXISTS idx_translation_glossary_terms_project_locale_pair
+  ON translation_glossary_terms (project_id, source_locale, target_locale);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_translation_glossary_terms_natural_key
+  ON translation_glossary_terms (project_id, source_locale, target_locale, source_term);
+
+CREATE INDEX IF NOT EXISTS idx_translation_glossary_terms_search_vector
+  ON translation_glossary_terms
+  USING GIN (search_vector);

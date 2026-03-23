@@ -73,7 +73,7 @@ func (p *Processor) buildFileOutcome(
 			continue
 		}
 
-		translatedEntries, translateErr := p.translateFileEntries(ctx, sourceEntries, entryContext, input, locale)
+		translatedEntries, translateErr := p.translateFileEntries(ctx, job.ProjectID, sourceEntries, entryContext, input, locale)
 		if translateErr != nil {
 			return "", nil, time.Time{}, retryableErrorf("translate locale %q: %w", locale, translateErr)
 		}
@@ -139,6 +139,7 @@ func (p *Processor) buildFileOutcome(
 
 func (p *Processor) translateFileEntries(
 	ctx context.Context,
+	projectID string,
 	sourceEntries map[string]string,
 	entryContext map[string]string,
 	input *translationv1.FileTranslationJobInput,
@@ -157,12 +158,19 @@ func (p *Processor) translateFileEntries(
 		if contextValue := strings.TrimSpace(entryContext[key]); contextValue != "" {
 			metadata["file_entry_context"] = contextValue
 		}
-		text, route, err := p.executor.Translate(ctx, TranslationTask{
+		task := TranslationTask{
+			ProjectID:    projectID,
 			SourceText:   sourceEntries[key],
 			SourceLocale: input.GetSourceLocale(),
 			TargetLocale: targetLocale,
 			Metadata:     metadata,
-		})
+		}
+		runtimeContext, runtimeErr := p.buildGlossaryRuntimeContext(ctx, task)
+		if runtimeErr != nil {
+			return nil, fmt.Errorf("load glossary context for entry %q: %w", key, runtimeErr)
+		}
+		task.RuntimeContext = runtimeContext
+		text, route, err := p.executor.Translate(ctx, task)
 		if err != nil {
 			return nil, fmt.Errorf("entry %q with route %s/%s: %w", key, route.Provider, route.Model, err)
 		}

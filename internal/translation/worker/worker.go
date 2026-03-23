@@ -29,6 +29,7 @@ var ErrEventAlreadyHandled = errors.New("translation event already handled")
 type JobRepository interface {
 	GetJob(ctx context.Context, jobID, projectID string) (*store.TranslationJobModel, error)
 	GetOutboxEvent(ctx context.Context, eventID string) (*store.OutboxEventModel, error)
+	SearchGlossaryTerms(ctx context.Context, params store.GlossarySearchParams) ([]store.TranslationGlossaryTermModel, error)
 	MarkJobRunning(ctx context.Context, jobID string) error
 	PersistJobTerminal(ctx context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error
 	SaveRunningJobCheckpoint(ctx context.Context, jobID, expectedStatus string, checkpointPayload []byte, lastError string) error
@@ -49,12 +50,13 @@ type RetryPolicy struct {
 
 // Processor advances a single queued job event through the translation workflow.
 type Processor struct {
-	repository  JobRepository
-	executor    stringExecutor
-	objectStore objectstore.Store
-	retryPolicy RetryPolicy
-	workerID    string
-	clock       func() time.Time
+	repository   JobRepository
+	executor     stringExecutor
+	objectStore  objectstore.Store
+	retryPolicy  RetryPolicy
+	glossaryTopK int
+	workerID     string
+	clock        func() time.Time
 }
 
 // NewProcessor constructs a translation worker Processor.
@@ -67,6 +69,7 @@ func NewProcessor(repository JobRepository, executor stringExecutor) *Processor 
 			InitialBackoff: time.Second,
 			MaxBackoff:     30 * time.Second,
 		},
+		glossaryTopK: 5,
 		clock: func() time.Time {
 			return time.Now().UTC()
 		},
@@ -220,10 +223,15 @@ func (p *Processor) buildOutcome(
 			}
 
 			task := TranslationTask{
+				ProjectID:    job.ProjectID,
 				SourceText:   input.GetSourceText(),
 				SourceLocale: input.GetSourceLocale(),
 				TargetLocale: locale,
 				Metadata:     input.GetMetadata(),
+			}
+			task.RuntimeContext, err = p.buildGlossaryRuntimeContext(ctx, task)
+			if err != nil {
+				return "", nil, time.Time{}, retryableErrorf("load glossary context for locale %q: %w", locale, err)
 			}
 			text, route, execErr := p.executor.Translate(ctx, task)
 			if execErr != nil {
@@ -292,6 +300,40 @@ func (p *Processor) persistCheckpoint(
 	job.CheckpointPayload = payload
 	job.LastError = lastError
 	return nil
+}
+
+func (p *Processor) buildGlossaryRuntimeContext(ctx context.Context, task TranslationTask) (string, error) {
+	if p.repository == nil {
+		return "", nil
+	}
+
+	terms, err := p.repository.SearchGlossaryTerms(ctx, store.GlossarySearchParams{
+		ProjectID:    task.ProjectID,
+		SourceLocale: task.SourceLocale,
+		TargetLocale: task.TargetLocale,
+		Query:        task.SourceText,
+		Limit:        p.glossaryTopK,
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(terms) == 0 {
+		return "", nil
+	}
+
+	lines := make([]string, 0, len(terms))
+	for _, term := range terms {
+		line := fmt.Sprintf("%s => %s", strings.TrimSpace(term.SourceTerm), strings.TrimSpace(term.TargetTerm))
+		if partOfSpeech := strings.TrimSpace(term.PartOfSpeech); partOfSpeech != "" {
+			line += " [" + partOfSpeech + "]"
+		}
+		if description := strings.TrimSpace(term.Description); description != "" {
+			line += " - " + description
+		}
+		lines = append(lines, line)
+	}
+
+	return "Glossary terms:\n" + strings.Join(lines, "\n"), nil
 }
 
 func (p *Processor) handleExecutionError(ctx context.Context, job *store.TranslationJobModel, payload translationapp.JobQueuedPayload, execErr error) error {

@@ -14,10 +14,12 @@ const (
 
 // TranslationTask contains all fields needed for routing and translation.
 type TranslationTask struct {
-	SourceText   string
-	SourceLocale string
-	TargetLocale string
-	Metadata     map[string]string
+	ProjectID      string
+	SourceText     string
+	SourceLocale   string
+	TargetLocale   string
+	RuntimeContext string
+	Metadata       map[string]string
 }
 
 // RoutingDecision captures why provider/model was chosen for a task.

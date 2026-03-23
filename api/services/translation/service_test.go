@@ -113,6 +113,89 @@ func TestListTranslationJobsRejectsPageTokenForDifferentFilters(t *testing.T) {
 	}
 }
 
+func TestGlossaryTermGRPCAndBulkEndpoints(t *testing.T) {
+	t.Parallel()
+
+	svc, _ := newTranslationTestService(t)
+
+	createResp, err := svc.CreateGlossaryTerm(context.Background(), &translationv1.CreateGlossaryTermRequest{
+		ProjectId: "proj-1",
+		Term: &translationv1.GlossaryTermInput{
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			SourceTerm:   "balance",
+			TargetTerm:   "solde",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateGlossaryTerm returned error: %v", err)
+	}
+	if createResp.GetTerm().GetId() == "" {
+		t.Fatal("expected created glossary term id")
+	}
+
+	_, err = svc.CreateGlossaryTerm(context.Background(), &translationv1.CreateGlossaryTermRequest{
+		ProjectId: "proj-1",
+		Term: &translationv1.GlossaryTermInput{
+			SourceLocale: "en",
+			TargetLocale: "fr",
+			SourceTerm:   "balance",
+			TargetTerm:   "solde",
+		},
+	})
+	if err == nil || status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("expected AlreadyExists on duplicate create, got %v", err)
+	}
+
+	listResp, err := svc.ListGlossaryTerms(context.Background(), &translationv1.ListGlossaryTermsRequest{
+		ProjectId:    "proj-1",
+		SourceLocale: strPtr("en"),
+		TargetLocale: strPtr("fr"),
+		Page:         &commonv1.PageRequest{PageSize: 50},
+	})
+	if err != nil {
+		t.Fatalf("ListGlossaryTerms returned error: %v", err)
+	}
+	if len(listResp.GetTerms()) != 1 {
+		t.Fatalf("expected 1 glossary term, got %d", len(listResp.GetTerms()))
+	}
+
+	bulkResp, err := svc.BulkUpsertGlossaryTerms(context.Background(), &translationv1.BulkUpsertGlossaryTermsRequest{
+		ProjectId: "proj-1",
+		Terms: []*translationv1.GlossaryTermInput{
+			{
+				SourceLocale: "en",
+				TargetLocale: "fr",
+				SourceTerm:   "balance",
+				TargetTerm:   "solde courant",
+			},
+			{
+				SourceLocale: "en",
+				TargetLocale: "fr",
+				SourceTerm:   "statement",
+				TargetTerm:   "releve",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("BulkUpsertGlossaryTerms returned error: %v", err)
+	}
+	if len(bulkResp.GetTerms()) != 2 {
+		t.Fatalf("expected 2 bulk upserted terms, got %d", len(bulkResp.GetTerms()))
+	}
+
+	deleteResp, err := svc.BulkDeleteGlossaryTerms(context.Background(), &translationv1.BulkDeleteGlossaryTermsRequest{
+		ProjectId: "proj-1",
+		Ids:       []string{createResp.GetTerm().GetId(), "missing"},
+	})
+	if err != nil {
+		t.Fatalf("BulkDeleteGlossaryTerms returned error: %v", err)
+	}
+	if len(deleteResp.GetDeletedIds()) != 1 || deleteResp.GetDeletedIds()[0] != createResp.GetTerm().GetId() {
+		t.Fatalf("unexpected deleted ids: %v", deleteResp.GetDeletedIds())
+	}
+}
+
 func newTranslationTestService(t *testing.T) (*Service, *bun.DB) {
 	t.Helper()
 
@@ -247,6 +330,19 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 			updated_at TIMESTAMP NOT NULL,
 			UNIQUE(file_id, locale)
 		)`,
+		`CREATE TABLE IF NOT EXISTS translation_glossary_terms (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
+			source_locale TEXT NOT NULL,
+			target_locale TEXT NOT NULL,
+			source_term TEXT NOT NULL,
+			target_term TEXT NOT NULL,
+			description TEXT NOT NULL,
+			part_of_speech TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL,
+			UNIQUE(project_id, source_locale, target_locale, source_term)
+		)`,
 	}
 
 	for _, statement := range statements {
@@ -255,6 +351,10 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		}
 	}
 	return nil
+}
+
+func strPtr(value string) *string {
+	return &value
 }
 
 func seedTranslationProject(t *testing.T, db *bun.DB, id string) {
