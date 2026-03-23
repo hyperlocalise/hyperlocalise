@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -38,9 +39,10 @@ func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 	repository := store.NewRepository(db)
 	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
 	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	projectID := createProjectForTest(t, service, "Project 1")
 
 	record, err := service.CreateJob(context.Background(), &translationv1.CreateTranslationJobRequest{
-		ProjectId: "proj-1",
+		ProjectId: projectID,
 		Input: &translationv1.CreateTranslationJobRequest_StringInput{
 			StringInput: &translationv1.StringTranslationJobInput{
 				SourceText:    "Hello",
@@ -82,7 +84,266 @@ func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 func TestCreateFileUploadFinalizeAndCreateFileJob(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqldb.Close()
+	})
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if err := createTranslationTables(t, db); err != nil {
+		t.Fatalf("create translation tables: %v", err)
+	}
+
+	repository := store.NewRepository(db)
+	memStore := objectstore.NewMemoryStore()
+	service := NewService(repository, "stub", "memory", memStore, "translations")
+	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	projectID := createProjectForTest(t, service, "Project 1")
+
+	uploadID, uploadURL, expiresAt, err := service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
+		ProjectId:    projectID,
+		Path:         "content/messages.json",
+		FileFormat:   translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+		SourceLocale: "en",
+		ContentType:  "application/json",
+	})
+	if err != nil {
+		t.Fatalf("CreateFileUpload returned error: %v", err)
+	}
+	if uploadID == "" || uploadURL == "" || expiresAt.IsZero() {
+		t.Fatalf("unexpected upload response: %q %q %s", uploadID, uploadURL, expiresAt)
+	}
+	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
+		Object: objectstore.ObjectRef{
+			Driver: "memory",
+			Bucket: "translations",
+			Key:    "projects/" + projectID + "/source/" + uploadID + "/content/messages.json",
+		},
+		ContentType: "application/json",
+		Body:        []byte(`{"hello":"Hello"}`),
+	}); err != nil {
+		t.Fatalf("seed uploaded object: %v", err)
+	}
+
+	file, err := service.FinalizeFileUpload(context.Background(), projectID, uploadID)
+	if err != nil {
+		t.Fatalf("FinalizeFileUpload returned error: %v", err)
+	}
+	if file.Path != "content/messages.json" {
+		t.Fatalf("unexpected file path: %s", file.Path)
+	}
+
+	nodes, err := service.ListFileTree(context.Background(), projectID, "content")
+	if err != nil {
+		t.Fatalf("ListFileTree returned error: %v", err)
+	}
+	if len(nodes) == 0 {
+		t.Fatal("expected tree nodes")
+	}
+
+	downloadURL, _, err := service.GetFileDownload(context.Background(), projectID, file.ID, "")
+	if err != nil {
+		t.Fatalf("GetFileDownload returned error: %v", err)
+	}
+	if downloadURL == "" {
+		t.Fatal("expected download URL")
+	}
+
+	job, err := service.CreateJob(context.Background(), &translationv1.CreateTranslationJobRequest{
+		ProjectId: projectID,
+		Input: &translationv1.CreateTranslationJobRequest_FileInput{
+			FileInput: &translationv1.FileTranslationJobInput{
+				SourceFileId:  file.ID,
+				FileFormat:    translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+				SourceLocale:  "en",
+				TargetLocales: []string{"fr"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateJob(file) returned error: %v", err)
+	}
+	if job.Type != store.JobTypeFile {
+		t.Fatalf("expected file job type, got %s", job.Type)
+	}
+}
+
+func TestFinalizeFileUploadRejectsMissingObject(t *testing.T) {
+	t.Parallel()
+
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqldb.Close()
+	})
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if err := createTranslationTables(t, db); err != nil {
+		t.Fatalf("create translation tables: %v", err)
+	}
+
+	repository := store.NewRepository(db)
+	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
+	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+	projectID := createProjectForTest(t, service, "Project 1")
+
+	uploadID, _, _, err := service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
+		ProjectId:    projectID,
+		Path:         "content/messages.json",
+		FileFormat:   translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+		SourceLocale: "en",
+		ContentType:  "application/json",
+	})
+	if err != nil {
+		t.Fatalf("CreateFileUpload returned error: %v", err)
+	}
+
+	_, err = service.FinalizeFileUpload(context.Background(), projectID, uploadID)
+	if err == nil || !strings.Contains(err.Error(), "uploaded object is missing") {
+		t.Fatalf("expected missing uploaded object error, got %v", err)
+	}
+}
+
+func TestProjectCRUDAndChildValidation(t *testing.T) {
+	t.Parallel()
+
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqldb.Close()
+	})
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if err := createTranslationTables(t, db); err != nil {
+		t.Fatalf("create translation tables: %v", err)
+	}
+
+	repository := store.NewRepository(db)
+	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
+	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	if _, err := service.CreateJob(context.Background(), &translationv1.CreateTranslationJobRequest{
+		ProjectId: "proj_missing",
+		Input: &translationv1.CreateTranslationJobRequest_StringInput{
+			StringInput: &translationv1.StringTranslationJobInput{
+				SourceText:    "Hello",
+				SourceLocale:  "en",
+				TargetLocales: []string{"fr"},
+			},
+		},
+	}); err == nil || !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected missing project error when creating job, got %v", err)
+	}
+
+	project, err := service.CreateProject(context.Background(), &translationv1.CreateProjectRequest{
+		Name:        "Project 1",
+		Description: stringPtr("Original"),
+	})
+	if err != nil {
+		t.Fatalf("CreateProject returned error: %v", err)
+	}
+	if project.ID == "" {
+		t.Fatal("expected project id")
+	}
+
+	fetched, err := service.GetProject(context.Background(), project.ID)
+	if err != nil {
+		t.Fatalf("GetProject returned error: %v", err)
+	}
+	if fetched.Name != "Project 1" {
+		t.Fatalf("unexpected fetched project name: %s", fetched.Name)
+	}
+
+	updated, err := service.UpdateProject(context.Background(), &translationv1.UpdateProjectRequest{
+		Id:          project.ID,
+		Name:        stringPtr("Project Renamed"),
+		Description: stringPtr(""),
+	})
+	if err != nil {
+		t.Fatalf("UpdateProject returned error: %v", err)
+	}
+	if updated.Name != "Project Renamed" {
+		t.Fatalf("unexpected updated project name: %s", updated.Name)
+	}
+	if updated.Description != "" {
+		t.Fatalf("expected cleared description, got %q", updated.Description)
+	}
+
+	projects, err := service.ListProjects(context.Background(), 50)
+	if err != nil {
+		t.Fatalf("ListProjects returned error: %v", err)
+	}
+	if len(projects) != 1 {
+		t.Fatalf("expected 1 project, got %d", len(projects))
+	}
+
+	if err := service.DeleteProject(context.Background(), project.ID); err != nil {
+		t.Fatalf("DeleteProject returned error: %v", err)
+	}
+
+	if _, err := service.GetProject(context.Background(), project.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected deleted project to be missing, got %v", err)
+	}
+}
+
+func TestCreateFileUploadRequiresExistingProject(t *testing.T) {
+	t.Parallel()
+
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = sqldb.Close()
+	})
+
+	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if err := createTranslationTables(t, db); err != nil {
+		t.Fatalf("create translation tables: %v", err)
+	}
+
+	repository := store.NewRepository(db)
+	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
+
+	_, _, _, err = service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
+		ProjectId:    "proj_missing",
+		Path:         "content/messages.json",
+		FileFormat:   translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+		SourceLocale: "en",
+		ContentType:  "application/json",
+	})
+	if err == nil || !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected missing project error when creating upload, got %v", err)
+	}
+}
+
+func TestDeleteProjectRemovesProjectObjects(t *testing.T) {
+	t.Parallel()
+
+	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -104,8 +365,9 @@ func TestCreateFileUploadFinalizeAndCreateFileJob(t *testing.T) {
 	service := NewService(repository, "stub", "memory", memStore, "translations")
 	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
 
-	uploadID, uploadURL, expiresAt, err := service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
-		ProjectId:    "proj-1",
+	projectID := createProjectForTest(t, service, "Project 1")
+	uploadID, _, _, err := service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
+		ProjectId:    projectID,
 		Path:         "content/messages.json",
 		FileFormat:   translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
 		SourceLocale: "en",
@@ -114,102 +376,68 @@ func TestCreateFileUploadFinalizeAndCreateFileJob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFileUpload returned error: %v", err)
 	}
-	if uploadID == "" || uploadURL == "" || expiresAt.IsZero() {
-		t.Fatalf("unexpected upload response: %q %q %s", uploadID, uploadURL, expiresAt)
+
+	sourceRef := objectstore.ObjectRef{
+		Driver: "memory",
+		Bucket: "translations",
+		Key:    "projects/" + projectID + "/source/" + uploadID + "/content/messages.json",
 	}
 	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
-		Object: objectstore.ObjectRef{
-			Driver: "memory",
-			Bucket: "translations",
-			Key:    "projects/proj-1/source/" + uploadID + "/content/messages.json",
-		},
+		Object:      sourceRef,
 		ContentType: "application/json",
 		Body:        []byte(`{"hello":"Hello"}`),
 	}); err != nil {
-		t.Fatalf("seed uploaded object: %v", err)
+		t.Fatalf("seed source object: %v", err)
 	}
 
-	file, err := service.FinalizeFileUpload(context.Background(), "proj-1", uploadID)
+	file, err := service.FinalizeFileUpload(context.Background(), projectID, uploadID)
 	if err != nil {
 		t.Fatalf("FinalizeFileUpload returned error: %v", err)
 	}
-	if file.Path != "content/messages.json" {
-		t.Fatalf("unexpected file path: %s", file.Path)
+
+	variantRef := objectstore.ObjectRef{
+		Driver: "memory",
+		Bucket: "translations",
+		Key:    "projects/" + projectID + "/variants/" + file.ID + "/fr/content/messages.json",
+	}
+	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
+		Object:      variantRef,
+		ContentType: "application/json",
+		Body:        []byte(`{"hello":"Bonjour"}`),
+	}); err != nil {
+		t.Fatalf("seed variant object: %v", err)
+	}
+	if err := repository.SaveFileVariant(context.Background(), &store.TranslationFileVariantModel{
+		ID:             "variant_1",
+		FileID:         file.ID,
+		Locale:         "fr",
+		Path:           "content/messages.fr.json",
+		ContentType:    "application/json",
+		SizeBytes:      int64(len(`{"hello":"Bonjour"}`)),
+		ChecksumSHA256: "",
+		StorageDriver:  "memory",
+		Bucket:         "translations",
+		ObjectKey:      variantRef.Key,
+		LastJobID:      "job_1",
+		Status:         store.FileVariantStatusReady,
+		CreatedAt:      time.Unix(1700000000, 0).UTC(),
+		UpdatedAt:      time.Unix(1700000000, 0).UTC(),
+	}); err != nil {
+		t.Fatalf("SaveFileVariant returned error: %v", err)
 	}
 
-	nodes, err := service.ListFileTree(context.Background(), "proj-1", "content")
-	if err != nil {
-		t.Fatalf("ListFileTree returned error: %v", err)
-	}
-	if len(nodes) == 0 {
-		t.Fatal("expected tree nodes")
+	if err := service.DeleteProject(context.Background(), projectID); err != nil {
+		t.Fatalf("DeleteProject returned error: %v", err)
 	}
 
-	downloadURL, _, err := service.GetFileDownload(context.Background(), "proj-1", file.ID, "")
-	if err != nil {
-		t.Fatalf("GetFileDownload returned error: %v", err)
+	if _, err := service.GetProject(context.Background(), projectID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("expected deleted project to be missing, got %v", err)
 	}
-	if downloadURL == "" {
-		t.Fatal("expected download URL")
+	if _, err := memStore.StatObject(context.Background(), objectstore.StatRequest{Object: sourceRef}); !errors.Is(err, objectstore.ErrObjectNotFound) {
+		t.Fatalf("expected source object to be deleted, got %v", err)
 	}
-
-	job, err := service.CreateJob(context.Background(), &translationv1.CreateTranslationJobRequest{
-		ProjectId: "proj-1",
-		Input: &translationv1.CreateTranslationJobRequest_FileInput{
-			FileInput: &translationv1.FileTranslationJobInput{
-				SourceFileId:  file.ID,
-				FileFormat:    translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
-				SourceLocale:  "en",
-				TargetLocales: []string{"fr"},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("CreateJob(file) returned error: %v", err)
-	}
-	if job.Type != store.JobTypeFile {
-		t.Fatalf("expected file job type, got %s", job.Type)
-	}
-}
-
-func TestFinalizeFileUploadRejectsMissingObject(t *testing.T) {
-	t.Parallel()
-
-	sqldb, err := sql.Open(sqliteshim.ShimName, "file::memory:?cache=shared")
-	if err != nil {
-		t.Fatalf("open sqlite: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
-
-	if err := createTranslationTables(t, db); err != nil {
-		t.Fatalf("create translation tables: %v", err)
-	}
-
-	repository := store.NewRepository(db)
-	service := NewService(repository, "stub", "memory", objectstore.NewMemoryStore(), "translations")
-	service.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
-
-	uploadID, _, _, err := service.CreateFileUpload(context.Background(), &translationv1.CreateTranslationFileUploadRequest{
-		ProjectId:    "proj-1",
-		Path:         "content/messages.json",
-		FileFormat:   translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
-		SourceLocale: "en",
-		ContentType:  "application/json",
-	})
-	if err != nil {
-		t.Fatalf("CreateFileUpload returned error: %v", err)
-	}
-
-	_, err = service.FinalizeFileUpload(context.Background(), "proj-1", uploadID)
-	if err == nil || !strings.Contains(err.Error(), "uploaded object is missing") {
-		t.Fatalf("expected missing uploaded object error, got %v", err)
+	if _, err := memStore.StatObject(context.Background(), objectstore.StatRequest{Object: variantRef}); !errors.Is(err, objectstore.ErrObjectNotFound) {
+		t.Fatalf("expected variant object to be deleted, got %v", err)
 	}
 }
 
@@ -217,9 +445,17 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 	t.Helper()
 
 	statements := []string{
+		`PRAGMA foreign_keys = ON`,
+		`CREATE TABLE IF NOT EXISTS translation_projects (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			description TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS translation_jobs (
 			id TEXT PRIMARY KEY,
-			project_id TEXT NOT NULL,
+			project_id TEXT NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
 			type TEXT NOT NULL,
 			status TEXT NOT NULL,
 			input_kind TEXT NOT NULL,
@@ -262,7 +498,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS translation_file_uploads (
 			id TEXT PRIMARY KEY,
-			project_id TEXT NOT NULL,
+			project_id TEXT NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,
 			file_format TEXT NOT NULL,
 			source_locale TEXT NOT NULL,
@@ -280,7 +516,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS translation_files (
 			id TEXT PRIMARY KEY,
-			project_id TEXT NOT NULL,
+			project_id TEXT NOT NULL REFERENCES translation_projects(id) ON DELETE CASCADE,
 			path TEXT NOT NULL,
 			file_format TEXT NOT NULL,
 			source_locale TEXT NOT NULL,
@@ -296,7 +532,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS translation_file_variants (
 			id TEXT PRIMARY KEY,
-			file_id TEXT NOT NULL,
+			file_id TEXT NOT NULL REFERENCES translation_files(id) ON DELETE CASCADE,
 			locale TEXT NOT NULL,
 			path TEXT NOT NULL,
 			content_type TEXT NOT NULL,
@@ -319,4 +555,25 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 		}
 	}
 	return nil
+}
+
+func createProjectForTest(t *testing.T, service *Service, name string) string {
+	t.Helper()
+
+	project, err := service.CreateProject(context.Background(), &translationv1.CreateProjectRequest{Name: name})
+	if err != nil {
+		t.Fatalf("CreateProject returned error: %v", err)
+	}
+
+	return project.ID
+}
+
+func stringPtr(value string) *string {
+	return &value
+}
+
+func testSQLiteDSN(t *testing.T) string {
+	t.Helper()
+
+	return "file:" + strings.ReplaceAll(t.Name(), "/", "_") + "?mode=memory&cache=shared"
 }

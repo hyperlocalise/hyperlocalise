@@ -96,3 +96,14 @@ func (s *gcsStore) StatObject(ctx context.Context, req StatRequest) (ObjectInfo,
 	}
 	return ObjectInfo{SizeBytes: attrs.Size}, nil
 }
+
+func (s *gcsStore) DeleteObject(ctx context.Context, req DeleteRequest) error {
+	err := s.client.Bucket(req.Object.Bucket).Object(req.Object.Key).Delete(ctx)
+	if err != nil {
+		if errors.Is(err, storage.ErrObjectNotExist) {
+			return fmt.Errorf("%w: delete GCS object: %v", ErrObjectNotFound, err)
+		}
+		return fmt.Errorf("translation object store: delete GCS object: %w", err)
+	}
+	return nil
+}

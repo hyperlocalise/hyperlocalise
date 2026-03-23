@@ -75,7 +75,7 @@ func (x FileTranslationJobInput_FileFormat) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FileTranslationJobInput_FileFormat.Descriptor instead.
 func (FileTranslationJobInput_FileFormat) EnumDescriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{1, 0}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{12, 0}
 }
 
 type TranslationFileTreeNode_NodeType int32
@@ -124,7 +124,7 @@ func (x TranslationFileTreeNode_NodeType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TranslationFileTreeNode_NodeType.Descriptor instead.
 func (TranslationFileTreeNode_NodeType) EnumDescriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{8, 0}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{19, 0}
 }
 
 type TranslationJobError_Code int32
@@ -182,7 +182,7 @@ func (x TranslationJobError_Code) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TranslationJobError_Code.Descriptor instead.
 func (TranslationJobError_Code) EnumDescriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{19, 0}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{30, 0}
 }
 
 type TranslationJob_Type int32
@@ -231,7 +231,7 @@ func (x TranslationJob_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TranslationJob_Type.Descriptor instead.
 func (TranslationJob_Type) EnumDescriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{20, 0}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{31, 0}
 }
 
 type TranslationJob_Status int32
@@ -286,7 +286,547 @@ func (x TranslationJob_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TranslationJob_Status.Descriptor instead.
 func (TranslationJob_Status) EnumDescriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{20, 1}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{31, 1}
+}
+
+type Project struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Project) Reset() {
+	*x = Project{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Project) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Project) ProtoMessage() {}
+
+func (x *Project) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Project.ProtoReflect.Descriptor instead.
+func (*Project) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Project) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Project) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Project) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *Project) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Project) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type CreateProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectRequest) Reset() {
+	*x = CreateProjectRequest{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectRequest) ProtoMessage() {}
+
+func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectRequest.ProtoReflect.Descriptor instead.
+func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CreateProjectRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateProjectRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+type CreateProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateProjectResponse) Reset() {
+	*x = CreateProjectResponse{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateProjectResponse) ProtoMessage() {}
+
+func (x *CreateProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateProjectResponse.ProtoReflect.Descriptor instead.
+func (*CreateProjectResponse) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type GetProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectRequest) Reset() {
+	*x = GetProjectRequest{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectRequest) ProtoMessage() {}
+
+func (x *GetProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectRequest) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectResponse) Reset() {
+	*x = GetProjectResponse{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectResponse) ProtoMessage() {}
+
+func (x *GetProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectResponse.ProtoReflect.Descriptor instead.
+func (*GetProjectResponse) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type ListProjectsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectsRequest) Reset() {
+	*x = ListProjectsRequest{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectsRequest) ProtoMessage() {}
+
+func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectsRequest.ProtoReflect.Descriptor instead.
+func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListProjectsRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*Project             `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	Page          *v1.PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectsResponse) Reset() {
+	*x = ListProjectsResponse{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectsResponse) ProtoMessage() {}
+
+func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListProjectsResponse) GetProjects() []*Project {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+func (x *ListProjectsResponse) GetPage() *v1.PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type UpdateProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectRequest) Reset() {
+	*x = UpdateProjectRequest{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectRequest) ProtoMessage() {}
+
+func (x *UpdateProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectRequest.ProtoReflect.Descriptor instead.
+func (*UpdateProjectRequest) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UpdateProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *UpdateProjectRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+type UpdateProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Project       *Project               `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateProjectResponse) Reset() {
+	*x = UpdateProjectResponse{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateProjectResponse) ProtoMessage() {}
+
+func (x *UpdateProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateProjectResponse.ProtoReflect.Descriptor instead.
+func (*UpdateProjectResponse) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateProjectResponse) GetProject() *Project {
+	if x != nil {
+		return x.Project
+	}
+	return nil
+}
+
+type DeleteProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectRequest) Reset() {
+	*x = DeleteProjectRequest{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectRequest) ProtoMessage() {}
+
+func (x *DeleteProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectRequest.ProtoReflect.Descriptor instead.
+func (*DeleteProjectRequest) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DeleteProjectRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteProjectResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteProjectResponse) Reset() {
+	*x = DeleteProjectResponse{}
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProjectResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProjectResponse) ProtoMessage() {}
+
+func (x *DeleteProjectResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProjectResponse.ProtoReflect.Descriptor instead.
+func (*DeleteProjectResponse) Descriptor() ([]byte, []int) {
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{10}
 }
 
 // Input for a translation job that translates in-memory text.
@@ -306,7 +846,7 @@ type StringTranslationJobInput struct {
 
 func (x *StringTranslationJobInput) Reset() {
 	*x = StringTranslationJobInput{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[0]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +858,7 @@ func (x *StringTranslationJobInput) String() string {
 func (*StringTranslationJobInput) ProtoMessage() {}
 
 func (x *StringTranslationJobInput) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[0]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +871,7 @@ func (x *StringTranslationJobInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTranslationJobInput.ProtoReflect.Descriptor instead.
 func (*StringTranslationJobInput) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{0}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *StringTranslationJobInput) GetSourceText() string {
@@ -390,7 +930,7 @@ type FileTranslationJobInput struct {
 
 func (x *FileTranslationJobInput) Reset() {
 	*x = FileTranslationJobInput{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[1]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +942,7 @@ func (x *FileTranslationJobInput) String() string {
 func (*FileTranslationJobInput) ProtoMessage() {}
 
 func (x *FileTranslationJobInput) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[1]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +955,7 @@ func (x *FileTranslationJobInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileTranslationJobInput.ProtoReflect.Descriptor instead.
 func (*FileTranslationJobInput) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{1}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FileTranslationJobInput) GetSourceFileId() string {
@@ -464,7 +1004,7 @@ type StringTranslation struct {
 
 func (x *StringTranslation) Reset() {
 	*x = StringTranslation{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[2]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +1016,7 @@ func (x *StringTranslation) String() string {
 func (*StringTranslation) ProtoMessage() {}
 
 func (x *StringTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[2]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +1029,7 @@ func (x *StringTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTranslation.ProtoReflect.Descriptor instead.
 func (*StringTranslation) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{2}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StringTranslation) GetLocale() string {
@@ -518,7 +1058,7 @@ type FileTranslation struct {
 
 func (x *FileTranslation) Reset() {
 	*x = FileTranslation{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[3]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +1070,7 @@ func (x *FileTranslation) String() string {
 func (*FileTranslation) ProtoMessage() {}
 
 func (x *FileTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[3]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +1083,7 @@ func (x *FileTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileTranslation.ProtoReflect.Descriptor instead.
 func (*FileTranslation) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{3}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FileTranslation) GetFileId() string {
@@ -577,7 +1117,7 @@ type StringTranslationJobResult struct {
 
 func (x *StringTranslationJobResult) Reset() {
 	*x = StringTranslationJobResult{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[4]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -589,7 +1129,7 @@ func (x *StringTranslationJobResult) String() string {
 func (*StringTranslationJobResult) ProtoMessage() {}
 
 func (x *StringTranslationJobResult) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[4]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -602,7 +1142,7 @@ func (x *StringTranslationJobResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringTranslationJobResult.ProtoReflect.Descriptor instead.
 func (*StringTranslationJobResult) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{4}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StringTranslationJobResult) GetTranslations() []*StringTranslation {
@@ -622,7 +1162,7 @@ type FileTranslationJobResult struct {
 
 func (x *FileTranslationJobResult) Reset() {
 	*x = FileTranslationJobResult{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[5]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +1174,7 @@ func (x *FileTranslationJobResult) String() string {
 func (*FileTranslationJobResult) ProtoMessage() {}
 
 func (x *FileTranslationJobResult) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[5]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +1187,7 @@ func (x *FileTranslationJobResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileTranslationJobResult.ProtoReflect.Descriptor instead.
 func (*FileTranslationJobResult) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{5}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FileTranslationJobResult) GetTranslations() []*FileTranslation {
@@ -673,7 +1213,7 @@ type TranslationFile struct {
 
 func (x *TranslationFile) Reset() {
 	*x = TranslationFile{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[6]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -685,7 +1225,7 @@ func (x *TranslationFile) String() string {
 func (*TranslationFile) ProtoMessage() {}
 
 func (x *TranslationFile) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[6]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -698,7 +1238,7 @@ func (x *TranslationFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationFile.ProtoReflect.Descriptor instead.
 func (*TranslationFile) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{6}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TranslationFile) GetId() string {
@@ -769,7 +1309,7 @@ type TranslationFileVariant struct {
 
 func (x *TranslationFileVariant) Reset() {
 	*x = TranslationFileVariant{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[7]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +1321,7 @@ func (x *TranslationFileVariant) String() string {
 func (*TranslationFileVariant) ProtoMessage() {}
 
 func (x *TranslationFileVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[7]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +1334,7 @@ func (x *TranslationFileVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationFileVariant.ProtoReflect.Descriptor instead.
 func (*TranslationFileVariant) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{7}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TranslationFileVariant) GetLocale() string {
@@ -838,7 +1378,7 @@ type TranslationFileTreeNode struct {
 
 func (x *TranslationFileTreeNode) Reset() {
 	*x = TranslationFileTreeNode{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[8]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -850,7 +1390,7 @@ func (x *TranslationFileTreeNode) String() string {
 func (*TranslationFileTreeNode) ProtoMessage() {}
 
 func (x *TranslationFileTreeNode) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[8]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +1403,7 @@ func (x *TranslationFileTreeNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationFileTreeNode.ProtoReflect.Descriptor instead.
 func (*TranslationFileTreeNode) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{8}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TranslationFileTreeNode) GetType() TranslationFileTreeNode_NodeType {
@@ -916,7 +1456,7 @@ type CreateTranslationFileUploadRequest struct {
 
 func (x *CreateTranslationFileUploadRequest) Reset() {
 	*x = CreateTranslationFileUploadRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[9]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1468,7 @@ func (x *CreateTranslationFileUploadRequest) String() string {
 func (*CreateTranslationFileUploadRequest) ProtoMessage() {}
 
 func (x *CreateTranslationFileUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[9]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1481,7 @@ func (x *CreateTranslationFileUploadRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use CreateTranslationFileUploadRequest.ProtoReflect.Descriptor instead.
 func (*CreateTranslationFileUploadRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{9}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateTranslationFileUploadRequest) GetProjectId() string {
@@ -1004,7 +1544,7 @@ type CreateTranslationFileUploadResponse struct {
 
 func (x *CreateTranslationFileUploadResponse) Reset() {
 	*x = CreateTranslationFileUploadResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[10]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1016,7 +1556,7 @@ func (x *CreateTranslationFileUploadResponse) String() string {
 func (*CreateTranslationFileUploadResponse) ProtoMessage() {}
 
 func (x *CreateTranslationFileUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[10]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1029,7 +1569,7 @@ func (x *CreateTranslationFileUploadResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use CreateTranslationFileUploadResponse.ProtoReflect.Descriptor instead.
 func (*CreateTranslationFileUploadResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{10}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateTranslationFileUploadResponse) GetUploadId() string {
@@ -1063,7 +1603,7 @@ type FinalizeTranslationFileUploadRequest struct {
 
 func (x *FinalizeTranslationFileUploadRequest) Reset() {
 	*x = FinalizeTranslationFileUploadRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[11]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1075,7 +1615,7 @@ func (x *FinalizeTranslationFileUploadRequest) String() string {
 func (*FinalizeTranslationFileUploadRequest) ProtoMessage() {}
 
 func (x *FinalizeTranslationFileUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[11]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1088,7 +1628,7 @@ func (x *FinalizeTranslationFileUploadRequest) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use FinalizeTranslationFileUploadRequest.ProtoReflect.Descriptor instead.
 func (*FinalizeTranslationFileUploadRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{11}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *FinalizeTranslationFileUploadRequest) GetProjectId() string {
@@ -1114,7 +1654,7 @@ type FinalizeTranslationFileUploadResponse struct {
 
 func (x *FinalizeTranslationFileUploadResponse) Reset() {
 	*x = FinalizeTranslationFileUploadResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[12]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1126,7 +1666,7 @@ func (x *FinalizeTranslationFileUploadResponse) String() string {
 func (*FinalizeTranslationFileUploadResponse) ProtoMessage() {}
 
 func (x *FinalizeTranslationFileUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[12]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1139,7 +1679,7 @@ func (x *FinalizeTranslationFileUploadResponse) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use FinalizeTranslationFileUploadResponse.ProtoReflect.Descriptor instead.
 func (*FinalizeTranslationFileUploadResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{12}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *FinalizeTranslationFileUploadResponse) GetFile() *TranslationFile {
@@ -1159,7 +1699,7 @@ type GetTranslationFileRequest struct {
 
 func (x *GetTranslationFileRequest) Reset() {
 	*x = GetTranslationFileRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[13]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1171,7 +1711,7 @@ func (x *GetTranslationFileRequest) String() string {
 func (*GetTranslationFileRequest) ProtoMessage() {}
 
 func (x *GetTranslationFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[13]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1184,7 +1724,7 @@ func (x *GetTranslationFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationFileRequest.ProtoReflect.Descriptor instead.
 func (*GetTranslationFileRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{13}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetTranslationFileRequest) GetProjectId() string {
@@ -1210,7 +1750,7 @@ type GetTranslationFileResponse struct {
 
 func (x *GetTranslationFileResponse) Reset() {
 	*x = GetTranslationFileResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[14]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1222,7 +1762,7 @@ func (x *GetTranslationFileResponse) String() string {
 func (*GetTranslationFileResponse) ProtoMessage() {}
 
 func (x *GetTranslationFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[14]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1235,7 +1775,7 @@ func (x *GetTranslationFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationFileResponse.ProtoReflect.Descriptor instead.
 func (*GetTranslationFileResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{14}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetTranslationFileResponse) GetFile() *TranslationFile {
@@ -1255,7 +1795,7 @@ type ListTranslationFileTreeRequest struct {
 
 func (x *ListTranslationFileTreeRequest) Reset() {
 	*x = ListTranslationFileTreeRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[15]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1267,7 +1807,7 @@ func (x *ListTranslationFileTreeRequest) String() string {
 func (*ListTranslationFileTreeRequest) ProtoMessage() {}
 
 func (x *ListTranslationFileTreeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[15]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1280,7 +1820,7 @@ func (x *ListTranslationFileTreeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTranslationFileTreeRequest.ProtoReflect.Descriptor instead.
 func (*ListTranslationFileTreeRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{15}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListTranslationFileTreeRequest) GetProjectId() string {
@@ -1306,7 +1846,7 @@ type ListTranslationFileTreeResponse struct {
 
 func (x *ListTranslationFileTreeResponse) Reset() {
 	*x = ListTranslationFileTreeResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[16]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1858,7 @@ func (x *ListTranslationFileTreeResponse) String() string {
 func (*ListTranslationFileTreeResponse) ProtoMessage() {}
 
 func (x *ListTranslationFileTreeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[16]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1871,7 @@ func (x *ListTranslationFileTreeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTranslationFileTreeResponse.ProtoReflect.Descriptor instead.
 func (*ListTranslationFileTreeResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{16}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListTranslationFileTreeResponse) GetNodes() []*TranslationFileTreeNode {
@@ -1352,7 +1892,7 @@ type GetTranslationFileDownloadRequest struct {
 
 func (x *GetTranslationFileDownloadRequest) Reset() {
 	*x = GetTranslationFileDownloadRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[17]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1364,7 +1904,7 @@ func (x *GetTranslationFileDownloadRequest) String() string {
 func (*GetTranslationFileDownloadRequest) ProtoMessage() {}
 
 func (x *GetTranslationFileDownloadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[17]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1377,7 +1917,7 @@ func (x *GetTranslationFileDownloadRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetTranslationFileDownloadRequest.ProtoReflect.Descriptor instead.
 func (*GetTranslationFileDownloadRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{17}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetTranslationFileDownloadRequest) GetProjectId() string {
@@ -1411,7 +1951,7 @@ type GetTranslationFileDownloadResponse struct {
 
 func (x *GetTranslationFileDownloadResponse) Reset() {
 	*x = GetTranslationFileDownloadResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[18]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1963,7 @@ func (x *GetTranslationFileDownloadResponse) String() string {
 func (*GetTranslationFileDownloadResponse) ProtoMessage() {}
 
 func (x *GetTranslationFileDownloadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[18]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1976,7 @@ func (x *GetTranslationFileDownloadResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetTranslationFileDownloadResponse.ProtoReflect.Descriptor instead.
 func (*GetTranslationFileDownloadResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{18}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetTranslationFileDownloadResponse) GetDownloadUrl() string {
@@ -1465,7 +2005,7 @@ type TranslationJobError struct {
 
 func (x *TranslationJobError) Reset() {
 	*x = TranslationJobError{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[19]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1477,7 +2017,7 @@ func (x *TranslationJobError) String() string {
 func (*TranslationJobError) ProtoMessage() {}
 
 func (x *TranslationJobError) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[19]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1490,7 +2030,7 @@ func (x *TranslationJobError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationJobError.ProtoReflect.Descriptor instead.
 func (*TranslationJobError) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{19}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TranslationJobError) GetCode() TranslationJobError_Code {
@@ -1546,7 +2086,7 @@ type TranslationJob struct {
 
 func (x *TranslationJob) Reset() {
 	*x = TranslationJob{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[20]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1558,7 +2098,7 @@ func (x *TranslationJob) String() string {
 func (*TranslationJob) ProtoMessage() {}
 
 func (x *TranslationJob) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[20]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1571,7 +2111,7 @@ func (x *TranslationJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationJob.ProtoReflect.Descriptor instead.
 func (*TranslationJob) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{20}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TranslationJob) GetId() string {
@@ -1738,7 +2278,7 @@ type CreateTranslationJobRequest struct {
 
 func (x *CreateTranslationJobRequest) Reset() {
 	*x = CreateTranslationJobRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[21]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1750,7 +2290,7 @@ func (x *CreateTranslationJobRequest) String() string {
 func (*CreateTranslationJobRequest) ProtoMessage() {}
 
 func (x *CreateTranslationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[21]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1763,7 +2303,7 @@ func (x *CreateTranslationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTranslationJobRequest.ProtoReflect.Descriptor instead.
 func (*CreateTranslationJobRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{21}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CreateTranslationJobRequest) GetProjectId() string {
@@ -1824,7 +2364,7 @@ type CreateTranslationJobResponse struct {
 
 func (x *CreateTranslationJobResponse) Reset() {
 	*x = CreateTranslationJobResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[22]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1836,7 +2376,7 @@ func (x *CreateTranslationJobResponse) String() string {
 func (*CreateTranslationJobResponse) ProtoMessage() {}
 
 func (x *CreateTranslationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[22]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1849,7 +2389,7 @@ func (x *CreateTranslationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTranslationJobResponse.ProtoReflect.Descriptor instead.
 func (*CreateTranslationJobResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{22}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreateTranslationJobResponse) GetJob() *TranslationJob {
@@ -1869,7 +2409,7 @@ type GetTranslationJobStatusRequest struct {
 
 func (x *GetTranslationJobStatusRequest) Reset() {
 	*x = GetTranslationJobStatusRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[23]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1881,7 +2421,7 @@ func (x *GetTranslationJobStatusRequest) String() string {
 func (*GetTranslationJobStatusRequest) ProtoMessage() {}
 
 func (x *GetTranslationJobStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[23]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1894,7 +2434,7 @@ func (x *GetTranslationJobStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationJobStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetTranslationJobStatusRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{23}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *GetTranslationJobStatusRequest) GetTranslationJob() *v1.ResourceRef {
@@ -1914,7 +2454,7 @@ type GetTranslationJobRequest struct {
 
 func (x *GetTranslationJobRequest) Reset() {
 	*x = GetTranslationJobRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[24]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1926,7 +2466,7 @@ func (x *GetTranslationJobRequest) String() string {
 func (*GetTranslationJobRequest) ProtoMessage() {}
 
 func (x *GetTranslationJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[24]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1939,7 +2479,7 @@ func (x *GetTranslationJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationJobRequest.ProtoReflect.Descriptor instead.
 func (*GetTranslationJobRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{24}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GetTranslationJobRequest) GetTranslationJob() *v1.ResourceRef {
@@ -1967,7 +2507,7 @@ type TranslationJobStatus struct {
 
 func (x *TranslationJobStatus) Reset() {
 	*x = TranslationJobStatus{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[25]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1979,7 +2519,7 @@ func (x *TranslationJobStatus) String() string {
 func (*TranslationJobStatus) ProtoMessage() {}
 
 func (x *TranslationJobStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[25]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1992,7 +2532,7 @@ func (x *TranslationJobStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TranslationJobStatus.ProtoReflect.Descriptor instead.
 func (*TranslationJobStatus) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{25}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TranslationJobStatus) GetId() string {
@@ -2066,7 +2606,7 @@ type ListTranslationJobsRequest struct {
 
 func (x *ListTranslationJobsRequest) Reset() {
 	*x = ListTranslationJobsRequest{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[26]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2078,7 +2618,7 @@ func (x *ListTranslationJobsRequest) String() string {
 func (*ListTranslationJobsRequest) ProtoMessage() {}
 
 func (x *ListTranslationJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[26]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2091,7 +2631,7 @@ func (x *ListTranslationJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTranslationJobsRequest.ProtoReflect.Descriptor instead.
 func (*ListTranslationJobsRequest) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{26}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ListTranslationJobsRequest) GetProjectId() string {
@@ -2133,7 +2673,7 @@ type ListTranslationJobsResponse struct {
 
 func (x *ListTranslationJobsResponse) Reset() {
 	*x = ListTranslationJobsResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[27]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2145,7 +2685,7 @@ func (x *ListTranslationJobsResponse) String() string {
 func (*ListTranslationJobsResponse) ProtoMessage() {}
 
 func (x *ListTranslationJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[27]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2158,7 +2698,7 @@ func (x *ListTranslationJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTranslationJobsResponse.ProtoReflect.Descriptor instead.
 func (*ListTranslationJobsResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{27}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListTranslationJobsResponse) GetJobs() []*TranslationJob {
@@ -2185,7 +2725,7 @@ type GetTranslationJobStatusResponse struct {
 
 func (x *GetTranslationJobStatusResponse) Reset() {
 	*x = GetTranslationJobStatusResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[28]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2197,7 +2737,7 @@ func (x *GetTranslationJobStatusResponse) String() string {
 func (*GetTranslationJobStatusResponse) ProtoMessage() {}
 
 func (x *GetTranslationJobStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[28]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2210,7 +2750,7 @@ func (x *GetTranslationJobStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationJobStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetTranslationJobStatusResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{28}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetTranslationJobStatusResponse) GetJob() *TranslationJobStatus {
@@ -2230,7 +2770,7 @@ type GetTranslationJobResponse struct {
 
 func (x *GetTranslationJobResponse) Reset() {
 	*x = GetTranslationJobResponse{}
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[29]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2242,7 +2782,7 @@ func (x *GetTranslationJobResponse) String() string {
 func (*GetTranslationJobResponse) ProtoMessage() {}
 
 func (x *GetTranslationJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[29]
+	mi := &file_hyperlocalise_translation_v1_translation_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2255,7 +2795,7 @@ func (x *GetTranslationJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTranslationJobResponse.ProtoReflect.Descriptor instead.
 func (*GetTranslationJobResponse) Descriptor() ([]byte, []int) {
-	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{29}
+	return file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *GetTranslationJobResponse) GetJob() *TranslationJob {
@@ -2269,7 +2809,42 @@ var File_hyperlocalise_translation_v1_translation_proto protoreflect.FileDescrip
 
 const file_hyperlocalise_translation_v1_translation_proto_rawDesc = "" +
 	"\n" +
-	".hyperlocalise/translation/v1/translation.proto\x12\x1chyperlocalise.translation.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$hyperlocalise/common/v1/common.proto\"\x86\x03\n" +
+	".hyperlocalise/translation/v1/translation.proto\x12\x1chyperlocalise.translation.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$hyperlocalise/common/v1/common.proto\"\xda\x01\n" +
+	"\aProject\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
+	"\f_description\"a\n" +
+	"\x14CreateProjectRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\f_description\"X\n" +
+	"\x15CreateProjectResponse\x12?\n" +
+	"\aproject\x18\x01 \x01(\v2%.hyperlocalise.translation.v1.ProjectR\aproject\"#\n" +
+	"\x11GetProjectRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"U\n" +
+	"\x12GetProjectResponse\x12?\n" +
+	"\aproject\x18\x01 \x01(\v2%.hyperlocalise.translation.v1.ProjectR\aproject\"O\n" +
+	"\x13ListProjectsRequest\x128\n" +
+	"\x04page\x18\x01 \x01(\v2$.hyperlocalise.common.v1.PageRequestR\x04page\"\x94\x01\n" +
+	"\x14ListProjectsResponse\x12A\n" +
+	"\bprojects\x18\x01 \x03(\v2%.hyperlocalise.translation.v1.ProjectR\bprojects\x129\n" +
+	"\x04page\x18\x02 \x01(\v2%.hyperlocalise.common.v1.PageResponseR\x04page\"\x7f\n" +
+	"\x14UpdateProjectRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_description\"X\n" +
+	"\x15UpdateProjectResponse\x12?\n" +
+	"\aproject\x18\x01 \x01(\v2%.hyperlocalise.translation.v1.ProjectR\aproject\"&\n" +
+	"\x14DeleteProjectRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
+	"\x15DeleteProjectResponse\"\x86\x03\n" +
 	"\x19StringTranslationJobInput\x12\x1f\n" +
 	"\vsource_text\x18\x01 \x01(\tR\n" +
 	"sourceText\x12#\n" +
@@ -2472,9 +3047,14 @@ const file_hyperlocalise_translation_v1_translation_proto_rawDesc = "" +
 	"\x1fGetTranslationJobStatusResponse\x12D\n" +
 	"\x03job\x18\x01 \x01(\v22.hyperlocalise.translation.v1.TranslationJobStatusR\x03job\"[\n" +
 	"\x19GetTranslationJobResponse\x12>\n" +
-	"\x03job\x18\x01 \x01(\v2,.hyperlocalise.translation.v1.TranslationJobR\x03job2\xe6\n" +
+	"\x03job\x18\x01 \x01(\v2,.hyperlocalise.translation.v1.TranslationJobR\x03job2\xbc\x0f\n" +
+	"\x12TranslationService\x12x\n" +
+	"\rCreateProject\x122.hyperlocalise.translation.v1.CreateProjectRequest\x1a3.hyperlocalise.translation.v1.CreateProjectResponse\x12o\n" +
 	"\n" +
-	"\x12TranslationService\x12\x8d\x01\n" +
+	"GetProject\x12/.hyperlocalise.translation.v1.GetProjectRequest\x1a0.hyperlocalise.translation.v1.GetProjectResponse\x12u\n" +
+	"\fListProjects\x121.hyperlocalise.translation.v1.ListProjectsRequest\x1a2.hyperlocalise.translation.v1.ListProjectsResponse\x12x\n" +
+	"\rUpdateProject\x122.hyperlocalise.translation.v1.UpdateProjectRequest\x1a3.hyperlocalise.translation.v1.UpdateProjectResponse\x12x\n" +
+	"\rDeleteProject\x122.hyperlocalise.translation.v1.DeleteProjectRequest\x1a3.hyperlocalise.translation.v1.DeleteProjectResponse\x12\x8d\x01\n" +
 	"\x14CreateTranslationJob\x129.hyperlocalise.translation.v1.CreateTranslationJobRequest\x1a:.hyperlocalise.translation.v1.CreateTranslationJobResponse\x12\xa2\x01\n" +
 	"\x1bCreateTranslationFileUpload\x12@.hyperlocalise.translation.v1.CreateTranslationFileUploadRequest\x1aA.hyperlocalise.translation.v1.CreateTranslationFileUploadResponse\x12\xa8\x01\n" +
 	"\x1dFinalizeTranslationFileUpload\x12B.hyperlocalise.translation.v1.FinalizeTranslationFileUploadRequest\x1aC.hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse\x12\x87\x01\n" +
@@ -2498,123 +3078,152 @@ func file_hyperlocalise_translation_v1_translation_proto_rawDescGZIP() []byte {
 }
 
 var file_hyperlocalise_translation_v1_translation_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_hyperlocalise_translation_v1_translation_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_hyperlocalise_translation_v1_translation_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_hyperlocalise_translation_v1_translation_proto_goTypes = []any{
 	(FileTranslationJobInput_FileFormat)(0),       // 0: hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
 	(TranslationFileTreeNode_NodeType)(0),         // 1: hyperlocalise.translation.v1.TranslationFileTreeNode.NodeType
 	(TranslationJobError_Code)(0),                 // 2: hyperlocalise.translation.v1.TranslationJobError.Code
 	(TranslationJob_Type)(0),                      // 3: hyperlocalise.translation.v1.TranslationJob.Type
 	(TranslationJob_Status)(0),                    // 4: hyperlocalise.translation.v1.TranslationJob.Status
-	(*StringTranslationJobInput)(nil),             // 5: hyperlocalise.translation.v1.StringTranslationJobInput
-	(*FileTranslationJobInput)(nil),               // 6: hyperlocalise.translation.v1.FileTranslationJobInput
-	(*StringTranslation)(nil),                     // 7: hyperlocalise.translation.v1.StringTranslation
-	(*FileTranslation)(nil),                       // 8: hyperlocalise.translation.v1.FileTranslation
-	(*StringTranslationJobResult)(nil),            // 9: hyperlocalise.translation.v1.StringTranslationJobResult
-	(*FileTranslationJobResult)(nil),              // 10: hyperlocalise.translation.v1.FileTranslationJobResult
-	(*TranslationFile)(nil),                       // 11: hyperlocalise.translation.v1.TranslationFile
-	(*TranslationFileVariant)(nil),                // 12: hyperlocalise.translation.v1.TranslationFileVariant
-	(*TranslationFileTreeNode)(nil),               // 13: hyperlocalise.translation.v1.TranslationFileTreeNode
-	(*CreateTranslationFileUploadRequest)(nil),    // 14: hyperlocalise.translation.v1.CreateTranslationFileUploadRequest
-	(*CreateTranslationFileUploadResponse)(nil),   // 15: hyperlocalise.translation.v1.CreateTranslationFileUploadResponse
-	(*FinalizeTranslationFileUploadRequest)(nil),  // 16: hyperlocalise.translation.v1.FinalizeTranslationFileUploadRequest
-	(*FinalizeTranslationFileUploadResponse)(nil), // 17: hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse
-	(*GetTranslationFileRequest)(nil),             // 18: hyperlocalise.translation.v1.GetTranslationFileRequest
-	(*GetTranslationFileResponse)(nil),            // 19: hyperlocalise.translation.v1.GetTranslationFileResponse
-	(*ListTranslationFileTreeRequest)(nil),        // 20: hyperlocalise.translation.v1.ListTranslationFileTreeRequest
-	(*ListTranslationFileTreeResponse)(nil),       // 21: hyperlocalise.translation.v1.ListTranslationFileTreeResponse
-	(*GetTranslationFileDownloadRequest)(nil),     // 22: hyperlocalise.translation.v1.GetTranslationFileDownloadRequest
-	(*GetTranslationFileDownloadResponse)(nil),    // 23: hyperlocalise.translation.v1.GetTranslationFileDownloadResponse
-	(*TranslationJobError)(nil),                   // 24: hyperlocalise.translation.v1.TranslationJobError
-	(*TranslationJob)(nil),                        // 25: hyperlocalise.translation.v1.TranslationJob
-	(*CreateTranslationJobRequest)(nil),           // 26: hyperlocalise.translation.v1.CreateTranslationJobRequest
-	(*CreateTranslationJobResponse)(nil),          // 27: hyperlocalise.translation.v1.CreateTranslationJobResponse
-	(*GetTranslationJobStatusRequest)(nil),        // 28: hyperlocalise.translation.v1.GetTranslationJobStatusRequest
-	(*GetTranslationJobRequest)(nil),              // 29: hyperlocalise.translation.v1.GetTranslationJobRequest
-	(*TranslationJobStatus)(nil),                  // 30: hyperlocalise.translation.v1.TranslationJobStatus
-	(*ListTranslationJobsRequest)(nil),            // 31: hyperlocalise.translation.v1.ListTranslationJobsRequest
-	(*ListTranslationJobsResponse)(nil),           // 32: hyperlocalise.translation.v1.ListTranslationJobsResponse
-	(*GetTranslationJobStatusResponse)(nil),       // 33: hyperlocalise.translation.v1.GetTranslationJobStatusResponse
-	(*GetTranslationJobResponse)(nil),             // 34: hyperlocalise.translation.v1.GetTranslationJobResponse
-	nil,                                           // 35: hyperlocalise.translation.v1.StringTranslationJobInput.MetadataEntry
-	nil,                                           // 36: hyperlocalise.translation.v1.FileTranslationJobInput.MetadataEntry
-	nil,                                           // 37: hyperlocalise.translation.v1.TranslationJobError.DetailsEntry
-	(*timestamppb.Timestamp)(nil),                 // 38: google.protobuf.Timestamp
-	(*v1.ResourceRef)(nil),                        // 39: hyperlocalise.common.v1.ResourceRef
-	(*v1.PageRequest)(nil),                        // 40: hyperlocalise.common.v1.PageRequest
-	(*v1.PageResponse)(nil),                       // 41: hyperlocalise.common.v1.PageResponse
+	(*Project)(nil),                               // 5: hyperlocalise.translation.v1.Project
+	(*CreateProjectRequest)(nil),                  // 6: hyperlocalise.translation.v1.CreateProjectRequest
+	(*CreateProjectResponse)(nil),                 // 7: hyperlocalise.translation.v1.CreateProjectResponse
+	(*GetProjectRequest)(nil),                     // 8: hyperlocalise.translation.v1.GetProjectRequest
+	(*GetProjectResponse)(nil),                    // 9: hyperlocalise.translation.v1.GetProjectResponse
+	(*ListProjectsRequest)(nil),                   // 10: hyperlocalise.translation.v1.ListProjectsRequest
+	(*ListProjectsResponse)(nil),                  // 11: hyperlocalise.translation.v1.ListProjectsResponse
+	(*UpdateProjectRequest)(nil),                  // 12: hyperlocalise.translation.v1.UpdateProjectRequest
+	(*UpdateProjectResponse)(nil),                 // 13: hyperlocalise.translation.v1.UpdateProjectResponse
+	(*DeleteProjectRequest)(nil),                  // 14: hyperlocalise.translation.v1.DeleteProjectRequest
+	(*DeleteProjectResponse)(nil),                 // 15: hyperlocalise.translation.v1.DeleteProjectResponse
+	(*StringTranslationJobInput)(nil),             // 16: hyperlocalise.translation.v1.StringTranslationJobInput
+	(*FileTranslationJobInput)(nil),               // 17: hyperlocalise.translation.v1.FileTranslationJobInput
+	(*StringTranslation)(nil),                     // 18: hyperlocalise.translation.v1.StringTranslation
+	(*FileTranslation)(nil),                       // 19: hyperlocalise.translation.v1.FileTranslation
+	(*StringTranslationJobResult)(nil),            // 20: hyperlocalise.translation.v1.StringTranslationJobResult
+	(*FileTranslationJobResult)(nil),              // 21: hyperlocalise.translation.v1.FileTranslationJobResult
+	(*TranslationFile)(nil),                       // 22: hyperlocalise.translation.v1.TranslationFile
+	(*TranslationFileVariant)(nil),                // 23: hyperlocalise.translation.v1.TranslationFileVariant
+	(*TranslationFileTreeNode)(nil),               // 24: hyperlocalise.translation.v1.TranslationFileTreeNode
+	(*CreateTranslationFileUploadRequest)(nil),    // 25: hyperlocalise.translation.v1.CreateTranslationFileUploadRequest
+	(*CreateTranslationFileUploadResponse)(nil),   // 26: hyperlocalise.translation.v1.CreateTranslationFileUploadResponse
+	(*FinalizeTranslationFileUploadRequest)(nil),  // 27: hyperlocalise.translation.v1.FinalizeTranslationFileUploadRequest
+	(*FinalizeTranslationFileUploadResponse)(nil), // 28: hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse
+	(*GetTranslationFileRequest)(nil),             // 29: hyperlocalise.translation.v1.GetTranslationFileRequest
+	(*GetTranslationFileResponse)(nil),            // 30: hyperlocalise.translation.v1.GetTranslationFileResponse
+	(*ListTranslationFileTreeRequest)(nil),        // 31: hyperlocalise.translation.v1.ListTranslationFileTreeRequest
+	(*ListTranslationFileTreeResponse)(nil),       // 32: hyperlocalise.translation.v1.ListTranslationFileTreeResponse
+	(*GetTranslationFileDownloadRequest)(nil),     // 33: hyperlocalise.translation.v1.GetTranslationFileDownloadRequest
+	(*GetTranslationFileDownloadResponse)(nil),    // 34: hyperlocalise.translation.v1.GetTranslationFileDownloadResponse
+	(*TranslationJobError)(nil),                   // 35: hyperlocalise.translation.v1.TranslationJobError
+	(*TranslationJob)(nil),                        // 36: hyperlocalise.translation.v1.TranslationJob
+	(*CreateTranslationJobRequest)(nil),           // 37: hyperlocalise.translation.v1.CreateTranslationJobRequest
+	(*CreateTranslationJobResponse)(nil),          // 38: hyperlocalise.translation.v1.CreateTranslationJobResponse
+	(*GetTranslationJobStatusRequest)(nil),        // 39: hyperlocalise.translation.v1.GetTranslationJobStatusRequest
+	(*GetTranslationJobRequest)(nil),              // 40: hyperlocalise.translation.v1.GetTranslationJobRequest
+	(*TranslationJobStatus)(nil),                  // 41: hyperlocalise.translation.v1.TranslationJobStatus
+	(*ListTranslationJobsRequest)(nil),            // 42: hyperlocalise.translation.v1.ListTranslationJobsRequest
+	(*ListTranslationJobsResponse)(nil),           // 43: hyperlocalise.translation.v1.ListTranslationJobsResponse
+	(*GetTranslationJobStatusResponse)(nil),       // 44: hyperlocalise.translation.v1.GetTranslationJobStatusResponse
+	(*GetTranslationJobResponse)(nil),             // 45: hyperlocalise.translation.v1.GetTranslationJobResponse
+	nil,                                           // 46: hyperlocalise.translation.v1.StringTranslationJobInput.MetadataEntry
+	nil,                                           // 47: hyperlocalise.translation.v1.FileTranslationJobInput.MetadataEntry
+	nil,                                           // 48: hyperlocalise.translation.v1.TranslationJobError.DetailsEntry
+	(*timestamppb.Timestamp)(nil),                 // 49: google.protobuf.Timestamp
+	(*v1.PageRequest)(nil),                        // 50: hyperlocalise.common.v1.PageRequest
+	(*v1.PageResponse)(nil),                       // 51: hyperlocalise.common.v1.PageResponse
+	(*v1.ResourceRef)(nil),                        // 52: hyperlocalise.common.v1.ResourceRef
 }
 var file_hyperlocalise_translation_v1_translation_proto_depIdxs = []int32{
-	35, // 0: hyperlocalise.translation.v1.StringTranslationJobInput.metadata:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput.MetadataEntry
-	0,  // 1: hyperlocalise.translation.v1.FileTranslationJobInput.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
-	36, // 2: hyperlocalise.translation.v1.FileTranslationJobInput.metadata:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.MetadataEntry
-	7,  // 3: hyperlocalise.translation.v1.StringTranslationJobResult.translations:type_name -> hyperlocalise.translation.v1.StringTranslation
-	8,  // 4: hyperlocalise.translation.v1.FileTranslationJobResult.translations:type_name -> hyperlocalise.translation.v1.FileTranslation
-	0,  // 5: hyperlocalise.translation.v1.TranslationFile.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
-	38, // 6: hyperlocalise.translation.v1.TranslationFile.created_at:type_name -> google.protobuf.Timestamp
-	38, // 7: hyperlocalise.translation.v1.TranslationFile.updated_at:type_name -> google.protobuf.Timestamp
-	12, // 8: hyperlocalise.translation.v1.TranslationFile.variants:type_name -> hyperlocalise.translation.v1.TranslationFileVariant
-	38, // 9: hyperlocalise.translation.v1.TranslationFileVariant.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 10: hyperlocalise.translation.v1.TranslationFileTreeNode.type:type_name -> hyperlocalise.translation.v1.TranslationFileTreeNode.NodeType
-	11, // 11: hyperlocalise.translation.v1.TranslationFileTreeNode.file:type_name -> hyperlocalise.translation.v1.TranslationFile
-	0,  // 12: hyperlocalise.translation.v1.CreateTranslationFileUploadRequest.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
-	38, // 13: hyperlocalise.translation.v1.CreateTranslationFileUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 14: hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse.file:type_name -> hyperlocalise.translation.v1.TranslationFile
-	11, // 15: hyperlocalise.translation.v1.GetTranslationFileResponse.file:type_name -> hyperlocalise.translation.v1.TranslationFile
-	13, // 16: hyperlocalise.translation.v1.ListTranslationFileTreeResponse.nodes:type_name -> hyperlocalise.translation.v1.TranslationFileTreeNode
-	38, // 17: hyperlocalise.translation.v1.GetTranslationFileDownloadResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 18: hyperlocalise.translation.v1.TranslationJobError.code:type_name -> hyperlocalise.translation.v1.TranslationJobError.Code
-	37, // 19: hyperlocalise.translation.v1.TranslationJobError.details:type_name -> hyperlocalise.translation.v1.TranslationJobError.DetailsEntry
-	3,  // 20: hyperlocalise.translation.v1.TranslationJob.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
-	4,  // 21: hyperlocalise.translation.v1.TranslationJob.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
-	38, // 22: hyperlocalise.translation.v1.TranslationJob.created_at:type_name -> google.protobuf.Timestamp
-	38, // 23: hyperlocalise.translation.v1.TranslationJob.updated_at:type_name -> google.protobuf.Timestamp
-	38, // 24: hyperlocalise.translation.v1.TranslationJob.completed_at:type_name -> google.protobuf.Timestamp
-	5,  // 25: hyperlocalise.translation.v1.TranslationJob.string_input:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput
-	6,  // 26: hyperlocalise.translation.v1.TranslationJob.file_input:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput
-	9,  // 27: hyperlocalise.translation.v1.TranslationJob.string_result:type_name -> hyperlocalise.translation.v1.StringTranslationJobResult
-	10, // 28: hyperlocalise.translation.v1.TranslationJob.file_result:type_name -> hyperlocalise.translation.v1.FileTranslationJobResult
-	24, // 29: hyperlocalise.translation.v1.TranslationJob.error:type_name -> hyperlocalise.translation.v1.TranslationJobError
-	5,  // 30: hyperlocalise.translation.v1.CreateTranslationJobRequest.string_input:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput
-	6,  // 31: hyperlocalise.translation.v1.CreateTranslationJobRequest.file_input:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput
-	25, // 32: hyperlocalise.translation.v1.CreateTranslationJobResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJob
-	39, // 33: hyperlocalise.translation.v1.GetTranslationJobStatusRequest.translation_job:type_name -> hyperlocalise.common.v1.ResourceRef
-	39, // 34: hyperlocalise.translation.v1.GetTranslationJobRequest.translation_job:type_name -> hyperlocalise.common.v1.ResourceRef
-	3,  // 35: hyperlocalise.translation.v1.TranslationJobStatus.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
-	4,  // 36: hyperlocalise.translation.v1.TranslationJobStatus.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
-	38, // 37: hyperlocalise.translation.v1.TranslationJobStatus.created_at:type_name -> google.protobuf.Timestamp
-	38, // 38: hyperlocalise.translation.v1.TranslationJobStatus.updated_at:type_name -> google.protobuf.Timestamp
-	38, // 39: hyperlocalise.translation.v1.TranslationJobStatus.completed_at:type_name -> google.protobuf.Timestamp
-	24, // 40: hyperlocalise.translation.v1.TranslationJobStatus.error:type_name -> hyperlocalise.translation.v1.TranslationJobError
-	40, // 41: hyperlocalise.translation.v1.ListTranslationJobsRequest.page:type_name -> hyperlocalise.common.v1.PageRequest
-	3,  // 42: hyperlocalise.translation.v1.ListTranslationJobsRequest.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
-	4,  // 43: hyperlocalise.translation.v1.ListTranslationJobsRequest.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
-	25, // 44: hyperlocalise.translation.v1.ListTranslationJobsResponse.jobs:type_name -> hyperlocalise.translation.v1.TranslationJob
-	41, // 45: hyperlocalise.translation.v1.ListTranslationJobsResponse.page:type_name -> hyperlocalise.common.v1.PageResponse
-	30, // 46: hyperlocalise.translation.v1.GetTranslationJobStatusResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJobStatus
-	25, // 47: hyperlocalise.translation.v1.GetTranslationJobResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJob
-	26, // 48: hyperlocalise.translation.v1.TranslationService.CreateTranslationJob:input_type -> hyperlocalise.translation.v1.CreateTranslationJobRequest
-	14, // 49: hyperlocalise.translation.v1.TranslationService.CreateTranslationFileUpload:input_type -> hyperlocalise.translation.v1.CreateTranslationFileUploadRequest
-	16, // 50: hyperlocalise.translation.v1.TranslationService.FinalizeTranslationFileUpload:input_type -> hyperlocalise.translation.v1.FinalizeTranslationFileUploadRequest
-	18, // 51: hyperlocalise.translation.v1.TranslationService.GetTranslationFile:input_type -> hyperlocalise.translation.v1.GetTranslationFileRequest
-	20, // 52: hyperlocalise.translation.v1.TranslationService.ListTranslationFileTree:input_type -> hyperlocalise.translation.v1.ListTranslationFileTreeRequest
-	22, // 53: hyperlocalise.translation.v1.TranslationService.GetTranslationFileDownload:input_type -> hyperlocalise.translation.v1.GetTranslationFileDownloadRequest
-	29, // 54: hyperlocalise.translation.v1.TranslationService.GetTranslationJob:input_type -> hyperlocalise.translation.v1.GetTranslationJobRequest
-	28, // 55: hyperlocalise.translation.v1.TranslationService.GetTranslationJobStatus:input_type -> hyperlocalise.translation.v1.GetTranslationJobStatusRequest
-	31, // 56: hyperlocalise.translation.v1.TranslationService.ListTranslationJobs:input_type -> hyperlocalise.translation.v1.ListTranslationJobsRequest
-	27, // 57: hyperlocalise.translation.v1.TranslationService.CreateTranslationJob:output_type -> hyperlocalise.translation.v1.CreateTranslationJobResponse
-	15, // 58: hyperlocalise.translation.v1.TranslationService.CreateTranslationFileUpload:output_type -> hyperlocalise.translation.v1.CreateTranslationFileUploadResponse
-	17, // 59: hyperlocalise.translation.v1.TranslationService.FinalizeTranslationFileUpload:output_type -> hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse
-	19, // 60: hyperlocalise.translation.v1.TranslationService.GetTranslationFile:output_type -> hyperlocalise.translation.v1.GetTranslationFileResponse
-	21, // 61: hyperlocalise.translation.v1.TranslationService.ListTranslationFileTree:output_type -> hyperlocalise.translation.v1.ListTranslationFileTreeResponse
-	23, // 62: hyperlocalise.translation.v1.TranslationService.GetTranslationFileDownload:output_type -> hyperlocalise.translation.v1.GetTranslationFileDownloadResponse
-	34, // 63: hyperlocalise.translation.v1.TranslationService.GetTranslationJob:output_type -> hyperlocalise.translation.v1.GetTranslationJobResponse
-	33, // 64: hyperlocalise.translation.v1.TranslationService.GetTranslationJobStatus:output_type -> hyperlocalise.translation.v1.GetTranslationJobStatusResponse
-	32, // 65: hyperlocalise.translation.v1.TranslationService.ListTranslationJobs:output_type -> hyperlocalise.translation.v1.ListTranslationJobsResponse
-	57, // [57:66] is the sub-list for method output_type
-	48, // [48:57] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	49, // 0: hyperlocalise.translation.v1.Project.created_at:type_name -> google.protobuf.Timestamp
+	49, // 1: hyperlocalise.translation.v1.Project.updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 2: hyperlocalise.translation.v1.CreateProjectResponse.project:type_name -> hyperlocalise.translation.v1.Project
+	5,  // 3: hyperlocalise.translation.v1.GetProjectResponse.project:type_name -> hyperlocalise.translation.v1.Project
+	50, // 4: hyperlocalise.translation.v1.ListProjectsRequest.page:type_name -> hyperlocalise.common.v1.PageRequest
+	5,  // 5: hyperlocalise.translation.v1.ListProjectsResponse.projects:type_name -> hyperlocalise.translation.v1.Project
+	51, // 6: hyperlocalise.translation.v1.ListProjectsResponse.page:type_name -> hyperlocalise.common.v1.PageResponse
+	5,  // 7: hyperlocalise.translation.v1.UpdateProjectResponse.project:type_name -> hyperlocalise.translation.v1.Project
+	46, // 8: hyperlocalise.translation.v1.StringTranslationJobInput.metadata:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput.MetadataEntry
+	0,  // 9: hyperlocalise.translation.v1.FileTranslationJobInput.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
+	47, // 10: hyperlocalise.translation.v1.FileTranslationJobInput.metadata:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.MetadataEntry
+	18, // 11: hyperlocalise.translation.v1.StringTranslationJobResult.translations:type_name -> hyperlocalise.translation.v1.StringTranslation
+	19, // 12: hyperlocalise.translation.v1.FileTranslationJobResult.translations:type_name -> hyperlocalise.translation.v1.FileTranslation
+	0,  // 13: hyperlocalise.translation.v1.TranslationFile.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
+	49, // 14: hyperlocalise.translation.v1.TranslationFile.created_at:type_name -> google.protobuf.Timestamp
+	49, // 15: hyperlocalise.translation.v1.TranslationFile.updated_at:type_name -> google.protobuf.Timestamp
+	23, // 16: hyperlocalise.translation.v1.TranslationFile.variants:type_name -> hyperlocalise.translation.v1.TranslationFileVariant
+	49, // 17: hyperlocalise.translation.v1.TranslationFileVariant.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 18: hyperlocalise.translation.v1.TranslationFileTreeNode.type:type_name -> hyperlocalise.translation.v1.TranslationFileTreeNode.NodeType
+	22, // 19: hyperlocalise.translation.v1.TranslationFileTreeNode.file:type_name -> hyperlocalise.translation.v1.TranslationFile
+	0,  // 20: hyperlocalise.translation.v1.CreateTranslationFileUploadRequest.file_format:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput.FileFormat
+	49, // 21: hyperlocalise.translation.v1.CreateTranslationFileUploadResponse.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 22: hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse.file:type_name -> hyperlocalise.translation.v1.TranslationFile
+	22, // 23: hyperlocalise.translation.v1.GetTranslationFileResponse.file:type_name -> hyperlocalise.translation.v1.TranslationFile
+	24, // 24: hyperlocalise.translation.v1.ListTranslationFileTreeResponse.nodes:type_name -> hyperlocalise.translation.v1.TranslationFileTreeNode
+	49, // 25: hyperlocalise.translation.v1.GetTranslationFileDownloadResponse.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 26: hyperlocalise.translation.v1.TranslationJobError.code:type_name -> hyperlocalise.translation.v1.TranslationJobError.Code
+	48, // 27: hyperlocalise.translation.v1.TranslationJobError.details:type_name -> hyperlocalise.translation.v1.TranslationJobError.DetailsEntry
+	3,  // 28: hyperlocalise.translation.v1.TranslationJob.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
+	4,  // 29: hyperlocalise.translation.v1.TranslationJob.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
+	49, // 30: hyperlocalise.translation.v1.TranslationJob.created_at:type_name -> google.protobuf.Timestamp
+	49, // 31: hyperlocalise.translation.v1.TranslationJob.updated_at:type_name -> google.protobuf.Timestamp
+	49, // 32: hyperlocalise.translation.v1.TranslationJob.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 33: hyperlocalise.translation.v1.TranslationJob.string_input:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput
+	17, // 34: hyperlocalise.translation.v1.TranslationJob.file_input:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput
+	20, // 35: hyperlocalise.translation.v1.TranslationJob.string_result:type_name -> hyperlocalise.translation.v1.StringTranslationJobResult
+	21, // 36: hyperlocalise.translation.v1.TranslationJob.file_result:type_name -> hyperlocalise.translation.v1.FileTranslationJobResult
+	35, // 37: hyperlocalise.translation.v1.TranslationJob.error:type_name -> hyperlocalise.translation.v1.TranslationJobError
+	16, // 38: hyperlocalise.translation.v1.CreateTranslationJobRequest.string_input:type_name -> hyperlocalise.translation.v1.StringTranslationJobInput
+	17, // 39: hyperlocalise.translation.v1.CreateTranslationJobRequest.file_input:type_name -> hyperlocalise.translation.v1.FileTranslationJobInput
+	36, // 40: hyperlocalise.translation.v1.CreateTranslationJobResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJob
+	52, // 41: hyperlocalise.translation.v1.GetTranslationJobStatusRequest.translation_job:type_name -> hyperlocalise.common.v1.ResourceRef
+	52, // 42: hyperlocalise.translation.v1.GetTranslationJobRequest.translation_job:type_name -> hyperlocalise.common.v1.ResourceRef
+	3,  // 43: hyperlocalise.translation.v1.TranslationJobStatus.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
+	4,  // 44: hyperlocalise.translation.v1.TranslationJobStatus.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
+	49, // 45: hyperlocalise.translation.v1.TranslationJobStatus.created_at:type_name -> google.protobuf.Timestamp
+	49, // 46: hyperlocalise.translation.v1.TranslationJobStatus.updated_at:type_name -> google.protobuf.Timestamp
+	49, // 47: hyperlocalise.translation.v1.TranslationJobStatus.completed_at:type_name -> google.protobuf.Timestamp
+	35, // 48: hyperlocalise.translation.v1.TranslationJobStatus.error:type_name -> hyperlocalise.translation.v1.TranslationJobError
+	50, // 49: hyperlocalise.translation.v1.ListTranslationJobsRequest.page:type_name -> hyperlocalise.common.v1.PageRequest
+	3,  // 50: hyperlocalise.translation.v1.ListTranslationJobsRequest.type:type_name -> hyperlocalise.translation.v1.TranslationJob.Type
+	4,  // 51: hyperlocalise.translation.v1.ListTranslationJobsRequest.status:type_name -> hyperlocalise.translation.v1.TranslationJob.Status
+	36, // 52: hyperlocalise.translation.v1.ListTranslationJobsResponse.jobs:type_name -> hyperlocalise.translation.v1.TranslationJob
+	51, // 53: hyperlocalise.translation.v1.ListTranslationJobsResponse.page:type_name -> hyperlocalise.common.v1.PageResponse
+	41, // 54: hyperlocalise.translation.v1.GetTranslationJobStatusResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJobStatus
+	36, // 55: hyperlocalise.translation.v1.GetTranslationJobResponse.job:type_name -> hyperlocalise.translation.v1.TranslationJob
+	6,  // 56: hyperlocalise.translation.v1.TranslationService.CreateProject:input_type -> hyperlocalise.translation.v1.CreateProjectRequest
+	8,  // 57: hyperlocalise.translation.v1.TranslationService.GetProject:input_type -> hyperlocalise.translation.v1.GetProjectRequest
+	10, // 58: hyperlocalise.translation.v1.TranslationService.ListProjects:input_type -> hyperlocalise.translation.v1.ListProjectsRequest
+	12, // 59: hyperlocalise.translation.v1.TranslationService.UpdateProject:input_type -> hyperlocalise.translation.v1.UpdateProjectRequest
+	14, // 60: hyperlocalise.translation.v1.TranslationService.DeleteProject:input_type -> hyperlocalise.translation.v1.DeleteProjectRequest
+	37, // 61: hyperlocalise.translation.v1.TranslationService.CreateTranslationJob:input_type -> hyperlocalise.translation.v1.CreateTranslationJobRequest
+	25, // 62: hyperlocalise.translation.v1.TranslationService.CreateTranslationFileUpload:input_type -> hyperlocalise.translation.v1.CreateTranslationFileUploadRequest
+	27, // 63: hyperlocalise.translation.v1.TranslationService.FinalizeTranslationFileUpload:input_type -> hyperlocalise.translation.v1.FinalizeTranslationFileUploadRequest
+	29, // 64: hyperlocalise.translation.v1.TranslationService.GetTranslationFile:input_type -> hyperlocalise.translation.v1.GetTranslationFileRequest
+	31, // 65: hyperlocalise.translation.v1.TranslationService.ListTranslationFileTree:input_type -> hyperlocalise.translation.v1.ListTranslationFileTreeRequest
+	33, // 66: hyperlocalise.translation.v1.TranslationService.GetTranslationFileDownload:input_type -> hyperlocalise.translation.v1.GetTranslationFileDownloadRequest
+	40, // 67: hyperlocalise.translation.v1.TranslationService.GetTranslationJob:input_type -> hyperlocalise.translation.v1.GetTranslationJobRequest
+	39, // 68: hyperlocalise.translation.v1.TranslationService.GetTranslationJobStatus:input_type -> hyperlocalise.translation.v1.GetTranslationJobStatusRequest
+	42, // 69: hyperlocalise.translation.v1.TranslationService.ListTranslationJobs:input_type -> hyperlocalise.translation.v1.ListTranslationJobsRequest
+	7,  // 70: hyperlocalise.translation.v1.TranslationService.CreateProject:output_type -> hyperlocalise.translation.v1.CreateProjectResponse
+	9,  // 71: hyperlocalise.translation.v1.TranslationService.GetProject:output_type -> hyperlocalise.translation.v1.GetProjectResponse
+	11, // 72: hyperlocalise.translation.v1.TranslationService.ListProjects:output_type -> hyperlocalise.translation.v1.ListProjectsResponse
+	13, // 73: hyperlocalise.translation.v1.TranslationService.UpdateProject:output_type -> hyperlocalise.translation.v1.UpdateProjectResponse
+	15, // 74: hyperlocalise.translation.v1.TranslationService.DeleteProject:output_type -> hyperlocalise.translation.v1.DeleteProjectResponse
+	38, // 75: hyperlocalise.translation.v1.TranslationService.CreateTranslationJob:output_type -> hyperlocalise.translation.v1.CreateTranslationJobResponse
+	26, // 76: hyperlocalise.translation.v1.TranslationService.CreateTranslationFileUpload:output_type -> hyperlocalise.translation.v1.CreateTranslationFileUploadResponse
+	28, // 77: hyperlocalise.translation.v1.TranslationService.FinalizeTranslationFileUpload:output_type -> hyperlocalise.translation.v1.FinalizeTranslationFileUploadResponse
+	30, // 78: hyperlocalise.translation.v1.TranslationService.GetTranslationFile:output_type -> hyperlocalise.translation.v1.GetTranslationFileResponse
+	32, // 79: hyperlocalise.translation.v1.TranslationService.ListTranslationFileTree:output_type -> hyperlocalise.translation.v1.ListTranslationFileTreeResponse
+	34, // 80: hyperlocalise.translation.v1.TranslationService.GetTranslationFileDownload:output_type -> hyperlocalise.translation.v1.GetTranslationFileDownloadResponse
+	45, // 81: hyperlocalise.translation.v1.TranslationService.GetTranslationJob:output_type -> hyperlocalise.translation.v1.GetTranslationJobResponse
+	44, // 82: hyperlocalise.translation.v1.TranslationService.GetTranslationJobStatus:output_type -> hyperlocalise.translation.v1.GetTranslationJobStatusResponse
+	43, // 83: hyperlocalise.translation.v1.TranslationService.ListTranslationJobs:output_type -> hyperlocalise.translation.v1.ListTranslationJobsResponse
+	70, // [70:84] is the sub-list for method output_type
+	56, // [56:70] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_hyperlocalise_translation_v1_translation_proto_init() }
@@ -2623,16 +3232,19 @@ func file_hyperlocalise_translation_v1_translation_proto_init() {
 		return
 	}
 	file_hyperlocalise_translation_v1_translation_proto_msgTypes[0].OneofWrappers = []any{}
-	file_hyperlocalise_translation_v1_translation_proto_msgTypes[9].OneofWrappers = []any{}
-	file_hyperlocalise_translation_v1_translation_proto_msgTypes[17].OneofWrappers = []any{}
-	file_hyperlocalise_translation_v1_translation_proto_msgTypes[20].OneofWrappers = []any{
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[1].OneofWrappers = []any{}
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[7].OneofWrappers = []any{}
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[11].OneofWrappers = []any{}
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[20].OneofWrappers = []any{}
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[28].OneofWrappers = []any{}
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[31].OneofWrappers = []any{
 		(*TranslationJob_StringInput)(nil),
 		(*TranslationJob_FileInput)(nil),
 		(*TranslationJob_StringResult)(nil),
 		(*TranslationJob_FileResult)(nil),
 		(*TranslationJob_Error)(nil),
 	}
-	file_hyperlocalise_translation_v1_translation_proto_msgTypes[21].OneofWrappers = []any{
+	file_hyperlocalise_translation_v1_translation_proto_msgTypes[32].OneofWrappers = []any{
 		(*CreateTranslationJobRequest_StringInput)(nil),
 		(*CreateTranslationJobRequest_FileInput)(nil),
 	}
@@ -2642,7 +3254,7 @@ func file_hyperlocalise_translation_v1_translation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hyperlocalise_translation_v1_translation_proto_rawDesc), len(file_hyperlocalise_translation_v1_translation_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   33,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

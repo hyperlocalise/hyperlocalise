@@ -35,6 +35,18 @@ func (r *Repository) GetFileUpload(ctx context.Context, uploadID, projectID stri
 	return upload, nil
 }
 
+func (r *Repository) ListFileUploadsByProject(ctx context.Context, projectID string) ([]TranslationFileUploadModel, error) {
+	var uploads []TranslationFileUploadModel
+	if err := r.db.NewSelect().
+		Model((*TranslationFileUploadModel)(nil)).
+		Where("tfu.project_id = ?", projectID).
+		OrderExpr("tfu.created_at ASC").
+		Scan(ctx, &uploads); err != nil {
+		return nil, fmt.Errorf("list translation file uploads by project: %w", err)
+	}
+	return uploads, nil
+}
+
 func (r *Repository) FinalizeFileUpload(ctx context.Context, db bun.IDB, uploadID string, finalizedAt time.Time) error {
 	result, err := db.NewUpdate().
 		Model((*TranslationFileUploadModel)(nil)).

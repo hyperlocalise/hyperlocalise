@@ -49,3 +49,13 @@ func (s *MemoryStore) StatObject(_ context.Context, req StatRequest) (ObjectInfo
 	}
 	return ObjectInfo{SizeBytes: int64(len(body))}, nil
 }
+
+func (s *MemoryStore) DeleteObject(_ context.Context, req DeleteRequest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.objects[req.Object]; !ok {
+		return fmt.Errorf("%w: memory object not found", ErrObjectNotFound)
+	}
+	delete(s.objects, req.Object)
+	return nil
+}

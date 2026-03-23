@@ -2,7 +2,13 @@ load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "store",
-    srcs = ["models.go", "postgres.go", "repository.go"],
+    srcs = [
+        "files.go",
+        "models.go",
+        "postgres.go",
+        "projects.go",
+        "repository.go",
+    ],
     importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/store",
     visibility = ["//visibility:public"],
     deps = [
