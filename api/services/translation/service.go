@@ -7,6 +7,7 @@ import (
 
 	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
 	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	commonv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1"
 	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -69,6 +70,8 @@ func (s *Service) ListProjects(
 
 	response := &translationv1.ListProjectsResponse{
 		Projects: make([]*translationv1.Project, 0, len(projects)),
+		Page:     &commonv1.PageResponse{},
+		// TODO: Add cursor-based pagination once the storage contract is settled.
 	}
 	for idx := range projects {
 		response.Projects = append(response.Projects, projects[idx].ToProto())

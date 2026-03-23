@@ -132,14 +132,12 @@ func (s *s3Store) StatObject(ctx context.Context, req StatRequest) (ObjectInfo, 
 }
 
 func (s *s3Store) DeleteObject(ctx context.Context, req DeleteRequest) error {
+	// S3 DeleteObject is idempotent: deleting a missing key still succeeds.
 	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(req.Object.Bucket),
 		Key:    aws.String(req.Object.Key),
 	})
 	if err != nil {
-		if isS3NotFound(err) {
-			return fmt.Errorf("%w: delete S3 object: %v", ErrObjectNotFound, err)
-		}
 		return fmt.Errorf("translation object store: delete S3 object: %w", err)
 	}
 	return nil
