@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/uptrace/bun"
 )
 
-var ErrNotFound = errors.New("translation record not found")
+var (
+	ErrNotFound      = errors.New("translation record not found")
+	ErrAlreadyExists = errors.New("translation record already exists")
+)
 
 // Repository persists jobs and outbox records in Postgres via Bun.
 type Repository struct {
@@ -35,6 +39,17 @@ func NewRepository(db *bun.DB) *Repository {
 // DB exposes the Bun database handle for transaction orchestration.
 func (r *Repository) DB() *bun.DB {
 	return r.db
+}
+
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "unique failed")
 }
 
 // InsertJob creates a translation job row.

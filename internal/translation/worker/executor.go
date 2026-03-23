@@ -86,6 +86,7 @@ func (e *translatorExecutor) Translate(ctx context.Context, task TranslationTask
 		Model:          route.Model,
 		SystemPrompt:   e.config.SystemPrompt,
 		UserPrompt:     e.config.UserPrompt,
+		RuntimeContext: task.RuntimeContext,
 	})
 	if err != nil {
 		return "", route, err

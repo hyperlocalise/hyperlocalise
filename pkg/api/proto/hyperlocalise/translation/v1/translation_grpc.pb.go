@@ -24,6 +24,13 @@ const (
 	TranslationService_ListProjects_FullMethodName                  = "/hyperlocalise.translation.v1.TranslationService/ListProjects"
 	TranslationService_UpdateProject_FullMethodName                 = "/hyperlocalise.translation.v1.TranslationService/UpdateProject"
 	TranslationService_DeleteProject_FullMethodName                 = "/hyperlocalise.translation.v1.TranslationService/DeleteProject"
+	TranslationService_CreateGlossaryTerm_FullMethodName            = "/hyperlocalise.translation.v1.TranslationService/CreateGlossaryTerm"
+	TranslationService_GetGlossaryTerm_FullMethodName               = "/hyperlocalise.translation.v1.TranslationService/GetGlossaryTerm"
+	TranslationService_ListGlossaryTerms_FullMethodName             = "/hyperlocalise.translation.v1.TranslationService/ListGlossaryTerms"
+	TranslationService_UpdateGlossaryTerm_FullMethodName            = "/hyperlocalise.translation.v1.TranslationService/UpdateGlossaryTerm"
+	TranslationService_DeleteGlossaryTerm_FullMethodName            = "/hyperlocalise.translation.v1.TranslationService/DeleteGlossaryTerm"
+	TranslationService_BulkUpsertGlossaryTerms_FullMethodName       = "/hyperlocalise.translation.v1.TranslationService/BulkUpsertGlossaryTerms"
+	TranslationService_BulkDeleteGlossaryTerms_FullMethodName       = "/hyperlocalise.translation.v1.TranslationService/BulkDeleteGlossaryTerms"
 	TranslationService_CreateTranslationJob_FullMethodName          = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationJob"
 	TranslationService_CreateTranslationFileUpload_FullMethodName   = "/hyperlocalise.translation.v1.TranslationService/CreateTranslationFileUpload"
 	TranslationService_FinalizeTranslationFileUpload_FullMethodName = "/hyperlocalise.translation.v1.TranslationService/FinalizeTranslationFileUpload"
@@ -46,6 +53,13 @@ type TranslationServiceClient interface {
 	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
 	UpdateProject(ctx context.Context, in *UpdateProjectRequest, opts ...grpc.CallOption) (*UpdateProjectResponse, error)
 	DeleteProject(ctx context.Context, in *DeleteProjectRequest, opts ...grpc.CallOption) (*DeleteProjectResponse, error)
+	CreateGlossaryTerm(ctx context.Context, in *CreateGlossaryTermRequest, opts ...grpc.CallOption) (*CreateGlossaryTermResponse, error)
+	GetGlossaryTerm(ctx context.Context, in *GetGlossaryTermRequest, opts ...grpc.CallOption) (*GetGlossaryTermResponse, error)
+	ListGlossaryTerms(ctx context.Context, in *ListGlossaryTermsRequest, opts ...grpc.CallOption) (*ListGlossaryTermsResponse, error)
+	UpdateGlossaryTerm(ctx context.Context, in *UpdateGlossaryTermRequest, opts ...grpc.CallOption) (*UpdateGlossaryTermResponse, error)
+	DeleteGlossaryTerm(ctx context.Context, in *DeleteGlossaryTermRequest, opts ...grpc.CallOption) (*DeleteGlossaryTermResponse, error)
+	BulkUpsertGlossaryTerms(ctx context.Context, in *BulkUpsertGlossaryTermsRequest, opts ...grpc.CallOption) (*BulkUpsertGlossaryTermsResponse, error)
+	BulkDeleteGlossaryTerms(ctx context.Context, in *BulkDeleteGlossaryTermsRequest, opts ...grpc.CallOption) (*BulkDeleteGlossaryTermsResponse, error)
 	CreateTranslationJob(ctx context.Context, in *CreateTranslationJobRequest, opts ...grpc.CallOption) (*CreateTranslationJobResponse, error)
 	CreateTranslationFileUpload(ctx context.Context, in *CreateTranslationFileUploadRequest, opts ...grpc.CallOption) (*CreateTranslationFileUploadResponse, error)
 	FinalizeTranslationFileUpload(ctx context.Context, in *FinalizeTranslationFileUploadRequest, opts ...grpc.CallOption) (*FinalizeTranslationFileUploadResponse, error)
@@ -109,6 +123,76 @@ func (c *translationServiceClient) DeleteProject(ctx context.Context, in *Delete
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteProjectResponse)
 	err := c.cc.Invoke(ctx, TranslationService_DeleteProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) CreateGlossaryTerm(ctx context.Context, in *CreateGlossaryTermRequest, opts ...grpc.CallOption) (*CreateGlossaryTermResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateGlossaryTermResponse)
+	err := c.cc.Invoke(ctx, TranslationService_CreateGlossaryTerm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) GetGlossaryTerm(ctx context.Context, in *GetGlossaryTermRequest, opts ...grpc.CallOption) (*GetGlossaryTermResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetGlossaryTermResponse)
+	err := c.cc.Invoke(ctx, TranslationService_GetGlossaryTerm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) ListGlossaryTerms(ctx context.Context, in *ListGlossaryTermsRequest, opts ...grpc.CallOption) (*ListGlossaryTermsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListGlossaryTermsResponse)
+	err := c.cc.Invoke(ctx, TranslationService_ListGlossaryTerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) UpdateGlossaryTerm(ctx context.Context, in *UpdateGlossaryTermRequest, opts ...grpc.CallOption) (*UpdateGlossaryTermResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateGlossaryTermResponse)
+	err := c.cc.Invoke(ctx, TranslationService_UpdateGlossaryTerm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) DeleteGlossaryTerm(ctx context.Context, in *DeleteGlossaryTermRequest, opts ...grpc.CallOption) (*DeleteGlossaryTermResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteGlossaryTermResponse)
+	err := c.cc.Invoke(ctx, TranslationService_DeleteGlossaryTerm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) BulkUpsertGlossaryTerms(ctx context.Context, in *BulkUpsertGlossaryTermsRequest, opts ...grpc.CallOption) (*BulkUpsertGlossaryTermsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkUpsertGlossaryTermsResponse)
+	err := c.cc.Invoke(ctx, TranslationService_BulkUpsertGlossaryTerms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *translationServiceClient) BulkDeleteGlossaryTerms(ctx context.Context, in *BulkDeleteGlossaryTermsRequest, opts ...grpc.CallOption) (*BulkDeleteGlossaryTermsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BulkDeleteGlossaryTermsResponse)
+	err := c.cc.Invoke(ctx, TranslationService_BulkDeleteGlossaryTerms_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +300,13 @@ type TranslationServiceServer interface {
 	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
 	UpdateProject(context.Context, *UpdateProjectRequest) (*UpdateProjectResponse, error)
 	DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error)
+	CreateGlossaryTerm(context.Context, *CreateGlossaryTermRequest) (*CreateGlossaryTermResponse, error)
+	GetGlossaryTerm(context.Context, *GetGlossaryTermRequest) (*GetGlossaryTermResponse, error)
+	ListGlossaryTerms(context.Context, *ListGlossaryTermsRequest) (*ListGlossaryTermsResponse, error)
+	UpdateGlossaryTerm(context.Context, *UpdateGlossaryTermRequest) (*UpdateGlossaryTermResponse, error)
+	DeleteGlossaryTerm(context.Context, *DeleteGlossaryTermRequest) (*DeleteGlossaryTermResponse, error)
+	BulkUpsertGlossaryTerms(context.Context, *BulkUpsertGlossaryTermsRequest) (*BulkUpsertGlossaryTermsResponse, error)
+	BulkDeleteGlossaryTerms(context.Context, *BulkDeleteGlossaryTermsRequest) (*BulkDeleteGlossaryTermsResponse, error)
 	CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error)
 	CreateTranslationFileUpload(context.Context, *CreateTranslationFileUploadRequest) (*CreateTranslationFileUploadResponse, error)
 	FinalizeTranslationFileUpload(context.Context, *FinalizeTranslationFileUploadRequest) (*FinalizeTranslationFileUploadResponse, error)
@@ -249,6 +340,27 @@ func (UnimplementedTranslationServiceServer) UpdateProject(context.Context, *Upd
 }
 func (UnimplementedTranslationServiceServer) DeleteProject(context.Context, *DeleteProjectRequest) (*DeleteProjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
+}
+func (UnimplementedTranslationServiceServer) CreateGlossaryTerm(context.Context, *CreateGlossaryTermRequest) (*CreateGlossaryTermResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateGlossaryTerm not implemented")
+}
+func (UnimplementedTranslationServiceServer) GetGlossaryTerm(context.Context, *GetGlossaryTermRequest) (*GetGlossaryTermResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetGlossaryTerm not implemented")
+}
+func (UnimplementedTranslationServiceServer) ListGlossaryTerms(context.Context, *ListGlossaryTermsRequest) (*ListGlossaryTermsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListGlossaryTerms not implemented")
+}
+func (UnimplementedTranslationServiceServer) UpdateGlossaryTerm(context.Context, *UpdateGlossaryTermRequest) (*UpdateGlossaryTermResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateGlossaryTerm not implemented")
+}
+func (UnimplementedTranslationServiceServer) DeleteGlossaryTerm(context.Context, *DeleteGlossaryTermRequest) (*DeleteGlossaryTermResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteGlossaryTerm not implemented")
+}
+func (UnimplementedTranslationServiceServer) BulkUpsertGlossaryTerms(context.Context, *BulkUpsertGlossaryTermsRequest) (*BulkUpsertGlossaryTermsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BulkUpsertGlossaryTerms not implemented")
+}
+func (UnimplementedTranslationServiceServer) BulkDeleteGlossaryTerms(context.Context, *BulkDeleteGlossaryTermsRequest) (*BulkDeleteGlossaryTermsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BulkDeleteGlossaryTerms not implemented")
 }
 func (UnimplementedTranslationServiceServer) CreateTranslationJob(context.Context, *CreateTranslationJobRequest) (*CreateTranslationJobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateTranslationJob not implemented")
@@ -384,6 +496,132 @@ func _TranslationService_DeleteProject_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(TranslationServiceServer).DeleteProject(ctx, req.(*DeleteProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_CreateGlossaryTerm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateGlossaryTermRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).CreateGlossaryTerm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_CreateGlossaryTerm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).CreateGlossaryTerm(ctx, req.(*CreateGlossaryTermRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_GetGlossaryTerm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetGlossaryTermRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).GetGlossaryTerm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_GetGlossaryTerm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).GetGlossaryTerm(ctx, req.(*GetGlossaryTermRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_ListGlossaryTerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListGlossaryTermsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).ListGlossaryTerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_ListGlossaryTerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).ListGlossaryTerms(ctx, req.(*ListGlossaryTermsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_UpdateGlossaryTerm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateGlossaryTermRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).UpdateGlossaryTerm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_UpdateGlossaryTerm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).UpdateGlossaryTerm(ctx, req.(*UpdateGlossaryTermRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_DeleteGlossaryTerm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteGlossaryTermRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).DeleteGlossaryTerm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_DeleteGlossaryTerm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).DeleteGlossaryTerm(ctx, req.(*DeleteGlossaryTermRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_BulkUpsertGlossaryTerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkUpsertGlossaryTermsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).BulkUpsertGlossaryTerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_BulkUpsertGlossaryTerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).BulkUpsertGlossaryTerms(ctx, req.(*BulkUpsertGlossaryTermsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TranslationService_BulkDeleteGlossaryTerms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BulkDeleteGlossaryTermsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TranslationServiceServer).BulkDeleteGlossaryTerms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TranslationService_BulkDeleteGlossaryTerms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TranslationServiceServer).BulkDeleteGlossaryTerms(ctx, req.(*BulkDeleteGlossaryTermsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -576,6 +814,34 @@ var TranslationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteProject",
 			Handler:    _TranslationService_DeleteProject_Handler,
+		},
+		{
+			MethodName: "CreateGlossaryTerm",
+			Handler:    _TranslationService_CreateGlossaryTerm_Handler,
+		},
+		{
+			MethodName: "GetGlossaryTerm",
+			Handler:    _TranslationService_GetGlossaryTerm_Handler,
+		},
+		{
+			MethodName: "ListGlossaryTerms",
+			Handler:    _TranslationService_ListGlossaryTerms_Handler,
+		},
+		{
+			MethodName: "UpdateGlossaryTerm",
+			Handler:    _TranslationService_UpdateGlossaryTerm_Handler,
+		},
+		{
+			MethodName: "DeleteGlossaryTerm",
+			Handler:    _TranslationService_DeleteGlossaryTerm_Handler,
+		},
+		{
+			MethodName: "BulkUpsertGlossaryTerms",
+			Handler:    _TranslationService_BulkUpsertGlossaryTerms_Handler,
+		},
+		{
+			MethodName: "BulkDeleteGlossaryTerms",
+			Handler:    _TranslationService_BulkDeleteGlossaryTerms_Handler,
 		},
 		{
 			MethodName: "CreateTranslationJob",

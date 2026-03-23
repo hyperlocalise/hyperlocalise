@@ -34,6 +34,29 @@ type ProjectRecord struct {
 	UpdatedAt          time.Time
 }
 
+type GlossaryTermRecord struct {
+	ID           string
+	ProjectID    string
+	SourceLocale string
+	TargetLocale string
+	SourceTerm   string
+	TargetTerm   string
+	Description  string
+	PartOfSpeech string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type GlossaryTermListCursor struct {
+	UpdatedAt time.Time
+	ID        string
+}
+
+type GlossaryTermListPage struct {
+	Terms      []GlossaryTermRecord
+	NextCursor *GlossaryTermListCursor
+}
+
 // JobRecord is the application view of a translation job.
 type JobRecord struct {
 	ID             string
@@ -294,6 +317,26 @@ func (r ProjectRecord) ToProto() *translationv1.Project {
 	}
 
 	return project
+}
+
+func (r GlossaryTermRecord) ToProto() *translationv1.GlossaryTerm {
+	term := &translationv1.GlossaryTerm{
+		Id:           r.ID,
+		ProjectId:    r.ProjectID,
+		SourceLocale: r.SourceLocale,
+		TargetLocale: r.TargetLocale,
+		SourceTerm:   r.SourceTerm,
+		TargetTerm:   r.TargetTerm,
+		CreatedAt:    timestamppb.New(r.CreatedAt),
+		UpdatedAt:    timestamppb.New(r.UpdatedAt),
+	}
+	if r.Description != "" {
+		term.Description = &r.Description
+	}
+	if r.PartOfSpeech != "" {
+		term.PartOfSpeech = &r.PartOfSpeech
+	}
+	return term
 }
 
 func (r FileRecord) ToProto() *translationv1.TranslationFile {

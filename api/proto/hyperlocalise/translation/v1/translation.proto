@@ -60,6 +60,98 @@ message DeleteProjectRequest {
 
 message DeleteProjectResponse {}
 
+message GlossaryTerm {
+  string id = 1;
+  string project_id = 2;
+  string source_locale = 3;
+  string target_locale = 4;
+  string source_term = 5;
+  string target_term = 6;
+  optional string description = 7;
+  optional string part_of_speech = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message GlossaryTermInput {
+  string source_locale = 1;
+  string target_locale = 2;
+  string source_term = 3;
+  string target_term = 4;
+  optional string description = 5;
+  optional string part_of_speech = 6;
+}
+
+message CreateGlossaryTermRequest {
+  string project_id = 1;
+  GlossaryTermInput term = 2;
+}
+
+message CreateGlossaryTermResponse {
+  GlossaryTerm term = 1;
+}
+
+message GetGlossaryTermRequest {
+  string project_id = 1;
+  string id = 2;
+}
+
+message GetGlossaryTermResponse {
+  GlossaryTerm term = 1;
+}
+
+message ListGlossaryTermsRequest {
+  string project_id = 1;
+  optional string source_locale = 2;
+  optional string target_locale = 3;
+  hyperlocalise.common.v1.PageRequest page = 4;
+}
+
+message ListGlossaryTermsResponse {
+  repeated GlossaryTerm terms = 1;
+  hyperlocalise.common.v1.PageResponse page = 2;
+}
+
+message UpdateGlossaryTermRequest {
+  string project_id = 1;
+  string id = 2;
+  optional string source_locale = 3;
+  optional string target_locale = 4;
+  optional string source_term = 5;
+  optional string target_term = 6;
+  optional string description = 7;
+  optional string part_of_speech = 8;
+}
+
+message UpdateGlossaryTermResponse {
+  GlossaryTerm term = 1;
+}
+
+message DeleteGlossaryTermRequest {
+  string project_id = 1;
+  string id = 2;
+}
+
+message DeleteGlossaryTermResponse {}
+
+message BulkUpsertGlossaryTermsRequest {
+  string project_id = 1;
+  repeated GlossaryTermInput terms = 2;
+}
+
+message BulkUpsertGlossaryTermsResponse {
+  repeated GlossaryTerm terms = 1;
+}
+
+message BulkDeleteGlossaryTermsRequest {
+  string project_id = 1;
+  repeated string ids = 2;
+}
+
+message BulkDeleteGlossaryTermsResponse {
+  repeated string deleted_ids = 1;
+}
+
 // Input for a translation job that translates in-memory text.
 message StringTranslationJobInput {
   string source_text = 1;
@@ -327,6 +419,13 @@ service TranslationService {
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
   rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse);
   rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+  rpc CreateGlossaryTerm(CreateGlossaryTermRequest) returns (CreateGlossaryTermResponse);
+  rpc GetGlossaryTerm(GetGlossaryTermRequest) returns (GetGlossaryTermResponse);
+  rpc ListGlossaryTerms(ListGlossaryTermsRequest) returns (ListGlossaryTermsResponse);
+  rpc UpdateGlossaryTerm(UpdateGlossaryTermRequest) returns (UpdateGlossaryTermResponse);
+  rpc DeleteGlossaryTerm(DeleteGlossaryTermRequest) returns (DeleteGlossaryTermResponse);
+  rpc BulkUpsertGlossaryTerms(BulkUpsertGlossaryTermsRequest) returns (BulkUpsertGlossaryTermsResponse);
+  rpc BulkDeleteGlossaryTerms(BulkDeleteGlossaryTermsRequest) returns (BulkDeleteGlossaryTermsResponse);
   rpc CreateTranslationJob(CreateTranslationJobRequest) returns (CreateTranslationJobResponse);
   rpc CreateTranslationFileUpload(CreateTranslationFileUploadRequest) returns (CreateTranslationFileUploadResponse);
   rpc FinalizeTranslationFileUpload(FinalizeTranslationFileUploadRequest) returns (FinalizeTranslationFileUploadResponse);
