@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS translation_projects (
   id text PRIMARY KEY,
   name text NOT NULL,
   description text NOT NULL DEFAULT '',
+  translation_context text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL
 );

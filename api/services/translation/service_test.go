@@ -149,6 +149,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
 			description TEXT NOT NULL,
+			translation_context TEXT NOT NULL,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		)`,

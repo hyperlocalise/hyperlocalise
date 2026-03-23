@@ -61,11 +61,12 @@ func (s *Service) CreateProject(
 	}
 
 	project := &store.TranslationProjectModel{
-		ID:          projectID,
-		Name:        name,
-		Description: strings.TrimSpace(request.GetDescription()),
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:                 projectID,
+		Name:               name,
+		Description:        strings.TrimSpace(request.GetDescription()),
+		TranslationContext: strings.TrimSpace(request.GetTranslationContext()),
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
 	if err := s.repository.InsertProject(ctx, s.repository.DB(), project); err != nil {
 		return nil, err
@@ -120,11 +121,17 @@ func (s *Service) UpdateProject(
 		description = &trimmed
 	}
 
-	if name == nil && description == nil {
+	var translationContext *string
+	if request.TranslationContext != nil {
+		trimmed := strings.TrimSpace(request.GetTranslationContext())
+		translationContext = &trimmed
+	}
+
+	if name == nil && description == nil && translationContext == nil {
 		return nil, fmt.Errorf("%w: at least one field must be updated", ErrInvalidArgument)
 	}
 
-	project, err := s.repository.UpdateProject(ctx, request.GetId(), name, description, s.clock())
+	project, err := s.repository.UpdateProject(ctx, request.GetId(), name, description, translationContext, s.clock())
 	if err != nil {
 		return nil, err
 	}
@@ -690,11 +697,12 @@ func modelToProjectRecord(model *store.TranslationProjectModel) *ProjectRecord {
 	}
 
 	return &ProjectRecord{
-		ID:          model.ID,
-		Name:        model.Name,
-		Description: model.Description,
-		CreatedAt:   model.CreatedAt,
-		UpdatedAt:   model.UpdatedAt,
+		ID:                 model.ID,
+		Name:               model.Name,
+		Description:        model.Description,
+		TranslationContext: model.TranslationContext,
+		CreatedAt:          model.CreatedAt,
+		UpdatedAt:          model.UpdatedAt,
 	}
 }
 

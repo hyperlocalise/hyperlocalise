@@ -58,6 +58,7 @@ func (r *Repository) UpdateProject(
 	projectID string,
 	name *string,
 	description *string,
+	translationContext *string,
 	updatedAt time.Time,
 ) (*TranslationProjectModel, error) {
 	update := r.db.NewUpdate().
@@ -70,6 +71,9 @@ func (r *Repository) UpdateProject(
 	}
 	if description != nil {
 		update = update.Set("description = ?", *description)
+	}
+	if translationContext != nil {
+		update = update.Set("translation_context = ?", *translationContext)
 	}
 
 	result, err := update.Exec(ctx)

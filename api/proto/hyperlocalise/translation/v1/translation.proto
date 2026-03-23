@@ -11,13 +11,15 @@ message Project {
   string id = 1;
   string name = 2;
   optional string description = 3;
-  google.protobuf.Timestamp created_at = 4;
-  google.protobuf.Timestamp updated_at = 5;
+  optional string translation_context = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
 }
 
 message CreateProjectRequest {
   string name = 1;
   optional string description = 2;
+  optional string translation_context = 3;
 }
 
 message CreateProjectResponse {
@@ -45,6 +47,7 @@ message UpdateProjectRequest {
   string id = 1;
   optional string name = 2;
   optional string description = 3;
+  optional string translation_context = 4;
 }
 
 message UpdateProjectResponse {
