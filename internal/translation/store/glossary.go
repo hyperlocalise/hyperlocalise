@@ -311,37 +311,8 @@ func (r *Repository) SearchGlossaryTerms(ctx context.Context, params GlossarySea
 	return terms, nil
 }
 
-func buildGlossaryTSQuery(raw string) string {
+func extractGlossaryLexemes(raw string) []string {
 	matches := glossaryLexemePattern.FindAllString(strings.ToLower(strings.TrimSpace(raw)), -1)
-	if len(matches) == 0 {
-		return ""
-	}
-
-	seen := make(map[string]struct{}, len(matches))
-	terms := make([]string, 0, len(matches))
-	for _, match := range matches {
-		if len(match) < 2 {
-			continue
-		}
-		if _, ok := seen[match]; ok {
-			continue
-		}
-		seen[match] = struct{}{}
-		terms = append(terms, match)
-	}
-	if len(terms) == 0 {
-		return ""
-	}
-
-	return strings.Join(terms, " | ")
-}
-
-func glossaryLexemes(raw string) []string {
-	matches := glossaryLexemePattern.FindAllString(strings.ToLower(strings.TrimSpace(raw)), -1)
-	if len(matches) == 0 {
-		return nil
-	}
-
 	seen := make(map[string]struct{}, len(matches))
 	terms := make([]string, 0, len(matches))
 	for _, match := range matches {
@@ -355,6 +326,18 @@ func glossaryLexemes(raw string) []string {
 		terms = append(terms, match)
 	}
 	return terms
+}
+
+func buildGlossaryTSQuery(raw string) string {
+	terms := extractGlossaryLexemes(raw)
+	if len(terms) == 0 {
+		return ""
+	}
+	return strings.Join(terms, " | ")
+}
+
+func glossaryLexemes(raw string) []string {
+	return extractGlossaryLexemes(raw)
 }
 
 func RankGlossaryTerms(terms []TranslationGlossaryTermModel, query string, limit int) []TranslationGlossaryTermModel {
