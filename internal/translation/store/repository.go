@@ -11,8 +11,10 @@ import (
 	"github.com/uptrace/bun"
 )
 
-var ErrNotFound = errors.New("translation record not found")
-var ErrAlreadyExists = errors.New("translation record already exists")
+var (
+	ErrNotFound      = errors.New("translation record not found")
+	ErrAlreadyExists = errors.New("translation record already exists")
+)
 
 // Repository persists jobs and outbox records in Postgres via Bun.
 type Repository struct {

@@ -49,6 +49,14 @@ func (r *fakeRepository) GetOutboxEvent(_ context.Context, eventID string) (*sto
 	return &copy, nil
 }
 
+func (r *fakeRepository) ListGlossaryTerms(_ context.Context, _ store.GlossaryListParams) ([]store.TranslationGlossaryTermModel, error) {
+	return nil, nil
+}
+
+func (r *fakeRepository) SearchGlossaryTerms(_ context.Context, _ store.GlossarySearchParams) ([]store.TranslationGlossaryTermModel, error) {
+	return nil, nil
+}
+
 func (r *fakeRepository) GetJob(_ context.Context, jobID, projectID string) (*store.TranslationJobModel, error) {
 	return &store.TranslationJobModel{
 		ID:        jobID,

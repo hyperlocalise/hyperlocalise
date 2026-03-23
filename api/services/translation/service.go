@@ -25,8 +25,10 @@ type Service struct {
 }
 
 // listJobsCursorVersion tracks the current opaque page token schema.
-const listJobsCursorVersion = 1
-const listGlossaryTermsCursorVersion = 1
+const (
+	listJobsCursorVersion          = 1
+	listGlossaryTermsCursorVersion = 1
+)
 
 type listJobsPageToken struct {
 	Version   int32  `json:"v"`
