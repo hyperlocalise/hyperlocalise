@@ -47,6 +47,16 @@ type GlossaryTermRecord struct {
 	UpdatedAt    time.Time
 }
 
+type GlossaryTermListCursor struct {
+	UpdatedAt time.Time
+	ID        string
+}
+
+type GlossaryTermListPage struct {
+	Terms      []GlossaryTermRecord
+	NextCursor *GlossaryTermListCursor
+}
+
 // JobRecord is the application view of a translation job.
 type JobRecord struct {
 	ID             string

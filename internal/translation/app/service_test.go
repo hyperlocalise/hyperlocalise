@@ -361,12 +361,12 @@ func TestGlossaryTermCRUDAndBulkOperations(t *testing.T) {
 		t.Fatalf("unexpected target term: %q", got.TargetTerm)
 	}
 
-	listed, err := service.ListGlossaryTerms(context.Background(), projectID, "en", "fr", 50)
+	listed, err := service.ListGlossaryTerms(context.Background(), projectID, "en", "fr", 50, nil)
 	if err != nil {
 		t.Fatalf("ListGlossaryTerms returned error: %v", err)
 	}
-	if len(listed) != 1 {
-		t.Fatalf("expected 1 listed term, got %d", len(listed))
+	if len(listed.Terms) != 1 {
+		t.Fatalf("expected 1 listed term, got %d", len(listed.Terms))
 	}
 
 	updated, err := service.UpdateGlossaryTerm(context.Background(), &translationv1.UpdateGlossaryTermRequest{

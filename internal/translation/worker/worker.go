@@ -29,6 +29,7 @@ var ErrEventAlreadyHandled = errors.New("translation event already handled")
 type JobRepository interface {
 	GetJob(ctx context.Context, jobID, projectID string) (*store.TranslationJobModel, error)
 	GetOutboxEvent(ctx context.Context, eventID string) (*store.OutboxEventModel, error)
+	ListGlossaryTerms(ctx context.Context, params store.GlossaryListParams) ([]store.TranslationGlossaryTermModel, error)
 	SearchGlossaryTerms(ctx context.Context, params store.GlossarySearchParams) ([]store.TranslationGlossaryTermModel, error)
 	MarkJobRunning(ctx context.Context, jobID string) error
 	PersistJobTerminal(ctx context.Context, jobID string, newStatus string, outcomeKind string, outcomePayload []byte, completedAt time.Time) error
@@ -317,8 +318,12 @@ func (p *Processor) buildGlossaryRuntimeContext(ctx context.Context, task Transl
 	if err != nil {
 		return "", err
 	}
+	return buildGlossaryRuntimeContextFromTerms(terms), nil
+}
+
+func buildGlossaryRuntimeContextFromTerms(terms []store.TranslationGlossaryTermModel) string {
 	if len(terms) == 0 {
-		return "", nil
+		return ""
 	}
 
 	lines := make([]string, 0, len(terms))
@@ -333,7 +338,7 @@ func (p *Processor) buildGlossaryRuntimeContext(ctx context.Context, task Transl
 		lines = append(lines, line)
 	}
 
-	return "Glossary terms:\n" + strings.Join(lines, "\n"), nil
+	return "Glossary terms:\n" + strings.Join(lines, "\n")
 }
 
 func (p *Processor) handleExecutionError(ctx context.Context, job *store.TranslationJobModel, payload translationapp.JobQueuedPayload, execErr error) error {

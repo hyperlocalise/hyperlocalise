@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +30,16 @@ type GlossaryListParams struct {
 	SourceLocale string
 	TargetLocale string
 	Limit        int
+}
+
+type GlossaryListCursor struct {
+	UpdatedAt time.Time
+	ID        string
+}
+
+type GlossaryListPage struct {
+	Terms      []TranslationGlossaryTermModel
+	NextCursor *GlossaryListCursor
 }
 
 type GlossaryTermInput struct {
@@ -68,6 +79,18 @@ func (r *Repository) GetGlossaryTerm(ctx context.Context, projectID, id string) 
 }
 
 func (r *Repository) ListGlossaryTerms(ctx context.Context, params GlossaryListParams) ([]TranslationGlossaryTermModel, error) {
+	page, err := r.ListGlossaryTermsPage(ctx, params, nil)
+	if err != nil {
+		return nil, err
+	}
+	return page.Terms, nil
+}
+
+func (r *Repository) ListGlossaryTermsPage(
+	ctx context.Context,
+	params GlossaryListParams,
+	cursor *GlossaryListCursor,
+) (*GlossaryListPage, error) {
 	limit := params.Limit
 	if limit <= 0 {
 		limit = 50
@@ -78,19 +101,37 @@ func (r *Repository) ListGlossaryTerms(ctx context.Context, params GlossaryListP
 		Where("tgt.project_id = ?", strings.TrimSpace(params.ProjectID)).
 		OrderExpr("tgt.updated_at DESC").
 		OrderExpr("tgt.id DESC").
-		Limit(limit)
+		Limit(limit + 1)
 	if strings.TrimSpace(params.SourceLocale) != "" {
 		query = query.Where("tgt.source_locale = ?", strings.TrimSpace(params.SourceLocale))
 	}
 	if strings.TrimSpace(params.TargetLocale) != "" {
 		query = query.Where("tgt.target_locale = ?", strings.TrimSpace(params.TargetLocale))
 	}
+	if cursor != nil {
+		query = query.Where(
+			"(tgt.updated_at < ? OR (tgt.updated_at = ? AND tgt.id < ?))",
+			cursor.UpdatedAt,
+			cursor.UpdatedAt,
+			cursor.ID,
+		)
+	}
 
 	var terms []TranslationGlossaryTermModel
 	if err := query.Scan(ctx, &terms); err != nil {
 		return nil, fmt.Errorf("list translation glossary terms: %w", err)
 	}
-	return terms, nil
+
+	page := &GlossaryListPage{Terms: terms}
+	if len(terms) > limit {
+		last := terms[limit-1]
+		page.NextCursor = &GlossaryListCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}
+		page.Terms = terms[:limit]
+	}
+	if page.Terms == nil {
+		page.Terms = []TranslationGlossaryTermModel{}
+	}
+	return page, nil
 }
 
 func (r *Repository) UpdateGlossaryTerm(
@@ -192,35 +233,33 @@ func (r *Repository) BulkUpsertGlossaryTerms(
 		})
 	}
 
-	if _, err := db.NewInsert().
+	if err := db.NewInsert().
 		Model(&models).
 		On("CONFLICT (project_id, source_locale, target_locale, source_term) DO UPDATE").
 		Set("target_term = EXCLUDED.target_term").
 		Set("description = EXCLUDED.description").
 		Set("part_of_speech = EXCLUDED.part_of_speech").
 		Set("updated_at = EXCLUDED.updated_at").
-		Exec(ctx); err != nil {
+		Returning("*").
+		Scan(ctx, &models); err != nil {
 		return nil, fmt.Errorf("bulk upsert translation glossary terms: %w", err)
 	}
 
-	var terms []TranslationGlossaryTermModel
-	for _, input := range inputs {
-		term := TranslationGlossaryTermModel{}
-		err := db.NewSelect().
-			Model(&term).
-			Where("tgt.project_id = ?", projectID).
-			Where("tgt.source_locale = ?", input.SourceLocale).
-			Where("tgt.target_locale = ?", input.TargetLocale).
-			Where("tgt.source_term = ?", input.SourceTerm).
-			Limit(1).
-			Scan(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("select upserted translation glossary term: %w", err)
-		}
-		terms = append(terms, term)
+	byNaturalKey := make(map[string]TranslationGlossaryTermModel, len(models))
+	for _, model := range models {
+		byNaturalKey[glossaryNaturalKey(model.SourceLocale, model.TargetLocale, model.SourceTerm)] = model
 	}
 
-	return terms, nil
+	ordered := make([]TranslationGlossaryTermModel, 0, len(inputs))
+	for _, input := range inputs {
+		model, ok := byNaturalKey[glossaryNaturalKey(input.SourceLocale, input.TargetLocale, input.SourceTerm)]
+		if !ok {
+			return nil, fmt.Errorf("bulk upsert translation glossary terms: missing returned row for %s/%s/%s", input.SourceLocale, input.TargetLocale, input.SourceTerm)
+		}
+		ordered = append(ordered, model)
+	}
+
+	return ordered, nil
 }
 
 func (r *Repository) BulkDeleteGlossaryTerms(ctx context.Context, db bun.IDB, projectID string, ids []string) ([]string, error) {
@@ -295,6 +334,90 @@ func buildGlossaryTSQuery(raw string) string {
 	}
 
 	return strings.Join(terms, " | ")
+}
+
+func glossaryLexemes(raw string) []string {
+	matches := glossaryLexemePattern.FindAllString(strings.ToLower(strings.TrimSpace(raw)), -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(matches))
+	terms := make([]string, 0, len(matches))
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		if _, ok := seen[match]; ok {
+			continue
+		}
+		seen[match] = struct{}{}
+		terms = append(terms, match)
+	}
+	return terms
+}
+
+func RankGlossaryTerms(terms []TranslationGlossaryTermModel, query string, limit int) []TranslationGlossaryTermModel {
+	queryText := strings.ToLower(strings.TrimSpace(query))
+	queryLexemes := glossaryLexemes(query)
+	if queryText == "" || len(queryLexemes) == 0 || len(terms) == 0 {
+		return nil
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+
+	type scoredTerm struct {
+		term          TranslationGlossaryTermModel
+		phraseMatch   bool
+		lexemeMatches int
+	}
+
+	scored := make([]scoredTerm, 0, len(terms))
+	for _, term := range terms {
+		sourceTerm := strings.ToLower(strings.TrimSpace(term.SourceTerm))
+		if sourceTerm == "" {
+			continue
+		}
+
+		phraseMatch := strings.Contains(queryText, sourceTerm)
+		lexemeMatches := 0
+		for _, lexeme := range queryLexemes {
+			if strings.Contains(sourceTerm, lexeme) {
+				lexemeMatches++
+			}
+		}
+		if !phraseMatch && lexemeMatches == 0 {
+			continue
+		}
+		scored = append(scored, scoredTerm{term: term, phraseMatch: phraseMatch, lexemeMatches: lexemeMatches})
+	}
+
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].phraseMatch != scored[j].phraseMatch {
+			return scored[i].phraseMatch
+		}
+		if scored[i].lexemeMatches != scored[j].lexemeMatches {
+			return scored[i].lexemeMatches > scored[j].lexemeMatches
+		}
+		if len(scored[i].term.SourceTerm) != len(scored[j].term.SourceTerm) {
+			return len(scored[i].term.SourceTerm) > len(scored[j].term.SourceTerm)
+		}
+		return scored[i].term.SourceTerm < scored[j].term.SourceTerm
+	})
+
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+	out := make([]TranslationGlossaryTermModel, 0, len(scored))
+	for _, item := range scored {
+		out = append(out, item.term)
+	}
+	return out
+}
+
+func glossaryNaturalKey(sourceLocale, targetLocale, sourceTerm string) string {
+	return sourceLocale + "\x00" + targetLocale + "\x00" + sourceTerm
 }
 
 func newGlossaryTermID() (string, error) {

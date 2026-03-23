@@ -93,6 +93,29 @@ func (r *fakeRepository) SearchGlossaryTerms(_ context.Context, params store.Glo
 	return terms, nil
 }
 
+func (r *fakeRepository) ListGlossaryTerms(_ context.Context, params store.GlossaryListParams) ([]store.TranslationGlossaryTermModel, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	terms := make([]store.TranslationGlossaryTermModel, 0, len(r.glossary))
+	for _, term := range r.glossary {
+		if term.ProjectID != params.ProjectID {
+			continue
+		}
+		if params.SourceLocale != "" && term.SourceLocale != params.SourceLocale {
+			continue
+		}
+		if params.TargetLocale != "" && term.TargetLocale != params.TargetLocale {
+			continue
+		}
+		terms = append(terms, term)
+	}
+	if params.Limit > 0 && len(terms) > params.Limit {
+		terms = terms[:params.Limit]
+	}
+	return terms, nil
+}
+
 func (r *fakeRepository) MarkJobRunning(_ context.Context, jobID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

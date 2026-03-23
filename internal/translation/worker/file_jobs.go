@@ -152,6 +152,16 @@ func (p *Processor) translateFileEntries(
 	sort.Strings(keys)
 
 	out := make(map[string]string, len(sourceEntries))
+	glossaryTerms, err := p.repository.ListGlossaryTerms(ctx, store.GlossaryListParams{
+		ProjectID:    projectID,
+		SourceLocale: input.GetSourceLocale(),
+		TargetLocale: targetLocale,
+		Limit:        10000,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load glossary terms for %s->%s: %w", input.GetSourceLocale(), targetLocale, err)
+	}
+
 	for _, key := range keys {
 		metadata := cloneMetadata(input.GetMetadata())
 		metadata["file_entry_key"] = key
@@ -165,11 +175,7 @@ func (p *Processor) translateFileEntries(
 			TargetLocale: targetLocale,
 			Metadata:     metadata,
 		}
-		runtimeContext, runtimeErr := p.buildGlossaryRuntimeContext(ctx, task)
-		if runtimeErr != nil {
-			return nil, fmt.Errorf("load glossary context for entry %q: %w", key, runtimeErr)
-		}
-		task.RuntimeContext = runtimeContext
+		task.RuntimeContext = buildGlossaryRuntimeContextFromTerms(store.RankGlossaryTerms(glossaryTerms, task.SourceText, p.glossaryTopK))
 		text, route, err := p.executor.Translate(ctx, task)
 		if err != nil {
 			return nil, fmt.Errorf("entry %q with route %s/%s: %w", key, route.Provider, route.Model, err)

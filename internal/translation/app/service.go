@@ -210,24 +210,37 @@ func (s *Service) GetGlossaryTerm(ctx context.Context, projectID, id string) (*G
 	return modelToGlossaryTermRecord(term), nil
 }
 
-func (s *Service) ListGlossaryTerms(ctx context.Context, projectID, sourceLocale, targetLocale string, pageSize int32) ([]GlossaryTermRecord, error) {
+func (s *Service) ListGlossaryTerms(
+	ctx context.Context,
+	projectID, sourceLocale, targetLocale string,
+	pageSize int32,
+	cursor *GlossaryTermListCursor,
+) (*GlossaryTermListPage, error) {
 	if strings.TrimSpace(projectID) == "" {
 		return nil, fmt.Errorf("%w: project_id is required", ErrInvalidArgument)
 	}
-	terms, err := s.repository.ListGlossaryTerms(ctx, store.GlossaryListParams{
+	storePage, err := s.repository.ListGlossaryTermsPage(ctx, store.GlossaryListParams{
 		ProjectID:    projectID,
 		SourceLocale: strings.TrimSpace(sourceLocale),
 		TargetLocale: strings.TrimSpace(targetLocale),
 		Limit:        int(pageSize),
-	})
+	}, func() *store.GlossaryListCursor {
+		if cursor == nil {
+			return nil
+		}
+		return &store.GlossaryListCursor{UpdatedAt: cursor.UpdatedAt, ID: cursor.ID}
+	}())
 	if err != nil {
 		return nil, err
 	}
-	records := make([]GlossaryTermRecord, 0, len(terms))
-	for i := range terms {
-		records = append(records, *modelToGlossaryTermRecord(&terms[i]))
+	page := &GlossaryTermListPage{Terms: make([]GlossaryTermRecord, 0, len(storePage.Terms))}
+	for i := range storePage.Terms {
+		page.Terms = append(page.Terms, *modelToGlossaryTermRecord(&storePage.Terms[i]))
 	}
-	return records, nil
+	if storePage.NextCursor != nil {
+		page.NextCursor = &GlossaryTermListCursor{UpdatedAt: storePage.NextCursor.UpdatedAt, ID: storePage.NextCursor.ID}
+	}
+	return page, nil
 }
 
 func (s *Service) UpdateGlossaryTerm(
