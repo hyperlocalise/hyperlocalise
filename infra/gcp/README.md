@@ -52,6 +52,8 @@ pulumi config set hyperlocalise-gcp:translationServiceImage us-docker.pkg.dev/<p
 pulumi config set hyperlocalise-gcp:dispatcherImage us-docker.pkg.dev/<project>/<repo>/translation-dispatcher-gcp:latest
 pulumi config set hyperlocalise-gcp:workerImage us-docker.pkg.dev/<project>/<repo>/translation-worker-gcp:latest
 pulumi config set --secret hyperlocalise-gcp:databasePassword '<strong-password>'
+pulumi config set hyperlocalise-gcp:llmProvider <provider>
+pulumi config set hyperlocalise-gcp:llmModel <model>
 ```
 
 ## Optional follow-up work
@@ -59,7 +61,6 @@ pulumi config set --secret hyperlocalise-gcp:databasePassword '<strong-password>
 This stack is intentionally the infrastructure baseline. You will likely want to extend it with:
 
 - Secret Manager-backed API keys for the worker pool's LLM provider
-- Cloud Run IAM auth between `api-service` and `translation-service`
 - external HTTPS load balancing, custom domains, or API Gateway in front of `api-service`
 - monitoring, alerting, dashboards, and SLOs
 - migration automation for the Cloud SQL schema

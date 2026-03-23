@@ -272,7 +272,6 @@ func main() {
 			Location:           pulumi.String(region),
 			DeletionProtection: pulumi.Bool(false),
 			Ingress:            pulumi.String("INGRESS_TRAFFIC_INTERNAL_ONLY"),
-			InvokerIamDisabled: pulumi.Bool(true),
 			Template: &cloudrunv2.ServiceTemplateArgs{
 				ServiceAccount: translationServiceAccount.Email,
 				Scaling: &cloudrunv2.ServiceTemplateScalingArgs{
@@ -304,6 +303,17 @@ func main() {
 			},
 			Labels: labels,
 		}, pulumi.DependsOn([]pulumi.Resource{queueTopic, translationDB, dbUser}))
+		if err != nil {
+			return err
+		}
+
+		_, err = cloudrunv2.NewServiceIamMember(ctx, "translation-service-api-invoker", &cloudrunv2.ServiceIamMemberArgs{
+			Project:  pulumi.String(project),
+			Location: pulumi.String(region),
+			Name:     translationService.Name,
+			Role:     pulumi.String("roles/run.invoker"),
+			Member:   pulumi.Sprintf("serviceAccount:%s", apiServiceAccount.Email),
+		}, pulumi.DependsOn([]pulumi.Resource{translationService}))
 		if err != nil {
 			return err
 		}
@@ -517,7 +527,13 @@ func sanitizeName(value string) string {
 }
 
 func serviceAccountID(prefix, suffix string) string {
-	return truncateTo(fmt.Sprintf("%s-%s", prefix, suffix), 30)
+	suffixPart := "-" + suffix
+	prefixMax := 30 - len(suffixPart)
+	if prefixMax < 1 {
+		return truncateTo(suffix, 30)
+	}
+
+	return truncateTo(prefix, prefixMax) + suffixPart
 }
 
 func truncateTo(value string, max int) string {
