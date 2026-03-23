@@ -21,3 +21,11 @@ config:
     description: OCI image for the dispatcher worker pool.
   hyperlocalise-gcp:workerImage:
     description: OCI image for the translation worker pool.
+  hyperlocalise-gcp:llmProvider:
+    description: LLM provider used by the translation worker pool.
+  hyperlocalise-gcp:llmModel:
+    description: LLM model used by the translation worker pool.
+  hyperlocalise-gcp:llmSystemPrompt:
+    description: Optional system prompt override for the translation worker pool.
+  hyperlocalise-gcp:llmUserPrompt:
+    description: Optional user prompt override for the translation worker pool.

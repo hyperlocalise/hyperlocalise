@@ -41,6 +41,10 @@ func main() {
 		translationImage := cfg.Require("translationServiceImage")
 		dispatcherImage := cfg.Require("dispatcherImage")
 		workerImage := cfg.Require("workerImage")
+		llmProvider := cfg.Require("llmProvider")
+		llmModel := cfg.Require("llmModel")
+		llmSystemPrompt := cfg.Get("llmSystemPrompt")
+		llmUserPrompt := cfg.Get("llmUserPrompt")
 		databasePassword := cfg.RequireSecret("databasePassword")
 
 		labels := pulumi.StringMap{
@@ -223,19 +227,19 @@ func main() {
 			translationDB.Name,
 		)
 
-		apiServiceAccount, err := newServiceAccount(ctx, project, fmt.Sprintf("%s-api", namePrefix), "Public REST API service")
+		apiServiceAccount, err := newServiceAccount(ctx, project, serviceAccountID(namePrefix, "api"), "Public REST API service")
 		if err != nil {
 			return err
 		}
-		translationServiceAccount, err := newServiceAccount(ctx, project, fmt.Sprintf("%s-translation", namePrefix), "Private translation gRPC service")
+		translationServiceAccount, err := newServiceAccount(ctx, project, serviceAccountID(namePrefix, "translation"), "Private translation gRPC service")
 		if err != nil {
 			return err
 		}
-		dispatcherServiceAccount, err := newServiceAccount(ctx, project, fmt.Sprintf("%s-dispatcher", namePrefix), "Private translation dispatcher worker pool")
+		dispatcherServiceAccount, err := newServiceAccount(ctx, project, serviceAccountID(namePrefix, "dispatcher"), "Private translation dispatcher worker pool")
 		if err != nil {
 			return err
 		}
-		workerServiceAccount, err := newServiceAccount(ctx, project, fmt.Sprintf("%s-worker", namePrefix), "Private translation worker pool")
+		workerServiceAccount, err := newServiceAccount(ctx, project, serviceAccountID(namePrefix, "worker"), "Private translation worker pool")
 		if err != nil {
 			return err
 		}
@@ -380,6 +384,24 @@ func main() {
 			return err
 		}
 
+		workerEnv := cloudrunv2.WorkerPoolTemplateContainerEnvArray{
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("DATABASE_URL"), Value: databaseURL},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_QUEUE_DRIVER"), Value: pulumi.String("gcp-pubsub")},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_OBJECT_STORE_DRIVER"), Value: pulumi.String("gcp")},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_PROJECT_ID"), Value: pulumi.String(project)},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_TOPIC"), Value: queueTopic.Name},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_SUBSCRIPTION"), Value: queueSubscription.Name},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_STORAGE_BUCKET"), Value: artifactsBucket.Name},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_LLM_PROVIDER"), Value: pulumi.String(llmProvider)},
+			&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_LLM_MODEL"), Value: pulumi.String(llmModel)},
+		}
+		if llmSystemPrompt != "" {
+			workerEnv = append(workerEnv, &cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_LLM_SYSTEM_PROMPT"), Value: pulumi.String(llmSystemPrompt)})
+		}
+		if llmUserPrompt != "" {
+			workerEnv = append(workerEnv, &cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_LLM_USER_PROMPT"), Value: pulumi.String(llmUserPrompt)})
+		}
+
 		workerPool, err := cloudrunv2.NewWorkerPool(ctx, "translation-worker-pool", &cloudrunv2.WorkerPoolArgs{
 			Name:               pulumi.String(fmt.Sprintf("%s-worker", namePrefix)),
 			Project:            pulumi.String(project),
@@ -397,15 +419,7 @@ func main() {
 					&cloudrunv2.WorkerPoolTemplateContainerArgs{
 						Image:     pulumi.String(workerImage),
 						Resources: &cloudrunv2.WorkerPoolTemplateContainerResourcesArgs{Limits: pulumi.StringMap{"cpu": pulumi.String("2"), "memory": pulumi.String("2048Mi")}},
-						Envs: cloudrunv2.WorkerPoolTemplateContainerEnvArray{
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("DATABASE_URL"), Value: databaseURL},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_QUEUE_DRIVER"), Value: pulumi.String("gcp-pubsub")},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_OBJECT_STORE_DRIVER"), Value: pulumi.String("gcp")},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_PROJECT_ID"), Value: pulumi.String(project)},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_TOPIC"), Value: queueTopic.Name},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_PUBSUB_SUBSCRIPTION"), Value: queueSubscription.Name},
-							&cloudrunv2.WorkerPoolTemplateContainerEnvArgs{Name: pulumi.String("TRANSLATION_GCP_STORAGE_BUCKET"), Value: artifactsBucket.Name},
-						},
+						Envs:      workerEnv,
 					},
 				},
 				VpcAccess: &cloudrunv2.WorkerPoolTemplateVpcAccessArgs{
@@ -500,4 +514,16 @@ func sanitizeName(value string) string {
 	}
 
 	return value
+}
+
+func serviceAccountID(prefix, suffix string) string {
+	return truncateTo(fmt.Sprintf("%s-%s", prefix, suffix), 30)
+}
+
+func truncateTo(value string, max int) string {
+	if len(value) <= max {
+		return value
+	}
+
+	return strings.TrimRight(value[:max], "-")
 }
