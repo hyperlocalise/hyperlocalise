@@ -119,17 +119,18 @@ func (r *Repository) listJobsPage(
 		return nil, fmt.Errorf("list translation jobs: %w", err)
 	}
 
-	page := &JobListPage{Jobs: jobs}
+	page := &JobListPage{}
 	if len(jobs) == 0 {
 		page.Jobs = []TranslationJobModel{}
 		return page, nil
 	}
-	maxItems := limit
-	if maxItems > 0 && len(jobs) > maxItems {
-		last := jobs[maxItems-1]
+	if len(jobs) > limit {
+		last := jobs[limit-1]
 		page.NextCursor = &JobListCursor{CreatedAt: last.CreatedAt, ID: last.ID}
-		page.Jobs = jobs[:maxItems]
+		page.Jobs = jobs[:limit]
+		return page, nil
 	}
+	page.Jobs = jobs
 
 	return page, nil
 }
