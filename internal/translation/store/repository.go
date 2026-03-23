@@ -66,15 +66,6 @@ func (r *Repository) GetJob(ctx context.Context, jobID, projectID string) (*Tran
 	return job, nil
 }
 
-// ListJobs lists translation jobs for a project.
-func (r *Repository) ListJobs(
-	ctx context.Context,
-	projectID, jobType, status string,
-	limit int,
-) (*JobListPage, error) {
-	return r.ListJobsPage(ctx, projectID, jobType, status, limit, nil)
-}
-
 func (r *Repository) ListJobsPage(
 	ctx context.Context,
 	projectID, jobType, status string,

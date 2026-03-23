@@ -24,7 +24,8 @@ type Service struct {
 	app *translationapp.Service
 }
 
-const listJobsCursorVersion = 2
+// listJobsCursorVersion tracks the current opaque page token schema.
+const listJobsCursorVersion = 1
 
 type listJobsPageToken struct {
 	Version   int32  `json:"v"`
