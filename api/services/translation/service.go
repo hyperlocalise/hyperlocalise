@@ -26,6 +26,7 @@ type Service struct {
 
 // listJobsCursorVersion tracks the current opaque page token schema.
 const listJobsCursorVersion = 1
+const listGlossaryTermsCursorVersion = 1
 
 type listJobsPageToken struct {
 	Version   int32  `json:"v"`
@@ -34,6 +35,15 @@ type listJobsPageToken struct {
 	Status    int32  `json:"status"`
 	CreatedAt string `json:"created_at"`
 	ID        string `json:"id"`
+}
+
+type listGlossaryTermsPageToken struct {
+	Version      int32  `json:"v"`
+	ProjectID    string `json:"project_id"`
+	SourceLocale string `json:"source_locale,omitempty"`
+	TargetLocale string `json:"target_locale,omitempty"`
+	UpdatedAt    string `json:"updated_at"`
+	ID           string `json:"id"`
 }
 
 func NewService(app *translationapp.Service) *Service {
@@ -154,16 +164,34 @@ func (s *Service) ListGlossaryTerms(
 		return nil, status.Errorf(codes.InvalidArgument, "page_size must be <= %d", maxPageSize)
 	}
 
-	terms, err := s.app.ListGlossaryTerms(ctx, request.GetProjectId(), request.GetSourceLocale(), request.GetTargetLocale(), pageSize)
+	pageRequest := request.GetPage()
+	pageToken := ""
+	if pageRequest != nil {
+		pageToken = pageRequest.GetPageToken()
+	}
+
+	cursor, err := decodeGlossaryTermsPageToken(pageToken, request)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid page_token: %v", err)
+	}
+
+	page, err := s.app.ListGlossaryTerms(ctx, request.GetProjectId(), request.GetSourceLocale(), request.GetTargetLocale(), pageSize, cursor)
 	if err != nil {
 		return nil, mapError(err)
 	}
 	response := &translationv1.ListGlossaryTermsResponse{
-		Terms: make([]*translationv1.GlossaryTerm, 0, len(terms)),
+		Terms: make([]*translationv1.GlossaryTerm, 0, len(page.Terms)),
 		Page:  &commonv1.PageResponse{},
 	}
-	for i := range terms {
-		response.Terms = append(response.Terms, terms[i].ToProto())
+	for i := range page.Terms {
+		response.Terms = append(response.Terms, page.Terms[i].ToProto())
+	}
+	if page.NextCursor != nil {
+		token, err := encodeGlossaryTermsPageToken(page.NextCursor, request)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "encode glossary term page token: %v", err)
+		}
+		response.Page.NextPageToken = token
 	}
 	return response, nil
 }
@@ -478,6 +506,82 @@ func decodeListJobsPageToken(
 
 	return &translationapp.JobListCursor{
 		CreatedAt: createdAt.UTC(),
+		ID:        decoded.ID,
+	}, nil
+}
+
+func encodeGlossaryTermsPageToken(
+	cursor *translationapp.GlossaryTermListCursor,
+	request *translationv1.ListGlossaryTermsRequest,
+) (string, error) {
+	if cursor == nil {
+		return "", nil
+	}
+	if request == nil {
+		return "", fmt.Errorf("request is required")
+	}
+	if cursor.ID == "" || cursor.UpdatedAt.IsZero() {
+		return "", fmt.Errorf("cursor is incomplete")
+	}
+
+	payload, err := json.Marshal(listGlossaryTermsPageToken{
+		Version:      listGlossaryTermsCursorVersion,
+		ProjectID:    request.GetProjectId(),
+		SourceLocale: request.GetSourceLocale(),
+		TargetLocale: request.GetTargetLocale(),
+		UpdatedAt:    cursor.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		ID:           cursor.ID,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeGlossaryTermsPageToken(
+	token string,
+	request *translationv1.ListGlossaryTermsRequest,
+) (*translationapp.GlossaryTermListCursor, error) {
+	if token == "" {
+		return nil, nil
+	}
+	if request == nil {
+		return nil, fmt.Errorf("request is required")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return nil, err
+	}
+
+	var decoded listGlossaryTermsPageToken
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return nil, err
+	}
+	if decoded.Version != listGlossaryTermsCursorVersion {
+		return nil, fmt.Errorf("unsupported version %d", decoded.Version)
+	}
+	if decoded.ProjectID == "" || decoded.ID == "" || decoded.UpdatedAt == "" {
+		return nil, fmt.Errorf("missing cursor fields")
+	}
+	if decoded.ProjectID != request.GetProjectId() {
+		return nil, fmt.Errorf("page_token does not match project_id")
+	}
+	if decoded.SourceLocale != request.GetSourceLocale() {
+		return nil, fmt.Errorf("page_token does not match source_locale filter")
+	}
+	if decoded.TargetLocale != request.GetTargetLocale() {
+		return nil, fmt.Errorf("page_token does not match target_locale filter")
+	}
+
+	updatedAt, err := time.Parse(time.RFC3339Nano, decoded.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("parse updated_at: %w", err)
+	}
+
+	return &translationapp.GlossaryTermListCursor{
+		UpdatedAt: updatedAt.UTC(),
 		ID:        decoded.ID,
 	}, nil
 }

@@ -196,6 +196,63 @@ func TestGlossaryTermGRPCAndBulkEndpoints(t *testing.T) {
 	}
 }
 
+func TestListGlossaryTermsPaginatesWithOpaqueCursor(t *testing.T) {
+	t.Parallel()
+
+	svc, _ := newTranslationTestService(t)
+	ctx := context.Background()
+
+	for _, sourceTerm := range []string{"alpha", "beta", "gamma"} {
+		_, err := svc.CreateGlossaryTerm(ctx, &translationv1.CreateGlossaryTermRequest{
+			ProjectId: "proj-1",
+			Term: &translationv1.GlossaryTermInput{
+				SourceLocale: "en",
+				TargetLocale: "fr",
+				SourceTerm:   sourceTerm,
+				TargetTerm:   sourceTerm + "-fr",
+			},
+		})
+		if err != nil {
+			t.Fatalf("CreateGlossaryTerm(%s) returned error: %v", sourceTerm, err)
+		}
+	}
+
+	firstPage, err := svc.ListGlossaryTerms(ctx, &translationv1.ListGlossaryTermsRequest{
+		ProjectId:    "proj-1",
+		SourceLocale: strPtr("en"),
+		TargetLocale: strPtr("fr"),
+		Page:         &commonv1.PageRequest{PageSize: 2},
+	})
+	if err != nil {
+		t.Fatalf("ListGlossaryTerms(first page) returned error: %v", err)
+	}
+	if len(firstPage.GetTerms()) != 2 {
+		t.Fatalf("expected 2 terms on first page, got %d", len(firstPage.GetTerms()))
+	}
+	if firstPage.GetPage().GetNextPageToken() == "" {
+		t.Fatal("expected next_page_token on first page")
+	}
+
+	secondPage, err := svc.ListGlossaryTerms(ctx, &translationv1.ListGlossaryTermsRequest{
+		ProjectId:    "proj-1",
+		SourceLocale: strPtr("en"),
+		TargetLocale: strPtr("fr"),
+		Page: &commonv1.PageRequest{
+			PageSize:  2,
+			PageToken: firstPage.GetPage().GetNextPageToken(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("ListGlossaryTerms(second page) returned error: %v", err)
+	}
+	if len(secondPage.GetTerms()) != 1 {
+		t.Fatalf("expected 1 term on second page, got %d", len(secondPage.GetTerms()))
+	}
+	if secondPage.GetPage().GetNextPageToken() != "" {
+		t.Fatalf("expected empty next_page_token on final page, got %q", secondPage.GetPage().GetNextPageToken())
+	}
+}
+
 func newTranslationTestService(t *testing.T) (*Service, *bun.DB) {
 	t.Helper()
 
