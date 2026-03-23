@@ -271,7 +271,7 @@ func (r *Repository) BulkDeleteGlossaryTerms(ctx context.Context, db bun.IDB, pr
 	if err := db.NewDelete().
 		Model((*TranslationGlossaryTermModel)(nil)).
 		Where("project_id = ?", projectID).
-		Where("id IN (?)", bun.In(ids)).
+		Where("id IN (?)", bun.List(ids)).
 		Returning("id").
 		Scan(ctx, &deletedIDs); err != nil {
 		return nil, fmt.Errorf("bulk delete translation glossary terms: %w", err)
