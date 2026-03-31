@@ -2,7 +2,7 @@
 
 ## Summary
 
-This change introduces an opinionated GitHub Action at `hyperlocalise/hyperlocalise-action` for localization CI checks. The first supported workflow is a pull request drift check that runs `hyperlocalise run --dry-run`, streams the CLI output to the workflow log, uploads debugging artifacts, and fails by default when drift is detected.
+This change introduces an opinionated GitHub Action at `hyperlocalise/hyperlocalise` for localization CI checks. The first supported workflow is a pull request drift check that runs `hyperlocalise run --dry-run`, streams the CLI output to the workflow log, uploads debugging artifacts, and fails by default when drift is detected.
 
 The action is intentionally narrow in v1. It focuses on one high-value CI gate instead of becoming a generic CLI runner.
 
@@ -37,9 +37,9 @@ Publish an action that installs Hyperlocalise and runs arbitrary commands. This 
 
 ## Repository and packaging
 
-The action will live in its own repository: `hyperlocalise/hyperlocalise-action`.
+The action will live in the main repository: `hyperlocalise/hyperlocalise`.
 
-That repository boundary keeps the action versioned and released independently from the main CLI monorepo. It also matches how external users expect to consume marketplace-style actions.
+Keeping the action in the monorepo lets the action ship alongside the CLI and matches the implementation in this change.
 
 ## Action shape
 
@@ -117,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: hyperlocalise/hyperlocalise-action@v1
+      - uses: hyperlocalise/hyperlocalise@v1
         with:
           check: drift
           config-path: i18n.jsonc

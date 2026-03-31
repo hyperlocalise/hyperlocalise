@@ -40,10 +40,12 @@ runs:
   steps:
     - name: Validate inputs
       shell: bash
+      env:
+        CHECK: ${{ inputs.check }}
       run: |
         set -euo pipefail
-        if [[ "${{ inputs.check }}" != "drift" ]]; then
-          echo "Unsupported check: ${{ inputs.check }}" >&2
+        if [[ "${CHECK}" != "drift" ]]; then
+          echo "Unsupported check: ${CHECK}" >&2
           echo "Only 'drift' is supported in v1." >&2
           exit 1
         fi
@@ -56,6 +58,7 @@ runs:
         artifact_dir="${RUNNER_TEMP}/hyperlocalise-ci/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
         mkdir -p "${artifact_dir}"
         echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-drift-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
         echo "report-path=${artifact_dir}/drift-report.json" >>"${GITHUB_OUTPUT}"
         echo "summary-path=${artifact_dir}/drift-summary.txt" >>"${GITHUB_OUTPUT}"
 
@@ -116,7 +119,7 @@ runs:
       if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v4
       with:
-        name: hyperlocalise-drift-${{ github.job }}
+        name: ${{ steps.prepare.outputs.artifact-name }}
         if-no-files-found: error
         path: |
           ${{ steps.prepare.outputs.report-path }}
@@ -128,6 +131,14 @@ runs:
       run: |
         set -euo pipefail
         echo "Hyperlocalise drift check failed before a clean dry-run completed." >&2
+        exit 1
+
+    - name: Fail on unknown drift state
+      if: ${{ steps.analyze.outputs.drift-detected == 'unknown' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Hyperlocalise drift state is unknown. Check the uploaded artifacts and workflow log." >&2
         exit 1
 
     - name: Fail on drift

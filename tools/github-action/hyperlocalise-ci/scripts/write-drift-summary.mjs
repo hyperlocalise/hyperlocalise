@@ -25,7 +25,7 @@ if (!reportExists) {
   lines.push('drift_detected=unknown')
   lines.push('note=CLI did not produce a drift report. Check the workflow log for the failure details.')
   writeSummary(summaryPath, lines)
-  setOutput('drift-detected', 'false')
+  setOutput('drift-detected', 'unknown')
   process.exit(0)
 }
 
@@ -37,7 +37,7 @@ try {
   lines.push('drift_detected=unknown')
   lines.push(`note=Failed to parse drift report JSON: ${error.message}`)
   writeSummary(summaryPath, lines)
-  setOutput('drift-detected', 'false')
+  setOutput('drift-detected', 'unknown')
   process.exit(0)
 }
 

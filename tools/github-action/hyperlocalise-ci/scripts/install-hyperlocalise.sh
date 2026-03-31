@@ -104,6 +104,8 @@ if curl -fsSL "${base_url}/${checksums}" -o "${tmp_dir}/${checksums}"; then
     echo "No SHA-256 verification tool is available." >&2
     exit 1
   fi
+else
+  echo "Warning: failed to download ${checksums}; skipping checksum verification." >&2
 fi
 
 mkdir -p "${install_dir}"
