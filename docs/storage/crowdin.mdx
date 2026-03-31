@@ -17,8 +17,26 @@ description: "Configure Crowdin for remote translation synchronization."
 }
 ```
 
+## Crowdin Enterprise
+
+Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the default Crowdin Cloud API.
+
+```jsonc
+{
+  "storage": {
+    "adapter": "crowdin",
+    "config": {
+      "projectID": "123456",
+      "apiTokenEnv": "CROWDIN_API_TOKEN",
+      "apiBaseURL": "https://example.api.crowdin.com"
+    }
+  }
+}
+```
+
 ## Optional config fields
 
+- `apiBaseURL`: Override the Crowdin API base URL. Use this for Crowdin Enterprise.
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
@@ -26,5 +44,6 @@ description: "Configure Crowdin for remote translation synchronization."
 ## Common issues
 
 - token not found: export `CROWDIN_API_TOKEN`
+- Enterprise API requests fail: verify `storage.config.apiBaseURL` points to your Enterprise API host and uses `https`
 - project lookup failure: check project ID and account permissions
 - partial updates: review conflict report with `--output json`
