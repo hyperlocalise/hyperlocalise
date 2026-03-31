@@ -17,6 +17,7 @@ go_library(
         "//apps/cli/internal/i18n/storageregistry",
         "//apps/cli/internal/i18n/syncsvc",
         "//apps/cli/internal/progressui",
+	    "//internal/i18n/icuparser",
         "//internal/i18n/storage",
         "//internal/i18n/translationfileparser",
         "//pkg/i18nconfig",

@@ -1473,6 +1473,30 @@ func TestAlignMarkdownTargetToSourceReturnsExpandedFallbackText(t *testing.T) {
 	}
 }
 
+func TestAlignMarkdownTargetToSourceMdxExpandsExpressionsAndInlineJSX(t *testing.T) {
+	source := []byte("Fallback route: {locale === \"vi-VN\" ? \"/vi-VN\" : \"/\"} uses <Badge text=\"beta\" /> today.\n")
+	target := []byte("Duong dan du phong: {locale === \"vi-VN\" ? \"/vi-VN\" : \"/\"} dung <Badge text=\"ban dich\" /> hom nay.\n")
+
+	aligned := AlignMarkdownTargetToSource(source, target, true)
+	if len(aligned) != 1 {
+		t.Fatalf("expected one aligned entry, got %d", len(aligned))
+	}
+	for _, got := range aligned {
+		if strings.Contains(got, "\x1eHLMDPH_") {
+			t.Fatalf("expected expanded aligned mdx text, got %q", got)
+		}
+		if !strings.Contains(got, `{locale === "vi-VN" ? "/vi-VN" : "/"}`) {
+			t.Fatalf("expected runtime expression preserved, got %q", got)
+		}
+		if !strings.Contains(got, `<Badge text="ban dich" />`) {
+			t.Fatalf("expected inline JSX preserved from target, got %q", got)
+		}
+		if !strings.Contains(got, "Duong dan du phong:") || !strings.Contains(got, "hom nay.") {
+			t.Fatalf("expected translated prose preserved around mdx placeholders, got %q", got)
+		}
+	}
+}
+
 func TestAlignMarkdownTargetToSourceMdxDoesNotCrossMatchReorderedSiblingWrappers(t *testing.T) {
 	source := []byte("<Card title=\"One\">\n  Alpha source.\n</Card>\n\n<Card title=\"Two\">\n  Beta source.\n</Card>\n")
 	target := []byte("<Card title=\"Two\">\n  Beta translated.\n</Card>\n\n<Card title=\"One\">\n  Alpha translated.\n</Card>\n")

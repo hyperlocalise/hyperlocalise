@@ -1,0 +1,51 @@
+---
+title: "check"
+description: "Check localized files for not-localized content, orphaned keys, missing target files, and translation hygiene issues."
+---
+
+## Usage
+
+```bash
+hyperlocalise check [--config <path>] [flags]
+```
+
+## Default checks
+
+- `not_localized`: target key is missing, empty, whitespace-only, or still matches the source text
+- `orphaned_key`: target key exists but the source key does not
+- `missing_target_file`: resolved target file does not exist
+- `placeholder_mismatch`: placeholders differ from the source
+- `html_tag_mismatch`: HTML tag structure differs from the source
+- `icu_shape_mismatch`: ICU structure differs from the source or is malformed
+- `whitespace_only`: target value contains only whitespace
+
+## Flags
+
+- `--config`: path to config file
+- `--locale`: target locale filter (repeatable)
+- `--group`: filter by group name
+- `--bucket`: filter by bucket name
+- `--check`: run only specific checks (repeatable)
+- `--exclude-check`: skip specific default checks (repeatable)
+- `--format`: output format (`text` or `json`)
+- `--output-file`: also write the report to a file
+- `--no-fail`: return exit code `0` even when findings exist
+
+## Examples
+
+```bash
+hyperlocalise check --bucket docs
+```
+
+```bash
+hyperlocalise check --format json --no-fail --output-file report.json
+```
+
+```bash
+hyperlocalise check --check orphaned_key --check missing_target_file
+```
+
+## See also
+
+- [status](/commands/status)
+- [run](/commands/run)
