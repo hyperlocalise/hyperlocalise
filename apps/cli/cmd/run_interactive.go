@@ -18,8 +18,8 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/mattn/go-isatty"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/mattn/go-isatty"
 )
 
 type runInteractiveResult struct {

@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/mattn/go-isatty"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc/scoring"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
