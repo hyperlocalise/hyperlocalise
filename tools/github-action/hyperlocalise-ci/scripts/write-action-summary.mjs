@@ -15,14 +15,17 @@ if (checkName !== 'drift' && checkName !== 'check') {
   process.exit(1)
 }
 
+const maxAnnotations = 50
 const cliExitCode = Number.parseInt(cliExitCodeRaw, 10)
 const reportExists = fs.existsSync(reportPath)
+const annotationsEnabled = (process.env.GITHUB_ANNOTATIONS_ENABLED ?? 'true') === 'true'
 const lines = []
 
 lines.push(`check=${checkName}`)
 lines.push(`config_path=${configPath}`)
 lines.push(`cli_exit_code=${Number.isNaN(cliExitCode) ? cliExitCodeRaw : cliExitCode}`)
 lines.push(`report_path=${reportPath}`)
+setDefaultCountOutputs()
 
 if (!reportExists) {
   lines.push('report_found=false')
@@ -35,6 +38,7 @@ if (!reportExists) {
   }
   lines.push('note=CLI did not produce a report. Check the workflow log for the failure details.')
   writeSummary(summaryPath, lines)
+  writeStepSummary(renderMissingReportMarkdown(checkName, configPath, reportPath, cliExitCodeRaw))
   process.exit(0)
 }
 
@@ -52,6 +56,7 @@ try {
   }
   lines.push(`note=Failed to parse report JSON: ${error.message}`)
   writeSummary(summaryPath, lines)
+  writeStepSummary(renderParseErrorMarkdown(checkName, configPath, reportPath, error.message))
   process.exit(0)
 }
 
@@ -110,18 +115,38 @@ function writeDriftSummary(reportPath, summaryPath, report, lines) {
     lines.push('note=The drift report did not include file-level or locale-level details.')
   }
 
-  writeSummary(summaryPath, lines)
   setOutput('drift-detected', String(driftDetected))
+  setCountOutputs({ total: failures.length + warnings.length, error: failures.length, warning: warnings.length })
+  lines.push(`findings_total=${failures.length + warnings.length}`)
+  lines.push(`error_count=${failures.length}`)
+  lines.push(`warning_count=${warnings.length}`)
+  writeSummary(summaryPath, lines)
+  writeStepSummary(renderDriftMarkdown({
+    configPath,
+    reportPath,
+    cliExitCode,
+    driftDetected,
+    plannedTotal: numberOrFallback(report.plannedTotal),
+    executableTotal: numberOrFallback(report.executableTotal),
+    skippedByLock: numberOrFallback(report.skippedByLock),
+    pruneCandidates: pruneCandidates.length,
+    warnings: warnings.length,
+    failures: failures.length,
+  }))
 }
 
 function writeCheckSummary(summaryPath, report, lines) {
   const checks = Array.isArray(report.checks) ? report.checks.filter(Boolean) : []
-  const findings = Array.isArray(report.findings) ? report.findings : []
+  const findings = Array.isArray(report.findings) ? report.findings.filter(Boolean) : []
   const summary = report?.summary ?? {}
   const byCheck = objectEntries(summary.byCheck)
   const byBucket = objectEntries(summary.byBucket)
   const byLocale = objectEntries(summary.byLocale)
+  const bySeverity = objectEntries(summary.bySeverity)
   const findingsDetected = findings.length > 0
+  const total = numberOrFallback(summary.total, findings.length)
+  const errorCount = numberValue(summary?.bySeverity?.error)
+  const warningCount = numberValue(summary?.bySeverity?.warning)
 
   lines.push('report_found=true')
   lines.push(`findings_detected=${findingsDetected}`)
@@ -129,10 +154,16 @@ function writeCheckSummary(summaryPath, report, lines) {
   for (const check of checks) {
     lines.push(`check_name=${check}`)
   }
-  lines.push(`findings_total=${numberOrFallback(summary.total, findings.length)}`)
+  lines.push(`findings_total=${total}`)
+  lines.push(`error_count=${errorCount}`)
+  lines.push(`warning_count=${warningCount}`)
   lines.push(`findings_by_check=${byCheck.length}`)
   for (const [name, total] of byCheck) {
     lines.push(`by_check=${name}:${total}`)
+  }
+  lines.push(`findings_by_severity=${bySeverity.length}`)
+  for (const [name, total] of bySeverity) {
+    lines.push(`by_severity=${name}:${total}`)
   }
   lines.push(`findings_by_bucket=${byBucket.length}`)
   for (const [name, total] of byBucket) {
@@ -143,8 +174,147 @@ function writeCheckSummary(summaryPath, report, lines) {
     lines.push(`by_locale=${name}:${total}`)
   }
 
-  writeSummary(summaryPath, lines)
   setOutput('findings-detected', String(findingsDetected))
+  setCountOutputs({ total, error: errorCount, warning: warningCount })
+  emitAnnotations(findings, maxAnnotations, annotationsEnabled)
+  writeSummary(summaryPath, lines)
+  writeStepSummary(renderCheckMarkdown({
+    configPath,
+    reportPath,
+    cliExitCode,
+    checks,
+    total,
+    errorCount,
+    warningCount,
+    byCheck,
+    byLocale,
+    findings,
+    maxAnnotations,
+    annotationsEnabled,
+  }))
+}
+
+function emitAnnotations(findings, maxAnnotations, enabled) {
+  if (!enabled) {
+    return
+  }
+  for (const finding of findings.slice(0, maxAnnotations)) {
+    const level = finding?.severity === 'warning' ? 'warning' : 'error'
+    const properties = []
+    if (finding?.annotationFile) {
+      properties.push(`file=${escapeProperty(String(finding.annotationFile))}`)
+    }
+    if (Number.isFinite(finding?.annotationLine) && finding.annotationLine > 0) {
+      properties.push(`line=${finding.annotationLine}`)
+      properties.push(`endLine=${finding.annotationLine}`)
+    }
+    properties.push(`title=${escapeProperty(`Hyperlocalise ${finding?.type ?? 'finding'}`)}`)
+    const message = escapeData(formatFindingMessage(finding))
+    process.stdout.write(`::${level} ${properties.join(',')}::${message}\n`)
+  }
+}
+
+function formatFindingMessage(finding) {
+  const parts = []
+  if (finding?.message) {
+    parts.push(String(finding.message))
+  }
+  const context = []
+  if (finding?.bucket) {
+    context.push(`bucket=${finding.bucket}`)
+  }
+  if (finding?.locale) {
+    context.push(`locale=${finding.locale}`)
+  }
+  if (finding?.key) {
+    context.push(`key=${finding.key}`)
+  }
+  if (context.length > 0) {
+    parts.push(context.join(' '))
+  }
+  return parts.join(' | ')
+}
+
+function renderMissingReportMarkdown(checkName, configPath, reportPath, cliExitCode) {
+  return [
+    `## Hyperlocalise ${checkName}`,
+    '',
+    '- Report status: missing',
+    `- Config path: \`${configPath}\``,
+    `- CLI exit code: \`${cliExitCode}\``,
+    `- Report path: \`${reportPath}\``,
+    '',
+    'The CLI did not produce a report. Check the workflow log for details.',
+  ].join('\n')
+}
+
+function renderParseErrorMarkdown(checkName, configPath, reportPath, errorMessage) {
+  return [
+    `## Hyperlocalise ${checkName}`,
+    '',
+    '- Report status: parse failed',
+    `- Config path: \`${configPath}\``,
+    `- Report path: \`${reportPath}\``,
+    '',
+    `Parse error: \`${errorMessage}\``,
+  ].join('\n')
+}
+
+function renderDriftMarkdown(details) {
+  return [
+    '## Hyperlocalise drift',
+    '',
+    `- Drift detected: ${details.driftDetected ? 'yes' : 'no'}`,
+    `- Failures: ${details.failures}`,
+    `- Warnings: ${details.warnings}`,
+    `- Planned total: ${details.plannedTotal}`,
+    `- Executable total: ${details.executableTotal}`,
+    `- Skipped by lock: ${details.skippedByLock}`,
+    `- Prune candidates: ${details.pruneCandidates}`,
+    `- Config path: \`${details.configPath}\``,
+    `- Report path: \`${details.reportPath}\``,
+    `- CLI exit code: \`${details.cliExitCode}\``,
+  ].join('\n')
+}
+
+function renderCheckMarkdown(details) {
+  const lines = [
+    '## Hyperlocalise check',
+    '',
+    `- Findings: ${details.total}`,
+    `- Errors: ${details.errorCount}`,
+    `- Warnings: ${details.warningCount}`,
+    `- Config path: \`${details.configPath}\``,
+    `- Report path: \`${details.reportPath}\``,
+    `- CLI exit code: \`${details.cliExitCode}\``,
+  ]
+  if (details.checks.length > 0) {
+    lines.push(`- Enabled checks: \`${details.checks.join(', ')}\``)
+  }
+  if (details.byCheck.length > 0) {
+    lines.push('')
+    lines.push('### By check')
+    lines.push('')
+    for (const [name, total] of details.byCheck) {
+      lines.push(`- ${name}: ${total}`)
+    }
+  }
+  if (details.byLocale.length > 0) {
+    lines.push('')
+    lines.push('### By locale')
+    lines.push('')
+    for (const [name, total] of details.byLocale) {
+      lines.push(`- ${name}: ${total}`)
+    }
+  }
+  if (!details.annotationsEnabled) {
+    lines.push('')
+    lines.push('GitHub annotations are disabled for this run.')
+  } else if (details.findings.length > details.maxAnnotations) {
+    lines.push('')
+    lines.push(`GitHub annotations were limited to the first ${details.maxAnnotations} findings.`)
+  }
+  return lines.join('\n')
 }
 
 function uniqueSorted(values) {
@@ -156,6 +326,10 @@ function objectEntries(value) {
     return []
   }
   return Object.entries(value).sort(([a], [b]) => String(a).localeCompare(String(b)))
+}
+
+function numberValue(value) {
+  return Number.isFinite(value) ? value : 0
 }
 
 function numberOrFallback(value, fallback) {
@@ -173,10 +347,43 @@ function writeSummary(filePath, contentLines) {
   fs.writeFileSync(filePath, `${contentLines.join('\n')}\n`, 'utf8')
 }
 
+function writeStepSummary(markdown) {
+  const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY
+  if (!stepSummaryPath) {
+    return
+  }
+  fs.appendFileSync(stepSummaryPath, `${markdown}\n`, 'utf8')
+}
+
+function setDefaultCountOutputs() {
+  setOutput('findings-total', '0')
+  setOutput('error-count', '0')
+  setOutput('warning-count', '0')
+}
+
+function setCountOutputs(counts) {
+  setOutput('findings-total', String(counts.total ?? 0))
+  setOutput('error-count', String(counts.error ?? 0))
+  setOutput('warning-count', String(counts.warning ?? 0))
+}
+
 function setOutput(name, value) {
   const githubOutput = process.env.GITHUB_OUTPUT
   if (!githubOutput) {
     return
   }
   fs.appendFileSync(githubOutput, `${name}=${value}\n`, 'utf8')
+}
+
+function escapeData(value) {
+  return String(value)
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A')
+}
+
+function escapeProperty(value) {
+  return escapeData(value)
+    .replace(/:/g, '%3A')
+    .replace(/,/g, '%2C')
 }

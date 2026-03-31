@@ -27,6 +27,9 @@ inputs:
   upload-artifact:
     description: Upload the report and summary artifacts.
     default: "true"
+  github-annotations:
+    description: Emit inline GitHub workflow annotations for check findings when location data is available.
+    default: "true"
 
 outputs:
   drift-detected:
@@ -44,6 +47,15 @@ outputs:
   summary-path:
     description: Path to the generated text summary.
     value: ${{ steps.prepare.outputs.summary-path }}
+  findings-total:
+    description: Total number of errors and warnings reported by the action.
+    value: ${{ steps.analyze.outputs.findings-total }}
+  error-count:
+    description: Number of error-level findings reported by the action.
+    value: ${{ steps.analyze.outputs.error-count }}
+  warning-count:
+    description: Number of warning-level findings reported by the action.
+    value: ${{ steps.analyze.outputs.warning-count }}
 
 runs:
   using: composite
@@ -123,6 +135,7 @@ runs:
         REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
         SUMMARY_PATH: ${{ steps.prepare.outputs.summary-path }}
         CLI_EXIT_CODE: ${{ steps.run-check.outputs.cli-exit-code }}
+        GITHUB_ANNOTATIONS_ENABLED: ${{ inputs.github-annotations }}
       run: |
         set -euo pipefail
         node "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \

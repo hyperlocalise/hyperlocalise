@@ -68,11 +68,11 @@ Current scope:
 - `drift` runs `hyperlocalise run --dry-run` and reports planned localization changes
 - `check` runs `hyperlocalise check --format json` and reports localization integrity findings
 
-Example:
+Example: `check` mode with annotations and artifact upload
 
 ```yaml
 jobs:
-  drift:
+  localization-check:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -88,6 +88,26 @@ jobs:
           upload-artifact: true
 ```
 
+Example: `drift` mode in reporting-only mode
+
+```yaml
+jobs:
+  localization-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise@v1
+        with:
+          check: drift
+          config-path: i18n.jsonc
+          hyperlocalise-version: latest
+          fail-on-drift: false
+          upload-artifact: true
+```
+
 ### GitHub Action settings
 
 Inputs from [`action.yml`](action.yml):
@@ -99,6 +119,7 @@ Inputs from [`action.yml`](action.yml):
 - `fail-on-drift`: fail the action when drift is detected. Default: `true`
 - `fail-on-findings`: fail the action when `check` findings are detected. Default: `true`
 - `upload-artifact`: upload the JSON report and text summary. Default: `true`
+- `github-annotations`: emit inline GitHub workflow annotations for `check` findings. Default: `true`
 
 Outputs:
 
@@ -107,14 +128,22 @@ Outputs:
 - `cli-exit-code`: exit code returned by the Hyperlocalise CLI
 - `report-path`: path to the generated JSON report
 - `summary-path`: path to the generated text summary
+- `findings-total`: total number of reported errors and warnings
+- `error-count`: number of error-level findings
+- `warning-count`: number of warning-level findings
 
 Operational notes:
 
+- In `drift` mode, the action runs `hyperlocalise run --dry-run --output <report-path>`.
+- In `check` mode, the action runs `hyperlocalise check --format json --no-fail --output-file <report-path>` and then applies `fail-on-findings` in the action.
 - If the CLI fails before completing a clean report run, the action fails.
 - If the report state cannot be determined, the action fails.
 - When `upload-artifact` is enabled, the action uploads both the JSON report and the text summary.
 - When `fail-on-drift` is `false`, the action can be used in reporting-only mode.
 - When `fail-on-findings` is `false`, the `check` mode can be used in reporting-only mode.
+- When GitHub step summaries are available, the action writes counts such as `Errors: 3` and `Warnings: 5` to the run summary.
+- In `check` mode, the action can emit inline GitHub annotations when the report includes file and line metadata.
+- GitHub workflow-command annotations are capped at the first `50` findings per run.
 
 ## Supported integrations
 

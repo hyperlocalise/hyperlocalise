@@ -36,6 +36,9 @@ jobs:
         env:
           CLI_EXIT_CODE: ${{ steps.hyperlocalise.outputs.cli-exit-code }}
           FINDINGS_DETECTED: ${{ steps.hyperlocalise.outputs.findings-detected }}
+          FINDINGS_TOTAL: ${{ steps.hyperlocalise.outputs.findings-total }}
+          ERROR_COUNT: ${{ steps.hyperlocalise.outputs.error-count }}
+          WARNING_COUNT: ${{ steps.hyperlocalise.outputs.warning-count }}
         run: |
           set -euo pipefail
           test "${CLI_EXIT_CODE}" = "0"
@@ -46,6 +49,9 @@ jobs:
               exit 1
               ;;
           esac
+          [[ "${FINDINGS_TOTAL}" =~ ^[0-9]+$ ]]
+          [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
+          [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
   bazel-build-test:
     name: Bazel Build/Test
