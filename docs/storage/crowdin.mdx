@@ -28,7 +28,7 @@ Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the defa
     "config": {
       "projectID": "123456",
       "apiTokenEnv": "CROWDIN_API_TOKEN",
-      "apiBaseURL": "https://example.api.crowdin.com/api"
+      "apiBaseURL": "https://example.api.crowdin.com"
     }
   }
 }
@@ -44,6 +44,6 @@ Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the defa
 ## Common issues
 
 - token not found: export `CROWDIN_API_TOKEN`
-- Enterprise API requests fail: verify `storage.config.apiBaseURL` points to your Enterprise API base URL and uses `https`
+- Enterprise API requests fail: verify `storage.config.apiBaseURL` points to your Enterprise API host and uses `https`
 - project lookup failure: check project ID and account permissions
 - partial updates: review conflict report with `--output json`

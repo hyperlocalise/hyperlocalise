@@ -29,11 +29,11 @@ Set `apiBaseURL` when your organization uses Crowdin Enterprise.
   "config": {
     "projectID": "123456",
     "apiTokenEnv": "CROWDIN_API_TOKEN",
-    "apiBaseURL": "https://example.api.crowdin.com/api",
+    "apiBaseURL": "https://example.api.crowdin.com",
     "sourceLanguage": "en",
     "targetLanguages": ["fr", "de"]
   }
 }
 ```
 
-`apiBaseURL` must be an `https` URL and should point to your Enterprise API base URL.
+`apiBaseURL` must be an `https` URL and should point to your Enterprise API host.
