@@ -14,6 +14,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  action-self-test:
+    name: Action Self Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Hyperlocalise action
+        id: hyperlocalise
+        uses: ./
+        with:
+          check: check
+          config-path: i18n.jsonc
+          fail-on-findings: false
+          upload-artifact: false
+
+      - name: Verify action outputs
+        shell: bash
+        env:
+          CLI_EXIT_CODE: ${{ steps.hyperlocalise.outputs.cli-exit-code }}
+          FINDINGS_DETECTED: ${{ steps.hyperlocalise.outputs.findings-detected }}
+        run: |
+          set -euo pipefail
+          test "${CLI_EXIT_CODE}" = "0"
+          case "${FINDINGS_DETECTED}" in
+            true|false) ;;
+            *)
+              echo "Unexpected findings-detected output: ${FINDINGS_DETECTED}" >&2
+              exit 1
+              ;;
+          esac
+
   bazel-build-test:
     name: Bazel Build/Test
     runs-on: ubuntu-latest

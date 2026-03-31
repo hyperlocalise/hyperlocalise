@@ -157,7 +157,11 @@ func TestAPIBaseURLRoundTripperRewritesCloudHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Fatalf("close response body: %v", err)
+		}
+	}()
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if seenPath != "/proxy/api/v2/projects" {

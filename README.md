@@ -1,39 +1,26 @@
 # hyperlocalise
 
-Hyperlocalise is the AI-native localization infrastructure for modern apps.
+Hyperlocalise is AI-native localization infrastructure for modern apps.
 
-It combines an automation-first CLI and shared localization infrastructure for teams that want localization workflows to live inside engineering systems instead of beside them.
+It combines a local-first CLI, CI automation, and storage adapters so localization workflows can live inside your engineering system instead of beside it.
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/hyperlocalise/hyperlocalise)](https://goreportcard.com/report/github.com/hyperlocalise/hyperlocalise)
+[![CI](https://github.com/hyperlocalise/hyperlocalise/actions/workflows/ci.yml/badge.svg)](https://github.com/hyperlocalise/hyperlocalise/actions/workflows/ci.yml)
 
-# Table of Contents
-<!--ts-->
-   * [hyperlocalise](#hyperlocalise)
-   * [Features](#features)
-   * [CLI](#cli)
-   * [LLM Providers](#llm-providers)
-   * [Storage Adapters](#storage-adapters)
-   * [Project Layout](#project-layout)
-   * [Makefile Targets](#makefile-targets)
-   * [Release](#release)
-   * [Contribute](#contribute)
+## Docs
 
-<!--te-->
+The full product documentation lives at [hyperlocalise.dev/docs](https://hyperlocalise.dev/docs).
 
-# Features
-- AI-native localization workflow orchestration for modern apps and teams
-- Local-first CLI for translation generation, evaluation, sync, and status checks
-- CLI-first repository layout with shared runtime, translation, and storage packages
-- [goreleaser](https://goreleaser.com/) releases publishing multi-arch (`amd64`/`arm64`) binaries for macOS and Linux, plus `.deb` and `.rpm` packages.
-- [golangci-lint](https://golangci-lint.run/) for linting and formatting
-- [cobra](https://cobra.dev/) setup including tests
-- [Makefile](Makefile) - with various useful targets and documentation (see Makefile Targets)
-- Storage adapter based translation sync with POEditor, Lokalise, Crowdin, and Smartling support
-- Local provenance sidecar metadata for LLM-vs-curation workflows (`draft` vs `curated`)
+- Getting started: [Install](https://hyperlocalise.dev/docs/getting-started/install), [Quickstart](https://hyperlocalise.dev/docs/getting-started/quickstart), [First project](https://hyperlocalise.dev/docs/getting-started/first-project)
+- Configuration: [i18n config](https://hyperlocalise.dev/docs/configuration/i18n-config), [provider credentials](https://hyperlocalise.dev/docs/configuration/provider-credentials)
+- Commands: [CLI overview](https://hyperlocalise.dev/docs/commands/overview), [`run`](https://hyperlocalise.dev/docs/commands/run), [`eval`](https://hyperlocalise.dev/docs/commands/eval), [`status`](https://hyperlocalise.dev/docs/commands/status), [`sync pull`](https://hyperlocalise.dev/docs/commands/sync-pull), [`sync push`](https://hyperlocalise.dev/docs/commands/sync-push)
+- Workflows: [local generation](https://hyperlocalise.dev/docs/workflows/local-generation), [CI automation](https://hyperlocalise.dev/docs/workflows/ci-automation), [TMS curation loop](https://hyperlocalise.dev/docs/workflows/tms-curation-loop)
+- Providers: [provider overview](https://hyperlocalise.dev/docs/providers/overview)
+- TMS adapters: [storage overview](https://hyperlocalise.dev/docs/storage/overview)
 
 ## Install
 
-Use the stable bootstrap URL:
+Install the latest stable CLI:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | bash
@@ -45,690 +32,131 @@ Pin a specific release:
 curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
 ```
 
-## Install the Hyperlocalise Agent Skill (skills.sh)
-
-Install from this repository (recommended when you already cloned the repo):
+Install the Hyperlocalise skill from this repository:
 
 ```bash
 npx skills add . --skill hyperlocalise
 ```
 
-Install directly from GitHub:
+Install it directly from GitHub:
 
 ```bash
 npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
-This uses the [skills.sh](https://skills.sh) installer via `npx`.
+## CLI overview
 
-## GCP Worker Profile
+The CLI centers on four workflows:
 
-The GCP worker profile expects GCS signing settings and your selected LLM provider credentials to be forwarded into the container. The simplest local setup is:
+- `run`: generate local translations and write target files
+- `eval`: score and compare translation quality
+- `sync`: pull from or push to supported storage adapters
+- `status`: report translation coverage and review state
+
+Other commands include `init`, `completion`, `update`, and `version`.
+
+Use `hyperlocalise --help` for the local command surface, or see the docs for full flags, examples, and provider-specific setup.
+
+## GitHub Action
+
+This repository also ships a composite GitHub Action at [`action.yml`](action.yml).
+
+Current scope:
+
+- Action name: `Hyperlocalise CI`
+- Supported checks in `v1`: `drift` and `check`
+- `drift` runs `hyperlocalise run --dry-run` and reports planned localization changes
+- `check` runs `hyperlocalise check --format json` and reports localization integrity findings
+
+Example:
+
+```yaml
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise@v1
+        with:
+          check: check
+          config-path: i18n.jsonc
+          hyperlocalise-version: latest
+          fail-on-findings: true
+          upload-artifact: true
+```
+
+### GitHub Action settings
+
+Inputs from [`action.yml`](action.yml):
+
+- `check`: check name. Supported values: `drift`, `check`. Default: `drift`
+- `config-path`: path to the i18n config file. Default: `i18n.jsonc`
+- `working-directory`: working directory for the check. Default: `.`
+- `hyperlocalise-version`: CLI version to install. Default: `latest`
+- `fail-on-drift`: fail the action when drift is detected. Default: `true`
+- `fail-on-findings`: fail the action when `check` findings are detected. Default: `true`
+- `upload-artifact`: upload the JSON report and text summary. Default: `true`
+
+Outputs:
+
+- `drift-detected`: `true`, `false`, or `unknown`
+- `findings-detected`: `true`, `false`, or `unknown`
+- `cli-exit-code`: exit code returned by the Hyperlocalise CLI
+- `report-path`: path to the generated JSON report
+- `summary-path`: path to the generated text summary
+
+Operational notes:
+
+- If the CLI fails before completing a clean report run, the action fails.
+- If the report state cannot be determined, the action fails.
+- When `upload-artifact` is enabled, the action uploads both the JSON report and the text summary.
+- When `fail-on-drift` is `false`, the action can be used in reporting-only mode.
+- When `fail-on-findings` is `false`, the `check` mode can be used in reporting-only mode.
+
+## Supported integrations
+
+LLM providers are documented in the docs site and currently include `openai`, `azure_openai`, `anthropic`, `lmstudio`, `groq`, `mistral`, `ollama`, `gemini`, and `bedrock`.
+
+Storage adapters are documented in the docs site and in `internal/i18n/storage/`, with support for `crowdin`, `lilt`, `lokalise`, `phrase`, `poeditor`, and `smartling`.
+
+## Development
+
+Useful repo paths:
+
+- `apps/cli/`: CLI application entrypoint
+- `apps/cli/cmd/`: CLI command handlers
+- `apps/web/`: web app workspace
+- `internal/`: shared internal packages
+- `pkg/platform/`: runtime, auth, transport, and observability helpers
+- `api/proto/`: protobuf contract workspace
+- `scripts/`: project scripts
+
+Common commands:
 
 ```bash
-cp .env.worker.example .env.worker
-docker compose --env-file .env.worker -f docker-compose.gcp.yml --profile worker up
+make bootstrap
+make fmt
+make lint
+make test-workspace
+make check-build
 ```
 
-# CLI
+For contributor guidance, see [docs/contributing/development.mdx](docs/contributing/development.mdx).
 
-The CLI remains the most complete way to use Hyperlocalise today. It is the operator-facing interface for local translation workflows, evaluation, sync, machine-readable reporting, and automation-friendly execution inside CI or developer environments.
+## Release
 
-## Commands
+Create and push a semantic version tag to trigger release CI:
 
-```
-hyperlocalise [flags]
-hyperlocalise [command]
-
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  help        Help about any command
-  eval        evaluate translation quality across experiment variants
-  init        write the latest i18n.jsonc template
-  run         generate local translations from source files
-  status      show translation status by locale
-  sync        synchronize translations with remote storage adapters
-  update      update hyperlocalise using the bootstrap installer
-  version     hyperlocalise version
-```
-
-## CLI Commands
-
-The current CLI surface is organized around four core workflows:
-
-- `run` for translation generation and file updates
-- `eval` for quality scoring and report comparison
-- `sync` for storage adapter pull and push operations
-- `status` for translation coverage and review visibility
-
-## run
-
-Generate local translations from configured source files into target files:
-
-```
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--dry-run] [--force] [--prune] [--prune-max-deletions <n>] [--prune-force] [--workers <count>] [--output <report.json>]
-```
-
-Behavior:
-- Loads and validates `i18n.jsonc`
-- Plans entry-level translation tasks from group/bucket mappings
-- Skips tasks already recorded in `.hyperlocalise.lock.json`
-- Rehydrates staged values from lock checkpoints for interrupted runs
-- Executes remaining tasks in parallel (worker count = CPU core count) with transient-error retries
-- Persists each successful task completion and checkpoint to lock state
-
-Execution flow:
-
-```text
-               +----------------------+
-               |  load i18n.jsonc     |
-               +----------+-----------+
-                          |
-                          v
-               +----------------------+
-               | plan source->target  |
-               | entry tasks          |
-               +----------+-----------+
-                          |
-                          v
-               +----------------------+
-               | apply lock filter    |
-               | skip / rehydrate cp  |
-               +----------+-----------+
-                          |
-             +------------+------------+
-             |                         |
-             v                         v
-   +--------------------+    +--------------------+
-   | prune scan (opt.)  |    | context memory     |
-   | stale target keys  |    | precompute (opt.)  |
-   +----------+---------+    +----------+---------+
-              \                       /
-               \                     /
-                v                   v
-                 +------------------+
-                 | worker pool      |
-                 | translate/retry  |
-                 +--------+---------+
-                          |
-                          v
-                 +------------------+
-                 | lock writer      |
-                 | checkpoint/save  |
-                 +--------+---------+
-                          |
-                          v
-                 +------------------+
-                 | flush target     |
-                 | files + prune    |
-                 +--------+---------+
-                          |
-                          v
-                 +------------------+
-                 | clear checkpoints |
-                 | emit report       |
-                 +------------------+
-```
-
-JSON format support in `run`:
-- Standard nested JSON key/value objects are supported.
-- FormatJS message JSON is also supported when the root strictly matches:
-  `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
-- In FormatJS mode, only `defaultMessage` is translated. Message IDs, `description`, and other metadata are preserved.
-
-Flutter ARB format support in `run`:
-- `.arb` files are supported for source and target mappings.
-- Only message keys are translated; metadata keys such as `@key` are preserved, and `@@locale` is normalized to the target locale when writing `.arb` outputs.
-
-HTML format support in `run`:
-- `.html` files are supported for source and target mappings.
-- Text content inside block-level elements (`<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<button>`, etc.) is extracted and translated.
-- Inline tags within translatable segments (`<strong>`, `<em>`, `<a>`, etc.) are preserved as structural placeholders so the LLM translates clean prose.
-- `<script>`, `<style>`, and `<head>` content is never translated.
-
-Prune workflow recommendation:
-- Run `hyperlocalise run --dry-run --prune` regularly (for example weekly or before releases) to review stale-key candidates.
-- Apply approved cleanup with `hyperlocalise run --prune` in a dedicated change so key deletions are easy to audit.
-- Keep the safety limit enabled and only use `--prune-force` for intentional large restructures.
-
-Flags:
-- `--config` - path to i18n config (optional, defaults to i18n.jsonc in cwd)
-- `--group` - run only tasks for one configured group
-- `--bucket` - run only tasks for one configured bucket
-- `--target-locale` - run only tasks for one target locale (repeatable)
-- `--dry-run` - print plan without translating or writing files
-- `--force` - rerun all planned tasks and ignore lockfile skip state
-- `--prune` - preview/apply deletion of stale target keys missing from source
-- `--prune-max-deletions` - safety guard for max deletions per run before requiring override (default: 100)
-- `--prune-force` - bypass the prune safety limit
-- `--workers` - number of parallel translation workers (defaults to CPU core count)
-- `--progress` - progress rendering mode (`auto|on|off`, default: `auto`)
-- `--output` - write machine-readable JSON run report to the given path
-
-Run report output:
-- stdout summary now includes token totals: `prompt_tokens`, `completion_tokens`, and `total_tokens`
-- stdout includes per-locale token lines: `locale_usage locale=<locale> ...`
-- `--output` writes a JSON report with run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage
-
-Progress debug logging (optional):
-- `HYPERLOCALISE_PROGRESS_DEBUG=1` enables progress debug logging
-- `HYPERLOCALISE_PROGRESS_DEBUG_FILE=<path>` overrides the debug log location
-- default path when enabled: `.hyperlocalise/logs/run.log`
-
-
-## eval
-
-Run experiment-based translation quality checks and compare reports:
-
-```
-hyperlocalise eval run --eval-set <path> [--profile <name> ...] [--provider <name> ...] [--model <name> ...] [--prompt <text> | --prompt-file <path>] [--output <report.json>]
-hyperlocalise eval compare --candidate <report.json> --baseline <report.json> [--min-score <value>] [--max-regression <value>]
-```
-
-`eval run` prints a concise per-experiment table with score, pass rate, placeholder violations, and latency.
-
-Eval sets are YAML files built around grouped `tests`, shared `vars`, per-locale `locales`, optional dataset `experiments`, optional dataset `judge`, and optional `assert` checks. Use `reference` for trusted target-side text.
-
-`eval compare` supports CI gating:
-- `--min-score` fails when candidate weighted score is below threshold
-- `--max-regression` fails when candidate regresses more than allowed versus baseline
-
-## sync
-
-The `sync` command synchronizes translations between local storage and remote storage adapters.
-
-```
-hyperlocalise sync [command]
-
-Available Commands:
-  pull  pull translations from remote storage
-  push  push translations to remote storage
-```
-
-### sync pull
-
-Pull translations from a remote storage adapter:
-
-```
-hyperlocalise sync pull [--config <path>] [flags]
-```
-
-Flags:
-- `--config` - path to i18n config (optional, defaults to i18n.jsonc in cwd)
-- `--locale` - target locale(s) to sync (can be repeated)
-- `--dry-run` - preview changes without applying (default: true)
-- `--output` - output format: text or json
-- `--fail-on-conflict` - return error if conflicts are detected (default: true)
-- `--apply-curated-over-draft` - allow pull to update local draft entries with curated remote values (default: true)
-
-### sync push
-
-Push translations to a remote storage adapter:
-
-```
-hyperlocalise sync push [--config <path>] [flags]
-```
-
-Flags:
-- `--config` - path to i18n config (optional, defaults to i18n.jsonc in cwd)
-- `--locale` - target locale(s) to sync (can be repeated)
-- `--dry-run` - preview changes without applying (default: true)
-- `--output` - output format: text or json
-- `--fail-on-conflict` - return error if conflicts are detected (default: true)
-- `--force-conflicts` - allow overwriting remote mismatches despite conflict policies (default: false)
-
-## status
-
-Show translation status by locale:
-
-```
-hyperlocalise status [--config <path>] [flags]
-```
-
-Output shows translation status for each locale:
-- `translated` - has a non-empty translation value
-- `needs_review` - LLM-generated translation not yet curated
-- `untranslated` - empty translation value
-
-Flags:
-- `--config` - path to i18n config (optional, defaults to i18n.jsonc in cwd)
-- `--locale` - target locale(s) to report (can be repeated)
-- `--output` - output format: csv
-- `--group` - filter by group name
-- `--bucket` - filter by bucket name
-- `-i`, `--interactive` - render interactive dashboard in TTY (requires `--output csv`)
-
-# LLM Providers
-
-`hyperlocalise` supports these translation model providers in `llm.profiles.*.provider`:
-- `openai`
-- `azure_openai`
-- `anthropic`
-- `lmstudio`
-- `groq`
-- `mistral`
-- `ollama`
-- `gemini`
-- `bedrock`
-
-`llm.profiles.default` is required, and each profile requires:
-- `provider`
-- `model`
-- `prompt`
-
-Optional context-memory override for `run --experimental-context-memory`:
-- `llm.context_memory.provider`
-- `llm.context_memory.model`
-
-Prompt variables:
-- `{{source}}`
-- `{{target}}`
-- `{{input}}`
-
-## OpenAI Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "openai",
-        "model": "gpt-5.2",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
 ```bash
-export OPENAI_API_KEY="your-openai-api-key"
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-## Azure OpenAI Example
+Release assets are built by [GoReleaser](https://goreleaser.com/) via [`.github/workflows/release.yml`](.github/workflows/release.yml) and [`.goreleaser.yml`](.goreleaser.yml).
 
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "azure_openai",
-        "model": "gpt-4.1-mini",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
+## Contributing
 
-Environment:
-```bash
-# Required: your Azure OpenAI endpoint URL
-export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
-export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
-```
-
-## Gemini Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "gemini",
-        "model": "gemini-2.5-flash",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to https://generativelanguage.googleapis.com/v1beta/openai
-export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
-
-export GEMINI_API_KEY="your-gemini-api-key"
-```
-
-## Anthropic Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "anthropic",
-        "model": "claude-sonnet-4-5",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to https://api.anthropic.com/v1
-export ANTHROPIC_BASE_URL="https://api.anthropic.com/v1"
-
-export ANTHROPIC_API_KEY="your-anthropic-api-key"
-```
-
-## AWS Bedrock Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "bedrock",
-        "model": "anthropic.claude-3-5-sonnet-20241022-v2:0",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-export AWS_REGION="us-east-1"
-export AWS_ACCESS_KEY_ID="your-access-key-id"
-export AWS_SECRET_ACCESS_KEY="your-secret-access-key"
-# Optional when using temporary credentials:
-export AWS_SESSION_TOKEN="your-session-token"
-```
-
-## LM Studio Example (Local Model)
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "lmstudio",
-        "model": "qwen2.5-7b-instruct",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to http://127.0.0.1:1234/v1
-export LM_STUDIO_BASE_URL="http://127.0.0.1:1234/v1"
-
-# Optional, defaults to lm-studio
-export LM_STUDIO_API_KEY="lm-studio"
-```
-
-Notes:
-- LM Studio must be running locally and serving its OpenAI-compatible API.
-- `model` must match an identifier exposed by your local LM Studio server.
-
-## Ollama Example (Local Model)
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "ollama",
-        "model": "qwen2.5:7b",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to http://127.0.0.1:11434/v1
-export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-
-# Optional, defaults to ollama
-export OLLAMA_API_KEY="ollama"
-```
-
-Notes:
-- Ollama must be running locally with OpenAI-compatible API access enabled.
-- `model` must match an identifier available in your local Ollama instance.
-
-## Groq Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "groq",
-        "model": "llama-3.3-70b-versatile",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to https://api.groq.com/openai/v1
-export GROQ_BASE_URL="https://api.groq.com/openai/v1"
-
-export GROQ_API_KEY="your-groq-api-key"
-```
-
-## Mistral Example
-
-Config:
-```json
-{
-  "llm": {
-    "profiles": {
-      "default": {
-        "provider": "mistral",
-        "model": "mistral-large-latest",
-        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
-      }
-    }
-  }
-}
-```
-
-Environment:
-```bash
-# Optional, defaults to https://api.mistral.ai/v1
-export MISTRAL_BASE_URL="https://api.mistral.ai/v1"
-
-export MISTRAL_API_KEY="your-mistral-api-key"
-```
-
-
-# Storage Adapters
-
-`hyperlocalise` supports multiple translation management system (TMS) adapters through a pluggable storage adapter interface.
-
-Launch readiness details, known limitations, and integration test matrix:
-- [`docs/launch-readiness.md`](docs/launch-readiness.md)
-
-## Supported Adapters
-
-### POEditor
-
-Docs: [`internal/i18n/storage/poeditor/README.md`](internal/i18n/storage/poeditor/README.md)
-
-Configuration:
-```json
-{
-  "adapter": "poeditor",
-  "config": {
-    "projectID": "your-project-id",
-    "apiTokenEnv": "POEDITOR_API_TOKEN",
-    "sourceLanguage": "en",
-    "targetLanguages": ["fr", "de", "es"]
-  }
-}
-```
-
-Environment variable: `POEDITOR_API_TOKEN`
-
-### Lokalise
-
-Docs: [`internal/i18n/storage/lokalise/README.md`](internal/i18n/storage/lokalise/README.md)
-
-Configuration:
-```json
-{
-  "adapter": "lokalise",
-  "config": {
-    "projectID": "your-project-id",
-    "apiTokenEnv": "LOKALISE_API_TOKEN",
-    "sourceLanguage": "en",
-    "targetLanguages": ["fr", "de", "es"]
-  }
-}
-```
-
-Environment variable: `LOKALISE_API_TOKEN`
-
-### Crowdin
-
-Configuration:
-```json
-{
-  "adapter": "crowdin",
-  "config": {
-    "projectID": "123456",
-    "apiTokenEnv": "CROWDIN_API_TOKEN",
-    "sourceLanguage": "en",
-    "targetLanguages": ["fr", "de", "es"]
-  }
-}
-```
-
-Environment variable: `CROWDIN_API_TOKEN`
-
-### Phrase
-
-Docs: [`internal/i18n/storage/phrase/README.md`](internal/i18n/storage/phrase/README.md)
-
-Configuration:
-```json
-{
-  "adapter": "phrase",
-  "config": {
-    "projectID": "your-project-id",
-    "apiTokenEnv": "PHRASE_API_TOKEN",
-    "mode": "strings",
-    "sourceLanguage": "en",
-    "targetLanguages": ["fr", "de", "es"]
-  }
-}
-```
-
-Environment variable: `PHRASE_API_TOKEN`
-
-### Smartling
-
-Docs: [`internal/i18n/storage/smartling/README.md`](internal/i18n/storage/smartling/README.md)
-
-Configuration:
-```json
-{
-  "adapter": "smartling",
-  "config": {
-    "projectID": "your-project-id",
-    "userIdentifier": "your-user-identifier",
-    "userSecretEnv": "SMARTLING_USER_SECRET",
-    "targetLanguages": ["fr", "de", "es"],
-    "timeoutSeconds": 30
-  }
-}
-```
-
-Environment variable: `SMARTLING_USER_SECRET`
-
-For more details on the storage system and sync model, see [`internal/i18n/storage/README.md`](internal/i18n/storage/README.md).
-
-# Project Layout
-* [apps/cli/](apps/cli/) => canonical CLI application entrypoint used by GoReleaser and local Go commands
-* [apps/web/](apps/web/) => Vite frontend workspace
-* [api/proto/](api/proto/) => protobuf contract workspace
-* [pkg/api/](pkg/api/) => API package namespace
-* [pkg/platform/](pkg/platform/) => shared runtime config, auth, observability, and transport helpers
-* [apps/cli/cmd/](apps/cli/cmd/) => CLI command graph and command handlers
-* [apps/cli/internal/](apps/cli/internal/) => CLI-only support packages such as env loading and terminal progress rendering
-* [internal/](https://pkg.go.dev/github.com/hyperlocalise/hyperlocalise/internal) => shared internals still pending extraction into domain or platform packages
-* [`go.work`](go.work) => Go workspace configuration
-* [`MODULE.bazel`](MODULE.bazel) => Bazel module entrypoint
-* [`scripts/`](scripts/) => build scripts 
-
-# Makefile Targets
-```sh
-$> make
-bazel-build                    build Bazel-scaffolded targets
-bazel-test                     run Bazel-scaffolded tests
-bootstrap                      download tool and module dependencies
-check-build                    check golang build
-clean                          clean up environment
-cover                          display root-module test coverage
-fmt                            format go files
-help                           list makefile targets
-install                        install golang binary
-lint                           lint go files
-precommit                      run local CI validation flow
-run                            run the app
-staticcheck                    run staticcheck directly
-test                           run workspace-wide tests
-test-root                      run root-module tests with JSON output and coverage
-test-workspace                 run root and nested-module tests
-```
-
-# Bazel Commands
-```sh
-# Build the main entrypoint
-bazel build //:cli
-
-# Run Bazel-backed tests
-bazel test //apps/cli/cmd:cmd_test
-
-# Build or test a single target
-bazel build //apps/cli:cli
-bazel test //apps/cli/cmd:cmd_test
-
-# Inspect the Bazel graph
-bazel query //...
-bazel query 'kind(go_binary, //...)'
-```
-
-# Release
-- Create and push a semantic version tag to trigger release CI:
-  ```sh
-  git tag v0.1.0
-  git push origin v0.1.0
-  ```
-- Workflow: [`.github/workflows/release.yml`](.github/workflows/release.yml)
-- GoReleaser config: [`.goreleaser.yml`](.goreleaser.yml)
-- GoReleaser builds the CLI from `apps/cli/main.go` while keeping the binary name `hyperlocalise`
-- Published artifacts include:
-  - `darwin/amd64`, `darwin/arm64` archives
-  - `linux/amd64`, `linux/arm64` archives
-  - Linux `.deb` and `.rpm` packages
-- No extra repository secrets are required beyond the default `GITHUB_TOKEN`.
-
-# Contribute
-If you find issues in that setup or have some nice features / improvements, I would welcome an issue or a PR :)
+Issues and pull requests are welcome.
