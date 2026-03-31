@@ -1,0 +1,77 @@
+---
+title: "GitHub Action drift check"
+description: "Run Hyperlocalise localization drift checks in GitHub Actions."
+---
+
+## Overview
+
+Use the repository root action when you want a pull request check that fails on localization drift.
+
+The action runs `hyperlocalise run --dry-run`, streams the CLI output to the workflow log, and uploads two artifacts when enabled:
+
+- `drift-report.json`
+- `drift-summary.txt`
+
+## Example workflow
+
+```yaml
+name: localization-drift
+
+on:
+  pull_request:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./
+        with:
+          check: drift
+          config-path: i18n.jsonc
+          hyperlocalise-version: latest
+          fail-on-drift: true
+          upload-artifact: true
+```
+
+External repositories can use:
+
+```yaml
+- uses: hyperlocalise/hyperlocalise@v1
+  with:
+    check: drift
+```
+
+## Inputs
+
+- `check`: check name. Only `drift` is supported in v1.
+- `config-path`: path to the config file. Defaults to `i18n.jsonc`.
+- `working-directory`: working directory for the command. Defaults to `.`.
+- `hyperlocalise-version`: release version to install. Defaults to `latest`.
+- `fail-on-drift`: fail the workflow when drift is detected. Defaults to `true`.
+- `upload-artifact`: upload the JSON and text artifacts. Defaults to `true`.
+
+## Drift detection
+
+The action treats either of these conditions as drift:
+
+- one or more executable translation tasks in the dry-run report
+- one or more prune candidates in the dry-run report
+
+Command failures still fail the action even if drift enforcement is disabled.
+
+## Artifacts
+
+`drift-summary.txt` is the quick triage artifact. It records:
+
+- the config path used
+- the CLI exit code
+- whether drift was detected
+- affected target paths
+- affected target locales
+- affected entry keys when available
+
+If the CLI fails before it writes JSON, the action still writes a minimal text artifact when possible.

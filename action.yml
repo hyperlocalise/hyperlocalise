@@ -1,0 +1,150 @@
+name: Hyperlocalise CI
+description: Run opinionated Hyperlocalise localization CI checks.
+
+inputs:
+  check:
+    description: Check name. Only 'drift' is supported in v1.
+    default: drift
+  config-path:
+    description: Optional path to the i18n config file.
+    default: i18n.jsonc
+  working-directory:
+    description: Optional working directory for the check.
+    default: .
+  hyperlocalise-version:
+    description: Hyperlocalise release version to install.
+    default: latest
+  fail-on-drift:
+    description: Fail the action when drift is detected.
+    default: "true"
+  upload-artifact:
+    description: Upload the drift report and summary artifacts.
+    default: "true"
+
+outputs:
+  drift-detected:
+    description: Whether the drift check found planned changes.
+    value: ${{ steps.analyze.outputs.drift-detected }}
+  cli-exit-code:
+    description: Exit code returned by the Hyperlocalise CLI.
+    value: ${{ steps.run-check.outputs.cli-exit-code }}
+  report-path:
+    description: Path to the generated JSON drift report.
+    value: ${{ steps.prepare.outputs.report-path }}
+  summary-path:
+    description: Path to the generated text drift summary.
+    value: ${{ steps.prepare.outputs.summary-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        CHECK: ${{ inputs.check }}
+      run: |
+        set -euo pipefail
+        if [[ "${CHECK}" != "drift" ]]; then
+          echo "Unsupported check: ${CHECK}" >&2
+          echo "Only 'drift' is supported in v1." >&2
+          exit 1
+        fi
+
+    - name: Prepare artifact paths
+      id: prepare
+      shell: bash
+      run: |
+        set -euo pipefail
+        artifact_dir="${RUNNER_TEMP}/hyperlocalise-ci/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
+        mkdir -p "${artifact_dir}"
+        echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-drift-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
+        echo "report-path=${artifact_dir}/drift-report.json" >>"${GITHUB_OUTPUT}"
+        echo "summary-path=${artifact_dir}/drift-summary.txt" >>"${GITHUB_OUTPUT}"
+
+    - name: Install Hyperlocalise
+      shell: bash
+      env:
+        HYPERLOCALISE_VERSION: ${{ inputs.hyperlocalise-version }}
+      run: |
+        set -euo pipefail
+        install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
+        mkdir -p "${install_dir}"
+        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${HYPERLOCALISE_VERSION}" "${install_dir}"
+        echo "${install_dir}" >>"${GITHUB_PATH}"
+
+    - name: Run drift check
+      id: run-check
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.config-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
+      run: |
+        set +e
+        set -u
+
+        args=(run --dry-run --output "${REPORT_PATH}")
+        if [[ -n "${CONFIG_PATH}" ]]; then
+          args+=(--config "${CONFIG_PATH}")
+        fi
+
+        pushd "${WORKING_DIRECTORY}" >/dev/null
+        hyperlocalise "${args[@]}"
+        cli_exit=$?
+        popd >/dev/null
+
+        echo "cli-exit-code=${cli_exit}" >>"${GITHUB_OUTPUT}"
+        exit 0
+
+    - name: Analyze drift report
+      id: analyze
+      shell: bash
+      env:
+        CHECK_NAME: ${{ inputs.check }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
+        SUMMARY_PATH: ${{ steps.prepare.outputs.summary-path }}
+        CLI_EXIT_CODE: ${{ steps.run-check.outputs.cli-exit-code }}
+      run: |
+        set -euo pipefail
+        node "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/write-drift-summary.mjs" \
+          "${CHECK_NAME}" \
+          "${CONFIG_PATH}" \
+          "${REPORT_PATH}" \
+          "${SUMMARY_PATH}" \
+          "${CLI_EXIT_CODE}"
+
+    - name: Upload drift artifacts
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}
+        if-no-files-found: error
+        path: |
+          ${{ steps.prepare.outputs.report-path }}
+          ${{ steps.prepare.outputs.summary-path }}
+
+    - name: Fail on CLI error
+      if: ${{ steps.run-check.outputs.cli-exit-code != '0' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Hyperlocalise drift check failed before a clean dry-run completed." >&2
+        exit 1
+
+    - name: Fail on unknown drift state
+      if: ${{ steps.analyze.outputs.drift-detected == 'unknown' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Hyperlocalise drift state is unknown. Check the uploaded artifacts and workflow log." >&2
+        exit 1
+
+    - name: Fail on drift
+      if: ${{ inputs.fail-on-drift == 'true' && steps.analyze.outputs.drift-detected == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Localization drift detected. Review the uploaded drift artifacts for details." >&2
+        exit 1
