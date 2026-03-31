@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -49,5 +50,27 @@ func TestRootVersionDoesNotRequireConfigFile(t *testing.T) {
 
 	if got, want := b.String(), "hyperlocalise: v1.0.0\n"; got != want {
 		t.Fatalf("unexpected output: got %q want %q", got, want)
+	}
+}
+
+func TestRootHelpUsesAliasNameWhenInvokedAsHL(t *testing.T) {
+	originalArg0 := os.Args[0]
+	os.Args[0] = "hl"
+	t.Cleanup(func() {
+		os.Args[0] = originalArg0
+	})
+
+	cmd := newRootCmd("")
+	b := bytes.NewBufferString("")
+
+	cmd.SetArgs([]string{"-h"})
+	cmd.SetOut(b)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run root help: %v", err)
+	}
+
+	if !strings.Contains(b.String(), "Usage:\n  hl") {
+		t.Fatalf("expected hl usage output, got %q", b.String())
 	}
 }

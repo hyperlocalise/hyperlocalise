@@ -15,7 +15,6 @@ import (
 
 const (
 	latestReleaseURL = "https://api.github.com/repos/hyperlocalise/hyperlocalise/releases/latest"
-	upgradeCommand   = "hyperlocalise update"
 )
 
 type releaseInfo struct {
@@ -46,7 +45,7 @@ func notifyIfUpdateAvailable(cmd *cobra.Command, version string) {
 		latestVersion.Original(),
 		currentVersion.Original(),
 		latestVersion.Original(),
-		upgradeCommand,
+		commandName()+" update",
 	)
 }
 

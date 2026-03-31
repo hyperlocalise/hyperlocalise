@@ -9,11 +9,11 @@ import (
 func newVersionCmd(version string) *cobra.Command {
 	return &cobra.Command{
 		Use:          "version",
-		Short:        "hyperlocalise version",
+		Short:        commandName() + " version",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "hyperlocalise: %s\n", version); err != nil {
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "%s: %s\n", commandName(), version); err != nil {
 				return fmt.Errorf("write version output: %w", err)
 			}
 

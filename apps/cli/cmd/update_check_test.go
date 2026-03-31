@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"strings"
 	"testing"
 
@@ -31,8 +32,34 @@ func TestNotifyIfUpdateAvailable(t *testing.T) {
 		t.Fatalf("expected update banner in output, got %q", output)
 	}
 
-	if !strings.Contains(output, "Upgrade: "+upgradeCommand) {
+	if !strings.Contains(output, "Upgrade: hyperlocalise update") {
 		t.Fatalf("expected upgrade command in output, got %q", output)
+	}
+}
+
+func TestNotifyIfUpdateAvailableUsesAliasNameWhenInvokedAsHL(t *testing.T) {
+	originalArg0 := os.Args[0]
+	os.Args[0] = "hl"
+	t.Cleanup(func() {
+		os.Args[0] = originalArg0
+	})
+
+	originalFetcher := latestVersionFetcher
+	latestVersionFetcher = func(context.Context) (*semver.Version, error) {
+		return semver.MustParse("2.0.0"), nil
+	}
+	t.Cleanup(func() {
+		latestVersionFetcher = originalFetcher
+	})
+
+	errBuffer := &bytes.Buffer{}
+	command := &cobra.Command{}
+	command.SetErr(errBuffer)
+
+	notifyIfUpdateAvailable(command, "v1.0.0")
+
+	if !strings.Contains(errBuffer.String(), "Upgrade: hl update") {
+		t.Fatalf("expected hl upgrade command in output, got %q", errBuffer.String())
 	}
 }
 

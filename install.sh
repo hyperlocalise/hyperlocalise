@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO="hyperlocalise/hyperlocalise"
 BINARY_NAME="hyperlocalise"
+ALIAS_NAME="hl"
 
 VERSION="${VERSION:-latest}"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
@@ -136,6 +137,9 @@ else
   INSTALL_DIR="${FALLBACK_DIR}"
 fi
 
+ln -sfn "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/${ALIAS_NAME}"
+echo "Created alias ${INSTALL_DIR}/${ALIAS_NAME} -> ${INSTALL_DIR}/${BINARY_NAME}"
+
 configure_fish_path() {
   local dir="$1"
   if ! command -v fish >/dev/null 2>&1; then
@@ -195,6 +199,7 @@ configure_bash_path() {
 }
 
 echo "Installed ${BINARY_NAME} ${VERSION} to ${INSTALL_DIR}/${BINARY_NAME}"
+echo "You can run ${BINARY_NAME} or ${ALIAS_NAME}"
 case ":${PATH}:" in
   *":${INSTALL_DIR}:"*) ;;
   *)
