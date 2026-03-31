@@ -1,6 +1,10 @@
 name: Hyperlocalise CI
 description: Run opinionated Hyperlocalise localization CI checks.
 
+branding:
+  icon: check-circle
+  color: gray-dark
+
 inputs:
   check:
     description: Check name. Only 'drift' is supported in v1.
