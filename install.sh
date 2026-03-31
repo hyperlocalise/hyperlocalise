@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="quiet-circles/hyperlocalise"
+REPO="hyperlocalise/hyperlocalise"
 BINARY_NAME="hyperlocalise"
 
 VERSION="${VERSION:-latest}"
