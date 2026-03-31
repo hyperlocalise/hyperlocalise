@@ -7,7 +7,7 @@
 package translationv1
 
 import (
-	v1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1"
+	v1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -4127,7 +4127,7 @@ const file_hyperlocalise_translation_v1_translation_proto_rawDesc = "" +
 	"\x1aGetTranslationFileDownload\x12?.hyperlocalise.translation.v1.GetTranslationFileDownloadRequest\x1a@.hyperlocalise.translation.v1.GetTranslationFileDownloadResponse\x12\x84\x01\n" +
 	"\x11GetTranslationJob\x126.hyperlocalise.translation.v1.GetTranslationJobRequest\x1a7.hyperlocalise.translation.v1.GetTranslationJobResponse\x12\x96\x01\n" +
 	"\x17GetTranslationJobStatus\x12<.hyperlocalise.translation.v1.GetTranslationJobStatusRequest\x1a=.hyperlocalise.translation.v1.GetTranslationJobStatusResponse\x12\x8a\x01\n" +
-	"\x13ListTranslationJobs\x128.hyperlocalise.translation.v1.ListTranslationJobsRequest\x1a9.hyperlocalise.translation.v1.ListTranslationJobsResponseBaZ_github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1b\x06proto3"
+	"\x13ListTranslationJobs\x128.hyperlocalise.translation.v1.ListTranslationJobsRequest\x1a9.hyperlocalise.translation.v1.ListTranslationJobsResponseBaZ_github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1b\x06proto3"
 
 var (
 	file_hyperlocalise_translation_v1_translation_proto_rawDescOnce sync.Once

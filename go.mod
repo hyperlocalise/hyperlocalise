@@ -1,4 +1,4 @@
-module github.com/quiet-circles/hyperlocalise
+module github.com/hyperlocalise/hyperlocalise
 
 go 1.26
 

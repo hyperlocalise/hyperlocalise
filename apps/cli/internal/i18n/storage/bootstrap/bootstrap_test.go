@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/storageregistry"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storageregistry"
 )
 
 func TestRegisterBuiltinsRegistersExpectedAdapters(t *testing.T) {

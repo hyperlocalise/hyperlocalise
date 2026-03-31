@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
-	translationdispatcher "github.com/quiet-circles/hyperlocalise/internal/translation/dispatcher"
-	queueprovider "github.com/quiet-circles/hyperlocalise/internal/translation/queue/provider"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	translationconfig "github.com/hyperlocalise/hyperlocalise/internal/translation/config"
+	translationdispatcher "github.com/hyperlocalise/hyperlocalise/internal/translation/dispatcher"
+	queueprovider "github.com/hyperlocalise/hyperlocalise/internal/translation/queue/provider"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 )
 
 const startupTimeout = 5 * time.Second

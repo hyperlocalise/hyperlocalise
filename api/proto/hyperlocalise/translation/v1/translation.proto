@@ -5,7 +5,7 @@ package hyperlocalise.translation.v1;
 import "google/protobuf/timestamp.proto";
 import "hyperlocalise/common/v1/common.proto";
 
-option go_package = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
+option go_package = "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1;translationv1";
 
 message Project {
   string id = 1;

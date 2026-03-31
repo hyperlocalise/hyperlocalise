@@ -6,7 +6,7 @@ go_library(
         "i18n.go",
         "schema.go",
     ],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/i18nconfig",
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_invopop_jsonschema//:jsonschema",

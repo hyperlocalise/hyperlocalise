@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	pubsub "cloud.google.com/go/pubsub/v2"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
 )
 
 func TestPublishAddsStandardAttributes(t *testing.T) {

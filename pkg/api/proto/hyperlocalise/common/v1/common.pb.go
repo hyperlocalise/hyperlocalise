@@ -220,7 +220,7 @@ const file_hyperlocalise_common_v1_common_proto_rawDesc = "" +
 	"\vResourceRef\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectIdBWZUgithub.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1;commonv1b\x06proto3"
+	"project_id\x18\x02 \x01(\tR\tprojectIdBWZUgithub.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1;commonv1b\x06proto3"
 
 var (
 	file_hyperlocalise_common_v1_common_proto_rawDescOnce sync.Once

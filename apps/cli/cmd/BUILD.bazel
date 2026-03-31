@@ -4,7 +4,7 @@ go_library(
     name = "cmd",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     embedsrcs = ["templates/i18n.jsonc"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/cmd",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/cmd",
     visibility = ["//visibility:public"],
     deps = [
         "//apps/cli/internal/envloader",

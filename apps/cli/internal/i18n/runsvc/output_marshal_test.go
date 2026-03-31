@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func TestMarshalTargetFileUnsupportedExtension(t *testing.T) {

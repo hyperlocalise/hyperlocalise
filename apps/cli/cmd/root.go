@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/envloader"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader"
 	"github.com/spf13/cobra"
 )
 

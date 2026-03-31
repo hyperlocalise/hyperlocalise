@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 )
 
 func TestContextMemoryPhaseMessageIncludesProgressAndFallback(t *testing.T) {

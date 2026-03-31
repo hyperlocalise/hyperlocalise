@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "dispatcher",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/dispatcher",
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/translation/dispatcher",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/translation/queue:queue",

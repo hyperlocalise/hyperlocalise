@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/icuparser"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 func TestValidateEntryInvariantICUParityUsesParsedStructure(t *testing.T) {

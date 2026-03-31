@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
 )
 
 func TestPublisherImplementsNoOpClose(t *testing.T) {

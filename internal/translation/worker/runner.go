@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	translationapp "github.com/hyperlocalise/hyperlocalise/internal/translation/app"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 )
 
 // EventRepository captures queue-claim operations for the background worker runner.

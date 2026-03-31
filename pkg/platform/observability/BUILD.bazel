@@ -3,6 +3,6 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "observability",
     srcs = ["logger.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/platform/observability",
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/platform/observability",
     visibility = ["//visibility:public"],
 )

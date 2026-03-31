@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/icuparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"golang.org/x/text/language"
 )
 

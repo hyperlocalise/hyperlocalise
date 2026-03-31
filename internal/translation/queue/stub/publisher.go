@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
 )
 
 // Publisher is a transport placeholder that keeps the application cloud-agnostic.
