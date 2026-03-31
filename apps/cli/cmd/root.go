@@ -2,14 +2,26 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/envloader"
 	"github.com/spf13/cobra"
 )
 
+const defaultCommandName = "hyperlocalise"
+
+func commandName() string {
+	if filepath.Base(os.Args[0]) == "hl" {
+		return "hl"
+	}
+
+	return defaultCommandName
+}
+
 func newRootCmd(version string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "hyperlocalise",
+		Use:   commandName(),
 		Short: "High-performance localization CLI written in Go",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := envloader.LoadProjectFiles(); err != nil {
