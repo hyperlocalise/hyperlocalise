@@ -2,8 +2,11 @@ package crowdin
 
 import (
 	"errors"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -103,5 +106,64 @@ func TestRetryDelayPrefersRetryAfterHeader(t *testing.T) {
 
 	if got := retryDelay(0, err); got != 2*time.Second {
 		t.Fatalf("retryDelay() = %s, want 2s", got)
+	}
+}
+
+func TestJoinURLPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		prefix string
+		path   string
+		want   string
+	}{
+		{name: "empty prefix", prefix: "", path: "/api/v2/projects", want: "/api/v2/projects"},
+		{name: "prefix and path", prefix: "/proxy", path: "/api/v2/projects", want: "/proxy/api/v2/projects"},
+		{name: "already trimmed", prefix: "/proxy/", path: "api/v2/projects", want: "/proxy/api/v2/projects"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := joinURLPath(tc.prefix, tc.path); got != tc.want {
+				t.Fatalf("joinURLPath() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAPIBaseURLRoundTripperRewritesCloudHost(t *testing.T) {
+	var seenPath string
+	var seenHost string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenPath = r.URL.Path
+		seenHost = r.Host
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	overrideURL := server.URL + "/proxy"
+	parsed, err := url.Parse(overrideURL)
+	if err != nil {
+		t.Fatalf("parse override url: %v", err)
+	}
+
+	rt := &apiBaseURLRoundTripper{base: http.DefaultTransport, override: parsed, cloudHost: "api.crowdin.com"}
+	client := &http.Client{Transport: rt}
+	req, err := http.NewRequest(http.MethodGet, "https://api.crowdin.com/api/v2/projects", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	if seenPath != "/proxy/api/v2/projects" {
+		t.Fatalf("unexpected rewritten path: %q", seenPath)
+	}
+	if seenHost != parsed.Host {
+		t.Fatalf("unexpected rewritten host: %q", seenHost)
 	}
 }

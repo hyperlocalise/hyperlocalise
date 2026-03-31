@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ type Config struct {
 	ProjectID       string   `json:"projectID"`
 	APIToken        string   `json:"-"`
 	APITokenEnv     string   `json:"apiTokenEnv,omitempty"`
+	APIBaseURL      string   `json:"apiBaseURL,omitempty"`
 	SourceLanguage  string   `json:"sourceLanguage,omitempty"`
 	TargetLanguages []string `json:"targetLanguages,omitempty"`
 	TimeoutSeconds  int      `json:"timeoutSeconds,omitempty"`
@@ -109,10 +111,43 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 		cfg.TimeoutSeconds = 30
 	}
 
+	if strings.TrimSpace(cfg.APIBaseURL) != "" {
+		normalized, err := normalizeAPIBaseURL(cfg.APIBaseURL)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.APIBaseURL = normalized
+	}
+
 	if err := validateConfig(cfg); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
+}
+
+func normalizeAPIBaseURL(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("crowdin config: apiBaseURL is invalid: %w", err)
+	}
+	if parsed.Scheme != "https" {
+		return "", fmt.Errorf("crowdin config: apiBaseURL must use https")
+	}
+	if strings.TrimSpace(parsed.Host) == "" {
+		return "", fmt.Errorf("crowdin config: apiBaseURL must include a host")
+	}
+
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+	if parsed.Path == "" {
+		parsed.Path = "/"
+	}
+
+	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
 func validateConfig(cfg Config) error {
@@ -125,6 +160,11 @@ func validateConfig(cfg Config) error {
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
 		return fmt.Errorf("crowdin config: API token is required (%s)", defaultTokenEnvName)
+	}
+	if strings.TrimSpace(cfg.APIBaseURL) != "" {
+		if _, err := normalizeAPIBaseURL(cfg.APIBaseURL); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -91,15 +92,71 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		timeout = 30 * time.Second
 	}
 
+	httpClient := &http.Client{Timeout: timeout}
+	if strings.TrimSpace(cfg.APIBaseURL) != "" {
+		overrideURL, err := url.Parse(cfg.APIBaseURL)
+		if err != nil {
+			return nil, fmt.Errorf("crowdin client init: parse apiBaseURL: %w", err)
+		}
+		httpClient.Transport = &apiBaseURLRoundTripper{
+			base:      http.DefaultTransport,
+			override:  overrideURL,
+			cloudHost: "api.crowdin.com",
+		}
+	}
+
 	client, err := sdkcrowdin.NewClient(
 		cfg.APIToken,
-		sdkcrowdin.WithHTTPClient(&http.Client{Timeout: timeout}),
+		sdkcrowdin.WithHTTPClient(httpClient),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("crowdin client init: %w", err)
 	}
 
 	return &HTTPClient{client: client}, nil
+}
+
+type apiBaseURLRoundTripper struct {
+	base      http.RoundTripper
+	override  *url.URL
+	cloudHost string
+}
+
+func (rt *apiBaseURLRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	transport := rt.base
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	if req == nil || req.URL == nil || rt.override == nil {
+		return transport.RoundTrip(req)
+	}
+
+	if !strings.EqualFold(req.URL.Host, rt.cloudHost) {
+		return transport.RoundTrip(req)
+	}
+
+	rewritten := req.Clone(req.Context())
+	rewritten.URL.Scheme = rt.override.Scheme
+	rewritten.URL.Host = rt.override.Host
+	rewritten.URL.Path = joinURLPath(rt.override.Path, req.URL.Path)
+	rewritten.Host = rt.override.Host
+
+	return transport.RoundTrip(rewritten)
+}
+
+func joinURLPath(prefix, path string) string {
+	trimmedPrefix := strings.TrimSuffix(prefix, "/")
+	trimmedPath := strings.TrimPrefix(path, "/")
+
+	if trimmedPrefix == "" {
+		return "/" + trimmedPath
+	}
+	if trimmedPath == "" {
+		return trimmedPrefix
+	}
+
+	return trimmedPrefix + "/" + trimmedPath
 }
 
 type sourceStringKey struct {

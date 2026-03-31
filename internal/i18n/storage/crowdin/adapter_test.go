@@ -66,6 +66,27 @@ func TestParseConfigRejectsInlineToken(t *testing.T) {
 	}
 }
 
+func TestParseConfigNormalizesAPIBaseURL(t *testing.T) {
+	t.Setenv("CROWDIN_API_TOKEN", "token")
+
+	cfg, err := ParseConfig(json.RawMessage(`{"projectID":"123","apiBaseURL":" https://crowdin.local/api/ "}`))
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	if got, want := cfg.APIBaseURL, "https://crowdin.local/api"; got != want {
+		t.Fatalf("unexpected apiBaseURL: got %q want %q", got, want)
+	}
+}
+
+func TestParseConfigRejectsInsecureAPIBaseURL(t *testing.T) {
+	t.Setenv("CROWDIN_API_TOKEN", "token")
+
+	_, err := ParseConfig(json.RawMessage(`{"projectID":"123","apiBaseURL":"http://crowdin.local"}`))
+	if err == nil || !strings.Contains(err.Error(), "apiBaseURL must use https") {
+		t.Fatalf("expected https validation error, got %v", err)
+	}
+}
+
 func TestAdapterPullMapsStringContextLanguage(t *testing.T) {
 	client := &fakeClient{
 		strings:      []StringTranslation{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
