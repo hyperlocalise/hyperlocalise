@@ -63,14 +63,16 @@ runs:
     - name: Prepare artifact paths
       id: prepare
       shell: bash
+      env:
+        CHECK: ${{ inputs.check }}
       run: |
         set -euo pipefail
         artifact_dir="${RUNNER_TEMP}/hyperlocalise-ci/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
         mkdir -p "${artifact_dir}"
         echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
-        echo "artifact-name=hyperlocalise-${{ inputs.check }}-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
-        echo "report-path=${artifact_dir}/${{ inputs.check }}-report.json" >>"${GITHUB_OUTPUT}"
-        echo "summary-path=${artifact_dir}/${{ inputs.check }}-summary.txt" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-${CHECK}-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
+        echo "report-path=${artifact_dir}/${CHECK}-report.json" >>"${GITHUB_OUTPUT}"
+        echo "summary-path=${artifact_dir}/${CHECK}-summary.txt" >>"${GITHUB_OUTPUT}"
 
     - name: Install Hyperlocalise
       shell: bash

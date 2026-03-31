@@ -140,6 +140,7 @@ func (rt *apiBaseURLRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	rewritten.URL.Scheme = rt.override.Scheme
 	rewritten.URL.Host = rt.override.Host
 	rewritten.URL.Path = joinURLPath(rt.override.Path, req.URL.Path)
+	rewritten.URL.RawPath = ""
 	rewritten.Host = rt.override.Host
 
 	return transport.RoundTrip(rewritten)

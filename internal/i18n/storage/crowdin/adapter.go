@@ -141,11 +141,11 @@ func normalizeAPIBaseURL(raw string) (string, error) {
 	if strings.TrimSpace(parsed.Host) == "" {
 		return "", fmt.Errorf("crowdin config: apiBaseURL must include a host")
 	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", fmt.Errorf("crowdin config: apiBaseURL must not include query parameters or a fragment")
+	}
 
 	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	if parsed.Path == "" {
-		parsed.Path = "/"
-	}
 
 	return strings.TrimRight(parsed.String(), "/"), nil
 }

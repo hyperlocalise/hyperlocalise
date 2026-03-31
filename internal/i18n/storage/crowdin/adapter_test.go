@@ -87,6 +87,22 @@ func TestParseConfigRejectsInsecureAPIBaseURL(t *testing.T) {
 	}
 }
 
+func TestParseConfigRejectsAPIBaseURLQueryOrFragment(t *testing.T) {
+	t.Setenv("CROWDIN_API_TOKEN", "token")
+
+	tests := []string{
+		`{"projectID":"123","apiBaseURL":"https://crowdin.local/api?forward=1"}`,
+		`{"projectID":"123","apiBaseURL":"https://crowdin.local/api#proxy"}`,
+	}
+
+	for _, raw := range tests {
+		_, err := ParseConfig(json.RawMessage(raw))
+		if err == nil || !strings.Contains(err.Error(), "apiBaseURL must not include query parameters or a fragment") {
+			t.Fatalf("expected query/fragment validation error for %s, got %v", raw, err)
+		}
+	}
+}
+
 func TestAdapterPullMapsStringContextLanguage(t *testing.T) {
 	client := &fakeClient{
 		strings:      []StringTranslation{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
