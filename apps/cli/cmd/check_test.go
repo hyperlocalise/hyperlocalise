@@ -113,10 +113,22 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	if report.Summary.ByCheck[checkMissingTargetFile] != 1 {
 		t.Fatalf("expected one missing target file finding, got %+v", report.Summary.ByCheck)
 	}
+	if report.Summary.BySeverity[checkSeverityError] == 0 {
+		t.Fatalf("expected error severity counts, got %+v", report.Summary.BySeverity)
+	}
+	for _, finding := range report.Findings {
+		if finding.Severity == "" {
+			t.Fatalf("expected severity on finding: %+v", finding)
+		}
+		if finding.AnnotationFile == "" || finding.AnnotationLine == 0 {
+			t.Fatalf("expected annotation location on finding: %+v", finding)
+		}
+	}
 }
 
 func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
 	findings := collectEntryCheckFindings(
+		&checkLocationResolver{},
 		"ui",
 		"fr",
 		"source.json",
@@ -181,6 +193,9 @@ func TestCheckCommandJSONOutputFileMatchesStdout(t *testing.T) {
 		t.Fatalf("parse output file json: %v", err)
 	}
 	assertFindingType(t, report.Findings, checkNotLocalized)
+	if report.Findings[0].AnnotationLine == 0 || report.Findings[0].AnnotationFile == "" {
+		t.Fatalf("expected annotation location in output file report: %+v", report.Findings[0])
+	}
 }
 
 func TestCheckCommandWritesTextReportAndCanSkipFailure(t *testing.T) {
@@ -322,6 +337,9 @@ func TestCheckCommandFiltersByBucketAndLocale(t *testing.T) {
 	if finding.Bucket != "ui" || finding.Locale != "fr" || finding.Type != checkMissingTargetFile {
 		t.Fatalf("unexpected finding: %+v", finding)
 	}
+	if finding.AnnotationFile == "" || finding.AnnotationLine == 0 {
+		t.Fatalf("expected annotation location: %+v", finding)
+	}
 }
 
 func TestCheckCommandChecksMDXContent(t *testing.T) {
@@ -376,6 +394,11 @@ Bonjour
 	}
 	if !hasMDXFinding {
 		t.Fatalf("expected mdx findings for source=%q target=%q, got %+v", sourcePath, targetPath, report.Findings)
+	}
+	for _, finding := range report.Findings {
+		if finding.AnnotationFile == "" || finding.AnnotationLine == 0 {
+			t.Fatalf("expected mdx annotation location: %+v", finding)
+		}
 	}
 }
 
@@ -542,9 +565,9 @@ func TestCheckHelperFunctions(t *testing.T) {
 
 func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 	findings := []checkFinding{
-		{Type: checkWhitespaceOnly, Bucket: "b", Locale: "fr", SourceFile: "z", TargetFile: "z", Key: "b"},
-		{Type: checkNotLocalized, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "a"},
-		{Type: checkNotLocalized, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "0"},
+		{Type: checkWhitespaceOnly, Severity: checkSeverityWarning, Bucket: "b", Locale: "fr", SourceFile: "z", TargetFile: "z", Key: "b", AnnotationFile: "z", AnnotationLine: 3},
+		{Type: checkNotLocalized, Severity: checkSeverityError, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "a", AnnotationFile: "a", AnnotationLine: 2},
+		{Type: checkNotLocalized, Severity: checkSeverityError, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "0", AnnotationFile: "a", AnnotationLine: 1},
 	}
 	sortCheckFindings(findings)
 	if findings[0].Type != checkNotLocalized || findings[0].Key != "0" {
@@ -556,7 +579,7 @@ func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renderCheckReport(text): %v", err)
 	}
-	if !strings.Contains(string(textPayload), "[not_localized]") || !strings.Contains(string(textPayload), "By locale:") {
+	if !strings.Contains(string(textPayload), "[not_localized]") || !strings.Contains(string(textPayload), "By severity:") {
 		t.Fatalf("unexpected text payload: %q", string(textPayload))
 	}
 

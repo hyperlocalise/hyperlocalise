@@ -29,6 +29,8 @@ const (
 	checkHTMLTag           = "html_tag_mismatch"
 	checkICUShape          = "icu_shape_mismatch"
 	checkWhitespaceOnly    = "whitespace_only"
+	checkSeverityError     = "error"
+	checkSeverityWarning   = "warning"
 )
 
 var (
@@ -58,20 +60,28 @@ type checkOptions struct {
 }
 
 type checkFinding struct {
-	Type       string `json:"type"`
-	Bucket     string `json:"bucket"`
-	Locale     string `json:"locale,omitempty"`
-	SourceFile string `json:"sourceFile"`
-	TargetFile string `json:"targetFile,omitempty"`
-	Key        string `json:"key,omitempty"`
-	Message    string `json:"message,omitempty"`
+	Type           string `json:"type"`
+	Severity       string `json:"severity"`
+	Bucket         string `json:"bucket"`
+	Locale         string `json:"locale,omitempty"`
+	SourceFile     string `json:"sourceFile"`
+	TargetFile     string `json:"targetFile,omitempty"`
+	Key            string `json:"key,omitempty"`
+	Message        string `json:"message,omitempty"`
+	AnnotationFile string `json:"annotationFile,omitempty"`
+	AnnotationLine int    `json:"annotationLine,omitempty"`
 }
 
 type checkSummary struct {
-	Total    int            `json:"total"`
-	ByCheck  map[string]int `json:"byCheck"`
-	ByBucket map[string]int `json:"byBucket"`
-	ByLocale map[string]int `json:"byLocale"`
+	Total      int            `json:"total"`
+	ByCheck    map[string]int `json:"byCheck"`
+	BySeverity map[string]int `json:"bySeverity"`
+	ByBucket   map[string]int `json:"byBucket"`
+	ByLocale   map[string]int `json:"byLocale"`
+}
+
+type checkLocationResolver struct {
+	content map[string][]byte
 }
 
 type checkReport struct {
@@ -201,6 +211,7 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 
 func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledChecks []string) ([]checkFinding, error) {
 	parser := translationfileparser.NewDefaultStrategy()
+	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
 	for _, check := range enabledChecks {
 		checkSet[check] = struct{}{}
@@ -236,19 +247,23 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 					}
 					if !targetExists {
 						if _, ok := checkSet[checkMissingTargetFile]; ok {
+							annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
 							findings = append(findings, checkFinding{
-								Type:       checkMissingTargetFile,
-								Bucket:     bucketName,
-								Locale:     locale,
-								SourceFile: sourcePath,
-								TargetFile: targetPath,
-								Message:    "target file does not exist",
+								Type:           checkMissingTargetFile,
+								Severity:       severityForCheck(checkMissingTargetFile),
+								Bucket:         bucketName,
+								Locale:         locale,
+								SourceFile:     sourcePath,
+								TargetFile:     targetPath,
+								Message:        "target file does not exist",
+								AnnotationFile: annotationFile,
+								AnnotationLine: annotationLine,
 							})
 						}
 						continue
 					}
 
-					findings = append(findings, collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
+					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
 				}
 			}
 		}
@@ -268,7 +283,7 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 	return targetEntries, true, nil
 }
 
-func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}) []checkFinding {
+func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}) []checkFinding {
 	keys := make([]string, 0, len(sourceEntries))
 	for key := range sourceEntries {
 		keys = append(keys, key)
@@ -284,14 +299,18 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 
 		if _, ok := checkSet[checkNotLocalized]; ok && isNotLocalized(sourceValue, targetValue, hasTargetKey) {
 			notLocalized = true
+			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, !hasTargetKey)
 			findings = append(findings, checkFinding{
-				Type:       checkNotLocalized,
-				Bucket:     bucketName,
-				Locale:     locale,
-				SourceFile: sourcePath,
-				TargetFile: targetPath,
-				Key:        key,
-				Message:    describeNotLocalized(sourceValue, targetValue, hasTargetKey),
+				Type:           checkNotLocalized,
+				Severity:       severityForCheck(checkNotLocalized),
+				Bucket:         bucketName,
+				Locale:         locale,
+				SourceFile:     sourcePath,
+				TargetFile:     targetPath,
+				Key:            key,
+				Message:        describeNotLocalized(sourceValue, targetValue, hasTargetKey),
+				AnnotationFile: annotationFile,
+				AnnotationLine: annotationLine,
 			})
 		}
 		if !hasTargetKey {
@@ -301,25 +320,33 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 			continue
 		}
 		if _, ok := checkSet[checkWhitespaceOnly]; ok && isWhitespaceOnlyTarget {
+			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
 			findings = append(findings, checkFinding{
-				Type:       checkWhitespaceOnly,
-				Bucket:     bucketName,
-				Locale:     locale,
-				SourceFile: sourcePath,
-				TargetFile: targetPath,
-				Key:        key,
-				Message:    "target value contains only whitespace",
+				Type:           checkWhitespaceOnly,
+				Severity:       severityForCheck(checkWhitespaceOnly),
+				Bucket:         bucketName,
+				Locale:         locale,
+				SourceFile:     sourcePath,
+				TargetFile:     targetPath,
+				Key:            key,
+				Message:        "target value contains only whitespace",
+				AnnotationFile: annotationFile,
+				AnnotationLine: annotationLine,
 			})
 		}
 		if _, ok := checkSet[checkHTMLTag]; ok && hasHTMLTagMismatch(sourceValue, targetValue) {
+			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
 			findings = append(findings, checkFinding{
-				Type:       checkHTMLTag,
-				Bucket:     bucketName,
-				Locale:     locale,
-				SourceFile: sourcePath,
-				TargetFile: targetPath,
-				Key:        key,
-				Message:    "html tag structure differs from source",
+				Type:           checkHTMLTag,
+				Severity:       severityForCheck(checkHTMLTag),
+				Bucket:         bucketName,
+				Locale:         locale,
+				SourceFile:     sourcePath,
+				TargetFile:     targetPath,
+				Key:            key,
+				Message:        "html tag structure differs from source",
+				AnnotationFile: annotationFile,
+				AnnotationLine: annotationLine,
 			})
 		}
 		if _, ok := checkSet[checkPlaceholder]; ok || hasCheck(checkSet, checkICUShape) {
@@ -327,14 +354,18 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 			if _, ok := checkSet[checkPlaceholder]; ok {
 				for _, diag := range diags {
 					if strings.Contains(diag, "placeholder parity mismatch") {
+						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
 						findings = append(findings, checkFinding{
-							Type:       checkPlaceholder,
-							Bucket:     bucketName,
-							Locale:     locale,
-							SourceFile: sourcePath,
-							TargetFile: targetPath,
-							Key:        key,
-							Message:    diag,
+							Type:           checkPlaceholder,
+							Severity:       severityForCheck(checkPlaceholder),
+							Bucket:         bucketName,
+							Locale:         locale,
+							SourceFile:     sourcePath,
+							TargetFile:     targetPath,
+							Key:            key,
+							Message:        diag,
+							AnnotationFile: annotationFile,
+							AnnotationLine: annotationLine,
 						})
 					}
 				}
@@ -342,14 +373,18 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 			if _, ok := checkSet[checkICUShape]; ok {
 				for _, diag := range diags {
 					if strings.Contains(diag, "ICU parity mismatch") || strings.Contains(diag, "invalid ICU/braces structure") || strings.Contains(diag, "duplicate # tokens") {
+						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
 						findings = append(findings, checkFinding{
-							Type:       checkICUShape,
-							Bucket:     bucketName,
-							Locale:     locale,
-							SourceFile: sourcePath,
-							TargetFile: targetPath,
-							Key:        key,
-							Message:    diag,
+							Type:           checkICUShape,
+							Severity:       severityForCheck(checkICUShape),
+							Bucket:         bucketName,
+							Locale:         locale,
+							SourceFile:     sourcePath,
+							TargetFile:     targetPath,
+							Key:            key,
+							Message:        diag,
+							AnnotationFile: annotationFile,
+							AnnotationLine: annotationLine,
 						})
 					}
 				}
@@ -366,14 +401,18 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 		}
 		slices.Sort(orphanedKeys)
 		for _, key := range orphanedKeys {
+			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, "", targetEntries[key], false)
 			findings = append(findings, checkFinding{
-				Type:       checkOrphanedKey,
-				Bucket:     bucketName,
-				Locale:     locale,
-				SourceFile: sourcePath,
-				TargetFile: targetPath,
-				Key:        key,
-				Message:    "target key is not present in source",
+				Type:           checkOrphanedKey,
+				Severity:       severityForCheck(checkOrphanedKey),
+				Bucket:         bucketName,
+				Locale:         locale,
+				SourceFile:     sourcePath,
+				TargetFile:     targetPath,
+				Key:            key,
+				Message:        "target key is not present in source",
+				AnnotationFile: annotationFile,
+				AnnotationLine: annotationLine,
 			})
 		}
 	}
@@ -459,6 +498,12 @@ func sortCheckFindings(findings []checkFinding) {
 		if cmp := strings.Compare(a.Type, b.Type); cmp != 0 {
 			return cmp
 		}
+		if cmp := strings.Compare(a.AnnotationFile, b.AnnotationFile); cmp != 0 {
+			return cmp
+		}
+		if a.AnnotationLine != b.AnnotationLine {
+			return a.AnnotationLine - b.AnnotationLine
+		}
 		if cmp := strings.Compare(a.Bucket, b.Bucket); cmp != 0 {
 			return cmp
 		}
@@ -477,13 +522,15 @@ func sortCheckFindings(findings []checkFinding) {
 
 func summarizeCheckFindings(findings []checkFinding) checkSummary {
 	summary := checkSummary{
-		ByCheck:  make(map[string]int),
-		ByBucket: make(map[string]int),
-		ByLocale: make(map[string]int),
+		ByCheck:    make(map[string]int),
+		BySeverity: make(map[string]int),
+		ByBucket:   make(map[string]int),
+		ByLocale:   make(map[string]int),
 	}
 	for _, finding := range findings {
 		summary.Total++
 		summary.ByCheck[finding.Type]++
+		summary.BySeverity[finding.Severity]++
 		summary.ByBucket[finding.Bucket]++
 		if finding.Locale != "" {
 			summary.ByLocale[finding.Locale]++
@@ -537,6 +584,9 @@ func writeCheckText(w io.Writer, report checkReport) error {
 		if finding.Message != "" {
 			line += fmt.Sprintf(" message=%q", finding.Message)
 		}
+		if finding.AnnotationFile != "" {
+			line += fmt.Sprintf(" annotation=%s:%d", finding.AnnotationFile, finding.AnnotationLine)
+		}
 		if _, err := fmt.Fprintln(w, line); err != nil {
 			return fmt.Errorf("write text report: %w", err)
 		}
@@ -547,10 +597,103 @@ func writeCheckText(w io.Writer, report checkReport) error {
 	if err := writeCheckSummaryMap(w, "By check", report.Summary.ByCheck); err != nil {
 		return err
 	}
+	if err := writeCheckSummaryMap(w, "By severity", report.Summary.BySeverity); err != nil {
+		return err
+	}
 	if err := writeCheckSummaryMap(w, "By bucket", report.Summary.ByBucket); err != nil {
 		return err
 	}
 	return writeCheckSummaryMap(w, "By locale", report.Summary.ByLocale)
+}
+
+func severityForCheck(name string) string {
+	switch name {
+	case checkOrphanedKey, checkWhitespaceOnly:
+		return checkSeverityWarning
+	default:
+		return checkSeverityError
+	}
+}
+
+func (r *checkLocationResolver) resolve(sourcePath, targetPath, key, sourceValue, targetValue string, preferSource bool) (string, int) {
+	primaryPath, primaryValue := targetPath, targetValue
+	secondaryPath, secondaryValue := sourcePath, sourceValue
+	if preferSource {
+		primaryPath, primaryValue, secondaryPath, secondaryValue = sourcePath, sourceValue, targetPath, targetValue
+	}
+	if file, line := r.resolveInFile(primaryPath, key, primaryValue); file != "" {
+		return file, line
+	}
+	if file, line := r.resolveInFile(secondaryPath, key, secondaryValue); file != "" {
+		return file, line
+	}
+	if primaryPath != "" {
+		return primaryPath, 1
+	}
+	if secondaryPath != "" {
+		return secondaryPath, 1
+	}
+	return "", 0
+}
+
+func (r *checkLocationResolver) resolveInFile(filePath, key, value string) (string, int) {
+	if filePath == "" {
+		return "", 0
+	}
+	if r.content == nil {
+		r.content = make(map[string][]byte)
+	}
+	content, ok := r.content[filePath]
+	if !ok {
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", 0
+		}
+		content = data
+		r.content[filePath] = data
+	}
+	if line := lineForKey(content, key); line > 0 {
+		return filePath, line
+	}
+	if line := lineForValue(content, value); line > 0 {
+		return filePath, line
+	}
+	return filePath, 1
+}
+
+func lineForKey(content []byte, key string) int {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return 0
+	}
+	segments := strings.Split(key, ".")
+	for i := len(segments) - 1; i >= 0; i-- {
+		segment := strings.TrimSpace(segments[i])
+		if segment == "" {
+			continue
+		}
+		if line := lineForValue(content, `"`+segment+`"`); line > 0 {
+			return line
+		}
+		if line := lineForValue(content, segment); line > 0 {
+			return line
+		}
+	}
+	return 0
+}
+
+func lineForValue(content []byte, value string) int {
+	needle := strings.TrimSpace(value)
+	if needle == "" {
+		return 0
+	}
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		if strings.Contains(line, needle) {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 func writeCheckSummaryMap(w io.Writer, heading string, counts map[string]int) error {

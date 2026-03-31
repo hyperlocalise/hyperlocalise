@@ -99,6 +99,7 @@ Inputs from [`action.yml`](action.yml):
 - `fail-on-drift`: fail the action when drift is detected. Default: `true`
 - `fail-on-findings`: fail the action when `check` findings are detected. Default: `true`
 - `upload-artifact`: upload the JSON report and text summary. Default: `true`
+- `github-annotations`: emit inline GitHub workflow annotations for `check` findings. Default: `true`
 
 Outputs:
 
@@ -107,6 +108,9 @@ Outputs:
 - `cli-exit-code`: exit code returned by the Hyperlocalise CLI
 - `report-path`: path to the generated JSON report
 - `summary-path`: path to the generated text summary
+- `findings-total`: total number of reported errors and warnings
+- `error-count`: number of error-level findings
+- `warning-count`: number of warning-level findings
 
 Operational notes:
 
@@ -115,6 +119,8 @@ Operational notes:
 - When `upload-artifact` is enabled, the action uploads both the JSON report and the text summary.
 - When `fail-on-drift` is `false`, the action can be used in reporting-only mode.
 - When `fail-on-findings` is `false`, the `check` mode can be used in reporting-only mode.
+- When GitHub step summaries are available, the action writes counts such as `Errors: 3` and `Warnings: 5` to the run summary.
+- In `check` mode, the action can emit inline GitHub annotations when the report includes file and line metadata.
 
 ## Supported integrations
 
