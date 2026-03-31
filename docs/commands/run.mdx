@@ -6,7 +6,7 @@ description: "Plan and execute local translation generation from configured sour
 ## Usage
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--target-locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--diff] [--target-locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Behavior
@@ -77,6 +77,7 @@ When writing CSV targets, `run` preserves the existing header and non-target col
 - `--group`: run only tasks for the given group name
 - `--bucket`: run only tasks for the given bucket name
 - `--target-locale`: run only tasks for the given target locale (repeatable)
+- `--diff`: run only tasks for files changed in the current git worktree; JSON-like files (`.json`, `.jsonc`, `.arb`) are narrowed to changed keys when possible
 - `--dry-run`: print plan only, do not translate or write files
 - `--force`: rerun all planned tasks and ignore lockfile skip state
 - `--prune`: remove target keys that no longer exist in source files
@@ -173,6 +174,16 @@ When combined with `--prune`, stale-key detection is also limited to the selecte
 ```bash
 hyperlocalise run --prune --target-locale de --dry-run
 ```
+
+## Scope runs to the current worktree diff
+
+Use `--diff` when you want to translate only source files changed in your current git worktree. For JSON-like source files, `run` narrows the plan to changed keys when it can compare the current file to `HEAD`.
+
+```bash
+hyperlocalise run --diff --dry-run
+```
+
+`--diff` includes both staged and unstaged changes, plus untracked files. Deleted source files are ignored. `--diff` cannot be combined with `--prune`.
 
 ## Force rerun all planned tasks
 

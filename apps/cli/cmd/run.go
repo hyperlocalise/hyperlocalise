@@ -28,8 +28,10 @@ type runOptions struct {
 	progress                  string
 	bucket                    string
 	group                     string
+	diffOnly                  bool
 	targetLocales             []string
 	sourcePaths               []string
+	sourceEntryKeys           map[string][]string
 	outputPath                string
 	experimentalContextMemory bool
 	contextMemoryScope        string
@@ -72,6 +74,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
 	cmd.Flags().StringVar(&o.group, "group", "", "only run tasks for the given group")
+	cmd.Flags().BoolVar(&o.diffOnly, "diff", false, "only run tasks for files changed in the current git worktree; JSON-like files are narrowed to changed keys")
 	cmd.Flags().StringSliceVar(&o.targetLocales, "target-locale", nil, "only run tasks for the given target locale(s)")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
@@ -88,6 +91,9 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	}
 	if workers < 1 {
 		return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
+	}
+	if o.diffOnly && o.prune {
+		return fmt.Errorf("--diff cannot be combined with --prune")
 	}
 	if cmd.Flags().Changed("target-locale") {
 		if len(o.targetLocales) == 0 {
@@ -118,6 +124,15 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
 	defer stop()
 
+	if o.diffOnly {
+		selection, err := resolveRunDiffSelection(runCtx)
+		if err != nil {
+			return err
+		}
+		o.sourcePaths = selection.SourcePaths
+		o.sourceEntryKeys = selection.SourceEntryKeys
+	}
+
 	var renderer *progressui.Renderer
 	if progressui.IsEnabled(progressMode, output, nil) {
 		renderer = progressui.New(output, progressMode, progressui.Options{
@@ -141,6 +156,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		Group:                     o.group,
 		TargetLocales:             o.targetLocales,
 		SourcePaths:               o.sourcePaths,
+		SourceEntryKeys:           o.sourceEntryKeys,
 		ExperimentalContextMemory: o.experimentalContextMemory,
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,

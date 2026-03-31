@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -806,6 +808,79 @@ func TestRunForceFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunDiffFlagPlumbsChangedJSONKeysToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	repoDir := t.TempDir()
+	sourcePath := filepath.Join(repoDir, "content", "en", "strings.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"A","b":"B"}`), 0o600); err != nil {
+		t.Fatalf("write initial source file: %v", err)
+	}
+	runGit(t, repoDir, "init")
+	runGit(t, repoDir, "add", ".")
+	runGit(t, repoDir, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial")
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"AA","b":"B"}`), 0o600); err != nil {
+		t.Fatalf("write modified source file: %v", err)
+	}
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{}, nil
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--diff", "--progress", "off"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with diff: %v", err)
+	}
+	if !slices.Contains(gotInput.SourcePaths, filepath.Clean(filepath.Join("content", "en", "strings.json"))) {
+		t.Fatalf("expected changed source path in input, got %#v", gotInput.SourcePaths)
+	}
+	keys := gotInput.SourceEntryKeys[filepath.Clean(filepath.Join("content", "en", "strings.json"))]
+	if len(keys) != 1 || keys[0] != "a" {
+		t.Fatalf("expected only changed JSON key in input, got %#v", gotInput.SourceEntryKeys)
+	}
+	if slices.Contains(keys, "b") {
+		t.Fatalf("did not expect unchanged key in diff filter, got %#v", keys)
+	}
+}
+
+func TestRunRejectsDiffWithPrune(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--diff", "--prune"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected diff/prune validation error")
+	}
+	if !strings.Contains(err.Error(), "--diff cannot be combined with --prune") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunExperimentalContextMemoryFlagsPlumbedToServiceInput(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })
@@ -839,6 +914,17 @@ func TestRunExperimentalContextMemoryFlagsPlumbedToServiceInput(t *testing.T) {
 	if gotInput.ContextMemoryMaxChars != 900 {
 		t.Fatalf("unexpected context memory max chars: %d", gotInput.ContextMemoryMaxChars)
 	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, string(out))
+	}
+	return string(out)
 }
 
 func TestRunRejectsInvalidContextMemoryScope(t *testing.T) {

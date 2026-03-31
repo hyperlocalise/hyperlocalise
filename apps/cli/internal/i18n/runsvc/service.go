@@ -33,6 +33,7 @@ type Input struct {
 	Group                     string
 	TargetLocales             []string
 	SourcePaths               []string
+	SourceEntryKeys           map[string][]string
 	DryRun                    bool
 	Force                     bool
 	Prune                     bool
@@ -226,7 +227,7 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
-func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string) ([]Task, error) {
+func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string, onlySourceEntryKeys map[string][]string) ([]Task, error) {
 	parser := s.newParser()
 	sourceCache := map[string]plannedSourceSnapshot{}
 	resolvedSourcesCache := map[string][]string{}
@@ -241,6 +242,10 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		return nil, fmt.Errorf("planning tasks: %w", err)
 	}
 	filteredSourcePaths, err := normalizeSourcePaths(onlySourcePaths)
+	if err != nil {
+		return nil, fmt.Errorf("planning tasks: %w", err)
+	}
+	filteredSourceEntryKeys, err := normalizeSourceEntryKeys(onlySourceEntryKeys)
 	if err != nil {
 		return nil, fmt.Errorf("planning tasks: %w", err)
 	}
@@ -338,6 +343,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						return nil, err
 					}
 					keys := sortedEntryKeys(sourceEntries)
+					if len(filteredSourceEntryKeys) > 0 {
+						if selectedKeys, ok := filteredSourceEntryKeys[sourcePath]; ok {
+							keys = filterEntryKeys(keys, selectedKeys)
+						}
+					}
 					for _, target := range targets {
 						resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -446,6 +456,44 @@ func normalizeSourcePaths(paths []string) (map[string]struct{}, error) {
 		normalized[filepath.Clean(trimmed)] = struct{}{}
 	}
 	return normalized, nil
+}
+
+func normalizeSourceEntryKeys(keysBySource map[string][]string) (map[string]map[string]struct{}, error) {
+	if len(keysBySource) == 0 {
+		return nil, nil
+	}
+
+	normalized := make(map[string]map[string]struct{}, len(keysBySource))
+	for path, keys := range keysBySource {
+		trimmedPath := strings.TrimSpace(path)
+		if trimmedPath == "" {
+			return nil, fmt.Errorf("invalid source file value: must not be empty")
+		}
+		entryKeys := make(map[string]struct{}, len(keys))
+		for _, key := range keys {
+			trimmedKey := strings.TrimSpace(key)
+			if trimmedKey == "" {
+				return nil, fmt.Errorf("invalid source entry key value: must not be empty")
+			}
+			entryKeys[trimmedKey] = struct{}{}
+		}
+		normalized[filepath.Clean(trimmedPath)] = entryKeys
+	}
+	return normalized, nil
+}
+
+func filterEntryKeys(keys []string, allowed map[string]struct{}) []string {
+	if len(keys) == 0 || len(allowed) == 0 {
+		return nil
+	}
+
+	filtered := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if _, ok := allowed[key]; ok {
+			filtered = append(filtered, key)
+		}
+	}
+	return filtered
 }
 
 func intersectLocales(locales, selected []string) []string {
