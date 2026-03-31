@@ -7,7 +7,7 @@ branding:
 
 inputs:
   check:
-    description: Check name. Only 'drift' is supported in v1.
+    description: "Check name. Supported values: 'drift' and 'check'."
     default: drift
   config-path:
     description: Optional path to the i18n config file.
@@ -21,22 +21,28 @@ inputs:
   fail-on-drift:
     description: Fail the action when drift is detected.
     default: "true"
+  fail-on-findings:
+    description: Fail the action when check findings are detected.
+    default: "true"
   upload-artifact:
-    description: Upload the drift report and summary artifacts.
+    description: Upload the report and summary artifacts.
     default: "true"
 
 outputs:
   drift-detected:
     description: Whether the drift check found planned changes.
     value: ${{ steps.analyze.outputs.drift-detected }}
+  findings-detected:
+    description: Whether the check command found issues.
+    value: ${{ steps.analyze.outputs.findings-detected }}
   cli-exit-code:
     description: Exit code returned by the Hyperlocalise CLI.
     value: ${{ steps.run-check.outputs.cli-exit-code }}
   report-path:
-    description: Path to the generated JSON drift report.
+    description: Path to the generated JSON report.
     value: ${{ steps.prepare.outputs.report-path }}
   summary-path:
-    description: Path to the generated text drift summary.
+    description: Path to the generated text summary.
     value: ${{ steps.prepare.outputs.summary-path }}
 
 runs:
@@ -48,23 +54,25 @@ runs:
         CHECK: ${{ inputs.check }}
       run: |
         set -euo pipefail
-        if [[ "${CHECK}" != "drift" ]]; then
+        if [[ "${CHECK}" != "drift" && "${CHECK}" != "check" ]]; then
           echo "Unsupported check: ${CHECK}" >&2
-          echo "Only 'drift' is supported in v1." >&2
+          echo "Supported values are 'drift' and 'check'." >&2
           exit 1
         fi
 
     - name: Prepare artifact paths
       id: prepare
       shell: bash
+      env:
+        CHECK: ${{ inputs.check }}
       run: |
         set -euo pipefail
         artifact_dir="${RUNNER_TEMP}/hyperlocalise-ci/${GITHUB_RUN_ID}/${GITHUB_ACTION}"
         mkdir -p "${artifact_dir}"
         echo "artifact-dir=${artifact_dir}" >>"${GITHUB_OUTPUT}"
-        echo "artifact-name=hyperlocalise-drift-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
-        echo "report-path=${artifact_dir}/drift-report.json" >>"${GITHUB_OUTPUT}"
-        echo "summary-path=${artifact_dir}/drift-summary.txt" >>"${GITHUB_OUTPUT}"
+        echo "artifact-name=hyperlocalise-${CHECK}-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
+        echo "report-path=${artifact_dir}/${CHECK}-report.json" >>"${GITHUB_OUTPUT}"
+        echo "summary-path=${artifact_dir}/${CHECK}-summary.txt" >>"${GITHUB_OUTPUT}"
 
     - name: Install Hyperlocalise
       shell: bash
@@ -77,10 +85,11 @@ runs:
         bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${HYPERLOCALISE_VERSION}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
-    - name: Run drift check
+    - name: Run localization check
       id: run-check
       shell: bash
       env:
+        CHECK: ${{ inputs.check }}
         CONFIG_PATH: ${{ inputs.config-path }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
@@ -88,7 +97,11 @@ runs:
         set +e
         set -u
 
-        args=(run --dry-run --output "${REPORT_PATH}")
+        if [[ "${CHECK}" == "drift" ]]; then
+          args=(run --dry-run --output "${REPORT_PATH}")
+        else
+          args=(check --format json --no-fail --output-file "${REPORT_PATH}")
+        fi
         if [[ -n "${CONFIG_PATH}" ]]; then
           args+=(--config "${CONFIG_PATH}")
         fi
@@ -101,7 +114,7 @@ runs:
         echo "cli-exit-code=${cli_exit}" >>"${GITHUB_OUTPUT}"
         exit 0
 
-    - name: Analyze drift report
+    - name: Analyze report
       id: analyze
       shell: bash
       env:
@@ -112,14 +125,14 @@ runs:
         CLI_EXIT_CODE: ${{ steps.run-check.outputs.cli-exit-code }}
       run: |
         set -euo pipefail
-        node "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/write-drift-summary.mjs" \
+        node "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
           "${CHECK_NAME}" \
           "${CONFIG_PATH}" \
           "${REPORT_PATH}" \
           "${SUMMARY_PATH}" \
           "${CLI_EXIT_CODE}"
 
-    - name: Upload drift artifacts
+    - name: Upload artifacts
       if: ${{ inputs.upload-artifact == 'true' }}
       uses: actions/upload-artifact@v4
       with:
@@ -134,15 +147,15 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "Hyperlocalise drift check failed before a clean dry-run completed." >&2
+        echo "Hyperlocalise failed before a clean report could be produced." >&2
         exit 1
 
-    - name: Fail on unknown drift state
-      if: ${{ steps.analyze.outputs.drift-detected == 'unknown' }}
+    - name: Fail on unknown result state
+      if: ${{ (inputs.check == 'drift' && steps.analyze.outputs.drift-detected == 'unknown') || (inputs.check == 'check' && steps.analyze.outputs.findings-detected == 'unknown') }}
       shell: bash
       run: |
         set -euo pipefail
-        echo "Hyperlocalise drift state is unknown. Check the uploaded artifacts and workflow log." >&2
+        echo "Hyperlocalise result state is unknown. Check the uploaded artifacts and workflow log." >&2
         exit 1
 
     - name: Fail on drift
@@ -151,4 +164,12 @@ runs:
       run: |
         set -euo pipefail
         echo "Localization drift detected. Review the uploaded drift artifacts for details." >&2
+        exit 1
+
+    - name: Fail on findings
+      if: ${{ inputs.check == 'check' && inputs.fail-on-findings == 'true' && steps.analyze.outputs.findings-detected == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Localization check findings detected. Review the uploaded report artifacts for details." >&2
         exit 1
