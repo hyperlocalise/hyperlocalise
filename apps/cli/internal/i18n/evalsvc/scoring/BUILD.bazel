@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "scoring",
     srcs = ["evaluator.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalsvc/scoring",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc/scoring",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/icuparser",

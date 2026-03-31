@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "envloader",
     srcs = ["loader.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/envloader",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader",
     visibility = ["//visibility:public"],
     deps = ["@com_github_subosito_gotenv//:gotenv"],
 )

@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	githubReleaseAPIBase = "https://api.github.com/repos/quiet-circles/hyperlocalise/releases"
+	githubReleaseAPIBase = "https://api.github.com/repos/hyperlocalise/hyperlocalise/releases"
 	installerAssetName   = "install.sh"
 	checksumsAssetName   = "checksums.txt"
 )

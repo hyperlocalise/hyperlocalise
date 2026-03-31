@@ -10,7 +10,7 @@ Use this skill to help users operate Hyperlocalise CLI projects safely and effic
 ## Install with skills.sh
 
 ```bash
-npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocalise
+npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
 ## Work in User-Operations Mode

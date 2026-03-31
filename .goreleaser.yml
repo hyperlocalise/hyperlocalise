@@ -36,14 +36,14 @@ nfpms:
     formats:
       - deb
       - rpm
-    homepage: https://github.com/quiet-circles/hyperlocalise
-    maintainer: quiet-circles
+    homepage: https://github.com/hyperlocalise/hyperlocalise
+    maintainer: hyperlocalise
     description: High-performance localization CLI for modern development workflows.
     license: MIT
 
 release:
   github:
-    owner: quiet-circles
+    owner: hyperlocalise
     name: hyperlocalise
   extra_files:
     - glob: ./install.sh

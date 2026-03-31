@@ -8,12 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	translationservice "github.com/quiet-circles/hyperlocalise/api/services/translation"
-	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
-	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
-	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
+	translationservice "github.com/hyperlocalise/hyperlocalise/api/services/translation"
+	translationapp "github.com/hyperlocalise/hyperlocalise/internal/translation/app"
+	translationconfig "github.com/hyperlocalise/hyperlocalise/internal/translation/config"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
+	translationv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/grpc"
 )
 

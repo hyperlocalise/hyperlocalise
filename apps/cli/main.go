@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/cmd"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/cmd"
 )
 
 var version = ""

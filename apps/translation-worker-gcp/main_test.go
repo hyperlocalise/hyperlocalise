@@ -8,9 +8,9 @@ import (
 	"time"
 
 	pubsub "cloud.google.com/go/pubsub/v2"
-	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/worker"
+	translationapp "github.com/hyperlocalise/hyperlocalise/internal/translation/app"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/worker"
 )
 
 type fakeExecutor struct{}

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 )
 
 func TestRootHelpIncludesRunCommand(t *testing.T) {

@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "progressui",
     srcs = ["renderer.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/progressui",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui",
     visibility = ["//visibility:public"],
     deps = [
         "@land_charm_bubbles_v2//progress",

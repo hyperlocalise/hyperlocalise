@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 )
 
 type fakeRepository struct {

@@ -6,7 +6,7 @@ go_library(
         "translation.pb.go",
         "translation_grpc.pb.go",
     ],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1",
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/api/proto/hyperlocalise/common/v1:v1",

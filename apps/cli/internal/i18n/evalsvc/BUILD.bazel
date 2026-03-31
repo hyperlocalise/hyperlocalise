@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "evalsvc",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalsvc",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc",
     visibility = ["//visibility:public"],
     deps = [
         "//apps/cli/internal/i18n/evalset",

@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/runsvc"
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/progressui"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/spf13/cobra"
 )
 

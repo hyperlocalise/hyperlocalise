@@ -10,7 +10,7 @@ go_library(
         "projects.go",
         "repository.go",
     ],
-    importpath = "github.com/quiet-circles/hyperlocalise/internal/translation/store",
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/translation/store",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_jackc_pgx_v5//:pgx",

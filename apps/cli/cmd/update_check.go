@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	latestReleaseURL = "https://api.github.com/repos/quiet-circles/hyperlocalise/releases/latest"
+	latestReleaseURL = "https://api.github.com/repos/hyperlocalise/hyperlocalise/releases/latest"
 )
 
 type releaseInfo struct {

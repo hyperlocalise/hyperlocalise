@@ -3,6 +3,6 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "config",
     srcs = ["env.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/platform/config",
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/platform/config",
     visibility = ["//visibility:public"],
 )

@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func parseCSVForTargetLocale(content []byte, targetLocale string) (map[string]string, error) {
