@@ -144,6 +144,7 @@ function writeCheckSummary(summaryPath, report, lines) {
   const byLocale = objectEntries(summary.byLocale)
   const bySeverity = objectEntries(summary.bySeverity)
   const findingsDetected = findings.length > 0
+  const total = numberOrFallback(summary.total, findings.length)
   const errorCount = numberValue(summary?.bySeverity?.error)
   const warningCount = numberValue(summary?.bySeverity?.warning)
 
@@ -153,7 +154,7 @@ function writeCheckSummary(summaryPath, report, lines) {
   for (const check of checks) {
     lines.push(`check_name=${check}`)
   }
-  lines.push(`findings_total=${numberOrFallback(summary.total, findings.length)}`)
+  lines.push(`findings_total=${total}`)
   lines.push(`error_count=${errorCount}`)
   lines.push(`warning_count=${warningCount}`)
   lines.push(`findings_by_check=${byCheck.length}`)
@@ -174,7 +175,7 @@ function writeCheckSummary(summaryPath, report, lines) {
   }
 
   setOutput('findings-detected', String(findingsDetected))
-  setCountOutputs({ total: findings.length, error: errorCount, warning: warningCount })
+  setCountOutputs({ total, error: errorCount, warning: warningCount })
   emitAnnotations(findings, maxAnnotations, annotationsEnabled)
   writeSummary(summaryPath, lines)
   writeStepSummary(renderCheckMarkdown({
@@ -182,7 +183,7 @@ function writeCheckSummary(summaryPath, report, lines) {
     reportPath,
     cliExitCode,
     checks,
-    total: numberOrFallback(summary.total, findings.length),
+    total,
     errorCount,
     warningCount,
     byCheck,
@@ -255,7 +256,7 @@ function renderParseErrorMarkdown(checkName, configPath, reportPath, errorMessag
     `- Config path: \`${configPath}\``,
     `- Report path: \`${reportPath}\``,
     '',
-    `Parse error: ${errorMessage}`,
+    `Parse error: \`${errorMessage}\``,
   ].join('\n')
 }
 

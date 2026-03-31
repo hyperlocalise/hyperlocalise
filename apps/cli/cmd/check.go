@@ -675,9 +675,6 @@ func lineForKey(content []byte, key string) int {
 		if line := lineForValue(content, `"`+segment+`"`); line > 0 {
 			return line
 		}
-		if line := lineForValue(content, segment); line > 0 {
-			return line
-		}
 	}
 	return 0
 }
