@@ -3,7 +3,7 @@ package runsvc
 import (
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
 func TestApplyLockFilterSkipsOnlyWhenTaskHashMatches(t *testing.T) {

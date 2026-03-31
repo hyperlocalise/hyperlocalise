@@ -7,8 +7,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 )
 
 // Repository captures the persistence operations needed for durable broker delivery.

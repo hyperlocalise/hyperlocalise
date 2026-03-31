@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
 const (

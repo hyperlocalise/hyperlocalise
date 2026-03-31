@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "storageregistry",
     srcs = ["registry.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/storageregistry",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storageregistry",
     visibility = ["//visibility:public"],
     deps = ["//internal/i18n/storage"],
 )

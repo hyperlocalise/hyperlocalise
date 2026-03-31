@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "syncsvc",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/syncsvc",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/icuparser",

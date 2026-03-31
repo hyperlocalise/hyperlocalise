@@ -3,6 +3,6 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "lockfile",
     srcs = ["lockfile.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/lockfile",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile",
     visibility = ["//visibility:public"],
 )

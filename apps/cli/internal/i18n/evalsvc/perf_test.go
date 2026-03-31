@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalset"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalset"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
 func BenchmarkRunLargeBatch(b *testing.B) {

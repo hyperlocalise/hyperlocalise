@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "crowdin",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    importpath = "github.com/quiet-circles/hyperlocalise/internal/i18n/storage/crowdin",
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/crowdin",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/storage",

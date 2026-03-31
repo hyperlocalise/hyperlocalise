@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "translation",
     srcs = ["service.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/api/services/translation",
+    importpath = "github.com/hyperlocalise/hyperlocalise/api/services/translation",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/translation/app:app",

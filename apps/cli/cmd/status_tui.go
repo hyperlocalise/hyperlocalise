@@ -13,7 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/mattn/go-isatty"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 type statusSummary struct {

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/cache"
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/lockfile"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translator"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/cache"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
 const (

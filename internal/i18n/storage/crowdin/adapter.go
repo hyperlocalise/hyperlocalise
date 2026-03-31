@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 const (

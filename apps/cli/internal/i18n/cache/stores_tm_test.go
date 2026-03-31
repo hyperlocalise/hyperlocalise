@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/quiet-circles/hyperlocalise/pkg/i18nconfig"
+	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func TestTMUpsertPersistsProvenanceAndSource(t *testing.T) {

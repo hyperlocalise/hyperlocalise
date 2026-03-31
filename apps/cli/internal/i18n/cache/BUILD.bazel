@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "cache",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/cache",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/cache",
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/i18nconfig",

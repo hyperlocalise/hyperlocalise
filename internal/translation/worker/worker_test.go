@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
-	translationv1 "github.com/quiet-circles/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
+	translationapp "github.com/hyperlocalise/hyperlocalise/internal/translation/app"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
+	translationv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

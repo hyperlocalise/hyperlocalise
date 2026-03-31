@@ -12,11 +12,11 @@ import (
 	"time"
 
 	pubsub "cloud.google.com/go/pubsub/v2"
-	translationapp "github.com/quiet-circles/hyperlocalise/internal/translation/app"
-	translationconfig "github.com/quiet-circles/hyperlocalise/internal/translation/config"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/objectstore"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/store"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/worker"
+	translationapp "github.com/hyperlocalise/hyperlocalise/internal/translation/app"
+	translationconfig "github.com/hyperlocalise/hyperlocalise/internal/translation/config"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/objectstore"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/worker"
 )
 
 var (

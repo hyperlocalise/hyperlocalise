@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "bootstrap",
     srcs = ["bootstrap.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/storage/bootstrap",
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storage/bootstrap",
     visibility = ["//visibility:public"],
     deps = [
         "//apps/cli/internal/i18n/storageregistry",

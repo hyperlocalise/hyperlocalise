@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {

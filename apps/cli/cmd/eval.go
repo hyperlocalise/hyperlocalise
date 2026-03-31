@@ -10,8 +10,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/mattn/go-isatty"
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalsvc"
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/evalsvc/scoring"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc/scoring"
 	"github.com/spf13/cobra"
 )
 

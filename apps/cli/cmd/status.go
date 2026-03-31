@@ -12,11 +12,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/pathresolver"
-	"github.com/quiet-circles/hyperlocalise/apps/cli/internal/i18n/syncsvc"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/storage"
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
-	"github.com/quiet-circles/hyperlocalise/pkg/i18nconfig"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
 )
 

@@ -3,6 +3,6 @@ load("@rules_go//go:def.bzl", "go_library")
 go_library(
     name = "grpcx",
     srcs = ["doc.go"],
-    importpath = "github.com/quiet-circles/hyperlocalise/pkg/platform/transport/grpcx",
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/platform/transport/grpcx",
     visibility = ["//visibility:public"],
 )

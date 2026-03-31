@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/quiet-circles/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {

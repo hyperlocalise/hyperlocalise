@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue"
-	"github.com/quiet-circles/hyperlocalise/internal/translation/queue/gcppubsub"
-	stubqueue "github.com/quiet-circles/hyperlocalise/internal/translation/queue/stub"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
+	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue/gcppubsub"
+	stubqueue "github.com/hyperlocalise/hyperlocalise/internal/translation/queue/stub"
 )
 
 // Config selects and configures a queue provider at the deployment edge.

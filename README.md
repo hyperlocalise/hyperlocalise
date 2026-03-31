@@ -4,7 +4,7 @@ Hyperlocalise is the AI-native localization infrastructure for modern apps.
 
 It combines an automation-first CLI and shared localization infrastructure for teams that want localization workflows to live inside engineering systems instead of beside them.
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/quiet-circles/hyperlocalise)](https://goreportcard.com/report/github.com/quiet-circles/hyperlocalise)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hyperlocalise/hyperlocalise)](https://goreportcard.com/report/github.com/hyperlocalise/hyperlocalise)
 
 # Table of Contents
 <!--ts-->
@@ -36,13 +36,13 @@ It combines an automation-first CLI and shared localization infrastructure for t
 Use the stable bootstrap URL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | bash
 ```
 
 Pin a specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
+curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
 ```
 
 ## Install the Hyperlocalise Agent Skill (skills.sh)
@@ -56,7 +56,7 @@ npx skills add . --skill hyperlocalise
 Install directly from GitHub:
 
 ```bash
-npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocalise
+npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
 This uses the [skills.sh](https://skills.sh) installer via `npx`.
@@ -672,7 +672,7 @@ For more details on the storage system and sync model, see [`internal/i18n/stora
 * [pkg/platform/](pkg/platform/) => shared runtime config, auth, observability, and transport helpers
 * [apps/cli/cmd/](apps/cli/cmd/) => CLI command graph and command handlers
 * [apps/cli/internal/](apps/cli/internal/) => CLI-only support packages such as env loading and terminal progress rendering
-* [internal/](https://pkg.go.dev/github.com/quiet-circles/hyperlocalise/internal) => shared internals still pending extraction into domain or platform packages
+* [internal/](https://pkg.go.dev/github.com/hyperlocalise/hyperlocalise/internal) => shared internals still pending extraction into domain or platform packages
 * [`go.work`](go.work) => Go workspace configuration
 * [`MODULE.bazel`](MODULE.bazel) => Bazel module entrypoint
 * [`scripts/`](scripts/) => build scripts 

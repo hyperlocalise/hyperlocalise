@@ -13,13 +13,13 @@ description: "安装步骤：包括对 hyperlocalise 的验证和升级。"
 使用稳定的 bootstrap URL
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | bash
 ```
 
 固定特定版本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
+curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
 ```
 
 安装脚本也已附加到每个 GitHub 发布的资产中，这样您就可以直接从发布资产查看或下载标记版本。
@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/quiet-circles/hyperlocalise/main/in
 ## 从源代码安装 （Go）
 
 ```bash
-go install github.com/quiet-circles/hyperlocalise@latest
+go install github.com/hyperlocalise/hyperlocalise@latest
 ```
 
 ## 从仓库构建
@@ -51,7 +51,7 @@ hyperlocalise --help
 安装：
 
 ```bash
-npx skills add https://github.com/quiet-circles/hyperlocalise --skill hyperlocalise
+npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
 这使用 [skills.sh](https://skills.sh)安装脚本，通过`npx` 运行。

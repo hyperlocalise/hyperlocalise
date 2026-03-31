@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quiet-circles/hyperlocalise/pkg/i18nconfig"
+	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
 	"github.com/uptrace/bun/driver/sqliteshim"
