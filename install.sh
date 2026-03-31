@@ -20,7 +20,7 @@ if [ "${VERSION}" = "latest" ]; then
     echo "This usually means no published GitHub Release exists yet, or API access is blocked/rate-limited." >&2
     echo "Try one of the following:" >&2
     echo "  1) Publish a release, then rerun the installer" >&2
-    echo "  2) Install from source: go install github.com/quiet-circles/hyperlocalise@latest" >&2
+    echo "  2) Install from source: go install github.com/hyperlocalise/hyperlocalise@latest" >&2
     echo "  3) Clone this repo and run ./install.sh after setting VERSION to a published release tag" >&2
     exit 1
   fi
