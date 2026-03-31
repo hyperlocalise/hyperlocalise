@@ -110,9 +110,31 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	assertFindingType(t, report.Findings, checkPlaceholder)
 	assertFindingType(t, report.Findings, checkHTMLTag)
 	assertFindingType(t, report.Findings, checkICUShape)
-	assertFindingType(t, report.Findings, checkWhitespaceOnly)
 	if report.Summary.ByCheck[checkMissingTargetFile] != 1 {
 		t.Fatalf("expected one missing target file finding, got %+v", report.Summary.ByCheck)
+	}
+}
+
+func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
+	findings := collectEntryCheckFindings(
+		"ui",
+		"fr",
+		"source.json",
+		"target.json",
+		map[string]string{"html": "<strong>Hello</strong>"},
+		map[string]string{"html": "   "},
+		map[string]struct{}{
+			checkNotLocalized:   {},
+			checkWhitespaceOnly: {},
+			checkHTMLTag:        {},
+		},
+	)
+
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %+v", findings)
+	}
+	if findings[0].Type != checkNotLocalized {
+		t.Fatalf("expected %q finding, got %+v", checkNotLocalized, findings)
 	}
 }
 
@@ -359,13 +381,33 @@ Bonjour
 
 func TestResolveEnabledChecks(t *testing.T) {
 	t.Run("includes override excludes", func(t *testing.T) {
+		stderr := os.Stderr
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("os.Pipe: %v", err)
+		}
+		os.Stderr = w
+		defer func() {
+			os.Stderr = stderr
+		}()
+
 		got, err := resolveEnabledChecks([]string{checkOrphanedKey, checkMissingTargetFile}, []string{checkOrphanedKey})
 		if err != nil {
 			t.Fatalf("resolveEnabledChecks: %v", err)
 		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("close stderr writer: %v", err)
+		}
+		warning, err := io.ReadAll(r)
+		if err != nil {
+			t.Fatalf("read warning: %v", err)
+		}
 		want := []string{checkOrphanedKey, checkMissingTargetFile}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("resolveEnabledChecks() = %v, want %v", got, want)
+		}
+		if !strings.Contains(string(warning), "--exclude-check is ignored when --check is provided") {
+			t.Fatalf("expected warning, got %q", string(warning))
 		}
 	})
 

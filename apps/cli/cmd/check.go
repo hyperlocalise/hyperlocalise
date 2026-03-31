@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"regexp"
 	"slices"
@@ -176,6 +177,9 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 		return nil, err
 	}
 	if len(includes) > 0 {
+		if len(excludes) > 0 {
+			_, _ = fmt.Fprintln(os.Stderr, "warning: --exclude-check is ignored when --check is provided")
+		}
 		return slices.Clone(includes), nil
 	}
 	excluded := make(map[string]struct{}, len(excludes))
@@ -256,7 +260,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, bool, error) {
 	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil, false, nil
 		}
 		return nil, false, err
@@ -275,8 +279,11 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 	for _, key := range keys {
 		sourceValue := sourceEntries[key]
 		targetValue, hasTargetKey := targetEntries[key]
+		isWhitespaceOnlyTarget := hasTargetKey && targetValue != "" && strings.TrimSpace(targetValue) == ""
+		notLocalized := false
 
 		if _, ok := checkSet[checkNotLocalized]; ok && isNotLocalized(sourceValue, targetValue, hasTargetKey) {
+			notLocalized = true
 			findings = append(findings, checkFinding{
 				Type:       checkNotLocalized,
 				Bucket:     bucketName,
@@ -290,7 +297,10 @@ func collectEntryCheckFindings(bucketName, locale, sourcePath, targetPath string
 		if !hasTargetKey {
 			continue
 		}
-		if _, ok := checkSet[checkWhitespaceOnly]; ok && targetValue != "" && strings.TrimSpace(targetValue) == "" {
+		if notLocalized && isWhitespaceOnlyTarget {
+			continue
+		}
+		if _, ok := checkSet[checkWhitespaceOnly]; ok && isWhitespaceOnlyTarget {
 			findings = append(findings, checkFinding{
 				Type:       checkWhitespaceOnly,
 				Bucket:     bucketName,
