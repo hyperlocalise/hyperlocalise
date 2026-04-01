@@ -50,17 +50,23 @@ func resolveRunDiffSelection(ctx context.Context) (runDiffSelection, error) {
 				return runDiffSelection{}, fmt.Errorf("resolve worktree diff for %q: %w", changedPath, err)
 			}
 			if len(changedKeys) > 0 {
-				addSelectionSourceEntryKeys(&selection, cwd, changedPath, changedKeys)
+				addSelectionSourceEntryKeys(&selection, changedPath, changedKeys)
 				continue
 			}
 		}
 
-		addSelectionSourcePath(&selection, cwd, changedPath)
+		addSelectionSourcePath(&selection, changedPath)
 	}
 
 	selection.SourcePaths = uniqueSorted(selection.SourcePaths)
 	for path, keys := range selection.SourceEntryKeys {
 		selection.SourceEntryKeys[path] = uniqueSorted(keys)
+		if len(selection.SourceEntryKeys[path]) == 0 {
+			delete(selection.SourceEntryKeys, path)
+		}
+	}
+	if len(selection.SourcePaths) == 0 {
+		selection.SourcePaths = nil
 	}
 	if len(selection.SourceEntryKeys) == 0 {
 		selection.SourceEntryKeys = nil
@@ -230,24 +236,14 @@ func isGitRevisionMissing(err error) bool {
 		strings.Contains(msg, "not a valid object name")
 }
 
-func addSelectionSourcePath(selection *runDiffSelection, cwd, path string) {
-	selection.SourcePaths = append(selection.SourcePaths, canonicalSelectionPaths(cwd, path)...)
+func addSelectionSourcePath(selection *runDiffSelection, path string) {
+	selection.SourcePaths = append(selection.SourcePaths, filepath.Clean(path))
 }
 
-func addSelectionSourceEntryKeys(selection *runDiffSelection, cwd, path string, keys []string) {
-	for _, candidatePath := range canonicalSelectionPaths(cwd, path) {
-		selection.SourcePaths = append(selection.SourcePaths, candidatePath)
-		selection.SourceEntryKeys[candidatePath] = append(selection.SourceEntryKeys[candidatePath], keys...)
-	}
-}
-
-func canonicalSelectionPaths(cwd, path string) []string {
-	relative := filepath.Clean(path)
-	abs := filepath.Clean(filepath.Join(cwd, path))
-	if relative == abs {
-		return []string{relative}
-	}
-	return []string{relative, abs}
+func addSelectionSourceEntryKeys(selection *runDiffSelection, path string, keys []string) {
+	candidatePath := filepath.Clean(path)
+	selection.SourcePaths = append(selection.SourcePaths, candidatePath)
+	selection.SourceEntryKeys[candidatePath] = append(selection.SourceEntryKeys[candidatePath], keys...)
 }
 
 func uniqueSorted(values []string) []string {

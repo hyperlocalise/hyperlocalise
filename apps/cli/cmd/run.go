@@ -129,7 +129,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		if err != nil {
 			return err
 		}
-		if len(selection.SourcePaths) == 0 {
+		if selection.empty() {
 			if writeErr := writeRunReport(output, runsvc.Report{}, o.dryRun); writeErr != nil {
 				return fmt.Errorf("write run report: %w", writeErr)
 			}
@@ -198,6 +198,10 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	}
 
 	return nil
+}
+
+func (s runDiffSelection) empty() bool {
+	return len(s.SourcePaths) == 0 && len(s.SourceEntryKeys) == 0
 }
 
 func syncInteractiveScopeFlags(cmd *cobra.Command, o runOptions) {

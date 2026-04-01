@@ -853,12 +853,22 @@ func TestRunDiffFlagPlumbsChangedJSONKeysToServiceInput(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("run with diff: %v", err)
 	}
-	if !slices.Contains(gotInput.SourcePaths, filepath.Clean(filepath.Join("content", "en", "strings.json"))) {
+	relativeSourcePath := filepath.Clean(filepath.Join("content", "en", "strings.json"))
+	if !slices.Contains(gotInput.SourcePaths, relativeSourcePath) {
 		t.Fatalf("expected changed source path in input, got %#v", gotInput.SourcePaths)
 	}
-	keys := gotInput.SourceEntryKeys[filepath.Clean(filepath.Join("content", "en", "strings.json"))]
+	if slices.Contains(gotInput.SourcePaths, sourcePath) {
+		t.Fatalf("did not expect absolute changed source path in input, got %#v", gotInput.SourcePaths)
+	}
+	if len(gotInput.SourcePaths) != 1 {
+		t.Fatalf("expected exactly one changed source path in input, got %#v", gotInput.SourcePaths)
+	}
+	keys := gotInput.SourceEntryKeys[relativeSourcePath]
 	if len(keys) != 1 || keys[0] != "a" {
 		t.Fatalf("expected only changed JSON key in input, got %#v", gotInput.SourceEntryKeys)
+	}
+	if _, ok := gotInput.SourceEntryKeys[sourcePath]; ok {
+		t.Fatalf("did not expect absolute changed source path key in input, got %#v", gotInput.SourceEntryKeys)
 	}
 	if slices.Contains(keys, "b") {
 		t.Fatalf("did not expect unchanged key in diff filter, got %#v", keys)
@@ -912,6 +922,65 @@ func TestRunDiffDryRunReportsZeroTasksWhenWorktreeIsClean(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "planned_total=0 skipped_by_lock=0 executable_total=0") {
 		t.Fatalf("expected zero-task report, got %q", out.String())
+	}
+}
+
+func TestRunDiffSkipsServiceWhenWorktreeSelectionIsEmpty(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"content/en/*.json","to":"dist/{{target}}/*.json"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	runGit(t, dir, "init")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial")
+
+	called := false
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		called = true
+		return runsvc.Report{}, nil
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--diff", "--progress", "off"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with clean diff: %v", err)
+	}
+	if called {
+		t.Fatalf("expected clean --diff selection to skip service execution")
 	}
 }
 
