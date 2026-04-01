@@ -24,12 +24,21 @@ inputs:
   fail-on-findings:
     description: Fail the action when check findings are detected.
     default: "true"
+  severity-threshold:
+    description: "Minimum finding severity that should fail the action. Supported values: 'warning' and 'error'."
+    default: warning
   upload-artifact:
     description: Upload the report and summary artifacts.
     default: "true"
   github-annotations:
     description: Emit inline GitHub workflow annotations for check findings when location data is available.
     default: "true"
+  summary-format:
+    description: "Control the GitHub job summary verbosity. Supported values: 'compact' and 'detailed'."
+    default: compact
+  summary-limit:
+    description: "Maximum number of findings to render in the GitHub job summary."
+    default: "20"
 
 outputs:
   drift-detected:
@@ -64,11 +73,17 @@ runs:
       shell: bash
       env:
         CHECK: ${{ inputs.check }}
+        SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
         if [[ "${CHECK}" != "drift" && "${CHECK}" != "check" ]]; then
           echo "Unsupported check: ${CHECK}" >&2
           echo "Supported values are 'drift' and 'check'." >&2
+          exit 1
+        fi
+        if [[ "${SEVERITY_THRESHOLD}" != "warning" && "${SEVERITY_THRESHOLD}" != "error" ]]; then
+          echo "Unsupported severity threshold: ${SEVERITY_THRESHOLD}" >&2
+          echo "Supported values are 'warning' and 'error'." >&2
           exit 1
         fi
 
@@ -136,6 +151,8 @@ runs:
         SUMMARY_PATH: ${{ steps.prepare.outputs.summary-path }}
         CLI_EXIT_CODE: ${{ steps.run-check.outputs.cli-exit-code }}
         GITHUB_ANNOTATIONS_ENABLED: ${{ inputs.github-annotations }}
+        SUMMARY_FORMAT: ${{ inputs.summary-format }}
+        SUMMARY_LIMIT: ${{ inputs.summary-limit }}
       run: |
         set -euo pipefail
         node "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/write-action-summary.mjs" \
@@ -143,7 +160,9 @@ runs:
           "${CONFIG_PATH}" \
           "${REPORT_PATH}" \
           "${SUMMARY_PATH}" \
-          "${CLI_EXIT_CODE}"
+          "${CLI_EXIT_CODE}" \
+          "${SUMMARY_FORMAT}" \
+          "${SUMMARY_LIMIT}"
 
     - name: Upload artifacts
       if: ${{ inputs.upload-artifact == 'true' }}
@@ -182,7 +201,19 @@ runs:
     - name: Fail on findings
       if: ${{ inputs.check == 'check' && inputs.fail-on-findings == 'true' && steps.analyze.outputs.findings-detected == 'true' }}
       shell: bash
+      env:
+        SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
+        ERROR_COUNT: ${{ steps.analyze.outputs.error-count }}
+        WARNING_COUNT: ${{ steps.analyze.outputs.warning-count }}
       run: |
         set -euo pipefail
-        echo "Localization check findings detected. Review the uploaded report artifacts for details." >&2
+        if [[ "${SEVERITY_THRESHOLD}" == "error" ]]; then
+          if [[ "${ERROR_COUNT}" == "0" ]]; then
+            exit 0
+          fi
+          echo "Localization check errors detected (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings). Review the uploaded report artifacts for details." >&2
+          exit 1
+        fi
+
+        echo "Localization check findings detected (${ERROR_COUNT} errors, ${WARNING_COUNT} warnings). Review the uploaded report artifacts for details." >&2
         exit 1
