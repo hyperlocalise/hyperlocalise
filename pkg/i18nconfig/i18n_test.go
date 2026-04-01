@@ -1057,11 +1057,109 @@ func TestLoadPreservesExplicitZeroCacheL2AutoAcceptThreshold(t *testing.T) {
 	}
 }
 
+func TestLoadYAML(t *testing.T) {
+	path := writeConfigFileNamed(t, "config.yml", `
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: lang/{{source}}.json
+        to: lang/{{target}}.json
+groups:
+  default:
+    targets:
+      - fr-FR
+    buckets:
+      - ui
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+      system_prompt: You are a localization expert.
+cache:
+  enabled: true
+  db_path: .cache/test.sqlite
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load yaml config: %v", err)
+	}
+
+	if cfg.Locales.Source != "en-US" {
+		t.Fatalf("source locale=%q, want en-US", cfg.Locales.Source)
+	}
+	if got := cfg.LLM.Profiles["default"].SystemPrompt; got != "You are a localization expert." {
+		t.Fatalf("system prompt=%q", got)
+	}
+	if got := cfg.Cache.DBPath; got != ".cache/test.sqlite" {
+		t.Fatalf("cache db path=%q", got)
+	}
+}
+
+func TestLoadDefaultsToYAMLBeforeJSONC(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	if err := os.WriteFile(filepath.Join(dir, defaultConfigJSONCPath), []byte(`{
+  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+  "buckets": {"ui": {"files": [{"from": "jsonc", "to": "jsonc"}]}},
+  "groups": {"default": {"targets": ["fr-FR"], "buckets": ["ui"]}},
+  "llm": {"profiles": {"default": {"provider": "openai", "model": "jsonc"}}}
+}`), 0o600); err != nil {
+		t.Fatalf("write jsonc config: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, defaultConfigYAMLPath), []byte(`
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+buckets:
+  ui:
+    files:
+      - from: yaml
+        to: yaml
+groups:
+  default:
+    targets:
+      - fr-FR
+    buckets:
+      - ui
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: yaml
+`), 0o600); err != nil {
+		t.Fatalf("write yaml config: %v", err)
+	}
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("load default config: %v", err)
+	}
+
+	if got := cfg.Buckets["ui"].Files[0].From; got != "yaml" {
+		t.Fatalf("bucket source path=%q, want yaml", got)
+	}
+}
+
 func writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 
+	return writeConfigFileNamed(t, "config.jsonc", content)
+}
+
+func writeConfigFileNamed(t *testing.T, name, content string) string {
+	t.Helper()
+
 	dir := t.TempDir()
-	path := filepath.Join(dir, "config.jsonc")
+	path := filepath.Join(dir, name)
 
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)

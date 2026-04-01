@@ -10,10 +10,12 @@ import (
 	"strings"
 
 	"github.com/tidwall/jsonc"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	defaultConfigPath                 = "i18n.jsonc"
+	defaultConfigYAMLPath             = "i18n.yml"
+	defaultConfigJSONCPath            = "i18n.jsonc"
 	DefaultCacheDBPath                = ".hyperlocalise/cache/cache.sqlite"
 	DefaultCacheMaxOpen               = 1
 	DefaultCacheMaxIdle               = 1
@@ -135,7 +137,7 @@ type CacheRetrieverConfig struct {
 }
 
 // Load parses and validates i18n configuration from path.
-// When path is empty, it defaults to i18n.jsonc in the current working directory.
+// When path is empty, it prefers i18n.yml and falls back to i18n.jsonc in the current working directory.
 func Load(path string) (*I18NConfig, error) {
 	if strings.TrimSpace(path) == "" {
 		path = resolveDefaultPath()
@@ -146,7 +148,10 @@ func Load(path string) (*I18NConfig, error) {
 		return nil, fmt.Errorf("open i18n config: %w", err)
 	}
 
-	jsonContent := jsonc.ToJSON(content)
+	jsonContent, err := normalizeConfigContent(path, content)
+	if err != nil {
+		return nil, err
+	}
 
 	decoder := json.NewDecoder(bytes.NewReader(jsonContent))
 	decoder.DisallowUnknownFields()
@@ -174,7 +179,80 @@ func Load(path string) (*I18NConfig, error) {
 }
 
 func resolveDefaultPath() string {
-	return defaultConfigPath
+	if _, err := os.Stat(defaultConfigYAMLPath); err == nil {
+		return defaultConfigYAMLPath
+	}
+
+	return defaultConfigJSONCPath
+}
+
+func normalizeConfigContent(path string, content []byte) ([]byte, error) {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".yaml", ".yml":
+		return yamlToJSON(content)
+	default:
+		return jsonc.ToJSON(content), nil
+	}
+}
+
+func yamlToJSON(content []byte) ([]byte, error) {
+	var payload any
+	if err := yaml.Unmarshal(content, &payload); err != nil {
+		return nil, fmt.Errorf("decode i18n config: %w", err)
+	}
+
+	normalized, err := normalizeYAMLValue(payload)
+	if err != nil {
+		return nil, fmt.Errorf("decode i18n config: %w", err)
+	}
+
+	jsonContent, err := json.Marshal(normalized)
+	if err != nil {
+		return nil, fmt.Errorf("decode i18n config: %w", err)
+	}
+
+	return jsonContent, nil
+}
+
+func normalizeYAMLValue(value any) (any, error) {
+	switch typed := value.(type) {
+	case map[string]any:
+		normalized := make(map[string]any, len(typed))
+		for key, item := range typed {
+			converted, err := normalizeYAMLValue(item)
+			if err != nil {
+				return nil, err
+			}
+			normalized[key] = converted
+		}
+		return normalized, nil
+	case map[any]any:
+		normalized := make(map[string]any, len(typed))
+		for key, item := range typed {
+			stringKey, ok := key.(string)
+			if !ok {
+				return nil, fmt.Errorf("unsupported YAML key type %T", key)
+			}
+			converted, err := normalizeYAMLValue(item)
+			if err != nil {
+				return nil, err
+			}
+			normalized[stringKey] = converted
+		}
+		return normalized, nil
+	case []any:
+		normalized := make([]any, 0, len(typed))
+		for _, item := range typed {
+			converted, err := normalizeYAMLValue(item)
+			if err != nil {
+				return nil, err
+			}
+			normalized = append(normalized, converted)
+		}
+		return normalized, nil
+	default:
+		return value, nil
+	}
 }
 
 // Validate validates all cross-field i18n configuration semantics.

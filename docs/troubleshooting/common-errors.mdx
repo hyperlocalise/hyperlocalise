@@ -3,7 +3,7 @@ title: "Common errors"
 description: "Troubleshoot frequent setup, config, provider, and sync failures."
 ---
 
-## `i18n.jsonc already exists; use --force to overwrite`
+## `i18n.yml already exists; use --force to overwrite`
 
 Cause: running `init` where config already exists.
 
@@ -17,7 +17,7 @@ hyperlocalise init --force
 
 Cause: `sync` command used without top-level `storage` config.
 
-Fix: add `storage.adapter` and `storage.config` in `i18n.jsonc`.
+Fix: add `storage.adapter` and `storage.config` in `i18n.yml`.
 
 ## `unsupported output format`
 

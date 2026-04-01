@@ -3,7 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "cmd",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    embedsrcs = ["templates/i18n.jsonc"],
+    embedsrcs = ["templates/i18n.yml"],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/cmd",
     visibility = ["//visibility:public"],
     deps = [

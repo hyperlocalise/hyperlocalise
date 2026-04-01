@@ -11,7 +11,7 @@ import (
 func TestInitCommand(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	template, err := initTemplateFS.ReadFile("templates/i18n.jsonc")
+	template, err := initTemplateFS.ReadFile("templates/i18n.yml")
 	if err != nil {
 		t.Fatalf("read embedded template: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestInitCommand(t *testing.T) {
 		t.Fatalf("execute init command: %v", err)
 	}
 
-	if got, want := b.String(), "wrote i18n.jsonc\n"; got != want {
+	if got, want := b.String(), "wrote i18n.yml\n"; got != want {
 		t.Fatalf("unexpected output: got %q want %q", got, want)
 	}
 
@@ -72,7 +72,7 @@ func TestInitCommandDoesNotOverwriteWithoutForce(t *testing.T) {
 func TestInitCommandOverwritesWithForce(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	template, err := initTemplateFS.ReadFile("templates/i18n.jsonc")
+	template, err := initTemplateFS.ReadFile("templates/i18n.yml")
 	if err != nil {
 		t.Fatalf("read embedded template: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestInitCommandOverwritesWithForce(t *testing.T) {
 		t.Fatalf("execute forced init command: %v", err)
 	}
 
-	if got, want := b.String(), "wrote i18n.jsonc\n"; got != want {
+	if got, want := b.String(), "wrote i18n.yml\n"; got != want {
 		t.Fatalf("unexpected output: got %q want %q", got, want)
 	}
 
