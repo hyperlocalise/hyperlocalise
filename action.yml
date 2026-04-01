@@ -11,7 +11,7 @@ inputs:
     default: drift
   config-path:
     description: Optional path to the i18n config file.
-    default: i18n.jsonc
+    default: i18n.yml
   working-directory:
     description: Optional working directory for the check.
     default: .

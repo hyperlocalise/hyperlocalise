@@ -11,5 +11,6 @@ go_library(
     deps = [
         "@com_github_invopop_jsonschema//:jsonschema",
         "@com_github_tidwall_jsonc//:jsonc",
+        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )

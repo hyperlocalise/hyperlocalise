@@ -82,7 +82,7 @@ jobs:
       - uses: hyperlocalise/hyperlocalise@v1
         with:
           check: check
-          config-path: i18n.jsonc
+          config-path: i18n.yml
           hyperlocalise-version: latest
           fail-on-findings: true
           upload-artifact: true
@@ -102,7 +102,7 @@ jobs:
       - uses: hyperlocalise/hyperlocalise@v1
         with:
           check: drift
-          config-path: i18n.jsonc
+          config-path: i18n.yml
           hyperlocalise-version: latest
           fail-on-drift: false
           upload-artifact: true
@@ -113,7 +113,7 @@ jobs:
 Inputs from [`action.yml`](action.yml):
 
 - `check`: check name. Supported values: `drift`, `check`. Default: `drift`
-- `config-path`: path to the i18n config file. Default: `i18n.jsonc`
+- `config-path`: path to the i18n config file. Default: `i18n.yml`
 - `working-directory`: working directory for the check. Default: `.`
 - `hyperlocalise-version`: CLI version to install. Default: `latest`
 - `fail-on-drift`: fail the action when drift is detected. Default: `true`

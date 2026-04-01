@@ -31,7 +31,7 @@ jobs:
       - uses: ./
         with:
           check: drift
-          config-path: i18n.jsonc
+          config-path: i18n.yml
           hyperlocalise-version: latest
           fail-on-drift: true
           upload-artifact: true
@@ -48,7 +48,7 @@ External repositories can use:
 ## Inputs
 
 - `check`: check name. Only `drift` is supported in v1.
-- `config-path`: path to the config file. Defaults to `i18n.jsonc`.
+- `config-path`: path to the config file. Defaults to `i18n.yml`.
 - `working-directory`: working directory for the command. Defaults to `.`.
 - `hyperlocalise-version`: release version to install. Defaults to `latest`.
 - `fail-on-drift`: fail the workflow when drift is detected. Defaults to `true`.

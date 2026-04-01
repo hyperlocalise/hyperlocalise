@@ -7,7 +7,7 @@ description: "Secure CI patterns for drift checks and scheduled TMS pull/push sy
 
 For remote adapters, keep secrets in your CI secret manager and inject them only in jobs that call `hyperlocalise sync`.
 
-- Commit only `*Env` variable names in `i18n.jsonc`.
+- Commit only `*Env` variable names in `i18n.yml`.
 - Inject token values at runtime through job-level environment variables.
 - Use separate credentials for read-only checks vs write-enabled sync jobs.
 - Avoid printing environment variables in pipeline steps.

@@ -8,9 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const configTemplateFilename = "i18n.jsonc"
+const configTemplateFilename = "i18n.yml"
 
-//go:embed templates/i18n.jsonc
+//go:embed templates/i18n.yml
 var initTemplateFS embed.FS
 
 type initOptions struct {
@@ -22,11 +22,11 @@ func newInitCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:          "init",
-		Short:        "write the latest i18n.jsonc template",
+		Short:        "write the latest i18n.yml template",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			template, err := initTemplateFS.ReadFile("templates/i18n.jsonc")
+			template, err := initTemplateFS.ReadFile("templates/i18n.yml")
 			if err != nil {
 				return fmt.Errorf("read init template: %w", err)
 			}
@@ -49,7 +49,7 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&o.force, "force", o.force, "overwrite existing i18n.jsonc")
+	cmd.Flags().BoolVar(&o.force, "force", o.force, "overwrite existing i18n.yml")
 
 	return cmd
 }
