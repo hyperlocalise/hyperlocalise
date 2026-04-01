@@ -865,6 +865,124 @@ func TestRunDiffFlagPlumbsChangedJSONKeysToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunDiffDryRunReportsZeroTasksWhenWorktreeIsClean(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"content/en/*.json","to":"dist/{{target}}/*.json"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	runGit(t, dir, "init")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial")
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--diff", "--dry-run", "--progress", "off"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with clean diff: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=0 skipped_by_lock=0 executable_total=0") {
+		t.Fatalf("expected zero-task report, got %q", out.String())
+	}
+}
+
+func TestRunDiffDryRunExercisesPlannerWithChangedJSONAndUnrelatedFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	goPath := filepath.Join(dir, "main.go")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"A","b":"B"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(goPath, []byte("package main\n"), 0o600); err != nil {
+		t.Fatalf("write go file: %v", err)
+	}
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"content/en/*.json","to":"dist/{{target}}/*.json"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	runGit(t, dir, "init")
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-m", "initial")
+
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"AA","b":"B"}`), 0o600); err != nil {
+		t.Fatalf("update source file: %v", err)
+	}
+	if err := os.WriteFile(goPath, []byte("package main\n\nfunc main() {}\n"), 0o600); err != nil {
+		t.Fatalf("update go file: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--diff", "--dry-run", "--progress", "off"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run diff dry-run: %v", err)
+	}
+	output := out.String()
+	if !strings.Contains(output, "planned_total=1 skipped_by_lock=0 executable_total=1") {
+		t.Fatalf("expected one planned task, got %q", output)
+	}
+	if !strings.Contains(output, "key=a") {
+		t.Fatalf("expected changed key to be planned, got %q", output)
+	}
+	if strings.Contains(output, "key=b") {
+		t.Fatalf("did not expect unchanged key to be planned, got %q", output)
+	}
+}
+
 func TestRunRejectsDiffWithPrune(t *testing.T) {
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)

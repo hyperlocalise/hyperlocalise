@@ -43,7 +43,7 @@ func TestPlanTasksFiltersBySourcePath(t *testing.T) {
 	}
 
 	svc := New()
-	tasks, err := svc.planTasks(cfg, "", "", nil, []string{sourceB}, nil)
+	tasks, err := svc.planTasks(cfg, "", "", nil, []string{sourceB}, nil, false)
 	if err != nil {
 		t.Fatalf("plan tasks: %v", err)
 	}
@@ -86,11 +86,12 @@ func TestPlanTasksReturnsErrorForIgnoredExplicitSourcePath(t *testing.T) {
 	}
 
 	svc := New()
-	_, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath}, nil)
+	_, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath}, nil, false)
 	if err == nil {
 		t.Fatalf("expected ignored explicit source path to fail planning")
 	}
-	if got := err.Error(); got != `planning tasks: unknown source file "`+sourcePath+`"` {
+	wantPath := canonicalizeSelectedSourcePath(sourcePath)
+	if got := err.Error(); got != `planning tasks: unknown source file "`+wantPath+`"` {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -176,5 +177,109 @@ func TestBuildSelectionCatalogAggregatesTaskIndexCounts(t *testing.T) {
 	}
 	if catalog.TaskIndex[0].TaskCount != 2 {
 		t.Fatalf("expected aggregated task count 2, got %d", catalog.TaskIndex[0].TaskCount)
+	}
+}
+
+func TestPlanTasksMatchesAbsoluteSourceSelectionAgainstRelativeConfig(t *testing.T) {
+	dir := t.TempDir()
+	sourceRelative := filepath.Join("content", "en", "strings.json")
+	sourcePath := filepath.Join(dir, sourceRelative)
+	targetRelative := filepath.Join("dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"A","b":"B"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{
+			"ui": {
+				Files: []config.BucketFileMapping{
+					{From: filepath.ToSlash(sourceRelative), To: filepath.ToSlash(targetRelative)},
+				},
+			},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {Targets: []string{"fr"}, Buckets: []string{"ui"}},
+		},
+		LLM: config.LLMConfig{
+			Profiles: map[string]config.LLMProfile{
+				"default": {Provider: "openai", Model: "gpt-4.1-mini", Prompt: "Translate {{input}}"},
+			},
+		},
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir repo: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	svc := New()
+	tasks, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath}, map[string][]string{sourcePath: {"a"}}, false)
+	if err != nil {
+		t.Fatalf("plan tasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected one task, got %d", len(tasks))
+	}
+	if tasks[0].SourcePath != sourceRelative {
+		t.Fatalf("unexpected source path: %q", tasks[0].SourcePath)
+	}
+	if tasks[0].EntryKey != "a" {
+		t.Fatalf("unexpected entry key: %q", tasks[0].EntryKey)
+	}
+}
+
+func TestPlanTasksIgnoresUnknownSourcePathWhenRequested(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	unknownPath := filepath.Join(dir, "main.go")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	cfg := &config.I18NConfig{
+		Locales: config.LocaleConfig{Source: "en", Targets: []string{"fr"}},
+		Buckets: map[string]config.BucketConfig{
+			"ui": {
+				Files: []config.BucketFileMapping{
+					{From: filepath.ToSlash(sourcePath), To: filepath.ToSlash(targetPath)},
+				},
+			},
+		},
+		Groups: map[string]config.GroupConfig{
+			"default": {Targets: []string{"fr"}, Buckets: []string{"ui"}},
+		},
+		LLM: config.LLMConfig{
+			Profiles: map[string]config.LLMProfile{
+				"default": {Provider: "openai", Model: "gpt-4.1-mini", Prompt: "Translate {{input}}"},
+			},
+		},
+	}
+
+	svc := New()
+	tasks, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath, unknownPath}, nil, true)
+	if err != nil {
+		t.Fatalf("plan tasks: %v", err)
+	}
+	if len(tasks) != 1 {
+		t.Fatalf("expected one task, got %d", len(tasks))
+	}
+	if tasks[0].SourcePath != sourcePath {
+		t.Fatalf("unexpected source path: %q", tasks[0].SourcePath)
 	}
 }

@@ -34,6 +34,7 @@ type Input struct {
 	TargetLocales             []string
 	SourcePaths               []string
 	SourceEntryKeys           map[string][]string
+	IgnoreUnknownSourcePaths  bool
 	DryRun                    bool
 	Force                     bool
 	Prune                     bool
@@ -227,7 +228,7 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
-func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string, onlySourceEntryKeys map[string][]string) ([]Task, error) {
+func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string, onlySourceEntryKeys map[string][]string, ignoreUnknownSourcePaths bool) ([]Task, error) {
 	parser := s.newParser()
 	sourceCache := map[string]plannedSourceSnapshot{}
 	resolvedSourcesCache := map[string][]string{}
@@ -327,16 +328,15 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 				}
 
 				for _, sourcePath := range sources {
-					if len(filteredSourcePaths) > 0 {
-						if _, ok := filteredSourcePaths[sourcePath]; !ok {
-							continue
-						}
+					matchedSelectionPaths := matchingSelectionPaths(filteredSourcePaths, sourcePath)
+					if len(filteredSourcePaths) > 0 && len(matchedSelectionPaths) == 0 {
+						continue
 					}
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
 					}
-					if len(filteredSourcePaths) > 0 {
-						matchedSourcePaths[sourcePath] = struct{}{}
+					for _, matchedPath := range matchedSelectionPaths {
+						matchedSourcePaths[matchedPath] = struct{}{}
 					}
 					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {
@@ -344,7 +344,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					}
 					keys := sortedEntryKeys(sourceEntries)
 					if len(filteredSourceEntryKeys) > 0 {
-						if selectedKeys, ok := filteredSourceEntryKeys[sourcePath]; ok {
+						if selectedKeys, ok := lookupSourceEntryKeys(filteredSourceEntryKeys, sourcePath); ok {
 							keys = filterEntryKeys(keys, selectedKeys)
 						}
 					}
@@ -403,7 +403,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			}
 		}
 		slices.Sort(unmatched)
-		if len(unmatched) > 0 {
+		if len(unmatched) > 0 && !ignoreUnknownSourcePaths {
 			if len(unmatched) == 1 {
 				return nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
 			}
@@ -453,9 +453,72 @@ func normalizeSourcePaths(paths []string) (map[string]struct{}, error) {
 		if trimmed == "" {
 			return nil, fmt.Errorf("invalid source file value: must not be empty")
 		}
-		normalized[filepath.Clean(trimmed)] = struct{}{}
+		normalized[canonicalizeSelectedSourcePath(trimmed)] = struct{}{}
 	}
 	return normalized, nil
+}
+
+func matchingSelectionPaths(filteredSourcePaths map[string]struct{}, sourcePath string) []string {
+	if len(filteredSourcePaths) == 0 {
+		return nil
+	}
+
+	matched := make([]string, 0, 2)
+	for _, candidate := range sourcePathVariants(sourcePath) {
+		if _, ok := filteredSourcePaths[candidate]; ok {
+			matched = append(matched, candidate)
+		}
+	}
+	return matched
+}
+
+func lookupSourceEntryKeys(keysBySource map[string]map[string]struct{}, sourcePath string) (map[string]struct{}, bool) {
+	if len(keysBySource) == 0 {
+		return nil, false
+	}
+
+	var selected map[string]struct{}
+	for _, candidate := range sourcePathVariants(sourcePath) {
+		keys, ok := keysBySource[candidate]
+		if !ok {
+			continue
+		}
+		if selected == nil {
+			selected = make(map[string]struct{}, len(keys))
+		}
+		for key := range keys {
+			selected[key] = struct{}{}
+		}
+	}
+	if len(selected) == 0 {
+		return nil, false
+	}
+	return selected, true
+}
+
+func sourcePathVariants(path string) []string {
+	cleaned := filepath.Clean(strings.TrimSpace(path))
+	if cleaned == "" {
+		return nil
+	}
+
+	variants := []string{cleaned}
+	abs, err := filepath.Abs(cleaned)
+	if err != nil {
+		return variants
+	}
+	abs = filepath.Clean(abs)
+	if abs != cleaned {
+		variants = append(variants, abs)
+	}
+	realPath, err := filepath.EvalSymlinks(abs)
+	if err == nil {
+		realPath = filepath.Clean(realPath)
+		if realPath != cleaned && realPath != abs {
+			variants = append(variants, realPath)
+		}
+	}
+	return variants
 }
 
 func normalizeSourceEntryKeys(keysBySource map[string][]string) (map[string]map[string]struct{}, error) {
@@ -477,9 +540,29 @@ func normalizeSourceEntryKeys(keysBySource map[string][]string) (map[string]map[
 			}
 			entryKeys[trimmedKey] = struct{}{}
 		}
-		normalized[filepath.Clean(trimmedPath)] = entryKeys
+		normalized[canonicalizeSelectedSourcePath(trimmedPath)] = entryKeys
 	}
 	return normalized, nil
+}
+
+func canonicalizeSelectedSourcePath(path string) string {
+	cleaned := filepath.Clean(strings.TrimSpace(path))
+	if cleaned == "" {
+		return ""
+	}
+
+	abs, err := filepath.Abs(cleaned)
+	if err != nil {
+		return cleaned
+	}
+	realPath, err := filepath.EvalSymlinks(abs)
+	if err == nil {
+		return filepath.Clean(realPath)
+	}
+	if _, statErr := os.Stat(abs); statErr == nil {
+		return filepath.Clean(abs)
+	}
+	return cleaned
 }
 
 func filterEntryKeys(keys []string, allowed map[string]struct{}) []string {

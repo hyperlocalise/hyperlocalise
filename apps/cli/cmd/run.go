@@ -129,6 +129,15 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		if err != nil {
 			return err
 		}
+		if len(selection.SourcePaths) == 0 {
+			if writeErr := writeRunReport(output, runsvc.Report{}, o.dryRun); writeErr != nil {
+				return fmt.Errorf("write run report: %w", writeErr)
+			}
+			if writeErr := writeRunReportArtifact(o.outputPath, runsvc.Report{}); writeErr != nil {
+				return fmt.Errorf("write run report artifact: %w", writeErr)
+			}
+			return nil
+		}
 		o.sourcePaths = selection.SourcePaths
 		o.sourceEntryKeys = selection.SourceEntryKeys
 	}
@@ -157,6 +166,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		TargetLocales:             o.targetLocales,
 		SourcePaths:               o.sourcePaths,
 		SourceEntryKeys:           o.sourceEntryKeys,
+		IgnoreUnknownSourcePaths:  o.diffOnly,
 		ExperimentalContextMemory: o.experimentalContextMemory,
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,

@@ -522,6 +522,36 @@ func TestRunFiltersTasksBySourceEntryKeys(t *testing.T) {
 	}
 }
 
+func TestRunDeletedOnlySourceEntryKeysProduceZeroTasks(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"a":"A"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	report, err := svc.Run(context.Background(), Input{
+		DryRun:          true,
+		SourcePaths:     []string{sourcePath},
+		SourceEntryKeys: map[string][]string{sourcePath: {"deleted"}},
+	})
+	if err != nil {
+		t.Fatalf("run dry-run: %v", err)
+	}
+	if report.PlannedTotal != 0 || report.ExecutableTotal != 0 {
+		t.Fatalf("expected zero planned tasks for deleted-only keys, got %+v", report)
+	}
+}
+
 func TestRunForceBypassesLockFilter(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
