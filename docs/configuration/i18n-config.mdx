@@ -5,7 +5,35 @@ description: "Field-by-field guide for the i18n config file used by run, status,
 
 ## File overview
 
-`i18n.yml` controls locales, file mapping, model profiles, and rule selection. `i18n.jsonc` is still supported for compatibility.
+`i18n.yml` controls locales, file mapping, model profiles, and optional advanced routing. `i18n.jsonc` is still supported for compatibility.
+
+## Starter config
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - es-ES
+
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+```
+
+This is the shape written by `hyperlocalise init`.
+
+When `groups` is omitted, Hyperlocalise automatically uses one implicit `default` group with:
+
+- all locales from `locales.targets`
+- all bucket names from `buckets`
 
 ## Locales
 
@@ -56,6 +84,8 @@ For shared multi-locale CSV files, keep one key column and one target locale col
 - `targets`: subset of `locales.targets`
 - `buckets`: list of bucket names
 
+`groups` is optional for beginner configs. Add it when you want to split execution by locale or file set.
+
 ## LLM profiles
 
 `llm.profiles.<name>` fields:
@@ -80,6 +110,8 @@ Prompt variables:
 - `group`: group name
 - `profile`: profile name
 
+`llm.rules` is optional. When no rule matches a group, Hyperlocalise falls back to `llm.profiles.default`.
+
 ## Cache
 
 `cache` configures local L1/L2 behavior.
@@ -96,7 +128,84 @@ TM metadata enums:
 - provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
 - source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
 
-## Starter config
+## Advanced example
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - es-ES
+  fallbacks:
+    fr-FR:
+      - es-ES
+      - en-US
+
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
+  docs:
+    files:
+      - from: docs/{{source}}/**/*.mdx
+        to: docs/{{target}}/**/*.mdx
+
+groups:
+  app:
+    targets:
+      - fr-FR
+      - es-ES
+    buckets:
+      - ui
+  docs:
+    targets:
+      - fr-FR
+    buckets:
+      - docs
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+    docs_review:
+      provider: openai
+      model: gpt-5.2
+      system_prompt: You are a senior technical translator.
+      user_prompt: |-
+        Translate from {{source}} to {{target}}.
+
+        Keep Markdown and MDX syntax intact.
+
+        {{input}}
+  context_memory:
+    provider: openai
+    model: gpt-5.2
+  rules:
+    - priority: 100
+      group: docs
+      profile: docs_review
+
+cache:
+  enabled: true
+  db_path: .hyperlocalise/cache/cache.sqlite
+  sqlite:
+    max_open_conns: 1
+    max_idle_conns: 1
+    conn_max_lifetime_seconds: 300
+  l1:
+    enabled: true
+    max_items: 50000
+  l2:
+    enabled: true
+    auto_accept_threshold: 0.9
+  rag:
+    enabled: false
+    top_k: 5
+```
+
+## Generate a starter
 
 ```bash
 hyperlocalise init
@@ -106,6 +215,7 @@ Then edit the generated `i18n.yml` for your project.
 
 ## Validation tips
 
+- If you omit `groups`, every bucket runs for every target locale.
 - Keep group targets inside `locales.targets`.
 - Keep group buckets aligned with `buckets` keys.
 - Keep profile names consistent between `profiles` and `rules`.

@@ -11,12 +11,26 @@ hyperlocalise init [--force]
 
 ## What it does
 
-- writes `i18n.yml` from the built-in template
+- writes a minimal, runnable `i18n.yml` from the built-in template
+- starts with `locales`, `buckets`, and `llm.profiles.default` only
+- leaves advanced config like `groups`, `llm.rules`, `context_memory`, and `cache` out of the starter file
 - fails if file already exists (unless `--force`)
 
 ## Flag
 
 - `--force`: overwrite an existing `i18n.yml`
+
+## Starter shape
+
+The generated starter keeps the beginner path small:
+
+- `locales`: source locale and target locales
+- `buckets`: source-to-target file mapping
+- `llm.profiles.default`: provider and model
+
+When `groups` is omitted, Hyperlocalise automatically treats the config as one implicit `default` group that includes all target locales and all buckets.
+
+For full examples of `groups`, `llm.rules`, `context_memory`, fallbacks, and cache, see [i18n config](/configuration/i18n-config).
 
 ## Typical flow
 

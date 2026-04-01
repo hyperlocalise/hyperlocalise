@@ -21,26 +21,26 @@ description: "Thiết lập cấu trúc dự án tối thiểu và hiểu các t
       </Tree.Folder>
     </Tree.Folder>
   </Tree.Folder>
-  <Tree.File name="i18n.jsonc" />
+  <Tree.File name="i18n.yml" />
 </Tree>
 
 ## Mẫu cấu hình tối thiểu
 
-Sử dụng một nhóm và một bộ để bắt đầu:
+Dùng một bucket để bắt đầu:
 
-- `locales.source`: your source locale (for example `en-US`)
-- `locales.targets`: one target locale (for example `es-ES`)
-- `buckets.ui.files`: map source path template to target path template
-- `groups.default`: attach `targets` and `buckets`
+- `locales.source`: locale nguồn của bạn, ví dụ `en-US`
+- `locales.targets`: một locale đích, ví dụ `es-ES`
+- `buckets.ui.files`: ánh xạ template đường dẫn nguồn sang đường dẫn đích
+- `llm.profiles.default`: chọn provider và model
 
-For full fields, see [i18n config](/configuration/i18n-config).
+Để xem đầy đủ các trường, xem [i18n config](/vi-VN/configuration/i18n-config).
 
-In this setup, translations are sourced from `packages/ui/lang` and generated into `apps/web/lang`.
+Trong cấu hình này, bản dịch được lấy từ `packages/ui/lang` và sinh ra ở `apps/web/lang`. Nếu bỏ qua `groups`, Hyperlocalise sẽ tự động chạy mọi bucket đã cấu hình cho mọi target locale.
 
 ## Các đối tượng được tạo
 
 Sau `hyperlocalise run`:
 
-- translated target files under your configured `to` paths
-- `.hyperlocalise.lock.json` in project root
+- các tệp đích đã dịch ở các đường dẫn `to` bạn cấu hình
+- `.hyperlocalise.lock.json` ở thư mục gốc dự án
 - tệp dữ liệu phụ trợ cho việc theo dõi nguồn gốc, tùy thuộc vào cấu trúc lưu trữ của bạn

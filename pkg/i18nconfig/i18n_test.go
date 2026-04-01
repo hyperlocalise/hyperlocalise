@@ -1149,6 +1149,54 @@ llm:
 	}
 }
 
+func TestLoadAppliesImplicitDefaultGroupWhenGroupsOmitted(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+	  "buckets": {"ui": {"files": [{"from": "src/{{source}}.json", "to": "dist/{{target}}.json"}]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config without groups: %v", err)
+	}
+
+	group, ok := cfg.Groups["default"]
+	if !ok {
+		t.Fatalf("expected implicit default group, got %+v", cfg.Groups)
+	}
+	if got, want := group.Targets, []string{"fr-FR"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("implicit group targets=%v, want %v", got, want)
+	}
+	if got, want := group.Buckets, []string{"ui"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("implicit group buckets=%v, want %v", got, want)
+	}
+}
+
+func TestLoadAppliesImplicitDefaultGroupAcrossAllBucketsAndTargets(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR", "es-ES"]},
+	  "buckets": {
+	    "docs": {"files": [{"from": "docs/{{source}}.md", "to": "docs/{{target}}.md"}]},
+	    "ui": {"files": [{"from": "ui/{{source}}.json", "to": "ui/{{target}}.json"}]}
+	  },
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config without groups: %v", err)
+	}
+
+	group := cfg.Groups["default"]
+	if got, want := strings.Join(group.Targets, ","), "fr-FR,es-ES"; got != want {
+		t.Fatalf("implicit group targets=%q, want %q", got, want)
+	}
+	if got, want := strings.Join(group.Buckets, ","), "docs,ui"; got != want {
+		t.Fatalf("implicit group buckets=%q, want %q", got, want)
+	}
+}
+
 func writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 

@@ -21,26 +21,26 @@ description: "设置一个最小的项目布局，并了解预期的输出文件
       </Tree.Folder>
     </Tree.Folder>
   </Tree.Folder>
-  <Tree.File name="i18n.jsonc" />
+  <Tree.File name="i18n.yml" />
 </Tree>
 
 ## 最小配置模式
 
-使用一个桶和一个组来开始：
+从一个 bucket 开始即可：
 
 - `locales.source`：您的源语言 (例如 `en-US`)
-- `locales.targets`: one target locale (for example `es-ES`)
-- `buckets.ui.files`: map source path template to target path template
-- `groups.default`: attach `targets` and `buckets`
+- `locales.targets`: 一个目标语言，例如 `es-ES`
+- `buckets.ui.files`: 把源路径模板映射到目标路径模板
+- `llm.profiles.default`: 选择 provider 和 model
 
-For full fields, see [i18n config](/configuration/i18n-config).
+完整字段说明见 [i18n config](/zh-CN/configuration/i18n-config)。
 
-In this setup, translations are sourced from `packages/ui/lang` and generated into `apps/web/lang`.
+在这个配置中，翻译内容来自 `packages/ui/lang`，输出到 `apps/web/lang`。如果省略 `groups`，Hyperlocalise 会自动让所有已配置 bucket 对所有目标语言执行。
 
 ## 生成的文件
 
-After `hyperlocalise run`:
+运行 `hyperlocalise run` 之后：
 
 - 翻译的目标文件在您配置的`to`路径下
-- `.hyperlocalise.lock.json` in project root
+- 项目根目录中的 `.hyperlocalise.lock.json`
 - 横向存储的元数据文件，用于追溯，具体取决于您的存储布局

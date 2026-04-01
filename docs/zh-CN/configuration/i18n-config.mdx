@@ -1,35 +1,62 @@
 ---
 title: "i18n 配置"
-description: "针对 `i18n.jsonc` 的逐字段指南，该文件用于 `run`、`status` 和 `sync` 命令。"
+description: "用于 `run`、`status` 和 `sync` 的 `i18n.yml` 字段说明。"
 ---
 
 ## 文件概览
 
-`i18n.jsonc` controls locales, file mapping, model profiles, and rule selection.
+`i18n.yml` 用来配置 locale、文件映射、模型 profile，以及可选的高级路由能力。为了兼容旧项目，`i18n.jsonc` 仍然受支持。
 
-## 区域
+## 起始配置
 
-- `locales.source`: 原始区域
-- `locales.targets`: list of target locales.
-- 可选 `locales.fallbacks`: 按照地区进行备用订单。
+```yaml
+locales:
+  source: en-US
+  targets:
+    - es-ES
 
-## 水桶
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
 
-`buckets` map source files to target output templates.
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+```
 
-每个文件映射使用：
+这就是 `hyperlocalise init` 生成的模板结构。
 
-- `from`: source path template
+如果省略 `groups`，Hyperlocalise 会自动使用一个隐式的 `default` 分组，其中包含：
+
+- `locales.targets` 中的全部目标语言
+- `buckets` 中的全部 bucket 名称
+
+## Locales
+
+- `locales.source`: 源语言。
+- `locales.targets`: 目标语言列表。
+- `locales.fallbacks`（可选）: 每个 locale 的 fallback 顺序。
+
+## Buckets
+
+`buckets` 用来把源文件映射到目标输出模板。
+
+每条文件映射包含：
+
+- `from`: 源路径模板
 - `to`: 目标路径模板
 
-Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
-
+模板中可使用 `{{source}}`、`{{target}}` 和 `{{localeDir}}`。当 target 与 source 相同时，`{{localeDir}}` 为空；否则为 target locale。
 
 ### CSV 文件映射模式
 
-使用 bucket 文件映射来建模 CSV 工作流程。
+你也可以用 bucket 建模 CSV 工作流。
 
-按区域文件：
+按 locale 拆分的文件：
 
 ```json
 {
@@ -38,7 +65,7 @@ Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}
 }
 ```
 
-共享的多语言文件：
+共享的多 locale 文件：
 
 ```json
 {
@@ -47,65 +74,147 @@ Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}
 }
 ```
 
-For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
+对于共享的多 locale CSV，请保留一个 key 列和一个 target locale 列，以便 `run` 能稳定更新。
 
-## 组
+## Groups
 
-`groups.<name>` defines what to process together.
+`groups.<name>` 定义哪些内容会一起处理。
 
-- `targets`：`locales.targets`的子集
-- `buckets`: 桶名称列表
+- `targets`: `locales.targets` 的子集
+- `buckets`: bucket 名称列表
 
-## LLM 配置文件
+对新手配置来说，`groups` 是可选的。只有在你想按 locale 或文件集合拆分执行时才需要添加。
 
-`llm.profiles.<name>` 字段:
+## LLM Profiles
 
-- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, or `ollama`
-- `model`：提供商模型ID
-- `system_prompt` (可选): 显式系统消息模板
-- `user_prompt` (可选): 显式用户消息模板
-- `prompt` (已弃用，可选)：作为系统备用使用的遗留提示模板
+`llm.profiles.<name>` 支持以下字段：
 
-目标变量：
+- `provider`: `openai`、`azure_openai`、`anthropic`、`gemini`、`bedrock`、`lmstudio`、`groq`、`mistral` 或 `ollama`
+- `model`: provider 的 model id
+- `system_prompt`（可选）: 显式 system message 模板
+- `user_prompt`（可选）: 显式 user message 模板
+- `prompt`（已弃用，可选）: 旧版 prompt 模板，会作为 system fallback
+
+可用变量：
 
 - `{{source}}`
 - `{{target}}`
 - `{{input}}`
 
-## 规则
+## Rules
 
-`llm.rules` choose profile per group.
+`llm.rules` 用来为 group 选择 profile。
 
-- `priority`：胜者为高
-- `group`：组名
-- `profile`: profile name
+- `priority`: 数值越大优先级越高
+- `group`: group 名称
+- `profile`: profile 名称
 
-## 缓存
+`llm.rules` 是可选的。如果没有匹配的规则，Hyperlocalise 会回退到 `llm.profiles.default`。
 
-`cache` configures local L1/L2 behavior.
+## Cache
 
-- `enabled` (可选): 启用缓存服务。
-- `db_path` (可选): SQLite 缓存数据库的路径。
-- `sqlite` (可选): 连接调整。
-- `l1.max_items` (可选): L1 页面置换限制
-- `l2.enabled` (可选): 启用翻译记忆库查找/更新。
-- `l2.auto_accept_threshold` (可选): 在`[0,1]`（默认值为`0.90`）中的模糊自动接受阈值。
+`cache` 用来配置本地 L1/L2 行为。
+
+- `enabled`（可选）: 启用缓存服务
+- `db_path`（可选）: sqlite 缓存数据库路径
+- `sqlite`（可选）: 连接调优
+- `l1.max_items`（可选）: L1 淘汰上限
+- `l2.enabled`（可选）: 启用 translation memory 查找和写入
+- `l2.auto_accept_threshold`（可选）: `[0,1]` 范围内的模糊自动接受阈值，默认 `0.90`
 
 TM 元数据枚举：
 
-- 来源：`curated` | `draft` | `llm` | `tms` | `unknown`
+- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
 - source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
 
-## 启动配置
+## 高级示例
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - es-ES
+  fallbacks:
+    fr-FR:
+      - es-ES
+      - en-US
+
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
+  docs:
+    files:
+      - from: docs/{{source}}/**/*.mdx
+        to: docs/{{target}}/**/*.mdx
+
+groups:
+  app:
+    targets:
+      - fr-FR
+      - es-ES
+    buckets:
+      - ui
+  docs:
+    targets:
+      - fr-FR
+    buckets:
+      - docs
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+    docs_review:
+      provider: openai
+      model: gpt-5.2
+      system_prompt: You are a senior technical translator.
+      user_prompt: |-
+        Translate from {{source}} to {{target}}.
+
+        Keep Markdown and MDX syntax intact.
+
+        {{input}}
+  context_memory:
+    provider: openai
+    model: gpt-5.2
+  rules:
+    - priority: 100
+      group: docs
+      profile: docs_review
+
+cache:
+  enabled: true
+  db_path: .hyperlocalise/cache/cache.sqlite
+  sqlite:
+    max_open_conns: 1
+    max_idle_conns: 1
+    conn_max_lifetime_seconds: 300
+  l1:
+    enabled: true
+    max_items: 50000
+  l2:
+    enabled: true
+    auto_accept_threshold: 0.9
+  rag:
+    enabled: false
+    top_k: 5
+```
+
+## 生成 starter
 
 ```bash
 hyperlocalise init
 ```
 
-Then edit the generated `i18n.jsonc` for your project.
+然后根据你的项目修改生成的 `i18n.yml`。
 
-## 验证技巧
+## 校验建议
 
-- Keep group targets inside `locales.targets`.
-- 确保组桶与`buckets`键保持一致。
-- 请保持`profiles`和`rules`这两个用户名的命名风格一致。
+- 如果省略 `groups`，所有 bucket 都会对所有目标语言执行。
+- 保证 group 的 target 都在 `locales.targets` 中。
+- 保证 group 的 bucket 名称与 `buckets` 中的键一致。
+- 保证 `profiles` 和 `rules` 中的 profile 名称一致。
