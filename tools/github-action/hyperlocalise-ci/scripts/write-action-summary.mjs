@@ -3,10 +3,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const [, , checkName, configPath, reportPath, summaryPath, cliExitCodeRaw] = process.argv
+const [, , checkName, configPath, reportPath, summaryPath, cliExitCodeRaw, summaryFormatRaw, summaryLimitRaw] =
+  process.argv
 
 if (!checkName || !configPath || !reportPath || !summaryPath || cliExitCodeRaw === undefined) {
-  console.error('usage: write-action-summary.mjs <check> <config-path> <report-path> <summary-path> <cli-exit-code>')
+  console.error(
+    'usage: write-action-summary.mjs <check> <config-path> <report-path> <summary-path> <cli-exit-code> [summary-format] [summary-limit]',
+  )
   process.exit(1)
 }
 
@@ -17,6 +20,12 @@ if (checkName !== 'drift' && checkName !== 'check') {
 
 const maxAnnotations = 50
 const cliExitCode = Number.parseInt(cliExitCodeRaw, 10)
+const summaryFormat = summaryFormatRaw ?? process.env.SUMMARY_FORMAT ?? 'compact'
+if (summaryFormat !== 'compact' && summaryFormat !== 'detailed') {
+  console.error(`unsupported summary format: ${summaryFormat}`)
+  process.exit(1)
+}
+const summaryLimit = parseSummaryLimit(summaryLimitRaw ?? process.env.SUMMARY_LIMIT ?? '20')
 const reportExists = fs.existsSync(reportPath)
 const annotationsEnabled = (process.env.GITHUB_ANNOTATIONS_ENABLED ?? 'true') === 'true'
 const lines = []
@@ -125,6 +134,7 @@ function writeDriftSummary(reportPath, summaryPath, report, lines) {
     configPath,
     reportPath,
     cliExitCode,
+    summaryFormat,
     driftDetected,
     plannedTotal: numberOrFallback(report.plannedTotal),
     executableTotal: numberOrFallback(report.executableTotal),
@@ -132,6 +142,9 @@ function writeDriftSummary(reportPath, summaryPath, report, lines) {
     pruneCandidates: pruneCandidates.length,
     warnings: warnings.length,
     failures: failures.length,
+    targetPaths,
+    targetLocales,
+    entryKeys,
   }))
 }
 
@@ -182,11 +195,14 @@ function writeCheckSummary(summaryPath, report, lines) {
     configPath,
     reportPath,
     cliExitCode,
+    summaryFormat,
+    summaryLimit,
     checks,
     total,
     errorCount,
     warningCount,
     byCheck,
+    bySeverity,
     byLocale,
     findings,
     maxAnnotations,
@@ -261,7 +277,7 @@ function renderParseErrorMarkdown(checkName, configPath, reportPath, errorMessag
 }
 
 function renderDriftMarkdown(details) {
-  return [
+  const lines = [
     '## Hyperlocalise drift',
     '',
     `- Drift detected: ${details.driftDetected ? 'yes' : 'no'}`,
@@ -274,7 +290,13 @@ function renderDriftMarkdown(details) {
     `- Config path: \`${details.configPath}\``,
     `- Report path: \`${details.reportPath}\``,
     `- CLI exit code: \`${details.cliExitCode}\``,
-  ].join('\n')
+  ]
+  if (details.summaryFormat === 'detailed') {
+    appendCountList(lines, 'Affected target paths', details.targetPaths)
+    appendCountList(lines, 'Affected locales', details.targetLocales)
+    appendCountList(lines, 'Entry keys', details.entryKeys, 20)
+  }
+  return lines.join('\n')
 }
 
 function renderCheckMarkdown(details) {
@@ -291,11 +313,24 @@ function renderCheckMarkdown(details) {
   if (details.checks.length > 0) {
     lines.push(`- Enabled checks: \`${details.checks.join(', ')}\``)
   }
+  if (details.summaryFormat === 'compact') {
+    appendTopFindings(lines, details.findings, details.summaryLimit)
+    lines.push('')
+    lines.push('Next steps: inspect the uploaded report artifact for the full result set and affected files.')
+  }
   if (details.byCheck.length > 0) {
     lines.push('')
     lines.push('### By check')
     lines.push('')
     for (const [name, total] of details.byCheck) {
+      lines.push(`- ${name}: ${total}`)
+    }
+  }
+  if (details.summaryFormat === 'detailed' && details.bySeverity.length > 0) {
+    lines.push('')
+    lines.push('### By severity')
+    lines.push('')
+    for (const [name, total] of details.bySeverity) {
       lines.push(`- ${name}: ${total}`)
     }
   }
@@ -307,6 +342,11 @@ function renderCheckMarkdown(details) {
       lines.push(`- ${name}: ${total}`)
     }
   }
+  if (details.summaryFormat === 'detailed') {
+    appendTopFindings(lines, details.findings, details.summaryLimit)
+    lines.push('')
+    lines.push('Next steps: use the report artifact when you need the complete structured output.')
+  }
   if (!details.annotationsEnabled) {
     lines.push('')
     lines.push('GitHub annotations are disabled for this run.')
@@ -315,6 +355,66 @@ function renderCheckMarkdown(details) {
     lines.push(`GitHub annotations were limited to the first ${details.maxAnnotations} findings.`)
   }
   return lines.join('\n')
+}
+
+function appendTopFindings(lines, findings, limit) {
+  if (findings.length === 0 || limit <= 0) {
+    return
+  }
+  lines.push('')
+  lines.push(`### Top findings (${Math.min(findings.length, limit)} of ${findings.length})`)
+  lines.push('')
+  for (const finding of findings.slice(0, limit)) {
+    lines.push(`- ${formatFindingBullet(finding)}`)
+  }
+  if (findings.length > limit) {
+    lines.push(`- ${findings.length - limit} additional findings omitted from the job summary.`)
+  }
+}
+
+function appendCountList(lines, heading, values, limit = values.length) {
+  if (values.length === 0) {
+    return
+  }
+  lines.push('')
+  lines.push(`### ${heading} (${Math.min(values.length, limit)} of ${values.length})`)
+  lines.push('')
+  for (const value of values.slice(0, limit)) {
+    lines.push(`- \`${value}\``)
+  }
+  if (values.length > limit) {
+    lines.push(`- ${values.length - limit} additional items omitted.`)
+  }
+}
+
+function formatFindingBullet(finding) {
+  const label = finding?.severity === 'warning' ? 'warning' : 'error'
+  const parts = [`${label}: ${finding?.message ?? 'Unknown finding'}`]
+  if (finding?.type) {
+    parts.push(`type=${finding.type}`)
+  }
+  if (finding?.annotationFile) {
+    parts.push(`file=${finding.annotationFile}`)
+  }
+  if (finding?.annotationLine) {
+    parts.push(`line=${finding.annotationLine}`)
+  }
+  if (finding?.locale) {
+    parts.push(`locale=${finding.locale}`)
+  }
+  if (finding?.key) {
+    parts.push(`key=${finding.key}`)
+  }
+  return parts.join(' | ')
+}
+
+function parseSummaryLimit(value) {
+  const parsed = Number.parseInt(String(value), 10)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    console.error(`invalid summary limit: ${value}`)
+    process.exit(1)
+  }
+  return parsed
 }
 
 function uniqueSorted(values) {
