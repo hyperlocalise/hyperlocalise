@@ -226,20 +226,6 @@ func normalizeYAMLValue(value any) (any, error) {
 			normalized[key] = converted
 		}
 		return normalized, nil
-	case map[any]any:
-		normalized := make(map[string]any, len(typed))
-		for key, item := range typed {
-			stringKey, ok := key.(string)
-			if !ok {
-				return nil, fmt.Errorf("unsupported YAML key type %T", key)
-			}
-			converted, err := normalizeYAMLValue(item)
-			if err != nil {
-				return nil, err
-			}
-			normalized[stringKey] = converted
-		}
-		return normalized, nil
 	case []any:
 		normalized := make([]any, 0, len(typed))
 		for _, item := range typed {
