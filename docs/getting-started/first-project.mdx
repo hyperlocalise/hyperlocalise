@@ -26,16 +26,16 @@ description: "Set up a minimal project layout and understand expected output fil
 
 ## Minimal config pattern
 
-Use one bucket and one group to start:
+Use one bucket to start:
 
 - `locales.source`: your source locale (for example `en-US`)
 - `locales.targets`: one target locale (for example `es-ES`)
 - `buckets.ui.files`: map source path template to target path template
-- `groups.default`: attach `targets` and `buckets`
+- `llm.profiles.default`: choose your provider and model
 
 For full fields, see [i18n config](/configuration/i18n-config).
 
-In this setup, translations are sourced from `packages/ui/lang` and generated into `apps/web/lang`.
+In this setup, translations are sourced from `packages/ui/lang` and generated into `apps/web/lang`. If you omit `groups`, Hyperlocalise automatically runs every configured bucket for every target locale.
 
 ## Generated artifacts
 

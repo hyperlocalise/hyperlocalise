@@ -1,6 +1,6 @@
 ---
 title: "初始化"
-description: "在您的项目中创建一个或覆盖 i18n.jsonc 模板。"
+description: "在您的项目中创建或覆盖 `i18n.yml` 模板。"
 ---
 
 ## 用法
@@ -11,12 +11,26 @@ hyperlocalise init [--force]
 
 ## 它做什么
 
-- writes `i18n.jsonc` from the built-in template
-- fails if file already exists (unless `--force`)
+- 从内置模板写入一个最小且可运行的 `i18n.yml`
+- 初始内容只包含 `locales`、`buckets` 和 `llm.profiles.default`
+- 不会把 `groups`、`llm.rules`、`context_memory` 或 `cache` 放进起始模板
+- 如果文件已存在则报错，除非使用 `--force`
 
 ## 标志
 
-- `--force`: overwrite an existing `i18n.jsonc`
+- `--force`: 覆盖现有的 `i18n.yml`
+
+## 起始模板结构
+
+生成的模板只保留新手最需要的部分：
+
+- `locales`: 源语言和目标语言
+- `buckets`: 源文件到目标文件的映射
+- `llm.profiles.default`: provider 和 model
+
+如果省略 `groups`，Hyperlocalise 会自动把配置视为一个隐式的 `default` 分组，覆盖全部目标语言和全部 bucket。
+
+`groups`、`llm.rules`、`context_memory`、fallback 和 cache 的完整示例见 [i18n config](/zh-CN/configuration/i18n-config)。
 
 ## 典型流程
 

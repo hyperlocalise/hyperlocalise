@@ -36,6 +36,12 @@ func TestInitCommand(t *testing.T) {
 	if got, want := string(written), string(template); got != want {
 		t.Fatalf("written file does not match template")
 	}
+	if strings.Contains(string(written), "\ngroups:\n") {
+		t.Fatalf("starter template should omit groups")
+	}
+	if strings.Contains(string(written), "\n  rules:\n") {
+		t.Fatalf("starter template should omit llm.rules")
+	}
 }
 
 func TestInitCommandDoesNotOverwriteWithoutForce(t *testing.T) {
@@ -101,5 +107,11 @@ func TestInitCommandOverwritesWithForce(t *testing.T) {
 
 	if got, want := string(written), string(template); got != want {
 		t.Fatalf("written file does not match template")
+	}
+	if strings.Contains(string(written), "\ngroups:\n") {
+		t.Fatalf("starter template should omit groups")
+	}
+	if strings.Contains(string(written), "\n  rules:\n") {
+		t.Fatalf("starter template should omit llm.rules")
 	}
 }

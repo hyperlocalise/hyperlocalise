@@ -1,6 +1,6 @@
 ---
 title: "Khởi tạo"
-description: "Tạo hoặc ghi đè tệp mẫu i18n.jsonc trong dự án của bạn."
+description: "Tạo hoặc ghi đè tệp mẫu i18n.yml trong dự án của bạn."
 ---
 
 ## Sử dụng
@@ -11,12 +11,26 @@ hyperlocalise init [--force]
 
 ## Nó làm gì
 
-- viết `i18n.jsonc` từ mẫu mặc định
-- fails if file already exists (unless `--force`)
+- ghi `i18n.yml` tối giản nhưng chạy được từ mẫu dựng sẵn
+- chỉ bắt đầu với `locales`, `buckets`, và `llm.profiles.default`
+- không đưa `groups`, `llm.rules`, `context_memory`, hoặc `cache` vào tệp khởi đầu
+- lỗi nếu tệp đã tồn tại, trừ khi dùng `--force`
 
 ## Cờ
 
-- `--force`: overwrite an existing `i18n.jsonc`
+- `--force`: ghi đè `i18n.yml` hiện có
+
+## Cấu trúc starter
+
+Tệp được tạo ra giữ luồng làm việc cho người mới ở mức tối thiểu:
+
+- `locales`: ngôn ngữ nguồn và các ngôn ngữ đích
+- `buckets`: ánh xạ tệp nguồn sang tệp đích
+- `llm.profiles.default`: nhà cung cấp và mô hình
+
+Khi bỏ qua `groups`, Hyperlocalise sẽ tự động coi cấu hình như một nhóm `default` ngầm bao gồm tất cả target locale và tất cả bucket.
+
+Ví dụ đầy đủ cho `groups`, `llm.rules`, `context_memory`, fallback, và cache nằm ở [i18n config](/vi-VN/configuration/i18n-config).
 
 ## Luồng hoạt động điển hình
 

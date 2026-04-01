@@ -1,5 +1,7 @@
 # Minimal starter config.
-# Read this file top-to-bottom: locales -> buckets -> groups -> llm.
+# Read this file top-to-bottom: locales -> buckets -> llm.
+# This starter intentionally skips advanced sections like groups, rules, and cache.
+# When groups are omitted, Hyperlocalise runs all buckets for all target locales.
 locales:
   # Source locale: the language your original content is written in.
   source: en-US
@@ -10,7 +12,6 @@ locales:
 
 # One bucket defines how files map from source to target.
 # Use {{source}} and {{target}} placeholders in paths.
-# Buckets are reusable: multiple groups can reference the same bucket.
 buckets:
   # Bucket name is arbitrary; choose a name that matches your domain.
   ui:
@@ -23,19 +24,6 @@ buckets:
         # Example with target=es-ES:
         # apps/web/lang/es-ES.json
         to: apps/web/lang/{{target}}.json
-
-# One group links the target(s) with the bucket(s).
-# Think of a group as "what to run" for a subset of locales/files.
-groups:
-  default:
-    # Targets in this group.
-    # Must be a subset of locales.targets.
-    targets:
-      - es-ES
-    # Buckets in this group.
-    # Names must match keys under the top-level buckets object.
-    buckets:
-      - ui
 
 llm:
   # Profiles define provider/model and optional prompt behavior.
@@ -59,34 +47,3 @@ llm:
       #   Translate from {{source}} to {{target}}:
       #
       #   {{input}}
-
-  # Optional context-memory override for the experimental two-stage flow.
-  # When set, this provider/model pair is used only for context-memory building.
-  # context_memory:
-  #   provider: openai
-  #   model: gpt-5.2
-
-  # Rules connect groups to profiles.
-  # If multiple rules match, the highest priority wins.
-  rules:
-    - priority: 100
-      group: default
-      profile: default
-
-# Optional local cache foundation for run pipeline (disabled by default).
-# Enable this to initialize SQLite + table migrations for upcoming cache flows.
-# cache:
-#   enabled: true
-#   db_path: .hyperlocalise/cache/cache.sqlite
-#   sqlite:
-#     max_open_conns: 1
-#     max_idle_conns: 1
-#     conn_max_lifetime_seconds: 300
-#   l1:
-#     enabled: true
-#     max_items: 50000
-#   l2:
-#     enabled: true
-#   rag:
-#     enabled: false
-#     top_k: 5

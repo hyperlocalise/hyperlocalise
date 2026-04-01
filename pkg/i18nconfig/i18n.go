@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/tidwall/jsonc"
@@ -33,13 +34,14 @@ const (
 	llmProviderGemini                 = "gemini"
 	llmProviderBedrock                = "bedrock"
 	llmDefaultProfile                 = "default"
+	defaultGroupName                  = "default"
 )
 
 // I18NConfig defines the i18n configuration file structure.
 type I18NConfig struct {
 	Locales LocaleConfig            `json:"locales" jsonschema:"required"`
 	Buckets map[string]BucketConfig `json:"buckets" jsonschema:"required"`
-	Groups  map[string]GroupConfig  `json:"groups" jsonschema:"required"`
+	Groups  map[string]GroupConfig  `json:"groups,omitempty"`
 	LLM     LLMConfig               `json:"llm" jsonschema:"required"`
 	Storage *StorageConfig          `json:"storage,omitempty"`
 	Cache   CacheConfig             `json:"cache,omitempty"`
@@ -289,7 +291,27 @@ func hasExplicitCacheL2AutoAcceptThreshold(content []byte) (bool, error) {
 }
 
 func (c *I18NConfig) applyDefaults(autoAcceptThresholdSet bool) {
+	c.applyDefaultGroups()
 	c.Cache.applyDefaults(autoAcceptThresholdSet)
+}
+
+func (c *I18NConfig) applyDefaultGroups() {
+	if len(c.Groups) != 0 {
+		return
+	}
+
+	buckets := make([]string, 0, len(c.Buckets))
+	for name := range c.Buckets {
+		buckets = append(buckets, name)
+	}
+	slices.Sort(buckets)
+
+	c.Groups = map[string]GroupConfig{
+		defaultGroupName: {
+			Targets: append([]string(nil), c.Locales.Targets...),
+			Buckets: buckets,
+		},
+	}
 }
 
 func (c *CacheConfig) applyDefaults(autoAcceptThresholdSet bool) {

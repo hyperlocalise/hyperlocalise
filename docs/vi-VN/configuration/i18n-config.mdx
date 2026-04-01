@@ -1,35 +1,62 @@
 ---
 title: "Cấu hình i18n"
-description: "Hướng dẫn từng trường cho i18n.jsonc được sử dụng bởi các lệnh run, status và sync."
+description: "Hướng dẫn theo từng trường cho tệp `i18n.yml` dùng bởi các lệnh `run`, `status`, và `sync`."
 ---
 
-## Tổng quan về tệp
+## Tổng quan tệp
 
-`i18n.jsonc` controls locales, file mapping, model profiles, and rule selection.
+`i18n.yml` điều khiển locale, ánh xạ tệp, hồ sơ mô hình, và các cấu hình nâng cao tùy chọn. `i18n.jsonc` vẫn được hỗ trợ để tương thích ngược.
 
-## Các khu vực
+## Cấu hình khởi đầu
 
-- `locales.source`: nguồn vị trí.
-- `locales.targets`: list of target locales.
-- optional `locales.fallbacks`: fallback order per locale.
+```yaml
+locales:
+  source: en-US
+  targets:
+    - es-ES
 
-## Thau
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
 
-`buckets` map source files to target output templates.
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+```
 
-Mỗi bản ánh xạ sử dụng:
+Đây là cấu trúc được tạo bởi `hyperlocalise init`.
 
-- `from`: source path template
+Khi bỏ qua `groups`, Hyperlocalise sẽ tự động dùng một nhóm `default` ngầm với:
+
+- tất cả locale trong `locales.targets`
+- tất cả bucket trong `buckets`
+
+## Locales
+
+- `locales.source`: locale nguồn.
+- `locales.targets`: danh sách locale đích.
+- `locales.fallbacks` (tùy chọn): thứ tự fallback cho từng locale.
+
+## Buckets
+
+`buckets` ánh xạ tệp nguồn sang mẫu đường dẫn đầu ra.
+
+Mỗi ánh xạ tệp dùng:
+
+- `from`: mẫu đường dẫn nguồn
 - `to`: mẫu đường dẫn đích
 
-Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
+Dùng `{{source}}`, `{{target}}`, và `{{localeDir}}` trong template. `{{localeDir}}` sẽ là chuỗi rỗng khi target trùng source, và là target locale khi khác nhau.
 
+### Mẫu ánh xạ CSV
 
-### Mẫu định dạng tệp CSV
+Dùng bucket để mô hình hóa luồng CSV.
 
-Sử dụng bản đồ tệp bucket để mô hình hóa quy trình CSV.
-
-Các tệp theo ngữ cảnh:
+Tệp theo từng locale:
 
 ```json
 {
@@ -38,7 +65,7 @@ Các tệp theo ngữ cảnh:
 }
 ```
 
-Tệp đa ngôn ngữ được chia sẻ:
+Tệp đa locale dùng chung:
 
 ```json
 {
@@ -47,65 +74,147 @@ Tệp đa ngôn ngữ được chia sẻ:
 }
 ```
 
-For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
+Với CSV đa locale dùng chung, hãy giữ một cột khóa và một cột target locale để `run` có thể cập nhật ổn định.
 
-## Nhóm
+## Groups
 
-`groups.<name>` defines what to process together.
+`groups.<name>` định nghĩa phần nào sẽ được chạy cùng nhau.
 
-- `targets`: subset of `locales.targets`
-- `buckets`: list of bucket names
+- `targets`: tập con của `locales.targets`
+- `buckets`: danh sách tên bucket
 
-## Các hồ sơ LLM
+`groups` là tùy chọn cho cấu hình cơ bản. Chỉ thêm khi bạn muốn tách execution theo locale hoặc theo tập tệp.
 
-`llm.profiles.<name>` trường:
+## Hồ sơ LLM
 
-- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, or `ollama`
-- `model`: mã mô hình nhà cung cấp
-- `system_prompt` (tùy chọn): mẫu tin nhắn hệ thống
-- `user_prompt` (optional): explicit user-message template
-- `prompt` (deprecated, optional): legacy prompt template used as system fallback
+Các trường trong `llm.profiles.<name>`:
 
-Các biến đầu vào:
+- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, hoặc `ollama`
+- `model`: model id của nhà cung cấp
+- `system_prompt` (tùy chọn): template system message
+- `user_prompt` (tùy chọn): template user message
+- `prompt` (đã deprecated, tùy chọn): template cũ dùng làm system fallback
+
+Biến có sẵn trong prompt:
 
 - `{{source}}`
 - `{{target}}`
 - `{{input}}`
 
-## Quy tắc
+## Rules
 
-`llm.rules` choose profile per group.
+`llm.rules` chọn profile theo từng group.
 
-- `priority`: người thắng
-- `group`: tên nhóm
-- `profile`: profile name
+- `priority`: số lớn hơn sẽ thắng
+- `group`: tên group
+- `profile`: tên profile
 
-## Bộ nhớ đệm
+`llm.rules` là tùy chọn. Nếu không có rule khớp, Hyperlocalise sẽ dùng `llm.profiles.default`.
 
-`cache` configures local L1/L2 behavior.
+## Cache
 
-- `enabled` (tùy chọn): bật dịch vụ bộ nhớ đệm.
-- `db_path` (tùy chọn): đường dẫn sqlite cho cơ sở dữ liệu cache.
-- `sqlite` (tùy chọn): điều chỉnh kết nối.
-- `l1.max_items` (tùy chọn): Giới hạn loại bỏ bộ nhớ cấp 1.
-- `l2.enabled` (optional): enable translation memory lookup/upsert.
-- `l2.auto_accept_threshold` (optional): fuzzy auto-accept threshold in `[0,1]` (default `0.90`).
+`cache` cấu hình hành vi L1/L2 cục bộ.
 
-Danh sách giá trị enum cho TM metadata:
+- `enabled` (tùy chọn): bật dịch vụ cache
+- `db_path` (tùy chọn): đường dẫn sqlite cho cache
+- `sqlite` (tùy chọn): cấu hình kết nối
+- `l1.max_items` (tùy chọn): giới hạn eviction cho L1
+- `l2.enabled` (tùy chọn): bật tra cứu/upsert translation memory
+- `l2.auto_accept_threshold` (tùy chọn): ngưỡng fuzzy auto-accept trong `[0,1]`, mặc định `0.90`
 
-- nguồn gốc: `curated` | `draft` | `llm` | `tms` | `unknown`
+TM metadata enums:
+
+- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
 - source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
 
-## Cấu hình ban đầu
+## Ví dụ nâng cao
+
+```yaml
+locales:
+  source: en-US
+  targets:
+    - fr-FR
+    - es-ES
+  fallbacks:
+    fr-FR:
+      - es-ES
+      - en-US
+
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.json
+        to: apps/web/lang/{{target}}.json
+  docs:
+    files:
+      - from: docs/{{source}}/**/*.mdx
+        to: docs/{{target}}/**/*.mdx
+
+groups:
+  app:
+    targets:
+      - fr-FR
+      - es-ES
+    buckets:
+      - ui
+  docs:
+    targets:
+      - fr-FR
+    buckets:
+      - docs
+
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-5.2
+    docs_review:
+      provider: openai
+      model: gpt-5.2
+      system_prompt: You are a senior technical translator.
+      user_prompt: |-
+        Translate from {{source}} to {{target}}.
+
+        Keep Markdown and MDX syntax intact.
+
+        {{input}}
+  context_memory:
+    provider: openai
+    model: gpt-5.2
+  rules:
+    - priority: 100
+      group: docs
+      profile: docs_review
+
+cache:
+  enabled: true
+  db_path: .hyperlocalise/cache/cache.sqlite
+  sqlite:
+    max_open_conns: 1
+    max_idle_conns: 1
+    conn_max_lifetime_seconds: 300
+  l1:
+    enabled: true
+    max_items: 50000
+  l2:
+    enabled: true
+    auto_accept_threshold: 0.9
+  rag:
+    enabled: false
+    top_k: 5
+```
+
+## Tạo starter
 
 ```bash
 hyperlocalise init
 ```
 
-Then edit the generated `i18n.jsonc` for your project.
+Sau đó chỉnh sửa `i18n.yml` đã tạo cho dự án của bạn.
 
 ## Mẹo kiểm tra
 
-- Keep group targets inside `locales.targets`.
-- Keep group buckets aligned with `buckets` keys.
-- Giữ nguyên tên hồ sơ giữa `profiles` và `rules`.
+- Nếu bỏ qua `groups`, mọi bucket sẽ chạy cho mọi target locale.
+- Giữ group targets nằm trong `locales.targets`.
+- Giữ group buckets khớp với các khóa trong `buckets`.
+- Giữ tên profile nhất quán giữa `profiles` và `rules`.

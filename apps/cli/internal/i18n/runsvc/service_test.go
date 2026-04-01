@@ -2717,6 +2717,81 @@ func testConfig(sourcePath, targetPath string) config.I18NConfig {
 	}
 }
 
+func TestPlanTasksUsesImplicitDefaultGroupWhenGroupsOmitted(t *testing.T) {
+	dir := t.TempDir()
+	sourceUI := filepath.Join(dir, "ui", "en.json")
+	sourceDocs := filepath.Join(dir, "docs", "en.json")
+	targetUIFR := filepath.Join(dir, "out", "ui", "fr.json")
+	targetUIES := filepath.Join(dir, "out", "ui", "es.json")
+	targetDocsFR := filepath.Join(dir, "out", "docs", "fr.json")
+	targetDocsES := filepath.Join(dir, "out", "docs", "es.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourceUI), 0o755); err != nil {
+		t.Fatalf("mkdir ui source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sourceDocs), 0o755); err != nil {
+		t.Fatalf("mkdir docs source dir: %v", err)
+	}
+	if err := os.WriteFile(sourceUI, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write ui source: %v", err)
+	}
+	if err := os.WriteFile(sourceDocs, []byte(`{"doc":"Hello docs"}`), 0o644); err != nil {
+		t.Fatalf("write docs source: %v", err)
+	}
+
+	configPath := filepath.Join(dir, "i18n.yml")
+	configContent := `
+locales:
+  source: en
+  targets:
+    - fr
+    - es
+buckets:
+  docs:
+    files:
+      - from: ` + sourceDocs + `
+        to: ` + filepath.Join(dir, "out", "docs", "{{target}}.json") + `
+  ui:
+    files:
+      - from: ` + sourceUI + `
+        to: ` + filepath.Join(dir, "out", "ui", "{{target}}.json") + `
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	tasks, err := svc.planTasks(cfg, "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("plan tasks: %v", err)
+	}
+	if got, want := len(tasks), 4; got != want {
+		t.Fatalf("task count=%d, want %d", got, want)
+	}
+
+	targets := make(map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		targets[task.TargetPath] = struct{}{}
+	}
+	for _, target := range []string{targetUIFR, targetUIES, targetDocsFR, targetDocsES} {
+		if _, ok := targets[target]; !ok {
+			t.Fatalf("expected planned target %q, got %+v", target, tasks)
+		}
+	}
+}
+
 func TestShouldIgnoreSourcePath(t *testing.T) {
 	targets := []string{"fr", "es", "zh"}
 	if !shouldIgnoreSourcePath("docs/fr/index.mdx", targets) {
