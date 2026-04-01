@@ -510,7 +510,7 @@ func TestRunFiltersTasksBySourceEntryKeys(t *testing.T) {
 		}
 	}
 
-	report, err := svc.Run(context.Background(), Input{DryRun: true, SourcePaths: []string{sourcePath}, SourceEntryKeys: map[string][]string{sourcePath: []string{"b"}}})
+	report, err := svc.Run(context.Background(), Input{DryRun: true, SourcePaths: []string{sourcePath}, SourceEntryKeys: map[string][]string{sourcePath: {"b"}}})
 	if err != nil {
 		t.Fatalf("run dry-run: %v", err)
 	}
