@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -436,42 +435,6 @@ type queryExecutor interface {
 	Insert() *rain.InsertQuery
 	Update() *rain.UpdateQuery
 	Delete() *rain.DeleteQuery
-}
-
-func managedTables() []schema.TableReference {
-	return []schema.TableReference{
-		TranslationProjects,
-		TranslationJobs,
-		OutboxEvents,
-		TranslationFileUploads,
-		TranslationFiles,
-		TranslationFileVariants,
-		TranslationGlossaryTerms,
-	}
-}
-
-func ensureSchema(ctx context.Context, db *rain.DB) error {
-	for _, table := range managedTables() {
-		statement, err := db.CreateTableSQL(table)
-		if err != nil {
-			return fmt.Errorf("create table sql for %q: %w", table.TableDef().Name, err)
-		}
-		if _, err := db.Exec(ctx, statement); err != nil {
-			return fmt.Errorf("create table %q: %w", table.TableDef().Name, err)
-		}
-
-		indexes, err := db.CreateIndexesSQL(table)
-		if err != nil {
-			return fmt.Errorf("create index sql for %q: %w", table.TableDef().Name, err)
-		}
-		for _, indexStatement := range indexes {
-			if _, err := db.Exec(ctx, indexStatement); err != nil {
-				return fmt.Errorf("create indexes for %q: %w", table.TableDef().Name, err)
-			}
-		}
-	}
-
-	return nil
 }
 
 func mustBindModels() {

@@ -440,10 +440,6 @@ func buildGlossaryTSQuery(raw string) string {
 	return strings.Join(terms, " | ")
 }
 
-func glossaryLexemes(raw string) []string {
-	return extractGlossaryLexemes(raw)
-}
-
 func glossaryNaturalKey(sourceLocale, targetLocale, sourceTerm string) string {
 	return strings.ToLower(strings.TrimSpace(sourceLocale)) + "\x00" +
 		strings.ToLower(strings.TrimSpace(targetLocale)) + "\x00" +
