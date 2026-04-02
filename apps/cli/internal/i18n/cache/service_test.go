@@ -2,16 +2,13 @@ package cache
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 )
 
 func TestNewFromConfigDisabled(t *testing.T) {
@@ -53,7 +50,7 @@ func TestNewFromConfigEnabledMigratesSchema(t *testing.T) {
 
 	// Check if tables exist using raw SQL
 	var count int
-	err = svc.db.QueryRowContext(context.Background(),
+	err = svc.db.QueryRow(context.Background(),
 		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?",
 		"exact_cache_entries").Scan(&count)
 	if err != nil {
@@ -63,7 +60,7 @@ func TestNewFromConfigEnabledMigratesSchema(t *testing.T) {
 		t.Fatal("expected exact cache table")
 	}
 
-	err = svc.db.QueryRowContext(context.Background(),
+	err = svc.db.QueryRow(context.Background(),
 		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?",
 		"translation_memory_entries").Scan(&count)
 	if err != nil {
@@ -130,10 +127,10 @@ func TestL1GetUpdatesHitMetadataTimestamp(t *testing.T) {
 		t.Fatalf("seed cache entry: %v", err)
 	}
 	stale := time.Now().UTC().Add(-2 * time.Hour)
-	_, err = svc.db.NewUpdate().
-		Model((*ExactCacheEntry)(nil)).
-		Set("updated_at = ?", stale).
-		Where("cache_key = ?", "k1").
+	_, err = svc.db.Update().
+		Table(ExactCacheEntries).
+		Set(ExactCacheEntries.UpdatedAt, stale).
+		Where(ExactCacheEntries.CacheKey.Eq("k1")).
 		Exec(context.Background())
 	if err != nil {
 		t.Fatalf("set stale updated_at: %v", err)
@@ -146,10 +143,10 @@ func TestL1GetUpdatesHitMetadataTimestamp(t *testing.T) {
 	}
 
 	var row ExactCacheEntry
-	if err := svc.db.NewSelect().
-		Model(&row).
-		Where("cache_key = ?", "k1").
-		Scan(context.Background()); err != nil {
+	if err := svc.db.Select().
+		Table(ExactCacheEntries).
+		Where(ExactCacheEntries.CacheKey.Eq("k1")).
+		Scan(context.Background(), &row); err != nil {
 		t.Fatalf("reload cache entry: %v", err)
 	}
 	if !row.UpdatedAt.After(stale) {
@@ -185,10 +182,10 @@ func TestL1PutPersistsMetadataColumns(t *testing.T) {
 	}
 
 	var row ExactCacheEntry
-	if err := svc.db.NewSelect().
-		Model(&row).
-		Where("cache_key = ?", "k-meta").
-		Scan(context.Background()); err != nil {
+	if err := svc.db.Select().
+		Table(ExactCacheEntries).
+		Where(ExactCacheEntries.CacheKey.Eq("k-meta")).
+		Scan(context.Background(), &row); err != nil {
 		t.Fatalf("load cache row: %v", err)
 	}
 	if row.SourceLocale != "en-US" || row.TargetLocale != "fr-FR" || row.Provider != "openai" || row.Model != "gpt-5.2" || row.SourceHash != "source-hash" {
@@ -247,12 +244,11 @@ func TestL1GetReturnsCachedValueWhenTouchFails(t *testing.T) {
 	// Create a temporary database in a temp dir
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "cache-touch-fail.sqlite")
-	sqldb, err := sql.Open(sqliteshim.ShimName, dbPath+"?_fk=1")
+	db, err := rain.Open("sqlite", dbPath+"?_fk=1")
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
+	t.Cleanup(func() { _ = db.Close() })
 
 	// Run migrations manually for this test
 	if err := migrateSchema(db); err != nil {

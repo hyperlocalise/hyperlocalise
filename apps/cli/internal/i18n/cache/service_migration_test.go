@@ -2,13 +2,12 @@ package cache
 
 import (
 	"context"
-	"database/sql"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 )
 
 func TestNewFromConfigMigratesLegacyTMTableWithConstraints(t *testing.T) {
@@ -17,13 +16,13 @@ func TestNewFromConfigMigratesLegacyTMTableWithConstraints(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "cache.sqlite")
 
 	// Create legacy table using raw SQL
-	sqldb, err := sql.Open(sqliteshim.ShimName, dbPath)
+	db, err := rain.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("open legacy db: %v", err)
 	}
-	t.Cleanup(func() { _ = sqldb.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
-	_, err = sqldb.Exec(`CREATE TABLE translation_memory_entries (
+	_, err = db.Exec(context.Background(), `CREATE TABLE translation_memory_entries (
 id integer PRIMARY KEY AUTOINCREMENT,
 source_locale text NOT NULL,
 target_locale text NOT NULL,
@@ -39,7 +38,7 @@ updated_at datetime
 		t.Fatalf("create legacy tm table: %v", err)
 	}
 
-	_, err = sqldb.Exec(`INSERT INTO translation_memory_entries
+	_, err = db.Exec(context.Background(), `INSERT INTO translation_memory_entries
 (source_locale, target_locale, source_text, translated_text, score, provenance, source)
 VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`)
 	if err != nil {
@@ -58,7 +57,7 @@ VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`)
 	t.Cleanup(func() { _ = svc.Close() })
 
 	var createSQL string
-	if err := svc.db.NewRaw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(context.Background(), &createSQL); err != nil {
+	if err := svc.db.QueryRow(context.Background(), "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(&createSQL); err != nil {
 		t.Fatalf("load tm table schema: %v", err)
 	}
 	schemaSQL := strings.ToLower(createSQL)
@@ -70,10 +69,12 @@ VALUES ('en', 'fr', 'Hello', 'Bonjour', 0.8, 'bad_provenance', 'bad_source')`)
 	}
 
 	var row TranslationMemoryEntry
-	if err := svc.db.NewSelect().
-		Model(&row).
-		Where("source_locale = ? AND target_locale = ? AND source_text = ?", "en", "fr", "Hello").
-		Scan(context.Background()); err != nil {
+	if err := svc.db.Select().
+		Table(TranslationMemoryEntries).
+		Where(TranslationMemoryEntries.SourceLocale.Eq("en")).
+		Where(TranslationMemoryEntries.TargetLocale.Eq("fr")).
+		Where(TranslationMemoryEntries.SourceText.Eq("Hello")).
+		Scan(context.Background(), &row); err != nil {
 		t.Fatalf("load migrated row: %v", err)
 	}
 	if row.Provenance != TMProvenanceUnknown {

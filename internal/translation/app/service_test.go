@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -11,23 +10,16 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/translation/objectstore"
 	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 )
 
 func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -58,7 +50,7 @@ func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 		t.Fatalf("expected queued job, got %s", record.Status)
 	}
 
-	outboxCount, err := db.NewSelect().Model((*store.OutboxEventModel)(nil)).Count(context.Background())
+	outboxCount, err := db.Select().Table(store.OutboxEvents).Count(context.Background())
 	if err != nil {
 		t.Fatalf("count outbox events: %v", err)
 	}
@@ -67,7 +59,7 @@ func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 	}
 
 	event := &store.OutboxEventModel{}
-	if err := db.NewSelect().Model(event).Limit(1).Scan(context.Background()); err != nil {
+	if err := db.Select().Table(store.OutboxEvents).Limit(1).Scan(context.Background(), event); err != nil {
 		t.Fatalf("select outbox event: %v", err)
 	}
 	if event.Status != store.OutboxStatusPending {
@@ -84,15 +76,10 @@ func TestCreateJobPersistsOutboxWithoutPublishingInline(t *testing.T) {
 func TestCreateFileUploadFinalizeAndCreateFileJob(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -178,15 +165,10 @@ func TestCreateFileUploadFinalizeAndCreateFileJob(t *testing.T) {
 func TestFinalizeFileUploadRejectsMissingObject(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -220,15 +202,10 @@ func TestFinalizeFileUploadRejectsMissingObject(t *testing.T) {
 func TestProjectCRUDAndChildValidation(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -316,15 +293,10 @@ func TestProjectCRUDAndChildValidation(t *testing.T) {
 func TestGlossaryTermCRUDAndBulkOperations(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -431,15 +403,10 @@ func TestGlossaryTermCRUDAndBulkOperations(t *testing.T) {
 func TestCreateFileUploadRequiresExistingProject(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -466,15 +433,10 @@ func TestCreateFileUploadRequiresExistingProject(t *testing.T) {
 func TestDeleteProjectRemovesProjectObjects(t *testing.T) {
 	t.Parallel()
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, testSQLiteDSN(t))
+	db, err := rain.Open("sqlite", testSQLiteDSN(t))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
