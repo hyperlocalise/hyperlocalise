@@ -175,7 +175,7 @@ func (p *Processor) translateFileEntries(
 			TargetLocale: targetLocale,
 			Metadata:     metadata,
 		}
-		task.RuntimeContext = buildGlossaryRuntimeContextFromTerms(store.RankGlossaryTerms(glossaryTerms, task.SourceText, p.glossaryTopK))
+		task.RuntimeContext = buildGlossaryRuntimeContextFromTerms(rankGlossaryTerms(glossaryTerms, task.SourceText, p.glossaryTopK))
 		text, route, err := p.executor.Translate(ctx, task)
 		if err != nil {
 			return nil, fmt.Errorf("entry %q with route %s/%s: %w", key, route.Provider, route.Model, err)
@@ -183,6 +183,40 @@ func (p *Processor) translateFileEntries(
 		out[key] = text
 	}
 	return out, nil
+}
+
+func rankGlossaryTerms(terms []store.TranslationGlossaryTermModel, sourceText string, limit int) []store.TranslationGlossaryTermModel {
+	if len(terms) == 0 {
+		return nil
+	}
+
+	loweredQuery := strings.ToLower(strings.TrimSpace(sourceText))
+	if loweredQuery == "" {
+		return nil
+	}
+
+	filtered := make([]store.TranslationGlossaryTermModel, 0, len(terms))
+	for _, term := range terms {
+		if strings.Contains(loweredQuery, strings.ToLower(term.SourceTerm)) {
+			filtered = append(filtered, term)
+		}
+	}
+
+	sort.SliceStable(filtered, func(i, j int) bool {
+		if len(filtered[i].SourceTerm) != len(filtered[j].SourceTerm) {
+			return len(filtered[i].SourceTerm) > len(filtered[j].SourceTerm)
+		}
+		return filtered[i].SourceTerm < filtered[j].SourceTerm
+	})
+
+	if limit <= 0 {
+		limit = 5
+	}
+	if len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+
+	return filtered
 }
 
 func decodeFileCheckpoint(payload []byte) (*fileCheckpoint, error) {
