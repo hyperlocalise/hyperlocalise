@@ -3,7 +3,6 @@ module github.com/hyperlocalise/hyperlocalise
 go 1.26
 
 require (
-	ariga.io/atlas-provider-bun v0.0.3
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.2
@@ -26,9 +25,6 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
-	github.com/uptrace/bun v1.2.18
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.18
-	github.com/uptrace/bun/driver/sqliteshim v1.2.18
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/net v0.52.0
 	golang.org/x/text v0.35.0
@@ -41,14 +37,9 @@ require (
 	ariga.io/atlas v1.1.0 // indirect
 	github.com/alecthomas/kong v1.14.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/uptrace/bun/dialect/mssqldialect v1.2.18 // indirect
-	github.com/uptrace/bun/dialect/mysqldialect v1.2.18 // indirect
-	github.com/uptrace/bun/dialect/oracledialect v1.2.18 // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
 	modernc.org/libc v1.70.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

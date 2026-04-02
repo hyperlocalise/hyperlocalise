@@ -9,7 +9,7 @@ go_library(
         "//internal/translation/queue:queue",
         "//internal/translation/store:store",
         "//pkg/api/proto/hyperlocalise/translation/v1:v1",
-        "@com_github_uptrace_bun//:bun",
+        "@com_github_hyperlocalise_rain_orm//pkg/rain:rain",
         "@org_golang_google_protobuf//encoding/protojson",
         "@org_golang_google_protobuf//proto",
         "@org_golang_google_protobuf//types/known/timestamppb",
@@ -23,8 +23,6 @@ go_test(
     deps = [
         "//internal/translation/store:store",
         "//pkg/api/proto/hyperlocalise/translation/v1:v1",
-        "@com_github_uptrace_bun//:bun",
-        "@com_github_uptrace_bun_dialect_sqlitedialect//:sqlitedialect",
-        "@com_github_uptrace_bun_driver_sqliteshim//:sqliteshim",
+        "@com_github_hyperlocalise_rain_orm//pkg/rain:rain",
     ],
 )

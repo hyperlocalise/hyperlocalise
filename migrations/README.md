@@ -1,46 +1,25 @@
 # Migrations
 
-This directory contains database migrations managed by [Atlas](https://atlasgo.io/).
+The repository now uses Rain ORM for schema definitions and runtime access.
 
-## Prerequisites
+## Current State
 
-- Install Atlas: `curl -sSf https://atlasgo.sh | sh`
-- Go 1.26+
+- the translation store schema is defined in `internal/translation/store`
+- the CLI cache schema is defined in `apps/cli/internal/i18n/cache`
+- the CLI cache still applies its SQLite schema at runtime during startup
 
-## Generate Migrations
+## Migration Workflow
 
-CLI translation cache schema:
+Checked-in SQL migrations remain the source of truth for operational schema changes.
+When the Rain table definitions change, update the corresponding SQL migrations and
+verify them against the affected runtime path or package tests.
 
-```bash
-atlas migrate diff --env bun
-```
+## Verification
 
-Cloud translation service schema:
-
-```bash
-atlas migrate diff --env translation --config file://atlas-cloud-translation.hcl
-```
-
-## Apply Migrations
-
-Services do not automatically apply Atlas SQL migration files at runtime. Atlas migrations are used for development and CI-side schema management.
-
-## View Schema
-
-To see the current schema without applying:
+Use focused Go tests while changing schema-related code:
 
 ```bash
-atlas schema inspect --env bun
+go test ./internal/translation/store ./internal/translation/app ./api/services/translation
 
-atlas schema inspect --env translation --config file://atlas-cloud-translation.hcl
-```
-
-## Manual Migration (Advanced)
-
-If you need to manually apply SQL migrations:
-
-```bash
-atlas migrate apply --env bun --url "sqlite:///path/to/cache.sqlite"
-
-atlas migrate apply --env translation --config file://atlas-cloud-translation.hcl --url "$DATABASE_URL"
+go test ./apps/cli/internal/i18n/cache
 ```

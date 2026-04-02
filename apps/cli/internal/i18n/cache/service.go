@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/hyperlocalise/rain-orm/pkg/rain"

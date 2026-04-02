@@ -526,7 +526,7 @@ func TestDeleteProjectRemovesProjectObjects(t *testing.T) {
 	}
 }
 
-func createTranslationTables(t *testing.T, db *bun.DB) error {
+func createTranslationTables(t *testing.T, db *rain.DB) error {
 	t.Helper()
 
 	statements := []string{
@@ -649,7 +649,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 	}
 
 	for _, statement := range statements {
-		if _, err := db.ExecContext(context.Background(), statement); err != nil {
+		if _, err := db.Exec(context.Background(), statement); err != nil {
 			return err
 		}
 	}

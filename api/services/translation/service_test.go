@@ -2,7 +2,6 @@ package translation
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -12,9 +11,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 	commonv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/common/v1"
 	translationv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -253,19 +250,14 @@ func TestListGlossaryTermsPaginatesWithOpaqueCursor(t *testing.T) {
 	}
 }
 
-func newTranslationTestService(t *testing.T) (*Service, *bun.DB) {
+func newTranslationTestService(t *testing.T) (*Service, *rain.DB) {
 	t.Helper()
 
 	dsn := fmt.Sprintf("file:%s-%d?mode=memory&cache=shared", t.Name(), time.Now().UnixNano())
-	sqldb, err := sql.Open(sqliteshim.ShimName, dsn)
+	db, err := rain.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = sqldb.Close()
-	})
-
-	db := bun.NewDB(sqldb, sqlitedialect.New())
 	t.Cleanup(func() {
 		_ = db.Close()
 	})
@@ -280,7 +272,7 @@ func newTranslationTestService(t *testing.T) (*Service, *bun.DB) {
 	return NewService(app), db
 }
 
-func createTranslationTables(t *testing.T, db *bun.DB) error {
+func createTranslationTables(t *testing.T, db *rain.DB) error {
 	t.Helper()
 
 	statements := []string{
@@ -403,7 +395,7 @@ func createTranslationTables(t *testing.T, db *bun.DB) error {
 	}
 
 	for _, statement := range statements {
-		if _, err := db.ExecContext(context.Background(), statement); err != nil {
+		if _, err := db.Exec(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -414,23 +406,24 @@ func strPtr(value string) *string {
 	return &value
 }
 
-func seedTranslationProject(t *testing.T, db *bun.DB, id string) {
+func seedTranslationProject(t *testing.T, db *rain.DB, id string) {
 	t.Helper()
 
 	now := time.Unix(1700000000, 0).UTC()
 	project := &store.TranslationProjectModel{
-		ID:          id,
-		Name:        "Test Project",
-		Description: "test",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:                 id,
+		Name:               "Test Project",
+		Description:        "test",
+		TranslationContext: "",
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
-	if _, err := db.NewInsert().Model(project).Exec(context.Background()); err != nil {
+	if _, err := db.Insert().Table(store.TranslationProjects).Model(project).Exec(context.Background()); err != nil {
 		t.Fatalf("insert translation project %s: %v", id, err)
 	}
 }
 
-func seedTranslationJob(t *testing.T, db *bun.DB, id, projectID, jobType, jobStatus string, createdAt time.Time) {
+func seedTranslationJob(t *testing.T, db *rain.DB, id, projectID, jobType, jobStatus string, createdAt time.Time) {
 	t.Helper()
 
 	inputPayload, err := translationapp.EncodeProto(&translationv1.StringTranslationJobInput{
@@ -451,7 +444,7 @@ func seedTranslationJob(t *testing.T, db *bun.DB, id, projectID, jobType, jobSta
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 	}
-	if _, err := db.ExecContext(
+	if _, err := db.Exec(
 		context.Background(),
 		`INSERT INTO translation_jobs
 			(id, project_id, type, status, input_kind, input_payload, checkpoint_payload, outcome_kind, outcome_payload, last_error, created_at, updated_at, completed_at)
