@@ -30,7 +30,6 @@ go.work.sum
 # Editor/IDE
 .idea/
 .vscode/
-.zed/
 
 # Release related
 manpages

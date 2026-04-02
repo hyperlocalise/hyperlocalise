@@ -53,6 +53,25 @@ jobs:
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
+  hyperlocalise-web-build:
+    name: Hyperlocalise Web Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+
+      - name: Build hyperlocalise-web
+        run: vp build
+
   bazel-build-test:
     name: Bazel Build/Test
     runs-on: ubuntu-latest
