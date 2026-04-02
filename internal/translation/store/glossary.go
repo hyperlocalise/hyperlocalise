@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/uptrace/bun"
+	"github.com/hyperlocalise/rain-orm/pkg/schema"
 )
 
 var glossaryLexemePattern = regexp.MustCompile(`[\pL\pN_]+`)
@@ -51,8 +51,8 @@ type GlossaryTermInput struct {
 	PartOfSpeech string
 }
 
-func (r *Repository) InsertGlossaryTerm(ctx context.Context, db bun.IDB, term *TranslationGlossaryTermModel) error {
-	if _, err := db.NewInsert().Model(term).Exec(ctx); err != nil {
+func (r *Repository) InsertGlossaryTerm(ctx context.Context, db queryExecutor, term *TranslationGlossaryTermModel) error {
+	if _, err := db.Insert().Table(TranslationGlossaryTerms).Model(term).Exec(ctx); err != nil {
 		if isUniqueConstraintError(err) {
 			return ErrAlreadyExists
 		}
@@ -63,12 +63,12 @@ func (r *Repository) InsertGlossaryTerm(ctx context.Context, db bun.IDB, term *T
 
 func (r *Repository) GetGlossaryTerm(ctx context.Context, projectID, id string) (*TranslationGlossaryTermModel, error) {
 	term := &TranslationGlossaryTermModel{}
-	err := r.db.NewSelect().
-		Model(term).
-		Where("tgt.project_id = ?", projectID).
-		Where("tgt.id = ?", id).
+	err := r.db.Select().
+		Table(TranslationGlossaryTerms).
+		Where(TranslationGlossaryTerms.ProjectID.Eq(projectID)).
+		Where(TranslationGlossaryTerms.ID.Eq(id)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, term)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -96,25 +96,25 @@ func (r *Repository) ListGlossaryTermsPage(
 		limit = 50
 	}
 
-	query := r.db.NewSelect().
-		Model((*TranslationGlossaryTermModel)(nil)).
-		Where("tgt.project_id = ?", strings.TrimSpace(params.ProjectID)).
-		OrderExpr("tgt.updated_at DESC").
-		OrderExpr("tgt.id DESC").
+	query := r.db.Select().
+		Table(TranslationGlossaryTerms).
+		Where(TranslationGlossaryTerms.ProjectID.Eq(strings.TrimSpace(params.ProjectID))).
+		OrderBy(TranslationGlossaryTerms.UpdatedAt.Desc(), TranslationGlossaryTerms.ID.Desc()).
 		Limit(limit + 1)
 	if strings.TrimSpace(params.SourceLocale) != "" {
-		query = query.Where("tgt.source_locale = ?", strings.TrimSpace(params.SourceLocale))
+		query = query.Where(TranslationGlossaryTerms.SourceLocale.Eq(strings.TrimSpace(params.SourceLocale)))
 	}
 	if strings.TrimSpace(params.TargetLocale) != "" {
-		query = query.Where("tgt.target_locale = ?", strings.TrimSpace(params.TargetLocale))
+		query = query.Where(TranslationGlossaryTerms.TargetLocale.Eq(strings.TrimSpace(params.TargetLocale)))
 	}
 	if cursor != nil {
-		query = query.Where(
-			"(tgt.updated_at < ? OR (tgt.updated_at = ? AND tgt.id < ?))",
-			cursor.UpdatedAt,
-			cursor.UpdatedAt,
-			cursor.ID,
-		)
+		query = query.Where(schema.Or(
+			TranslationGlossaryTerms.UpdatedAt.Lt(cursor.UpdatedAt),
+			schema.And(
+				TranslationGlossaryTerms.UpdatedAt.Eq(cursor.UpdatedAt),
+				TranslationGlossaryTerms.ID.Lt(cursor.ID),
+			),
+		))
 	}
 
 	var terms []TranslationGlossaryTermModel
@@ -140,29 +140,29 @@ func (r *Repository) UpdateGlossaryTerm(
 	sourceLocale, targetLocale, sourceTerm, targetTerm, description, partOfSpeech *string,
 	updatedAt time.Time,
 ) (*TranslationGlossaryTermModel, error) {
-	update := r.db.NewUpdate().
-		Model((*TranslationGlossaryTermModel)(nil)).
-		Set("updated_at = ?", updatedAt).
-		Where("project_id = ?", projectID).
-		Where("id = ?", id)
+	update := r.db.Update().
+		Table(TranslationGlossaryTerms).
+		Set(TranslationGlossaryTerms.UpdatedAt, updatedAt).
+		Where(TranslationGlossaryTerms.ProjectID.Eq(projectID)).
+		Where(TranslationGlossaryTerms.ID.Eq(id))
 
 	if sourceLocale != nil {
-		update = update.Set("source_locale = ?", *sourceLocale)
+		update = update.Set(TranslationGlossaryTerms.SourceLocale, *sourceLocale)
 	}
 	if targetLocale != nil {
-		update = update.Set("target_locale = ?", *targetLocale)
+		update = update.Set(TranslationGlossaryTerms.TargetLocale, *targetLocale)
 	}
 	if sourceTerm != nil {
-		update = update.Set("source_term = ?", *sourceTerm)
+		update = update.Set(TranslationGlossaryTerms.SourceTerm, *sourceTerm)
 	}
 	if targetTerm != nil {
-		update = update.Set("target_term = ?", *targetTerm)
+		update = update.Set(TranslationGlossaryTerms.TargetTerm, *targetTerm)
 	}
 	if description != nil {
-		update = update.Set("description = ?", *description)
+		update = update.Set(TranslationGlossaryTerms.Description, *description)
 	}
 	if partOfSpeech != nil {
-		update = update.Set("part_of_speech = ?", *partOfSpeech)
+		update = update.Set(TranslationGlossaryTerms.PartOfSpeech, *partOfSpeech)
 	}
 
 	result, err := update.Exec(ctx)
@@ -172,11 +172,11 @@ func (r *Repository) UpdateGlossaryTerm(
 		}
 		return nil, fmt.Errorf("update translation glossary term: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
+	affected, err := rowsAffected(result, "glossary term update")
 	if err != nil {
-		return nil, fmt.Errorf("count glossary term update rows affected: %w", err)
+		return nil, err
 	}
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return nil, ErrNotFound
 	}
 
@@ -184,19 +184,19 @@ func (r *Repository) UpdateGlossaryTerm(
 }
 
 func (r *Repository) DeleteGlossaryTerm(ctx context.Context, projectID, id string) error {
-	result, err := r.db.NewDelete().
-		Model((*TranslationGlossaryTermModel)(nil)).
-		Where("project_id = ?", projectID).
-		Where("id = ?", id).
+	result, err := r.db.Delete().
+		Table(TranslationGlossaryTerms).
+		Where(TranslationGlossaryTerms.ProjectID.Eq(projectID)).
+		Where(TranslationGlossaryTerms.ID.Eq(id)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("delete translation glossary term: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
+	affected, err := rowsAffected(result, "glossary term delete")
 	if err != nil {
-		return fmt.Errorf("count glossary term delete rows affected: %w", err)
+		return err
 	}
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return ErrNotFound
 	}
 	return nil
@@ -204,7 +204,7 @@ func (r *Repository) DeleteGlossaryTerm(ctx context.Context, projectID, id strin
 
 func (r *Repository) BulkUpsertGlossaryTerms(
 	ctx context.Context,
-	db bun.IDB,
+	db queryExecutor,
 	projectID string,
 	inputs []GlossaryTermInput,
 	now time.Time,
@@ -233,14 +233,33 @@ func (r *Repository) BulkUpsertGlossaryTerms(
 		})
 	}
 
-	if err := db.NewInsert().
-		Model(&models).
-		On("CONFLICT (project_id, source_locale, target_locale, source_term) DO UPDATE").
-		Set("target_term = EXCLUDED.target_term").
-		Set("description = EXCLUDED.description").
-		Set("part_of_speech = EXCLUDED.part_of_speech").
-		Set("updated_at = EXCLUDED.updated_at").
-		Returning("*").
+	if err := db.Insert().
+		Table(TranslationGlossaryTerms).
+		Models(models).
+		OnConflict(
+			TranslationGlossaryTerms.ProjectID,
+			TranslationGlossaryTerms.SourceLocale,
+			TranslationGlossaryTerms.TargetLocale,
+			TranslationGlossaryTerms.SourceTerm,
+		).
+		DoUpdateSet(
+			TranslationGlossaryTerms.TargetTerm,
+			TranslationGlossaryTerms.Description,
+			TranslationGlossaryTerms.PartOfSpeech,
+			TranslationGlossaryTerms.UpdatedAt,
+		).
+		Returning(
+			TranslationGlossaryTerms.ID,
+			TranslationGlossaryTerms.ProjectID,
+			TranslationGlossaryTerms.SourceLocale,
+			TranslationGlossaryTerms.TargetLocale,
+			TranslationGlossaryTerms.SourceTerm,
+			TranslationGlossaryTerms.TargetTerm,
+			TranslationGlossaryTerms.Description,
+			TranslationGlossaryTerms.PartOfSpeech,
+			TranslationGlossaryTerms.CreatedAt,
+			TranslationGlossaryTerms.UpdatedAt,
+		).
 		Scan(ctx, &models); err != nil {
 		return nil, fmt.Errorf("bulk upsert translation glossary terms: %w", err)
 	}
@@ -262,17 +281,20 @@ func (r *Repository) BulkUpsertGlossaryTerms(
 	return ordered, nil
 }
 
-func (r *Repository) BulkDeleteGlossaryTerms(ctx context.Context, db bun.IDB, projectID string, ids []string) ([]string, error) {
+func (r *Repository) BulkDeleteGlossaryTerms(ctx context.Context, db queryExecutor, projectID string, ids []string) ([]string, error) {
 	if len(ids) == 0 {
 		return []string{}, nil
 	}
 
+	values := make([]string, 0, len(ids))
+	values = append(values, ids...)
+
 	var deletedIDs []string
-	if err := db.NewDelete().
-		Model((*TranslationGlossaryTermModel)(nil)).
-		Where("project_id = ?", projectID).
-		Where("id IN (?)", bun.List(ids)).
-		Returning("id").
+	if err := db.Delete().
+		Table(TranslationGlossaryTerms).
+		Where(TranslationGlossaryTerms.ProjectID.Eq(projectID)).
+		Where(TranslationGlossaryTerms.ID.In(values...)).
+		Returning(TranslationGlossaryTerms.ID).
 		Scan(ctx, &deletedIDs); err != nil {
 		return nil, fmt.Errorf("bulk delete translation glossary terms: %w", err)
 	}
@@ -282,8 +304,16 @@ func (r *Repository) BulkDeleteGlossaryTerms(ctx context.Context, db bun.IDB, pr
 // SearchGlossaryTerms retrieves ranked glossary matches for a project and locale pair.
 func (r *Repository) SearchGlossaryTerms(ctx context.Context, params GlossarySearchParams) ([]TranslationGlossaryTermModel, error) {
 	queryText := strings.TrimSpace(params.Query)
+	if queryText == "" {
+		return nil, nil
+	}
+
+	if r.db.Dialect().Name() != "postgres" {
+		return r.searchGlossaryTermsFallback(ctx, params, queryText)
+	}
+
 	tsQuery := buildGlossaryTSQuery(queryText)
-	if queryText == "" || tsQuery == "" {
+	if tsQuery == "" {
 		return nil, nil
 	}
 
@@ -292,23 +322,97 @@ func (r *Repository) SearchGlossaryTerms(ctx context.Context, params GlossarySea
 		limit = 5
 	}
 
-	var terms []TranslationGlossaryTermModel
-	if err := r.db.NewSelect().
-		Model((*TranslationGlossaryTermModel)(nil)).
-		Where("tgt.project_id = ?", strings.TrimSpace(params.ProjectID)).
-		Where("tgt.source_locale = ?", strings.TrimSpace(params.SourceLocale)).
-		Where("tgt.target_locale = ?", strings.TrimSpace(params.TargetLocale)).
-		Where("(strpos(lower(?), lower(tgt.source_term)) > 0 OR tgt.search_vector @@ to_tsquery('simple', ?))", queryText, tsQuery).
-		OrderExpr("CASE WHEN strpos(lower(?), lower(tgt.source_term)) > 0 THEN 1 ELSE 0 END DESC", queryText).
-		OrderExpr("ts_rank_cd(tgt.search_vector, to_tsquery('simple', ?)) DESC", tsQuery).
-		OrderExpr("char_length(tgt.source_term) DESC").
-		OrderExpr("tgt.source_term ASC").
-		Limit(limit).
-		Scan(ctx, &terms); err != nil {
+	rows, err := r.db.Query(
+		ctx,
+		`SELECT id, project_id, source_locale, target_locale, source_term, target_term, description, part_of_speech, created_at, updated_at
+		FROM translation_glossary_terms
+		WHERE project_id = $1
+		  AND source_locale = $2
+		  AND target_locale = $3
+		  AND (strpos(lower($4), lower(source_term)) > 0 OR search_vector @@ to_tsquery('simple', $5))
+		ORDER BY
+		  CASE WHEN strpos(lower($4), lower(source_term)) > 0 THEN 1 ELSE 0 END DESC,
+		  ts_rank_cd(search_vector, to_tsquery('simple', $5)) DESC,
+		  char_length(source_term) DESC,
+		  source_term ASC
+		LIMIT $6`,
+		strings.TrimSpace(params.ProjectID),
+		strings.TrimSpace(params.SourceLocale),
+		strings.TrimSpace(params.TargetLocale),
+		queryText,
+		tsQuery,
+		limit,
+	)
+	if err != nil {
 		return nil, fmt.Errorf("search translation glossary terms: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	terms := make([]TranslationGlossaryTermModel, 0, limit)
+	for rows.Next() {
+		var term TranslationGlossaryTermModel
+		if err := rows.Scan(
+			&term.ID,
+			&term.ProjectID,
+			&term.SourceLocale,
+			&term.TargetLocale,
+			&term.SourceTerm,
+			&term.TargetTerm,
+			&term.Description,
+			&term.PartOfSpeech,
+			&term.CreatedAt,
+			&term.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan translation glossary search row: %w", err)
+		}
+		terms = append(terms, term)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read translation glossary search rows: %w", err)
 	}
 
 	return terms, nil
+}
+
+func (r *Repository) searchGlossaryTermsFallback(
+	ctx context.Context,
+	params GlossarySearchParams,
+	queryText string,
+) ([]TranslationGlossaryTermModel, error) {
+	terms, err := r.ListGlossaryTerms(ctx, GlossaryListParams{
+		ProjectID:    strings.TrimSpace(params.ProjectID),
+		SourceLocale: strings.TrimSpace(params.SourceLocale),
+		TargetLocale: strings.TrimSpace(params.TargetLocale),
+		Limit:        500,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	loweredQuery := strings.ToLower(queryText)
+	filtered := make([]TranslationGlossaryTermModel, 0, len(terms))
+	for _, term := range terms {
+		if strings.Contains(loweredQuery, strings.ToLower(term.SourceTerm)) {
+			filtered = append(filtered, term)
+		}
+	}
+
+	sort.SliceStable(filtered, func(i, j int) bool {
+		if len(filtered[i].SourceTerm) != len(filtered[j].SourceTerm) {
+			return len(filtered[i].SourceTerm) > len(filtered[j].SourceTerm)
+		}
+		return filtered[i].SourceTerm < filtered[j].SourceTerm
+	})
+
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 5
+	}
+	if len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+
+	return filtered, nil
 }
 
 func extractGlossaryLexemes(raw string) []string {
@@ -340,73 +444,16 @@ func glossaryLexemes(raw string) []string {
 	return extractGlossaryLexemes(raw)
 }
 
-func RankGlossaryTerms(terms []TranslationGlossaryTermModel, query string, limit int) []TranslationGlossaryTermModel {
-	queryText := strings.ToLower(strings.TrimSpace(query))
-	queryLexemes := glossaryLexemes(query)
-	if queryText == "" || len(queryLexemes) == 0 || len(terms) == 0 {
-		return nil
-	}
-	if limit <= 0 {
-		limit = 5
-	}
-
-	type scoredTerm struct {
-		term          TranslationGlossaryTermModel
-		phraseMatch   bool
-		lexemeMatches int
-	}
-
-	scored := make([]scoredTerm, 0, len(terms))
-	for _, term := range terms {
-		sourceTerm := strings.ToLower(strings.TrimSpace(term.SourceTerm))
-		if sourceTerm == "" {
-			continue
-		}
-
-		phraseMatch := strings.Contains(queryText, sourceTerm)
-		lexemeMatches := 0
-		for _, lexeme := range queryLexemes {
-			if strings.Contains(sourceTerm, lexeme) {
-				lexemeMatches++
-			}
-		}
-		if !phraseMatch && lexemeMatches == 0 {
-			continue
-		}
-		scored = append(scored, scoredTerm{term: term, phraseMatch: phraseMatch, lexemeMatches: lexemeMatches})
-	}
-
-	sort.SliceStable(scored, func(i, j int) bool {
-		if scored[i].phraseMatch != scored[j].phraseMatch {
-			return scored[i].phraseMatch
-		}
-		if scored[i].lexemeMatches != scored[j].lexemeMatches {
-			return scored[i].lexemeMatches > scored[j].lexemeMatches
-		}
-		if len(scored[i].term.SourceTerm) != len(scored[j].term.SourceTerm) {
-			return len(scored[i].term.SourceTerm) > len(scored[j].term.SourceTerm)
-		}
-		return scored[i].term.SourceTerm < scored[j].term.SourceTerm
-	})
-
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-	out := make([]TranslationGlossaryTermModel, 0, len(scored))
-	for _, item := range scored {
-		out = append(out, item.term)
-	}
-	return out
-}
-
 func glossaryNaturalKey(sourceLocale, targetLocale, sourceTerm string) string {
-	return sourceLocale + "\x00" + targetLocale + "\x00" + sourceTerm
+	return strings.ToLower(strings.TrimSpace(sourceLocale)) + "\x00" +
+		strings.ToLower(strings.TrimSpace(targetLocale)) + "\x00" +
+		strings.ToLower(strings.TrimSpace(sourceTerm))
 }
 
 func newGlossaryTermID() (string, error) {
-	var bytes [8]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
+	buf := make([]byte, 8)
+	if _, err := rand.Read(buf); err != nil {
 		return "", fmt.Errorf("generate glossary term id: %w", err)
 	}
-	return "term_" + hex.EncodeToString(bytes[:]), nil
+	return "term_" + hex.EncodeToString(buf), nil
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/uptrace/bun"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 )
 
 const (
@@ -43,16 +43,17 @@ func (noopRetriever) Retrieve(_ context.Context, _ string, _ int) ([]RAGDocument
 }
 
 type exactSQLiteStore struct {
-	db       *bun.DB
+	db       *rain.DB
 	maxItems int
 }
 
 func (s *exactSQLiteStore) Get(ctx context.Context, key string) (string, bool, error) {
 	var row ExactCacheEntry
-	err := s.db.NewSelect().
-		Model(&row).
-		Where("cache_key = ?", key).
-		Scan(ctx)
+	err := s.db.Select().
+		Table(ExactCacheEntries).
+		Where(ExactCacheEntries.CacheKey.Eq(key)).
+		Limit(1).
+		Scan(ctx, &row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", false, nil
@@ -61,10 +62,10 @@ func (s *exactSQLiteStore) Get(ctx context.Context, key string) (string, bool, e
 	}
 
 	// Update timestamp (non-fatal: keep serving valid cache hits even if touch fails)
-	_, _ = s.db.NewUpdate().
-		Model((*ExactCacheEntry)(nil)).
-		Set("updated_at = ?", time.Now().UTC()).
-		Where("id = ?", row.ID).
+	_, _ = s.db.Update().
+		Table(ExactCacheEntries).
+		Set(ExactCacheEntries.UpdatedAt, time.Now().UTC()).
+		Where(ExactCacheEntries.ID.Eq(int64(row.ID))).
 		Exec(ctx)
 
 	return row.Value, true, nil
@@ -83,17 +84,19 @@ func (s *exactSQLiteStore) Put(ctx context.Context, write ExactCacheWrite) error
 		UpdatedAt:    time.Now().UTC(),
 	}
 
-	// Upsert: Insert or Update on conflict
-	_, err := s.db.NewInsert().
+	_, err := s.db.Insert().
+		Table(ExactCacheEntries).
 		Model(&entry).
-		On("CONFLICT (cache_key) DO UPDATE").
-		Set("source_locale = EXCLUDED.source_locale").
-		Set("target_locale = EXCLUDED.target_locale").
-		Set("provider = EXCLUDED.provider").
-		Set("model = EXCLUDED.model").
-		Set("source_hash = EXCLUDED.source_hash").
-		Set("value = EXCLUDED.value").
-		Set("updated_at = EXCLUDED.updated_at").
+		OnConflict(ExactCacheEntries.CacheKey).
+		DoUpdateSet(
+			ExactCacheEntries.SourceLocale,
+			ExactCacheEntries.TargetLocale,
+			ExactCacheEntries.Provider,
+			ExactCacheEntries.Model,
+			ExactCacheEntries.SourceHash,
+			ExactCacheEntries.Value,
+			ExactCacheEntries.UpdatedAt,
+		).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("upsert exact cache: %w", err)
@@ -108,23 +111,23 @@ func (s *exactSQLiteStore) Put(ctx context.Context, write ExactCacheWrite) error
 }
 
 func (s *exactSQLiteStore) evictIfNeeded(ctx context.Context) error {
-	count, err := s.db.NewSelect().
-		Model((*ExactCacheEntry)(nil)).
+	count, err := s.db.Select().
+		Table(ExactCacheEntries).
 		Count(ctx)
 	if err != nil {
 		return fmt.Errorf("count exact cache entries: %w", err)
 	}
 
-	overflow := count - s.maxItems
+	overflow := int(count) - s.maxItems
 	if overflow <= 0 {
 		return nil
 	}
 
-	var oldIDs []uint64
-	err = s.db.NewSelect().
-		Model((*ExactCacheEntry)(nil)).
-		Column("id").
-		Order("updated_at ASC").
+	var oldIDs []int64
+	err = s.db.Select().
+		Table(ExactCacheEntries).
+		Column(ExactCacheEntries.ID).
+		OrderBy(ExactCacheEntries.UpdatedAt.Asc()).
 		Limit(overflow).
 		Scan(ctx, &oldIDs)
 	if err != nil {
@@ -135,9 +138,9 @@ func (s *exactSQLiteStore) evictIfNeeded(ctx context.Context) error {
 		return nil
 	}
 
-	_, err = s.db.NewDelete().
-		Model((*ExactCacheEntry)(nil)).
-		Where("id IN (?)", bun.List(oldIDs)).
+	_, err = s.db.Delete().
+		Table(ExactCacheEntries).
+		Where(ExactCacheEntries.ID.In(oldIDs...)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("evict exact cache entries: %w", err)
@@ -147,7 +150,7 @@ func (s *exactSQLiteStore) evictIfNeeded(ctx context.Context) error {
 }
 
 type tmSQLiteStore struct {
-	db                  *bun.DB
+	db                  *rain.DB
 	autoAcceptThreshold float64
 }
 
@@ -181,15 +184,21 @@ func (s *tmSQLiteStore) Upsert(ctx context.Context, write TMWrite) error {
 		UpdatedAt:      time.Now().UTC(),
 	}
 
-	// Upsert with ON CONFLICT DO UPDATE
-	_, err = s.db.NewInsert().
+	_, err = s.db.Insert().
+		Table(TranslationMemoryEntries).
 		Model(&entry).
-		On("CONFLICT (source_locale, target_locale, source_text) DO UPDATE").
-		Set("translated_text = EXCLUDED.translated_text").
-		Set("score = EXCLUDED.score").
-		Set("provenance = EXCLUDED.provenance").
-		Set("source = EXCLUDED.source").
-		Set("updated_at = EXCLUDED.updated_at").
+		OnConflict(
+			TranslationMemoryEntries.SourceLocale,
+			TranslationMemoryEntries.TargetLocale,
+			TranslationMemoryEntries.SourceText,
+		).
+		DoUpdateSet(
+			TranslationMemoryEntries.TranslatedText,
+			TranslationMemoryEntries.Score,
+			TranslationMemoryEntries.Provenance,
+			TranslationMemoryEntries.Source,
+			TranslationMemoryEntries.UpdatedAt,
+		).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("upsert translation memory entry: %w", err)
@@ -209,36 +218,33 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 		limit = 5
 	}
 
-	// Normalise the query once, outside the row loop.
 	queryRunes := []rune(strings.ToLower(strings.TrimSpace(sourceText)))
 	queryLen := len(queryRunes)
 
-	// Pre-filter by source text length in SQL so the DB only returns plausible
-	// candidates. For a normalised Levenshtein similarity of S, the candidate
-	// length L must satisfy: 1 - |queryLen-L|/max(queryLen,L) >= S.
-	// Using tmLengthFilterRatio as the minimum useful similarity gives a safe
-	// bound on the allowed length difference.
 	minLen := int(float64(queryLen) * (1 - tmLengthFilterRatio))
 	maxLen := int(float64(queryLen) / (1 - tmLengthFilterRatio))
 
-	rows, err := s.db.NewSelect().
-		Model((*TranslationMemoryEntry)(nil)).
-		Where("source_locale = ?", sourceLocale).
-		Where("target_locale = ?", targetLocale).
-		Where("LENGTH(source_text) BETWEEN ? AND ?", minLen, maxLen).
-		Rows(ctx)
+	rows, err := s.db.Query(
+		ctx,
+		`SELECT source_text, translated_text, score, provenance, source
+		FROM translation_memory_entries
+		WHERE source_locale = ? AND target_locale = ? AND LENGTH(source_text) BETWEEN ? AND ?`,
+		sourceLocale,
+		targetLocale,
+		minLen,
+		maxLen,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("lookup translation memory entries: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	// Reusable buffers for levenshtein computation to avoid per-row allocs.
 	var levBuf levBuffers
 
 	results := make([]TMResult, 0, limit)
 	for rows.Next() {
 		var row TranslationMemoryEntry
-		if err := s.db.ScanRow(ctx, rows, &row); err != nil {
+		if err := rows.Scan(&row.SourceText, &row.TranslatedText, &row.Score, &row.Provenance, &row.Source); err != nil {
 			return nil, fmt.Errorf("scan translation memory row: %w", err)
 		}
 		rowRunes := []rune(strings.ToLower(strings.TrimSpace(row.SourceText)))
@@ -269,7 +275,7 @@ func (s *tmSQLiteStore) Lookup(ctx context.Context, sourceLocale, targetLocale, 
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate translation memory rows: %w", err)
+		return nil, fmt.Errorf("read translation memory rows: %w", err)
 	}
 
 	return results, nil
@@ -372,9 +378,6 @@ func provenanceRank(provenance TMProvenance) int {
 // with a small provenance bonus so that entries within the comparable-gap
 // window are boosted by provenance without creating non-transitive cycles.
 func tmCompositeScore(r TMResult) float64 {
-	// provenanceRank returns 0-5; normalise to [0, tmComparableSimilarityGap]
-	// so provenance can only break ties within the gap, never override a
-	// larger similarity difference.
 	bonus := float64(provenanceRank(r.Metadata.Provenance)) / 5.0 * tmComparableSimilarityGap
 	return r.Similarity + bonus
 }

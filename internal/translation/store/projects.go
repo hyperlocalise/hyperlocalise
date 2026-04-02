@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/uptrace/bun"
 )
 
-func (r *Repository) InsertProject(ctx context.Context, db bun.IDB, project *TranslationProjectModel) error {
-	if _, err := db.NewInsert().Model(project).Exec(ctx); err != nil {
+func (r *Repository) InsertProject(ctx context.Context, db queryExecutor, project *TranslationProjectModel) error {
+	if _, err := db.Insert().Table(TranslationProjects).Model(project).Exec(ctx); err != nil {
 		return fmt.Errorf("insert translation project: %w", err)
 	}
 
@@ -20,11 +18,11 @@ func (r *Repository) InsertProject(ctx context.Context, db bun.IDB, project *Tra
 
 func (r *Repository) GetProject(ctx context.Context, projectID string) (*TranslationProjectModel, error) {
 	project := &TranslationProjectModel{}
-	err := r.db.NewSelect().
-		Model(project).
-		Where("tp.id = ?", projectID).
+	err := r.db.Select().
+		Table(TranslationProjects).
+		Where(TranslationProjects.ID.Eq(projectID)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, project)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -42,9 +40,9 @@ func (r *Repository) ListProjects(ctx context.Context, limit int) ([]Translation
 	}
 
 	var projects []TranslationProjectModel
-	if err := r.db.NewSelect().
-		Model((*TranslationProjectModel)(nil)).
-		OrderExpr("tp.created_at DESC").
+	if err := r.db.Select().
+		Table(TranslationProjects).
+		OrderBy(TranslationProjects.CreatedAt.Desc()).
 		Limit(limit).
 		Scan(ctx, &projects); err != nil {
 		return nil, fmt.Errorf("list translation projects: %w", err)
@@ -61,19 +59,19 @@ func (r *Repository) UpdateProject(
 	translationContext *string,
 	updatedAt time.Time,
 ) (*TranslationProjectModel, error) {
-	update := r.db.NewUpdate().
-		Model((*TranslationProjectModel)(nil)).
-		Set("updated_at = ?", updatedAt).
-		Where("id = ?", projectID)
+	update := r.db.Update().
+		Table(TranslationProjects).
+		Set(TranslationProjects.UpdatedAt, updatedAt).
+		Where(TranslationProjects.ID.Eq(projectID))
 
 	if name != nil {
-		update = update.Set("name = ?", *name)
+		update = update.Set(TranslationProjects.Name, *name)
 	}
 	if description != nil {
-		update = update.Set("description = ?", *description)
+		update = update.Set(TranslationProjects.Description, *description)
 	}
 	if translationContext != nil {
-		update = update.Set("translation_context = ?", *translationContext)
+		update = update.Set(TranslationProjects.TranslationContext, *translationContext)
 	}
 
 	result, err := update.Exec(ctx)
@@ -81,11 +79,11 @@ func (r *Repository) UpdateProject(
 		return nil, fmt.Errorf("update translation project: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	affected, err := rowsAffected(result, "project update")
 	if err != nil {
-		return nil, fmt.Errorf("count project update rows affected: %w", err)
+		return nil, err
 	}
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return nil, ErrNotFound
 	}
 
@@ -93,19 +91,19 @@ func (r *Repository) UpdateProject(
 }
 
 func (r *Repository) DeleteProject(ctx context.Context, projectID string) error {
-	result, err := r.db.NewDelete().
-		Model((*TranslationProjectModel)(nil)).
-		Where("id = ?", projectID).
+	result, err := r.db.Delete().
+		Table(TranslationProjects).
+		Where(TranslationProjects.ID.Eq(projectID)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("delete translation project: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	affected, err := rowsAffected(result, "project delete")
 	if err != nil {
-		return fmt.Errorf("count project delete rows affected: %w", err)
+		return err
 	}
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return ErrNotFound
 	}
 

@@ -11,9 +11,8 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
-	"github.com/uptrace/bun/driver/sqliteshim"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
+	_ "modernc.org/sqlite"
 )
 
 // ExactCache is the L1 exact-match cache contract.
@@ -86,7 +85,7 @@ type Service struct {
 	L2        TranslationMemory
 	Retriever Retriever
 
-	db *bun.DB
+	db *rain.DB
 }
 
 // NewFromConfig bootstraps cache service dependencies from config.
@@ -105,37 +104,30 @@ func NewFromConfig(cfg config.CacheConfig) (*Service, error) {
 		return nil, fmt.Errorf("prepare cache db path: %w", err)
 	}
 
-	sqldb, err := sql.Open(sqliteshim.ShimName, cfg.DBPath+"?_fk=1")
+	db, err := rain.Open("sqlite", cfg.DBPath+"?_fk=1")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite cache db: %w", err)
 	}
 
-	db := bun.NewDB(sqldb, sqlitedialect.New())
-	applyConnPool(sqldb, cfg)
-
-	// Enforce CHECK constraints before migration on existing tables so
-	// the migration doesn't fail on legacy invalid values.
-	tableExists, err := checkTableExists(sqldb, "translation_memory_entries")
+	tableExists, err := checkTableExists(db, "translation_memory_entries")
 	if err != nil {
-		_ = sqldb.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("check tm table exists: %w", err)
 	}
 	if tableExists {
 		if err := ensureTMTableConstraints(db); err != nil {
-			_ = sqldb.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("enforce tm table constraints (pre-migrate): %w", err)
 		}
 	}
 
 	if err := migrateSchema(db); err != nil {
-		_ = sqldb.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("migrate cache schema: %w", err)
 	}
 
-	// Run again after migration to handle fresh tables where constraints
-	// may not exist yet.
 	if err := ensureTMTableConstraints(db); err != nil {
-		_ = sqldb.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("enforce tm table constraints: %w", err)
 	}
 
@@ -171,12 +163,6 @@ func (s *Service) Close() error {
 	return nil
 }
 
-func applyConnPool(sqlDB *sql.DB, cfg config.CacheConfig) {
-	sqlDB.SetMaxOpenConns(cfg.SQLite.MaxOpenConns)
-	sqlDB.SetMaxIdleConns(cfg.SQLite.MaxIdleConns)
-	sqlDB.SetConnMaxLifetime(time.Duration(cfg.SQLite.ConnMaxLifetime) * time.Second)
-}
-
 func ensureDBDir(dbPath string) error {
 	dir := filepath.Dir(dbPath)
 	if dir == "." || dir == "" {
@@ -188,9 +174,10 @@ func ensureDBDir(dbPath string) error {
 	return nil
 }
 
-func checkTableExists(sqlDB *sql.DB, tableName string) (bool, error) {
+func checkTableExists(db *rain.DB, tableName string) (bool, error) {
 	var count int
-	err := sqlDB.QueryRow(
+	err := db.QueryRow(
+		context.Background(),
 		"SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?",
 		tableName,
 	).Scan(&count)
@@ -200,92 +187,57 @@ func checkTableExists(sqlDB *sql.DB, tableName string) (bool, error) {
 	return count > 0, nil
 }
 
-func migrateSchema(db *bun.DB) error {
+func migrateSchema(db *rain.DB) error {
 	ctx := context.Background()
 
-	return db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// Create ExactCacheEntry table
-		_, err := tx.NewCreateTable().
-			Model((*ExactCacheEntry)(nil)).
-			IfNotExists().
-			Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("create exact_cache_entries table: %w", err)
-		}
-
-		// Create indexes for ExactCacheEntry
-		indexes := []struct {
-			name    string
-			columns string
-			unique  bool
-		}{
-			{"idx_exact_cache_key", "cache_key", true},
-			{"idx_exact_source_locale", "source_locale", false},
-			{"idx_exact_target_locale", "target_locale", false},
-			{"idx_exact_provider", "provider", false},
-			{"idx_exact_model", "model", false},
-			{"idx_exact_source_hash", "source_hash", false},
-		}
-
-		for _, idx := range indexes {
-			uniqueStr := ""
-			if idx.unique {
-				uniqueStr = "UNIQUE "
-			}
-			sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON exact_cache_entries(%s)",
-				uniqueStr, idx.name, idx.columns)
-			if _, err := tx.ExecContext(ctx, sql); err != nil {
-				return fmt.Errorf("create index %s: %w", idx.name, err)
-			}
-		}
-
-		// Create TranslationMemoryEntry table with CHECK constraints
-		_, err = tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS "translation_memory_entries" (
+	statements := []string{
+		`CREATE TABLE IF NOT EXISTS "exact_cache_entries" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+			"cache_key" TEXT NOT NULL,
+			"source_locale" TEXT NOT NULL,
+			"target_locale" TEXT NOT NULL,
+			"provider" TEXT NOT NULL,
+			"model" TEXT NOT NULL,
+			"source_hash" TEXT NOT NULL,
+			"value" TEXT NOT NULL,
+			"created_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			"updated_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_exact_cache_key ON exact_cache_entries(cache_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_exact_source_locale ON exact_cache_entries(source_locale)`,
+		`CREATE INDEX IF NOT EXISTS idx_exact_target_locale ON exact_cache_entries(target_locale)`,
+		`CREATE INDEX IF NOT EXISTS idx_exact_provider ON exact_cache_entries(provider)`,
+		`CREATE INDEX IF NOT EXISTS idx_exact_model ON exact_cache_entries(model)`,
+		`CREATE INDEX IF NOT EXISTS idx_exact_source_hash ON exact_cache_entries(source_hash)`,
+		`CREATE TABLE IF NOT EXISTS "translation_memory_entries" (
 			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
 			"source_locale" TEXT NOT NULL,
 			"target_locale" TEXT NOT NULL,
 			"source_text" TEXT NOT NULL,
 			"translated_text" TEXT NOT NULL,
 			"score" REAL NOT NULL DEFAULT 0,
-			"provenance" TEXT NOT NULL DEFAULT 'unknown' `+TMProvenanceCheck+`,
-			"source" TEXT NOT NULL DEFAULT 'unknown' `+TMSourceCheck+`,
+			"provenance" TEXT NOT NULL DEFAULT 'unknown' ` + TMProvenanceCheck + `,
+			"source" TEXT NOT NULL DEFAULT 'unknown' ` + TMSourceCheck + `,
 			"created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			"updated_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`)
-		if err != nil {
-			return fmt.Errorf("create translation_memory_entries table: %w", err)
-		}
+		)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_locales_text ON translation_memory_entries(source_locale, target_locale, source_text)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_provenance ON translation_memory_entries(provenance)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_source ON translation_memory_entries(source)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_source_locale ON translation_memory_entries(source_locale)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_target_locale ON translation_memory_entries(target_locale)`,
+	}
 
-		// Create indexes for TranslationMemoryEntry
-		tmIndexes := []struct {
-			name    string
-			columns string
-			unique  bool
-		}{
-			{"idx_tm_locales_text", "source_locale, target_locale, source_text", true},
-			{"idx_tm_provenance", "provenance", false},
-			{"idx_tm_source", "source", false},
-			{"idx_tm_source_locale", "source_locale", false},
-			{"idx_tm_target_locale", "target_locale", false},
+	for _, statement := range statements {
+		if _, err := db.Exec(ctx, statement); err != nil {
+			return fmt.Errorf("apply cache schema statement: %w", err)
 		}
+	}
 
-		for _, idx := range tmIndexes {
-			uniqueStr := ""
-			if idx.unique {
-				uniqueStr = "UNIQUE "
-			}
-			sql := fmt.Sprintf("CREATE %sINDEX IF NOT EXISTS %s ON translation_memory_entries(%s)",
-				uniqueStr, idx.name, idx.columns)
-			if _, err := tx.ExecContext(ctx, sql); err != nil {
-				return fmt.Errorf("create index %s: %w", idx.name, err)
-			}
-		}
-
-		return nil
-	})
+	return nil
 }
 
-func ensureTMTableConstraints(db *bun.DB) error {
+func ensureTMTableConstraints(db *rain.DB) error {
 	const (
 		provenanceCheck = TMProvenanceCheck
 		sourceCheck     = TMSourceCheck
@@ -296,14 +248,11 @@ func ensureTMTableConstraints(db *bun.DB) error {
 	ctx := context.Background()
 
 	var createSQL string
-	err := db.NewRaw("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").
-		Scan(ctx, &createSQL)
-	// ErrNoRows is expected if table doesn't exist yet
+	err := db.QueryRow(ctx, "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?", "translation_memory_entries").Scan(&createSQL)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inspect translation_memory_entries schema: %w", err)
 	}
 	if createSQL == "" {
-		// Table doesn't exist yet, constraints will be created during migration
 		return nil
 	}
 
@@ -311,9 +260,7 @@ func ensureTMTableConstraints(db *bun.DB) error {
 	hasChecks := strings.Contains(schemaSQL, provenanceCheck) && strings.Contains(schemaSQL, sourceCheck)
 
 	var idxSQL string
-	err = db.NewRaw("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", localesTextIdx).
-		Scan(ctx, &idxSQL)
-	// ErrNoRows is expected if index doesn't exist yet
+	err = db.QueryRow(ctx, "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?", localesTextIdx).Scan(&idxSQL)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inspect %s schema: %w", localesTextIdx, err)
 	}
@@ -323,121 +270,136 @@ func ensureTMTableConstraints(db *bun.DB) error {
 		return nil
 	}
 
-	return db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// Discover columns dynamically so future model changes are preserved.
-		// PRAGMA table_xinfo returns: cid, name, type, notnull, dflt_value, pk, hidden
-		type sqliteCol struct {
-			CID       int            `bun:"cid"`
-			Name      string         `bun:"name"`
-			Type      string         `bun:"type"`
-			NotNull   int            `bun:"notnull"`
-			DfltValue sql.NullString `bun:"dflt_value"`
-			PK        int            `bun:"pk"`
-			Hidden    int            `bun:"hidden"`
-		}
-		var cols []sqliteCol
-		if err := tx.NewRaw(`PRAGMA table_xinfo("translation_memory_entries")`).Scan(ctx, &cols); err != nil {
-			return fmt.Errorf("inspect tm columns: %w", err)
-		}
-		if len(cols) == 0 {
-			return fmt.Errorf("translation_memory_entries has no columns")
-		}
+	type sqliteCol struct {
+		CID       int
+		Name      string
+		Type      string
+		NotNull   int
+		DfltValue sql.NullString
+		PK        int
+		Hidden    int
+	}
 
-		var insertCols, selectExprs []string
-		for _, c := range cols {
-			if c.Hidden != 0 {
-				continue
-			}
-			quoted := `"` + c.Name + `"`
-			insertCols = append(insertCols, quoted)
-			switch strings.ToLower(c.Name) {
-			case "provenance":
-				selectExprs = append(selectExprs, `CASE
+	colRows, err := db.Query(ctx, `PRAGMA table_xinfo("translation_memory_entries")`)
+	if err != nil {
+		return fmt.Errorf("inspect tm columns: %w", err)
+	}
+	defer func() { _ = colRows.Close() }()
+
+	var cols []sqliteCol
+	for colRows.Next() {
+		var col sqliteCol
+		if err := colRows.Scan(&col.CID, &col.Name, &col.Type, &col.NotNull, &col.DfltValue, &col.PK, &col.Hidden); err != nil {
+			return fmt.Errorf("scan tm column info: %w", err)
+		}
+		cols = append(cols, col)
+	}
+	if err := colRows.Err(); err != nil {
+		return fmt.Errorf("read tm column info: %w", err)
+	}
+	if len(cols) == 0 {
+		return fmt.Errorf("translation_memory_entries has no columns")
+	}
+
+	var insertCols, selectExprs []string
+	for _, c := range cols {
+		if c.Hidden != 0 {
+			continue
+		}
+		quoted := `"` + c.Name + `"`
+		insertCols = append(insertCols, quoted)
+		switch strings.ToLower(c.Name) {
+		case "provenance":
+			selectExprs = append(selectExprs, `CASE
   WHEN LOWER(TRIM(COALESCE("provenance", ''))) IN ('curated','draft','llm','tms','unknown')
     THEN LOWER(TRIM("provenance"))
   ELSE 'unknown'
 END`)
-			case "source":
-				selectExprs = append(selectExprs, `CASE
+		case "source":
+			selectExprs = append(selectExprs, `CASE
   WHEN LOWER(TRIM(COALESCE("source", ''))) IN ('run','sync_pull','sync_push','manual','import','legacy','unknown')
     THEN LOWER(TRIM("source"))
   ELSE 'unknown'
 END`)
-			default:
-				selectExprs = append(selectExprs, quoted)
-			}
+		default:
+			selectExprs = append(selectExprs, quoted)
 		}
-		colList := strings.Join(insertCols, ", ")
-		selList := strings.Join(selectExprs, ", ")
+	}
+	colList := strings.Join(insertCols, ", ")
+	selList := strings.Join(selectExprs, ", ")
 
-		// Capture existing indexes and triggers so they can be replayed.
-		type schemaObj struct {
-			SQL string `bun:"sql"`
-		}
-		var existingObjs []schemaObj
-		if err := tx.NewRaw(`SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN ('index','trigger') AND sql IS NOT NULL`, "translation_memory_entries").Scan(ctx, &existingObjs); err != nil {
-			return fmt.Errorf("inspect tm indexes/triggers: %w", err)
-		}
+	type schemaObj struct {
+		SQL string
+	}
 
-		// Patch the existing CREATE TABLE DDL to inject CHECK constraints.
-		newCreateSQL := createSQL
-		if !strings.Contains(strings.ToLower(newCreateSQL), provenanceCheck) {
-			var err error
-			newCreateSQL, err = patchColumnConstraint(newCreateSQL, "provenance", "CHECK (provenance IN ('curated','draft','llm','tms','unknown'))")
-			if err != nil {
-				return fmt.Errorf("patch provenance constraint: %w", err)
-			}
-		}
-		if !strings.Contains(strings.ToLower(newCreateSQL), sourceCheck) {
-			var err error
-			newCreateSQL, err = patchColumnConstraint(newCreateSQL, "source", "CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown'))")
-			if err != nil {
-				return fmt.Errorf("patch source constraint: %w", err)
-			}
-		}
-		// Point the DDL at the temp table name.
-		newCreateSQL = strings.Replace(newCreateSQL, "translation_memory_entries", "translation_memory_entries_new", 1)
+	objRows, err := db.Query(ctx, `SELECT sql FROM sqlite_master WHERE tbl_name = ? AND type IN ('index','trigger') AND sql IS NOT NULL`, "translation_memory_entries")
+	if err != nil {
+		return fmt.Errorf("inspect tm indexes/triggers: %w", err)
+	}
+	defer func() { _ = objRows.Close() }()
 
-		if _, err := tx.ExecContext(ctx, newCreateSQL); err != nil {
-			return fmt.Errorf("create constrained tm table: %w", err)
+	var existingObjs []schemaObj
+	for objRows.Next() {
+		var obj schemaObj
+		if err := objRows.Scan(&obj.SQL); err != nil {
+			return fmt.Errorf("scan tm schema object: %w", err)
 		}
+		existingObjs = append(existingObjs, obj)
+	}
+	if err := objRows.Err(); err != nil {
+		return fmt.Errorf("read tm schema objects: %w", err)
+	}
 
-		copySQL := fmt.Sprintf(`INSERT INTO "translation_memory_entries_new" (%s) SELECT %s FROM "translation_memory_entries"`, colList, selList)
-		if _, err := tx.ExecContext(ctx, copySQL); err != nil {
-			return fmt.Errorf("copy tm rows into constrained table: %w", err)
+	newCreateSQL := createSQL
+	if !strings.Contains(strings.ToLower(newCreateSQL), provenanceCheck) {
+		newCreateSQL, err = patchColumnConstraint(newCreateSQL, "provenance", "CHECK (provenance IN ('curated','draft','llm','tms','unknown'))")
+		if err != nil {
+			return fmt.Errorf("patch provenance constraint: %w", err)
 		}
+	}
+	if !strings.Contains(strings.ToLower(newCreateSQL), sourceCheck) {
+		newCreateSQL, err = patchColumnConstraint(newCreateSQL, "source", "CHECK (source IN ('run','sync_pull','sync_push','manual','import','legacy','unknown'))")
+		if err != nil {
+			return fmt.Errorf("patch source constraint: %w", err)
+		}
+	}
+	newCreateSQL = strings.Replace(newCreateSQL, "translation_memory_entries", "translation_memory_entries_new", 1)
 
-		if _, err := tx.ExecContext(ctx, `DROP TABLE "translation_memory_entries"`); err != nil {
-			return fmt.Errorf("drop legacy tm table: %w", err)
+	statements := []string{
+		newCreateSQL,
+		fmt.Sprintf(`INSERT INTO "translation_memory_entries_new" (%s) SELECT %s FROM "translation_memory_entries"`, colList, selList),
+		`DROP TABLE "translation_memory_entries"`,
+		`ALTER TABLE "translation_memory_entries_new" RENAME TO "translation_memory_entries"`,
+	}
+	for _, statement := range statements {
+		if _, err := db.Exec(ctx, statement); err != nil {
+			return fmt.Errorf("apply tm constraint migration statement: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `ALTER TABLE "translation_memory_entries_new" RENAME TO "translation_memory_entries"`); err != nil {
-			return fmt.Errorf("rename constrained tm table: %w", err)
-		}
+	}
 
-		// Replay captured indexes/triggers, replacing any non-unique
-		// locales_text index with a unique one.
-		for _, obj := range existingObjs {
-			sql := obj.SQL
-			lower := strings.ToLower(sql)
-			if strings.Contains(lower, localesTextIdx) {
-				continue // will be recreated as unique below
-			}
-			if _, err := tx.ExecContext(ctx, sql); err != nil {
-				return fmt.Errorf("replay tm schema object: %w", err)
-			}
+	for _, obj := range existingObjs {
+		sql := obj.SQL
+		lower := strings.ToLower(sql)
+		if strings.Contains(lower, localesTextIdx) {
+			continue
 		}
+		if _, err := db.Exec(ctx, sql); err != nil {
+			return fmt.Errorf("replay tm schema object: %w", err)
+		}
+	}
 
-		if _, err := tx.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_locales_text ON translation_memory_entries(source_locale, target_locale, source_text)`); err != nil {
-			return fmt.Errorf("create tm locales_text unique index: %w", err)
+	indexStatements := []string{
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_locales_text ON translation_memory_entries(source_locale, target_locale, source_text)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_provenance ON translation_memory_entries(provenance)`,
+		`CREATE INDEX IF NOT EXISTS idx_tm_source ON translation_memory_entries(source)`,
+	}
+	for _, statement := range indexStatements {
+		if _, err := db.Exec(ctx, statement); err != nil {
+			return fmt.Errorf("apply tm index statement: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_tm_provenance ON translation_memory_entries(provenance)`); err != nil {
-			return fmt.Errorf("create tm provenance index: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_tm_source ON translation_memory_entries(source)`); err != nil {
-			return fmt.Errorf("create tm source index: %w", err)
-		}
-		return nil
-	})
+	}
+
+	return nil
 }
 
 // patchColumnConstraint appends a CHECK constraint to a column definition
@@ -449,7 +411,6 @@ func patchColumnConstraint(createSQL, column, constraint string) (string, error)
 	found := false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(strings.ToLower(line))
-		// Match lines starting with the column name (possibly quoted).
 		col := strings.TrimPrefix(trimmed, `"`)
 		if strings.HasPrefix(col, target+" ") || strings.HasPrefix(col, target+`"`) {
 			found = true

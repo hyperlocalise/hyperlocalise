@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/uptrace/bun"
 )
 
-func (r *Repository) InsertFileUpload(ctx context.Context, db bun.IDB, upload *TranslationFileUploadModel) error {
-	if _, err := db.NewInsert().Model(upload).Exec(ctx); err != nil {
+func (r *Repository) InsertFileUpload(ctx context.Context, db queryExecutor, upload *TranslationFileUploadModel) error {
+	if _, err := db.Insert().Table(TranslationFileUploads).Model(upload).Exec(ctx); err != nil {
 		return fmt.Errorf("insert translation file upload: %w", err)
 	}
 	return nil
@@ -20,12 +18,12 @@ func (r *Repository) InsertFileUpload(ctx context.Context, db bun.IDB, upload *T
 
 func (r *Repository) GetFileUpload(ctx context.Context, uploadID, projectID string) (*TranslationFileUploadModel, error) {
 	upload := &TranslationFileUploadModel{}
-	err := r.db.NewSelect().
-		Model(upload).
-		Where("tfu.id = ?", uploadID).
-		Where("tfu.project_id = ?", projectID).
+	err := r.db.Select().
+		Table(TranslationFileUploads).
+		Where(TranslationFileUploads.ID.Eq(uploadID)).
+		Where(TranslationFileUploads.ProjectID.Eq(projectID)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, upload)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -37,51 +35,54 @@ func (r *Repository) GetFileUpload(ctx context.Context, uploadID, projectID stri
 
 func (r *Repository) ListFileUploadsByProject(ctx context.Context, projectID string) ([]TranslationFileUploadModel, error) {
 	var uploads []TranslationFileUploadModel
-	if err := r.db.NewSelect().
-		Model((*TranslationFileUploadModel)(nil)).
-		Where("tfu.project_id = ?", projectID).
-		OrderExpr("tfu.created_at ASC").
+	if err := r.db.Select().
+		Table(TranslationFileUploads).
+		Where(TranslationFileUploads.ProjectID.Eq(projectID)).
+		OrderBy(TranslationFileUploads.CreatedAt.Asc()).
 		Scan(ctx, &uploads); err != nil {
 		return nil, fmt.Errorf("list translation file uploads by project: %w", err)
 	}
 	return uploads, nil
 }
 
-func (r *Repository) FinalizeFileUpload(ctx context.Context, db bun.IDB, uploadID string, finalizedAt time.Time) error {
-	result, err := db.NewUpdate().
-		Model((*TranslationFileUploadModel)(nil)).
-		Set("status = ?", FileUploadStatusFinalized).
-		Set("updated_at = ?", finalizedAt).
-		Set("finalized_at = ?", finalizedAt).
-		Where("id = ?", uploadID).
-		Where("status = ?", FileUploadStatusPending).
+func (r *Repository) FinalizeFileUpload(ctx context.Context, db queryExecutor, uploadID string, finalizedAt time.Time) error {
+	result, err := db.Update().
+		Table(TranslationFileUploads).
+		Set(TranslationFileUploads.Status, FileUploadStatusFinalized).
+		Set(TranslationFileUploads.UpdatedAt, finalizedAt).
+		Set(TranslationFileUploads.FinalizedAt, finalizedAt).
+		Where(TranslationFileUploads.ID.Eq(uploadID)).
+		Where(TranslationFileUploads.Status.Eq(FileUploadStatusPending)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("finalize translation file upload: %w", err)
 	}
-	rowsAffected, err := result.RowsAffected()
+	affected, err := rowsAffected(result, "file upload finalize")
 	if err != nil {
-		return fmt.Errorf("count file upload finalize rows affected: %w", err)
+		return err
 	}
-	if rowsAffected == 0 {
+	if affected == 0 {
 		return ErrNotFound
 	}
 	return nil
 }
 
-func (r *Repository) UpsertFile(ctx context.Context, db bun.IDB, file *TranslationFileModel) error {
-	if _, err := db.NewInsert().
+func (r *Repository) UpsertFile(ctx context.Context, db queryExecutor, file *TranslationFileModel) error {
+	if _, err := db.Insert().
+		Table(TranslationFiles).
 		Model(file).
-		On("CONFLICT (project_id, path) DO UPDATE").
-		Set("file_format = EXCLUDED.file_format").
-		Set("source_locale = EXCLUDED.source_locale").
-		Set("content_type = EXCLUDED.content_type").
-		Set("size_bytes = EXCLUDED.size_bytes").
-		Set("checksum_sha256 = EXCLUDED.checksum_sha256").
-		Set("storage_driver = EXCLUDED.storage_driver").
-		Set("bucket = EXCLUDED.bucket").
-		Set("object_key = EXCLUDED.object_key").
-		Set("updated_at = EXCLUDED.updated_at").
+		OnConflict(TranslationFiles.ProjectID, TranslationFiles.Path).
+		DoUpdateSet(
+			TranslationFiles.FileFormat,
+			TranslationFiles.SourceLocale,
+			TranslationFiles.ContentType,
+			TranslationFiles.SizeBytes,
+			TranslationFiles.ChecksumSHA256,
+			TranslationFiles.StorageDriver,
+			TranslationFiles.Bucket,
+			TranslationFiles.ObjectKey,
+			TranslationFiles.UpdatedAt,
+		).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("upsert translation file: %w", err)
 	}
@@ -90,12 +91,12 @@ func (r *Repository) UpsertFile(ctx context.Context, db bun.IDB, file *Translati
 
 func (r *Repository) GetFile(ctx context.Context, fileID, projectID string) (*TranslationFileModel, error) {
 	file := &TranslationFileModel{}
-	err := r.db.NewSelect().
-		Model(file).
-		Where("tf.id = ?", fileID).
-		Where("tf.project_id = ?", projectID).
+	err := r.db.Select().
+		Table(TranslationFiles).
+		Where(TranslationFiles.ID.Eq(fileID)).
+		Where(TranslationFiles.ProjectID.Eq(projectID)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, file)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -107,12 +108,12 @@ func (r *Repository) GetFile(ctx context.Context, fileID, projectID string) (*Tr
 
 func (r *Repository) GetFileByPath(ctx context.Context, projectID, path string) (*TranslationFileModel, error) {
 	file := &TranslationFileModel{}
-	err := r.db.NewSelect().
-		Model(file).
-		Where("tf.project_id = ?", projectID).
-		Where("tf.path = ?", path).
+	err := r.db.Select().
+		Table(TranslationFiles).
+		Where(TranslationFiles.ProjectID.Eq(projectID)).
+		Where(TranslationFiles.Path.Eq(path)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, file)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -123,28 +124,68 @@ func (r *Repository) GetFileByPath(ctx context.Context, projectID, path string) 
 }
 
 func (r *Repository) ListFilesByPrefix(ctx context.Context, projectID, prefix string) ([]TranslationFileModel, error) {
-	query := r.db.NewSelect().
-		Model((*TranslationFileModel)(nil)).
-		Where("tf.project_id = ?", projectID).
-		OrderExpr("tf.path ASC")
-	if prefix != "" {
-		escapedPrefix := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
-		query = query.Where("tf.path LIKE ? ESCAPE '\\'", escapedPrefix+"%")
+	if prefix == "" {
+		var files []TranslationFileModel
+		if err := r.db.Select().
+			Table(TranslationFiles).
+			Where(TranslationFiles.ProjectID.Eq(projectID)).
+			OrderBy(TranslationFiles.Path.Asc()).
+			Scan(ctx, &files); err != nil {
+			return nil, fmt.Errorf("list translation files by prefix: %w", err)
+		}
+		return files, nil
 	}
 
-	var files []TranslationFileModel
-	if err := query.Scan(ctx, &files); err != nil {
+	escapedPrefix := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(prefix)
+	rows, err := r.db.Query(
+		ctx,
+		`SELECT id, project_id, path, file_format, source_locale, content_type, size_bytes, checksum_sha256, storage_driver, bucket, object_key, created_at, updated_at
+		FROM translation_files
+		WHERE project_id = ? AND path LIKE ? ESCAPE '\'
+		ORDER BY path ASC`,
+		projectID,
+		escapedPrefix+"%",
+	)
+	if err != nil {
 		return nil, fmt.Errorf("list translation files by prefix: %w", err)
 	}
+	defer func() { _ = rows.Close() }()
+
+	files := make([]TranslationFileModel, 0)
+	for rows.Next() {
+		var file TranslationFileModel
+		if err := rows.Scan(
+			&file.ID,
+			&file.ProjectID,
+			&file.Path,
+			&file.FileFormat,
+			&file.SourceLocale,
+			&file.ContentType,
+			&file.SizeBytes,
+			&file.ChecksumSHA256,
+			&file.StorageDriver,
+			&file.Bucket,
+			&file.ObjectKey,
+			&file.CreatedAt,
+			&file.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan translation files by prefix: %w", err)
+		}
+		files = append(files, file)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read translation files by prefix: %w", err)
+	}
+
 	return files, nil
 }
 
 func (r *Repository) ListFileVariants(ctx context.Context, fileID string) ([]TranslationFileVariantModel, error) {
 	var variants []TranslationFileVariantModel
-	if err := r.db.NewSelect().
-		Model((*TranslationFileVariantModel)(nil)).
-		Where("tfv.file_id = ?", fileID).
-		OrderExpr("tfv.locale ASC").
+	if err := r.db.Select().
+		Table(TranslationFileVariants).
+		Where(TranslationFileVariants.FileID.Eq(fileID)).
+		OrderBy(TranslationFileVariants.Locale.Asc()).
 		Scan(ctx, &variants); err != nil {
 		return nil, fmt.Errorf("list translation file variants: %w", err)
 	}
@@ -156,12 +197,14 @@ func (r *Repository) ListFileVariantsByFileIDs(ctx context.Context, fileIDs []st
 		return nil, nil
 	}
 
+	values := make([]string, 0, len(fileIDs))
+	values = append(values, fileIDs...)
+
 	var variants []TranslationFileVariantModel
-	if err := r.db.NewSelect().
-		Model((*TranslationFileVariantModel)(nil)).
-		Where("tfv.file_id IN (?)", bun.List(fileIDs)).
-		OrderExpr("tfv.file_id ASC").
-		OrderExpr("tfv.locale ASC").
+	if err := r.db.Select().
+		Table(TranslationFileVariants).
+		Where(TranslationFileVariants.FileID.In(values...)).
+		OrderBy(TranslationFileVariants.FileID.Asc(), TranslationFileVariants.Locale.Asc()).
 		Scan(ctx, &variants); err != nil {
 		return nil, fmt.Errorf("list translation file variants by file ids: %w", err)
 	}
@@ -170,12 +213,12 @@ func (r *Repository) ListFileVariantsByFileIDs(ctx context.Context, fileIDs []st
 
 func (r *Repository) GetFileVariant(ctx context.Context, fileID, locale string) (*TranslationFileVariantModel, error) {
 	variant := &TranslationFileVariantModel{}
-	err := r.db.NewSelect().
-		Model(variant).
-		Where("tfv.file_id = ?", fileID).
-		Where("tfv.locale = ?", locale).
+	err := r.db.Select().
+		Table(TranslationFileVariants).
+		Where(TranslationFileVariants.FileID.Eq(fileID)).
+		Where(TranslationFileVariants.Locale.Eq(locale)).
 		Limit(1).
-		Scan(ctx)
+		Scan(ctx, variant)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -185,20 +228,23 @@ func (r *Repository) GetFileVariant(ctx context.Context, fileID, locale string) 
 	return variant, nil
 }
 
-func (r *Repository) UpsertFileVariant(ctx context.Context, db bun.IDB, variant *TranslationFileVariantModel) error {
-	if _, err := db.NewInsert().
+func (r *Repository) UpsertFileVariant(ctx context.Context, db queryExecutor, variant *TranslationFileVariantModel) error {
+	if _, err := db.Insert().
+		Table(TranslationFileVariants).
 		Model(variant).
-		On("CONFLICT (file_id, locale) DO UPDATE").
-		Set("path = EXCLUDED.path").
-		Set("content_type = EXCLUDED.content_type").
-		Set("size_bytes = EXCLUDED.size_bytes").
-		Set("checksum_sha256 = EXCLUDED.checksum_sha256").
-		Set("storage_driver = EXCLUDED.storage_driver").
-		Set("bucket = EXCLUDED.bucket").
-		Set("object_key = EXCLUDED.object_key").
-		Set("last_job_id = EXCLUDED.last_job_id").
-		Set("status = EXCLUDED.status").
-		Set("updated_at = EXCLUDED.updated_at").
+		OnConflict(TranslationFileVariants.FileID, TranslationFileVariants.Locale).
+		DoUpdateSet(
+			TranslationFileVariants.Path,
+			TranslationFileVariants.ContentType,
+			TranslationFileVariants.SizeBytes,
+			TranslationFileVariants.ChecksumSHA256,
+			TranslationFileVariants.StorageDriver,
+			TranslationFileVariants.Bucket,
+			TranslationFileVariants.ObjectKey,
+			TranslationFileVariants.LastJobID,
+			TranslationFileVariants.Status,
+			TranslationFileVariants.UpdatedAt,
+		).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("upsert translation file variant: %w", err)
 	}

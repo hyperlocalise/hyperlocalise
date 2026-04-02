@@ -15,7 +15,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/translation/queue"
 	"github.com/hyperlocalise/hyperlocalise/internal/translation/store"
 	translationv1 "github.com/hyperlocalise/hyperlocalise/pkg/api/proto/hyperlocalise/translation/v1"
-	"github.com/uptrace/bun"
+	"github.com/hyperlocalise/rain-orm/pkg/rain"
 )
 
 // ErrInvalidArgument reports invalid input at the application boundary.
@@ -331,7 +331,7 @@ func (s *Service) BulkUpsertGlossaryTerms(
 	}
 
 	var models []store.TranslationGlossaryTermModel
-	err := s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err := s.repository.DB().RunInTx(ctx, func(tx *rain.Tx) error {
 		var txErr error
 		models, txErr = s.repository.BulkUpsertGlossaryTerms(ctx, tx, projectID, inputs, s.clock())
 		return txErr
@@ -363,7 +363,7 @@ func (s *Service) BulkDeleteGlossaryTerms(ctx context.Context, projectID string,
 	}
 
 	var deletedIDs []string
-	err := s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err := s.repository.DB().RunInTx(ctx, func(tx *rain.Tx) error {
 		var txErr error
 		deletedIDs, txErr = s.repository.BulkDeleteGlossaryTerms(ctx, tx, projectID, trimmedIDs)
 		return txErr
@@ -426,7 +426,7 @@ func (s *Service) CreateJob(
 		return nil, err
 	}
 	eventModel.Payload = outboxPayload
-	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err = s.repository.DB().RunInTx(ctx, func(tx *rain.Tx) error {
 		if insertErr := s.repository.InsertJob(ctx, tx, jobModel); insertErr != nil {
 			return insertErr
 		}
@@ -1004,7 +1004,7 @@ func (s *Service) finalizeUploadTx(
 		UpdatedAt:      now,
 	}
 	model.SizeBytes = objectInfo.SizeBytes
-	err = s.repository.DB().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err = s.repository.DB().RunInTx(ctx, func(tx *rain.Tx) error {
 		existing, lookupErr := s.repository.GetFileByPath(ctx, upload.ProjectID, upload.Path)
 		if lookupErr != nil && !errors.Is(lookupErr, store.ErrNotFound) {
 			return lookupErr
