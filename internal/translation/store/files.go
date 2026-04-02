@@ -141,7 +141,7 @@ func (r *Repository) ListFilesByPrefix(ctx context.Context, projectID, prefix st
 		ctx,
 		`SELECT id, project_id, path, file_format, source_locale, content_type, size_bytes, checksum_sha256, storage_driver, bucket, object_key, created_at, updated_at
 		FROM translation_files
-		WHERE project_id = ? AND path LIKE ? ESCAPE '\'
+		WHERE project_id = $1 AND path LIKE $2 ESCAPE '\'
 		ORDER BY path ASC`,
 		projectID,
 		escapedPrefix+"%",

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hyperlocalise/rain-orm/pkg/rain"
@@ -15,6 +16,12 @@ func OpenPostgres(databaseURL string) (*rain.DB, error) {
 	db, err := rain.Open("postgres", databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
+	}
+
+	var ready int
+	if err := db.QueryRow(context.Background(), "SELECT 1").Scan(&ready); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
 	return db, nil
