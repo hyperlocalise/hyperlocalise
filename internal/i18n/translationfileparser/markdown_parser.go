@@ -55,6 +55,7 @@ func MarkdownASTPaths(content []byte, mdx bool) []string {
 		paths = append(paths, ctx.path)
 	}
 	slices.Sort(paths)
+	paths = slices.Compact(paths)
 	return paths
 }
 

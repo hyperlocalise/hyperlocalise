@@ -375,7 +375,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 					}
 				}
 			}
-			if _, ok := checkSet[checkICUShape]; ok {
+			if _, ok := checkSet[checkICUShape]; ok && !isMarkdownPath(targetPath) {
 				for _, diag := range diags {
 					if strings.Contains(diag, "ICU parity mismatch") || strings.Contains(diag, "invalid ICU/braces structure") || strings.Contains(diag, "duplicate # tokens") {
 						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
@@ -431,9 +431,10 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 	if sourceErr != nil || targetErr != nil {
 		return nil
 	}
-	mdx := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
-	sourcePaths := translationfileparser.MarkdownASTPaths(sourceContent, mdx)
-	targetPaths := translationfileparser.MarkdownASTPaths(targetContent, mdx)
+	sourceMDX := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
+	targetMDX := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
+	sourcePaths := translationfileparser.MarkdownASTPaths(sourceContent, sourceMDX)
+	targetPaths := translationfileparser.MarkdownASTPaths(targetContent, targetMDX)
 
 	sourceSet := make(map[string]struct{}, len(sourcePaths))
 	for _, path := range sourcePaths {
