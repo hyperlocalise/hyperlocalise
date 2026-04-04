@@ -242,7 +242,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
 					}
 
-					targetEntries, targetExists, err := readCheckTargetEntries(parser, sourcePath, targetPath)
+					targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourcePath, targetPath)
 					if err != nil {
 						return nil, err
 					}
@@ -266,7 +266,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 
 					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
 					if hasCheck(checkSet, checkICUShape) && isMarkdownPath(targetPath) {
-						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath)...)
+						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceContent, targetContent)...)
 					}
 				}
 			}
@@ -276,15 +276,32 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 	return findings, nil
 }
 
-func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, bool, error) {
+func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, []byte, []byte, bool, error) {
+	ext := strings.ToLower(filepath.Ext(targetPath))
+	if ext == ".md" || ext == ".mdx" {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, ext == ".mdx")
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
+
 	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, false, nil
+			return nil, nil, nil, false, nil
 		}
-		return nil, false, err
+		return nil, nil, nil, false, err
 	}
-	return targetEntries, true, nil
+	return targetEntries, nil, nil, true, nil
 }
 
 func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}) []checkFinding {
@@ -425,10 +442,8 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 	return findings
 }
 
-func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string) []checkFinding {
-	sourceContent, sourceErr := os.ReadFile(sourcePath)
-	targetContent, targetErr := os.ReadFile(targetPath)
-	if sourceErr != nil || targetErr != nil {
+func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceContent, targetContent []byte) []checkFinding {
+	if len(sourceContent) == 0 || len(targetContent) == 0 {
 		return nil
 	}
 	sourceMDX := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
@@ -454,8 +469,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 		}
 	}
 	slices.Sort(missingPaths)
+	missingAnnotationFile, missingAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
 	for _, path := range missingPaths {
-		annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
 		findings = append(findings, checkFinding{
 			Type:           checkICUShape,
 			Severity:       severityForCheck(checkICUShape),
@@ -465,8 +480,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 			TargetFile:     targetPath,
 			Key:            "",
 			Message:        fmt.Sprintf("markdown AST parity mismatch: target is missing source path %q", path),
-			AnnotationFile: annotationFile,
-			AnnotationLine: annotationLine,
+			AnnotationFile: missingAnnotationFile,
+			AnnotationLine: missingAnnotationLine,
 		})
 	}
 
@@ -477,8 +492,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 		}
 	}
 	slices.Sort(extraPaths)
+	extraAnnotationFile, extraAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", false)
 	for _, path := range extraPaths {
-		annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", false)
 		findings = append(findings, checkFinding{
 			Type:           checkICUShape,
 			Severity:       severityForCheck(checkICUShape),
@@ -488,8 +503,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 			TargetFile:     targetPath,
 			Key:            "",
 			Message:        fmt.Sprintf("markdown AST parity mismatch: target has unexpected path %q", path),
-			AnnotationFile: annotationFile,
-			AnnotationLine: annotationLine,
+			AnnotationFile: extraAnnotationFile,
+			AnnotationLine: extraAnnotationLine,
 		})
 	}
 

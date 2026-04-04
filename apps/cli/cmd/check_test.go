@@ -600,7 +600,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	}
 
 	t.Run("missing target returns false without error", func(t *testing.T) {
-		entries, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath)
+		entries, _, _, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath)
 		if err != nil {
 			t.Fatalf("readCheckTargetEntries: %v", err)
 		}
@@ -613,7 +613,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	})
 
 	t.Run("parse error is returned", func(t *testing.T) {
-		_, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath)
+		_, _, _, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath)
 		if err == nil {
 			t.Fatalf("expected parse error")
 		}
