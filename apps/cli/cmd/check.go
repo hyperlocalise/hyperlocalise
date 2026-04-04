@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -264,6 +265,9 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 					}
 
 					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
+					if hasCheck(checkSet, checkICUShape) && isMarkdownPath(targetPath) {
+						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath)...)
+					}
 				}
 			}
 		}
@@ -349,7 +353,8 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
-		if _, ok := checkSet[checkPlaceholder]; ok || hasCheck(checkSet, checkICUShape) {
+		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isMarkdownPath(targetPath))
+		if shouldCheckInvariant {
 			diags := validateCheckInvariant(storage.Entry{Key: key, Locale: locale, Value: targetValue}, storage.Entry{Key: key, Locale: locale, Value: sourceValue})
 			if _, ok := checkSet[checkPlaceholder]; ok {
 				for _, diag := range diags {
@@ -420,9 +425,84 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 	return findings
 }
 
+func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string) []checkFinding {
+	sourceContent, sourceErr := os.ReadFile(sourcePath)
+	targetContent, targetErr := os.ReadFile(targetPath)
+	if sourceErr != nil || targetErr != nil {
+		return nil
+	}
+	mdx := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
+	sourcePaths := translationfileparser.MarkdownASTPaths(sourceContent, mdx)
+	targetPaths := translationfileparser.MarkdownASTPaths(targetContent, mdx)
+
+	sourceSet := make(map[string]struct{}, len(sourcePaths))
+	for _, path := range sourcePaths {
+		sourceSet[path] = struct{}{}
+	}
+	targetSet := make(map[string]struct{}, len(targetPaths))
+	for _, path := range targetPaths {
+		targetSet[path] = struct{}{}
+	}
+
+	var findings []checkFinding
+
+	missingPaths := make([]string, 0)
+	for _, path := range sourcePaths {
+		if _, ok := targetSet[path]; !ok {
+			missingPaths = append(missingPaths, path)
+		}
+	}
+	slices.Sort(missingPaths)
+	for _, path := range missingPaths {
+		annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
+		findings = append(findings, checkFinding{
+			Type:           checkICUShape,
+			Severity:       severityForCheck(checkICUShape),
+			Bucket:         bucketName,
+			Locale:         locale,
+			SourceFile:     sourcePath,
+			TargetFile:     targetPath,
+			Key:            "",
+			Message:        fmt.Sprintf("markdown AST parity mismatch: target is missing source path %q", path),
+			AnnotationFile: annotationFile,
+			AnnotationLine: annotationLine,
+		})
+	}
+
+	extraPaths := make([]string, 0)
+	for _, path := range targetPaths {
+		if _, ok := sourceSet[path]; !ok {
+			extraPaths = append(extraPaths, path)
+		}
+	}
+	slices.Sort(extraPaths)
+	for _, path := range extraPaths {
+		annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", false)
+		findings = append(findings, checkFinding{
+			Type:           checkICUShape,
+			Severity:       severityForCheck(checkICUShape),
+			Bucket:         bucketName,
+			Locale:         locale,
+			SourceFile:     sourcePath,
+			TargetFile:     targetPath,
+			Key:            "",
+			Message:        fmt.Sprintf("markdown AST parity mismatch: target has unexpected path %q", path),
+			AnnotationFile: annotationFile,
+			AnnotationLine: annotationLine,
+		})
+	}
+
+	return findings
+}
+
 func hasCheck(checkSet map[string]struct{}, name string) bool {
 	_, ok := checkSet[name]
 	return ok
+}
+
+func isMarkdownPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".mdx"
 }
 
 func validateCheckInvariant(candidate, baseline storage.Entry) []string {
