@@ -16,7 +16,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
 
   inngest:
-    image: inngest/inngest:latest
+    image: inngest/inngest:v1.17.5
     command:
       - inngest
       - dev
