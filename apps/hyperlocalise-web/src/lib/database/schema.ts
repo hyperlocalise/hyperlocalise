@@ -1,9 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   jsonb,
   pgEnum,
   pgTable,
-  sql,
   text,
   timestamp,
   uniqueIndex,
@@ -169,7 +169,7 @@ export const translationJobs = pgTable(
     // Describes the shape of a successful result or terminal error payload.
     outcomeKind: translationJobOutcomeKindEnum("outcome_kind"),
     // Terminal job output persisted for retrieval after execution completes.
-    outcomePayload: jsonb("outcome_payload").$type<unknown | null>(),
+    outcomePayload: jsonb("outcome_payload").$type<unknown>(),
     // Last human-readable failure message captured for debugging and UI display.
     lastError: text("last_error"),
     // External workflow execution reference for tracing across orchestration systems.
