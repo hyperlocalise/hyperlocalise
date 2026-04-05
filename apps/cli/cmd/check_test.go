@@ -402,6 +402,125 @@ Bonjour
 	}
 }
 
+func TestCheckCommandMDXSkipsICUParityAndUsesASTParity(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "page.mdx")
+	targetPath := filepath.Join(dir, "dist", "fr", "page.mdx")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+
+	t.Run("same markdown ast does not emit icu parity findings", func(t *testing.T) {
+		if err := os.WriteFile(sourcePath, []byte(`# Welcome
+
+Hello {name}
+`), 0o600); err != nil {
+			t.Fatalf("write source file: %v", err)
+		}
+		if err := os.WriteFile(targetPath, []byte(`# Bienvenue
+
+Bonjour
+`), 0o600); err != nil {
+			t.Fatalf("write target file: %v", err)
+		}
+		writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+		cmd := newRootCmd("")
+		out := bytes.NewBuffer(nil)
+		cmd.SetOut(out)
+		cmd.SetErr(out)
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkICUShape, "--format", "json", "--no-fail"})
+
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("check command mdx same ast: %v", err)
+		}
+		var report checkReport
+		if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+			t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+		}
+		if len(report.Findings) != 0 {
+			t.Fatalf("expected no icu_shape findings for mdx ast match, got %+v", report.Findings)
+		}
+	})
+
+	t.Run("ast drift emits icu_shape finding with annotation", func(t *testing.T) {
+		if err := os.WriteFile(sourcePath, []byte(`# Welcome
+
+Hello world.
+`), 0o600); err != nil {
+			t.Fatalf("write source file: %v", err)
+		}
+		if err := os.WriteFile(targetPath, []byte(`Bonjour monde.
+`), 0o600); err != nil {
+			t.Fatalf("write target file: %v", err)
+		}
+		writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+		cmd := newRootCmd("")
+		out := bytes.NewBuffer(nil)
+		cmd.SetOut(out)
+		cmd.SetErr(out)
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkICUShape, "--format", "json", "--no-fail"})
+
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("check command mdx ast drift: %v", err)
+		}
+		var report checkReport
+		if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+			t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+		}
+		if len(report.Findings) == 0 {
+			t.Fatalf("expected ast parity finding")
+		}
+		if report.Findings[0].Type != checkICUShape || !strings.Contains(report.Findings[0].Message, "markdown AST parity mismatch") {
+			t.Fatalf("unexpected finding: %+v", report.Findings[0])
+		}
+		if report.Findings[0].AnnotationFile == "" || report.Findings[0].AnnotationLine == 0 {
+			t.Fatalf("expected annotation on ast parity finding: %+v", report.Findings[0])
+		}
+	})
+
+	t.Run("placeholder plus icu_shape does not emit per-entry icu invariants for mdx", func(t *testing.T) {
+		if err := os.WriteFile(sourcePath, []byte(`# Welcome
+
+Hello {name}
+`), 0o600); err != nil {
+			t.Fatalf("write source file: %v", err)
+		}
+		if err := os.WriteFile(targetPath, []byte(`# Bienvenue
+
+Bonjour
+`), 0o600); err != nil {
+			t.Fatalf("write target file: %v", err)
+		}
+		writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+		cmd := newRootCmd("")
+		out := bytes.NewBuffer(nil)
+		cmd.SetOut(out)
+		cmd.SetErr(out)
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkPlaceholder, "--check", checkICUShape, "--format", "json", "--no-fail"})
+
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("check command mdx with placeholder+icu_shape: %v", err)
+		}
+		var report checkReport
+		if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+			t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+		}
+		for _, finding := range report.Findings {
+			if finding.Type == checkICUShape && strings.Contains(finding.Message, "ICU parity mismatch") {
+				t.Fatalf("unexpected mdx ICU parity finding: %+v", finding)
+			}
+		}
+	})
+}
+
 func TestResolveEnabledChecks(t *testing.T) {
 	t.Run("includes override excludes", func(t *testing.T) {
 		stderr := os.Stderr
@@ -481,7 +600,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	}
 
 	t.Run("missing target returns false without error", func(t *testing.T) {
-		entries, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath)
+		entries, _, _, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath)
 		if err != nil {
 			t.Fatalf("readCheckTargetEntries: %v", err)
 		}
@@ -494,7 +613,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	})
 
 	t.Run("parse error is returned", func(t *testing.T) {
-		_, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath)
+		_, _, _, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath)
 		if err == nil {
 			t.Fatalf("expected parse error")
 		}

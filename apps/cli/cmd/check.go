@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -241,7 +242,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
 					}
 
-					targetEntries, targetExists, err := readCheckTargetEntries(parser, sourcePath, targetPath)
+					targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourcePath, targetPath)
 					if err != nil {
 						return nil, err
 					}
@@ -264,6 +265,9 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 					}
 
 					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
+					if hasCheck(checkSet, checkICUShape) && isMarkdownPath(targetPath) {
+						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceContent, targetContent)...)
+					}
 				}
 			}
 		}
@@ -272,15 +276,32 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 	return findings, nil
 }
 
-func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, bool, error) {
+func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, []byte, []byte, bool, error) {
+	ext := strings.ToLower(filepath.Ext(targetPath))
+	if ext == ".md" || ext == ".mdx" {
+		sourceContent, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return nil, nil, nil, false, err
+		}
+		targetContent, err := os.ReadFile(targetPath)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil, nil, false, nil
+			}
+			return nil, nil, nil, false, err
+		}
+		targetEntries := translationfileparser.AlignMarkdownTargetToSource(sourceContent, targetContent, ext == ".mdx")
+		return targetEntries, sourceContent, targetContent, true, nil
+	}
+
 	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return nil, false, nil
+			return nil, nil, nil, false, nil
 		}
-		return nil, false, err
+		return nil, nil, nil, false, err
 	}
-	return targetEntries, true, nil
+	return targetEntries, nil, nil, true, nil
 }
 
 func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}) []checkFinding {
@@ -349,7 +370,8 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
-		if _, ok := checkSet[checkPlaceholder]; ok || hasCheck(checkSet, checkICUShape) {
+		shouldCheckInvariant := hasCheck(checkSet, checkPlaceholder) || (hasCheck(checkSet, checkICUShape) && !isMarkdownPath(targetPath))
+		if shouldCheckInvariant {
 			diags := validateCheckInvariant(storage.Entry{Key: key, Locale: locale, Value: targetValue}, storage.Entry{Key: key, Locale: locale, Value: sourceValue})
 			if _, ok := checkSet[checkPlaceholder]; ok {
 				for _, diag := range diags {
@@ -370,7 +392,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 					}
 				}
 			}
-			if _, ok := checkSet[checkICUShape]; ok {
+			if _, ok := checkSet[checkICUShape]; ok && !isMarkdownPath(targetPath) {
 				for _, diag := range diags {
 					if strings.Contains(diag, "ICU parity mismatch") || strings.Contains(diag, "invalid ICU/braces structure") || strings.Contains(diag, "duplicate # tokens") {
 						annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
@@ -420,9 +442,83 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 	return findings
 }
 
+func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceContent, targetContent []byte) []checkFinding {
+	if len(sourceContent) == 0 || len(targetContent) == 0 {
+		return nil
+	}
+	sourceMDX := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
+	targetMDX := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
+	sourcePaths := translationfileparser.MarkdownASTPaths(sourceContent, sourceMDX)
+	targetPaths := translationfileparser.MarkdownASTPaths(targetContent, targetMDX)
+
+	sourceSet := make(map[string]struct{}, len(sourcePaths))
+	for _, path := range sourcePaths {
+		sourceSet[path] = struct{}{}
+	}
+	targetSet := make(map[string]struct{}, len(targetPaths))
+	for _, path := range targetPaths {
+		targetSet[path] = struct{}{}
+	}
+
+	var findings []checkFinding
+
+	missingPaths := make([]string, 0)
+	for _, path := range sourcePaths {
+		if _, ok := targetSet[path]; !ok {
+			missingPaths = append(missingPaths, path)
+		}
+	}
+	slices.Sort(missingPaths)
+	missingAnnotationFile, missingAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
+	for _, path := range missingPaths {
+		findings = append(findings, checkFinding{
+			Type:           checkICUShape,
+			Severity:       severityForCheck(checkICUShape),
+			Bucket:         bucketName,
+			Locale:         locale,
+			SourceFile:     sourcePath,
+			TargetFile:     targetPath,
+			Key:            "",
+			Message:        fmt.Sprintf("markdown AST parity mismatch: target is missing source path %q", path),
+			AnnotationFile: missingAnnotationFile,
+			AnnotationLine: missingAnnotationLine,
+		})
+	}
+
+	extraPaths := make([]string, 0)
+	for _, path := range targetPaths {
+		if _, ok := sourceSet[path]; !ok {
+			extraPaths = append(extraPaths, path)
+		}
+	}
+	slices.Sort(extraPaths)
+	extraAnnotationFile, extraAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", false)
+	for _, path := range extraPaths {
+		findings = append(findings, checkFinding{
+			Type:           checkICUShape,
+			Severity:       severityForCheck(checkICUShape),
+			Bucket:         bucketName,
+			Locale:         locale,
+			SourceFile:     sourcePath,
+			TargetFile:     targetPath,
+			Key:            "",
+			Message:        fmt.Sprintf("markdown AST parity mismatch: target has unexpected path %q", path),
+			AnnotationFile: extraAnnotationFile,
+			AnnotationLine: extraAnnotationLine,
+		})
+	}
+
+	return findings
+}
+
 func hasCheck(checkSet map[string]struct{}, name string) bool {
 	_, ok := checkSet[name]
 	return ok
+}
+
+func isMarkdownPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".mdx"
 }
 
 func validateCheckInvariant(candidate, baseline storage.Entry) []string {

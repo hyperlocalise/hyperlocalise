@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -43,6 +44,19 @@ type markdownKeyContext struct {
 
 type MarkdownRenderDiagnostics struct {
 	SourceFallbackKeys []string
+}
+
+// MarkdownASTPaths extracts stable structural paths for markdown or mdx text nodes.
+func MarkdownASTPaths(content []byte, mdx bool) []string {
+	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
+	contexts := doc.keyContexts()
+	paths := make([]string, 0, len(contexts))
+	for _, ctx := range contexts {
+		paths = append(paths, ctx.path)
+	}
+	slices.Sort(paths)
+	paths = slices.Compact(paths)
+	return paths
 }
 
 func (d markdownDocument) keyContexts() []markdownKeyContext {
