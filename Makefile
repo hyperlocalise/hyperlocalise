@@ -29,8 +29,18 @@ run: ## run the app
 
 .PHONY: bootstrap
 bootstrap: ## download tool and module dependencies
+	command -v pnpm >/dev/null 2>&1 || curl -fsSL https://get.pnpm.io/install.sh | sh -
+	command -v vp >/dev/null 2>&1 || pnpm add -g vite-plus
 	go mod download
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(golangci_lint_version)
+
+.PHONY: vp-test
+vp-test: ## run JavaScript tests via Vite+
+	vp test
+
+.PHONY: vp-check
+vp-check: ## run JS formatting/lint/type-checks via Vite+
+	vp check
 
 .PHONY: test-root
 test-root: clean ## run root-module tests with JSON output and coverage
