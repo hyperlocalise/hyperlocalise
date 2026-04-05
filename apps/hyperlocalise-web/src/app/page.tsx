@@ -1,6 +1,4 @@
 import {
-  Add01Icon,
-  AiSecurity02Icon,
   Alert02Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
@@ -144,8 +142,8 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="relative isolate">
-        <div className="absolute inset-x-0 top-0 -z-10 h-[38rem] bg-[radial-gradient(circle_at_top,rgba(79,180,141,0.16),transparent_58%)]" />
-        <div className="absolute inset-x-0 top-40 -z-10 h-[30rem] bg-[radial-gradient(circle_at_center,rgba(79,180,141,0.08),transparent_62%)]" />
+        <div className="absolute inset-x-0 top-0 -z-10 h-152 bg-[radial-gradient(circle_at_top,rgba(79,180,141,0.16),transparent_58%)]" />
+        <div className="absolute inset-x-0 top-40 -z-10 h-120 bg-[radial-gradient(circle_at_center,rgba(79,180,141,0.08),transparent_62%)]" />
 
         <section className="mx-auto flex w-full max-w-7xl flex-col px-6 pb-18 pt-8 sm:px-8 lg:px-12 lg:pt-12">
           <Hero />
@@ -187,15 +185,15 @@ function Hero() {
   return (
     <>
       <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
-
         <h1 className="max-w-5xl font-heading text-5xl leading-[0.94] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
-          Faster localisation operations, powered by <span className="text-foreground/42">agentic AI.</span>
+          Faster localisation operations, powered by{" "}
+          <span className="text-foreground/42">agentic AI.</span>
         </h1>
 
         <p className="mt-6 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-          Hyperlocalise Cloud helps localisation teams speed up AI translation, keep human review
-          in the loop, and ship with more confidence, on top of the open-source foundation
-          available today.
+          Hyperlocalise Cloud helps localisation teams speed up AI translation, keep human review in
+          the loop, and ship with more confidence, on top of the open-source foundation available
+          today.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -245,8 +243,7 @@ function HeroPreview() {
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              A preview of how runs, review, and release confidence can look in Hyperlocalise
-              Cloud.
+              A preview of how runs, review, and release confidence can look in Hyperlocalise Cloud.
             </TooltipContent>
           </Tooltip>
         </CardAction>
@@ -289,7 +286,8 @@ function HeroPreview() {
                 {[
                   {
                     title: "Model pass",
-                    detail: "AI completed the first pass across fr-FR, de-DE, ja-JP, and es-ES in one run",
+                    detail:
+                      "AI completed the first pass across fr-FR, de-DE, ja-JP, and es-ES in one run",
                     badge: "Completed",
                   },
                   {
@@ -299,7 +297,8 @@ function HeroPreview() {
                   },
                   {
                     title: "Quality gate",
-                    detail: "One terminology regression found in ja-JP, so release is still blocked",
+                    detail:
+                      "One terminology regression found in ja-JP, so release is still blocked",
                     badge: "Needs attention",
                   },
                 ].map((item) => (
@@ -384,9 +383,9 @@ function WorkflowSection() {
           A faster path from source content to safe release.
         </h2>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-          Hyperlocalise Cloud turns localisation into a visible operating flow instead of a chain
-          of manual handoffs. Teams can start from content or code, route output into review, and
-          ship faster with clearer signals about quality.
+          Hyperlocalise Cloud turns localisation into a visible operating flow instead of a chain of
+          manual handoffs. Teams can start from content or code, route output into review, and ship
+          faster with clearer signals about quality.
         </p>
       </div>
 
@@ -445,8 +444,8 @@ function ValueSection() {
 
         <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
           Hyperlocalise Cloud helps localisation teams use agentic AI to accelerate translation,
-          review routing, and quality checks in one system. The result is faster turnaround,
-          lighter operations overhead, and more confidence in what is ready to ship.
+          review routing, and quality checks in one system. The result is faster turnaround, lighter
+          operations overhead, and more confidence in what is ready to ship.
         </p>
 
         <ItemGroup className="mt-8 gap-3">
@@ -550,14 +549,13 @@ function DashboardSection() {
                   <div className="mt-1 text-sm text-muted-foreground">{row.progress}</div>
                 </div>
                 <div className="sm:justify-self-center">
-                  <Badge
-                    variant="outline"
-                    className="border-primary/15 bg-primary/10 text-primary"
-                  >
+                  <Badge variant="outline" className="border-primary/15 bg-primary/10 text-primary">
                     {row.status}
                   </Badge>
                 </div>
-                <div className="text-sm text-muted-foreground sm:justify-self-end">{row.signal}</div>
+                <div className="text-sm text-muted-foreground sm:justify-self-end">
+                  {row.signal}
+                </div>
               </div>
             ))}
           </div>
