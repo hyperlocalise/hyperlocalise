@@ -223,7 +223,7 @@ export class DatabaseIdentityResolver implements IdentityResolver {
           workosOrganizationId: schema.organizations.workosOrganizationId,
         });
 
-      await tx
+      const [membership] = await tx
         .insert(schema.organizationMemberships)
         .values({
           organizationId: organization.id,
@@ -241,21 +241,11 @@ export class DatabaseIdentityResolver implements IdentityResolver {
             role: identity.membership.role,
             updatedAt: now,
           },
-        });
-
-      const [membership] = await tx
-        .select({
+        })
+        .returning({
           role: schema.organizationMemberships.role,
           workosMembershipId: schema.organizationMemberships.workosMembershipId,
-        })
-        .from(schema.organizationMemberships)
-        .where(
-          and(
-            eq(schema.organizationMemberships.organizationId, organization.id),
-            eq(schema.organizationMemberships.userId, user.id),
-          ),
-        )
-        .limit(1);
+        });
 
       if (!membership) {
         throw new Error("membership_sync_failed");
