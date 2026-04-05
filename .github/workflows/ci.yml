@@ -72,6 +72,9 @@ jobs:
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
+      - name: Check hyperlocalise-web
+        run: vp check
+
       - name: Build hyperlocalise-web
         run: vp run build
 
