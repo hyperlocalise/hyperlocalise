@@ -6,6 +6,31 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 <!-- END:nextjs-agent-rules -->
 
+<!-- BEGIN:hono-agent-rules -->
+
+# Hono Best Practices
+
+Follow the official Hono best-practices guide for this app: [Best Practices](https://hono.dev/docs/guides/best-practices).
+
+## Route Structure
+
+- Prefer route-local handlers instead of Rails-style controller functions. Define the handler inline where the path is declared so `c.req.param()` and other route types infer correctly.
+- Split larger APIs into route modules and mount them with `app.route(...)`.
+- Keep the root API app in [`src/api/app.ts`](/Users/minhcung/work/hyperlocalise/apps/hyperlocalise-web/src/api/app.ts). If a test or feature needs an app instance, import the factory or app from there instead of constructing a separate ad hoc `new Hono()` shape in the test file.
+
+## Middleware
+
+- Use `createMiddleware` from `hono/factory` for custom middleware.
+- If shared handler composition is unavoidable, prefer `createFactory()` and `factory.createHandlers()` over controller-style indirection.
+- Keep middleware focused on request concerns such as auth, validation, request context, and response shaping.
+
+## Testing
+
+- Use Hono's `testClient` for route tests.
+- Test the real API app exported from [`src/api/app.ts`](/Users/minhcung/work/hyperlocalise/apps/hyperlocalise-web/src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
+
+<!-- END:hono-agent-rules -->
+
 <!--VITE PLUS START-->
 
 # Using Vite+, the Unified Toolchain for the Web

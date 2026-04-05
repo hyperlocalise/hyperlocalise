@@ -121,24 +121,28 @@ function readIdentityFromWorkosHeaders(headers: Headers): WorkosAuthIdentity | n
     throw new Error("invalid_membership_role");
   }
 
-  return workosAuthIdentitySchema.parse({
-    user: {
-      workosUserId,
-      email,
-      firstName: headers.get("x-workos-user-first-name") ?? undefined,
-      lastName: headers.get("x-workos-user-last-name") ?? undefined,
-      avatarUrl: headers.get("x-workos-user-avatar-url") ?? undefined,
-    },
-    organization: {
-      workosOrganizationId,
-      name: organizationName,
-      slug: headers.get("x-workos-organization-slug") ?? undefined,
-    },
-    membership: {
-      workosMembershipId: headers.get("x-workos-membership-id") ?? undefined,
-      role,
-    },
-  });
+  try {
+    return workosAuthIdentitySchema.parse({
+      user: {
+        workosUserId,
+        email,
+        firstName: headers.get("x-workos-user-first-name") ?? undefined,
+        lastName: headers.get("x-workos-user-last-name") ?? undefined,
+        avatarUrl: headers.get("x-workos-user-avatar-url") ?? undefined,
+      },
+      organization: {
+        workosOrganizationId,
+        name: organizationName,
+        slug: headers.get("x-workos-organization-slug") ?? undefined,
+      },
+      membership: {
+        workosMembershipId: headers.get("x-workos-membership-id") ?? undefined,
+        role,
+      },
+    });
+  } catch {
+    throw new Error("invalid_auth_context");
+  }
 }
 
 function isOrganizationMembershipRole(value: string): value is OrganizationMembershipRole {

@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 
+import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
 
-export const api = new Hono().basePath("/api");
+export const app = new Hono()
+  .basePath("/api")
+  .route("/health", healthRoutes)
+  .route("/auth", authRoutes);
 
-api.route("/health", healthRoutes);
+export type AppType = typeof app;
