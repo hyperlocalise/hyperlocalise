@@ -13,4 +13,13 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.db = db;
 }
 
+export async function isDatabaseHealthy(): Promise<boolean> {
+  try {
+    await db.$client.query("select 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export { db, schema };

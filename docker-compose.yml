@@ -13,7 +13,7 @@ services:
       timeout: 5s
       retries: 12
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres18-data:/var/lib/postgresql
 
   inngest:
     image: inngest/inngest:v1.17.9
@@ -22,11 +22,11 @@ services:
       - dev
       - --host=0.0.0.0
       - --port=8288
-      - --url=http://host.docker.internal:3000/api/inngest
+      - --sdk-url=http://host.docker.internal:3000/api/inngest
     ports:
       - "8288:8288"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 volumes:
-  postgres-data:
+  postgres18-data:
