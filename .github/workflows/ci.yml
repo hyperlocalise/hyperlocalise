@@ -16,7 +16,7 @@ concurrency:
 jobs:
   action-self-test:
     name: Action Self Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
 
   hyperlocalise-web-build:
     name: Hyperlocalise Web Build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
         working-directory: apps/hyperlocalise-web
@@ -77,7 +77,7 @@ jobs:
 
   bazel-build-test:
     name: Bazel Build/Test
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       BUILDBUDDY_ENDPOINT: grpcs://remote.buildbuddy.io
       BUILDBUDDY_RESULTS_URL: https://app.buildbuddy.io/invocation/
@@ -118,7 +118,7 @@ jobs:
 
   go-quality:
     name: Go Quality
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: Checkout
