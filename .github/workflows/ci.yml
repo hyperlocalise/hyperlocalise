@@ -2,9 +2,15 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
   push:
     branches:
       - main
+    paths-ignore:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
 
 permissions:
   contents: read
@@ -52,66 +58,6 @@ jobs:
           [[ "${FINDINGS_TOTAL}" =~ ^[0-9]+$ ]]
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
-
-  hyperlocalise-web-build:
-    name: Hyperlocalise Web Build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_DB: hyperlocalise
-          POSTGRES_USER: hyperlocalise
-          POSTGRES_PASSWORD: hyperlocalise
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U hyperlocalise -d hyperlocalise"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 12
-      inngest:
-        image: inngest/inngest:v1.17.5
-        ports:
-          - 8288:8288
-        options: >-
-          --add-host=host.docker.internal:host-gateway
-        command:
-          - inngest
-          - dev
-          - --host=0.0.0.0
-          - --port=8288
-          - --sdk-url=http://host.docker.internal:3000/api/inngest
-    env:
-      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
-      INNGEST_DEV_URL: http://127.0.0.1:8288
-    defaults:
-      run:
-        working-directory: apps/hyperlocalise-web
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          cache: true
-
-      - name: Install hyperlocalise-web dependencies
-        run: vp install --frozen-lockfile
-
-      - name: Migrate hyperlocalise-web database
-        run: vp run db:migrate
-
-      - name: Check hyperlocalise-web
-        run: vp check
-
-      - name: Test hyperlocalise-web
-        run: vp test
-
-      - name: Build hyperlocalise-web
-        run: vp run build
 
   bazel-build-test:
     name: Bazel Build/Test
