@@ -53,7 +53,7 @@ test-workspace: clean ## run workspace tests
 	go tool cover -func=coverage.out | sort -rnk3
 
 .PHONY: test
-test: test-workspace ## run workspace-wide tests
+test: test-workspace vp-test ## run workspace-wide tests
 
 
 .PHONY: bench-runsvc
@@ -85,7 +85,7 @@ fmt: ## format go files
 
 
 .PHONY: lint
-lint: ## lint go files
+lint: vp-check ## lint go files
 	$(golangci_lint_bin) run ./...
 
 
