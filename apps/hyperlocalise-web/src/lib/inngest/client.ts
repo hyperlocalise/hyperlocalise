@@ -7,5 +7,3 @@ export function createInngestClient() {
     baseUrl: process.env.INNGEST_BASE_URL,
   });
 }
-
-export const inngestClient = createInngestClient();

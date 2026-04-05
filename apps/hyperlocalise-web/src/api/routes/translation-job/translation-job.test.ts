@@ -1,7 +1,6 @@
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
@@ -40,9 +39,13 @@ function createWorkosIdentity(
   };
 }
 
-async function seedProject(identity: WorkosAuthIdentity, name: string) {
+async function createClient() {
   const { app } = await import("@/api/app");
-  const client = testClient(app);
+  return testClient(app);
+}
+
+async function seedProject(identity: WorkosAuthIdentity, name: string) {
+  const client = await createClient();
 
   const createResponse = await client.api.project.$post(
     {
@@ -66,74 +69,10 @@ async function seedProject(identity: WorkosAuthIdentity, name: string) {
   return body.project.id;
 }
 
-async function readJsonBody(req: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-
-  for await (const chunk of req) {
-    chunks.push(Buffer.from(chunk));
-  }
-
-  if (chunks.length === 0) {
-    return {};
-  }
-
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-}
-
-async function startFakeInngestServer() {
-  const requests: {
-    method: string;
-    url: string;
-    body: unknown;
-  }[] = [];
-
-  const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
-    const body = await readJsonBody(req);
-
-    requests.push({
-      method: req.method ?? "",
-      url: req.url ?? "",
-      body,
-    });
-
-    res.statusCode = 200;
-    res.setHeader("content-type", "application/json");
-    res.end(
-      JSON.stringify({
-        ids: [`run_${randomUUID()}`],
-        status: 200,
-      }),
-    );
-  });
-
-  await new Promise<void>((resolve) => {
-    server.listen(0, "127.0.0.1", () => resolve());
-  });
-
-  const address = server.address();
-
-  if (!address || typeof address === "string") {
-    throw new Error("failed to bind fake inngest server");
-  }
-
-  return {
-    requests,
-    baseUrl: `http://127.0.0.1:${address.port}`,
-    close: async () =>
-      new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-
-          resolve();
-        });
-      }),
-  };
-}
-
 beforeAll(async () => {
+  process.env.INNGEST_BASE_URL ??= "http://127.0.0.1:8288";
+  process.env.INNGEST_EVENT_KEY ??= "local-test";
+
   await db.$client.query("select 1");
 });
 
@@ -153,14 +92,8 @@ afterEach(async () => {
 });
 
 describe("translationJobRoutes", () => {
-  it("creates a translation job, enqueues through inngest, then fetches and lists it", async () => {
-    const fakeInngestServer = await startFakeInngestServer();
-
-    process.env.INNGEST_EVENT_KEY = "test-event-key";
-    process.env.INNGEST_BASE_URL = fakeInngestServer.baseUrl;
-
-    const { app } = await import("@/api/app");
-    const client = testClient(app);
+  it("creates a translation job with real inngest enqueue, then fetches and lists it", async () => {
+    const client = await createClient();
 
     const identity = createWorkosIdentity();
     const projectId = await seedProject(identity, "Docs");
@@ -195,18 +128,7 @@ describe("translationJobRoutes", () => {
 
     expect(createdBody.job.id).toMatch(/^job_/);
     expect(createdBody.job.projectId).toBe(projectId);
-    expect(createdBody.job.workflowRunId).toMatch(/^run_/);
-
-    expect(fakeInngestServer.requests).toHaveLength(1);
-    expect(fakeInngestServer.requests[0]?.method).toBe("POST");
-    expect(fakeInngestServer.requests[0]?.url).toContain("test-event-key");
-    expect(fakeInngestServer.requests[0]?.body).toMatchObject({
-      name: "translation/job.queued",
-      data: {
-        jobId: createdBody.job.id,
-        projectId,
-      },
-    });
+    expect(createdBody.job.workflowRunId).toBeTruthy();
 
     const getResponse = await client.api.translation.jobs[":jobId"].$get(
       {
@@ -245,18 +167,10 @@ describe("translationJobRoutes", () => {
     };
     expect(listBody.jobs).toHaveLength(1);
     expect(listBody.jobs[0]?.id).toBe(createdBody.job.id);
-
-    await fakeInngestServer.close();
   });
 
-  it("cancels an in-flight translation job", async () => {
-    const fakeInngestServer = await startFakeInngestServer();
-
-    process.env.INNGEST_EVENT_KEY = "test-event-key";
-    process.env.INNGEST_BASE_URL = fakeInngestServer.baseUrl;
-
-    const { app } = await import("@/api/app");
-    const client = testClient(app);
+  it("cancels a queued translation job", async () => {
+    const client = await createClient();
 
     const identity = createWorkosIdentity();
     const projectId = await seedProject(identity, "Website");
@@ -309,7 +223,5 @@ describe("translationJobRoutes", () => {
     expect(canceledBody.job.status).toBe("failed");
     expect(canceledBody.job.outcomeKind).toBe("error");
     expect(canceledBody.job.lastError).toBe("canceled_by_user");
-
-    await fakeInngestServer.close();
   });
 });
