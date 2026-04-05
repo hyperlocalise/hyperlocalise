@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
