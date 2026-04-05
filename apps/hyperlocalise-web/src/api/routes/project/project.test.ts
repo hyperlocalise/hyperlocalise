@@ -34,6 +34,12 @@ type ProjectsResponse = {
 };
 
 function createWorkosIdentity(): WorkosAuthIdentity {
+  return createWorkosIdentityWithRole("owner");
+}
+
+function createWorkosIdentityWithRole(
+  role: WorkosAuthIdentity["membership"]["role"],
+): WorkosAuthIdentity {
   const suffix = randomUUID();
   const workosUserId = `user_${suffix}`;
   const workosOrganizationId = `org_${suffix}`;
@@ -53,7 +59,7 @@ function createWorkosIdentity(): WorkosAuthIdentity {
     },
     membership: {
       workosMembershipId: `membership_${suffix}`,
-      role: "owner",
+      role,
     },
   };
 }
@@ -196,6 +202,29 @@ describe("projectRoutes", () => {
     });
   });
 
+  it("returns 403 when a member creates a project", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const response = await client.api.project.$post(
+      {
+        json: {
+          name: "Docs",
+          description: "Documentation content",
+          translationContext: "Keep terminology consistent.",
+        },
+      },
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
+        },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
+    });
+  });
+
   it("returns a project by id", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);
@@ -224,16 +253,19 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const response = await app.request(`/api/project/${createdBody.project.id}`, {
-      method: "PATCH",
-      headers: {
-        [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        "content-type": "application/json",
+    const response = await client.api.project[":projectId"].$patch(
+      {
+        param: { projectId: createdBody.project.id },
+        json: {
+          name: "Docs v2",
+        },
       },
-      body: JSON.stringify({
-        name: "Docs v2",
-      }),
-    });
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
+        },
+      },
+    );
 
     expect(response.status).toBe(200);
 
@@ -247,30 +279,36 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const emptyResponse = await app.request(`/api/project/${createdBody.project.id}`, {
-      method: "PATCH",
-      headers: {
-        [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        "content-type": "application/json",
+    const emptyResponse = await client.api.project[":projectId"].$patch(
+      {
+        param: { projectId: createdBody.project.id },
+        json: {},
       },
-      body: JSON.stringify({}),
-    });
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
+        },
+      },
+    );
 
     expect(emptyResponse.status).toBe(400);
     await expect(emptyResponse.json()).resolves.toEqual({
       error: "invalid_project_payload",
     });
 
-    const invalidNameResponse = await app.request(`/api/project/${createdBody.project.id}`, {
-      method: "PATCH",
-      headers: {
-        [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        "content-type": "application/json",
+    const invalidNameResponse = await client.api.project[":projectId"].$patch(
+      {
+        param: { projectId: createdBody.project.id },
+        json: {
+          name: "   ",
+        },
       },
-      body: JSON.stringify({
-        name: "   ",
-      }),
-    });
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
+        },
+      },
+    );
 
     expect(invalidNameResponse.status).toBe(400);
     await expect(invalidNameResponse.json()).resolves.toEqual({
@@ -307,20 +345,49 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const otherIdentity = createWorkosIdentity();
-    const response = await app.request(`/api/project/${createdBody.project.id}`, {
-      method: "PATCH",
-      headers: {
-        [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        "content-type": "application/json",
+    const response = await client.api.project[":projectId"].$patch(
+      {
+        param: { projectId: createdBody.project.id },
+        json: {
+          name: "Should Not Apply",
+        },
       },
-      body: JSON.stringify({
-        name: "Should Not Apply",
-      }),
-    });
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
+        },
+      },
+    );
 
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
       error: "project_not_found",
+    });
+  });
+
+  it("returns 403 when a member updates a project", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(ownerIdentity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+
+    const memberIdentity = createWorkosIdentityWithRole("member");
+    const response = await client.api.project[":projectId"].$patch(
+      {
+        param: { projectId: createdBody.project.id },
+        json: {
+          name: "Should Not Apply",
+        },
+      },
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
+        },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
     });
   });
 
@@ -409,5 +476,47 @@ describe("projectRoutes", () => {
     );
 
     expect(fetchResponse.status).toBe(200);
+  });
+
+  it("returns 404 when deleting a project that does not exist", async () => {
+    const identity = createWorkosIdentity();
+    const response = await client.api.project[":projectId"].$delete(
+      {
+        param: { projectId: `project_missing_${randomUUID()}` },
+      },
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
+        },
+      },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "project_not_found",
+    });
+  });
+
+  it("returns 403 when a member deletes a project", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(ownerIdentity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+
+    const memberIdentity = createWorkosIdentityWithRole("member");
+    const response = await client.api.project[":projectId"].$delete(
+      {
+        param: { projectId: createdBody.project.id },
+      },
+      {
+        headers: {
+          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
+        },
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
+    });
   });
 });

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import type { z } from "zod";
+import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
@@ -23,6 +23,8 @@ type ProjectStore = {
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
+const allowedMutationRoles = new Set<string>(["owner", "admin"]);
+
 const projectStore: ProjectStore = {
   async list(auth) {
     return db
@@ -39,8 +41,8 @@ const projectStore: ProjectStore = {
         organizationId: auth.organization.localOrganizationId,
         createdByUserId: auth.user.localUserId,
         name: payload.name,
-        description: payload.description,
-        translationContext: payload.translationContext,
+        description: payload.description ?? "",
+        translationContext: payload.translationContext ?? "",
       })
       .returning();
 
@@ -89,27 +91,6 @@ const projectStore: ProjectStore = {
   },
 };
 
-async function parseJsonBody<TSchema extends z.ZodTypeAny>(
-  c: { req: { json(): Promise<unknown> } },
-  bodySchema: TSchema,
-): Promise<z.infer<TSchema> | null> {
-  let json: unknown;
-
-  try {
-    json = await c.req.json();
-  } catch {
-    return null;
-  }
-
-  const parsed = bodySchema.safeParse(json);
-
-  if (!parsed.success) {
-    return null;
-  }
-
-  return parsed.data;
-}
-
 function invalidProjectPayloadResponse(c: {
   json(body: { error: string }, status: 400): Response;
 }) {
@@ -120,30 +101,62 @@ function projectNotFoundResponse(c: { json(body: { error: string }, status: 404)
   return c.json({ error: "project_not_found" }, 404);
 }
 
+function forbiddenResponse(c: { json(body: { error: string }, status: 403): Response }) {
+  return c.json({ error: "forbidden" }, 403);
+}
+
+function isMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return allowedMutationRoles.has(role);
+}
+
+const validateProjectParams = validator("param", (value, c) => {
+  const parsed = projectIdParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return projectNotFoundResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateCreateProjectBody = validator("json", (value, c) => {
+  const parsed = createProjectBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectBody = validator("json", (value, c) => {
+  const parsed = updateProjectBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 export const projectRoutes = new Hono<{ Variables: AuthVariables }>()
   .use("*", workosAuthMiddleware)
   .get("/", async (c) => {
     const projects = await projectStore.list(c.var.auth);
     return c.json({ projects }, 200);
   })
-  .post("/", async (c) => {
-    const payload = await parseJsonBody(c, createProjectBodySchema);
-
-    if (!payload) {
-      return invalidProjectPayloadResponse(c);
+  .post("/", validateCreateProjectBody, async (c) => {
+    if (!isMutationAllowed(c.var.auth.membership.role)) {
+      return forbiddenResponse(c);
     }
 
+    const payload = c.req.valid("json");
     const project = await projectStore.create(c.var.auth, payload);
     return c.json({ project }, 201);
   })
-  .get("/:projectId", async (c) => {
-    const params = projectIdParamsSchema.safeParse(c.req.param());
-
-    if (!params.success) {
-      return projectNotFoundResponse(c);
-    }
-
-    const project = await projectStore.getById(c.var.auth, params.data.projectId);
+  .get("/:projectId", validateProjectParams, async (c) => {
+    const params = c.req.valid("param");
+    const project = await projectStore.getById(c.var.auth, params.projectId);
 
     if (!project) {
       return projectNotFoundResponse(c);
@@ -151,20 +164,14 @@ export const projectRoutes = new Hono<{ Variables: AuthVariables }>()
 
     return c.json({ project }, 200);
   })
-  .patch("/:projectId", async (c) => {
-    const params = projectIdParamsSchema.safeParse(c.req.param());
-
-    if (!params.success) {
-      return projectNotFoundResponse(c);
+  .patch("/:projectId", validateProjectParams, validateUpdateProjectBody, async (c) => {
+    if (!isMutationAllowed(c.var.auth.membership.role)) {
+      return forbiddenResponse(c);
     }
 
-    const payload = await parseJsonBody(c, updateProjectBodySchema);
-
-    if (!payload) {
-      return invalidProjectPayloadResponse(c);
-    }
-
-    const project = await projectStore.update(c.var.auth, params.data.projectId, payload);
+    const params = c.req.valid("param");
+    const payload = c.req.valid("json");
+    const project = await projectStore.update(c.var.auth, params.projectId, payload);
 
     if (!project) {
       return projectNotFoundResponse(c);
@@ -172,14 +179,13 @@ export const projectRoutes = new Hono<{ Variables: AuthVariables }>()
 
     return c.json({ project }, 200);
   })
-  .delete("/:projectId", async (c) => {
-    const params = projectIdParamsSchema.safeParse(c.req.param());
-
-    if (!params.success) {
-      return projectNotFoundResponse(c);
+  .delete("/:projectId", validateProjectParams, async (c) => {
+    if (!isMutationAllowed(c.var.auth.membership.role)) {
+      return forbiddenResponse(c);
     }
 
-    const deleted = await projectStore.delete(c.var.auth, params.data.projectId);
+    const params = c.req.valid("param");
+    const deleted = await projectStore.delete(c.var.auth, params.projectId);
 
     if (!deleted) {
       return projectNotFoundResponse(c);

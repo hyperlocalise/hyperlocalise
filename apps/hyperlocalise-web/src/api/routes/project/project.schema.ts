@@ -6,8 +6,8 @@ export const projectIdParamsSchema = z.object({
 
 export const createProjectBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
-  description: z.string().max(10_000).optional().default(""),
-  translationContext: z.string().max(20_000).optional().default(""),
+  description: z.string().max(10_000).optional(),
+  translationContext: z.string().max(20_000).optional(),
 });
 
 export const updateProjectBodySchema = z
