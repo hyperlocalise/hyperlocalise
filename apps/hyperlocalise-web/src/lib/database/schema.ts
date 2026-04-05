@@ -163,7 +163,7 @@ export const translationJobs = pgTable(
     // High-level job category; currently string and file jobs are supported.
     type: translationJobTypeEnum("type").notNull(),
     // App-level lifecycle state mirrored into Postgres for UI/API reads.
-    status: translationJobStatusEnum("status").notNull(),
+    status: translationJobStatusEnum("status").notNull().default("queued"),
     // Canonical job input stored as domain data, not workflow engine state.
     inputPayload: jsonb("input_payload").$type<unknown>().notNull(),
     // Describes the shape of a successful result or terminal error payload.
@@ -188,5 +188,6 @@ export const translationJobs = pgTable(
     index("idx_translation_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_translation_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_translation_jobs_workflow_run_id").on(table.workflowRunId),
+    index("idx_translation_jobs_status").on(table.status),
   ],
 );
