@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import type { MiddlewareHandler } from "hono";
+import { createMiddleware } from "hono/factory";
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
@@ -78,6 +78,14 @@ const workosAuthIdentitySchema = z.object({
     role: z.enum(schema.organizationMembershipRoleEnum.enumValues),
   }),
 });
+
+const knownWorkosAuthErrors = new Set([
+  "missing_auth_context",
+  "invalid_auth_context",
+  "incomplete_workos_headers",
+  "invalid_membership_role",
+  "membership_sync_failed",
+]);
 
 function readIdentityFromJsonHeader(headers: Headers): WorkosAuthIdentity | null {
   const raw = headers.get(AUTH_CONTEXT_HEADER);
@@ -272,14 +280,19 @@ export class DatabaseIdentityResolver implements IdentityResolver {
 
 export function createWorkosAuthMiddleware(
   resolver: IdentityResolver = new DatabaseIdentityResolver(),
-): MiddlewareHandler<{ Variables: AuthVariables }> {
-  return async (c, next) => {
+){
+  return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
       const identity = parseWorkosIdentity(c.req.raw.headers);
       const auth = await resolver.resolve(identity);
       c.set("auth", auth);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
+
+      if (!knownWorkosAuthErrors.has(message)) {
+        throw error;
+      }
+
       const status = message === "missing_auth_context" ? 401 : 400;
 
       return c.json(
@@ -291,7 +304,7 @@ export function createWorkosAuthMiddleware(
     }
 
     await next();
-  };
+  });
 }
 
 export const workosAuthMiddleware = createWorkosAuthMiddleware();
