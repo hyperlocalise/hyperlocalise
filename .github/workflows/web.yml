@@ -39,6 +39,8 @@ jobs:
           --health-retries 12
     env:
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+      INNGEST_EVENT_KEY: fake-inngest-event-key
+      INNGEST_SIGNING_KEY: fake-inngest-signing-key
     defaults:
       run:
         working-directory: apps/hyperlocalise-web
