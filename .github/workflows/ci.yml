@@ -56,6 +56,32 @@ jobs:
   hyperlocalise-web-build:
     name: Hyperlocalise Web Build
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hyperlocalise
+          POSTGRES_USER: hyperlocalise
+          POSTGRES_PASSWORD: hyperlocalise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hyperlocalise -d hyperlocalise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      inngest:
+        image: inngest/inngest:v1.17.5
+        ports:
+          - 8288:8288
+        options: >-
+          --add-host=host.docker.internal:host-gateway
+        command:
+          - inngest
+          - dev
+          - --host=0.0.0.0
+          - --port=8288
+          - --sdk-url=http://host.docker.internal:3000/api/inngest
     env:
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
       INNGEST_DEV_URL: http://127.0.0.1:8288
@@ -75,37 +101,6 @@ jobs:
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
-      - name: Start support containers
-        working-directory: .
-        run: docker compose up -d postgres inngest
-
-      - name: Wait for Postgres
-        working-directory: .
-        shell: bash
-        run: |
-          set -euo pipefail
-          for _ in {1..30}; do
-            if docker compose exec -T postgres pg_isready -U hyperlocalise -d hyperlocalise; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Postgres did not become ready" >&2
-          exit 1
-
-      - name: Wait for Inngest
-        shell: bash
-        run: |
-          set -euo pipefail
-          for _ in {1..30}; do
-            if curl -sS http://127.0.0.1:8288 >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Inngest did not become ready on port 8288" >&2
-          exit 1
-
       - name: Migrate hyperlocalise-web database
         run: vp run db:migrate
 
@@ -117,11 +112,6 @@ jobs:
 
       - name: Build hyperlocalise-web
         run: vp run build
-
-      - name: Stop support containers
-        if: always()
-        working-directory: .
-        run: docker compose down -v
 
   bazel-build-test:
     name: Bazel Build/Test
