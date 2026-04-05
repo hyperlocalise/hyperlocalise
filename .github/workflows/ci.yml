@@ -2,9 +2,15 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
   push:
     branches:
       - main
+    paths-ignore:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
 
 permissions:
   contents: read
@@ -52,31 +58,6 @@ jobs:
           [[ "${FINDINGS_TOTAL}" =~ ^[0-9]+$ ]]
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
-
-  hyperlocalise-web-build:
-    name: Hyperlocalise Web Build
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    defaults:
-      run:
-        working-directory: apps/hyperlocalise-web
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          cache: true
-
-      - name: Install hyperlocalise-web dependencies
-        run: vp install --frozen-lockfile
-
-      - name: Check hyperlocalise-web
-        run: vp check
-
-      - name: Build hyperlocalise-web
-        run: vp run build
 
   bazel-build-test:
     name: Bazel Build/Test

@@ -1,0 +1,68 @@
+name: Web CI
+
+on:
+  pull_request:
+    paths:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
+  push:
+    branches:
+      - main
+    paths:
+      - apps/hyperlocalise-web/**
+      - .github/workflows/web.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hyperlocalise-web-build:
+    name: Hyperlocalise Web Build
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hyperlocalise
+          POSTGRES_USER: hyperlocalise
+          POSTGRES_PASSWORD: hyperlocalise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hyperlocalise -d hyperlocalise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
+
+      - name: Install hyperlocalise-web dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Migrate hyperlocalise-web database
+        run: vp run db:migrate
+
+      - name: Check hyperlocalise-web
+        run: vp check
+
+      - name: Test hyperlocalise-web
+        run: vp test
+
+      - name: Build hyperlocalise-web
+        run: vp run build
