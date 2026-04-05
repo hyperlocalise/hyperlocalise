@@ -1,4 +1,3 @@
-import { and, eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import { z } from "zod";
 
