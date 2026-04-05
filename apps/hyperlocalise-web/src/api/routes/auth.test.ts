@@ -34,9 +34,7 @@ async function createClient(resolver?: IdentityResolver) {
 
   if (resolver) {
     vi.doMock("../auth/workos", async () => {
-      const actual = await vi.importActual<typeof import("../auth/workos")>(
-        "../auth/workos",
-      );
+      const actual = await vi.importActual<typeof import("../auth/workos")>("../auth/workos");
 
       return {
         ...actual,

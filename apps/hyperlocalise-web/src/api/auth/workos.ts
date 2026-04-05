@@ -284,7 +284,7 @@ export class DatabaseIdentityResolver implements IdentityResolver {
 
 export function createWorkosAuthMiddleware(
   resolver: IdentityResolver = new DatabaseIdentityResolver(),
-){
+) {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
       const identity = parseWorkosIdentity(c.req.raw.headers);
