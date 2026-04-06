@@ -59,7 +59,8 @@ CREATE TABLE "translation_memory_entries" (
       setweight(to_tsvector('simple', coalesce(target_text, '')), 'B')
     ) STORED,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "translation_memory_entries_match_score_check" CHECK ("translation_memory_entries"."match_score" >= 0 AND "translation_memory_entries"."match_score" <= 100)
 );
 --> statement-breakpoint
 CREATE TABLE "translation_project_glossaries" (
@@ -94,6 +95,7 @@ CREATE INDEX "idx_translation_glossaries_org_created_at" ON "translation_glossar
 CREATE INDEX "idx_translation_glossaries_org_locale_pair" ON "translation_glossaries" USING btree ("organization_id","source_locale","target_locale");--> statement-breakpoint
 CREATE INDEX "idx_translation_glossaries_created_by_user_id" ON "translation_glossaries" USING btree ("created_by_user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "translation_glossary_terms_glossary_source_term_key" ON "translation_glossary_terms" USING btree ("glossary_id","source_term");--> statement-breakpoint
+CREATE UNIQUE INDEX "translation_glossary_terms_glossary_source_term_ci_key" ON "translation_glossary_terms" USING btree ("glossary_id",lower("source_term")) WHERE "case_sensitive" = false;--> statement-breakpoint
 CREATE INDEX "idx_translation_glossary_terms_glossary_created_at" ON "translation_glossary_terms" USING btree ("glossary_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_translation_glossary_terms_search_vector" ON "translation_glossary_terms" USING gin ("search_vector");--> statement-breakpoint
 CREATE INDEX "idx_translation_memories_org_created_at" ON "translation_memories" USING btree ("organization_id","created_at");--> statement-breakpoint

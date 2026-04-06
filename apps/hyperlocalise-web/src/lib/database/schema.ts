@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   customType,
   index,
   integer,
@@ -242,6 +243,7 @@ export const translationGlossaryTerms = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     // Generated Postgres full-text document used for fast lexical glossary retrieval.
+    // `to_tsvector` lowercases tokens, so callers must still post-filter case-sensitive terms.
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
       setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||
@@ -260,6 +262,9 @@ export const translationGlossaryTerms = pgTable(
       table.glossaryId,
       table.sourceTerm,
     ),
+    uniqueIndex("translation_glossary_terms_glossary_source_term_ci_key")
+      .on(table.glossaryId, sql`lower(${table.sourceTerm})`)
+      .where(sql`${table.caseSensitive} = false`),
     index("idx_translation_glossary_terms_glossary_created_at").on(
       table.glossaryId,
       table.createdAt,
@@ -316,6 +321,7 @@ export const translationMemoryEntries = pgTable(
     // Original source string stored for exact or fuzzy lookup.
     sourceText: text("source_text").notNull(),
     // Normalized source text used for deterministic uniqueness and search.
+    // Compute this with `normalizeTranslationMemorySourceText()` so every write path dedupes identically.
     normalizedSourceText: text("normalized_source_text").notNull(),
     // Previously accepted translation for the source string.
     targetText: text("target_text").notNull(),
@@ -344,6 +350,10 @@ export const translationMemoryEntries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    check(
+      "translation_memory_entries_match_score_check",
+      sql`${table.matchScore} >= 0 AND ${table.matchScore} <= 100`,
+    ),
     uniqueIndex("translation_memory_entries_memory_locale_source_key").on(
       table.translationMemoryId,
       table.sourceLocale,
