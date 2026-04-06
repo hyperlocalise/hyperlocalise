@@ -44,6 +44,7 @@ export const createTranslationJobBodySchema = z.discriminatedUnion("type", [
 export const translationJobListQuerySchema = z.object({
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.translationJobStatusEnum.enumValues).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
 export type CreateTranslationJobBody = z.infer<typeof createTranslationJobBodySchema>;

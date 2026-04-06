@@ -132,7 +132,8 @@ export function createTranslationJobRoutes(options: CreateTranslationJobRoutesOp
         .select()
         .from(schema.translationJobs)
         .where(and(...filters))
-        .orderBy(desc(schema.translationJobs.createdAt));
+        .orderBy(desc(schema.translationJobs.createdAt))
+        .limit(query.limit);
 
       return c.json({ jobs }, 200);
     })
@@ -177,6 +178,7 @@ export function createTranslationJobRoutes(options: CreateTranslationJobRoutesOp
         await db
           .update(schema.translationJobs)
           .set({
+            status: "failed",
             lastError: error instanceof Error ? error.message : "translation job queue unavailable",
           })
           .where(

@@ -216,7 +216,7 @@ describe("translationJobRoutes", () => {
     const allResponse = await client.api.project[":projectId"].jobs.$get(
       {
         param: { projectId: project.id },
-        query: {},
+        query: { limit: "50" },
       },
       { headers: authHeader },
     );
@@ -232,7 +232,7 @@ describe("translationJobRoutes", () => {
     const filteredResponse = await client.api.project[":projectId"].jobs.$get(
       {
         param: { projectId: project.id },
-        query: { type: "file", status: "failed" },
+        query: { type: "file", status: "failed", limit: "50" },
       },
       { headers: authHeader },
     );
@@ -240,6 +240,19 @@ describe("translationJobRoutes", () => {
     expect(filteredResponse.status).toBe(200);
     await expect(filteredResponse.json()).resolves.toEqual({
       jobs: [expect.objectContaining({ type: "file", status: "failed" })],
+    });
+
+    const limitedResponse = await client.api.project[":projectId"].jobs.$get(
+      {
+        param: { projectId: project.id },
+        query: { limit: "1" },
+      },
+      { headers: authHeader },
+    );
+
+    expect(limitedResponse.status).toBe(200);
+    await expect(limitedResponse.json()).resolves.toEqual({
+      jobs: [expect.any(Object)],
     });
   });
 
@@ -498,7 +511,7 @@ describe("translationJobRoutes", () => {
 
     expect(jobs).toEqual([
       expect.objectContaining({
-        status: "queued",
+        status: "failed",
         lastError: "queue down",
       }),
     ]);
