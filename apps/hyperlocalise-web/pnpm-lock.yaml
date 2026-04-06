@@ -82,6 +82,9 @@ importers:
         specifier: 4.3.6
         version: 4.3.6
     devDependencies:
+      '@inngest/test':
+        specifier: ^1.0.0
+        version: 1.0.0(inngest@4.1.2(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(express@5.2.1)(hono@4.12.10)(next@16.2.2(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@6.0.2)(zod@4.3.6))
       '@tailwindcss/postcss':
         specifier: 4.2.2
         version: 4.2.2
@@ -951,6 +954,11 @@ packages:
 
   '@inngest/ai@0.1.7':
     resolution: {integrity: sha512-5xWatW441jacGf9czKEZdgAmkvoy7GS2tp7X8GSbdGeRXzjisHR6vM+q8DQbv6rqRsmQoCQ5iShh34MguELvUQ==}
+
+  '@inngest/test@1.0.0':
+    resolution: {integrity: sha512-T3K6w0o/AHk34zzYhh1lC183ziQUCTEmY+G7ZOFwR5q4vXkbmZpXzbRecuG+Om/mixJnJCjZbt43e6OMR3QAnQ==}
+    peerDependencies:
+      inngest: ^4.0.0
 
   '@inquirer/ansi@1.0.2':
     resolution: {integrity: sha512-S8qNSZiYzFd0wAcyG5AXCvUHC5Sr7xpZ9wZ2py9XR88jUz8wooStVx5M6dRzczbBWjic9NP7+rY0Xi7qqK/aMQ==}
@@ -3934,6 +3942,10 @@ packages:
     resolution: {integrity: sha512-Pugqs6M0m7Lv1I7FtxN4aoyToKg1C4tu+/381vH35y8oENM/Ai7f7C4StcoK4/+BSw9ebcS8jRiVrORFKCALLw==}
     engines: {node: ^20.0.0 || >=22.0.0}
 
+  tinyspy@3.0.2:
+    resolution: {integrity: sha512-n1cw8k1k0x4pgA2+9XrOkFydTerNcJ1zWCO5Nn9scWHTD+5tp8dghT2x1uduQePZTZgd3Tupf+x9BxJjeJi77Q==}
+    engines: {node: '>=14.0.0'}
+
   tldts-core@7.0.28:
     resolution: {integrity: sha512-7W5Efjhsc3chVdFhqtaU0KtK32J37Zcr9RKtID54nG+tIpcY79CQK/veYPODxtD/LJ4Lue66jvrQzIX2Z2/pUQ==}
 
@@ -4810,6 +4822,12 @@ snapshots:
     dependencies:
       '@types/node': 22.19.17
       typescript: 5.9.3
+
+  '@inngest/test@1.0.0(inngest@4.1.2(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(express@5.2.1)(hono@4.12.10)(next@16.2.2(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@6.0.2)(zod@4.3.6))':
+    dependencies:
+      inngest: 4.1.2(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(express@5.2.1)(hono@4.12.10)(next@16.2.2(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(typescript@6.0.2)(zod@4.3.6)
+      tinyspy: 3.0.2
+      ulid: 2.4.0
 
   '@inquirer/ansi@1.0.2': {}
 
@@ -7689,6 +7707,8 @@ snapshots:
       picomatch: 4.0.4
 
   tinypool@2.1.0: {}
+
+  tinyspy@3.0.2: {}
 
   tldts-core@7.0.28: {}
 

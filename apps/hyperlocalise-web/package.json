@@ -36,6 +36,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@inngest/test": "^1.0.0",
     "@tailwindcss/postcss": "4.2.2",
     "@types/node": "24.12.2",
     "@types/pg": "8.20.0",

@@ -2,17 +2,18 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { app } from "@/api/app";
-import { AUTH_CONTEXT_HEADER, type WorkosAuthIdentity } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";
+import { db } from "@/lib/database";
+
+import { createProjectTestFixture } from "./project.fixture";
 
 const client = testClient(app);
-const createdWorkosUserIds = new Set<string>();
-const createdWorkosOrganizationIds = new Set<string>();
+const projectFixture = createProjectTestFixture(client);
+const { createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } = projectFixture;
 
 type ProjectRecord = {
   id: string;
@@ -33,78 +34,12 @@ type ProjectsResponse = {
   projects: ProjectRecord[];
 };
 
-function createWorkosIdentity(): WorkosAuthIdentity {
-  return createWorkosIdentityWithRole("owner");
-}
-
-function createWorkosIdentityWithRole(
-  role: WorkosAuthIdentity["membership"]["role"],
-): WorkosAuthIdentity {
-  const suffix = randomUUID();
-  const workosUserId = `user_${suffix}`;
-  const workosOrganizationId = `org_${suffix}`;
-
-  createdWorkosUserIds.add(workosUserId);
-  createdWorkosOrganizationIds.add(workosOrganizationId);
-
-  return {
-    user: {
-      workosUserId,
-      email: `${suffix}@example.com`,
-    },
-    organization: {
-      workosOrganizationId,
-      name: `Example Org ${suffix}`,
-      slug: `example-org-${suffix}`,
-    },
-    membership: {
-      workosMembershipId: `membership_${suffix}`,
-      role,
-    },
-  };
-}
-
-async function createProjectViaApi(
-  identity: WorkosAuthIdentity,
-  input?: Partial<{
-    name: string;
-    description: string;
-    translationContext: string;
-  }>,
-) {
-  return client.api.project.$post(
-    {
-      json: {
-        name: input?.name ?? "Marketing Site",
-        description: input?.description ?? "Primary website strings",
-        translationContext: input?.translationContext ?? "Use a concise product-marketing tone.",
-      },
-    },
-    {
-      headers: {
-        [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-      },
-    },
-  );
-}
-
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
 afterEach(async () => {
-  for (const workosOrganizationId of createdWorkosOrganizationIds) {
-    await db
-      .delete(schema.organizations)
-      .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId));
-  }
-
-  for (const workosUserId of createdWorkosUserIds) {
-    await db.delete(schema.users).where(eq(schema.users.workosUserId, workosUserId));
-  }
-
-  createdWorkosOrganizationIds.clear();
-  createdWorkosUserIds.clear();
+  await projectFixture.cleanup();
 });
 
 describe("projectRoutes", () => {
