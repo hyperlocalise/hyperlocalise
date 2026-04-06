@@ -8,6 +8,7 @@ import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createProjectRoutes } from "./routes/project/project.route";
+import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
   translationJobQueue?: TranslationJobQueue;
@@ -29,6 +30,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/health", healthRoutes)
     .route("/auth", authRoutes)
     .route("/glossary", createGlossaryRoutes())
+    .route("/webhooks/workos", workosWebhookRoutes)
     .route("/project", createProjectRoutes(options));
 }
 

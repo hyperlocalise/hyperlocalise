@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
+import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 export const AUTH_CONTEXT_HEADER = "x-hyperlocalise-auth";
@@ -172,102 +173,29 @@ export class DatabaseIdentityResolver implements IdentityResolver {
   async resolve(identity: WorkosAuthIdentity): Promise<ApiAuthContext> {
     const database = this.database ?? (await import("@/lib/database")).db;
 
-    return database.transaction(async (tx) => {
-      const now = new Date();
+    const { user, organization, membership } = await syncWorkosIdentity(database, identity);
 
-      const [user] = await tx
-        .insert(schema.users)
-        .values({
-          workosUserId: identity.user.workosUserId,
-          email: identity.user.email,
-          firstName: identity.user.firstName ?? null,
-          lastName: identity.user.lastName ?? null,
-          avatarUrl: identity.user.avatarUrl ?? null,
-        })
-        .onConflictDoUpdate({
-          target: schema.users.workosUserId,
-          set: {
-            email: identity.user.email,
-            firstName: identity.user.firstName ?? null,
-            lastName: identity.user.lastName ?? null,
-            avatarUrl: identity.user.avatarUrl ?? null,
-            updatedAt: now,
-          },
-        })
-        .returning({
-          id: schema.users.id,
-          email: schema.users.email,
-          workosUserId: schema.users.workosUserId,
-        });
+    if (!membership) {
+      throw new Error("membership_sync_failed");
+    }
 
-      const [organization] = await tx
-        .insert(schema.organizations)
-        .values({
-          workosOrganizationId: identity.organization.workosOrganizationId,
-          name: identity.organization.name,
-          slug: identity.organization.slug ?? null,
-        })
-        .onConflictDoUpdate({
-          target: schema.organizations.workosOrganizationId,
-          set: {
-            name: identity.organization.name,
-            slug: identity.organization.slug ?? null,
-            updatedAt: now,
-          },
-        })
-        .returning({
-          id: schema.organizations.id,
-          name: schema.organizations.name,
-          slug: schema.organizations.slug,
-          workosOrganizationId: schema.organizations.workosOrganizationId,
-        });
-
-      const [membership] = await tx
-        .insert(schema.organizationMemberships)
-        .values({
-          organizationId: organization.id,
-          userId: user.id,
-          workosMembershipId: identity.membership.workosMembershipId ?? null,
-          role: identity.membership.role,
-        })
-        .onConflictDoUpdate({
-          target: [
-            schema.organizationMemberships.organizationId,
-            schema.organizationMemberships.userId,
-          ],
-          set: {
-            workosMembershipId: identity.membership.workosMembershipId ?? null,
-            role: identity.membership.role,
-            updatedAt: now,
-          },
-        })
-        .returning({
-          role: schema.organizationMemberships.role,
-          workosMembershipId: schema.organizationMemberships.workosMembershipId,
-        });
-
-      if (!membership) {
-        throw new Error("membership_sync_failed");
-      }
-
-      return {
-        user: {
-          workosUserId: user.workosUserId,
-          localUserId: user.id,
-          email: user.email,
-        },
-        organization: {
-          workosOrganizationId: organization.workosOrganizationId,
-          localOrganizationId: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-        },
-        membership: {
-          workosMembershipId: membership.workosMembershipId,
-          role: membership.role,
-        },
-      };
-    });
+    return {
+      user: {
+        workosUserId: user.workosUserId,
+        localUserId: user.id,
+        email: user.email,
+      },
+      organization: {
+        workosOrganizationId: organization.workosOrganizationId,
+        localOrganizationId: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+      },
+      membership: {
+        workosMembershipId: membership.workosMembershipId,
+        role: membership.role,
+      },
+    };
   }
 }
 
