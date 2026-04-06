@@ -54,6 +54,11 @@ function verifyWorkosWebhookSignature(input: {
     return false;
   }
 
+  const eventTime = Number(parsed.timestamp) * 1000;
+  if (Math.abs(Date.now() - eventTime) > 5 * 60 * 1000) {
+    return false;
+  }
+
   const signedPayload = `${parsed.timestamp}.${input.body}`;
 
   const expectedSignature = createHmac("sha256", input.secret).update(signedPayload).digest("hex");
@@ -185,7 +190,13 @@ export const workosWebhookRoutes = new Hono().post("/", async (c) => {
     return c.json({ error: "invalid_signature" }, 401);
   }
 
-  const parsedJson = JSON.parse(body) as unknown;
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(body);
+  } catch {
+    return c.json({ error: "invalid_json" }, 400);
+  }
+
   const parseResult = webhookEventSchema.safeParse(parsedJson);
 
   if (!parseResult.success) {

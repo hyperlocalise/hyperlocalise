@@ -111,7 +111,10 @@ export async function syncWorkosIdentity(
         role: identity.membership.role,
       })
       .onConflictDoUpdate({
-        target: [schema.organizationMemberships.organizationId, schema.organizationMemberships.userId],
+        target: [
+          schema.organizationMemberships.organizationId,
+          schema.organizationMemberships.userId,
+        ],
         set: {
           workosMembershipId: identity.membership.workosMembershipId ?? null,
           role: identity.membership.role,

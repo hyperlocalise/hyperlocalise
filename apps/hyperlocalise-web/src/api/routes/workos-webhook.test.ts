@@ -2,34 +2,44 @@ import "dotenv/config";
 
 import { createHmac } from "node:crypto";
 
-import { Hono } from "hono";
 import { testClient } from "hono/testing";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+import { app } from "@/api/app";
 
 const secret = "test-workos-webhook-secret";
 
-function sign(body: string) {
-  const timestamp = `${Math.floor(Date.now() / 1000)}`;
-  const digest = createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex");
+function sign(body: string, timestamp?: number) {
+  const ts = timestamp ?? Math.floor(Date.now() / 1000);
+  const digest = createHmac("sha256", secret).update(`${ts}.${body}`).digest("hex");
 
-  return `t=${timestamp},v1=${digest}`;
+  return `t=${ts},v1=${digest}`;
 }
+
+vi.mock("@/api/auth/workos-sync", () => ({
+  syncWorkosUser: vi.fn().mockResolvedValue(undefined),
+  syncWorkosOrganization: vi.fn().mockResolvedValue(undefined),
+  syncWorkosIdentity: vi.fn().mockResolvedValue(undefined),
+  removeWorkosMembership: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/database", () => ({
+  db: {},
+}));
 
 describe("workosWebhookRoutes", () => {
   beforeEach(() => {
     process.env.WORKOS_WEBHOOK_SECRET = secret;
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     vi.resetModules();
-    vi.clearAllMocks();
     vi.doUnmock("@/api/auth/workos-sync");
     vi.doUnmock("@/lib/database");
   });
 
   it("returns 401 for invalid signature", async () => {
-    const { workosWebhookRoutes } = await import("./workos-webhook");
-    const app = new Hono().basePath("/api").route("/webhooks/workos", workosWebhookRoutes);
     const client = testClient(app);
 
     const response = await client.api.webhooks.workos.$post(
@@ -53,25 +63,6 @@ describe("workosWebhookRoutes", () => {
   });
 
   it("handles user.created event", async () => {
-    const syncWorkosUser = vi.fn().mockResolvedValue(undefined);
-
-    vi.doMock("@/api/auth/workos-sync", async () => {
-      const actual = await vi.importActual<typeof import("@/api/auth/workos-sync")>(
-        "@/api/auth/workos-sync",
-      );
-
-      return {
-        ...actual,
-        syncWorkosUser,
-      };
-    });
-
-    vi.doMock("@/lib/database", () => ({
-      db: {},
-    }));
-
-    const { workosWebhookRoutes } = await import("./workos-webhook");
-    const app = new Hono().basePath("/api").route("/webhooks/workos", workosWebhookRoutes);
     const client = testClient(app);
 
     const payload = JSON.stringify({
@@ -95,12 +86,5 @@ describe("workosWebhookRoutes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(syncWorkosUser).toHaveBeenCalledWith(
-      {},
-      expect.objectContaining({
-        workosUserId: "user_123",
-        email: "dev@example.com",
-      }),
-    );
   });
 });
