@@ -11,14 +11,14 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.50",
+    "@ai-sdk/openai": "3.0.50",
     "@base-ui/react": "1.3.0",
     "@hookform/resolvers": "5.2.2",
     "@hugeicons/core-free-icons": "4.1.1",
     "@hugeicons/react": "1.1.6",
     "@t3-oss/env-nextjs": "0.13.11",
-    "@workos-inc/authkit-nextjs": "^3.0.0",
-    "ai": "^6.0.146",
+    "@workos-inc/authkit-nextjs": "3.0.0",
+    "ai": "6.0.146",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "dotenv": "17.4.1",
@@ -36,11 +36,11 @@
     "sonner": "2.0.7",
     "tailwind-merge": "3.5.0",
     "tw-animate-css": "1.4.0",
-    "workos": "^0.12.1",
+    "workos": "0.12.1",
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@inngest/test": "^1.0.0",
+    "@inngest/test": "1.0.0",
     "@tailwindcss/postcss": "4.2.2",
     "@types/node": "24.12.2",
     "@types/pg": "8.20.0",
