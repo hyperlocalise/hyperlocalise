@@ -172,6 +172,16 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
+    const [existingOrg] = await db
+      .select({ name: schema.organizations.name, slug: schema.organizations.slug })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId))
+      .limit(1);
+
+    if (!existingOrg) {
+      return;
+    }
+
     await syncWorkosIdentity(db, {
       user: {
         workosUserId,
@@ -182,8 +192,8 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       },
       organization: {
         workosOrganizationId,
-        name: readString(data, "organization_name") ?? workosOrganizationId,
-        slug: readString(data, "organization_slug"),
+        name: existingOrg.name,
+        slug: existingOrg.slug ?? undefined,
       },
       membership: {
         workosMembershipId,
