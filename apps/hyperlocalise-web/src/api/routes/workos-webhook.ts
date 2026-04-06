@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
@@ -10,6 +11,7 @@ import {
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
+import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 const webhookEventSchema = z.object({
@@ -85,11 +87,15 @@ function readString(data: Record<string, unknown>, ...keys: string[]): string | 
   return undefined;
 }
 
-function toMembershipRole(value: string | undefined): OrganizationMembershipRole {
-  if (value === "owner" || value === "admin") {
-    return value;
-  }
-
+function toMembershipRole(data: Record<string, unknown>): OrganizationMembershipRole {
+  const roleField = data["role"];
+  const slug =
+    typeof roleField === "string"
+      ? roleField
+      : typeof roleField === "object" && roleField !== null && "slug" in roleField
+        ? String((roleField as { slug: unknown }).slug)
+        : undefined;
+  if (slug === "owner" || slug === "admin") return slug as OrganizationMembershipRole;
   return "member";
 }
 
@@ -147,19 +153,29 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     event.event === "organization_membership.created" ||
     event.event === "organization_membership.updated"
   ) {
+    const { db } = await import("@/lib/database");
     const workosMembershipId = readString(data, "id", "membership_id");
     const workosOrganizationId = readString(data, "organization_id");
     const workosUserId = readString(data, "user_id");
-    const email = readString(data, "email", "user_email");
 
-    if (!workosOrganizationId || !workosUserId || !email) {
+    if (!workosOrganizationId || !workosUserId) {
+      return;
+    }
+
+    const [existingUser] = await db
+      .select({ email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, workosUserId))
+      .limit(1);
+
+    if (!existingUser) {
       return;
     }
 
     await syncWorkosIdentity(db, {
       user: {
         workosUserId,
-        email,
+        email: existingUser.email,
         firstName: readString(data, "first_name", "firstName", "user_first_name"),
         lastName: readString(data, "last_name", "lastName", "user_last_name"),
         avatarUrl: readString(data, "profile_picture_url", "avatar", "avatar_url"),
@@ -171,13 +187,17 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       },
       membership: {
         workosMembershipId,
-        role: toMembershipRole(readString(data, "role")),
+        role: toMembershipRole(data),
       },
     });
   }
 }
 
 export const workosWebhookRoutes = new Hono().post("/", async (c) => {
+  if (!env.WORKOS_WEBHOOK_SECRET) {
+    return c.json({ error: "workos_not_configured" }, 503);
+  }
+
   const body = await c.req.text();
 
   const isValid = verifyWorkosWebhookSignature({

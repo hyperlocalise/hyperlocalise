@@ -2,8 +2,10 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
 const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
+const isCI = process.env.CI === "true";
 
 export const env = createEnv({
+  skipValidation: isCI,
   server: {
     DATABASE_URL: z.string().min(1),
     INNGEST_EVENT_KEY: z.string().min(1),
@@ -11,8 +13,8 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1).optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
-    WORKOS_REDIRECT_URI: z.string().url().optional(),
-    WORKOS_WEBHOOK_SECRET: z.string().min(1),
+    WORKOS_REDIRECT_URI: z.string().min(1).optional(),
+    WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
   },
   client: {},
   runtimeEnv: {
