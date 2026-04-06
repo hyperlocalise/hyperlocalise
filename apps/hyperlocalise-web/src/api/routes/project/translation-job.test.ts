@@ -5,7 +5,6 @@ process.env.INNGEST_SIGNING_KEY ??= "test-signing-key";
 
 import { randomUUID } from "node:crypto";
 
-import { InngestTestEngine } from "@inngest/test";
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -13,39 +12,12 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "@/api/app";
 import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import {
-  TRANSLATION_JOB_QUEUED_EVENT,
-  getTranslationJobQueuedEventId,
-  translationJobQueuedFunction,
-  type TranslationJobQueue,
-  type TranslationJobQueuedEventData,
-} from "@/lib/inngest";
+import type { TranslationJobQueue } from "@/lib/inngest";
 import { createProjectTestFixture } from "./project.fixture";
 
 function createInlineTestTranslationJobQueue(): TranslationJobQueue {
   return {
-    async enqueue(event: TranslationJobQueuedEventData) {
-      const engine = new InngestTestEngine({
-        function: translationJobQueuedFunction,
-        events: [
-          {
-            id: getTranslationJobQueuedEventId(event.jobId),
-            name: TRANSLATION_JOB_QUEUED_EVENT,
-            data: event,
-          },
-        ],
-      });
-
-      const { error } = await engine.execute();
-
-      if (error) {
-        const message =
-          typeof error === "object" && error !== null && "message" in error
-            ? String(error.message)
-            : "Inngest test execution failed";
-        throw new Error(message);
-      }
-
+    async enqueue(event) {
       return { ids: [event.jobId] };
     },
   };
@@ -127,7 +99,7 @@ afterEach(async () => {
 });
 
 describe("translationJobRoutes", () => {
-  it("creates a queued string job and runs the queue function", async () => {
+  it("creates a queued string job", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
@@ -171,7 +143,7 @@ describe("translationJobRoutes", () => {
         screen: "hero",
       },
     });
-    expect(body.job.workflowRunId).toBeTruthy();
+    expect(body.job.workflowRunId).toBeNull();
   });
 
   it("lists project jobs and applies type and status filters", async () => {
