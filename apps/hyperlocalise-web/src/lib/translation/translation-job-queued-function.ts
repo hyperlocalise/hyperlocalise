@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import { stringTranslationJobInputSchema } from "@/api/routes/project/translation-job.schema";
 import { db, schema } from "@/lib/database";
@@ -130,7 +130,10 @@ export function createTranslationJobQueuedFunction(
             and(
               eq(schema.translationJobs.id, event.data.jobId),
               eq(schema.translationJobs.projectId, event.data.projectId),
-              eq(schema.translationJobs.status, "queued"),
+              or(
+                eq(schema.translationJobs.status, "queued"),
+                eq(schema.translationJobs.status, "running"),
+              ),
               eq(schema.translationJobs.workflowRunId, attachedJob.runId),
             ),
           )
@@ -185,6 +188,12 @@ export function createTranslationJobQueuedFunction(
               lastError: schema.translationJobs.lastError,
               completedAt: schema.translationJobs.completedAt,
             });
+
+          if (!failedJob) {
+            throw new Error(
+              `translation job ${claimedJob.id} disappeared before failure could be recorded`,
+            );
+          }
 
           return failedJob;
         }
@@ -242,6 +251,12 @@ export function createTranslationJobQueuedFunction(
               completedAt: schema.translationJobs.completedAt,
             });
 
+          if (!succeededJob) {
+            throw new Error(
+              `translation job ${claimedJob.id} disappeared before success could be recorded`,
+            );
+          }
+
           return succeededJob;
         } catch (error) {
           const message = formatExecutionError(error);
@@ -275,6 +290,12 @@ export function createTranslationJobQueuedFunction(
               lastError: schema.translationJobs.lastError,
               completedAt: schema.translationJobs.completedAt,
             });
+
+          if (!failedJob) {
+            throw new Error(
+              `translation job ${claimedJob.id} disappeared before failure could be recorded`,
+            );
+          }
 
           return failedJob;
         }
