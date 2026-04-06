@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { schema } from "@/lib/database";
 
 const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
@@ -30,14 +30,4 @@ export function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
     eq(schema.translationGlossaries.id, glossaryId),
     eq(schema.translationGlossaries.organizationId, auth.organization.localOrganizationId),
   );
-}
-
-export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string) {
-  const [glossary] = await db
-    .select({ id: schema.translationGlossaries.id })
-    .from(schema.translationGlossaries)
-    .where(ownedGlossaryWhere(auth, glossaryId))
-    .limit(1);
-
-  return glossary ?? null;
 }

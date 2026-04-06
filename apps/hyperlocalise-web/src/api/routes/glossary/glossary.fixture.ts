@@ -129,7 +129,6 @@ export function createGlossaryTestFixture(client?: any) {
     const [glossary] = await db
       .insert(schema.translationGlossaries)
       .values({
-        id: `glossary_${randomUUID()}`,
         organizationId: organization.id,
         createdByUserId: user.id,
         name: "Test Glossary",
