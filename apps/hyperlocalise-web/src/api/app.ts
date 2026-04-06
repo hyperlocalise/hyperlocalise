@@ -6,6 +6,7 @@ import type { TranslationJobQueue } from "@/lib/inngest";
 import { translationJobQueuedFunction } from "@/lib/translation/translation-job-queued-function";
 import { authRoutes } from "./routes/auth";
 import { healthRoutes } from "./routes/health";
+import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 
 type CreateAppOptions = {
@@ -27,6 +28,7 @@ export function createApp(options: CreateAppOptions = {}) {
     )
     .route("/health", healthRoutes)
     .route("/auth", authRoutes)
+    .route("/glossary", createGlossaryRoutes())
     .route("/project", createProjectRoutes(options));
 }
 
