@@ -8,6 +8,7 @@ export const env = createEnv({
     DATABASE_URL: z.string().min(1),
     INNGEST_EVENT_KEY: z.string().min(1),
     INNGEST_SIGNING_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1).optional(),
   },
   client: {},
   runtimeEnv: {
@@ -15,5 +16,6 @@ export const env = createEnv({
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY ?? (isTestEnv ? "test-event-key" : undefined),
     INNGEST_SIGNING_KEY:
       process.env.INNGEST_SIGNING_KEY ?? (isTestEnv ? "test-signing-key" : undefined),
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
   },
 });

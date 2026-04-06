@@ -13,7 +13,7 @@ export const translationJobParamsSchema = z.object({
 
 const metadataSchema = z.record(z.string(), z.string()).optional();
 
-const stringTranslationJobInputSchema = z.object({
+export const stringTranslationJobInputSchema = z.object({
   sourceText: z.string().trim().min(1).max(100_000),
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
@@ -22,7 +22,7 @@ const stringTranslationJobInputSchema = z.object({
   maxLength: z.int().positive().max(100_000).optional(),
 });
 
-const fileTranslationJobInputSchema = z.object({
+export const fileTranslationJobInputSchema = z.object({
   sourceFileId: z.string().trim().min(1),
   fileFormat: z.enum(["xliff", "json", "po", "csv"]),
   sourceLocale: z.string().trim().min(1).max(32),
@@ -48,3 +48,5 @@ export const translationJobListQuerySchema = z.object({
 });
 
 export type CreateTranslationJobBody = z.infer<typeof createTranslationJobBodySchema>;
+export type StringTranslationJobInput = z.infer<typeof stringTranslationJobInputSchema>;
+export type FileTranslationJobInput = z.infer<typeof fileTranslationJobInputSchema>;
