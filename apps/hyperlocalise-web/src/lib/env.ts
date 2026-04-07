@@ -7,9 +7,10 @@ const isCI = process.env.CI === "true";
 export const env = createEnv({
   skipValidation: isCI,
   server: {
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: z.string().min(1),
-    INNGEST_EVENT_KEY: z.string().min(1),
-    INNGEST_SIGNING_KEY: z.string().min(1),
+    INNGEST_EVENT_KEY: z.string().min(1).optional(),
+    INNGEST_SIGNING_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
@@ -18,8 +19,11 @@ export const env = createEnv({
   },
   client: {
     NEXT_PUBLIC_WAITLIST_URL: z.url(),
+    NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
   },
   runtimeEnv: {
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY ?? (isTestEnv ? "test-event-key" : undefined),
     INNGEST_SIGNING_KEY:

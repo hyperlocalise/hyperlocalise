@@ -21,6 +21,7 @@ export function getTranslationJobQueuedEventId(jobId: string) {
 export const inngest = new Inngest({
   id: "hyperlocalise-web",
   eventKey: env.INNGEST_EVENT_KEY,
+  isDev: env.NODE_ENV !== "production",
 });
 
 export function createInngestTranslationJobQueue(client: Inngest = inngest): TranslationJobQueue {

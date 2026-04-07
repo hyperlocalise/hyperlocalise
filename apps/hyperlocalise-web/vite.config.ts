@@ -6,7 +6,9 @@ import { defineConfig } from "vite-plus";
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  fmt: {},
+  fmt: {
+    exclude: ["**/drizzle/**"],
+  },
   lint: { options: { typeAware: true, typeCheck: true } },
   resolve: {
     alias: {

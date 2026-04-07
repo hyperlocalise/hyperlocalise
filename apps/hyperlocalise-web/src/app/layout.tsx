@@ -30,7 +30,6 @@ export default function RootLayout({
     <html
       lang="en"
       className={cn(
-        "h-full",
         "antialiased",
         "font-sans",
         geistMono.variable,
@@ -38,14 +37,9 @@ export default function RootLayout({
         figtreeHeading.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">
+      <body>
         <Analytics />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>{children}</TooltipProvider>
         </ThemeProvider>
       </body>
