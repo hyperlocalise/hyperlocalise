@@ -32,6 +32,7 @@ export const env = createEnv({
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
-      process.env.NEXT_PUBLIC_WAITLIST_URL ?? (isTestEnv ? "https://example.com/waitlist" : undefined),
+      process.env.NEXT_PUBLIC_WAITLIST_URL ??
+      (isTestEnv ? "https://example.com/waitlist" : undefined),
   },
 });
