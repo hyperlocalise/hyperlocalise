@@ -1,6 +1,6 @@
 import React from "react";
 
-type Blob = {
+type BackgroundBlob = {
   x: string;
   y: string;
   size: string;
@@ -17,7 +17,7 @@ type BlurBackgroundProps = {
   vignette?: boolean;
 };
 
-const defaultBlobs: Blob[] = [
+const defaultBlobs: BackgroundBlob[] = [
   { x: "-8%", y: "0%", size: "30rem", color: "#6d28d9", opacity: 0.6 },
   { x: "12%", y: "42%", size: "28rem", color: "#c026d3", opacity: 0.5 },
   { x: "38%", y: "2%", size: "28rem", color: "#fb923c", opacity: 0.5 },
