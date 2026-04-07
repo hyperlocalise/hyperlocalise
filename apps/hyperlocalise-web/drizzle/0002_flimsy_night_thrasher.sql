@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "translation_glossary_terms_glossary_source_term_ci_key" ON "translation_glossary_terms" USING btree ("glossary_id",lower("source_term")) WHERE "translation_glossary_terms"."case_sensitive" = false;--> statement-breakpoint
+ALTER TABLE "translation_memory_entries" ADD CONSTRAINT "translation_memory_entries_match_score_check" CHECK ("translation_memory_entries"."match_score" >= 0 AND "translation_memory_entries"."match_score" <= 100);

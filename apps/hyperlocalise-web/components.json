@@ -21,5 +21,9 @@
   },
   "menuColor": "default-translucent",
   "menuAccent": "subtle",
-  "registries": {}
+  "registries": {
+    "@bundui": {
+      "url": "https://bundui.io/api/registry/{name}.json"
+    }
+  }
 }
