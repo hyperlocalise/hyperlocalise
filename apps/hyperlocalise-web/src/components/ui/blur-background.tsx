@@ -9,7 +9,7 @@ type BackgroundBlob = {
 };
 
 type BlurBackgroundProps = {
-  blobs?: Blob[];
+  blobs?: BackgroundBlob[];
   className?: string;
   children?: React.ReactNode;
   blurClassName?: string;
