@@ -37,6 +37,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { env } from "@/lib/env";
 
 const workflowSteps = [
   {
@@ -200,6 +201,8 @@ function Hero() {
           <Button
             size="lg"
             className="h-12 min-w-44 bg-primary px-6 text-primary-foreground shadow-[0_12px_30px_rgba(79,180,141,0.24)]"
+            nativeButton={false}
+            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
           >
             Join the waitlist
             <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
@@ -618,7 +621,12 @@ function TeamSection() {
       </div>
 
       <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-        <Button size="lg" className="h-12 min-w-60 bg-foreground px-6 text-background">
+        <Button
+          size="lg"
+          className="h-12 min-w-60 bg-foreground px-6 text-background"
+          nativeButton={false}
+          render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
+        >
           Join the waitlist
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
         </Button>
