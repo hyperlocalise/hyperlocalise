@@ -13,10 +13,12 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1).optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
-    WORKOS_REDIRECT_URI: z.string().min(1).optional(),
+    WORKOS_REDIRECT_URI: z.url().optional(),
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
   },
-  client: {},
+  client: {
+    NEXT_PUBLIC_WAITLIST_URL: z.url(),
+  },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY ?? (isTestEnv ? "test-event-key" : undefined),
@@ -29,5 +31,7 @@ export const env = createEnv({
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
+    NEXT_PUBLIC_WAITLIST_URL:
+      process.env.NEXT_PUBLIC_WAITLIST_URL ?? (isTestEnv ? "https://example.com/waitlist" : undefined),
   },
 });
