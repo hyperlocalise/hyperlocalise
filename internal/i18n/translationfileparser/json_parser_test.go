@@ -12,7 +12,7 @@ func TestJSONParserParsesFormatJSDefaultMessageOnly(t *testing.T) {
     "defaultMessage": "Welcome",
     "description": "Home page title"
   }
-		}`)
+}`)
 
 	got, err := (JSONParser{}).Parse(content)
 	if err != nil {
@@ -36,7 +36,7 @@ func TestJSONParserRejectsFormatJSDefaultMessageNonString(t *testing.T) {
     "defaultMessage": 123,
     "description": "Checkout submit button"
   }
-	}`))
+}`))
 	if err == nil {
 		t.Fatalf("expected invalid FormatJS defaultMessage error")
 	}
