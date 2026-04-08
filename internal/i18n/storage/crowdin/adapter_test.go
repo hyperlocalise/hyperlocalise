@@ -231,7 +231,7 @@ func TestAdapterPushMapsClientResults(t *testing.T) {
 
 func TestAdapterPushReturnsPartialAppliedOnUpsertFailure(t *testing.T) {
 	client := &fakeClient{
-		upsertResult: UpsertTranslationsResult{Revision: "rev2"},
+		upsertResult: UpsertTranslationsResult{Revision: "rev2", Applied: []int{0}},
 		upsertErr:    &partialUpsertError{sentIndexes: []int{0}, cause: errors.New("boom")},
 	}
 	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)

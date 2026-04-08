@@ -37,16 +37,6 @@ func (e *partialUpsertError) Error() string {
 
 func (e *partialUpsertError) Unwrap() error { return e.cause }
 
-func sentIndexesFromError(err error) []int {
-	var partial *partialUpsertError
-	if errors.As(err, &partial) {
-		out := make([]int, 0, len(partial.sentIndexes))
-		out = append(out, partial.sentIndexes...)
-		return out
-	}
-	return nil
-}
-
 func retryDelay(attempt int, err error) time.Duration {
 	var apiErr *model.ErrorResponse
 	if errors.As(err, &apiErr) && apiErr.Response != nil {

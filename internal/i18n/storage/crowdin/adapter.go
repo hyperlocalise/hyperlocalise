@@ -303,15 +303,6 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 		}
 	}
 	if err != nil {
-		sentIndexes := sentIndexesFromError(err)
-		partialApplied := make([]storage.EntryID, 0, len(sentIndexes))
-		for _, idx := range sentIndexes {
-			if idx < 0 || idx >= len(applied) {
-				continue
-			}
-			partialApplied = append(partialApplied, applied[idx])
-		}
-		result.Applied = partialApplied
 		return result, fmt.Errorf("crowdin push: %w", err)
 	}
 
