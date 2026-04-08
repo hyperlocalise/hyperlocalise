@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -344,7 +345,16 @@ func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string
 			}
 			directory, _, err = c.client.SourceFiles.AddDirectory(ctx, projectInt, req)
 			if err != nil {
-				return 0, fmt.Errorf("create directory %q: %w", segment, err)
+				if !isConflictError(err) {
+					return 0, fmt.Errorf("create directory %q: %w", segment, err)
+				}
+				directory, err = c.findDirectory(ctx, projectInt, parentID, segment)
+				if err != nil {
+					return 0, err
+				}
+				if directory == nil {
+					return 0, fmt.Errorf("create directory %q: %w", segment, err)
+				}
 			}
 		}
 		parentID = directory.ID
@@ -389,6 +399,16 @@ func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, dir
 	})
 	if err != nil {
 		return 0, fmt.Errorf("update source file %q: %w", name, err)
+	}
+	if excludedTargetLanguagesDiffer(file.ExcludeTargetLanguages, group.ExcludedTargetLanguages) {
+		file, _, err = c.client.SourceFiles.EditFile(ctx, projectInt, file.ID, []*model.UpdateRequest{{
+			Op:    model.OpReplace,
+			Path:  "/excludedTargetLanguages",
+			Value: normalizeDistinct(group.ExcludedTargetLanguages),
+		}})
+		if err != nil {
+			return 0, fmt.Errorf("update excluded target languages for %q: %w", name, err)
+		}
 	}
 	return file.ID, nil
 }
@@ -685,6 +705,20 @@ func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context str
 		return 0, fmt.Errorf("ambiguous source string for key=%q context=%q", key, ctx)
 	}
 	return stringID, nil
+}
+
+func isConflictError(err error) bool {
+	var apiErr *model.ErrorResponse
+	if errors.As(err, &apiErr) && apiErr.Response != nil {
+		return apiErr.Response.StatusCode == http.StatusConflict
+	}
+
+	var validationErr *model.ValidationErrorResponse
+	return errors.As(err, &validationErr) && validationErr.Status == http.StatusConflict
+}
+
+func excludedTargetLanguagesDiffer(current, desired []string) bool {
+	return !slices.Equal(normalizeDistinct(current), normalizeDistinct(desired))
 }
 
 func (c *HTTPClient) ensureKnownTranslationTexts(

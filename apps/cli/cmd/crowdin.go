@@ -124,10 +124,7 @@ func newCrowdinUploadSourcesCmd() *cobra.Command {
 				return err
 			}
 			result, err := adapter.UploadSources(backgroundContext(), crowdinstorageRequestSources(cfg))
-			if writeErr := writeCrowdinFileResult(cmd, "upload-sources", result); writeErr != nil {
-				return writeErr
-			}
-			return err
+			return writeCrowdinResultError(cmd, "upload-sources", result, err)
 		},
 	}
 	addCrowdinCommonFlags(cmd, &o, false)
@@ -154,10 +151,7 @@ func newCrowdinUploadTranslationsCmd() *cobra.Command {
 				return err
 			}
 			result, err := adapter.UploadTranslations(backgroundContext(), crowdinstorageRequestTranslations(cfg, o.languages))
-			if writeErr := writeCrowdinFileResult(cmd, "upload-translations", result); writeErr != nil {
-				return writeErr
-			}
-			return err
+			return writeCrowdinResultError(cmd, "upload-translations", result, err)
 		},
 	}
 	addCrowdinCommonFlags(cmd, &o, true)
@@ -184,10 +178,7 @@ func newCrowdinDownloadCmd() *cobra.Command {
 				return err
 			}
 			result, err := adapter.DownloadTranslations(backgroundContext(), crowdinstorageRequestDownload(cfg, o.languages))
-			if writeErr := writeCrowdinFileResult(cmd, "download-translations", result); writeErr != nil {
-				return writeErr
-			}
-			return err
+			return writeCrowdinResultError(cmd, "download-translations", result, err)
 		},
 	}
 	addCrowdinCommonFlags(cmd, &o, true)
@@ -214,6 +205,13 @@ func loadCrowdinWorkflowConfig(configPath, identityPath string) (storage.FileWor
 func writeCrowdinFileResult(cmd *cobra.Command, action string, result storage.FileOperationResult) error {
 	_, err := fmt.Fprintf(cmd.OutOrStdout(), "action=%s processed=%d skipped=%d warnings=%d\n", action, len(result.Processed), len(result.Skipped), len(result.Warnings))
 	return err
+}
+
+func writeCrowdinResultError(cmd *cobra.Command, action string, result storage.FileOperationResult, opErr error) error {
+	if writeErr := writeCrowdinFileResult(cmd, action, result); writeErr != nil && opErr == nil {
+		return writeErr
+	}
+	return opErr
 }
 
 func crowdinstorageRequestSources(cfg storage.FileWorkflowConfig) storage.FileUploadSourcesRequest {

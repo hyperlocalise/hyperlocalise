@@ -109,6 +109,80 @@ func TestRetryDelayPrefersRetryAfterHeader(t *testing.T) {
 	}
 }
 
+func TestIsConflictError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "error response conflict",
+			err: &model.ErrorResponse{
+				Response: &http.Response{StatusCode: http.StatusConflict},
+			},
+			want: true,
+		},
+		{
+			name: "validation error conflict",
+			err: &model.ValidationErrorResponse{
+				Status: http.StatusConflict,
+			},
+			want: true,
+		},
+		{
+			name: "not conflict",
+			err: &model.ErrorResponse{
+				Response: &http.Response{StatusCode: http.StatusBadRequest},
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isConflictError(tc.err); got != tc.want {
+				t.Fatalf("isConflictError() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestExcludedTargetLanguagesDiffer(t *testing.T) {
+	cases := []struct {
+		name    string
+		current []string
+		desired []string
+		want    bool
+	}{
+		{
+			name:    "same values different order",
+			current: []string{"fr", "de"},
+			desired: []string{"de", "fr"},
+			want:    false,
+		},
+		{
+			name:    "duplicates and blanks normalize away",
+			current: []string{"de", "", "de"},
+			desired: []string{"de"},
+			want:    false,
+		},
+		{
+			name:    "different values",
+			current: []string{"de"},
+			desired: []string{"fr"},
+			want:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := excludedTargetLanguagesDiffer(tc.current, tc.desired); got != tc.want {
+				t.Fatalf("excludedTargetLanguagesDiffer() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestJoinURLPath(t *testing.T) {
 	tests := []struct {
 		name   string

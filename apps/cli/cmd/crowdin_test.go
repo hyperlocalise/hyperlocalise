@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	"github.com/spf13/cobra"
 )
 
 func TestCrowdinInitWritesTemplate(t *testing.T) {
@@ -114,4 +118,31 @@ api_token: identity-secret
 	if !strings.Contains(out.String(), "files=1") {
 		t.Fatalf("unexpected output: %q", out.String())
 	}
+}
+
+func TestWriteCrowdinResultErrorPrefersOperationError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetOut(&crowdinFailingWriter{})
+
+	opErr := errors.New("upload failed")
+	err := writeCrowdinResultError(cmd, "upload-sources", storage.FileOperationResult{}, opErr)
+	if !errors.Is(err, opErr) {
+		t.Fatalf("expected operation error, got %v", err)
+	}
+}
+
+func TestWriteCrowdinResultErrorReturnsWriteErrorWhenOperationSucceeds(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetOut(&crowdinFailingWriter{})
+
+	err := writeCrowdinResultError(cmd, "upload-sources", storage.FileOperationResult{}, nil)
+	if err == nil || err.Error() != "write failed" {
+		t.Fatalf("expected write error, got %v", err)
+	}
+}
+
+type crowdinFailingWriter struct{}
+
+func (f *crowdinFailingWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write failed")
 }
