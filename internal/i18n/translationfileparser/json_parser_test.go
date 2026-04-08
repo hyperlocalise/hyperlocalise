@@ -12,7 +12,7 @@ func TestJSONParserParsesFormatJSDefaultMessageOnly(t *testing.T) {
     "defaultMessage": "Welcome",
     "description": "Home page title"
   }
-}`)
+		}`)
 
 	got, err := (JSONParser{}).Parse(content)
 	if err != nil {
@@ -36,7 +36,7 @@ func TestJSONParserRejectsFormatJSDefaultMessageNonString(t *testing.T) {
     "defaultMessage": 123,
     "description": "Checkout submit button"
   }
-}`))
+	}`))
 	if err == nil {
 		t.Fatalf("expected invalid FormatJS defaultMessage error")
 	}
@@ -96,14 +96,78 @@ func TestJSONParserFlattensStringArraysToIndexedKeys(t *testing.T) {
 	}
 }
 
-func TestJSONParserRejectsNonStringArrayElements(t *testing.T) {
+func TestJSONParserFlattensObjectArraysToIndexedKeys(t *testing.T) {
+	content := []byte(`{
+  "home": {
+    "steps": [
+      {"title": "One", "description": "First"},
+      {"title": "Two", "description": "Second"}
+    ]
+  }
+}`)
+	got, err := (JSONParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["home.steps[0].title"] != "One" {
+		t.Fatalf("unexpected home.steps[0].title: %q", got["home.steps[0].title"])
+	}
+	if got["home.steps[0].description"] != "First" {
+		t.Fatalf("unexpected home.steps[0].description: %q", got["home.steps[0].description"])
+	}
+	if got["home.steps[1].title"] != "Two" {
+		t.Fatalf("unexpected home.steps[1].title: %q", got["home.steps[1].title"])
+	}
+	if got["home.steps[1].description"] != "Second" {
+		t.Fatalf("unexpected home.steps[1].description: %q", got["home.steps[1].description"])
+	}
+}
+
+func TestJSONParserRejectsUnsupportedArrayElements(t *testing.T) {
 	_, err := (JSONParser{}).Parse([]byte(`{
   "home": {
-    "steps": ["One", {"label": "Two"}]
+    "steps": ["One", 2]
   }
 }`))
 	if err == nil {
 		t.Fatalf("expected invalid array element error")
+	}
+}
+
+func TestMarshalJSONRewritesNestedObjectArrays(t *testing.T) {
+	template := []byte(`{
+  "home": {
+    "steps": [
+      {"title": "One", "description": "First"},
+      {"title": "Two", "description": "Second"}
+    ]
+  }
+}`)
+
+	got, err := MarshalJSON(template, map[string]string{
+		"home.steps[0].title":       "Uno",
+		"home.steps[1].description": "Segundo",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	parsed, err := (JSONParser{}).Parse(got)
+	if err != nil {
+		t.Fatalf("parse marshaled output: %v", err)
+	}
+	if parsed["home.steps[0].title"] != "Uno" {
+		t.Fatalf("unexpected rewritten home.steps[0].title: %q", parsed["home.steps[0].title"])
+	}
+	if parsed["home.steps[0].description"] != "First" {
+		t.Fatalf("unexpected unchanged home.steps[0].description: %q", parsed["home.steps[0].description"])
+	}
+	if parsed["home.steps[1].title"] != "Two" {
+		t.Fatalf("unexpected unchanged home.steps[1].title: %q", parsed["home.steps[1].title"])
+	}
+	if parsed["home.steps[1].description"] != "Segundo" {
+		t.Fatalf("unexpected rewritten home.steps[1].description: %q", parsed["home.steps[1].description"])
 	}
 }
 

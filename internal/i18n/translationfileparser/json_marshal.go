@@ -49,6 +49,24 @@ func rewriteJSONObject(payload map[string]any, prefix string, values map[string]
 			if replacement, ok := values[fullKey]; ok {
 				payload[key] = replacement
 			}
+		case []any:
+			rewriteJSONArray(typed, fullKey, values)
+		case map[string]any:
+			rewriteJSONObject(typed, fullKey, values)
+		}
+	}
+}
+
+func rewriteJSONArray(payload []any, prefix string, values map[string]string) {
+	for idx, raw := range payload {
+		fullKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		switch typed := raw.(type) {
+		case string:
+			if replacement, ok := values[fullKey]; ok {
+				payload[idx] = replacement
+			}
+		case []any:
+			rewriteJSONArray(typed, fullKey, values)
 		case map[string]any:
 			rewriteJSONObject(typed, fullKey, values)
 		}

@@ -136,11 +136,20 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 		case []any:
 			for idx, item := range typed {
 				itemKey := fmt.Sprintf("%s[%d]", nextKey, idx)
-				str, ok := item.(string)
-				if !ok {
-					return fmt.Errorf("json key %q must be string, got %T", itemKey, item)
+				switch nested := item.(type) {
+				case string:
+					out[itemKey] = nested
+				case map[string]any:
+					if err := flattenJSON(out, itemKey, nested); err != nil {
+						return err
+					}
+				case []any:
+					if err := flattenJSONArray(out, itemKey, nested); err != nil {
+						return err
+					}
+				default:
+					return fmt.Errorf("json key %q must be string, array, or object, got %T", itemKey, item)
 				}
-				out[itemKey] = str
 			}
 		case map[string]any:
 			if err := flattenJSON(out, nextKey, typed); err != nil {
@@ -148,6 +157,28 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 			}
 		default:
 			return fmt.Errorf("json key %q must be string, string array, or object, got %T", nextKey, value)
+		}
+	}
+
+	return nil
+}
+
+func flattenJSONArray(out map[string]string, prefix string, input []any) error {
+	for idx, item := range input {
+		itemKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		switch typed := item.(type) {
+		case string:
+			out[itemKey] = typed
+		case map[string]any:
+			if err := flattenJSON(out, itemKey, typed); err != nil {
+				return err
+			}
+		case []any:
+			if err := flattenJSONArray(out, itemKey, typed); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("json key %q must be string, array, or object, got %T", itemKey, item)
 		}
 	}
 
