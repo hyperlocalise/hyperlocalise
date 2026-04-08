@@ -72,6 +72,41 @@ func TestJSONParserMixedShapeFallsBackToStandardJSONFlattening(t *testing.T) {
 	}
 }
 
+func TestJSONParserFlattensStringArraysToIndexedKeys(t *testing.T) {
+	content := []byte(`{
+  "home": {
+    "steps": ["One", "Two"],
+    "title": "Welcome"
+  }
+}`)
+
+	got, err := (JSONParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["home.steps[0]"] != "One" {
+		t.Fatalf("unexpected home.steps[0]: %q", got["home.steps[0]"])
+	}
+	if got["home.steps[1]"] != "Two" {
+		t.Fatalf("unexpected home.steps[1]: %q", got["home.steps[1]"])
+	}
+	if got["home.title"] != "Welcome" {
+		t.Fatalf("unexpected home.title: %q", got["home.title"])
+	}
+}
+
+func TestJSONParserRejectsNonStringArrayElements(t *testing.T) {
+	_, err := (JSONParser{}).Parse([]byte(`{
+  "home": {
+    "steps": ["One", {"label": "Two"}]
+  }
+}`))
+	if err == nil {
+		t.Fatalf("expected invalid array element error")
+	}
+}
+
 func TestJSONParserParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	content := []byte(`{
   "checkout.submit": {
