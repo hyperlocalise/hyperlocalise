@@ -21,6 +21,8 @@ Treat the lockfile as an **advisory checkpoint**, not your source of truth.
 
 The lockfile only records what the CLI already attempted or completed so it can skip repeated work.
 
+It is not used to prove that a sync push is safe. Sync safety comes from current local files plus a fresh remote baseline read at execution time.
+
 ## Schema
 
 Current shape:
@@ -65,12 +67,15 @@ Field meanings:
 
 ### `hyperlocalise sync pull`
 
-- Reads existing adapter and locale checkpoint metadata.
+- May read existing adapter and locale checkpoint metadata as a performance hint.
+- Fetches a fresh remote snapshot for the requested scope.
 - Updates `adapter`, `project_id`, `last_pull_at`, and `locale_states` after successful pull.
 
 ### `hyperlocalise sync push`
 
 - May read adapter/project context from the lockfile.
+- Does not require lockfile or sidecar metadata to authorize writes.
+- Computes push diffs from local files plus a fresh remote baseline for the same scope.
 - Does not replace source/target content authority.
 
 ## Safe reset guidance

@@ -19,10 +19,23 @@ hyperlocalise sync push [--config <path>] [flags]
 
 `sync push` defaults to dry-run mode and conflict failure.
 
+During a real push, Hyperlocalise reads local files, fetches a fresh remote baseline for the same scope, computes an in-memory diff, and pushes only changed entries.
+
+For string-oriented adapters such as Crowdin, the default mutation unit is the individual translation entry (`key + context + locale`), not a whole file upload.
+
+Some adapters do not expose atomic compare-and-swap writes. In those cases, Hyperlocalise uses a best-effort safety model:
+
+- fetch a fresh remote baseline immediately before push
+- apply only changed entries
+- re-read affected entries after push to detect divergence
+
+Local metadata sidecars are not required for push correctness.
+
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
+- `--key-prefix`: limit sync scope to keys with any matching prefix, repeatable
 - `--dry-run`: preview only (default `true`)
 - `--output`: `text`, `json`, or `markdown`
 - `--fail-on-conflict`: return error when conflicts are detected (default `true`)
@@ -33,6 +46,17 @@ hyperlocalise sync push [--config <path>] [flags]
 ```bash
 hyperlocalise sync push --locale es-ES --dry-run=false
 ```
+
+```bash
+hyperlocalise sync push --locale es-ES --key-prefix checkout. --dry-run=false
+```
+
+## Notes
+
+- unchanged entries are skipped
+- filtered or invalid entries are not pushed
+- adapters may emit warnings when they can only provide best-effort concurrency protection
+- a post-push verification mismatch is reported as a conflict
 
 See [conflict handling](/troubleshooting/conflicts) before using `--force-conflicts`.
 

@@ -19,10 +19,15 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 `sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
 
+`sync pull` treats the remote adapter as authoritative at execution time. It fetches a fresh remote snapshot for the requested scope, compares it to local files, and then applies pull policy and invariant checks before writing local updates.
+
+Local metadata sidecars can still be used for reporting, but they are not required for pull correctness.
+
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
+- `--key-prefix`: limit sync scope to keys with any matching prefix, repeatable
 - `--dry-run`: preview only (default `true`)
 - `--output`: `text`, `json`, or `markdown`
 - `--fail-on-conflict`: return error when conflicts are detected (default `true`)
@@ -33,6 +38,16 @@ hyperlocalise sync pull [--config <path>] [flags]
 ```bash
 hyperlocalise sync pull --locale es-ES --output json
 ```
+
+```bash
+hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
+```
+
+## Notes
+
+- remote reads are always fresh for the requested scope
+- pull applies entry-level creates and updates after policy checks
+- invariant violations still block unsafe local writes
 
 See [conflict handling](/troubleshooting/conflicts) for resolution strategy.
 
