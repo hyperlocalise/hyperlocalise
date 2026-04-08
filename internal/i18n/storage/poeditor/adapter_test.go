@@ -3,6 +3,7 @@ package poeditor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ type fakeClient struct {
 	terms        []TermTranslation
 	listRevision string
 	upsertIn     UpsertTranslationsInput
+	upsertErr    error
 }
 
 func (f *fakeClient) ListTerms(_ context.Context, _ ListTermsInput) ([]TermTranslation, string, error) {
@@ -22,6 +24,9 @@ func (f *fakeClient) ListTerms(_ context.Context, _ ListTermsInput) ([]TermTrans
 
 func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
 	f.upsertIn = in
+	if f.upsertErr != nil {
+		return "", f.upsertErr
+	}
 	return "rev2", nil
 }
 
@@ -93,6 +98,59 @@ func TestAdapterPushGroupsEntries(t *testing.T) {
 	}
 	if got := len(client.upsertIn.Entries); got != 1 {
 		t.Fatalf("expected 1 upsert entry, got %d", got)
+	}
+}
+
+func TestAdapterPushAppliedOnlyIncludesSentEntries(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	req := storage.PushRequest{
+		Entries: []storage.Entry{
+			{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"},
+			{Key: "hello", Context: "home", Locale: "fr", Value: "salut"},
+			{Key: "empty", Context: "home", Locale: "fr", Value: "   "},
+			{Key: "", Context: "home", Locale: "fr", Value: "skip"},
+			{Key: "bye", Context: "home", Locale: "", Value: "skip"},
+		},
+	}
+
+	result, err := adapter.Push(context.Background(), req)
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(client.upsertIn.Entries); got != 1 {
+		t.Fatalf("expected 1 sent upsert entry, got %d", got)
+	}
+	if got := client.upsertIn.Entries[0].Value; got != "salut" {
+		t.Fatalf("expected latest duplicate to win, got %q", got)
+	}
+	if got := len(result.Applied); got != 1 {
+		t.Fatalf("expected 1 applied entry id, got %d", got)
+	}
+	if result.Applied[0] != req.Entries[0].ID() {
+		t.Fatalf("unexpected applied entry id: got %v want %v", result.Applied[0], req.Entries[0].ID())
+	}
+}
+
+func TestAdapterPushReturnsErrorWithoutAppliedOnFailure(t *testing.T) {
+	client := &fakeClient{upsertErr: errors.New("boom")}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
+	})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if got := len(result.Applied); got != 0 {
+		t.Fatalf("expected no applied ids on error, got %d", got)
 	}
 }
 

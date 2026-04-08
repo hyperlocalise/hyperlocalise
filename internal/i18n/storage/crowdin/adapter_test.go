@@ -15,6 +15,7 @@ type fakeClient struct {
 	strings      []StringTranslation
 	listRevision string
 	upsertIn     UpsertTranslationsInput
+	upsertResult UpsertTranslationsResult
 	upsertErr    error
 }
 
@@ -22,12 +23,15 @@ func (f *fakeClient) ListStrings(_ context.Context, _ ListStringsInput) ([]Strin
 	return f.strings, f.listRevision, nil
 }
 
-func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
+func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (UpsertTranslationsResult, error) {
 	f.upsertIn = in
 	if f.upsertErr != nil {
-		return "", f.upsertErr
+		return f.upsertResult, f.upsertErr
 	}
-	return "rev2", nil
+	if f.upsertResult.Revision == "" {
+		f.upsertResult.Revision = "rev2"
+	}
+	return f.upsertResult, nil
 }
 
 func TestParseConfigUsesEnvToken(t *testing.T) {
@@ -127,7 +131,9 @@ func TestAdapterPullMapsStringContextLanguage(t *testing.T) {
 }
 
 func TestAdapterPushGroupsEntries(t *testing.T) {
-	client := &fakeClient{}
+	client := &fakeClient{
+		upsertResult: UpsertTranslationsResult{Applied: []int{0}},
+	}
 	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
@@ -143,7 +149,9 @@ func TestAdapterPushGroupsEntries(t *testing.T) {
 }
 
 func TestAdapterPushAppliedOnlyIncludesSentEntries(t *testing.T) {
-	client := &fakeClient{}
+	client := &fakeClient{
+		upsertResult: UpsertTranslationsResult{Applied: []int{0}},
+	}
 	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
@@ -178,9 +186,53 @@ func TestAdapterPushAppliedOnlyIncludesSentEntries(t *testing.T) {
 	}
 }
 
+func TestAdapterPushMapsClientResults(t *testing.T) {
+	client := &fakeClient{
+		upsertResult: UpsertTranslationsResult{
+			Applied: []int{0},
+			Skipped: []int{1},
+			Conflicts: []UpsertConflict{{
+				Index:   2,
+				Reason:  "source_string_not_found",
+				Message: "missing source string",
+			}},
+		},
+	}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	req := storage.PushRequest{
+		Entries: []storage.Entry{
+			{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"},
+			{Key: "bye", Context: "home", Locale: "fr", Value: "au revoir"},
+			{Key: "missing", Context: "home", Locale: "fr", Value: "x"},
+		},
+	}
+
+	result, err := adapter.Push(context.Background(), req)
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(result.Applied); got != 1 {
+		t.Fatalf("expected 1 applied entry id, got %d", got)
+	}
+	if expected := req.Entries[0].ID(); result.Applied[0] != expected {
+		t.Fatalf("unexpected applied id: got %q, want %q", result.Applied[0], expected)
+	}
+	if got := len(result.Skipped); got != 1 || result.Skipped[0] != req.Entries[1].ID() {
+		t.Fatalf("unexpected skipped ids: %+v", result.Skipped)
+	}
+	if got := len(result.Conflicts); got != 1 || result.Conflicts[0].ID != req.Entries[2].ID() {
+		t.Fatalf("unexpected conflicts: %+v", result.Conflicts)
+	}
+}
+
 func TestAdapterPushReturnsPartialAppliedOnUpsertFailure(t *testing.T) {
 	client := &fakeClient{
-		upsertErr: &partialUpsertError{sentIndexes: []int{0}, cause: errors.New("boom")},
+		upsertResult: UpsertTranslationsResult{Revision: "rev2"},
+		upsertErr:    &partialUpsertError{sentIndexes: []int{0}, cause: errors.New("boom")},
 	}
 	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
 	if err != nil {
@@ -203,6 +255,30 @@ func TestAdapterPushReturnsPartialAppliedOnUpsertFailure(t *testing.T) {
 	}
 	if expected := req.Entries[0].ID(); result.Applied[0] != expected {
 		t.Fatalf("unexpected partial applied id: got %q, want %q", result.Applied[0], expected)
+	}
+}
+
+func TestAdapterPushRequiresExplicitClientOutcome(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
+	})
+	if err != nil {
+		t.Fatalf("push: %v", err)
+	}
+	if got := len(result.Applied); got != 0 {
+		t.Fatalf("expected no implicit applied ids, got %d", got)
+	}
+	if got := len(result.Skipped); got != 0 {
+		t.Fatalf("expected no implicit skipped ids, got %d", got)
+	}
+	if got := len(result.Conflicts); got != 0 {
+		t.Fatalf("expected no implicit conflicts, got %d", got)
 	}
 }
 

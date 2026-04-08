@@ -93,6 +93,32 @@ func TestJSONStoreBuildPushSnapshotUsesSameReadPath(t *testing.T) {
 	}
 }
 
+func TestJSONStoreBuildPushSnapshotFiltersByKeyPrefix(t *testing.T) {
+	dir := t.TempDir()
+	langDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(langDir, 0o755); err != nil {
+		t.Fatalf("mkdir lang dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(langDir, "fr.json"), []byte("{\"checkout.submit\":\"bonjour\",\"marketing.hero\":\"salut\"}\n"), 0o644); err != nil {
+		t.Fatalf("write locale file: %v", err)
+	}
+
+	store := mustNewStore(t, filepath.Join(dir, "lang", "[locale].json"))
+	snap, err := store.BuildPushSnapshot(context.Background(), syncsvc.LocalReadRequest{
+		Locales:     []string{"fr"},
+		KeyPrefixes: []string{"checkout."},
+	})
+	if err != nil {
+		t.Fatalf("build push snapshot: %v", err)
+	}
+	if got := len(snap.Entries); got != 1 {
+		t.Fatalf("expected 1 entry, got %d", got)
+	}
+	if got := snap.Entries[0].Key; got != "checkout.submit" {
+		t.Fatalf("unexpected key: %q", got)
+	}
+}
+
 func TestJSONStoreLocaleDirTemplateSupportsSourceRoot(t *testing.T) {
 	dir := t.TempDir()
 	docsDir := filepath.Join(dir, "docs")

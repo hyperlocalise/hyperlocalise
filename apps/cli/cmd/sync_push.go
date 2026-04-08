@@ -25,7 +25,8 @@ func newSyncPushCmd() *cobra.Command {
 				Adapter: rt.remote,
 				Local:   rt.local,
 				Read: syncsvc.LocalReadRequest{
-					Locales: o.locales,
+					Locales:     o.locales,
+					KeyPrefixes: o.keyPrefixes,
 				},
 				Options: syncsvc.PushOptions{
 					DryRun:         o.dryRun,

@@ -13,6 +13,7 @@ import (
 
 	sdkcrowdin "github.com/crowdin/crowdin-api-client-go/crowdin"
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 type HTTPClient struct {
@@ -334,6 +335,7 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 	}
 
 	entries := make([]StringTranslation, 0)
+	entryFilter := buildEntryFilter(in)
 	for _, locale := range locales {
 		offset := 0
 		for {
@@ -364,6 +366,9 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 				if !exists {
 					continue
 				}
+				if !entryFilter.matches(source.key, source.context, locale) {
+					continue
+				}
 				entries = append(entries, StringTranslation{
 					Key:     source.key,
 					Context: source.context,
@@ -382,30 +387,52 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 	return entries, time.Now().UTC().Format(time.RFC3339Nano), nil
 }
 
-func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (string, error) {
+func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (UpsertTranslationsResult, error) {
 	projectID, err := parseProjectID(in.ProjectID)
 	if err != nil {
-		return "", err
+		return UpsertTranslationsResult{}, err
 	}
 	_, sourceByKey, err := c.listSourceStrings(ctx, projectID)
 	if err != nil {
-		return "", err
+		return UpsertTranslationsResult{}, err
 	}
 	translationsByTarget := make(map[translationLookupKey]map[string]struct{}, len(in.Entries))
-
-	sentIndexes := make([]int, 0, len(in.Entries))
+	result := UpsertTranslationsResult{
+		Applied:  make([]int, 0, len(in.Entries)),
+		Skipped:  make([]int, 0, len(in.Entries)),
+		Revision: time.Now().UTC().Format(time.RFC3339Nano),
+	}
 
 	for idx, entry := range in.Entries {
-		sent, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, translationsByTarget)
+		outcome, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, translationsByTarget)
 		if upsertErr != nil {
-			return "", &partialUpsertError{sentIndexes: sentIndexes, cause: upsertErr}
+			return result, &partialUpsertError{sentIndexes: result.Applied, cause: upsertErr}
 		}
-		if sent {
-			sentIndexes = append(sentIndexes, idx)
+		switch {
+		case outcome.conflict != nil:
+			result.Conflicts = append(result.Conflicts, UpsertConflict{
+				Index:   idx,
+				Reason:  outcome.conflict.reason,
+				Message: outcome.conflict.message,
+			})
+		case outcome.sent:
+			result.Applied = append(result.Applied, idx)
+		default:
+			result.Skipped = append(result.Skipped, idx)
 		}
 	}
 
-	return time.Now().UTC().Format(time.RFC3339Nano), nil
+	return result, nil
+}
+
+type upsertConflict struct {
+	reason  string
+	message string
+}
+
+type upsertTranslationOutcome struct {
+	sent     bool
+	conflict *upsertConflict
 }
 
 func (c *HTTPClient) upsertTranslationEntry(
@@ -414,31 +441,31 @@ func (c *HTTPClient) upsertTranslationEntry(
 	entry StringTranslation,
 	sourceByKey map[sourceStringKey]int,
 	translationsByTarget map[translationLookupKey]map[string]struct{},
-) (bool, error) {
+) (upsertTranslationOutcome, error) {
 	key, locale := strings.TrimSpace(entry.Key), strings.TrimSpace(entry.Locale)
 	if key == "" || locale == "" {
-		return false, nil
+		return upsertTranslationOutcome{}, nil
 	}
 
 	stringID, err := resolveSourceStringID(sourceByKey, key, entry.Context)
 	if err != nil {
-		return false, err
+		return upsertTranslationOutcome{conflict: classifySourceStringConflict(err)}, nil
 	}
 
 	knownTexts, err := c.ensureKnownTranslationTexts(ctx, projectID, stringID, locale, translationsByTarget)
 	if err != nil {
-		return false, err
+		return upsertTranslationOutcome{}, err
 	}
 	if _, exists := knownTexts[entry.Value]; exists {
-		return false, nil
+		return upsertTranslationOutcome{}, nil
 	}
 
 	if err := c.addTranslationWithRetry(ctx, projectID, stringID, locale, entry.Value); err != nil {
-		return false, fmt.Errorf("add translation: %w", err)
+		return upsertTranslationOutcome{}, fmt.Errorf("add translation: %w", err)
 	}
 
 	knownTexts[entry.Value] = struct{}{}
-	return true, nil
+	return upsertTranslationOutcome{sent: true}, nil
 }
 
 func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context string) (int, error) {
@@ -492,4 +519,60 @@ func (c *HTTPClient) addTranslationWithRetry(ctx context.Context, projectID, str
 		}
 	}
 	return lastErr
+}
+
+type entryFilter struct {
+	keyPrefixes []string
+	entryIDs    map[storage.EntryID]struct{}
+}
+
+func buildEntryFilter(in ListStringsInput) entryFilter {
+	filter := entryFilter{
+		keyPrefixes: make([]string, 0, len(in.KeyPrefixes)),
+		entryIDs:    make(map[storage.EntryID]struct{}, len(in.EntryIDs)),
+	}
+	for _, prefix := range in.KeyPrefixes {
+		trimmed := strings.TrimSpace(prefix)
+		if trimmed == "" {
+			continue
+		}
+		filter.keyPrefixes = append(filter.keyPrefixes, trimmed)
+	}
+	for _, id := range in.EntryIDs {
+		filter.entryIDs[id] = struct{}{}
+	}
+	return filter
+}
+
+func (f entryFilter) matches(key, context, locale string) bool {
+	if len(f.entryIDs) > 0 {
+		if _, exists := f.entryIDs[storage.EntryID{Key: key, Context: context, Locale: locale}]; exists {
+			return true
+		}
+		return false
+	}
+	if len(f.keyPrefixes) == 0 {
+		return true
+	}
+	for _, prefix := range f.keyPrefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func classifySourceStringConflict(err error) *upsertConflict {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "not found"):
+		return &upsertConflict{reason: "source_string_not_found", message: msg}
+	case strings.Contains(msg, "ambiguous"):
+		return &upsertConflict{reason: "ambiguous_source_string", message: msg}
+	default:
+		return &upsertConflict{reason: "unresolved_remote_identity", message: msg}
+	}
 }

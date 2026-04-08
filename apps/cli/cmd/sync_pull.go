@@ -25,10 +25,12 @@ func newSyncPullCmd() *cobra.Command {
 				Adapter: rt.remote,
 				Local:   rt.local,
 				Request: storage.PullRequest{
-					Locales: o.locales,
+					Locales:     o.locales,
+					KeyPrefixes: o.keyPrefixes,
 				},
 				Read: syncsvc.LocalReadRequest{
-					Locales: o.locales,
+					Locales:     o.locales,
+					KeyPrefixes: o.keyPrefixes,
 				},
 				Options: syncsvc.PullOptions{
 					DryRun:                o.dryRun,
