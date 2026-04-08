@@ -54,9 +54,9 @@ type fileGroupYAML struct {
 	Translation             string                       `yaml:"translation"`
 	LanguagesMapping        map[string]map[string]string `yaml:"languages_mapping"`
 	ExcludedTargetLanguages []string                     `yaml:"excluded_target_languages"`
-	SkipUntranslatedStrings bool                         `yaml:"skip_untranslated_strings"`
-	SkipUntranslatedFiles   bool                         `yaml:"skip_untranslated_files"`
-	ExportOnlyApproved      bool                         `yaml:"export_only_approved"`
+	SkipUntranslatedStrings *bool                        `yaml:"skip_untranslated_strings"`
+	SkipUntranslatedFiles   *bool                        `yaml:"skip_untranslated_files"`
+	ExportOnlyApproved      *bool                        `yaml:"export_only_approved"`
 }
 
 // ResolveFileConfigPath resolves the project crowdin config path.
@@ -74,28 +74,28 @@ func ResolveFileConfigPath(path string) (string, error) {
 }
 
 // LoadFileWorkflowConfig loads and validates crowdin.yml into normalized file-mode config.
-func LoadFileWorkflowConfig(path, identityPath string) (storage.FileWorkflowConfig, error) {
+func LoadFileWorkflowConfig(path, identityPath string) (storage.FileWorkflowConfig, string, error) {
 	resolvedPath, err := ResolveFileConfigPath(path)
 	if err != nil {
-		return storage.FileWorkflowConfig{}, err
+		return storage.FileWorkflowConfig{}, "", err
 	}
 
 	projectCfg, err := decodeYAMLFile[fileConfigYAML](resolvedPath)
 	if err != nil {
-		return storage.FileWorkflowConfig{}, err
+		return storage.FileWorkflowConfig{}, "", err
 	}
 
 	identityCfg, err := loadIdentityConfig(identityPath)
 	if err != nil {
-		return storage.FileWorkflowConfig{}, err
+		return storage.FileWorkflowConfig{}, "", err
 	}
 
 	cfgDir := filepath.Dir(resolvedPath)
 	cfg, err := normalizeFileWorkflowConfig(projectCfg, identityCfg, cfgDir)
 	if err != nil {
-		return storage.FileWorkflowConfig{}, err
+		return storage.FileWorkflowConfig{}, "", err
 	}
-	return cfg, nil
+	return cfg, resolvedPath, nil
 }
 
 func loadIdentityConfig(path string) (identityConfigYAML, error) {

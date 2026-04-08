@@ -204,11 +204,7 @@ func addCrowdinCommonFlags(cmd *cobra.Command, o *crowdinCommonOptions, includeL
 }
 
 func loadCrowdinWorkflowConfig(configPath, identityPath string) (storage.FileWorkflowConfig, string, error) {
-	resolvedPath, err := crowdinstorage.ResolveFileConfigPath(configPath)
-	if err != nil {
-		return storage.FileWorkflowConfig{}, "", err
-	}
-	cfg, err := crowdinstorage.LoadFileWorkflowConfig(resolvedPath, identityPath)
+	cfg, resolvedPath, err := crowdinstorage.LoadFileWorkflowConfig(configPath, identityPath)
 	if err != nil {
 		return storage.FileWorkflowConfig{}, "", err
 	}

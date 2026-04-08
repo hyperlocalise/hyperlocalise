@@ -130,9 +130,9 @@ type FileWorkflowCapabilities struct {
 
 // FileExportOptions define file-mode export behavior for a translation group.
 type FileExportOptions struct {
-	SkipUntranslatedStrings bool `json:"skip_untranslated_strings,omitempty"`
-	SkipUntranslatedFiles   bool `json:"skip_untranslated_files,omitempty"`
-	ExportOnlyApproved      bool `json:"export_only_approved,omitempty"`
+	SkipUntranslatedStrings *bool `json:"skip_untranslated_strings,omitempty"`
+	SkipUntranslatedFiles   *bool `json:"skip_untranslated_files,omitempty"`
+	ExportOnlyApproved      *bool `json:"export_only_approved,omitempty"`
 }
 
 // FileGroupSpec is the normalized file-mode description for one translation group.

@@ -338,6 +338,11 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 			b.WriteString("[^/]*")
 		case '?':
 			b.WriteString("[^/]")
+		case '[':
+			charClass, width := parseGlobCharClass(pattern[i:])
+			b.WriteString(charClass)
+			i += width
+			continue
 		default:
 			b.WriteString(regexp.QuoteMeta(pattern[i : i+1]))
 		}
@@ -345,6 +350,45 @@ func globToRegex(pattern string) (*regexp.Regexp, error) {
 	}
 	b.WriteString("$")
 	return regexp.Compile(b.String())
+}
+
+func parseGlobCharClass(pattern string) (string, int) {
+	if len(pattern) < 2 {
+		return `\[`, 1
+	}
+
+	var b strings.Builder
+	b.WriteByte('[')
+	i := 1
+
+	switch pattern[i] {
+	case '!', '^':
+		b.WriteByte('^')
+		i++
+	}
+
+	if i < len(pattern) && pattern[i] == ']' {
+		b.WriteString(`\]`)
+		i++
+	}
+
+	for ; i < len(pattern); i++ {
+		ch := pattern[i]
+		if ch == '/' {
+			return `\[`, 1
+		}
+		if ch == ']' {
+			b.WriteByte(']')
+			return b.String(), i + 1
+		}
+		if ch == '\\' {
+			b.WriteString(`\\`)
+			continue
+		}
+		b.WriteByte(ch)
+	}
+
+	return `\[`, 1
 }
 
 func makeStringSet(values []string) map[string]struct{} {

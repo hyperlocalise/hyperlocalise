@@ -434,9 +434,9 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, projectID stri
 	}
 	link, _, err := c.client.Translations.BuildProjectFileTranslation(ctx, projectInt, fileID, &model.BuildProjectFileTranslationRequest{
 		TargetLanguageID:        languageID,
-		SkipUntranslatedStrings: boolPtr(opts.SkipUntranslatedStrings),
-		SkipUntranslatedFiles:   boolPtr(opts.SkipUntranslatedFiles),
-		ExportApprovedOnly:      boolPtr(opts.ExportOnlyApproved),
+		SkipUntranslatedStrings: opts.SkipUntranslatedStrings,
+		SkipUntranslatedFiles:   opts.SkipUntranslatedFiles,
+		ExportApprovedOnly:      opts.ExportOnlyApproved,
 	}, "")
 	if err != nil {
 		return nil, fmt.Errorf("build translation for file %d locale %s: %w", fileID, languageID, err)
@@ -524,13 +524,6 @@ func (c *HTTPClient) downloadURL(ctx context.Context, rawURL string) ([]byte, er
 		return nil, fmt.Errorf("read artifact: %w", err)
 	}
 	return payload, nil
-}
-
-func boolPtr(value bool) *bool {
-	if !value {
-		return nil
-	}
-	return &value
 }
 
 func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error) {

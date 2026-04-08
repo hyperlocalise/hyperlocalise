@@ -183,9 +183,9 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 			Source:      "/src/*.json",
 			Translation: "/download/%locale%/%original_file_name%",
 			Export: storage.FileExportOptions{
-				SkipUntranslatedStrings: true,
-				SkipUntranslatedFiles:   true,
-				ExportOnlyApproved:      true,
+				SkipUntranslatedStrings: boolPtr(true),
+				SkipUntranslatedFiles:   boolPtr(true),
+				ExportOnlyApproved:      boolPtr(true),
 			},
 		}},
 	}, client)
@@ -206,9 +206,9 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 		t.Fatalf("download options len = %d, want 1", len(client.downloadOptions))
 	}
 	if got, want := client.downloadOptions[0], (storage.FileExportOptions{
-		SkipUntranslatedStrings: true,
-		SkipUntranslatedFiles:   true,
-		ExportOnlyApproved:      true,
+		SkipUntranslatedStrings: boolPtr(true),
+		SkipUntranslatedFiles:   boolPtr(true),
+		ExportOnlyApproved:      boolPtr(true),
 	}); !reflect.DeepEqual(got, want) {
 		t.Fatalf("download options = %#v, want %#v", got, want)
 	}
@@ -264,4 +264,22 @@ func writeJSONFixture(t *testing.T, path, content string) string {
 		t.Fatalf("write fixture: %v", err)
 	}
 	return path
+}
+
+func TestResolveCrowdinSourcePathsSupportsBracketClassesWithDoublestar(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "nested", "en.JSON"), `{"hello":"Hello"}`)
+
+	matches, err := resolveCrowdinSourcePaths(base, "/**/en.[jJ][sS][oO][nN]")
+	if err != nil {
+		t.Fatalf("resolve source paths: %v", err)
+	}
+	want := []string{filepath.Join(base, "nested", "en.JSON")}
+	if !reflect.DeepEqual(matches, want) {
+		t.Fatalf("matches = %#v, want %#v", matches, want)
+	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }

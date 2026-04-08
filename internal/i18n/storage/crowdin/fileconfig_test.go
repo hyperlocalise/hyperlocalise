@@ -23,9 +23,12 @@ files:
 		t.Fatalf("write config: %v", err)
 	}
 
-	cfg, err := LoadFileWorkflowConfig(configPath, "")
+	cfg, resolvedPath, err := LoadFileWorkflowConfig(configPath, "")
 	if err != nil {
 		t.Fatalf("load file workflow config: %v", err)
+	}
+	if resolvedPath != configPath {
+		t.Fatalf("resolved path = %q, want %q", resolvedPath, configPath)
 	}
 	if cfg.ProjectID != "123" {
 		t.Fatalf("project id = %q, want 123", cfg.ProjectID)
@@ -55,7 +58,7 @@ files:
 		t.Fatalf("write config: %v", err)
 	}
 
-	_, err := LoadFileWorkflowConfig(configPath, "")
+	_, _, err := LoadFileWorkflowConfig(configPath, "")
 	if err == nil || !strings.Contains(err.Error(), "unsupported placeholder") {
 		t.Fatalf("expected unsupported placeholder error, got %v", err)
 	}
@@ -85,7 +88,7 @@ api_token: identity-secret
 		t.Fatalf("write identity: %v", err)
 	}
 
-	cfg, err := LoadFileWorkflowConfig(configPath, identityPath)
+	cfg, _, err := LoadFileWorkflowConfig(configPath, identityPath)
 	if err != nil {
 		t.Fatalf("load file workflow config: %v", err)
 	}
@@ -111,7 +114,7 @@ files:
 		t.Fatalf("write config: %v", err)
 	}
 
-	cfg, err := LoadFileWorkflowConfig(configPath, "")
+	cfg, _, err := LoadFileWorkflowConfig(configPath, "")
 	if err != nil {
 		t.Fatalf("load file workflow config: %v", err)
 	}
@@ -137,12 +140,46 @@ files:
 		t.Fatalf("write config: %v", err)
 	}
 
-	cfg, err := LoadFileWorkflowConfig(configPath, "")
+	cfg, _, err := LoadFileWorkflowConfig(configPath, "")
 	if err != nil {
 		t.Fatalf("load file workflow config: %v", err)
 	}
 	got := cfg.Files[0].LanguagesMapping["custom_locale"]["fr-FR"]
 	if got != "french" {
 		t.Fatalf("languages mapping = %q, want french", got)
+	}
+}
+
+func TestLoadFileWorkflowConfigPreservesExplicitFalseExportOptions(t *testing.T) {
+	t.Setenv(defaultProjectIDEnvName, "123")
+	t.Setenv(defaultAPITokenEnvName, "secret")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	if err := os.WriteFile(configPath, []byte(`
+files:
+  - source: /src/en.json
+    translation: /dist/%locale%/%original_file_name%
+    skip_untranslated_strings: false
+    skip_untranslated_files: false
+    export_only_approved: false
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, _, err := LoadFileWorkflowConfig(configPath, "")
+	if err != nil {
+		t.Fatalf("load file workflow config: %v", err)
+	}
+
+	export := cfg.Files[0].Export
+	if export.SkipUntranslatedStrings == nil || *export.SkipUntranslatedStrings {
+		t.Fatalf("skip untranslated strings = %#v, want explicit false", export.SkipUntranslatedStrings)
+	}
+	if export.SkipUntranslatedFiles == nil || *export.SkipUntranslatedFiles {
+		t.Fatalf("skip untranslated files = %#v, want explicit false", export.SkipUntranslatedFiles)
+	}
+	if export.ExportOnlyApproved == nil || *export.ExportOnlyApproved {
+		t.Fatalf("export only approved = %#v, want explicit false", export.ExportOnlyApproved)
 	}
 }
