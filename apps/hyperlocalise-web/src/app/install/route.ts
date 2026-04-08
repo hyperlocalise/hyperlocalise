@@ -1,4 +1,4 @@
-const installDocsUrl = "https://hyperlocalise.dev/docs/getting-started/install";
+const installDocsUrl = "https://hyperlocalise.dev/getting-started/install";
 const installScriptUrl =
   "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh";
 
@@ -11,7 +11,7 @@ export function GET(request: Request): Response {
     ? installDocsUrl
     : installScriptUrl;
   return new Response(null, {
-    status: 307,
+    status: 308,
     headers: {
       Location: destination,
       Vary: "Accept",

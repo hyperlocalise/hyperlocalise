@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { GET } from "./route";
 
@@ -12,10 +12,8 @@ describe("GET /install", () => {
 
     const response = GET(request);
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "https://hyperlocalise.dev/docs/getting-started/install",
-    );
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe("https://hyperlocalise.dev/getting-started/install");
     expect(response.headers.get("vary")).toBe("Accept");
   });
 
@@ -28,7 +26,7 @@ describe("GET /install", () => {
 
     const response = GET(request);
 
-    expect(response.status).toBe(307);
+    expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe(
       "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh",
     );
@@ -40,7 +38,7 @@ describe("GET /install", () => {
 
     const response = GET(request);
 
-    expect(response.status).toBe(307);
+    expect(response.status).toBe(308);
     expect(response.headers.get("location")).toBe(
       "https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh",
     );
