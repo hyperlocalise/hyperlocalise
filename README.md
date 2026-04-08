@@ -9,14 +9,14 @@ It combines a local-first CLI, CI automation, and storage adapters so localizati
 
 ## Docs
 
-The full product documentation lives at [hyperlocalise.dev/docs](https://hyperlocalise.dev/docs).
+The full product documentation lives at [hyperlocalise.dev](https://hyperlocalise.dev).
 
-- Getting started: [Install](https://hyperlocalise.dev/docs/getting-started/install), [Quickstart](https://hyperlocalise.dev/docs/getting-started/quickstart), [First project](https://hyperlocalise.dev/docs/getting-started/first-project)
-- Configuration: [i18n config](https://hyperlocalise.dev/docs/configuration/i18n-config), [provider credentials](https://hyperlocalise.dev/docs/configuration/provider-credentials)
-- Commands: [CLI overview](https://hyperlocalise.dev/docs/commands/overview), [`run`](https://hyperlocalise.dev/docs/commands/run), [`eval`](https://hyperlocalise.dev/docs/commands/eval), [`status`](https://hyperlocalise.dev/docs/commands/status), [`sync pull`](https://hyperlocalise.dev/docs/commands/sync-pull), [`sync push`](https://hyperlocalise.dev/docs/commands/sync-push)
-- Workflows: [local generation](https://hyperlocalise.dev/docs/workflows/local-generation), [CI automation](https://hyperlocalise.dev/docs/workflows/ci-automation), [TMS curation loop](https://hyperlocalise.dev/docs/workflows/tms-curation-loop)
-- Providers: [provider overview](https://hyperlocalise.dev/docs/providers/overview)
-- TMS adapters: [storage overview](https://hyperlocalise.dev/docs/storage/overview)
+- Getting started: [Install](https://hyperlocalise.dev/getting-started/install), [Quickstart](https://hyperlocalise.dev/getting-started/quickstart), [First project](https://hyperlocalise.dev/getting-started/first-project)
+- Configuration: [i18n config](https://hyperlocalise.dev/configuration/i18n-config), [provider credentials](https://hyperlocalise.dev/configuration/provider-credentials)
+- Commands: [CLI overview](https://hyperlocalise.dev/commands/overview), [`run`](https://hyperlocalise.dev/commands/run), [`eval`](https://hyperlocalise.dev/commands/eval), [`status`](https://hyperlocalise.dev/commands/status), [`sync pull`](https://hyperlocalise.dev/commands/sync-pull), [`sync push`](https://hyperlocalise.dev/commands/sync-push)
+- Workflows: [local generation](https://hyperlocalise.dev/workflows/local-generation), [CI automation](https://hyperlocalise.dev/workflows/ci-automation), [TMS curation loop](https://hyperlocalise.dev/workflows/tms-curation-loop)
+- Providers: [provider overview](https://hyperlocalise.dev/providers/overview)
+- TMS adapters: [storage overview](https://hyperlocalise.dev/storage/overview)
 
 ## Install
 
@@ -67,6 +67,8 @@ Current scope:
 - Supported checks in `v1`: `drift` and `check`
 - `drift` runs `hyperlocalise run --dry-run` and reports planned localization changes
 - `check` runs `hyperlocalise check --format json` and reports localization integrity findings
+
+This repository publishes a moving major ref for stable v1 releases. Use `@v1` for the latest compatible action, or pin an exact tag such as `@v1.3.1` for stricter control.
 
 Example: `check` mode with annotations and artifact upload
 
