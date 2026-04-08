@@ -16,6 +16,7 @@ import (
 type FileClient interface {
 	ResolveLocales(ctx context.Context, projectID string, requested []string) ([]string, error)
 	EnsureDirectory(ctx context.Context, projectID, path string) (int, error)
+	FindDirectory(ctx context.Context, projectID, path string) (int, error)
 	UpsertSourceFile(ctx context.Context, projectID string, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error)
 	FindFile(ctx context.Context, projectID string, directoryID int, name string) (int, error)
 	UploadTranslationFile(ctx context.Context, projectID, languageID string, fileID int, localPath string) error
@@ -113,7 +114,7 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			dirID, name, err := a.ensureRemoteLocation(ctx, config.ProjectID, remotePath)
+			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, remotePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
@@ -171,7 +172,7 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			dirID, name, err := a.ensureRemoteLocation(ctx, config.ProjectID, remotePath)
+			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, remotePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
@@ -221,6 +222,18 @@ func (a *FileAdapter) ensureRemoteLocation(ctx context.Context, projectID, remot
 		dirPath = ""
 	}
 	dirID, err := a.client.EnsureDirectory(ctx, projectID, dirPath)
+	if err != nil {
+		return 0, "", err
+	}
+	return dirID, filepath.Base(remotePath), nil
+}
+
+func (a *FileAdapter) findRemoteLocation(ctx context.Context, projectID, remotePath string) (int, string, error) {
+	dirPath := filepath.ToSlash(filepath.Dir(remotePath))
+	if dirPath == "." {
+		dirPath = ""
+	}
+	dirID, err := a.client.FindDirectory(ctx, projectID, dirPath)
 	if err != nil {
 		return 0, "", err
 	}

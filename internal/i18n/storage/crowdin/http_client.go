@@ -362,6 +362,30 @@ func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string
 	return parentID, nil
 }
 
+func (c *HTTPClient) FindDirectory(ctx context.Context, projectID, path string) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	normalized := strings.Trim(strings.TrimSpace(filepath.ToSlash(path)), "/")
+	if normalized == "" {
+		return 0, nil
+	}
+
+	parentID := 0
+	for _, segment := range strings.Split(normalized, "/") {
+		directory, err := c.findDirectory(ctx, projectInt, parentID, segment)
+		if err != nil {
+			return 0, err
+		}
+		if directory == nil {
+			return 0, fmt.Errorf("remote directory %q not found", normalized)
+		}
+		parentID = directory.ID
+	}
+	return parentID, nil
+}
+
 func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {

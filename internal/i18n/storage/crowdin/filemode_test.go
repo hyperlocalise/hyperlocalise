@@ -15,10 +15,12 @@ import (
 type fakeFileClient struct {
 	locales              []string
 	ensuredDirectories   []string
+	foundDirectories     []string
 	upsertedSources      []string
 	uploadedTranslations []string
 	downloaded           []string
 	downloadOptions      []storage.FileExportOptions
+	directories          map[string]int
 	files                map[string]int
 	failFindMissing      bool
 }
@@ -33,6 +35,17 @@ func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested [
 func (f *fakeFileClient) EnsureDirectory(_ context.Context, _ string, path string) (int, error) {
 	f.ensuredDirectories = append(f.ensuredDirectories, path)
 	return len(f.ensuredDirectories), nil
+}
+
+func (f *fakeFileClient) FindDirectory(_ context.Context, _ string, path string) (int, error) {
+	f.foundDirectories = append(f.foundDirectories, path)
+	if strings.TrimSpace(path) == "" {
+		return 0, nil
+	}
+	if id, ok := f.directories[path]; ok {
+		return id, nil
+	}
+	return 0, fmt.Errorf("remote directory %q not found", path)
 }
 
 func (f *fakeFileClient) UpsertSourceFile(_ context.Context, _ string, _ int, name, localPath string, _ storage.FileGroupSpec) (int, error) {
@@ -103,13 +116,15 @@ func TestFileAdapterUploadTranslationsFailsWhenRemoteFileMissing(t *testing.T) {
 
 	client := &fakeFileClient{
 		locales:         []string{"fr"},
+		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		files:           map[string]int{},
 	}
 	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
-		ProjectID: "123",
-		APIToken:  "token",
-		BasePath:  base,
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
 		Files: []storage.FileGroupSpec{{
 			Source:      "/src/*.json",
 			Translation: "/dist/%locale%/%original_file_name%",
@@ -119,6 +134,12 @@ func TestFileAdapterUploadTranslationsFailsWhenRemoteFileMissing(t *testing.T) {
 	_, err := adapter.UploadTranslations(context.Background(), storage.FileUploadTranslationsRequest{})
 	if err == nil || !strings.Contains(err.Error(), "remote source file") {
 		t.Fatalf("expected missing remote file error, got %v", err)
+	}
+	if !reflect.DeepEqual(client.foundDirectories, []string{"src"}) {
+		t.Fatalf("found directories = %#v, want src lookup", client.foundDirectories)
+	}
+	if len(client.ensuredDirectories) != 0 {
+		t.Fatalf("ensured directories = %#v, want none", client.ensuredDirectories)
 	}
 }
 
@@ -130,12 +151,14 @@ func TestFileAdapterUploadTranslationsRespectsLanguagesMappingAndExclusions(t *t
 
 	client := &fakeFileClient{
 		locales:         []string{"fr-FR", "de"},
+		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 	}
 	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
-		ProjectID: "123",
-		APIToken:  "token",
-		BasePath:  base,
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
 		Files: []storage.FileGroupSpec{{
 			Source:      "/src/*.json",
 			Translation: "/dist/%two_letters_code%/%original_file_name%",
@@ -159,11 +182,17 @@ func TestFileAdapterUploadTranslationsRespectsLanguagesMappingAndExclusions(t *t
 	if !reflect.DeepEqual(result.Processed, []string{filepath.Join(base, "dist", "french", "messages.json")}) {
 		t.Fatalf("processed = %#v", result.Processed)
 	}
-	if !reflect.DeepEqual(result.Skipped, []string{"messages.json@de"}) {
+	if !reflect.DeepEqual(result.Skipped, []string{"src/messages.json@de"}) {
 		t.Fatalf("skipped = %#v", result.Skipped)
 	}
 	if got, want := client.uploadedTranslations, []string{"fr-FR:1:messages.json"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("uploaded translations = %#v, want %#v", got, want)
+	}
+	if !reflect.DeepEqual(client.ensuredDirectories, []string{"src"}) {
+		t.Fatalf("ensured directories = %#v, want source upload directory create", client.ensuredDirectories)
+	}
+	if !reflect.DeepEqual(client.foundDirectories, []string{"src"}) {
+		t.Fatalf("found directories = %#v, want translation lookup only", client.foundDirectories)
 	}
 }
 
@@ -173,12 +202,14 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 
 	client := &fakeFileClient{
 		locales:         []string{"fr"},
+		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 	}
 	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
-		ProjectID: "123",
-		APIToken:  "token",
-		BasePath:  base,
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
 		Files: []storage.FileGroupSpec{{
 			Source:      "/src/*.json",
 			Translation: "/download/%locale%/%original_file_name%",
@@ -218,6 +249,44 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 	}
 	if string(payload) != "translated-fr" {
 		t.Fatalf("payload = %q, want translated-fr", string(payload))
+	}
+	if !reflect.DeepEqual(client.ensuredDirectories, []string{"src"}) {
+		t.Fatalf("ensured directories = %#v, want source upload directory create", client.ensuredDirectories)
+	}
+	if !reflect.DeepEqual(client.foundDirectories, []string{"src"}) {
+		t.Fatalf("found directories = %#v, want translation lookup only", client.foundDirectories)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsFailsWhenRemoteDirectoryMissing(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "nested", "messages.json"), `{"hello":"Hello"}`)
+
+	client := &fakeFileClient{
+		locales:         []string{"fr"},
+		failFindMissing: true,
+		files:           map[string]int{"messages.json": 1},
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/**/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	_, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{})
+	if err == nil || !strings.Contains(err.Error(), `remote directory "src/nested" not found`) {
+		t.Fatalf("expected missing remote directory error, got %v", err)
+	}
+	if !reflect.DeepEqual(client.foundDirectories, []string{"src/nested"}) {
+		t.Fatalf("found directories = %#v, want nested lookup", client.foundDirectories)
+	}
+	if len(client.ensuredDirectories) != 0 {
+		t.Fatalf("ensured directories = %#v, want none", client.ensuredDirectories)
 	}
 }
 
