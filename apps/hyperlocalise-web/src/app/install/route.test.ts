@@ -13,7 +13,9 @@ describe("GET /install", () => {
     const response = GET(request);
 
     expect(response.status).toBe(308);
-    expect(response.headers.get("location")).toBe("https://hyperlocalise.dev/getting-started/install");
+    expect(response.headers.get("location")).toBe(
+      "https://hyperlocalise.dev/getting-started/install",
+    );
     expect(response.headers.get("vary")).toBe("Accept");
   });
 
