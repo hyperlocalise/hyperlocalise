@@ -13,14 +13,14 @@ import (
 )
 
 type fakeFileClient struct {
-	locales               []string
-	ensuredDirectories    []string
-	upsertedSources       []string
-	uploadedTranslations  []string
-	downloaded            []string
-	downloadOptions       []storage.FileExportOptions
-	files                 map[string]int
-	failFindMissing       bool
+	locales              []string
+	ensuredDirectories   []string
+	upsertedSources      []string
+	uploadedTranslations []string
+	downloaded           []string
+	downloadOptions      []storage.FileExportOptions
+	files                map[string]int
+	failFindMissing      bool
 }
 
 func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested []string) ([]string, error) {

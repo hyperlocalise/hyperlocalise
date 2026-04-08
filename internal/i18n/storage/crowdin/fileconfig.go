@@ -28,16 +28,16 @@ const (
 var crowdinPlaceholderRE = regexp.MustCompile(`%([A-Za-z0-9_]+)%`)
 
 type fileConfigYAML struct {
-	ProjectID         any                             `yaml:"project_id"`
-	ProjectIDEnv      string                          `yaml:"project_id_env"`
-	APIToken          string                          `yaml:"api_token"`
-	APITokenEnv       string                          `yaml:"api_token_env"`
-	BaseURL           string                          `yaml:"base_url"`
-	BaseURLEnv        string                          `yaml:"base_url_env"`
-	BasePath          string                          `yaml:"base_path"`
-	BasePathEnv       string                          `yaml:"base_path_env"`
-	PreserveHierarchy bool                            `yaml:"preserve_hierarchy"`
-	Files             []fileGroupYAML                 `yaml:"files"`
+	ProjectID         any             `yaml:"project_id"`
+	ProjectIDEnv      string          `yaml:"project_id_env"`
+	APIToken          string          `yaml:"api_token"`
+	APITokenEnv       string          `yaml:"api_token_env"`
+	BaseURL           string          `yaml:"base_url"`
+	BaseURLEnv        string          `yaml:"base_url_env"`
+	BasePath          string          `yaml:"base_path"`
+	BasePathEnv       string          `yaml:"base_path_env"`
+	PreserveHierarchy bool            `yaml:"preserve_hierarchy"`
+	Files             []fileGroupYAML `yaml:"files"`
 }
 
 type identityConfigYAML struct {
