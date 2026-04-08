@@ -23,13 +23,13 @@ The full product documentation lives at [hyperlocalise.dev](https://hyperlocalis
 Install the latest stable CLI:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | bash
+curl -fsSL https://hyperlocalise.com/install | bash
 ```
 
 Pin a specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
+curl -fsSL https://hyperlocalise.com/install | VERSION=v1.2.3 bash
 ```
 
 Install the Hyperlocalise skill from this repository:

@@ -13,14 +13,16 @@ description: "Installation steps for hyperlocalise, including verification and u
 Use the stable bootstrap URL:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | bash
+curl -fsSL https://hyperlocalise.com/install | bash
 ```
 
 Pin a specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hyperlocalise/hyperlocalise/main/install.sh | VERSION=v1.2.3 bash
+curl -fsSL https://hyperlocalise.com/install | VERSION=v1.2.3 bash
 ```
+
+When you open `https://hyperlocalise.com/install` in a browser, it redirects to this page. Terminal clients such as `curl` receive the installer script flow instead.
 
 The installer script is also attached to each GitHub release so you can review or download the tagged version directly from release assets.
 
