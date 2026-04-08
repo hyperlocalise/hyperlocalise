@@ -133,12 +133,21 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 		switch typed := value.(type) {
 		case string:
 			out[nextKey] = typed
+		case []any:
+			for idx, item := range typed {
+				itemKey := fmt.Sprintf("%s[%d]", nextKey, idx)
+				str, ok := item.(string)
+				if !ok {
+					return fmt.Errorf("json key %q must be string, got %T", itemKey, item)
+				}
+				out[itemKey] = str
+			}
 		case map[string]any:
 			if err := flattenJSON(out, nextKey, typed); err != nil {
 				return err
 			}
 		default:
-			return fmt.Errorf("json key %q must be string or object, got %T", nextKey, value)
+			return fmt.Errorf("json key %q must be string, string array, or object, got %T", nextKey, value)
 		}
 	}
 
