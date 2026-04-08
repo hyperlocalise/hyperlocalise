@@ -7,7 +7,9 @@ function prefersHtml(acceptHeader: string | null): boolean {
 }
 
 export function GET(request: Request): Response {
-  const destination = prefersHtml(request.headers.get("accept")) ? installDocsUrl : installScriptUrl;
+  const destination = prefersHtml(request.headers.get("accept"))
+    ? installDocsUrl
+    : installScriptUrl;
   return new Response(null, {
     status: 307,
     headers: {
