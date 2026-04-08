@@ -47,6 +47,7 @@
             "pages": [
               "commands/overview",
               "commands/init",
+              "commands/crowdin",
               "commands/run",
               "commands/eval",
               "commands/status",

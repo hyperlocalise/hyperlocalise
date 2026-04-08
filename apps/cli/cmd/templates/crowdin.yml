@@ -1,0 +1,8 @@
+# Minimal Crowdin-compatible starter config for file mode.
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: /locales/en.json
+    translation: /locales/%locale%/%original_file_name%
