@@ -36,15 +36,23 @@ func (f *fakeLocalStore) ApplyPull(_ context.Context, plan ApplyPullPlan) (Apply
 }
 
 type fakeAdapter struct {
-	pullResult storage.PullResult
-	pushReq    storage.PushRequest
-	pushResult storage.PushResult
-	pushErr    error
+	pullResult  storage.PullResult
+	pullResults []storage.PullResult
+	pullReqs    []storage.PullRequest
+	pushReq     storage.PushRequest
+	pushResult  storage.PushResult
+	pushErr     error
 }
 
 func (f *fakeAdapter) Name() string                       { return "fake" }
 func (f *fakeAdapter) Capabilities() storage.Capabilities { return storage.Capabilities{} }
-func (f *fakeAdapter) Pull(_ context.Context, _ storage.PullRequest) (storage.PullResult, error) {
+func (f *fakeAdapter) Pull(_ context.Context, req storage.PullRequest) (storage.PullResult, error) {
+	f.pullReqs = append(f.pullReqs, req)
+	if len(f.pullResults) > 0 {
+		result := f.pullResults[0]
+		f.pullResults = f.pullResults[1:]
+		return result, nil
+	}
 	return f.pullResult, nil
 }
 
@@ -323,7 +331,7 @@ func TestPushKeepsPartialAppliedOnAdapterError(t *testing.T) {
 	}
 }
 
-func TestPushConflictsOnUnknownProvenanceMismatch(t *testing.T) {
+func TestPushAllowsUnknownProvenanceMismatch(t *testing.T) {
 	svc := New()
 	local := &fakeLocalStore{
 		readSnapshot: storage.CatalogSnapshot{
@@ -361,11 +369,86 @@ func TestPushConflictsOnUnknownProvenanceMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("push sync dry-run: %v", err)
 	}
-	if got := len(report.Conflicts); got != 1 {
-		t.Fatalf("expected 1 conflict, got %d", got)
+	if got := len(report.Conflicts); got != 0 {
+		t.Fatalf("expected 0 conflicts, got %d", got)
 	}
-	if got := report.Conflicts[0].Reason; got != "missing_provenance_value_mismatch" {
-		t.Fatalf("unexpected conflict reason: %q", got)
+	if got := len(report.Updates); got != 1 {
+		t.Fatalf("expected 1 update, got %d", got)
+	}
+}
+
+func TestPushUsesKeyPrefixScopeForBaseline(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{Key: "checkout.submit", Locale: "fr", Value: "Valider"}},
+		},
+	}
+	adapter := &fakeAdapter{pullResult: storage.PullResult{Snapshot: storage.CatalogSnapshot{}}}
+
+	_, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+		Read:    LocalReadRequest{Locales: []string{"fr"}, KeyPrefixes: []string{"checkout."}},
+		Options: PushOptions{DryRun: true},
+	})
+	if err != nil {
+		t.Fatalf("push sync dry-run: %v", err)
+	}
+	if got := len(adapter.pullReqs); got != 1 {
+		t.Fatalf("expected 1 baseline pull, got %d", got)
+	}
+	if got := adapter.pullReqs[0].KeyPrefixes; len(got) != 1 || got[0] != "checkout." {
+		t.Fatalf("unexpected baseline key prefixes: %+v", got)
+	}
+}
+
+func TestPushPostVerifyDetectsMismatch(t *testing.T) {
+	svc := New()
+	local := &fakeLocalStore{
+		readSnapshot: storage.CatalogSnapshot{
+			Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour local"}},
+		},
+	}
+	adapter := &fakeAdapter{
+		pullResults: []storage.PullResult{
+			{
+				Snapshot: storage.CatalogSnapshot{
+					Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour remote"}},
+				},
+			},
+			{
+				Snapshot: storage.CatalogSnapshot{
+					Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour after push but wrong"}},
+				},
+			},
+		},
+		pushResult: storage.PushResult{Applied: []storage.EntryID{{Key: "hello", Locale: "fr"}}},
+	}
+
+	report, err := svc.Push(context.Background(), PushInput{
+		Adapter: adapter,
+		Local:   local,
+		Options: PushOptions{DryRun: false, ForceConflicts: true},
+	})
+	if err == nil {
+		t.Fatalf("expected post-push verification error")
+	}
+	if got := len(report.Conflicts); got == 0 {
+		t.Fatalf("expected post-push verification conflict")
+	}
+	if got := len(adapter.pullReqs); got != 2 {
+		t.Fatalf("expected baseline and verification pulls, got %d", got)
+	}
+	verifyReq := adapter.pullReqs[1]
+	if got := len(verifyReq.EntryIDs); got != 1 || verifyReq.EntryIDs[0] != (storage.EntryID{Key: "hello", Locale: "fr"}) {
+		t.Fatalf("unexpected verification entry ids: %+v", verifyReq.EntryIDs)
+	}
+	if got := len(verifyReq.Locales); got != 0 {
+		t.Fatalf("expected verification pull to avoid locale-wide scope, got locales=%+v", verifyReq.Locales)
+	}
+	if report.Conflicts[len(report.Conflicts)-1].Reason != "post_push_remote_mismatch" {
+		t.Fatalf("unexpected conflict reason: %+v", report.Conflicts)
 	}
 }
 

@@ -15,7 +15,8 @@ const (
 )
 
 type LocalReadRequest struct {
-	Locales []string
+	Locales     []string
+	KeyPrefixes []string
 }
 
 type PullOptions struct {
@@ -122,7 +123,10 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 		return Report{}, fmt.Errorf("build local push snapshot: %w", err)
 	}
 
-	remoteResult, err := in.Adapter.Pull(ctx, storage.PullRequest{Locales: in.Read.Locales})
+	remoteResult, err := in.Adapter.Pull(ctx, storage.PullRequest{
+		Locales:     in.Read.Locales,
+		KeyPrefixes: in.Read.KeyPrefixes,
+	})
 	if err != nil {
 		return Report{}, fmt.Errorf("pull remote baseline: %w", err)
 	}
@@ -130,6 +134,12 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 	report, pushReq := buildPushReport(localSnapshot, remoteResult.Snapshot, in.Options)
 	report.Action = "push"
 	report.Warnings = append(report.Warnings, remoteResult.Warnings...)
+	if len(pushReq.Entries) > 0 && !in.Adapter.Capabilities().SupportsVersions {
+		report.Warnings = append(report.Warnings, storage.Warning{
+			Code:    "best_effort_remote_concurrency",
+			Message: "remote adapter does not support atomic conditional writes; push uses a fresh baseline plus post-push verification",
+		})
+	}
 
 	if in.Options.FailOnConflict && len(report.Conflicts) > 0 {
 		return report, fmt.Errorf("push conflicts detected: %d", len(report.Conflicts))
@@ -144,7 +154,16 @@ func (s *Service) Push(ctx context.Context, in PushInput) (Report, error) {
 	report.Conflicts = append(report.Conflicts, pushResult.Conflicts...)
 	report.Warnings = append(report.Warnings, pushResult.Warnings...)
 	if err != nil {
+		sortReport(&report)
 		return report, fmt.Errorf("push remote changes: %w", err)
+	}
+
+	verifyConflicts, verifyWarnings := verifyAppliedEntries(ctx, in.Adapter, pushReq.Entries, report.Applied)
+	report.Conflicts = append(report.Conflicts, verifyConflicts...)
+	report.Warnings = append(report.Warnings, verifyWarnings...)
+	sortReport(&report)
+	if len(verifyConflicts) > 0 {
+		return report, fmt.Errorf("post-push verification detected %d conflict(s)", len(verifyConflicts))
 	}
 
 	return report, nil
@@ -251,19 +270,6 @@ func buildPushReport(local, remote storage.CatalogSnapshot, opts PushOptions) (R
 			}
 		}
 
-		localOrigin := strings.ToLower(strings.TrimSpace(localEntry.Provenance.Origin))
-		if (localOrigin == "" || localOrigin == storage.OriginUnknown) && !opts.ForceConflicts {
-			report.Conflicts = append(report.Conflicts, storage.Conflict{
-				ID:          id,
-				Reason:      "missing_provenance_value_mismatch",
-				LocalValue:  localEntry.Value,
-				RemoteValue: remoteEntry.Value,
-				LocalState:  localEntry.Provenance.State,
-				RemoteState: remoteEntry.Provenance.State,
-			})
-			continue
-		}
-
 		report.Risky = append(report.Risky, detectRiskyChanges(id, remoteEntry.Value, localEntry.Value, nil)...)
 		report.Updates = append(report.Updates, localEntry)
 		pushReq.Entries = append(pushReq.Entries, localEntry)
@@ -301,17 +307,6 @@ func decidePullDiff(localEntry, remoteEntry storage.Entry, opts PullOptions) (*s
 		return &storage.Conflict{
 			ID:          localEntry.ID(),
 			Reason:      "curated_over_draft_disabled",
-			LocalValue:  localEntry.Value,
-			RemoteValue: remoteEntry.Value,
-			LocalState:  localEntry.Provenance.State,
-			RemoteState: storage.StateCurated,
-		}, nil
-	}
-
-	if localOrigin == "" || localOrigin == storage.OriginUnknown {
-		return &storage.Conflict{
-			ID:          localEntry.ID(),
-			Reason:      "missing_provenance_value_mismatch",
 			LocalValue:  localEntry.Value,
 			RemoteValue: remoteEntry.Value,
 			LocalState:  localEntry.Provenance.State,
@@ -359,4 +354,53 @@ func compareEntryID(a, b storage.EntryID) int {
 		return c
 	}
 	return strings.Compare(a.Context, b.Context)
+}
+
+func verifyAppliedEntries(ctx context.Context, adapter storage.StorageAdapter, pushedEntries []storage.Entry, applied []storage.EntryID) ([]storage.Conflict, []storage.Warning) {
+	if len(applied) == 0 {
+		return nil, nil
+	}
+
+	verifyResult, err := adapter.Pull(ctx, storage.PullRequest{EntryIDs: append([]storage.EntryID(nil), applied...)})
+	if err != nil {
+		return nil, []storage.Warning{{
+			Code:    "post_push_verify_failed",
+			Message: fmt.Sprintf("post-push verification failed: %v", err),
+		}}
+	}
+
+	pushedByID := make(map[storage.EntryID]storage.Entry, len(pushedEntries))
+	for _, entry := range pushedEntries {
+		pushedByID[entry.ID()] = entry
+	}
+	verifiedByID := indexEntries(verifyResult.Snapshot.Entries)
+
+	conflicts := make([]storage.Conflict, 0)
+	for _, id := range applied {
+		pushedEntry, ok := pushedByID[id]
+		if !ok {
+			continue
+		}
+		remoteEntry, exists := verifiedByID[id]
+		if !exists {
+			conflicts = append(conflicts, storage.Conflict{
+				ID:         id,
+				Reason:     "post_push_remote_missing",
+				LocalValue: pushedEntry.Value,
+			})
+			continue
+		}
+		if remoteEntry.Value != pushedEntry.Value {
+			conflicts = append(conflicts, storage.Conflict{
+				ID:          id,
+				Reason:      "post_push_remote_mismatch",
+				LocalValue:  pushedEntry.Value,
+				RemoteValue: remoteEntry.Value,
+				LocalState:  pushedEntry.Provenance.State,
+				RemoteState: remoteEntry.Provenance.State,
+			})
+		}
+	}
+
+	return conflicts, nil
 }

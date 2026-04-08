@@ -11,7 +11,7 @@ Use this page to decide which capabilities are safe for production defaults and 
 | --- | --- | --- | --- |
 | LLM provider layer | OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama | Stable | Primary generation path for `run`. |
 | Plan-first + lockfile | `run --dry-run`, deterministic planning, `.hyperlocalise.lock.json` checkpoints | Stable | Recommended default for CI and PR review flows. |
-| TMS adapters | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Pin CLI versions in CI. |
+| TMS adapters | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Push now uses fresh remote baselines and entry-level mutation where supported, but adapter concurrency guarantees still vary. Pin CLI versions in CI. |
 | Eval framework | `eval run`, `eval compare`, quality/regression scoring | Experimental | Report schema and scoring can change between releases. |
 | CI-ready status labels | `ready`, `needs review`, `missing` derived from `status` CSV | Experimental | Label mapping is stable for current docs, but classification semantics may evolve. |
 

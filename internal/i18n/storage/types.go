@@ -70,6 +70,7 @@ type PullRequest struct {
 	Locales       []string          `json:"locales,omitempty"`
 	Namespaces    []string          `json:"namespaces,omitempty"`
 	KeyPrefixes   []string          `json:"key_prefixes,omitempty"`
+	EntryIDs      []EntryID         `json:"entry_ids,omitempty"`
 	AdapterConfig json.RawMessage   `json:"-"`
 	Options       map[string]string `json:"options,omitempty"`
 }

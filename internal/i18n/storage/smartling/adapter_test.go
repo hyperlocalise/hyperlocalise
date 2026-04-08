@@ -3,6 +3,7 @@ package smartling
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ type fakeClient struct {
 	items        []StringTranslation
 	listRevision string
 	upsertIn     UpsertTranslationsInput
+	upsertErr    error
 }
 
 func (f *fakeClient) ListTranslations(_ context.Context, _ ListTranslationsInput) ([]StringTranslation, string, error) {
@@ -22,6 +24,9 @@ func (f *fakeClient) ListTranslations(_ context.Context, _ ListTranslationsInput
 
 func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslationsInput) (string, error) {
 	f.upsertIn = in
+	if f.upsertErr != nil {
+		return "", f.upsertErr
+	}
 	return "rev2", nil
 }
 
@@ -169,6 +174,24 @@ func TestAdapterPushDeduplicatesByEntryID(t *testing.T) {
 	}
 	if result.Applied[1] != third.ID() {
 		t.Fatalf("unexpected second applied id: got %v want %v", result.Applied[1], third.ID())
+	}
+}
+
+func TestAdapterPushReturnsErrorWithoutAppliedOnFailure(t *testing.T) {
+	client := &fakeClient{upsertErr: errors.New("boom")}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Push(context.Background(), storage.PushRequest{
+		Entries: []storage.Entry{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}},
+	})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+	if got := len(result.Applied); got != 0 {
+		t.Fatalf("expected no applied ids on error, got %d", got)
 	}
 }
 

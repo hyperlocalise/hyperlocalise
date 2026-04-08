@@ -36,9 +36,11 @@ type StringTranslation struct {
 }
 
 type ListStringsInput struct {
-	ProjectID string
-	APIToken  string
-	Locales   []string
+	ProjectID   string
+	APIToken    string
+	Locales     []string
+	KeyPrefixes []string
+	EntryIDs    []storage.EntryID
 }
 
 type UpsertTranslationsInput struct {
@@ -47,9 +49,22 @@ type UpsertTranslationsInput struct {
 	Entries   []StringTranslation
 }
 
+type UpsertConflict struct {
+	Index   int
+	Reason  string
+	Message string
+}
+
+type UpsertTranslationsResult struct {
+	Revision  string
+	Applied   []int
+	Skipped   []int
+	Conflicts []UpsertConflict
+}
+
 type Client interface {
 	ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error)
-	UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (string, error)
+	UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (UpsertTranslationsResult, error)
 }
 
 type Adapter struct {
@@ -187,9 +202,11 @@ func (a *Adapter) Pull(ctx context.Context, req storage.PullRequest) (storage.Pu
 	}
 
 	stringsResp, revision, err := a.client.ListStrings(ctx, ListStringsInput{
-		ProjectID: a.cfg.ProjectID,
-		APIToken:  a.cfg.APIToken,
-		Locales:   locales,
+		ProjectID:   a.cfg.ProjectID,
+		APIToken:    a.cfg.APIToken,
+		Locales:     locales,
+		KeyPrefixes: req.KeyPrefixes,
+		EntryIDs:    req.EntryIDs,
 	})
 	if err != nil {
 		return storage.PullResult{}, fmt.Errorf("crowdin pull: %w", err)
@@ -265,20 +282,40 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 		}, nil
 	}
 
-	revision, err := a.client.UpsertTranslations(ctx, UpsertTranslationsInput{ProjectID: a.cfg.ProjectID, APIToken: a.cfg.APIToken, Entries: payload})
-	if err != nil {
-		sentIndexes := sentIndexesFromError(err)
-		partialApplied := make([]storage.EntryID, 0, len(sentIndexes))
-		for _, idx := range sentIndexes {
-			if idx < 0 || idx >= len(applied) {
-				continue
-			}
-			partialApplied = append(partialApplied, applied[idx])
+	upsertResult, err := a.client.UpsertTranslations(ctx, UpsertTranslationsInput{ProjectID: a.cfg.ProjectID, APIToken: a.cfg.APIToken, Entries: payload})
+	result := storage.PushResult{Revision: upsertResult.Revision}
+	result.Applied = entryIDsFromIndexes(applied, upsertResult.Applied)
+	result.Skipped = entryIDsFromIndexes(applied, upsertResult.Skipped)
+	for _, conflict := range upsertResult.Conflicts {
+		if conflict.Index < 0 || conflict.Index >= len(applied) {
+			continue
 		}
-		return storage.PushResult{
-			Applied: partialApplied,
-		}, fmt.Errorf("crowdin push: %w", err)
+		id := applied[conflict.Index]
+		result.Conflicts = append(result.Conflicts, storage.Conflict{
+			ID:     id,
+			Reason: conflict.Reason,
+		})
+		if strings.TrimSpace(conflict.Message) != "" {
+			result.Warnings = append(result.Warnings, storage.Warning{
+				Code:    conflict.Reason,
+				Message: fmt.Sprintf("%s: %s", conflict.Reason, conflict.Message),
+			})
+		}
+	}
+	if err != nil {
+		return result, fmt.Errorf("crowdin push: %w", err)
 	}
 
-	return storage.PushResult{Applied: applied, Revision: revision}, nil
+	return result, nil
+}
+
+func entryIDsFromIndexes(ids []storage.EntryID, indexes []int) []storage.EntryID {
+	out := make([]storage.EntryID, 0, len(indexes))
+	for _, idx := range indexes {
+		if idx < 0 || idx >= len(ids) {
+			continue
+		}
+		out = append(out, ids[idx])
+	}
+	return out
 }

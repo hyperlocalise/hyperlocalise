@@ -63,6 +63,9 @@ func (s *JSONStore) readSnapshot(_ context.Context, req syncsvc.LocalReadRequest
 		}
 
 		for key, value := range valueMap {
+			if !matchesKeyPrefix(key, req.KeyPrefixes) {
+				continue
+			}
 			entry := storage.Entry{
 				Key:       key,
 				Locale:    locale,
@@ -81,6 +84,22 @@ func (s *JSONStore) readSnapshot(_ context.Context, req syncsvc.LocalReadRequest
 	}
 
 	return storage.CatalogSnapshot{Entries: entries}, nil
+}
+
+func matchesKeyPrefix(key string, prefixes []string) bool {
+	if len(prefixes) == 0 {
+		return true
+	}
+	for _, prefix := range prefixes {
+		trimmed := strings.TrimSpace(prefix)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(key, trimmed) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (syncsvc.ApplyResult, error) {

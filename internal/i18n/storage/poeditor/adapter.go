@@ -168,16 +168,30 @@ func (a *Adapter) Pull(ctx context.Context, req storage.PullRequest) (storage.Pu
 
 func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.PushResult, error) {
 	payload := make([]TermTranslation, 0, len(req.Entries))
+	applied := make([]storage.EntryID, 0, len(req.Entries))
+	indexByID := make(map[storage.EntryID]int, len(req.Entries))
 	for _, entry := range req.Entries {
-		if strings.TrimSpace(entry.Value) == "" {
+		key := strings.TrimSpace(entry.Key)
+		locale := strings.TrimSpace(entry.Locale)
+		if key == "" || locale == "" || strings.TrimSpace(entry.Value) == "" {
 			continue
 		}
-		payload = append(payload, TermTranslation{
-			Term:    entry.Key,
+
+		id := entry.ID()
+		translation := TermTranslation{
+			Term:    key,
 			Context: entry.Context,
-			Locale:  entry.Locale,
+			Locale:  locale,
 			Value:   entry.Value,
-		})
+		}
+		if idx, exists := indexByID[id]; exists {
+			payload[idx] = translation
+			continue
+		}
+
+		indexByID[id] = len(payload)
+		payload = append(payload, translation)
+		applied = append(applied, id)
 	}
 
 	revision, err := a.client.UpsertTranslations(ctx, UpsertTranslationsInput{
@@ -187,11 +201,6 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 	})
 	if err != nil {
 		return storage.PushResult{}, fmt.Errorf("poeditor push: %w", err)
-	}
-
-	applied := make([]storage.EntryID, 0, len(req.Entries))
-	for _, entry := range req.Entries {
-		applied = append(applied, entry.ID())
 	}
 
 	return storage.PushResult{
