@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
@@ -103,6 +106,7 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 	assertFindingType(t, report.Findings, checkMissingTargetFile)
 	assertFindingType(t, report.Findings, checkNotLocalized)
+	assertFindingType(t, report.Findings, checkSameAsSource)
 	assertFindingType(t, report.Findings, checkOrphanedKey)
 	assertFindingType(t, report.Findings, checkPlaceholder)
 	assertFindingType(t, report.Findings, checkHTMLTag)
@@ -112,6 +116,9 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 	if report.Summary.BySeverity[checkSeverityError] == 0 {
 		t.Fatalf("expected error severity counts, got %+v", report.Summary.BySeverity)
+	}
+	if report.Summary.BySeverity[checkSeverityWarning] == 0 {
+		t.Fatalf("expected warning severity counts (e.g. same_as_source), got %+v", report.Summary.BySeverity)
 	}
 	for _, finding := range report.Findings {
 		if finding.Severity == "" {
@@ -163,7 +170,7 @@ func TestCheckCommandJSONOutputFileMatchesStdout(t *testing.T) {
 	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
 		t.Fatalf("write source file: %v", err)
 	}
-	if err := os.WriteFile(targetPath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
 		t.Fatalf("write target file: %v", err)
 	}
 
@@ -214,7 +221,7 @@ func TestCheckCommandJSONReportFlagWritesJSONAndStylishStdout(t *testing.T) {
 	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
 		t.Fatalf("write source file: %v", err)
 	}
-	if err := os.WriteFile(targetPath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
 		t.Fatalf("write target file: %v", err)
 	}
 
@@ -234,7 +241,7 @@ func TestCheckCommandJSONReportFlagWritesJSONAndStylishStdout(t *testing.T) {
 		t.Fatalf("expected stylish stdout, got json: %q", stdout)
 	}
 	if !strings.Contains(stdout, "not_localized") {
-		t.Fatalf("expected rule id in stylish stdout: %q", stdout)
+		t.Fatalf("expected not_localized rule id in stylish stdout: %q", stdout)
 	}
 
 	data, err := os.ReadFile(jsonPath)
@@ -289,8 +296,8 @@ func TestCheckCommandWritesTextReportAndCanSkipFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read report file: %v", err)
 	}
-	if got := string(content); !strings.Contains(got, "[not_localized]") {
-		t.Fatalf("expected not_localized section, got %q", got)
+	if got := string(content); !strings.Contains(got, "[same_as_source]") {
+		t.Fatalf("expected same_as_source section, got %q", got)
 	}
 	if !strings.Contains(out.String(), "Summary: total=1") {
 		t.Fatalf("expected summary in stdout, got %q", out.String())
@@ -327,6 +334,100 @@ func TestCheckCommandFailsWithoutNoFailWhenFindingsExist(t *testing.T) {
 	if !strings.Contains(err.Error(), errCheckFindings.Error()) {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestCheckCommandQuietOmitsWarningsAndExitsZero(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	jsonReportPath := filepath.Join(dir, "report.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--quiet", "--json-report", jsonReportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --quiet with warnings only: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json: %v\n%s", err, out.String())
+	}
+	if report.Summary.Total != 0 {
+		t.Fatalf("expected no findings in quiet output, got total=%d", report.Summary.Total)
+	}
+	data, err := os.ReadFile(jsonReportPath)
+	if err != nil {
+		t.Fatalf("read json report: %v", err)
+	}
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("parse json report file: %v", err)
+	}
+	if report.Summary.Total != 0 {
+		t.Fatalf("expected no findings in --json-report with --quiet, got total=%d", report.Summary.Total)
+	}
+}
+
+func TestCheckCommandQuietStillFailsOnErrors(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--quiet"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected error for not_localized even with --quiet")
+	}
+	if !errors.Is(err, errCheckFindings) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json: %v", err)
+	}
+	if report.Summary.Total == 0 {
+		t.Fatalf("expected error findings in output, got none")
+	}
+	assertFindingType(t, report.Findings, checkNotLocalized)
 }
 
 func TestCheckCommandFiltersByBucketAndLocale(t *testing.T) {
@@ -439,7 +540,7 @@ Bonjour
 	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
 		t.Fatalf("parse mdx json output: %v\noutput=%s", err, out.String())
 	}
-	assertFindingType(t, report.Findings, checkNotLocalized)
+	assertFindingType(t, report.Findings, checkSameAsSource)
 
 	hasMDXFinding := false
 	for _, finding := range report.Findings {
@@ -471,7 +572,7 @@ func TestCheckCommandMDXSkipsICUParityAndUsesASTParity(t *testing.T) {
 		t.Fatalf("create target dir: %v", err)
 	}
 
-	t.Run("same markdown ast does not emit icu parity findings", func(t *testing.T) {
+	t.Run("same markdown ast does not emit markdown_ast findings", func(t *testing.T) {
 		if err := os.WriteFile(sourcePath, []byte(`# Welcome
 
 Hello {name}
@@ -490,7 +591,7 @@ Bonjour
 		out := bytes.NewBuffer(nil)
 		cmd.SetOut(out)
 		cmd.SetErr(out)
-		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkICUShape, "--format", "json", "--no-fail"})
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkMarkdownAST, "--format", "json", "--no-fail"})
 
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("check command mdx same ast: %v", err)
@@ -500,11 +601,11 @@ Bonjour
 			t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
 		}
 		if len(report.Findings) != 0 {
-			t.Fatalf("expected no icu_shape findings for mdx ast match, got %+v", report.Findings)
+			t.Fatalf("expected no markdown_ast findings for mdx ast match, got %+v", report.Findings)
 		}
 	})
 
-	t.Run("ast drift emits icu_shape finding with annotation", func(t *testing.T) {
+	t.Run("ast drift emits markdown_ast_mismatch finding with annotation", func(t *testing.T) {
 		if err := os.WriteFile(sourcePath, []byte(`# Welcome
 
 Hello world.
@@ -521,7 +622,7 @@ Hello world.
 		out := bytes.NewBuffer(nil)
 		cmd.SetOut(out)
 		cmd.SetErr(out)
-		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkICUShape, "--format", "json", "--no-fail"})
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkMarkdownAST, "--format", "json", "--no-fail"})
 
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("check command mdx ast drift: %v", err)
@@ -533,7 +634,7 @@ Hello world.
 		if len(report.Findings) == 0 {
 			t.Fatalf("expected ast parity finding")
 		}
-		if report.Findings[0].Type != checkICUShape || !strings.Contains(report.Findings[0].Message, "markdown AST parity mismatch") {
+		if report.Findings[0].Type != checkMarkdownAST || !strings.Contains(report.Findings[0].Message, "markdown AST parity mismatch") {
 			t.Fatalf("unexpected finding: %+v", report.Findings[0])
 		}
 		if report.Findings[0].AnnotationFile == "" || report.Findings[0].AnnotationLine == 0 {
@@ -541,7 +642,7 @@ Hello world.
 		}
 	})
 
-	t.Run("placeholder plus icu_shape does not emit per-entry icu invariants for mdx", func(t *testing.T) {
+	t.Run("placeholder plus markdown_ast does not emit per-entry icu invariants for mdx", func(t *testing.T) {
 		if err := os.WriteFile(sourcePath, []byte(`# Welcome
 
 Hello {name}
@@ -560,10 +661,10 @@ Bonjour
 		out := bytes.NewBuffer(nil)
 		cmd.SetOut(out)
 		cmd.SetErr(out)
-		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkPlaceholder, "--check", checkICUShape, "--format", "json", "--no-fail"})
+		cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkPlaceholder, "--check", checkMarkdownAST, "--format", "json", "--no-fail"})
 
 		if err := cmd.Execute(); err != nil {
-			t.Fatalf("check command mdx with placeholder+icu_shape: %v", err)
+			t.Fatalf("check command mdx with placeholder+markdown_ast: %v", err)
 		}
 		var report checkReport
 		if err := json.Unmarshal(out.Bytes(), &report); err != nil {
@@ -687,6 +788,15 @@ func TestCheckHelperFunctions(t *testing.T) {
 		}
 	})
 
+	t.Run("severityForCheck", func(t *testing.T) {
+		if got := severityForCheck(checkSameAsSource); got != checkSeverityWarning {
+			t.Fatalf("same_as_source severity: %q", got)
+		}
+		if got := severityForCheck(checkNotLocalized); got != checkSeverityError {
+			t.Fatalf("not_localized severity: %q", got)
+		}
+	})
+
 	t.Run("validateCheckInvariant", func(t *testing.T) {
 		candidate := storage.Entry{Value: "Hello"}
 		baseline := storage.Entry{Value: "Hello {name}"}
@@ -703,7 +813,7 @@ func TestCheckHelperFunctions(t *testing.T) {
 		}
 	})
 
-	t.Run("not localized helpers", func(t *testing.T) {
+	t.Run("missing or empty target helpers", func(t *testing.T) {
 		cases := []struct {
 			name       string
 			source     string
@@ -714,18 +824,58 @@ func TestCheckHelperFunctions(t *testing.T) {
 		}{
 			{name: "missing key", source: "Hello", hasTarget: false, want: true, wantReason: "target key is missing"},
 			{name: "empty value", source: "Hello", target: "", hasTarget: true, want: true, wantReason: "target value is empty"},
-			{name: "source match", source: "Hello", target: "Hello", hasTarget: true, want: true, wantReason: "target value matches source"},
-			{name: "localized", source: "Hello", target: "Bonjour", hasTarget: true, want: false, wantReason: "target is not localized"},
+		}
+		negativeCases := []struct {
+			name      string
+			source    string
+			target    string
+			hasTarget bool
+		}{
+			{name: "localized", source: "Hello", target: "Bonjour", hasTarget: true},
 		}
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
-				if got := isNotLocalized(tt.source, tt.target, tt.hasTarget); got != tt.want {
-					t.Fatalf("isNotLocalized() = %v, want %v", got, tt.want)
+				if got := isMissingOrEmptyTarget(tt.source, tt.target, tt.hasTarget); got != tt.want {
+					t.Fatalf("isMissingOrEmptyTarget() = %v, want %v", got, tt.want)
 				}
 				if got := describeNotLocalized(tt.source, tt.target, tt.hasTarget); got != tt.wantReason {
 					t.Fatalf("describeNotLocalized() = %q, want %q", got, tt.wantReason)
 				}
 			})
+		}
+		for _, tt := range negativeCases {
+			t.Run(tt.name, func(t *testing.T) {
+				if isMissingOrEmptyTarget(tt.source, tt.target, tt.hasTarget) {
+					t.Fatalf("expected false for %s", tt.name)
+				}
+			})
+		}
+	})
+
+	t.Run("same as source helpers", func(t *testing.T) {
+		cases := []struct {
+			name      string
+			source    string
+			target    string
+			hasTarget bool
+			want      bool
+		}{
+			{name: "missing key", source: "Hello", hasTarget: false, want: false},
+			{name: "empty value", source: "Hello", target: "", hasTarget: true, want: false},
+			{name: "source match", source: "Hello", target: "Hello", hasTarget: true, want: true},
+			{name: "trim match", source: " Hello ", target: "Hello", hasTarget: true, want: true},
+			{name: "localized", source: "Hello", target: "Bonjour", hasTarget: true, want: false},
+			{name: "empty source no match", source: "", target: "", hasTarget: true, want: false},
+		}
+		for _, tt := range cases {
+			t.Run(tt.name, func(t *testing.T) {
+				if got := isSameAsSourceText(tt.source, tt.target, tt.hasTarget); got != tt.want {
+					t.Fatalf("isSameAsSourceText() = %v, want %v", got, tt.want)
+				}
+			})
+		}
+		if got := describeSameAsSource(); got != "target value matches source" {
+			t.Fatalf("describeSameAsSource() = %q", got)
 		}
 	})
 
@@ -741,6 +891,7 @@ func TestCheckHelperFunctions(t *testing.T) {
 func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 	findings := []checkFinding{
 		{Type: checkWhitespaceOnly, Severity: checkSeverityWarning, Bucket: "b", Locale: "fr", SourceFile: "z", TargetFile: "z", Key: "b", AnnotationFile: "z", AnnotationLine: 3},
+		{Type: checkSameAsSource, Severity: checkSeverityWarning, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "same", AnnotationFile: "a", AnnotationLine: 4},
 		{Type: checkNotLocalized, Severity: checkSeverityError, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "a", AnnotationFile: "a", AnnotationLine: 2},
 		{Type: checkNotLocalized, Severity: checkSeverityError, Bucket: "a", Locale: "de", SourceFile: "a", TargetFile: "a", Key: "0", AnnotationFile: "a", AnnotationLine: 1},
 	}
@@ -749,12 +900,12 @@ func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 		t.Fatalf("unexpected sort order: %+v", findings)
 	}
 
-	report := checkReport{Checks: []string{checkNotLocalized, checkWhitespaceOnly}, Findings: findings, Summary: summarizeCheckFindings(findings)}
+	report := checkReport{Checks: []string{checkNotLocalized, checkSameAsSource, checkWhitespaceOnly}, Findings: findings, Summary: summarizeCheckFindings(findings)}
 	textPayload, err := renderCheckReport(report, "text")
 	if err != nil {
 		t.Fatalf("renderCheckReport(text): %v", err)
 	}
-	if !strings.Contains(string(textPayload), "[not_localized]") || !strings.Contains(string(textPayload), "By severity:") {
+	if !strings.Contains(string(textPayload), "[not_localized]") || !strings.Contains(string(textPayload), "[same_as_source]") || !strings.Contains(string(textPayload), "By severity:") {
 		t.Fatalf("unexpected text payload: %q", string(textPayload))
 	}
 
@@ -772,7 +923,7 @@ func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 		t.Fatalf("renderCheckReport(stylish): %v", err)
 	}
 	stylishStr := string(stylishPayload)
-	if !strings.Contains(stylishStr, "not_localized") || !strings.Contains(stylishStr, "✖") {
+	if !strings.Contains(stylishStr, "not_localized") || !strings.Contains(stylishStr, "same_as_source") || !strings.Contains(stylishStr, "✖") {
 		t.Fatalf("unexpected stylish payload: %q", stylishStr)
 	}
 
@@ -823,4 +974,52 @@ func assertFindingType(t *testing.T, findings []checkFinding, want string) {
 		}
 	}
 	t.Fatalf("expected finding type %q in %+v", want, findings)
+}
+
+func TestCheckFixDryRunPassesFixTargets(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	orig := runCheckFixSvc
+	t.Cleanup(func() { runCheckFixSvc = orig })
+	var captured runsvc.Input
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--fix", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --fix --fix-dry-run: %v", err)
+	}
+	if len(captured.FixTargets) != 1 {
+		t.Fatalf("expected 1 fix target, got %+v", captured.FixTargets)
+	}
+	if captured.FixTargets[0].EntryKey != "hello" || captured.FixTargets[0].TargetLocale != "fr" {
+		t.Fatalf("unexpected fix target: %+v", captured.FixTargets[0])
+	}
+	if !captured.Force || captured.Prune || !captured.DryRun {
+		t.Fatalf("unexpected run input: %+v", captured)
+	}
 }

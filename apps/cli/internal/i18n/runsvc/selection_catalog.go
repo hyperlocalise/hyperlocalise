@@ -133,7 +133,7 @@ func (s *Service) BuildSelectionCatalog(configPath string) (SelectionCatalog, er
 		return SelectionCatalog{}, fmt.Errorf("load config: %w", err)
 	}
 
-	planned, err := s.planTasks(cfg, "", "", nil, nil)
+	planned, _, err := s.planTasks(cfg, "", "", nil, nil, nil, nil)
 	if err != nil {
 		return SelectionCatalog{}, err
 	}

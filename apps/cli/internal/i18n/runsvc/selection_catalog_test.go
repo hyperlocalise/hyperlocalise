@@ -43,7 +43,7 @@ func TestPlanTasksFiltersBySourcePath(t *testing.T) {
 	}
 
 	svc := New()
-	tasks, err := svc.planTasks(cfg, "", "", nil, []string{sourceB})
+	tasks, _, err := svc.planTasks(cfg, "", "", nil, []string{sourceB}, nil, nil)
 	if err != nil {
 		t.Fatalf("plan tasks: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestPlanTasksReturnsErrorForIgnoredExplicitSourcePath(t *testing.T) {
 	}
 
 	svc := New()
-	_, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath})
+	_, _, err := svc.planTasks(cfg, "", "", nil, []string{sourcePath}, nil, nil)
 	if err == nil {
 		t.Fatalf("expected ignored explicit source path to fail planning")
 	}

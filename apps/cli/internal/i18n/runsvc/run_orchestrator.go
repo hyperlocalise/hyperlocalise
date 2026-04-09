@@ -35,7 +35,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 		}()
 	}
 
-	planned, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths)
+	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
 		return Report{}, err
 	}
@@ -64,6 +64,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	}
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
+	report.Warnings = append(report.Warnings, planWarnings...)
 	report.Warnings = append(report.Warnings, legacyPromptWarnings...)
 	if in.ExperimentalContextMemory {
 		report.ContextMemoryEnabled = true
