@@ -705,6 +705,11 @@ func lockStoredFingerprint(preimage string) string {
 	return fmt.Sprintf("%x", sum[:16])
 }
 
+// lockFingerprintEqual reports whether a fingerprint stored in the lockfile
+// equals a freshly computed compact fingerprint (32 hex chars).
+// stored may be either the compact 32-char form or a legacy full-length
+// 128-char SHA-512 hex digest; computed must always be the 32-char form.
+// Argument order is load-bearing: do not pass (computed, stored).
 func lockFingerprintEqual(stored, computed string) bool {
 	if stored == computed {
 		return true
