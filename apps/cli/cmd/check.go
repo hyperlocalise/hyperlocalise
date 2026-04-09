@@ -307,8 +307,10 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 
 	rpt, err := runCheckFixSvc(runCtx, runIn)
 	if renderer != nil {
-		renderer.TokenUsage(rpt.PromptTokens, rpt.CompletionTokens, rpt.TotalTokens)
-		renderer.Complete()
+		if err == nil {
+			renderer.TokenUsage(rpt.PromptTokens, rpt.CompletionTokens, rpt.TotalTokens)
+			renderer.Complete()
+		}
 	}
 	if err != nil {
 		return nil, err
