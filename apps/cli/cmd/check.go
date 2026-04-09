@@ -112,13 +112,28 @@ func newCheckCmd() *cobra.Command {
 			}
 
 			format := strings.ToLower(o.format)
-			if err := writeCheckReport(cmd.OutOrStdout(), report, format); err != nil {
-				return fmt.Errorf("write check output: %w", err)
-			}
-			if o.outputFile != "" {
+			stdout := cmd.OutOrStdout()
+			switch {
+			case o.outputFile == "":
+				if err := writeCheckReport(stdout, report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
+				}
+			case format == "stylish":
+				// Stylish uses *os.File for TTY color detection; MultiWriter would strip stdout color.
+				if err := writeCheckReport(stdout, report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
+				}
 				var buf bytes.Buffer
 				if err := writeCheckReport(&buf, report, format); err != nil {
 					return err
+				}
+				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+					return fmt.Errorf("write output file %q: %w", o.outputFile, err)
+				}
+			default:
+				var buf bytes.Buffer
+				if err := writeCheckReport(io.MultiWriter(stdout, &buf), report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
 				}
 				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
 					return fmt.Errorf("write output file %q: %w", o.outputFile, err)

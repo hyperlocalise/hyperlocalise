@@ -190,6 +190,9 @@ func TestCheckCommandJSONOutputFileMatchesStdout(t *testing.T) {
 		t.Fatalf("parse output file json: %v", err)
 	}
 	assertFindingType(t, report.Findings, checkNotLocalized)
+	if len(report.Findings) == 0 {
+		t.Fatalf("expected at least one finding in output file report")
+	}
 	if report.Findings[0].AnnotationLine == 0 || report.Findings[0].AnnotationFile == "" {
 		t.Fatalf("expected annotation location in output file report: %+v", report.Findings[0])
 	}
@@ -243,6 +246,9 @@ func TestCheckCommandJSONReportFlagWritesJSONAndStylishStdout(t *testing.T) {
 		t.Fatalf("parse json report: %v", err)
 	}
 	assertFindingType(t, report.Findings, checkNotLocalized)
+	if len(report.Findings) == 0 {
+		t.Fatalf("expected at least one finding in json report")
+	}
 	if report.Findings[0].AnnotationLine == 0 || report.Findings[0].AnnotationFile == "" {
 		t.Fatalf("expected annotation in json report: %+v", report.Findings[0])
 	}
