@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
@@ -999,8 +1000,10 @@ func TestCheckFixDryRunPassesFixTargets(t *testing.T) {
 	orig := runCheckFixSvc
 	t.Cleanup(func() { runCheckFixSvc = orig })
 	var captured runsvc.Input
+	var capturedCtx context.Context
 	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
 		captured = in
+		capturedCtx = ctx
 		return runsvc.Report{}, nil
 	}
 
@@ -1021,5 +1024,159 @@ func TestCheckFixDryRunPassesFixTargets(t *testing.T) {
 	}
 	if !captured.Force || captured.Prune || !captured.DryRun {
 		t.Fatalf("unexpected run input: %+v", captured)
+	}
+	if captured.OnEvent != nil {
+		t.Fatalf("expected no OnEvent with ModeAuto on non-TTY stdout")
+	}
+	if capturedCtx == context.Background() {
+		t.Fatalf("expected interruptible context, got context.Background()")
+	}
+}
+
+func TestCheckFixWiresOnEventWhenProgressModeOn(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	origRun := runCheckFixSvc
+	origMode := checkFixProgressMode
+	t.Cleanup(func() {
+		runCheckFixSvc = origRun
+		checkFixProgressMode = origMode
+	})
+	checkFixProgressMode = progressui.ModeOn
+
+	var captured runsvc.Input
+	var capturedCtx context.Context
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		capturedCtx = ctx
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--fix", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --fix --fix-dry-run: %v", err)
+	}
+	if captured.OnEvent == nil {
+		t.Fatalf("expected OnEvent when checkFixProgressMode is ModeOn")
+	}
+	if capturedCtx == context.Background() {
+		t.Fatalf("expected interruptible context, got context.Background()")
+	}
+}
+
+func TestCheckFixSkipsOnEventWhenProgressModeOff(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	origRun := runCheckFixSvc
+	origMode := checkFixProgressMode
+	t.Cleanup(func() {
+		runCheckFixSvc = origRun
+		checkFixProgressMode = origMode
+	})
+	checkFixProgressMode = progressui.ModeOff
+
+	var captured runsvc.Input
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--fix", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --fix --fix-dry-run: %v", err)
+	}
+	if captured.OnEvent != nil {
+		t.Fatalf("expected no OnEvent when checkFixProgressMode is ModeOff")
+	}
+}
+
+func TestCheckFixProgressDoesNotPanicWhenRunFails(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	origRun := runCheckFixSvc
+	origMode := checkFixProgressMode
+	t.Cleanup(func() {
+		runCheckFixSvc = origRun
+		checkFixProgressMode = origMode
+	})
+	checkFixProgressMode = progressui.ModeOn
+
+	runCheckFixSvc = func(ctx context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{}, errors.New("stub run failure")
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--fix", "--no-fail", "--format", "json"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected error from runCheckFixSvc")
+	}
+	if !strings.Contains(err.Error(), "stub run failure") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
