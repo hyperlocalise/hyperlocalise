@@ -45,11 +45,8 @@ func TestCheckCommandNoFindings(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("check command without findings: %v", err)
 	}
-	if !strings.Contains(out.String(), "No findings.") {
-		t.Fatalf("expected no-findings output, got %q", out.String())
-	}
-	if !strings.Contains(out.String(), "Checks: ") {
-		t.Fatalf("expected checks header, got %q", out.String())
+	if !strings.Contains(out.String(), "No problems.") {
+		t.Fatalf("expected no-findings stylish output, got %q", out.String())
 	}
 }
 
@@ -198,6 +195,59 @@ func TestCheckCommandJSONOutputFileMatchesStdout(t *testing.T) {
 	}
 }
 
+func TestCheckCommandJSONReportFlagWritesJSONAndStylishStdout(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	jsonPath := filepath.Join(dir, "report.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--no-fail", "--json-report", jsonPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command json-report: %v", err)
+	}
+	stdout := out.String()
+	if strings.HasPrefix(strings.TrimSpace(stdout), "{") {
+		t.Fatalf("expected stylish stdout, got json: %q", stdout)
+	}
+	if !strings.Contains(stdout, "not_localized") {
+		t.Fatalf("expected rule id in stylish stdout: %q", stdout)
+	}
+
+	data, err := os.ReadFile(jsonPath)
+	if err != nil {
+		t.Fatalf("read json report: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("parse json report: %v", err)
+	}
+	assertFindingType(t, report.Findings, checkNotLocalized)
+	if report.Findings[0].AnnotationLine == 0 || report.Findings[0].AnnotationFile == "" {
+		t.Fatalf("expected annotation in json report: %+v", report.Findings[0])
+	}
+}
+
 func TestCheckCommandWritesTextReportAndCanSkipFailure(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -224,7 +274,7 @@ func TestCheckCommandWritesTextReportAndCanSkipFailure(t *testing.T) {
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
 	cmd.SetErr(out)
-	cmd.SetArgs([]string{"check", "--config", configPath, "--no-fail", "--output-file", reportPath})
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "text", "--no-fail", "--output-file", reportPath})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("check command with no-fail: %v", err)
@@ -709,6 +759,15 @@ func TestSortAndRenderCheckReportHelpers(t *testing.T) {
 	var decoded checkReport
 	if err := json.Unmarshal(jsonPayload, &decoded); err != nil {
 		t.Fatalf("json payload should decode: %v", err)
+	}
+
+	stylishPayload, err := renderCheckReport(report, "stylish")
+	if err != nil {
+		t.Fatalf("renderCheckReport(stylish): %v", err)
+	}
+	stylishStr := string(stylishPayload)
+	if !strings.Contains(stylishStr, "not_localized") || !strings.Contains(stylishStr, "✖") {
+		t.Fatalf("unexpected stylish payload: %q", stylishStr)
 	}
 
 	if _, err := renderCheckReport(report, "yaml"); err == nil || !strings.Contains(err.Error(), "unsupported output format") {

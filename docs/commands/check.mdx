@@ -27,14 +27,23 @@ hyperlocalise check [--config <path>] [flags]
 - `--bucket`: filter by bucket name
 - `--check`: run only specific checks (repeatable)
 - `--exclude-check`: skip specific default checks (repeatable)
-- `--format`: output format (`text` or `json`)
-- `--output-file`: also write the report to a file
+- `--format`: output format (`stylish` default, `text`, or `json`). **Stylish** prints ESLint-style diagnostics grouped by file; when stdout is a terminal, severities use color (no color when piped or in typical CI logs).
+- `--output-file`: write the same human or JSON format as stdout to a file
+- `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling)
 - `--no-fail`: return exit code `0` even when findings exist
 
 ## Examples
 
 ```bash
 hyperlocalise check --bucket docs
+```
+
+```bash
+hyperlocalise check --no-fail --json-report report.json
+```
+
+```bash
+hyperlocalise check --format text --no-fail --output-file report.txt
 ```
 
 ```bash
