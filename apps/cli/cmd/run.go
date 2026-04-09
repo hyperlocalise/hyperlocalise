@@ -28,6 +28,8 @@ type runOptions struct {
 	progress                  string
 	bucket                    string
 	group                     string
+	locales                   []string
+	targetLocaleAlias         []string
 	targetLocales             []string
 	sourcePaths               []string
 	outputPath                string
@@ -72,13 +74,24 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
 	cmd.Flags().StringVar(&o.group, "group", "", "only run tasks for the given group")
-	cmd.Flags().StringSliceVar(&o.targetLocales, "target-locale", nil, "only run tasks for the given target locale(s)")
+	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "only run tasks for the given target locale(s)")
+	cmd.Flags().StringSliceVar(&o.targetLocaleAlias, "target-locale", nil, "alias for --locale")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
 
 	return cmd
+}
+
+func mergeRunLocaleFlags(primary, alias []string) []string {
+	if len(primary) == 0 && len(alias) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(primary)+len(alias))
+	out = append(out, primary...)
+	out = append(out, alias...)
+	return out
 }
 
 func executeRun(cmd *cobra.Command, o runOptions) error {
@@ -89,13 +102,17 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	if workers < 1 {
 		return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
 	}
-	if cmd.Flags().Changed("target-locale") {
-		if len(o.targetLocales) == 0 {
-			return fmt.Errorf("invalid --target-locale value: must not be empty")
+	var targetLocales []string
+	if o.interactive {
+		targetLocales = o.targetLocales
+	} else if cmd.Flags().Changed("locale") || cmd.Flags().Changed("target-locale") {
+		targetLocales = mergeRunLocaleFlags(o.locales, o.targetLocaleAlias)
+		if len(targetLocales) == 0 {
+			return fmt.Errorf("invalid --locale value: must not be empty")
 		}
-		for _, locale := range o.targetLocales {
+		for _, locale := range targetLocales {
 			if strings.TrimSpace(locale) == "" {
-				return fmt.Errorf("invalid --target-locale value: must not be empty")
+				return fmt.Errorf("invalid --locale value: must not be empty")
 			}
 		}
 	}
@@ -139,7 +156,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		Workers:                   workers,
 		Bucket:                    o.bucket,
 		Group:                     o.group,
-		TargetLocales:             o.targetLocales,
+		TargetLocales:             targetLocales,
 		SourcePaths:               o.sourcePaths,
 		ExperimentalContextMemory: o.experimentalContextMemory,
 		ContextMemoryScope:        contextMemoryScope,
@@ -181,8 +198,12 @@ func syncInteractiveScopeFlags(cmd *cobra.Command, o runOptions) {
 	if flag := cmd.Flags().Lookup("bucket"); flag != nil {
 		flag.Changed = strings.TrimSpace(o.bucket) != ""
 	}
+	hasLocales := len(o.targetLocales) > 0
+	if flag := cmd.Flags().Lookup("locale"); flag != nil {
+		flag.Changed = hasLocales
+	}
 	if flag := cmd.Flags().Lookup("target-locale"); flag != nil {
-		flag.Changed = len(o.targetLocales) > 0
+		flag.Changed = hasLocales
 	}
 }
 
