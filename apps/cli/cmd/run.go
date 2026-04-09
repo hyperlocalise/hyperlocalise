@@ -90,7 +90,14 @@ func mergeRunLocaleFlags(primary, alias []string) []string {
 	}
 	seen := make(map[string]struct{}, len(primary)+len(alias))
 	out := make([]string, 0, len(primary)+len(alias))
-	for _, locale := range append(primary, alias...) {
+	for _, locale := range primary {
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+		seen[locale] = struct{}{}
+		out = append(out, locale)
+	}
+	for _, locale := range alias {
 		if _, ok := seen[locale]; ok {
 			continue
 		}
