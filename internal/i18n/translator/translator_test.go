@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v3"
 )
 
 type fakeProvider struct {

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openai/openai-go/v2"
-	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
 )
 
 func translateWithOpenAICompatibleClient(ctx context.Context, providerName string, req Request, opts ...option.RequestOption) (string, error) {

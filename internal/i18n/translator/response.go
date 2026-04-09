@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v3"
 )
 
 func responseText(resp *openai.ChatCompletion) (string, error) {
