@@ -383,7 +383,7 @@ func TestRunDryRunFiltersByTargetLocale(t *testing.T) {
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
 	cmd.SetErr(out)
-	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--target-locale", "de"})
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--locale", "de"})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("run command dry-run filtered target locale: %v", err)
@@ -509,7 +509,7 @@ func TestRunRejectsEmptyTargetLocale(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected empty target locale error")
 	}
-	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+	if !strings.Contains(err.Error(), "invalid --locale value: must not be empty") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -547,7 +547,7 @@ func TestRunRejectsWhitespaceTargetLocale(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected whitespace target locale error")
 	}
-	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+	if !strings.Contains(err.Error(), "invalid --locale value: must not be empty") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -586,7 +586,7 @@ func TestRunRejectsMixedEmptyTargetLocaleValue(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected mixed empty target locale error")
 	}
-	if !strings.Contains(err.Error(), "invalid --target-locale value: must not be empty") {
+	if !strings.Contains(err.Error(), "invalid --locale value: must not be empty") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if strings.Contains(out.String(), filepath.ToSlash(frTargetPath)) || strings.Contains(out.String(), filepath.ToSlash(deTargetPath)) {
