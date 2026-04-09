@@ -306,6 +306,15 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 	if err := writeCheckReport(cmd.OutOrStdout(), afterOut, format); err != nil {
 		return nil, fmt.Errorf("write check output after fix: %w", err)
 	}
+	if o.outputFile != "" {
+		var buf bytes.Buffer
+		if err := writeCheckReport(&buf, afterOut, format); err != nil {
+			return nil, fmt.Errorf("write check output file after fix: %w", err)
+		}
+		if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+			return nil, fmt.Errorf("write output file %q: %w", o.outputFile, err)
+		}
+	}
 	if o.jsonReport != "" {
 		if err := writeCheckJSONReportFile(o.jsonReport, afterOut); err != nil {
 			return nil, err
@@ -824,14 +833,11 @@ func isSameAsSourceText(sourceValue, targetValue string, hasTargetKey bool) bool
 	return s != "" && s == t
 }
 
-func describeNotLocalized(_ string, targetValue string, hasTargetKey bool) string {
+func describeNotLocalized(_ string, _ string, hasTargetKey bool) string {
 	if !hasTargetKey {
 		return "target key is missing"
 	}
-	if strings.TrimSpace(targetValue) == "" {
-		return "target value is empty"
-	}
-	return "target is not localized"
+	return "target value is empty"
 }
 
 func describeSameAsSource() string {
