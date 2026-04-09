@@ -17,18 +17,19 @@ func TestLoadMissingFileReturnsEmptyLock(t *testing.T) {
 	}
 	if f == nil {
 		t.Fatalf("expected lockfile object")
-	}
-	if f.LocaleStates == nil {
-		t.Fatalf("expected initialized locale states map")
-	}
-	if f.RunCompleted == nil {
-		t.Fatalf("expected initialized run completed map")
-	}
-	if f.RunCheckpoint == nil {
-		t.Fatalf("expected initialized run checkpoint map")
-	}
-	if len(f.LocaleStates) != 0 {
-		t.Fatalf("expected empty locale states, got %d", len(f.LocaleStates))
+	} else {
+		if f.LocaleStates == nil {
+			t.Fatalf("expected initialized locale states map")
+		}
+		if f.RunCompleted == nil {
+			t.Fatalf("expected initialized run completed map")
+		}
+		if f.RunCheckpoint == nil {
+			t.Fatalf("expected initialized run checkpoint map")
+		}
+		if len(f.LocaleStates) != 0 {
+			t.Fatalf("expected empty locale states, got %d", len(f.LocaleStates))
+		}
 	}
 }
 

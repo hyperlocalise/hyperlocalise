@@ -51,31 +51,32 @@ tests:
 	}
 	if dataset == nil {
 		t.Fatalf("Load() dataset is nil")
-	}
-	if len(dataset.Cases) != 2 {
-		t.Fatalf("expected 2 expanded cases, got %d", len(dataset.Cases))
-	}
-	if len(dataset.Experiments) != 1 || dataset.Experiments[0].ID != "openai-mini" {
-		t.Fatalf("expected dataset experiments to load, got %+v", dataset.Experiments)
-	}
-	if dataset.Judge.Provider != "openai" || dataset.Judge.Model != "gpt-5.2" || len(dataset.Judge.Assertions) != 2 {
-		t.Fatalf("expected dataset judge config to load, got %+v", dataset.Judge)
-	}
-	if dataset.Cases[0].ID != "checkout-cta::de-DE" && dataset.Cases[0].ID != "checkout-cta::fr-FR" {
-		t.Fatalf("unexpected expanded case id: %q", dataset.Cases[0].ID)
-	}
-	var fr Case
-	for _, tc := range dataset.Cases {
-		if tc.TargetLocale == "fr-FR" {
-			fr = tc
-			break
+	} else {
+		if len(dataset.Cases) != 2 {
+			t.Fatalf("expected 2 expanded cases, got %d", len(dataset.Cases))
 		}
-	}
-	if fr.Reference != "Enregistrer les parametres du compte" {
-		t.Fatalf("unexpected locale reference: %+v", fr)
-	}
-	if len(fr.Assertions) != 2 {
-		t.Fatalf("expected shared+locale assertions on fr case, got %+v", fr.Assertions)
+		if len(dataset.Experiments) != 1 || dataset.Experiments[0].ID != "openai-mini" {
+			t.Fatalf("expected dataset experiments to load, got %+v", dataset.Experiments)
+		}
+		if dataset.Judge.Provider != "openai" || dataset.Judge.Model != "gpt-5.2" || len(dataset.Judge.Assertions) != 2 {
+			t.Fatalf("expected dataset judge config to load, got %+v", dataset.Judge)
+		}
+		if dataset.Cases[0].ID != "checkout-cta::de-DE" && dataset.Cases[0].ID != "checkout-cta::fr-FR" {
+			t.Fatalf("unexpected expanded case id: %q", dataset.Cases[0].ID)
+		}
+		var fr Case
+		for _, tc := range dataset.Cases {
+			if tc.TargetLocale == "fr-FR" {
+				fr = tc
+				break
+			}
+		}
+		if fr.Reference != "Enregistrer les parametres du compte" {
+			t.Fatalf("unexpected locale reference: %+v", fr)
+		}
+		if len(fr.Assertions) != 2 {
+			t.Fatalf("expected shared+locale assertions on fr case, got %+v", fr.Assertions)
+		}
 	}
 }
 

@@ -14,11 +14,13 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +59,7 @@ type checkOptions struct {
 	excludeChecks []string
 	format        string
 	outputFile    string
+	jsonReport    string
 	noFail        bool
 }
 
@@ -92,7 +95,7 @@ type checkReport struct {
 }
 
 func defaultCheckOptions() checkOptions {
-	return checkOptions{format: "text"}
+	return checkOptions{format: "stylish"}
 }
 
 func newCheckCmd() *cobra.Command {
@@ -108,16 +111,37 @@ func newCheckCmd() *cobra.Command {
 				return err
 			}
 
-			payload, err := renderCheckReport(report, strings.ToLower(o.format))
-			if err != nil {
-				return err
-			}
-			if _, err := cmd.OutOrStdout().Write(payload); err != nil {
-				return fmt.Errorf("write check output: %w", err)
-			}
-			if o.outputFile != "" {
-				if err := os.WriteFile(o.outputFile, payload, 0o600); err != nil {
+			format := strings.ToLower(o.format)
+			stdout := cmd.OutOrStdout()
+			switch {
+			case o.outputFile == "":
+				if err := writeCheckReport(stdout, report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
+				}
+			case format == "stylish":
+				// Stylish uses *os.File for TTY color detection; MultiWriter would strip stdout color.
+				if err := writeCheckReport(stdout, report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
+				}
+				var buf bytes.Buffer
+				if err := writeCheckReport(&buf, report, format); err != nil {
+					return err
+				}
+				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
 					return fmt.Errorf("write output file %q: %w", o.outputFile, err)
+				}
+			default:
+				var buf bytes.Buffer
+				if err := writeCheckReport(io.MultiWriter(stdout, &buf), report, format); err != nil {
+					return fmt.Errorf("write check output: %w", err)
+				}
+				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+					return fmt.Errorf("write output file %q: %w", o.outputFile, err)
+				}
+			}
+			if o.jsonReport != "" {
+				if err := writeCheckJSONReportFile(o.jsonReport, report); err != nil {
+					return err
 				}
 			}
 			if report.Summary.Total > 0 && !o.noFail {
@@ -133,8 +157,9 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter by bucket name")
 	cmd.Flags().StringSliceVar(&o.checks, "check", nil, "check(s) to run")
 	cmd.Flags().StringSliceVar(&o.excludeChecks, "exclude-check", nil, "default check(s) to skip")
-	cmd.Flags().StringVar(&o.format, "format", o.format, "output format: text or json")
-	cmd.Flags().StringVar(&o.outputFile, "output-file", "", "optional report file path")
+	cmd.Flags().StringVar(&o.format, "format", o.format, "output format: stylish (default), text, or json")
+	cmd.Flags().StringVar(&o.outputFile, "output-file", "", "optional report file path (same format as stdout)")
+	cmd.Flags().StringVar(&o.jsonReport, "json-report", "", "write machine-readable JSON report to this path (independent of --format)")
 	cmd.Flags().BoolVar(&o.noFail, "no-fail", false, "report findings without exiting non-zero")
 
 	return cmd
@@ -636,22 +661,245 @@ func summarizeCheckFindings(findings []checkFinding) checkSummary {
 }
 
 func renderCheckReport(report checkReport, format string) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := writeCheckReport(&buf, report, format); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func writeCheckReport(w io.Writer, report checkReport, format string) error {
 	switch format {
 	case "text":
-		var buf bytes.Buffer
-		if err := writeCheckText(&buf, report); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
+		return writeCheckText(w, report)
 	case "json":
 		payload, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
-			return nil, fmt.Errorf("marshal json: %w", err)
+			return fmt.Errorf("marshal json: %w", err)
 		}
-		return append(payload, '\n'), nil
+		if _, err := w.Write(append(payload, '\n')); err != nil {
+			return fmt.Errorf("write json report: %w", err)
+		}
+		return nil
+	case "stylish":
+		return writeCheckStylish(w, report)
 	default:
-		return nil, fmt.Errorf("unsupported output format %q", format)
+		return fmt.Errorf("unsupported output format %q", format)
 	}
+}
+
+func writeCheckJSONReportFile(path string, report checkReport) error {
+	payload, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal json: %w", err)
+	}
+	payload = append(payload, '\n')
+	if err := os.WriteFile(path, payload, 0o600); err != nil {
+		return fmt.Errorf("write json report %q: %w", path, err)
+	}
+	return nil
+}
+
+type checkStylishStyles struct {
+	file     lipgloss.Style
+	lineNo   lipgloss.Style
+	errSev   lipgloss.Style
+	warnSev  lipgloss.Style
+	rule     lipgloss.Style
+	meta     lipgloss.Style
+	okLine   lipgloss.Style
+	probLine lipgloss.Style
+	colors   bool
+}
+
+func newCheckStylishStyles(w io.Writer) checkStylishStyles {
+	s := checkStylishStyles{}
+	f, ok := w.(*os.File)
+	if !ok {
+		return s
+	}
+	if !isatty.IsTerminal(f.Fd()) && !isatty.IsCygwinTerminal(f.Fd()) {
+		return s
+	}
+	s.colors = true
+	s.file = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("252"))
+	s.lineNo = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	s.errSev = lipgloss.NewStyle().Foreground(lipgloss.Color("203")).Bold(true)
+	s.warnSev = lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	s.rule = lipgloss.NewStyle().Foreground(lipgloss.Color("81"))
+	s.meta = lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
+	s.okLine = lipgloss.NewStyle().Foreground(lipgloss.Color("78")).Bold(true)
+	s.probLine = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("252"))
+	return s
+}
+
+func (s checkStylishStyles) renderFile(path string) string {
+	if !s.colors {
+		return path
+	}
+	return s.file.Render(path)
+}
+
+func (s checkStylishStyles) renderLineNo(line int) string {
+	text := fmt.Sprintf("%d:1", line)
+	if !s.colors {
+		return text
+	}
+	return s.lineNo.Render(text)
+}
+
+func (s checkStylishStyles) renderSeverity(sev string) string {
+	text := fmt.Sprintf("%-7s", sev)
+	if !s.colors {
+		return text
+	}
+	switch sev {
+	case checkSeverityError:
+		return s.errSev.Render(text)
+	case checkSeverityWarning:
+		return s.warnSev.Render(text)
+	default:
+		return text
+	}
+}
+
+func (s checkStylishStyles) renderRule(name string) string {
+	if !s.colors {
+		return name
+	}
+	return s.rule.Render(name)
+}
+
+func stylishPrimaryPath(f checkFinding) string {
+	if f.AnnotationFile != "" {
+		return f.AnnotationFile
+	}
+	return f.SourceFile
+}
+
+func stylishLine(f checkFinding) int {
+	if f.AnnotationLine > 0 {
+		return f.AnnotationLine
+	}
+	return 1
+}
+
+func stylishMetaSuffix(f checkFinding) string {
+	path := stylishPrimaryPath(f)
+	var parts []string
+	if f.Bucket != "" {
+		parts = append(parts, "bucket="+f.Bucket)
+	}
+	if f.Locale != "" {
+		parts = append(parts, "locale="+f.Locale)
+	}
+	if f.Key != "" {
+		parts = append(parts, "key="+f.Key)
+	}
+	if f.TargetFile != "" && f.TargetFile != path {
+		parts = append(parts, "target="+f.TargetFile)
+	}
+	return strings.Join(parts, " ")
+}
+
+func writeCheckStylish(w io.Writer, report checkReport) error {
+	styles := newCheckStylishStyles(w)
+	if report.Summary.Total == 0 {
+		line := "✔ No problems."
+		if styles.colors {
+			line = styles.okLine.Render(line)
+		}
+		if _, err := fmt.Fprintln(w, line); err != nil {
+			return fmt.Errorf("write stylish report: %w", err)
+		}
+		return nil
+	}
+
+	byFile := make(map[string][]checkFinding)
+	for _, f := range report.Findings {
+		p := stylishPrimaryPath(f)
+		byFile[p] = append(byFile[p], f)
+	}
+	files := make([]string, 0, len(byFile))
+	for p := range byFile {
+		files = append(files, p)
+	}
+	slices.Sort(files)
+
+	for _, file := range files {
+		list := byFile[file]
+		slices.SortFunc(list, func(a, b checkFinding) int {
+			if la, lb := stylishLine(a), stylishLine(b); la != lb {
+				return la - lb
+			}
+			if c := strings.Compare(a.Type, b.Type); c != 0 {
+				return c
+			}
+			if c := strings.Compare(a.Locale, b.Locale); c != 0 {
+				return c
+			}
+			if c := strings.Compare(a.Key, b.Key); c != 0 {
+				return c
+			}
+			return strings.Compare(a.Message, b.Message)
+		})
+
+		if _, err := fmt.Fprintln(w, styles.renderFile(file)); err != nil {
+			return fmt.Errorf("write stylish report: %w", err)
+		}
+		for _, f := range list {
+			msg := f.Message
+			if msg == "" {
+				msg = "(no message)"
+			}
+			line := fmt.Sprintf("  %s  %s  %s  %s",
+				styles.renderLineNo(stylishLine(f)),
+				styles.renderSeverity(f.Severity),
+				styles.renderRule(f.Type),
+				msg,
+			)
+			if meta := stylishMetaSuffix(f); meta != "" {
+				if styles.colors {
+					line += "  " + styles.meta.Render(meta)
+				} else {
+					line += "  " + meta
+				}
+			}
+			if _, err := fmt.Fprintln(w, line); err != nil {
+				return fmt.Errorf("write stylish report: %w", err)
+			}
+		}
+		if _, err := fmt.Fprintln(w); err != nil {
+			return fmt.Errorf("write stylish report: %w", err)
+		}
+	}
+
+	return writeCheckStylishFooter(w, report.Summary, styles)
+}
+
+func writeCheckStylishFooter(w io.Writer, summary checkSummary, styles checkStylishStyles) error {
+	errN := summary.BySeverity[checkSeverityError]
+	warnN := summary.BySeverity[checkSeverityWarning]
+	probWord := "problems"
+	if summary.Total == 1 {
+		probWord = "problem"
+	}
+	errWord := "errors"
+	if errN == 1 {
+		errWord = "error"
+	}
+	warnWord := "warnings"
+	if warnN == 1 {
+		warnWord = "warning"
+	}
+	line := fmt.Sprintf("✖ %d %s (%d %s, %d %s)", summary.Total, probWord, errN, errWord, warnN, warnWord)
+	if styles.colors {
+		line = styles.probLine.Render(line)
+	}
+	if _, err := fmt.Fprintln(w, line); err != nil {
+		return fmt.Errorf("write stylish report: %w", err)
+	}
+	return nil
 }
 
 func writeCheckText(w io.Writer, report checkReport) error {

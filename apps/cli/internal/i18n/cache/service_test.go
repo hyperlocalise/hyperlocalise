@@ -23,8 +23,7 @@ func TestNewFromConfigDisabled(t *testing.T) {
 	}
 	if svc == nil {
 		t.Fatal("expected non-nil service")
-	}
-	if svc.db != nil {
+	} else if svc.db != nil {
 		t.Fatal("expected db to be nil when cache is disabled")
 	}
 }
