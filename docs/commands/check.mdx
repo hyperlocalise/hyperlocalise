@@ -11,13 +11,24 @@ hyperlocalise check [--config <path>] [flags]
 
 ## Default checks
 
-- `not_localized`: target key is missing, empty, whitespace-only, or still matches the source text
-- `orphaned_key`: target key exists but the source key does not
+Each check has a **severity** (`error` or `warning`) in the report JSON and in **stylish** output. Exit code `1` applies when any finding exists unless you pass `--no-fail`. With **`--quiet`**, only **error** findings count toward the exit code and printed/JSON output; warning-only runs exit `0`.
+
+### Error
+
+- `not_localized`: target key is missing or the target value is empty (after trimming)
 - `missing_target_file`: resolved target file does not exist
 - `placeholder_mismatch`: placeholders differ from the source
 - `html_tag_mismatch`: HTML tag structure differs from the source
-- `icu_shape_mismatch`: ICU structure differs from the source or is malformed
+- `icu_shape_mismatch`: ICU structure differs from the source or is malformed (non-markdown files)
+- `markdown_ast_mismatch`: markdown or MDX document structure differs from the source (heading/component tree parity)
+
+### Warning
+
+- `same_as_source`: target value matches the source text. Common for brands, codes, or locale-neutral strings; use `--exclude-check same_as_source` if you want to hide these
+- `orphaned_key`: target key exists but the source key does not
 - `whitespace_only`: target value contains only whitespace
+
+Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include `markdown_ast_mismatch`. Use both flags if you need ICU and MD/MDX structure checks together.
 
 ## Flags
 
@@ -31,6 +42,10 @@ hyperlocalise check [--config <path>] [flags]
 - `--output-file`: write the same human or JSON format as stdout to a file
 - `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling)
 - `--no-fail`: return exit code `0` even when findings exist
+- `--quiet`: omit **warning** findings from stdout, `--output-file`, and `--json-report`; use exit code `0` when the full result would be warnings only. The internal check still runs on all severities; **`--fix`** still plans from the full result (including warnings) so fixable issues are not skipped.
+- `--fix`: after reporting, retranslate **fixable** findings using the same AI pipeline as [`run`](/commands/run) (same config, profiles, and environment variables). Applies to keyed findings of types `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. For **`markdown_ast_mismatch`** on `.md`/`.mdx` files (per-file findings, often without a `key`), `--fix` retranslates **all** aligned segments for that source/target/locale pair so structure can realign. Does not fix `same_as_source` (intentional copy), missing target files, or orphaned keys.
+- `--fix-dry-run`: with `--fix`, resolve planned translation tasks without writing targets or calling the model (still loads config and planning).
+- `--workers`: with `--fix`, number of parallel translation workers (default: number of CPU cores)
 
 ## Examples
 
@@ -52,6 +67,14 @@ hyperlocalise check --format json --no-fail --output-file report.json
 
 ```bash
 hyperlocalise check --check orphaned_key --check missing_target_file
+```
+
+```bash
+hyperlocalise check --fix --locale fr --bucket ui
+```
+
+```bash
+hyperlocalise check --fix --fix-dry-run --no-fail
 ```
 
 ## See also

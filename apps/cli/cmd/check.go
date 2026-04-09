@@ -11,11 +11,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -24,13 +26,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var runCheckFixSvc = runsvc.Run
+
 const (
 	checkNotLocalized      = "not_localized"
+	checkSameAsSource      = "same_as_source"
 	checkOrphanedKey       = "orphaned_key"
 	checkMissingTargetFile = "missing_target_file"
 	checkPlaceholder       = "placeholder_mismatch"
 	checkHTMLTag           = "html_tag_mismatch"
 	checkICUShape          = "icu_shape_mismatch"
+	checkMarkdownAST       = "markdown_ast_mismatch"
 	checkWhitespaceOnly    = "whitespace_only"
 	checkSeverityError     = "error"
 	checkSeverityWarning   = "warning"
@@ -40,11 +46,13 @@ var (
 	errCheckFindings = errors.New("check found issues")
 	allCheckTypes    = []string{
 		checkNotLocalized,
+		checkSameAsSource,
 		checkOrphanedKey,
 		checkMissingTargetFile,
 		checkPlaceholder,
 		checkHTMLTag,
 		checkICUShape,
+		checkMarkdownAST,
 		checkWhitespaceOnly,
 	}
 	htmlTagPattern = regexp.MustCompile(`</?[A-Za-z][^>]*?>`)
@@ -61,6 +69,10 @@ type checkOptions struct {
 	outputFile    string
 	jsonReport    string
 	noFail        bool
+	fix           bool
+	fixDryRun     bool
+	workers       int
+	quiet         bool
 }
 
 type checkFinding struct {
@@ -111,20 +123,22 @@ func newCheckCmd() *cobra.Command {
 				return err
 			}
 
+			display := applyCheckQuiet(report, o.quiet)
+
 			format := strings.ToLower(o.format)
 			stdout := cmd.OutOrStdout()
 			switch {
 			case o.outputFile == "":
-				if err := writeCheckReport(stdout, report, format); err != nil {
+				if err := writeCheckReport(stdout, display, format); err != nil {
 					return fmt.Errorf("write check output: %w", err)
 				}
 			case format == "stylish":
 				// Stylish uses *os.File for TTY color detection; MultiWriter would strip stdout color.
-				if err := writeCheckReport(stdout, report, format); err != nil {
+				if err := writeCheckReport(stdout, display, format); err != nil {
 					return fmt.Errorf("write check output: %w", err)
 				}
 				var buf bytes.Buffer
-				if err := writeCheckReport(&buf, report, format); err != nil {
+				if err := writeCheckReport(&buf, display, format); err != nil {
 					return err
 				}
 				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
@@ -132,7 +146,7 @@ func newCheckCmd() *cobra.Command {
 				}
 			default:
 				var buf bytes.Buffer
-				if err := writeCheckReport(io.MultiWriter(stdout, &buf), report, format); err != nil {
+				if err := writeCheckReport(io.MultiWriter(stdout, &buf), display, format); err != nil {
 					return fmt.Errorf("write check output: %w", err)
 				}
 				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
@@ -140,11 +154,26 @@ func newCheckCmd() *cobra.Command {
 				}
 			}
 			if o.jsonReport != "" {
-				if err := writeCheckJSONReportFile(o.jsonReport, report); err != nil {
+				if err := writeCheckJSONReportFile(o.jsonReport, display); err != nil {
 					return err
 				}
 			}
-			if report.Summary.Total > 0 && !o.noFail {
+			if !o.fix {
+				if display.Summary.Total > 0 && !o.noFail {
+					return errCheckFindings
+				}
+				return nil
+			}
+
+			after, err := executeCheckFix(cmd, o, report)
+			if err != nil {
+				return err
+			}
+			exitReport := display
+			if after != nil {
+				exitReport = applyCheckQuiet(*after, o.quiet)
+			}
+			if exitReport.Summary.Total > 0 && !o.noFail {
 				return errCheckFindings
 			}
 			return nil
@@ -161,6 +190,10 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.outputFile, "output-file", "", "optional report file path (same format as stdout)")
 	cmd.Flags().StringVar(&o.jsonReport, "json-report", "", "write machine-readable JSON report to this path (independent of --format)")
 	cmd.Flags().BoolVar(&o.noFail, "no-fail", false, "report findings without exiting non-zero")
+	cmd.Flags().BoolVar(&o.fix, "fix", false, "retranslate fixable findings using the same AI pipeline as run (requires API credentials)")
+	cmd.Flags().BoolVar(&o.fixDryRun, "fix-dry-run", false, "with --fix, plan translation tasks without writing targets or calling the API")
+	cmd.Flags().IntVar(&o.workers, "workers", 0, "with --fix, number of parallel translation workers (default: number of CPU cores)")
+	cmd.Flags().BoolVar(&o.quiet, "quiet", false, "omit warning-severity findings from output and JSON report; exit 0 when only warnings exist (errors and --fix still use the full result)")
 
 	return cmd
 }
@@ -191,6 +224,201 @@ func runCheck(_ context.Context, o checkOptions) (checkReport, error) {
 	}
 	sortCheckFindings(findings)
 	return checkReport{Checks: enabledChecks, Findings: findings, Summary: summarizeCheckFindings(findings)}, nil
+}
+
+func applyCheckQuiet(r checkReport, quiet bool) checkReport {
+	if !quiet {
+		return r
+	}
+	return filterCheckReportErrorsOnly(r)
+}
+
+func filterCheckReportErrorsOnly(r checkReport) checkReport {
+	out := make([]checkFinding, 0, len(r.Findings))
+	for _, f := range r.Findings {
+		if f.Severity == checkSeverityError {
+			out = append(out, f)
+		}
+	}
+	sortCheckFindings(out)
+	return checkReport{
+		Checks:   r.Checks,
+		Findings: out,
+		Summary:  summarizeCheckFindings(out),
+	}
+}
+
+func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*checkReport, error) {
+	targets := buildFixTargetsFromFindings(initial.Findings)
+	mdScopes := buildFixMarkdownScopesFromFindings(initial.Findings)
+	if len(targets) == 0 && len(mdScopes) == 0 {
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "check fix: no fixable findings (skipped)")
+		return nil, nil
+	}
+	workers := o.workers
+	if workers < 0 {
+		return nil, fmt.Errorf("invalid --workers value %d: must be >= 0", workers)
+	}
+	if workers == 0 {
+		workers = runtime.NumCPU()
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	sourcePaths := uniqueSortedSourcePathsFromFixInputs(targets, mdScopes)
+	runIn := runsvc.Input{
+		ConfigPath:        o.configPath,
+		Bucket:            o.bucket,
+		Group:             o.group,
+		SourcePaths:       sourcePaths,
+		FixTargets:        targets,
+		FixMarkdownScopes: mdScopes,
+		Force:             true,
+		Prune:             false,
+		DryRun:            o.fixDryRun,
+		Workers:           workers,
+	}
+	rpt, err := runCheckFixSvc(context.Background(), runIn)
+	if err != nil {
+		return nil, err
+	}
+	for _, w := range rpt.Warnings {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+	}
+	if o.fixDryRun {
+		return nil, nil
+	}
+	if rpt.Failed > 0 {
+		return nil, fmt.Errorf("check fix: run completed with %d failed task(s)", rpt.Failed)
+	}
+	after, err := runCheck(context.Background(), o)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), ""); err != nil {
+		return nil, err
+	}
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), "After fix:"); err != nil {
+		return nil, err
+	}
+	format := strings.ToLower(o.format)
+	afterOut := applyCheckQuiet(after, o.quiet)
+	if err := writeCheckReport(cmd.OutOrStdout(), afterOut, format); err != nil {
+		return nil, fmt.Errorf("write check output after fix: %w", err)
+	}
+	if o.outputFile != "" {
+		var buf bytes.Buffer
+		if err := writeCheckReport(&buf, afterOut, format); err != nil {
+			return nil, fmt.Errorf("write check output file after fix: %w", err)
+		}
+		if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+			return nil, fmt.Errorf("write output file %q: %w", o.outputFile, err)
+		}
+	}
+	if o.jsonReport != "" {
+		if err := writeCheckJSONReportFile(o.jsonReport, afterOut); err != nil {
+			return nil, err
+		}
+	}
+	return &after, nil
+}
+
+func buildFixTargetsFromFindings(findings []checkFinding) []runsvc.FixTarget {
+	seen := make(map[string]struct{})
+	var out []runsvc.FixTarget
+	for _, f := range findings {
+		if !isFixableFindingType(f.Type) || strings.TrimSpace(f.Key) == "" {
+			continue
+		}
+		k := fixTargetDedupeKey(f.SourceFile, f.TargetFile, f.Locale, f.Key)
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, runsvc.FixTarget{
+			SourcePath:   f.SourceFile,
+			TargetPath:   f.TargetFile,
+			TargetLocale: f.Locale,
+			EntryKey:     f.Key,
+		})
+	}
+	return out
+}
+
+func buildFixMarkdownScopesFromFindings(findings []checkFinding) []runsvc.FixMarkdownScope {
+	seen := make(map[string]struct{})
+	var out []runsvc.FixMarkdownScope
+	for _, f := range findings {
+		if f.Type != checkMarkdownAST {
+			continue
+		}
+		if strings.TrimSpace(f.SourceFile) == "" || strings.TrimSpace(f.TargetFile) == "" || strings.TrimSpace(f.Locale) == "" {
+			continue
+		}
+		if !isMarkdownPath(f.TargetFile) {
+			continue
+		}
+		k := fixMarkdownScopeDedupeKey(f.SourceFile, f.TargetFile, f.Locale)
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		out = append(out, runsvc.FixMarkdownScope{
+			SourcePath:   f.SourceFile,
+			TargetPath:   f.TargetFile,
+			TargetLocale: f.Locale,
+		})
+	}
+	return out
+}
+
+func fixMarkdownScopeDedupeKey(sourcePath, targetPath, locale string) string {
+	return strings.Join([]string{
+		filepath.Clean(sourcePath),
+		filepath.Clean(targetPath),
+		locale,
+	}, "\x00")
+}
+
+func fixTargetDedupeKey(sourcePath, targetPath, locale, key string) string {
+	return strings.Join([]string{
+		filepath.Clean(sourcePath),
+		filepath.Clean(targetPath),
+		locale,
+		key,
+	}, "\x00")
+}
+
+func isFixableFindingType(t string) bool {
+	switch t {
+	case checkNotLocalized, checkWhitespaceOnly, checkPlaceholder, checkHTMLTag, checkICUShape:
+		return true
+	default:
+		return false
+	}
+}
+
+func uniqueSortedSourcePathsFromFixInputs(targets []runsvc.FixTarget, mdScopes []runsvc.FixMarkdownScope) []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, t := range targets {
+		p := filepath.Clean(t.SourcePath)
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		out = append(out, t.SourcePath)
+	}
+	for _, ms := range mdScopes {
+		p := filepath.Clean(ms.SourcePath)
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		out = append(out, ms.SourcePath)
+	}
+	slices.Sort(out)
+	return out
 }
 
 func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
@@ -290,7 +518,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 					}
 
 					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
-					if hasCheck(checkSet, checkICUShape) && isMarkdownPath(targetPath) {
+					if hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(targetPath) {
 						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceContent, targetContent)...)
 					}
 				}
@@ -341,10 +569,10 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 		sourceValue := sourceEntries[key]
 		targetValue, hasTargetKey := targetEntries[key]
 		isWhitespaceOnlyTarget := hasTargetKey && targetValue != "" && strings.TrimSpace(targetValue) == ""
-		notLocalized := false
+		reportedMissingOrEmpty := false
 
-		if _, ok := checkSet[checkNotLocalized]; ok && isNotLocalized(sourceValue, targetValue, hasTargetKey) {
-			notLocalized = true
+		if _, ok := checkSet[checkNotLocalized]; ok && isMissingOrEmptyTarget(sourceValue, targetValue, hasTargetKey) {
+			reportedMissingOrEmpty = true
 			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, !hasTargetKey)
 			findings = append(findings, checkFinding{
 				Type:           checkNotLocalized,
@@ -359,10 +587,25 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
+		if _, ok := checkSet[checkSameAsSource]; ok && isSameAsSourceText(sourceValue, targetValue, hasTargetKey) {
+			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
+			findings = append(findings, checkFinding{
+				Type:           checkSameAsSource,
+				Severity:       severityForCheck(checkSameAsSource),
+				Bucket:         bucketName,
+				Locale:         locale,
+				SourceFile:     sourcePath,
+				TargetFile:     targetPath,
+				Key:            key,
+				Message:        describeSameAsSource(),
+				AnnotationFile: annotationFile,
+				AnnotationLine: annotationLine,
+			})
+		}
 		if !hasTargetKey {
 			continue
 		}
-		if notLocalized && isWhitespaceOnlyTarget {
+		if reportedMissingOrEmpty && isWhitespaceOnlyTarget {
 			continue
 		}
 		if _, ok := checkSet[checkWhitespaceOnly]; ok && isWhitespaceOnlyTarget {
@@ -497,8 +740,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 	missingAnnotationFile, missingAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
 	for _, path := range missingPaths {
 		findings = append(findings, checkFinding{
-			Type:           checkICUShape,
-			Severity:       severityForCheck(checkICUShape),
+			Type:           checkMarkdownAST,
+			Severity:       severityForCheck(checkMarkdownAST),
 			Bucket:         bucketName,
 			Locale:         locale,
 			SourceFile:     sourcePath,
@@ -520,8 +763,8 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 	extraAnnotationFile, extraAnnotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", false)
 	for _, path := range extraPaths {
 		findings = append(findings, checkFinding{
-			Type:           checkICUShape,
-			Severity:       severityForCheck(checkICUShape),
+			Type:           checkMarkdownAST,
+			Severity:       severityForCheck(checkMarkdownAST),
 			Bucket:         bucketName,
 			Locale:         locale,
 			SourceFile:     sourcePath,
@@ -569,27 +812,36 @@ func validateCheckInvariant(candidate, baseline storage.Entry) []string {
 	return diags
 }
 
-func isNotLocalized(sourceValue, targetValue string, hasTargetKey bool) bool {
+// isMissingOrEmptyTarget reports missing target keys or empty target strings (after trim).
+func isMissingOrEmptyTarget(sourceValue, targetValue string, hasTargetKey bool) bool {
 	if !hasTargetKey {
 		return true
 	}
-	if strings.TrimSpace(targetValue) == "" {
-		return true
-	}
-	return strings.TrimSpace(sourceValue) != "" && strings.TrimSpace(sourceValue) == strings.TrimSpace(targetValue)
+	return strings.TrimSpace(targetValue) == ""
 }
 
-func describeNotLocalized(sourceValue, targetValue string, hasTargetKey bool) string {
+// isSameAsSourceText reports when the target is present, non-empty, and equals the source (trimmed).
+// Legitimate translations may match the source (brands, codes); use check severity or --exclude-check same_as_source to tune CI.
+func isSameAsSourceText(sourceValue, targetValue string, hasTargetKey bool) bool {
+	if !hasTargetKey {
+		return false
+	}
+	if strings.TrimSpace(targetValue) == "" {
+		return false
+	}
+	s, t := strings.TrimSpace(sourceValue), strings.TrimSpace(targetValue)
+	return s != "" && s == t
+}
+
+func describeNotLocalized(_ string, _ string, hasTargetKey bool) string {
 	if !hasTargetKey {
 		return "target key is missing"
 	}
-	if strings.TrimSpace(targetValue) == "" {
-		return "target value is empty"
-	}
-	if strings.TrimSpace(sourceValue) == strings.TrimSpace(targetValue) {
-		return "target value matches source"
-	}
-	return "target is not localized"
+	return "target value is empty"
+}
+
+func describeSameAsSource() string {
+	return "target value matches source"
 }
 
 func hasHTMLTagMismatch(sourceValue, targetValue string) bool {
@@ -952,7 +1204,7 @@ func writeCheckText(w io.Writer, report checkReport) error {
 
 func severityForCheck(name string) string {
 	switch name {
-	case checkOrphanedKey, checkWhitespaceOnly:
+	case checkOrphanedKey, checkWhitespaceOnly, checkSameAsSource:
 		return checkSeverityWarning
 	default:
 		return checkSeverityError

@@ -2773,7 +2773,7 @@ llm:
 	svc := newTestService()
 	svc.readFile = os.ReadFile
 
-	tasks, err := svc.planTasks(cfg, "", "", nil, nil)
+	tasks, _, err := svc.planTasks(cfg, "", "", nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("plan tasks: %v", err)
 	}
@@ -2789,6 +2789,147 @@ llm:
 		if _, ok := targets[target]; !ok {
 			t.Fatalf("expected planned target %q, got %+v", target, tasks)
 		}
+	}
+}
+
+func TestPlanTasksFixTargetsFiltersTasks(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"a":"one","b":"two"}`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	targetPath := filepath.Join(dir, "fr.json")
+	configPath := filepath.Join(dir, "i18n.yml")
+	configContent := `
+locales:
+  source: en
+  targets:
+    - fr
+buckets:
+  ui:
+    files:
+      - from: ` + sourcePath + `
+        to: ` + targetPath + `
+groups:
+  default:
+    targets: [fr]
+    buckets: [ui]
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	all, _, err := svc.planTasks(cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 tasks without filter, got %d", len(all))
+	}
+
+	filtered, warns, err := svc.planTasks(cfg, "", "", nil, nil, []FixTarget{
+		{SourcePath: sourcePath, TargetPath: targetPath, TargetLocale: "fr", EntryKey: "a"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("planTasks with FixTargets: %v", err)
+	}
+	if len(warns) != 0 {
+		t.Fatalf("unexpected warnings: %v", warns)
+	}
+	if len(filtered) != 1 || filtered[0].EntryKey != "a" {
+		t.Fatalf("expected one task for key a, got %+v", filtered)
+	}
+
+	_, warns, err = svc.planTasks(cfg, "", "", nil, nil, []FixTarget{
+		{SourcePath: sourcePath, TargetPath: targetPath, TargetLocale: "fr", EntryKey: "missing"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(warns) != 1 || !strings.Contains(warns[0], "fix target matched no planned task") {
+		t.Fatalf("expected unmatched fix target warning, got %v", warns)
+	}
+}
+
+func TestPlanTasksFixMarkdownScopesIncludesAllKeys(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.mdx")
+	if err := os.WriteFile(sourcePath, []byte(`# Hi
+
+Hello
+`), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	targetPath := filepath.Join(dir, "fr.mdx")
+	configPath := filepath.Join(dir, "i18n.yml")
+	configContent := `
+locales:
+  source: en
+  targets:
+    - fr
+buckets:
+  ui:
+    files:
+      - from: ` + sourcePath + `
+        to: ` + targetPath + `
+groups:
+  default:
+    targets: [fr]
+    buckets: [ui]
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: gpt-4.1-mini
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	scope := []FixMarkdownScope{
+		{SourcePath: sourcePath, TargetPath: targetPath, TargetLocale: "fr"},
+	}
+	all, _, err := svc.planTasks(cfg, "", "", nil, nil, nil, scope)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(all) < 2 {
+		t.Fatalf("expected at least 2 tasks for full MDX file, got %d", len(all))
+	}
+	keys := make(map[string]struct{}, len(all))
+	for _, task := range all {
+		keys[task.EntryKey] = struct{}{}
+	}
+	if len(keys) < 2 {
+		t.Fatalf("expected multiple entry keys, got %v", keys)
+	}
+
+	warnsScope := []FixMarkdownScope{
+		{SourcePath: sourcePath, TargetPath: filepath.Join(dir, "missing.mdx"), TargetLocale: "fr"},
+	}
+	_, warns, err := svc.planTasks(cfg, "", "", nil, nil, nil, warnsScope)
+	if err != nil {
+		t.Fatalf("planTasks: %v", err)
+	}
+	if len(warns) != 1 || !strings.Contains(warns[0], "fix markdown scope matched no planned task") {
+		t.Fatalf("expected unmatched markdown scope warning, got %v", warns)
 	}
 }
 

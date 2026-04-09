@@ -45,6 +45,40 @@ type Input struct {
 	ContextMemoryScope        string
 	ContextMemoryMaxChars     int
 	OnEvent                   func(Event)
+	FixTargets                []FixTarget
+	FixMarkdownScopes         []FixMarkdownScope
+}
+
+// FixTarget selects a subset of planned translation tasks when non-empty.
+type FixTarget struct {
+	SourcePath   string
+	TargetPath   string
+	TargetLocale string
+	EntryKey     string
+}
+
+// FixMarkdownScope requests all translation tasks for one MD/MDX source/target/locale (e.g. AST parity fix).
+type FixMarkdownScope struct {
+	SourcePath   string
+	TargetPath   string
+	TargetLocale string
+}
+
+func fixTargetMatchKey(sourcePath, targetPath, targetLocale, entryKey string) string {
+	return strings.Join([]string{
+		filepath.Clean(sourcePath),
+		filepath.Clean(targetPath),
+		strings.TrimSpace(targetLocale),
+		strings.TrimSpace(entryKey),
+	}, "\x00")
+}
+
+func fixMarkdownScopeKey(sourcePath, targetPath, targetLocale string) string {
+	return strings.Join([]string{
+		filepath.Clean(sourcePath),
+		filepath.Clean(targetPath),
+		strings.TrimSpace(targetLocale),
+	}, "\x00")
 }
 
 const (
@@ -227,7 +261,7 @@ func Run(ctx context.Context, in Input) (Report, error) {
 	return New().Run(ctx, in)
 }
 
-func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string) ([]Task, error) {
+func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string, onlyTargetLocales, onlySourcePaths []string, fixTargets []FixTarget, fixMarkdownScopes []FixMarkdownScope) ([]Task, []string, error) {
 	parser := s.newParser()
 	sourceCache := map[string]plannedSourceSnapshot{}
 	resolvedSourcesCache := map[string][]string{}
@@ -239,21 +273,21 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	ragSnapshot := resolveRetrievalSnapshot(cfg)
 	filteredTargets, err := normalizeTargetLocales(onlyTargetLocales)
 	if err != nil {
-		return nil, fmt.Errorf("planning tasks: %w", err)
+		return nil, nil, fmt.Errorf("planning tasks: %w", err)
 	}
 	filteredSourcePaths, err := normalizeSourcePaths(onlySourcePaths)
 	if err != nil {
-		return nil, fmt.Errorf("planning tasks: %w", err)
+		return nil, nil, fmt.Errorf("planning tasks: %w", err)
 	}
 	matchedSourcePaths := make(map[string]struct{}, len(filteredSourcePaths))
 	if filteredBucket != "" {
 		if _, ok := cfg.Buckets[filteredBucket]; !ok {
-			return nil, fmt.Errorf("planning tasks: unknown bucket %q", filteredBucket)
+			return nil, nil, fmt.Errorf("planning tasks: unknown bucket %q", filteredBucket)
 		}
 	}
 	if filteredGroup != "" {
 		if _, ok := cfg.Groups[filteredGroup]; !ok {
-			return nil, fmt.Errorf("planning tasks: unknown group %q", filteredGroup)
+			return nil, nil, fmt.Errorf("planning tasks: unknown group %q", filteredGroup)
 		}
 	}
 	if len(filteredTargets) > 0 {
@@ -263,10 +297,32 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		}
 		for _, target := range filteredTargets {
 			if _, ok := targetSet[target]; !ok {
-				return nil, fmt.Errorf("planning tasks: unknown target locale %q", target)
+				return nil, nil, fmt.Errorf("planning tasks: unknown target locale %q", target)
 			}
 		}
 	}
+
+	var fixSet map[string]struct{}
+	var matchedFix map[string]struct{}
+	if len(fixTargets) > 0 {
+		fixSet = make(map[string]struct{}, len(fixTargets))
+		for _, ft := range fixTargets {
+			fixSet[fixTargetMatchKey(ft.SourcePath, ft.TargetPath, ft.TargetLocale, ft.EntryKey)] = struct{}{}
+		}
+		matchedFix = make(map[string]struct{}, len(fixSet))
+	}
+
+	var markdownScopeSet map[string]struct{}
+	var matchedMarkdownScopes map[string]struct{}
+	if len(fixMarkdownScopes) > 0 {
+		markdownScopeSet = make(map[string]struct{}, len(fixMarkdownScopes))
+		for _, ms := range fixMarkdownScopes {
+			markdownScopeSet[fixMarkdownScopeKey(ms.SourcePath, ms.TargetPath, ms.TargetLocale)] = struct{}{}
+		}
+		matchedMarkdownScopes = make(map[string]struct{}, len(markdownScopeSet))
+	}
+
+	filterFixes := len(fixSet) > 0 || len(markdownScopeSet) > 0
 
 	tasks := make([]Task, 0)
 
@@ -277,7 +333,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		group := cfg.Groups[groupName]
 		profileName, profile, err := resolveProfile(cfg, groupName)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		contextProvider, contextModel := resolveContextMemoryModel(profile, cfg.LLM.ContextMemory)
 		promptVersion := resolvePromptVersion(profile)
@@ -305,7 +361,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			}
 			bucket, ok := cfg.Buckets[bucketName]
 			if !ok {
-				return nil, fmt.Errorf("planning tasks: group %q references unknown bucket %q", groupName, bucketName)
+				return nil, nil, fmt.Errorf("planning tasks: group %q references unknown bucket %q", groupName, bucketName)
 			}
 
 			for _, file := range bucket.Files {
@@ -314,12 +370,12 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 				if !ok {
 					sources, err = resolveSourcePaths(sourcePattern)
 					if err != nil {
-						return nil, fmt.Errorf("planning tasks: resolve source paths for %q: %w", sourcePattern, err)
+						return nil, nil, fmt.Errorf("planning tasks: resolve source paths for %q: %w", sourcePattern, err)
 					}
 					resolvedSourcesCache[sourcePattern] = sources
 				}
 				if len(sources) == 0 {
-					return nil, fmt.Errorf("planning tasks: source pattern %q matched no files", sourcePattern)
+					return nil, nil, fmt.Errorf("planning tasks: source pattern %q matched no files", sourcePattern)
 				}
 
 				for _, sourcePath := range sources {
@@ -336,14 +392,14 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					}
 					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {
-						return nil, err
+						return nil, nil, err
 					}
 					keys := sortedEntryKeys(sourceEntries)
 					for _, target := range targets {
 						resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
 						if err != nil {
-							return nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
+							return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
@@ -378,6 +434,27 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								RAGSnapshot:     ragSnapshot,
 							}
 							precomputeStableTaskCacheFields(&task)
+							if filterFixes {
+								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)
+								sk := fixMarkdownScopeKey(task.SourcePath, task.TargetPath, task.TargetLocale)
+								inKey := false
+								if len(fixSet) > 0 {
+									_, inKey = fixSet[mk]
+								}
+								inMd := false
+								if len(markdownScopeSet) > 0 {
+									_, inMd = markdownScopeSet[sk]
+								}
+								if inKey {
+									matchedFix[mk] = struct{}{}
+								}
+								if inMd {
+									matchedMarkdownScopes[sk] = struct{}{}
+								}
+								if !inKey && !inMd {
+									continue
+								}
+							}
 							tasks = append(tasks, task)
 						}
 					}
@@ -396,13 +473,48 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 		slices.Sort(unmatched)
 		if len(unmatched) > 0 {
 			if len(unmatched) == 1 {
-				return nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
+				return nil, nil, fmt.Errorf("planning tasks: unknown source file %q", unmatched[0])
 			}
-			return nil, fmt.Errorf("planning tasks: unknown source files: %s", strings.Join(unmatched, ", "))
+			return nil, nil, fmt.Errorf("planning tasks: unknown source files: %s", strings.Join(unmatched, ", "))
 		}
 	}
 
-	return tasks, nil
+	var planWarnings []string
+	if len(fixSet) > 0 {
+		seen := make(map[string]struct{})
+		for _, ft := range fixTargets {
+			mk := fixTargetMatchKey(ft.SourcePath, ft.TargetPath, ft.TargetLocale, ft.EntryKey)
+			if _, ok := matchedFix[mk]; ok {
+				continue
+			}
+			if _, dup := seen[mk]; dup {
+				continue
+			}
+			seen[mk] = struct{}{}
+			planWarnings = append(planWarnings, fmt.Sprintf(
+				"fix target matched no planned task (source=%s target=%s locale=%s key=%s)",
+				ft.SourcePath, ft.TargetPath, ft.TargetLocale, ft.EntryKey))
+		}
+	}
+	if len(markdownScopeSet) > 0 {
+		seen := make(map[string]struct{})
+		for _, ms := range fixMarkdownScopes {
+			sk := fixMarkdownScopeKey(ms.SourcePath, ms.TargetPath, ms.TargetLocale)
+			if _, ok := matchedMarkdownScopes[sk]; ok {
+				continue
+			}
+			if _, dup := seen[sk]; dup {
+				continue
+			}
+			seen[sk] = struct{}{}
+			planWarnings = append(planWarnings, fmt.Sprintf(
+				"fix markdown scope matched no planned task (source=%s target=%s locale=%s)",
+				ms.SourcePath, ms.TargetPath, ms.TargetLocale))
+		}
+	}
+	slices.Sort(planWarnings)
+
+	return tasks, planWarnings, nil
 }
 
 type plannedSourceSnapshot struct {
