@@ -88,9 +88,15 @@ func mergeRunLocaleFlags(primary, alias []string) []string {
 	if len(primary) == 0 && len(alias) == 0 {
 		return nil
 	}
+	seen := make(map[string]struct{}, len(primary)+len(alias))
 	out := make([]string, 0, len(primary)+len(alias))
-	out = append(out, primary...)
-	out = append(out, alias...)
+	for _, locale := range append(primary, alias...) {
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+		seen[locale] = struct{}{}
+		out = append(out, locale)
+	}
 	return out
 }
 
