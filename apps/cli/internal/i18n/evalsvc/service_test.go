@@ -515,10 +515,11 @@ func TestAggregateLLMEvaluationIncludesOnlyConfiguredAndRequiredAssertions(t *te
 	got := aggregateLLMEvaluation(in, nil, prepareCases(cases))
 	if got == nil {
 		t.Fatalf("expected llm evaluation payload")
-	}
-	want := []string{AssertionFactuality}
-	if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
-		t.Fatalf("expected required test-level assertions only, got %+v", got.Assertions)
+	} else {
+		want := []string{AssertionFactuality}
+		if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
+			t.Fatalf("expected required test-level assertions only, got %+v", got.Assertions)
+		}
 	}
 }
 
@@ -527,10 +528,11 @@ func TestAggregateLLMEvaluationUsesDefaultAssertionWhenNoneConfigured(t *testing
 	got := aggregateLLMEvaluation(in, nil, nil)
 	if got == nil {
 		t.Fatalf("expected llm evaluation payload")
-	}
-	want := []string{AssertionLLMRubric}
-	if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
-		t.Fatalf("expected default llm-rubric assertion when none configured, got %+v", got.Assertions)
+	} else {
+		want := []string{AssertionLLMRubric}
+		if len(got.Assertions) != len(want) || got.Assertions[0] != want[0] {
+			t.Fatalf("expected default llm-rubric assertion when none configured, got %+v", got.Assertions)
+		}
 	}
 }
 
