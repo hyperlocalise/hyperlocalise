@@ -16,14 +16,14 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.98.0
 	github.com/aws/smithy-go v1.24.3
-	github.com/charmbracelet/log v1.0.0
+	github.com/charmbracelet/log/v2 v2.0.0
 	github.com/cloudevents/sdk-go/v2 v2.16.2
 	github.com/crowdin/crowdin-api-client-go v0.18.0
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/lokalise/go-lokalise-api/v5 v5.0.0
 	github.com/mattn/go-isatty v0.0.20
-	github.com/openai/openai-go/v2 v2.7.1
+	github.com/openai/openai-go/v3 v3.31.0
 	github.com/spf13/cobra v1.10.2
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
