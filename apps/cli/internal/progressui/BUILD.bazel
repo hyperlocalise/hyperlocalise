@@ -11,7 +11,7 @@ go_library(
         "@land_charm_bubbles_v2//stopwatch",
         "@land_charm_bubbletea_v2//:bubbletea",
         "@land_charm_lipgloss_v2//:lipgloss",
-        "@com_github_charmbracelet_log//:log",
+        "@land_charm_log_v2//:log",
         "@com_github_mattn_go_isatty//:go-isatty",
     ],
 )
