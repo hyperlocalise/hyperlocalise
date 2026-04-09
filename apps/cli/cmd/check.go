@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -18,6 +19,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -27,6 +29,9 @@ import (
 )
 
 var runCheckFixSvc = runsvc.Run
+
+// checkFixProgressMode controls progress UI during check --fix (tests may set to ModeOn to assert wiring).
+var checkFixProgressMode = progressui.ModeAuto
 
 const (
 	checkNotLocalized      = "not_localized"
@@ -266,6 +271,22 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 		workers = 1
 	}
 	sourcePaths := uniqueSortedSourcePathsFromFixInputs(targets, mdScopes)
+
+	output := cmd.OutOrStdout()
+	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
+	defer stop()
+
+	var renderer *progressui.Renderer
+	if progressui.IsEnabled(checkFixProgressMode, output, nil) {
+		renderer = progressui.New(output, checkFixProgressMode, progressui.Options{
+			Label:       "Fixing translations",
+			OnInterrupt: stop,
+		})
+	}
+	if renderer != nil {
+		defer renderer.Close()
+	}
+
 	runIn := runsvc.Input{
 		ConfigPath:        o.configPath,
 		Bucket:            o.bucket,
@@ -278,7 +299,17 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 		DryRun:            o.fixDryRun,
 		Workers:           workers,
 	}
-	rpt, err := runCheckFixSvc(context.Background(), runIn)
+	if renderer != nil {
+		runIn.OnEvent = func(event runsvc.Event) {
+			applyRunProgressEvent(renderer, event)
+		}
+	}
+
+	rpt, err := runCheckFixSvc(runCtx, runIn)
+	if renderer != nil {
+		renderer.TokenUsage(rpt.PromptTokens, rpt.CompletionTokens, rpt.TotalTokens)
+		renderer.Complete()
+	}
 	if err != nil {
 		return nil, err
 	}
