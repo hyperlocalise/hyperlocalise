@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +21,8 @@ import (
 )
 
 type HTTPClient struct {
-	client *sdkcrowdin.Client
+	client     *sdkcrowdin.Client
+	httpClient *http.Client
 }
 
 const (
@@ -104,7 +109,7 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		return nil, fmt.Errorf("crowdin client init: %w", err)
 	}
 
-	return &HTTPClient{client: client}, nil
+	return &HTTPClient{client: client, httpClient: httpClient}, nil
 }
 
 type apiBaseURLRoundTripper struct {
@@ -309,6 +314,262 @@ func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocale
 	return out, nil
 }
 
+func (c *HTTPClient) ResolveLocales(ctx context.Context, projectID string, requested []string) ([]string, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+	return c.resolveLocales(ctx, projectInt, requested)
+}
+
+func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	normalized := strings.Trim(strings.TrimSpace(filepath.ToSlash(path)), "/")
+	if normalized == "" {
+		return 0, nil
+	}
+
+	parentID := 0
+	for _, segment := range strings.Split(normalized, "/") {
+		directory, err := c.findDirectory(ctx, projectInt, parentID, segment)
+		if err != nil {
+			return 0, err
+		}
+		if directory == nil {
+			req := &model.DirectoryAddRequest{Name: segment}
+			if parentID > 0 {
+				req.DirectoryID = parentID
+			}
+			directory, _, err = c.client.SourceFiles.AddDirectory(ctx, projectInt, req)
+			if err != nil {
+				if !isConflictError(err) {
+					return 0, fmt.Errorf("create directory %q: %w", segment, err)
+				}
+				directory, err = c.findDirectory(ctx, projectInt, parentID, segment)
+				if err != nil {
+					return 0, err
+				}
+				if directory == nil {
+					return 0, fmt.Errorf("create directory %q: %w", segment, err)
+				}
+			}
+		}
+		parentID = directory.ID
+	}
+	return parentID, nil
+}
+
+func (c *HTTPClient) FindDirectory(ctx context.Context, projectID, path string) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	normalized := strings.Trim(strings.TrimSpace(filepath.ToSlash(path)), "/")
+	if normalized == "" {
+		return 0, nil
+	}
+
+	parentID := 0
+	for _, segment := range strings.Split(normalized, "/") {
+		directory, err := c.findDirectory(ctx, projectInt, parentID, segment)
+		if err != nil {
+			return 0, err
+		}
+		if directory == nil {
+			return 0, fmt.Errorf("remote directory %q not found", normalized)
+		}
+		parentID = directory.ID
+	}
+	return parentID, nil
+}
+
+func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	storageID, err := c.uploadStorage(ctx, localPath)
+	if err != nil {
+		return 0, err
+	}
+
+	file, err := c.findFile(ctx, projectInt, directoryID, name)
+	if err != nil {
+		return 0, err
+	}
+	if file == nil {
+		req := &model.FileAddRequest{
+			StorageID:               storageID,
+			Name:                    name,
+			ExcludedTargetLanguages: append([]string(nil), group.ExcludedTargetLanguages...),
+		}
+		if directoryID > 0 {
+			req.DirectoryID = directoryID
+		}
+		file, _, err = c.client.SourceFiles.AddFile(ctx, projectInt, req)
+		if err != nil {
+			return 0, fmt.Errorf("add source file %q: %w", name, err)
+		}
+		return file.ID, nil
+	}
+
+	file, _, err = c.client.SourceFiles.UpdateOrRestoreFile(ctx, projectInt, file.ID, &model.FileUpdateRestoreRequest{
+		StorageID:    storageID,
+		Name:         name,
+		UpdateOption: "keep_translations_and_approvals",
+	})
+	if err != nil {
+		return 0, fmt.Errorf("update source file %q: %w", name, err)
+	}
+	if excludedTargetLanguagesDiffer(file.ExcludeTargetLanguages, group.ExcludedTargetLanguages) {
+		file, _, err = c.client.SourceFiles.EditFile(ctx, projectInt, file.ID, []*model.UpdateRequest{{
+			Op:    model.OpReplace,
+			Path:  "/excludedTargetLanguages",
+			Value: normalizeDistinct(group.ExcludedTargetLanguages),
+		}})
+		if err != nil {
+			return 0, fmt.Errorf("update excluded target languages for %q: %w", name, err)
+		}
+	}
+	return file.ID, nil
+}
+
+func (c *HTTPClient) FindFile(ctx context.Context, projectID string, directoryID int, name string) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	file, err := c.findFile(ctx, projectInt, directoryID, name)
+	if err != nil {
+		return 0, err
+	}
+	if file == nil {
+		return 0, fmt.Errorf("remote source file %q not found", name)
+	}
+	return file.ID, nil
+}
+
+func (c *HTTPClient) UploadTranslationFile(ctx context.Context, projectID, languageID string, fileID int, localPath string) error {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return err
+	}
+	storageID, err := c.uploadStorage(ctx, localPath)
+	if err != nil {
+		return err
+	}
+	_, _, err = c.client.Translations.UploadTranslations(ctx, projectInt, languageID, &model.UploadTranslationsRequest{
+		StorageID: storageID,
+		FileID:    fileID,
+	})
+	if err != nil {
+		return fmt.Errorf("upload translations for %s: %w", languageID, err)
+	}
+	return nil
+}
+
+func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, projectID string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+	link, _, err := c.client.Translations.BuildProjectFileTranslation(ctx, projectInt, fileID, &model.BuildProjectFileTranslationRequest{
+		TargetLanguageID:        languageID,
+		SkipUntranslatedStrings: opts.SkipUntranslatedStrings,
+		SkipUntranslatedFiles:   opts.SkipUntranslatedFiles,
+		ExportApprovedOnly:      opts.ExportOnlyApproved,
+	}, "")
+	if err != nil {
+		return nil, fmt.Errorf("build translation for file %d locale %s: %w", fileID, languageID, err)
+	}
+	if link == nil || strings.TrimSpace(link.URL) == "" {
+		return nil, fmt.Errorf("build translation for file %d locale %s: empty download link", fileID, languageID)
+	}
+	return c.downloadURL(ctx, link.URL)
+}
+
+func (c *HTTPClient) uploadStorage(ctx context.Context, localPath string) (int, error) {
+	file, err := os.Open(localPath)
+	if err != nil {
+		return 0, fmt.Errorf("open local file %q: %w", localPath, err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	store, _, err := c.client.Storages.Add(ctx, file)
+	if err != nil {
+		return 0, fmt.Errorf("upload storage %q: %w", localPath, err)
+	}
+	if store == nil || store.ID <= 0 {
+		return 0, fmt.Errorf("upload storage %q: empty storage id", localPath)
+	}
+	return store.ID, nil
+}
+
+func (c *HTTPClient) findDirectory(ctx context.Context, projectID, parentDirectoryID int, name string) (*model.Directory, error) {
+	opts := &model.DirectoryListOptions{Filter: name, ListOptions: model.ListOptions{Limit: pageLimit}}
+	if parentDirectoryID > 0 {
+		opts.DirectoryID = parentDirectoryID
+	}
+	directories, _, err := c.client.SourceFiles.ListDirectories(ctx, projectID, opts)
+	if err != nil {
+		return nil, fmt.Errorf("list directories for %q: %w", name, err)
+	}
+	for _, directory := range directories {
+		if directory != nil && directory.Name == name {
+			return directory, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *HTTPClient) findFile(ctx context.Context, projectID, directoryID int, name string) (*model.File, error) {
+	opts := &model.FileListOptions{Filter: name, ListOptions: model.ListOptions{Limit: pageLimit}}
+	if directoryID > 0 {
+		opts.DirectoryID = directoryID
+	}
+	files, _, err := c.client.SourceFiles.ListFiles(ctx, projectID, opts)
+	if err != nil {
+		return nil, fmt.Errorf("list files for %q: %w", name, err)
+	}
+	for _, file := range files {
+		if file != nil && file.Name == name {
+			return file, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *HTTPClient) downloadURL(ctx context.Context, rawURL string) ([]byte, error) {
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download request: %w", err)
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download artifact: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("download artifact: unexpected status %s", resp.Status)
+	}
+	payload, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read artifact: %w", err)
+	}
+	return payload, nil
+}
+
 func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error) {
 	projectID, err := parseProjectID(in.ProjectID)
 	if err != nil {
@@ -468,6 +729,20 @@ func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context str
 		return 0, fmt.Errorf("ambiguous source string for key=%q context=%q", key, ctx)
 	}
 	return stringID, nil
+}
+
+func isConflictError(err error) bool {
+	var apiErr *model.ErrorResponse
+	if errors.As(err, &apiErr) && apiErr.Response != nil {
+		return apiErr.Response.StatusCode == http.StatusConflict
+	}
+
+	var validationErr *model.ValidationErrorResponse
+	return errors.As(err, &validationErr) && validationErr.Status == http.StatusConflict
+}
+
+func excludedTargetLanguagesDiffer(current, desired []string) bool {
+	return !slices.Equal(normalizeDistinct(current), normalizeDistinct(desired))
 }
 
 func (c *HTTPClient) ensureKnownTranslationTexts(

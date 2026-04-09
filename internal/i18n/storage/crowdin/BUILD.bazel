@@ -9,5 +9,6 @@ go_library(
         "//internal/i18n/storage",
         "@com_github_crowdin_crowdin_api_client_go//crowdin",
         "@com_github_crowdin_crowdin_api_client_go//crowdin/model",
+        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )

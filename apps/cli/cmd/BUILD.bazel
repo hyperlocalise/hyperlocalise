@@ -3,7 +3,10 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "cmd",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
-    embedsrcs = ["templates/i18n.yml"],
+    embedsrcs = [
+        "templates/crowdin.yml",
+        "templates/i18n.yml",
+    ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/cmd",
     visibility = ["//visibility:public"],
     deps = [
@@ -19,6 +22,7 @@ go_library(
         "//apps/cli/internal/progressui",
 	    "//internal/i18n/icuparser",
         "//internal/i18n/storage",
+        "//internal/i18n/storage/crowdin",
         "//internal/i18n/translationfileparser",
         "//pkg/i18nconfig",
         "@land_charm_bubbles_v2//filepicker",
@@ -48,6 +52,7 @@ go_test(
         "//apps/cli/internal/i18n/runsvc",
         "//apps/cli/internal/i18n/syncsvc",
         "//internal/i18n/storage",
+        "//internal/i18n/storage/crowdin",
         "//pkg/i18nconfig",
         "@land_charm_bubbles_v2//list",
         "@land_charm_bubbletea_v2//:bubbletea",

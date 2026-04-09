@@ -1,0 +1,90 @@
+---
+title: "crowdin"
+description: "Crowdin-compatible file workflow commands powered by crowdin.yml."
+---
+
+## Usage
+
+```bash
+hyperlocalise crowdin init
+hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
+hyperlocalise crowdin upload sources [--config <path>] [--identity <path>]
+hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language <locale>]
+```
+
+## What this command family does
+
+These commands operate on `crowdin.yml` or `crowdin.yaml` directly.
+
+They are separate from Hyperlocalise native `i18n.yml` and `sync push` / `sync pull` workflows.
+
+Use them when you want Crowdin-compatible file mode:
+
+- source-file upload from `files[].source`
+- translation upload from `files[].translation`
+- translation download/export back into your repo
+- strict validation of supported `crowdin.yml` fields
+
+## Supported config fields
+
+- `project_id`
+- `project_id_env`
+- `api_token`
+- `api_token_env`
+- `base_url`
+- `base_url_env`
+- `base_path`
+- `base_path_env`
+- `preserve_hierarchy`
+- `files[].source`
+- `files[].translation`
+- `files[].languages_mapping`
+- `files[].excluded_target_languages`
+- `files[].skip_untranslated_strings`
+- `files[].skip_untranslated_files`
+- `files[].export_only_approved`
+
+## Unsupported features
+
+Validation fails closed for unsupported Crowdin CLI features.
+
+This v1 file-mode implementation does not support:
+
+- branch workflows
+- TM, glossary, task, screenshot, comment, distribution, or app commands
+- permissive "warn and ignore" compatibility mode
+- interactive Crowdin project bootstrap
+
+## Examples
+
+Validate config:
+
+```bash
+hyperlocalise crowdin config validate
+```
+
+Upload source files:
+
+```bash
+hyperlocalise crowdin upload sources
+```
+
+Upload only French translations:
+
+```bash
+hyperlocalise crowdin upload translations --language fr
+```
+
+Download only approved French translations:
+
+```yaml
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+    export_only_approved: true
+```
+
+```bash
+hyperlocalise crowdin download --language fr
+```

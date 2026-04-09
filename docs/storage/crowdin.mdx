@@ -1,9 +1,22 @@
 ---
 title: "Crowdin adapter"
-description: "Configure Crowdin for remote translation synchronization."
+description: "Configure Crowdin for native sync mode or Crowdin-compatible file mode."
 ---
 
-## Required config
+## Two Crowdin workflows
+
+Hyperlocalise now supports two different Crowdin integrations:
+
+1. Native sync mode with `i18n.yml` plus `sync push` / `sync pull`
+2. Crowdin-compatible file mode with `crowdin.yml` plus `hyperlocalise crowdin ...`
+
+Use native sync mode when you want Hyperlocalise-managed entry sync.
+
+Use file mode when you want a closer drop-in replacement for Crowdin CLI file workflows.
+
+## Native sync mode
+
+### Required config
 
 ```jsonc
 {
@@ -17,7 +30,7 @@ description: "Configure Crowdin for remote translation synchronization."
 }
 ```
 
-## Crowdin Enterprise
+### Crowdin Enterprise
 
 Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the default Crowdin Cloud API.
 
@@ -34,12 +47,60 @@ Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the defa
 }
 ```
 
-## Optional config fields
+### Optional config fields
 
 - `apiBaseURL`: Override the Crowdin API base URL. Use this for Crowdin Enterprise.
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
+
+## Crowdin-compatible file mode
+
+Use `crowdin.yml` or `crowdin.yaml`.
+
+Example:
+
+```yaml
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+    export_only_approved: true
+```
+
+Supported `crowdin.yml` fields in v1:
+
+- `project_id`
+- `project_id_env`
+- `api_token`
+- `api_token_env`
+- `base_url`
+- `base_url_env`
+- `base_path`
+- `base_path_env`
+- `preserve_hierarchy`
+- `files[].source`
+- `files[].translation`
+- `files[].languages_mapping`
+- `files[].excluded_target_languages`
+- `files[].skip_untranslated_strings`
+- `files[].skip_untranslated_files`
+- `files[].export_only_approved`
+
+Use the compatible CLI surface:
+
+```bash
+hyperlocalise crowdin init
+hyperlocalise crowdin config validate
+hyperlocalise crowdin upload sources
+hyperlocalise crowdin upload translations --language fr
+hyperlocalise crowdin download --language fr
+```
+
+Validation fails closed on unsupported Crowdin fields or commands.
 
 ## Common issues
 
@@ -47,3 +108,4 @@ Set `apiBaseURL` when your workspace uses Crowdin Enterprise instead of the defa
 - Enterprise API requests fail: verify `storage.config.apiBaseURL` points to your Enterprise API host and uses `https`
 - project lookup failure: check project ID and account permissions
 - partial updates: review conflict report with `--output json`
+- file-mode validation errors: remove unsupported `crowdin.yml` fields or switch to native `i18n.yml` sync mode

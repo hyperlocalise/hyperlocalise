@@ -121,10 +121,76 @@ type Capabilities struct {
 	SupportsNamespaces bool `json:"supports_namespaces"`
 }
 
+// FileWorkflowCapabilities describe provider file-mode support.
+type FileWorkflowCapabilities struct {
+	SupportsSourceUpload      bool `json:"supports_source_upload"`
+	SupportsTranslationUpload bool `json:"supports_translation_upload"`
+	SupportsTranslationExport bool `json:"supports_translation_export"`
+}
+
+// FileExportOptions define file-mode export behavior for a translation group.
+type FileExportOptions struct {
+	SkipUntranslatedStrings *bool `json:"skip_untranslated_strings,omitempty"`
+	SkipUntranslatedFiles   *bool `json:"skip_untranslated_files,omitempty"`
+	ExportOnlyApproved      *bool `json:"export_only_approved,omitempty"`
+}
+
+// FileGroupSpec is the normalized file-mode description for one translation group.
+type FileGroupSpec struct {
+	Source                  string                       `json:"source"`
+	Translation             string                       `json:"translation"`
+	LanguagesMapping        map[string]map[string]string `json:"languages_mapping,omitempty"`
+	ExcludedTargetLanguages []string                     `json:"excluded_target_languages,omitempty"`
+	Export                  FileExportOptions            `json:"export,omitempty"`
+}
+
+// FileWorkflowConfig is the normalized config consumed by file-mode adapters.
+type FileWorkflowConfig struct {
+	ProjectID         string          `json:"project_id"`
+	APIToken          string          `json:"-"`
+	APIBaseURL        string          `json:"api_base_url,omitempty"`
+	BasePath          string          `json:"base_path,omitempty"`
+	PreserveHierarchy bool            `json:"preserve_hierarchy,omitempty"`
+	Files             []FileGroupSpec `json:"files"`
+}
+
+// FileUploadSourcesRequest uploads source files defined in a file-mode config.
+type FileUploadSourcesRequest struct {
+	Config FileWorkflowConfig `json:"config"`
+}
+
+// FileUploadTranslationsRequest uploads local translation files.
+type FileUploadTranslationsRequest struct {
+	Config    FileWorkflowConfig `json:"config"`
+	Languages []string           `json:"languages,omitempty"`
+}
+
+// FileDownloadTranslationsRequest downloads translated files into the workspace.
+type FileDownloadTranslationsRequest struct {
+	Config    FileWorkflowConfig `json:"config"`
+	Languages []string           `json:"languages,omitempty"`
+}
+
+// FileOperationResult returns normalized file-mode execution details.
+type FileOperationResult struct {
+	Processed []string  `json:"processed,omitempty"`
+	Skipped   []string  `json:"skipped,omitempty"`
+	Warnings  []Warning `json:"warnings,omitempty"`
+}
+
 // StorageAdapter is the remote translation storage integration contract.
 type StorageAdapter interface {
 	Name() string
 	Capabilities() Capabilities
 	Pull(ctx context.Context, req PullRequest) (PullResult, error)
 	Push(ctx context.Context, req PushRequest) (PushResult, error)
+}
+
+// FileWorkflowAdapter is the parallel provider contract for file-oriented workflows.
+type FileWorkflowAdapter interface {
+	Name() string
+	FileWorkflowCapabilities() FileWorkflowCapabilities
+	UploadSources(ctx context.Context, req FileUploadSourcesRequest) (FileOperationResult, error)
+	UploadTranslations(ctx context.Context, req FileUploadTranslationsRequest) (FileOperationResult, error)
+	DownloadTranslations(ctx context.Context, req FileDownloadTranslationsRequest) (FileOperationResult, error)
 }
