@@ -85,7 +85,7 @@ func Save(path string, f File) error {
 		f.RunCheckpoint = map[string]RunCheckpoint{}
 	}
 
-	content, err := json.MarshalIndent(f, "", "  ")
+	content, err := json.Marshal(f)
 	if err != nil {
 		return fmt.Errorf("marshal lockfile: %w", err)
 	}

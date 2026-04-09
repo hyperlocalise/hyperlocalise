@@ -3,6 +3,7 @@ package runsvc
 import (
 	"context"
 	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -695,6 +696,32 @@ func taskIdentity(targetPath, entryKey string) string {
 func hashSourceText(source string) string {
 	sum := sha512.Sum512([]byte(source))
 	return fmt.Sprintf("%x", sum)
+}
+
+// lockStoredFingerprint is a compact SHA-512 prefix (32 hex chars) stored in the lockfile.
+// hashSourceText remains full-length for exact-cache keys and other non-lock uses.
+func lockStoredFingerprint(preimage string) string {
+	sum := sha512.Sum512([]byte(preimage))
+	return fmt.Sprintf("%x", sum[:16])
+}
+
+// lockFingerprintEqual reports whether a fingerprint stored in the lockfile
+// equals a freshly computed compact fingerprint (32 hex chars).
+// stored may be either the compact 32-char form or a legacy full-length
+// 128-char SHA-512 hex digest; computed must always be the 32-char form.
+// Argument order is load-bearing: do not pass (computed, stored).
+func lockFingerprintEqual(stored, computed string) bool {
+	if stored == computed {
+		return true
+	}
+	if len(stored) != 128 {
+		return false
+	}
+	decoded, err := hex.DecodeString(stored)
+	if err != nil || len(decoded) != 64 {
+		return false
+	}
+	return fmt.Sprintf("%x", decoded[:16]) == computed
 }
 
 func parserModeForSource(path string, content []byte) string {

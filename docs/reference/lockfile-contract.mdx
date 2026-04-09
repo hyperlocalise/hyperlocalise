@@ -11,6 +11,8 @@ The lockfile name is fixed to `.hyperlocalise.lock.json`.
 
 Keep the file in your project root so `run` and sync commands share the same checkpoint state.
 
+The CLI writes the lockfile as **compact JSON** (no indentation) to limit file size.
+
 ## What the lockfile is for
 
 Treat the lockfile as an **advisory checkpoint**, not your source of truth.
@@ -55,7 +57,8 @@ Field meanings:
   - `revision`: adapter revision or cursor for incremental pull logic.
   - `updated_at`: last time that locale checkpoint was refreshed.
 - `run_completed`: per-task completion map used by `run` for skip decisions.
-  - `source_hash`: source fingerprint captured at completion time.
+  - `source_hash`: fingerprint of the source segment. New writes use a **32-character** lowercase hex prefix of SHA-512. Older lockfiles may still store the full **128-character** hex digest; both forms are accepted when deciding whether to skip work.
+  - `task_hash`: when present, fingerprint of task dimensions (model, prompt, context fields, and related inputs). It uses the same encoding rules as `source_hash`.
 
 ## Lifecycle by command
 

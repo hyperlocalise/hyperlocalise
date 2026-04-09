@@ -114,5 +114,5 @@ func lockTaskHash(task Task) string {
 		"\ncontext_key=" + strings.TrimSpace(task.ContextKey) +
 		"\ncontext_provider=" + strings.TrimSpace(task.ContextProvider) +
 		"\ncontext_model=" + strings.TrimSpace(task.ContextModel)
-	return hashSourceText(canonical)
+	return lockStoredFingerprint(canonical)
 }
