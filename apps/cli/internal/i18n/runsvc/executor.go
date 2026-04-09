@@ -488,7 +488,7 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 	precomputeExecutionTaskCacheFields(&task)
 	cacheKey := exactCacheKey(task)
 	taskHash := lockTaskHash(task)
-	sourceHash := hashSourceText(task.SourceText)
+	sourceHash := lockStoredFingerprint(task.SourceText)
 	if l1 != nil {
 		cachedValue, hit, err := l1.Get(ctx, cacheKey)
 		if err != nil {

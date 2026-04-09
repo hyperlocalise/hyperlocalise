@@ -191,7 +191,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
-		sourceHash := hashSourceText(task.SourceText)
+		sourceHash := lockStoredFingerprint(task.SourceText)
 		taskHash := lockTaskHash(task)
 		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash) {
 			if strings.TrimSpace(cp.TaskHash) == "" {
@@ -230,16 +230,16 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 
 func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash string) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
-		return completion.TaskHash == taskHash
+		return lockFingerprintEqual(completion.TaskHash, taskHash)
 	}
-	return completion.SourceHash == sourceHash
+	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
 func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash string) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
-		return checkpoint.TaskHash == taskHash
+		return lockFingerprintEqual(checkpoint.TaskHash, taskHash)
 	}
-	return checkpoint.SourceHash == sourceHash
+	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }
 
 func nextRunID(now time.Time) string {
