@@ -50,6 +50,8 @@ release:
 
 checksum:
   name_template: checksums.txt
+  extra_files:
+    - glob: ./install.sh
 
 changelog:
   sort: asc
