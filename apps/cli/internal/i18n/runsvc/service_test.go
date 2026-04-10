@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1485,6 +1486,61 @@ func TestRunWritesMarkdownUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 	if !strings.Contains(out, "FR(Heading)") || !strings.Contains(out, "FR(Hello `code` and [docs](https://example.com).)") {
 		t.Fatalf("expected markdown text translated, got %q", out)
+	}
+}
+
+func TestRunMarkdownParityScopeRetryFixesFlush(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.md"
+	targetPath := "/tmp/out.md"
+	source := "Para line one\nline two\n"
+
+	keys, err := translationfileparser.MarkdownParser{}.Parse([]byte(source))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	nKeys := len(keys)
+	if nKeys < 1 {
+		t.Fatalf("expected at least one markdown key, got %d", nKeys)
+	}
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	var calls atomic.Int32
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if int(calls.Add(1)) <= nKeys {
+			return req.Source + "\n\n# Injected\n", nil
+		}
+		return "FIXED_SEGMENT", nil
+	}
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err = svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if !strings.Contains(string(written), "FIXED_SEGMENT") {
+		t.Fatalf("expected retried translation in output, got %q", string(written))
+	}
+	if strings.Contains(string(written), "# Injected") {
+		t.Fatalf("did not expect injected heading after retry, got %q", string(written))
 	}
 }
 

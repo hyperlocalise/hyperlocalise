@@ -7,6 +7,30 @@ import (
 	"strings"
 )
 
+// MarkdownASTParityError is returned by [ValidateMarkdownMarshaledASTParity] when
+// the marshaled document's translatable-structure path set differs from the source template.
+type MarkdownASTParityError struct {
+	TargetPath string
+	Messages   []string
+}
+
+func (e *MarkdownASTParityError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("markdown AST parity mismatch for %q: %s", e.TargetPath, strings.Join(e.Messages, "; "))
+}
+
+// ValidateMarkdownMarshaledASTParity returns nil when marshaled output matches the source
+// template's structural path set under the same MDX mode as the source path (see [MarkdownASTParityWarnings]).
+func ValidateMarkdownMarshaledASTParity(sourceContent, marshaledContent []byte, sourcePath, targetPath string) error {
+	msgs := MarkdownASTParityWarnings(sourceContent, marshaledContent, sourcePath, targetPath)
+	if len(msgs) == 0 {
+		return nil
+	}
+	return &MarkdownASTParityError{TargetPath: targetPath, Messages: msgs}
+}
+
 // MarkdownASTParityWarnings returns human-readable warnings when the set of
 // MarkdownASTPaths for marshaled output differs from the source template,
 // using the same path-set comparison as the check command.
@@ -14,10 +38,11 @@ func MarkdownASTParityWarnings(sourceContent, marshaledContent []byte, sourcePat
 	if len(sourceContent) == 0 || len(marshaledContent) == 0 {
 		return nil
 	}
-	sourceMDX := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
-	targetMDX := strings.EqualFold(filepath.Ext(targetPath), ".mdx")
-	sourcePaths := MarkdownASTPaths(sourceContent, sourceMDX)
-	targetPaths := MarkdownASTPaths(marshaledContent, targetMDX)
+	// Use the source template's MDX flag for both parses so parity compares the same
+	// extraction rules used when planning tasks from the source file.
+	mdx := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
+	sourcePaths := MarkdownASTPaths(sourceContent, mdx)
+	targetPaths := MarkdownASTPaths(marshaledContent, mdx)
 
 	sourceSet := make(map[string]struct{}, len(sourcePaths))
 	for _, p := range sourcePaths {

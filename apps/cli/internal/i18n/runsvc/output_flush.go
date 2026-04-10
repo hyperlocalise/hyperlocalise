@@ -3,6 +3,8 @@ package runsvc
 // Output flushing coordinates reading existing targets, merging staged values, and writing final content.
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -13,7 +15,27 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
-func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
+func markdownFlushTargetPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".mdx"
+}
+
+func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Context, retry *markdownParityRetryInput, targetPath string, output stagedOutput, keep map[string]struct{}) ([]string, error) {
+	warn, err := s.flushOutputForTarget(targetPath, output, keep)
+	if err == nil {
+		return warn, nil
+	}
+	var pe *translationfileparser.MarkdownASTParityError
+	if retry == nil || !errors.As(err, &pe) || !markdownFlushTargetPath(targetPath) {
+		return warn, err
+	}
+	if rerr := s.retryMarkdownASTParityScope(ctx, retry, targetPath, output, pe.Messages); rerr != nil {
+		return nil, fmt.Errorf("markdown AST parity scope retry failed for %q: %w", targetPath, rerr)
+	}
+	return s.flushOutputForTarget(targetPath, output, keep)
+}
+
+func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryInput, staged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, pruneMetadata map[string]stagedOutput) ([]string, error) {
 	targetPaths := make([]string, 0, len(staged)+len(pruneTargets))
 	for path := range staged {
 		targetPaths = append(targetPaths, path)
@@ -24,13 +46,16 @@ func (s *Service) flushOutputs(staged map[string]stagedOutput, pruneTargets map[
 	slices.Sort(targetPaths)
 	targetPaths = slices.Compact(targetPaths)
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	var warnings []string
 	for _, targetPath := range targetPaths {
 		output, ok := staged[targetPath]
 		if !ok {
 			output = pruneMetadata[targetPath]
 		}
-		targetWarnings, err := s.flushOutputForTarget(targetPath, output, pruneTargets[targetPath])
+		targetWarnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, retry, targetPath, output, pruneTargets[targetPath])
 		if err != nil {
 			return nil, err
 		}
