@@ -4,7 +4,7 @@ package icuparser
 // Field names align with FormatJS ExtendedNumberFormatOptions / ECMA-402.
 // Empty string means unset for string fields; UseGrouping nil means unset.
 type NumberFormatOptions struct {
-	Style                    string  // decimal | percent | currency | unit
+	Style                    string // decimal | percent | currency | unit
 	Currency                 string
 	Unit                     string
 	CurrencyDisplay          string
