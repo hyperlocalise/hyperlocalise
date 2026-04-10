@@ -55,6 +55,7 @@ checksum:
 
 changelog:
   sort: asc
+  use: github
   groups:
     - title: Features
       regexp: '^feat(\(.+\))?:.*$'

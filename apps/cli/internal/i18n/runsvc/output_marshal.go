@@ -123,8 +123,14 @@ func hasExactKeySet(a, b map[string]string) bool {
 	return true
 }
 
+// marshalMarkdownTargetHook is set by tests to stub marshalling (e.g. parity retry exhaustion).
+var marshalMarkdownTargetHook func(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error)
+
 func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
-	mdx := strings.ToLower(filepath.Ext(path)) == ".mdx"
+	if marshalMarkdownTargetHook != nil {
+		return marshalMarkdownTargetHook(path, sourcePath, stagedEntries)
+	}
+	mdx := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
 	sourceTemplate, err := s.readFile(sourcePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
