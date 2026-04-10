@@ -1,11 +1,14 @@
 package icuparser
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 func errInvalidNumberSkeleton(msg string) error {
 	return fmt.Errorf("invalid number skeleton: %s", msg)
 }
 
 func errMalformedNumberSkeleton(msg string) error {
-	return fmt.Errorf("%s", msg)
+	return errors.New(msg)
 }

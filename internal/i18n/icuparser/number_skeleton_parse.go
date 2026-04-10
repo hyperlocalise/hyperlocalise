@@ -1,6 +1,7 @@
 package icuparser
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -161,8 +162,10 @@ func ParseNumberSkeleton(tokens []NumberSkeletonToken) (NumberFormatOptions, err
 			continue
 		}
 
+		var handled bool
 		if so := parseSignStem(token.Stem); so != nil {
 			applySignOpts(&result, so)
+			handled = true
 		}
 		cse, err := parseConciseScientificAndEngineeringStem(token.Stem)
 		if err != nil {
@@ -170,6 +173,10 @@ func ParseNumberSkeleton(tokens []NumberSkeletonToken) (NumberFormatOptions, err
 		}
 		if cse != nil {
 			mergeConciseScientific(&result, cse)
+			handled = true
+		}
+		if !handled {
+			return NumberFormatOptions{}, errMalformedNumberSkeleton(fmt.Sprintf("unknown number skeleton stem: %q", token.Stem))
 		}
 	}
 	return result, nil
@@ -308,7 +315,7 @@ func applyFractionPrecisionStem(result *NumberFormatOptions, stem string) error 
 	switch {
 	case g2 == "*":
 		result.MinimumFractionDigits = len(g1)
-	case g3 != "" && len(g3) > 0 && g3[0] == '#':
+	case g3 != "":
 		result.MaximumFractionDigits = len(g3)
 	case g4 != "" && g5 != "":
 		result.MinimumFractionDigits = len(g4)

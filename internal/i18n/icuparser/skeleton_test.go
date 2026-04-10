@@ -43,6 +43,17 @@ func TestParseNumberSkeletonCurrency(t *testing.T) {
 	}
 }
 
+func TestParseNumberSkeletonUnknownStem(t *testing.T) {
+	toks, err := ParseNumberSkeletonTokens("currencyy/USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ParseNumberSkeleton(toks)
+	if err == nil {
+		t.Fatal("expected error for unknown stem")
+	}
+}
+
 func TestParseDateTimeSkeletonYearMonthDay(t *testing.T) {
 	opts, err := ParseDateTimeSkeleton("yyyyMMdd")
 	if err != nil {
