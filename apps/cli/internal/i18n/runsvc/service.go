@@ -47,6 +47,10 @@ type Input struct {
 	OnEvent                   func(Event)
 	FixTargets                []FixTarget
 	FixMarkdownScopes         []FixMarkdownScope
+	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
+	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
+	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
+	ReportJSONDetail string
 }
 
 // FixTarget selects a subset of planned translation tasks when non-empty.
@@ -153,6 +157,10 @@ type Task struct {
 	SystemPrompt string `json:"systemPrompt,omitempty"`
 	UserPrompt   string `json:"userPrompt,omitempty"`
 	LegacyPrompt bool   `json:"-"`
+	// Prompt*Template are profile templates; SystemPrompt/UserPrompt are rendered lazily for memory.
+	PromptLegacyTemplate string `json:"-"`
+	PromptSystemTemplate string `json:"-"`
+	PromptUserTemplate   string `json:"-"`
 	// ContextProvider/ContextModel are pre-resolved during planning.
 	// They always contain the provider/model used for context-memory generation.
 	ContextProvider string `json:"-"`
@@ -403,35 +411,31 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
-							legacyPrompt := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
-							systemPrompt := renderPrompt(profile.SystemPrompt, cfg.Locales.Source, target, sourceText)
-							userPrompt := renderPrompt(profile.UserPrompt, cfg.Locales.Source, target, sourceText)
-							legacyPromptUsed := strings.TrimSpace(legacyPrompt) != "" && strings.TrimSpace(systemPrompt) == "" && strings.TrimSpace(userPrompt) == ""
-							if strings.TrimSpace(systemPrompt) == "" {
-								systemPrompt = legacyPrompt
-							}
+							legacyRendered := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
+							legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
 							task := Task{
-								SourceLocale:    cfg.Locales.Source,
-								TargetLocale:    target,
-								SourcePath:      sourcePath,
-								TargetPath:      targetPath,
-								EntryKey:        key,
-								SourceText:      sourceText,
-								ProfileName:     profileName,
-								Provider:        profile.Provider,
-								Model:           profile.Model,
-								SystemPrompt:    systemPrompt,
-								UserPrompt:      userPrompt,
-								LegacyPrompt:    legacyPromptUsed,
-								SourceContext:   sourceContextByKey[key],
-								ContextProvider: contextProvider,
-								ContextModel:    contextModel,
-								GroupName:       groupName,
-								BucketName:      bucketName,
-								ParserMode:      parserMode,
-								PromptVersion:   promptVersion,
-								GlossaryVersion: glossaryVersion,
-								RAGSnapshot:     ragSnapshot,
+								SourceLocale:         cfg.Locales.Source,
+								TargetLocale:         target,
+								SourcePath:           sourcePath,
+								TargetPath:           targetPath,
+								EntryKey:             key,
+								SourceText:           sourceText,
+								ProfileName:          profileName,
+								Provider:             profile.Provider,
+								Model:                profile.Model,
+								LegacyPrompt:         legacyPromptUsed,
+								PromptLegacyTemplate: profile.Prompt,
+								PromptSystemTemplate: profile.SystemPrompt,
+								PromptUserTemplate:   profile.UserPrompt,
+								SourceContext:        sourceContextByKey[key],
+								ContextProvider:      contextProvider,
+								ContextModel:         contextModel,
+								GroupName:            groupName,
+								BucketName:           bucketName,
+								ParserMode:           parserMode,
+								PromptVersion:        promptVersion,
+								GlossaryVersion:      glossaryVersion,
+								RAGSnapshot:          ragSnapshot,
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
@@ -799,6 +803,37 @@ func renderPrompt(prompt, sourceLocale, targetLocale, sourceText string) string 
 	rendered = strings.ReplaceAll(rendered, tokenTarget, targetLocale)
 	rendered = strings.ReplaceAll(rendered, tokenInput, sourceText)
 	return rendered
+}
+
+func materializeTaskPrompts(task *Task) {
+	if task == nil {
+		return
+	}
+	// Invariant: assignment sites set SystemPrompt and UserPrompt together after rendering. The OR guard
+	// is only safe under that pairing—if one field were set alone, returning here could skip filling the other.
+	if strings.TrimSpace(task.SystemPrompt) != "" || strings.TrimSpace(task.UserPrompt) != "" {
+		return
+	}
+	legacyRendered := renderPrompt(task.PromptLegacyTemplate, task.SourceLocale, task.TargetLocale, task.SourceText)
+	systemRendered := renderPrompt(task.PromptSystemTemplate, task.SourceLocale, task.TargetLocale, task.SourceText)
+	userRendered := renderPrompt(task.PromptUserTemplate, task.SourceLocale, task.TargetLocale, task.SourceText)
+	if strings.TrimSpace(systemRendered) == "" {
+		systemRendered = legacyRendered
+	}
+	task.SystemPrompt = systemRendered
+	task.UserPrompt = userRendered
+}
+
+func materializeReportTaskPrompts(r *Report) {
+	if r == nil {
+		return
+	}
+	for i := range r.Executable {
+		materializeTaskPrompts(&r.Executable[i])
+	}
+	for i := range r.Skipped {
+		materializeTaskPrompts(&r.Skipped[i])
+	}
 }
 
 func taskIdentity(targetPath, entryKey string) string {

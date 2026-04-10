@@ -107,6 +107,40 @@ func BenchmarkPlanTasksSharedSourceMappings(b *testing.B) {
 	}
 }
 
+// BenchmarkPlanTasksLarge stresses planning with many keys (memory/alloc signal for large catalogs).
+func BenchmarkPlanTasksLarge(b *testing.B) {
+	svc := newTestService()
+	sourcePath := "/tmp/shared.json"
+	targetPath := "/tmp/out/{{target}}.json"
+	cfg := benchmarkPlanningConfig(sourcePath, targetPath, 1)
+	const entryCount = 10000
+	sourceContent := benchmarkJSONEntries(entryCount)
+
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(sourceContent), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+
+	b.ReportAllocs()
+	var totalTasks int
+
+	for b.Loop() {
+		tasks, _, err := svc.planTasks(&cfg, "", "", nil, nil, nil, nil)
+		if err != nil {
+			b.Fatalf("planTasks: %v", err)
+		}
+		totalTasks = len(tasks)
+	}
+	if totalTasks != entryCount {
+		b.Fatalf("expected %d tasks, got %d", entryCount, totalTasks)
+	}
+	b.ReportMetric(float64(entryCount), "keys/op")
+}
+
 func BenchmarkExactCacheKey(b *testing.B) {
 	b.Run("cold", func(b *testing.B) {
 		task := baseCacheTask()

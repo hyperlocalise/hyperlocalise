@@ -12,9 +12,20 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
-func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
+func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) {
+	reportJSONDetail, detailErr := NormalizeReportJSONDetail(in.ReportJSONDetail)
+	if detailErr != nil {
+		return Report{}, detailErr
+	}
+	summaryReportMode := reportJSONDetail == ReportJSONDetailSummary
+
 	emitter := newEventEmitter(in.OnEvent)
 	defer emitter.close()
+	defer func() {
+		if !summaryReportMode {
+			materializeReportTaskPrompts(&report)
+		}
+	}()
 	emitter.emit(Event{Kind: EventPhase, Phase: PhasePlanning})
 
 	cfg, err := s.loadConfig(in.ConfigPath)
@@ -104,7 +115,7 @@ func (s *Service) Run(ctx context.Context, in Input) (Report, error) {
 	if cacheSvc != nil {
 		l1Cache = cacheSvc.L1
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter)
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter, summaryReportMode)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock

@@ -48,7 +48,13 @@ test: test-workspace ## run workspace-wide tests
 
 .PHONY: bench-runsvc
 bench-runsvc: ## run focused runsvc benchmarks
-	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|PlanTasksLarge|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
+
+
+.PHONY: profile-runsvc-mem
+profile-runsvc-mem: ## heap profile from runsvc benchmarks (writes mem.prof; inspect: go tool pprof -http=:0 mem.prof)
+	go test -run '^$$' -bench 'BenchmarkPlanTasksLarge' -benchmem -benchtime=5x -memprofile=mem.prof ./apps/cli/internal/i18n/runsvc
+	@echo "Profile written to mem.prof — run: go tool pprof -http=:0 mem.prof"
 
 
 .PHONY: bench-evalsvc

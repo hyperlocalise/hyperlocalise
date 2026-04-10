@@ -36,6 +36,7 @@ type runOptions struct {
 	experimentalContextMemory bool
 	contextMemoryScope        string
 	contextMemoryMaxChars     int
+	outputDetail              string
 }
 
 var runFunc = runsvc.Run
@@ -80,6 +81,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
+	cmd.Flags().StringVar(&o.outputDetail, "output-detail", runsvc.ReportJSONDetailSummary, "for --output JSON: summary (default; counts, tokens, failures, warnings only—no task or prune lists) or full (complete report including tasks and batches)")
 
 	return cmd
 }
@@ -144,6 +146,11 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		return err
 	}
 
+	jsonDetail, err := runsvc.NormalizeReportJSONDetail(o.outputDetail)
+	if err != nil {
+		return err
+	}
+
 	output := cmd.OutOrStdout()
 	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
 	defer stop()
@@ -174,6 +181,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		ExperimentalContextMemory: o.experimentalContextMemory,
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,
+		ReportJSONDetail:          jsonDetail,
 	}
 	if renderer != nil {
 		input.OnEvent = func(event runsvc.Event) {
@@ -190,7 +198,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	if writeErr := writeRunReport(output, report, o.dryRun); writeErr != nil {
 		return fmt.Errorf("write run report: %w", writeErr)
 	}
-	if writeErr := writeRunReportArtifact(o.outputPath, report); writeErr != nil {
+	if writeErr := writeRunReportArtifact(o.outputPath, report, jsonDetail); writeErr != nil {
 		return fmt.Errorf("write run report artifact: %w", writeErr)
 	}
 
@@ -220,7 +228,7 @@ func syncInteractiveScopeFlags(cmd *cobra.Command, o runOptions) {
 	}
 }
 
-func writeRunReportArtifact(path string, report runsvc.Report) error {
+func writeRunReportArtifact(path string, report runsvc.Report, jsonDetail string) error {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
 		return nil
@@ -228,12 +236,16 @@ func writeRunReportArtifact(path string, report runsvc.Report) error {
 	if err := os.MkdirAll(filepath.Dir(trimmed), 0o755); err != nil {
 		return err
 	}
-	payload, err := json.MarshalIndent(report, "", "  ")
+	payload, err := runsvc.ReportForJSON(report, jsonDetail)
 	if err != nil {
 		return err
 	}
-	payload = append(payload, '\n')
-	return os.WriteFile(trimmed, payload, 0o644)
+	out, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	out = append(out, '\n')
+	return os.WriteFile(trimmed, out, 0o644)
 }
 
 func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
