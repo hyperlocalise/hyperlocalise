@@ -1,71 +1,71 @@
 ---
-title: "Schema cấu hình"
-description: "Tóm tắt tài liệu tham khảo cho các trường trong i18n.jsonc được sử dụng bởi hyperlocalise."
+title: "Lược đồ cấu hình"
+description: "Tham chiếu ngắn gọn cho schema cấu hình i18n của hyperlocalise."
 ---
 
-## Chỉ khóa cấp cao
+## Các khóa cấp cao nhất
 
 - `locales`
 - `buckets`
 - `groups`
 - `llm`
-- `storage` (required for `sync`)
+- `storage` (bắt buộc cho `sync`)
 - `cache` (tùy chọn)
 
 ## `locales`
 
 - `source` (chuỗi, bắt buộc)
 - `targets` (mảng chuỗi, bắt buộc)
-- `fallbacks` (đối tượng, tùy chọn)
+- `fallbacks` (đối tượng, không bắt buộc)
 
 ## `buckets`
 
-- bản đồ tên bucket -> định nghĩa bucket
-- `files` array with `from` and `to` templates
+- bản đồ từ tên bucket -> định nghĩa bucket
+- `files` mảng với `from` và `to` mẫu
 
 ## `groups`
 
 - bản đồ tên nhóm -> định nghĩa nhóm
 - `targets` mảng
-- `buckets` array
+- `buckets` mảng
 
 ## `llm`
 
-- `profiles` map of profile name -> provider/model/prompt
-- tùy chọn `context_memory` đối tượng với `provider` và `model` để thay thế ngữ cảnh
+- `profiles` bản đồ tên hồ sơ -> nhà cung cấp/mô hình/prompt
+- đối tượng tùy chọn `context_memory` với `provider` và `model` để ghi đè xây dựng ngữ cảnh
 - các nhà cung cấp được hỗ trợ: `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama`
-- `rules` array with `priority`, `group`, `profile`
+- mảng với `rules`, `priority`, `group`, `profile`
 
 ## `storage`
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
-- `config`: trường cụ thể cho thiết bị
+- `config`: các trường dành riêng cho bộ chuyển đổi
 
 ## `cache`
 
 - `enabled` boolean
 - `db_path` chuỗi
-- `sqlite.max_open_conns` integer
+- `sqlite.max_open_conns` số nguyên
 - `sqlite.max_idle_conns` số nguyên
-- `sqlite.conn_max_lifetime_seconds` integer
+- `sqlite.conn_max_lifetime_seconds` số nguyên
 - `l1.enabled` boolean
-- `l1.max_items` integer
+- `l1.max_items` số nguyên
 - `l2.enabled` boolean
 - `l2.auto_accept_threshold` số trong `[0,1]`
-- `rag.enabled` kiểu dữ liệu boolean
-- `rag.top_k` integer
+- `rag.enabled` boolean
+- `rag.top_k` số nguyên
 
-Giá trị siêu dữ liệu TM được sử dụng bởi bộ nhớ cache:
+Giá trị metadata TM được bộ nhớ đệm sử dụng:
 
-- nguồn gốc: `curated` | `draft` | `llm` | `tms` | `unknown`
+- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
 - source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
 
-Ví dụ, vui lòng xem [cấu hình i18n](/configuration/i18n-config).
+Để xem các ví dụ, hãy xem [i18n config](/configuration/i18n-config).
 
 
 ## Ghi chú quy trình CSV
 
-Use `buckets.*.files[].from` and `to` to point at `.csv` files when you run CSV-based localization flows.
+Dùng `buckets.*.files[].from` và `to` để trỏ đến các tệp `.csv` khi bạn chạy các luồng bản địa hóa dựa trên CSV.
 
-- Per-locale files typically use `[locale]` in the `to` path.
-- Shared CSV files can reuse the same `from` and `to` path.
+- Các tệp theo từng ngôn ngữ thường sử dụng `[locale]` trong đường dẫn `to`.
+- Các tệp CSV được chia sẻ có thể dùng lại cùng đường dẫn `from` và `to`.

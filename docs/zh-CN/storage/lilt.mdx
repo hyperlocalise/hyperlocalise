@@ -1,9 +1,9 @@
 ---
 title: "LILT AI 适配器"
-description: "配置 LILT AI 以进行远程翻译的拉/推同步。"
+description: "为远程翻译拉取/推送同步配置 LILT AI。"
 ---
 
-## 所需配置
+## 必需的配置
 
 ```jsonc
 {
@@ -19,27 +19,27 @@ description: "配置 LILT AI 以进行远程翻译的拉/推同步。"
 
 ## 令牌解析
 
-1. 环境变量名为`storage.config.apiTokenEnv`
+1. 由 `storage.config.apiTokenEnv` 命名的环境变量
 2. fallback: `LILT_API_TOKEN`
 
-`apiToken` inline in config is not supported. Use environment variables only.
+`apiToken` 配置中的内联不受支持。请仅使用环境变量。
 
 ## 可选配置字段
 
 - `targetLanguages`
-- `timeoutSeconds` (defaults to `30`)
-- `pollIntervalMs` (defaults to `1000`)
-- `maxPolls` (defaults to `60`)
+- `timeoutSeconds`（默认为`30`）
+- `pollIntervalMs`（默认为`1000`）
+- `maxPolls`（默认为`60`）
 
 ## 拉取行为
 
 - 为每个语言环境启动一个导出任务
-- 调查结果导出状态，直到任务完成
-- 下载 JSON 格式的工件 (单个文件或 ZIP 压缩包)
-- 规范条目，并跳过空键/语言/值行
+- 轮询导出状态，直到作业完成
+- 下载 JSON 工件（单个文件或 ZIP）
+- 规范化条目并跳过空的键/区域设置/值行
 
 ## 常见问题
 
-- 缺少 token: export `LILT_API_TOKEN` 在同一终端会话中
-- 缺少项目ID：设置`storage.config.projectID`
-- timeout or slow export: increase `timeoutSeconds`, `pollIntervalMs`, or `maxPolls`
+- 缺少 token：在同一个 shell 会话中导出 `LILT_API_TOKEN`
+- 缺少项目 ID：设置 `storage.config.projectID`
+- 超时或导出缓慢：增加 `timeoutSeconds`、`pollIntervalMs` 或 `maxPolls`

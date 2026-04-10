@@ -1,0 +1,90 @@
+---
+title: "crowdin"
+description: "Các lệnh quy trình tệp tương thích với Crowdin được hỗ trợ bởi crowdin.yml."
+---
+
+## Cách sử dụng
+
+```bash
+hyperlocalise crowdin init
+hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
+hyperlocalise crowdin upload sources [--config <path>] [--identity <path>]
+hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language <locale>]
+```
+
+## Bộ lệnh này làm gì
+
+Các lệnh này hoạt động trực tiếp trên `crowdin.yml` hoặc `crowdin.yaml`.
+
+Chúng tách biệt với các quy trình gốc `i18n.yml` và `sync push` / `sync pull` của Hyperlocalise.
+
+Sử dụng chúng khi bạn muốn chế độ tệp tương thích với Crowdin:
+
+- tải lên tệp nguồn từ `files[].source`
+- tải lên bản dịch từ `files[].translation`
+- tải xuống/xuất bản dịch trở lại vào kho lưu trữ của bạn
+- xác thực nghiêm ngặt các trường `crowdin.yml` được hỗ trợ
+
+## Các trường cấu hình được hỗ trợ
+
+- `project_id`
+- `project_id_env`
+- `api_token`
+- `api_token_env`
+- `base_url`
+- `base_url_env`
+- `base_path`
+- `base_path_env`
+- `preserve_hierarchy`
+- `files[].source`
+- `files[].translation`
+- `files[].languages_mapping`
+- `files[].excluded_target_languages`
+- `files[].skip_untranslated_strings`
+- `files[].skip_untranslated_files`
+- `files[].export_only_approved`
+
+## Các tính năng không được hỗ trợ
+
+Xác thực sẽ thất bại mặc định với các tính năng Crowdin CLI không được hỗ trợ.
+
+Việc triển khai chế độ tệp v1 này không hỗ trợ:
+
+- luồng công việc nhánh
+- TM, bảng thuật ngữ, nhiệm vụ, ảnh chụp màn hình, bình luận, phân phối hoặc lệnh ứng dụng
+- chế độ tương thích "cảnh báo và bỏ qua" mang tính cho phép
+- khởi động dự án Crowdin tương tác
+
+## Ví dụ
+
+Xác thực cấu hình:
+
+```bash
+hyperlocalise crowdin config validate
+```
+
+Tải lên các tệp nguồn:
+
+```bash
+hyperlocalise crowdin upload sources
+```
+
+Chỉ tải lên bản dịch tiếng Pháp:
+
+```bash
+hyperlocalise crowdin upload translations --language fr
+```
+
+Tải xuống chỉ các bản dịch tiếng Pháp đã được phê duyệt:
+
+```yaml
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+    export_only_approved: true
+```
+
+```bash
+hyperlocalise crowdin download --language fr
+```

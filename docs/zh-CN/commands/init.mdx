@@ -1,6 +1,6 @@
 ---
 title: "初始化"
-description: "在您的项目中创建或覆盖 `i18n.yml` 模板。"
+description: "在你的项目中创建或覆盖 i18n.yml 模板。"
 ---
 
 ## 用法
@@ -9,28 +9,28 @@ description: "在您的项目中创建或覆盖 `i18n.yml` 模板。"
 hyperlocalise init [--force]
 ```
 
-## 它做什么
+## 它的作用
 
-- 从内置模板写入一个最小且可运行的 `i18n.yml`
-- 初始内容只包含 `locales`、`buckets` 和 `llm.profiles.default`
-- 不会把 `groups`、`llm.rules`、`context_memory` 或 `cache` 放进起始模板
-- 如果文件已存在则报错，除非使用 `--force`
+- 从内置模板编写一个最小可运行的`i18n.yml`
+- 以 `locales`、`buckets` 和 `llm.profiles.default` 开头 בלבד
+- 将高级配置如 `groups`、`llm.rules`、`context_memory` 和 `cache` 留在入门文件之外
+- 如果文件已存在则失败（除非`--force`）
 
 ## 标志
 
-- `--force`: 覆盖现有的 `i18n.yml`
+- `--force`：覆盖现有的`i18n.yml`
 
-## 起始模板结构
+## 起始形状
 
-生成的模板只保留新手最需要的部分：
+生成的入门模板保持初学者路径简洁：
 
-- `locales`: 源语言和目标语言
-- `buckets`: 源文件到目标文件的映射
-- `llm.profiles.default`: provider 和 model
+- `locales`：源语言区域设置和目标语言区域设置
+- `buckets`：源到目标文件映射
+- `llm.profiles.default`：提供商和模型
 
-如果省略 `groups`，Hyperlocalise 会自动把配置视为一个隐式的 `default` 分组，覆盖全部目标语言和全部 bucket。
+当省略`groups`时，Hyperlocalise 会自动将该配置视为一个隐式的`default`组，其中包含所有目标区域设置和所有 bucket。
 
-`groups`、`llm.rules`、`context_memory`、fallback 和 cache 的完整示例见 [i18n config](/zh-CN/configuration/i18n-config)。
+有关 `groups`、`llm.rules`、`context_memory`、回退和缓存的完整示例，请参见 [i18n config](/configuration/i18n-config)。
 
 ## 典型流程
 

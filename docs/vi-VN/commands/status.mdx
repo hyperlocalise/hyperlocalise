@@ -1,9 +1,9 @@
 ---
-title: "status"
-description: "Báo cáo trạng thái dịch thuật theo khóa/không gian tên/ngôn ngữ trong định dạng CSV, kèm theo bảng điều khiển TTY tương tác tùy chọn."
+title: "trạng thái"
+description: "Báo cáo trạng thái bản dịch theo từng khóa/namespace/ngôn ngữ trong CSV, với bảng điều khiển TTY tương tác tùy chọn."
 ---
 
-## Sử dụng
+## Cách sử dụng
 
 ```bash
 hyperlocalise status [--config <path>] [flags]
@@ -11,22 +11,23 @@ hyperlocalise status [--config <path>] [flags]
 
 ## Cờ
 
-- `--config`: path to config file
-- `--locale`: bộ lọc vị trí đích (có thể lặp lại)
-- `--output`: output format (`csv`)
-- `--group`: bộ lọc theo tên nhóm
-- `--bucket`: lọc theo tên nhóm
+- `--config`: đường dẫn đến tệp cấu hình
+- `--locale`: bộ lọc locale đích (có thể lặp lại)
+- `--output`: định dạng đầu ra (`csv`)
+- `--group`: lọc theo tên nhóm
+- `--bucket`: lọc theo tên bucket
 - `-i`, `--interactive`: hiển thị bảng điều khiển tương tác trong TTY (yêu cầu `--output csv`)
 
 ## Giá trị trạng thái
 
 - `translated`: giá trị không rỗng và không được đánh dấu là bản nháp
-- `needs_review`: provenance is `origin=llm` and `state=draft`
-- `untranslated`: giá trị rỗng
+- `needs_review`: tính nguồn gốc là `origin=llm` và `state=draft`
+- `source_match`: phân đoạn markdown/mdx không rỗng nhưng giống hệt văn bản nguồn
+- `untranslated`: giá trị trống
 
-## Schema CSV
+## Lược đồ CSV
 
-`status --output csv` always emits this header:
+`status --output csv` luôn luôn phát ra tiêu đề này:
 
 ```csv
 key,namespace,locale,status,origin,state
@@ -34,33 +35,34 @@ key,namespace,locale,status,origin,state
 
 Ý nghĩa cột:
 
-- `key`: định danh của khóa dịch
-- `namespace`: không gian logic để nhóm khóa
-- `locale`: định vị địa phương
-- `status`: computed status classification
-- `origin`: value source (`llm`, `human`, or adapter-originated provenance)
-- `state`: workflow state (for example `draft` or curated-equivalent state)
+- `key`: mã định danh khóa dịch
+- `namespace`: không gian tên logic để nhóm khóa
+- `locale`: ngôn ngữ đích
+- `status`: phân loại trạng thái đã tính toán
+- `origin`: nguồn giá trị (`llm`, `human`, hoặc nguồn gốc xuất xứ từ adapter)
+- `state`: trạng thái quy trình làm việc (ví dụ `draft` hoặc trạng thái tương đương đã được tuyển chọn)
 
-## Bản đồ nhãn sẵn sàng cho CI (thử nghiệm)
+## Ánh xạ nhãn sẵn sàng cho CI (thử nghiệm)
 
-Sử dụng bản ánh xạ này khi quy trình của bạn yêu cầu nhãn ở cấp sản phẩm:
+Sử dụng ánh xạ này khi quy trình của bạn mong đợi nhãn ở cấp sản phẩm:
 
-| CSV `status` | Nhãn sẵn sàng cho CI
+| CSV `status` | nhãn sẵn sàng cho CI |
 | --- | --- |
 | `translated` | `ready` |
 | `needs_review` | `needs review` |
+| `source_match` | `needs review` |
 | `untranslated` | `missing` |
 
 ## Ví dụ về cổng CI
 
-Khóa khi có bất kỳ mục nhập nào là `missing`:
+Chặn khi có bất kỳ mục nào `missing`:
 
 ```bash
 hyperlocalise status --output csv > status.csv
 awk -F, 'NR>1 && $4=="untranslated"{bad=1} END{exit bad}' status.csv
 ```
 
-Block when `needs review` exceeds `20` rows:
+Chặn khi `needs review` vượt quá `20` hàng:
 
 ```bash
 hyperlocalise status --output csv > status.csv
@@ -82,5 +84,5 @@ hyperlocalise status --group default --output csv -i
 - [chạy](/commands/run)
 - [eval](/commands/eval)
 - [sync pull](/commands/sync-pull)
-- [đồng bộ đẩy](/commands/sync-push)
+- [sync push](/commands/sync-push)
 - [Định dạng đầu ra](/reference/output-formats)

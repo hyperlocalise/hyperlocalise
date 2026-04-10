@@ -1,6 +1,6 @@
 ---
-title: "Bộ chuyển đổi LILT AI"
-description: "Cấu hình LILT AI để đồng bộ hóa dịch thuật từ xa (kéo/đẩy)."
+title: "Bộ chuyển đổi AI LILT"
+description: "Cấu hình LILT AI cho đồng bộ kéo/đẩy bản dịch từ xa."
 ---
 
 ## Cấu hình bắt buộc
@@ -17,29 +17,29 @@ description: "Cấu hình LILT AI để đồng bộ hóa dịch thuật từ xa
 }
 ```
 
-## Giải quyết token
+## Phân giải token
 
-1. biến môi trường có tên là`storage.config.apiTokenEnv`
+1. biến môi trường có tên là `storage.config.apiTokenEnv`
 2. fallback: `LILT_API_TOKEN`
 
-`apiToken` inline in config is not supported. Use environment variables only.
+`apiToken` nội tuyến trong cấu hình không được hỗ trợ. Chỉ sử dụng biến môi trường.
 
 ## Các trường cấu hình tùy chọn
 
 - `targetLanguages`
-- `timeoutSeconds` (defaults to `30`)
-- `pollIntervalMs` (defaults to `1000`)
-- `maxPolls` (defaults to `60`)
+- `timeoutSeconds` (mặc định là `30`)
+- `pollIntervalMs` (mặc định là `1000`)
+- `maxPolls` (mặc định là `60`)
 
 ## Hành vi kéo
 
-- bắt đầu một công việc xuất khẩu cho mỗi định dạng
-- trạng thái xuất phiếu khảo sát cho đến khi công việc hoàn thành
-- tải xuống các tệp JSON (một tệp hoặc ZIP)
-- tạo các bản ghi trở về dạng chuẩn và bỏ qua các hàng khóa/ngôn ngữ/giá trị trống
+- bắt đầu một công việc xuất cho từng ngôn ngữ
+- kiểm tra trạng thái xuất khảo sát cho đến khi công việc hoàn tất
+- tải xuống các artifact JSON (một tệp hoặc ZIP)
+- chuẩn hóa các mục nhập và bỏ qua các hàng khóa/miền/ngôn ngữ/giá trị trống
 
-## Các vấn đề phổ biến
+## Các vấn đề thường gặp
 
-- Thiếu token: export`LILT_API_TOKEN` trong cùng một phiên shell
-- Thiếu ID dự án: set `storage.config.projectID`
-- timeout or slow export: increase `timeoutSeconds`, `pollIntervalMs`, or `maxPolls`
+- thiếu token: export `LILT_API_TOKEN` trong cùng phiên shell
+- thiếu id dự án: đặt `storage.config.projectID`
+- hết thời gian chờ hoặc xuất chậm: tăng `timeoutSeconds`, `pollIntervalMs`, hoặc `maxPolls`

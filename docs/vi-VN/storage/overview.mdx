@@ -1,17 +1,17 @@
 ---
-title: "Tổng quan về lưu trữ"
-description: "Các tệp cục bộ, metadata 'sidecar' và các bộ điều hợp từ xa hoạt động như thế nào trong quá trình đồng bộ."
+title: "Tổng quan về bộ nhớ"
+description: "Cách các tệp cục bộ, siêu dữ liệu sidecar và bộ điều hợp từ xa hoạt động trong quá trình đồng bộ hóa."
 ---
 
-## Lớp lưu trữ thực hiện những việc gì
+## Lớp lưu trữ làm gì
 
 Kết nối lưu trữ:
 
-- tệp bản dịch
-- thông tin nguồn gốc của sidecar
-- API cho trình điều khiển từ xa.
+- các tệp dịch cục bộ,
+- siêu dữ liệu nguồn gốc sidecar,
+- API bộ điều hợp từ xa.
 
-## Các adapter được hỗ trợ
+## Các bộ điều hợp được hỗ trợ
 
 - [Crowdin](/storage/crowdin)
 - [LILT AI](/storage/lilt)
@@ -20,30 +20,30 @@ Kết nối lưu trữ:
 - [POEditor](/storage/poeditor)
 - [Smartling](/storage/smartling)
 
-## Mô tả
+## Danh tính mục nhập
 
-Mỗi bản ghi dịch được xác định bởi:
+Mỗi mục dịch được xác định bởi:
 
 - `key`
 - `context`
 - `locale`
 
-## Metadata phụ trợ tồn tại vì mục đích gì
+## Tại sao siêu dữ liệu sidecar tồn tại
 
-Văn bản hiển thị cho người dùng sẽ nằm trong các tệp bản dịch thông thường. Thông tin hoạt động (ví dụ: trạng thái "dự thảo" so với "đã kiểm duyệt") sẽ nằm trong các tệp metadata, để nội dung bản dịch luôn được giữ sạch sẽ.
+Văn bản hiển thị cho người dùng của bạn vẫn nằm trong các tệp dịch bình thường. Siêu dữ liệu vận hành (ví dụ: trạng thái bản nháp so với đã biên soạn) được giữ trong các tệp siêu dữ liệu đi kèm để nội dung dịch luôn gọn gàng.
 
-## Kéo và đẩy vòng đời
+## Vòng đời kéo và đẩy
 
-1. `run` generates local drafts (`origin=llm`, `state=draft`).
-2. `sync push` sends local changes to remote storage.
-3. Người dịch chuyên nghiệp tạo và quản lý giá trị trong hệ thống TMS từ xa.
-4. `sync pull` applies curated changes locally.
+1. `run` tạo các bản nháp cục bộ (`origin=llm`, `state=draft`).
+2. `sync push` gửi các thay đổi cục bộ đến bộ lưu trữ từ xa.
+3. Dịch giả con người tuyển chọn các giá trị trong TMS từ xa.
+4. `sync pull` áp dụng các thay đổi đã được tuyển chọn cục bộ.
 
 ## Quy tắc xung đột
 
-- Tính năng "Pull" có thể tự động áp dụng khoản vay dự phòng đã được chọn khi được kích hoạt.
-- Push bảo vệ các giá trị từ xa được chọn lọc theo mặc định.
-- `--fail-on-conflict` prevents silent drift.
-- `--force-conflicts` is opt-in for risky overwrite paths.
+- Pull có thể tự động áp dụng curated-over-draft khi được bật.
+- Push bảo vệ các giá trị từ xa đã được tuyển chọn theo mặc định.
+- `--fail-on-conflict` ngăn chặn sự trôi dạt âm thầm.
+- `--force-conflicts` là tùy chọn tham gia đối với các đường dẫn ghi đè rủi ro.
 
-Để biết thêm về các quyết định cụ thể liên quan đến xung đột, hãy xem [conflicts](/troubleshooting/conflicts).
+Đối với các quyết định xung đột cụ thể, xem [conflicts](/troubleshooting/conflicts).

@@ -1,6 +1,6 @@
 ---
-title: "Smartling adapter"
-description: "Cấu hình Smartling để đồng bộ hóa dịch thuật từ xa (kéo/đẩy)."
+title: "Bộ điều hợp Smartling"
+description: "Cấu hình Smartling để đồng bộ kéo/đẩy bản dịch từ xa."
 ---
 
 ## Cấu hình bắt buộc
@@ -18,21 +18,21 @@ description: "Cấu hình Smartling để đồng bộ hóa dịch thuật từ 
 }
 ```
 
-## Mật khẩu bắt buộc
+## Bí mật bắt buộc
 
 ```bash
 export SMARTLING_USER_SECRET="your-smartling-user-secret"
 ```
 
-`userSecret` inline in config is not supported. Use environment variables only.
+`userSecret` inline trong cấu hình không được hỗ trợ. Chỉ sử dụng biến môi trường.
 
 ## Trường cấu hình tùy chọn
 
 - `targetLanguages`
-- `timeoutSeconds` (defaults to `30`)
+- `timeoutSeconds` (mặc định là `30`)
 
 ## Các vấn đề thường gặp
 
-- missing secret: export `SMARTLING_USER_SECRET` in the same shell session
-- missing user identifier: set `storage.config.userIdentifier`
-- locale mismatch: align `targetLanguages` with your project locales
+- thiếu secret: export `SMARTLING_USER_SECRET` trong cùng phiên shell
+- thiếu mã định danh người dùng: đặt `storage.config.userIdentifier`
+- không khớp ngôn ngữ: căn chỉnh `targetLanguages` với các ngôn ngữ của dự án của bạn

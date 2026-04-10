@@ -1,71 +1,71 @@
 ---
-title: "配置方案"
-description: "简洁的 i18n.jsonc 字段参考，用于 hyperlocalize。"
+title: "配置架构"
+description: "hyperlocalise i18n 配置架构的简明参考。"
 ---
 
-## 顶层键
+## 顶级键
 
 - `locales`
 - `buckets`
 - `groups`
 - `llm`
-- `storage` (required for `sync`)
-- `cache` (可选)
+- `storage`（用于`sync`为必填）
+- `cache`（可选）
 
 ## `locales`
 
-- `source` (字符串，必填)
-- `targets` (字符串数组，必需)
-- `fallbacks` (对象，可选)
+- `source`（字符串，必填）
+- `targets`（字符串数组，必需）
+- `fallbacks`（对象，可选）
 
 ## `buckets`
 
-- 桶名称 -> 桶定义 的映射
-- `files` 与 `from` 和 `to` 模板的数组
+- 桶名称到存储桶定义的映射
+- `files` 带有 `from` 和 `to` 模板
 
 ## `groups`
 
-- 组名 -> 组定义
+- 组名到组定义的映射
 - `targets` 数组
 - `buckets` 数组
 
 ## `llm`
 
-- `profiles` 映射：配置文件名称 -> 提供者/模型/提示
-- optional `context_memory` object with `provider` and `model` for context-building overrides
-- 支持的提供商：`openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama`
-- `rules` array with `priority`, `group`, `profile`
+- `profiles` profile 名称到 provider/model/prompt 的映射
+- 用于上下文构建覆盖的可选`context_memory`对象，包含`provider`和`model`
+- 支持的提供方： `openai` | `azure_openai` | `anthropic` | `gemini` | `bedrock` | `lmstudio` | `groq` | `mistral` | `ollama`
+- `rules` 数组，包含 `priority`、`group`、`profile`
 
 ## `storage`
 
 - `adapter`: `poeditor` | `lilt` | `lokalise` | `crowdin` | `phrase` | `smartling`
-- `config`: adapter-specific fields
+- `config`：适配器特定字段
 
 ## `cache`
 
-- `enabled` 布尔
+- `enabled` 布尔值
 - `db_path` 字符串
 - `sqlite.max_open_conns` 整数
-- `sqlite.max_idle_conns` integer
+- `sqlite.max_idle_conns` 整数
 - `sqlite.conn_max_lifetime_seconds` 整数
-- `l1.enabled` 布尔
+- `l1.enabled` 布尔值
 - `l1.max_items` 整数
-- `l2.enabled` 布尔
-- `l2.auto_accept_threshold` 编号：`[0,1]`
-- `rag.enabled` 布尔
+- `l2.enabled` 布尔值
+- `l2.auto_accept_threshold` 位于 `[0,1]` 中的数字
+- `rag.enabled` 布尔值
 - `rag.top_k` 整数
 
-缓存中使用的 TM 元数据值：
+缓存使用的 TM 元数据值：
 
-- 来源：`curated` | `draft` | `llm` | `tms` | `unknown`
+- 出处：`curated` | `draft` | `llm` | `tms` | `unknown`
 - source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
 
-例如，请参阅 [i18n 配置](/configuration/i18n-config)。
+有关示例，请参见 [i18n config](/configuration/i18n-config)。
 
 
-## CSV 工作流程备注
+## CSV 工作流说明
 
-使用`buckets.*.files[].from`和`to`来指向`.csv`的文件，当您执行基于CSV的本地化流程时。
+在运行基于 CSV 的本地化流程时，请使用`buckets.*.files[].from`和`to`来指向`.csv`文件。
 
-- Per-locale files typically use `[locale]` in the `to` path.
-- 共享的 CSV 文件可以使用相同的路径 `from` 和 `to`。
+- 按语言区域划分的文件通常在 `[locale]` 的 `to` 路径中使用。
+- 共享的 CSV 文件可以复用相同的 `from` 和 `to` 路径。

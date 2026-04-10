@@ -1,9 +1,22 @@
 ---
-title: "Đầu nối Crowdin"
-description: "Cấu hình Crowdin để đồng bộ hóa dịch thuật từ xa."
+title: "Bộ điều hợp Crowdin"
+description: "Cấu hình Crowdin cho chế độ đồng bộ gốc hoặc chế độ tệp tương thích với Crowdin."
 ---
 
-## Cấu hình bắt buộc
+## Hai quy trình làm việc của Crowdin
+
+Hyperlocalise hiện hỗ trợ hai tích hợp Crowdin khác nhau:
+
+1. Chế độ đồng bộ gốc với `i18n.yml` cộng với `sync push` / `sync pull`
+2. Chế độ tệp tương thích với Crowdin với `crowdin.yml` cộng với `hyperlocalise crowdin ...`
+
+Sử dụng chế độ đồng bộ gốc khi bạn muốn đồng bộ mục do Hyperlocalise quản lý.
+
+Sử dụng chế độ tệp khi bạn muốn một phương án thay thế gần như tương đương trực tiếp hơn cho các luồng công việc tệp của Crowdin CLI.
+
+## Chế độ đồng bộ gốc
+
+### Cấu hình bắt buộc
 
 ```jsonc
 {
@@ -17,14 +30,82 @@ description: "Cấu hình Crowdin để đồng bộ hóa dịch thuật từ xa
 }
 ```
 
-## Các trường cấu hình tùy chọn
+### Crowdin Enterprise
 
+Đặt `apiBaseURL` khi workspace của bạn dùng Crowdin Enterprise thay vì Crowdin Cloud API mặc định.
+
+```jsonc
+{
+  "storage": {
+    "adapter": "crowdin",
+    "config": {
+      "projectID": "123456",
+      "apiTokenEnv": "CROWDIN_API_TOKEN",
+      "apiBaseURL": "https://example.api.crowdin.com"
+    }
+  }
+}
+```
+
+### Các trường cấu hình tùy chọn
+
+- `apiBaseURL`: Ghi đè URL cơ sở của API Crowdin. Dùng cho Crowdin Enterprise.
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
 
-## Các vấn đề phổ biến
+## Chế độ tệp tương thích với Crowdin
 
-- token not found: export `CROWDIN_API_TOKEN`
-- thất bại khi tìm kiếm dự án: kiểm tra ID dự án và quyền của tài khoản
-- cập nhật không đầy đủ: báo cáo về xung đột, kèm theo HLMDPH_3D778981B12D_0
+Sử dụng `crowdin.yml` hoặc `crowdin.yaml`.
+
+Ví dụ:
+
+```yaml
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+preserve_hierarchy: true
+
+files:
+  - source: /src/messages.json
+    translation: /locales/%locale%/%original_file_name%
+    export_only_approved: true
+```
+
+Các trường `crowdin.yml` được hỗ trợ trong v1:
+
+- `project_id`
+- `project_id_env`
+- `api_token`
+- `api_token_env`
+- `base_url`
+- `base_url_env`
+- `base_path`
+- `base_path_env`
+- `preserve_hierarchy`
+- `files[].source`
+- `files[].translation`
+- `files[].languages_mapping`
+- `files[].excluded_target_languages`
+- `files[].skip_untranslated_strings`
+- `files[].skip_untranslated_files`
+- `files[].export_only_approved`
+
+Sử dụng giao diện CLI tương thích:
+
+```bash
+hyperlocalise crowdin init
+hyperlocalise crowdin config validate
+hyperlocalise crowdin upload sources
+hyperlocalise crowdin upload translations --language fr
+hyperlocalise crowdin download --language fr
+```
+
+Xác thực sẽ thất bại an toàn khi gặp các trường hoặc lệnh Crowdin không được hỗ trợ.
+
+## Các vấn đề thường gặp
+
+- không tìm thấy token: export `CROWDIN_API_TOKEN`
+- Yêu cầu API Enterprise thất bại: hãy xác minh `storage.config.apiBaseURL` trỏ tới máy chủ API Enterprise của bạn và sử dụng `https`
+- lỗi tra cứu dự án: kiểm tra ID dự án và quyền của tài khoản
+- cập nhật một phần: xem xét báo cáo xung đột với `--output json`
+- lỗi xác thực chế độ tệp: hãy xóa các trường không được hỗ trợ `crowdin.yml` hoặc chuyển sang chế độ đồng bộ `i18n.yml` gốc

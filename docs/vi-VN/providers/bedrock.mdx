@@ -5,9 +5,9 @@ description: "Cấu hình AWS Bedrock làm nhà cung cấp LLM để tạo bản
 
 ## Giá trị nhà cung cấp
 
-Use `bedrock` in `llm.profiles.<name>.provider`.
+Sử dụng `bedrock` trong `llm.profiles.<name>.provider`.
 
-## Ví dụ về hồ sơ
+## Hồ sơ ví dụ
 
 ```json
 {
@@ -39,14 +39,6 @@ AWS_SECRET_ACCESS_KEY="your-secret-access-key"
 ```
 </CodeGroup>
 
-Tùy chọn khi sử dụng thông tin đăng nhập tạm thời:
+## Biến môi trường tùy chọn
 
-<CodeGroup>
-```bash Export
-export AWS_SESSION_TOKEN="your-session-token"
-```
-
-```bash .env.local
-AWS_SESSION_TOKEN="your-session-token"
-```
-</CodeGroup>
+`AWS_SESSION_TOKEN` khi sử dụng thông tin xác thực tạm thời.

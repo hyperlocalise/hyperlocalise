@@ -1,12 +1,12 @@
 ---
-title: "đồng bộ kéo"
-description: "Thử nghiệm: Tải các bản dịch đã được chọn từ bộ nhớ từ xa vào các tệp cục bộ."
+title: "đồng bộ kéo xuống"
+description: "Thử nghiệm: Kéo các bản dịch được tuyển chọn từ bộ nhớ từ xa vào các tệp cục bộ."
 ---
 
 <Note>
-Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và khóa phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Cờ, dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
 
-Việc giải quyết xung đột và đồng bộ hóa hợp đồng có thể thay đổi khi các tích hợp TMS phát triển.
+Xử lý xung đột và các hợp đồng đồng bộ có thể thay đổi khi các tích hợp TMS trưởng thành.
 </Note>
 
 ## Cách sử dụng
@@ -17,16 +17,21 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
+`sync pull` mặc định ở chế độ dry-run. Hãy bắt đầu bằng cách xem lại báo cáo, rồi chạy lại với `--dry-run=false`.
+
+`sync pull` coi bộ điều hợp từ xa là nguồn thẩm quyền tại thời điểm thực thi. Nó lấy một ảnh chụp nhanh từ xa mới cho phạm vi được yêu cầu, so sánh nó với các tệp cục bộ, rồi áp dụng chính sách kéo và các kiểm tra bất biến trước khi ghi các cập nhật cục bộ.
+
+Siêu dữ liệu phụ cục bộ vẫn có thể được dùng để báo cáo, nhưng chúng không bắt buộc để kéo chính xác.
 
 ## Cờ
 
-- `--config`: config path
-- `--locale`: target locale(s), repeatable
-- `--dry-run`: chỉ xem (mặc định `true`)
-- `--output`: `text` hoặc `json`
-- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
-- `--apply-curated-over-draft`: allow curated remote values to replace local draft values (default `true`)
+- `--config`: đường dẫn cấu hình
+- `--locale`: ngôn ngữ địa phương đích, có thể lặp lại
+- `--key-prefix`: giới hạn phạm vi đồng bộ đối với các khóa có bất kỳ tiền tố khớp nào, có thể lặp lại
+- `--dry-run`: chỉ xem trước (mặc định `true`)
+- `--output`: `text`, `json`, hoặc `markdown`
+- `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
+- `--apply-curated-over-draft`: cho phép các giá trị từ xa được tuyển chọn thay thế các giá trị bản nháp cục bộ (mặc định `true`)
 
 ## Ví dụ
 
@@ -34,12 +39,22 @@ hyperlocalise sync pull [--config <path>] [flags]
 hyperlocalise sync pull --locale es-ES --output json
 ```
 
-Xem [cách giải quyết xung đột](/troubleshooting/conflicts) để biết chiến lược.
+```bash
+hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
+```
+
+## Ghi chú
+
+- các lần đọc từ xa luôn mới nhất cho phạm vi được yêu cầu
+- kéo áp dụng các tạo và cập nhật ở cấp mục sau khi kiểm tra chính sách
+- vi phạm bất biến vẫn chặn các ghi cục bộ không an toàn
+
+Xem [xử lý xung đột](/troubleshooting/conflicts) để biết chiến lược giải quyết.
 
 ## Xem thêm
 
 - [run](/commands/run)
 - [trạng thái](/commands/status)
 - [sync push](/commands/sync-push)
-- [Tổng quan lưu trữ](/storage/overview)
-- [Vòng lặp quản lý bằng TMS (thử nghiệm)](/workflows/tms-curation-loop)
+- [Tổng quan về lưu trữ](/storage/overview)
+- [TMS curation loop (experimental)](/workflows/tms-curation-loop)

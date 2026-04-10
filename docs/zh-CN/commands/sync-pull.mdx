@@ -1,12 +1,12 @@
 ---
 title: "同步拉取"
-description: "实验性：从远程存储中拉取经过筛选的翻译，并将其存储到本地文件。"
+description: "实验性：将精选翻译从远程存储拉取到本地文件。"
 ---
 
 <Note>
-此功能尚处于实验阶段。标志、输出形状和行为可能会在不同版本之间发生变化。请在受控的工作流程中使用，并在 CI 中固定版本。
+此功能为实验性功能。标志、输出格式和行为可能在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
 
-冲突处理和同步协议可能会随着TMS集成的发展而演变。
+随着 TMS 集成的成熟，冲突处理和同步约定可能会不断演变。
 </Note>
 
 ## 用法
@@ -15,20 +15,23 @@ description: "实验性：从远程存储中拉取经过筛选的翻译，并将
 hyperlocalise sync pull [--config <path>] [flags]
 ```
 
-## 默认安全行为
+## 安全的默认行为
 
-`sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
+`sync pull` 默认为试运行模式。先查看报告，然后使用 `--dry-run=false` 重新运行。
+
+`sync pull` 在执行时将远程适配器视为权威。它会为请求的范围获取一份新的远程快照，将其与本地文件进行比较，然后在写入本地更新之前应用拉取策略和不变式检查。
+
+本地元数据 sidecar 仍可用于报告，但对于拉取正确性而言并非必需。
 
 ## 标志
 
-- ```json
-`--config`: 配置路径
-```
-- `--locale`: 目标区域(们), 可重复
+- `--config`：配置路径
+- `--locale`：目标语言环境，可重复
+- `--key-prefix`：将同步范围限制为具有任意匹配前缀的键，可重复
 - `--dry-run`：仅预览（默认 `true`）
-- `--output`: `text` or `json`
-- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
-- `--apply-curated-over-draft`: allow curated remote values to replace local draft values (default `true`)
+- `--output`：`text`、`json`或`markdown`
+- `--fail-on-conflict`：在检测到冲突时返回错误（默认 `true`）
+- `--apply-curated-over-draft`：允许精选的远程值替换本地草稿值（默认 `true`）
 
 ## 示例
 
@@ -36,12 +39,22 @@ hyperlocalise sync pull [--config <path>] [flags]
 hyperlocalise sync pull --locale es-ES --output json
 ```
 
-请参阅 [冲突处理](/troubleshooting/conflicts)以获取解决方案策略。
+```bash
+hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
+```
 
-## 参见
+## 注释
+
+- 远程读取始终是所请求范围内的最新数据
+- 拉取会在策略检查后应用入门级创建和更新
+- 不变量违规仍会阻止不安全的本地写入
+
+参见 [冲突处理](/troubleshooting/conflicts) 了解解决策略。
+
+## 另见
 
 - [运行](/commands/run)
 - [状态](/commands/status)
-- [同步推](/commands/sync-push)
-- [存储概述](/storage/overview)
-- [TMS 策划循环（实验版）](/workflows/tms-curation-loop)
+- [同步推送](/commands/sync-push)
+- [存储概览](/storage/overview)
+- [TMS 选编循环（实验性）](/workflows/tms-curation-loop)

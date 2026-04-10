@@ -1,31 +1,31 @@
 ---
-title: "Ma trận độ ổn định"
-description: "Các cấp độ trưởng thành của tính năng trên các lớp nhà cung cấp, luồng của file lock, các trình điều hợp TMS, eval và nhãn trạng thái sẵn sàng cho CI."
+title: "Ma trận ổn định"
+description: "Các cấp độ trưởng thành của tính năng trên lớp nhà cung cấp, luồng lockfile, bộ chuyển đổi TMS, eval và nhãn trạng thái sẵn sàng cho CI."
 ---
 
-Sử dụng trang này để quyết định các khả năng nào an toàn để sử dụng cho cài đặt mặc định và các khả năng nào cần kiểm soát triển khai chặt chẽ hơn.
+Sử dụng trang này để quyết định những khả năng nào an toàn cho mặc định sản xuất và những khả năng nào nên được giữ sau các kiểm soát triển khai chặt chẽ hơn.
 
-## Mức độ trưởng thành của tính năng
+## Độ trưởng thành của tính năng
 
 | Khu vực | Phạm vi | Trạng thái | Ghi chú |
 | --- | --- | --- | --- |
-| Lớp LLM | OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama | Ổn định | Đường dẫn chính để sử dụng `run`. |
-| Plan-first + lockfile | `run --dry-run`, deterministic planning, `.hyperlocalise.lock.json` checkpoints | Stable | Recommended default for CI and PR review flows. |
-| TMS adapters | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Pin CLI versions in CI. |
-| Khung đánh giá | `eval run`, `eval compare`, điểm đánh giá/kiểm tra chất lượng | Thử nghiệm | Cấu trúc báo cáo và điểm đánh giá có thể thay đổi giữa các phiên bản. |
-| CI-ready status labels | `ready`, `needs review`, `missing` derived from `status` CSV | Experimental | Label mapping is stable for current docs, but classification semantics may evolve. |
+| Lớp nhà cung cấp LLM | OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama | Ổn định | Đường dẫn tạo chính cho `run`. |
+| Lập kế hoạch trước + lockfile | `run --dry-run`, lập kế hoạch xác định, `.hyperlocalise.lock.json` các điểm kiểm tra | Ổn định | Mặc định được khuyến nghị cho CI và quy trình review PR. |
+| Bộ chuyển đổi TMS | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Thử nghiệm | `sync push` / `sync pull` hợp đồng có thể thay đổi. Push hiện sử dụng các baseline từ xa mới và biến đổi ở mức nhập khi được hỗ trợ, nhưng các đảm bảo về đồng thời của bộ chuyển đổi vẫn khác nhau. Ghim các phiên bản CLI trong CI. |
+| Khung đánh giá | `eval run`, `eval compare`, chấm điểm chất lượng/hồi quy | Thử nghiệm | Lược đồ báo cáo và cách chấm điểm có thể thay đổi giữa các bản phát hành. |
+| Nhãn trạng thái sẵn sàng cho CI | `ready`, `needs review`, `missing` được suy ra từ CSV `status` | Thử nghiệm | Ánh xạ nhãn ổn định cho các tài liệu hiện tại, nhưng ngữ nghĩa phân loại có thể thay đổi. |
 
 ## Chính sách triển khai được khuyến nghị
 
-1. Xử lý `run` + lockfile như cơ sở tham chiếu trong kiểm tra CI mặc định.
-2. Use `sync` and `eval` in controlled pipelines with explicit version pinning.
-3. Gate releases with status-based checks before enabling write-capable `sync` jobs.
+1. Xem `run` + lockfile là cơ sở trong các kiểm tra CI mặc định.
+2. Sử dụng `sync` và `eval` trong các pipeline được kiểm soát với việc ghim phiên bản rõ ràng.
+3. Chặn phát hành bằng các kiểm tra dựa trên trạng thái trước khi bật các công việc có khả năng ghi `sync`.
 
 ## Xem thêm
 
 - [run](/commands/run)
-- [trạng thái](/commands/status)
-- [đồng bộ kéo](/commands/sync-pull)
-- [đồng bộ đẩy](/commands/sync-push)
+- [status](/commands/status)
+- [sync pull](/commands/sync-pull)
+- [sync push](/commands/sync-push)
 - [eval](/commands/eval)
-- [Lockfile contract](/reference/lockfile-contract)
+- [Hợp đồng lockfile](/reference/lockfile-contract)

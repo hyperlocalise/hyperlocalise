@@ -1,13 +1,13 @@
 ---
 title: "开发"
-description: "开发并验证 Go 语言中的本地化 CLI。"
+description: "使用 Go 开发并验证 hyperlocalise CLI。"
 ---
 
 ## 先决条件
 
 - Go 1.26+
 - `git`
-- `make` available in your shell
+- `make` 可在你的 shell 中使用
 
 ## 克隆仓库
 
@@ -16,13 +16,13 @@ git clone https://github.com/hyperlocalise/hyperlocalise.git
 cd hyperlocalise
 ```
 
-## Bootstrap 工具和模块
+## 引导工具和模块
 
 ```bash
 make bootstrap
 ```
 
-这会下载 Go 模块并安装指定的 lint 工具链。
+这将下载 Go 模块并安装固定的 lint 工具链。
 
 ## 每日开发循环
 
@@ -48,18 +48,18 @@ make install
 hyperlocalise version
 ```
 
-## 关键代码位置
+## 键代码位置
 
-- `apps/cli/cmd/`: Cobra commands, flags, and CLI output behavior
-- `pkg/i18nconfig/`：`i18n.jsonc` 的解析和验证
-- `apps/cli/internal/i18n/runsvc/`：`run` 规划和执行流程
-- `apps/cli/internal/i18n/syncsvc/`: sync orchestration and conflict logic
-- `internal/i18n/storage/`: 适配器合同和提供商集成
+- `apps/cli/cmd/`：Cobra 命令、标志和 CLI 输出行为
+- `pkg/i18nconfig/`：`i18n.yml` 和 `i18n.jsonc` 解析和验证
+- `apps/cli/internal/i18n/runsvc/`：`run` 规划与执行流程
+- `apps/cli/internal/i18n/syncsvc/`：同步编排和冲突逻辑
+- `internal/i18n/storage/`：适配器契约和提供方集成
 
-## 在提交 PR 之前
+## 在打开 PR 之前
 
 ```bash
 make precommit
 ```
 
-这在与贡献者相同的流程中执行格式化、代码检查、测试和构建检查。
+这会在与贡献者相同的流程中运行格式化、lint、测试和构建检查。

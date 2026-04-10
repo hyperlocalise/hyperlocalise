@@ -1,11 +1,11 @@
 ---
 title: "输出格式"
-description: "关于 run、状态和同步命令输出格式的参考。"
+description: "运行、状态和同步命令输出格式参考。"
 ---
 
-## `run` output (`text`)
+## `run` 输出 (`text`)
 
-关键摘要字段
+关键摘要字段：
 
 - `planned_total`
 - `skipped_by_lock`
@@ -20,7 +20,7 @@ description: "关于 run、状态和同步命令输出格式的参考。"
 failure target=<path> key=<key> reason=<reason>
 ```
 
-## `status` output (`csv`)
+## `status` 输出 (`csv`)
 
 表头列：
 
@@ -30,10 +30,10 @@ key,namespace,locale,status,origin,state
 
 交互模式：
 
-- `hyperlocalise status --output csv -i` 渲染一个用于手动分诊的TTY仪表板。
-- CSV 仍然是 CI 和自动化领域的标准机器可读格式。
+- `hyperlocalise status --output csv -i` 会渲染一个用于手动分诊的 TTY 仪表板。
+- CSV 仍然是 CI 和自动化的标准机器可读格式。
 
-## `sync` 输出 (`text` 或 `json`)
+## `sync` 输出（`text` 或 `json`）
 
 文本摘要字段：
 
@@ -46,9 +46,16 @@ key,namespace,locale,status,origin,state
 - `skipped`
 - `warnings`
 
-在与 CI 检查集成时，请使用 JSON 格式的输出。
+与 CI 检查集成时，请使用 JSON 输出。
+
+常见的同步警告或冲突情况包括：
+
+- 不变式验证阻止了一个不安全的更改
+- 适配器仅支持尽力而为的远程并发
+- 在推送期间，本地密钥的远程身份未解析
+- 推送后验证检测到远程不匹配
 
 
 ## CSV 翻译文件
 
-当`run`写入`.csv`的翻译目标时，新添加的键的输出行顺序是确定的（按键排序），而现有行会保持其原始顺序。
+当`run`写入`.csv`翻译目标时，对于新追加的键，输出行顺序是确定的（按键排序），而现有行保持其原始顺序。

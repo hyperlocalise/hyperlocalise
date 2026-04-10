@@ -1,6 +1,6 @@
 ---
-title: "Thân thích Lokalise"
-description: "Cấu hình API v2 của Lokalise để đồng bộ hóa (kéo/đẩy)."
+title: "Bộ chuyển đổi Lokalise"
+description: "Cấu hình Lokalise API v2 cho đồng bộ kéo/đẩy."
 ---
 
 ## Cấu hình bắt buộc
@@ -22,13 +22,13 @@ description: "Cấu hình API v2 của Lokalise để đồng bộ hóa (kéo/đ
 - `targetLanguages`
 - `timeoutSeconds`
 
-## Giải quyết token
+## Phân giải token
 
 - biến môi trường mặc định: `LOKALISE_API_TOKEN`
-- thay thế bằng HLMDPH_92EE6E77CFF7_0
+- ghi đè bằng `apiTokenEnv`
 
-## Các vấn đề thường gặp
+## Các sự cố thường gặp
 
-- Lỗi không được phép: token bị thiếu hoặc phạm vi không đủ
-- Không khớp ngôn ngữ: Đảm bảo mã ngôn ngữ Lokalise khớp với các ngôn ngữ đích
-- lỗi hết thời gian: tăng HLMDPH_4C5BB18D61C4_0 cho các dự án lớn
+- lỗi không được phép: thiếu token hoặc phạm vi không đủ
+- không khớp locale: căn chỉnh mã ngôn ngữ Lokalise với các locale đích
+- lỗi hết thời gian chờ: tăng `timeoutSeconds` cho các dự án lớn

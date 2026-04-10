@@ -3,11 +3,11 @@ title: "Gemini"
 description: "Cấu hình Gemini làm nhà cung cấp LLM để tạo bản dịch."
 ---
 
-## Giá trị nhà cung cấp
+## Giá trị của nhà cung cấp
 
-Use `gemini` in `llm.profiles.<name>.provider`.
+Sử dụng `gemini` trong `llm.profiles.<name>.provider`.
 
-## Ví dụ
+## Ví dụ hồ sơ
 
 ```json
 {
@@ -23,16 +23,18 @@ Use `gemini` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Các biến môi trường cần thiết
+## Biến môi trường bắt buộc
 
 <CodeGroup>
 ```bash Export
-export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 ```bash .env.local
-GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 </CodeGroup>
+
+## Biến môi trường tùy chọn
+
+`GEMINI_BASE_URL` mặc định là `https://generativelanguage.googleapis.com/v1beta/openai`.

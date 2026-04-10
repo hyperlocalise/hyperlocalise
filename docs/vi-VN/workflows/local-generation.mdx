@@ -1,31 +1,31 @@
 ---
-title: "Quy trình tạo bản cục bộ"
-description: "Thực hiện tạo bản nháp một cách an toàn và đảm bảo hành vi của file khóa có thể đoán trước."
+title: "Quy trình tạo cục bộ"
+description: "Chạy tạo bản nháp an toàn và làm cho hành vi của tệp khóa trở nên có thể dự đoán."
 ---
 
-## Vòng lặp được khuyến nghị
+## Vòng lặp được đề xuất
 
 1. `hyperlocalise run --dry-run`
-2. kiểm tra danh sách và số lượng công việc
+2. kiểm tra danh sách tác vụ và số lượng
 3. `hyperlocalise run`
-4. kiểm tra lỗi và chạy lại nếu cần
+4. xem lại các lần thất bại và chạy lại nếu cần
 
 ## Hành vi của file khóa
 
-`.hyperlocalise.lock.json` tracks completed tasks to avoid repeated work.
+`.hyperlocalise.lock.json` theo dõi các tác vụ đã hoàn thành để tránh lặp lại công việc.
 
-Khi bạn thay đổi nội dung nguồn hoặc cấu hình ánh xạ, hãy chạy lại và xác minh xem có nhiệm vụ mới nào được lên lịch hay không.
+Khi bạn thay đổi nội dung nguồn hoặc các ánh xạ cấu hình, hãy chạy lại và xác minh xem có các tác vụ mới nào được lên kế hoạch hay không.
 
-Sử dụng [Hợp đồng file khóa](/reference/lockfile-contract) để biết chi tiết về sơ đồ và hướng dẫn đặt lại.
+Sử dụng [Lockfile contract](/reference/lockfile-contract) để biết chi tiết lược đồ và hướng dẫn đặt lại.
 
 ## Thực hành tốt
 
-- giữ nguyên chế độ chạy thử trong CI để có khả năng quan sát
-- sử dụng ánh xạ tệp có tính quyết định
+- giữ chế độ dry-run trong CI để dễ quan sát
+- sử dụng ánh xạ tệp xác định
 - tránh chỉnh sửa thủ công trạng thái khóa
 
 ## Markdown trong quy trình làm việc cục bộ
 
-If your bucket mappings point to `.md` or `.mdx` files, `hyperlocalise run --dry-run` still plans tasks from Markdown sources.
+Nếu ánh xạ bucket của bạn trỏ đến các tệp `.md` hoặc `.mdx`, `hyperlocalise run --dry-run` vẫn lên kế hoạch tác vụ từ các nguồn Markdown.
 
-When you run without `--dry-run`, output keeps Markdown and MDX layout stable while translating extracted prose nodes.
+Khi bạn chạy mà không có `--dry-run`, đầu ra sẽ giữ nguyên bố cục Markdown và MDX ổn định trong khi dịch các nút văn xuôi đã trích xuất.

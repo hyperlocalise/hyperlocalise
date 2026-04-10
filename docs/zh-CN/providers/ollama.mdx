@@ -1,13 +1,13 @@
 ---
 title: "Ollama"
-description: "配置 Ollama 作为翻译生成 LLM (大型语言模型) 提供程序。"
+description: "将 Ollama 配置为用于生成翻译的 LLM 提供程序。"
 ---
 
-## 提供方值
+## 提供者值
 
-Use `ollama` in `llm.profiles.<name>.provider`.
+在 `llm.profiles.<name>.provider` 中使用 `ollama`。
 
-## 示例配置文件
+## 示例资料片段
 
 ```json
 {
@@ -23,16 +23,8 @@ Use `ollama` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## 所需环境变量
+## 可选环境变量
 
-<CodeGroup>
-```bash Export
-export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-export OLLAMA_API_KEY="ollama"
-```
+`OLLAMA_BASE_URL` 默认为 `http://127.0.0.1:11434/v1`。
 
-```bash .env.local
-OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-OLLAMA_API_KEY="ollama"
-```
-</CodeGroup>
+`OLLAMA_API_KEY` 默认为 `ollama`。

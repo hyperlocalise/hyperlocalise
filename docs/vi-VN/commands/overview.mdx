@@ -1,9 +1,9 @@
 ---
-title: "Tổng quan các lệnh"
-description: "Bản đồ lệnh cấp cao với liên kết đến tài liệu hướng dẫn lệnh tập trung vào nhiệm vụ."
+title: "Tổng quan về lệnh"
+description: "Bản đồ lệnh cấp cao nhất với các liên kết đến tài liệu lệnh theo từng tác vụ."
 ---
 
-## Hình dạng giao diện dòng lệnh
+## Hình dạng CLI
 
 ```bash
 hyperlocalise [command]
@@ -12,7 +12,9 @@ hyperlocalise [command]
 Các lệnh chính:
 
 - `init`
+- `crowdin`
 - `run`
+- `check`
 - `eval`
 - `status`
 - `sync pull`
@@ -21,11 +23,13 @@ Các lệnh chính:
 - `update`
 - `completion`
 
-## Điểm khởi đầu theo nhiệm vụ
+## Điểm bắt đầu theo tác vụ
 
-- First setup: [init](/commands/init)
-- Tạo bản dự thảo cục bộ: [chạy](/commands/run)
-- Thực hiện thí nghiệm và kiểm soát chất lượng: [eval](/commands/eval)
-- Báo cáo tiến độ: [trạng thái](/commands/status)
-- Lấy các bản dịch đã được chọn lọc: [đồng bộ lấy HLMDPH_BE53411E4A2A_0]
-- Push các thay đổi cục bộ: [đồng bộ hóa đẩy](/commands/sync-push)
+- Thiết lập lần đầu: [init](/commands/init)
+- Quy trình làm việc của tệp Crowdin: [crowdin](/commands/crowdin)
+- Tạo bản nháp cục bộ: [run](/commands/run)
+- Kiểm tra tính toàn vẹn bản dịch: [check](/commands/check)
+- Thử nghiệm chất lượng và kiểm soát: [eval](/commands/eval)
+- Đang báo cáo tiến độ: [status](/commands/status)
+- Kéo các bản dịch đã được tuyển chọn: [sync pull](/commands/sync-pull)
+- Đẩy các thay đổi cục bộ: [đồng bộ đẩy](/commands/sync-push)

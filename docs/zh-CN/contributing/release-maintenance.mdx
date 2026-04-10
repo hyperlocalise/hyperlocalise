@@ -1,6 +1,6 @@
 ---
 title: "发布维护"
-description: "发布维护工作流程，涵盖质量门控和命令行发布。"
+description: "质量门控和 CLI 版本发布的维护者工作流程。"
 ---
 
 ## 质量检查
@@ -19,13 +19,13 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-发布自动化文件:
+发布自动化文件：
 
 - `.github/workflows/release.yml`
 - `.goreleaser.yml`
 
-## 发布的目标
+## 已发布的制品目标
 
-- macOS: `amd64`, `arm64`
-- Linux: `amd64`, `arm64`
+- macOS：`amd64`，`arm64`
+- Linux：`amd64`，`arm64`
 - packages: `.deb`, `.rpm`

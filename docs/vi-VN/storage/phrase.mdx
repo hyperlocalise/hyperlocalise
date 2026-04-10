@@ -1,6 +1,6 @@
 ---
-title: "Phrase adapter"
-description: "Cấu hình Phrase để đồng bộ hóa bản dịch từ xa."
+title: "Bộ điều hợp cụm từ"
+description: "Cấu hình Phrase để đồng bộ dịch từ xa."
 ---
 
 ## Cấu hình bắt buộc
@@ -23,15 +23,15 @@ description: "Cấu hình Phrase để đồng bộ hóa bản dịch từ xa."
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
-- `fileFormat` (required when `mode` is `files`)
+- `fileFormat` (bắt buộc khi `mode` là `files`)
 
-## Các chế độ
+## Chế độ
 
-- `strings`: pull and push using Phrase key and translation APIs.
-- `files`: pull and push using Phrase export/import jobs.
+- `strings`: kéo và đẩy bằng khóa Phrase và các API dịch thuật.
+- `files`: kéo và đẩy bằng các công việc xuất/nhập Phrase.
 
 ## Các vấn đề thường gặp
 
-- token not found: export `PHRASE_API_TOKEN`
-- lỗi xác thực chế độ: đặt HLMDPH_58CE2FBCEBC2_0 hoặc HLMDPH_5DD0DAE7EBCC_1 hoặc HLMDPH_178BD9035EDD_2
-- file mode import failure: verify `fileFormat` matches your project settings
+- không tìm thấy token: export `PHRASE_API_TOKEN`
+- lỗi xác thực chế độ: đặt `mode` thành `strings` hoặc `files`
+- lỗi nhập chế độ tệp: hãy xác minh `fileFormat` khớp với cài đặt dự án của bạn

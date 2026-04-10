@@ -1,0 +1,83 @@
+---
+title: "kiểm tra"
+description: "Kiểm tra các tệp đã bản địa hóa để tìm nội dung chưa được bản địa hóa, các khóa mồ côi, các tệp đích bị thiếu và các vấn đề về vệ sinh bản dịch."
+---
+
+## Cách sử dụng
+
+```bash
+hyperlocalise check [--config <path>] [flags]
+```
+
+## Kiểm tra mặc định
+
+Mỗi kiểm tra đều có một **mức độ nghiêm trọng** (`error` hoặc `warning`) trong JSON báo cáo và trong đầu ra **định dạng đẹp**. Mã thoát `1` được áp dụng khi có bất kỳ kết quả phát hiện nào, trừ khi bạn truyền `--no-fail`. Với **`--quiet`**, chỉ các kết quả phát hiện **error** mới được tính vào mã thoát và đầu ra in/JSON; các lần chạy chỉ có cảnh báo sẽ thoát `0`.
+
+### Lỗi
+
+- `not_localized`: khóa đích bị thiếu hoặc giá trị đích trống (sau khi loại bỏ khoảng trắng)
+- `missing_target_file`: tệp đích đã giải quyết không tồn tại
+- `placeholder_mismatch`: các placeholder khác với nguồn
+- `html_tag_mismatch`: Cấu trúc thẻ HTML khác với nguồn
+- `icu_shape_mismatch`: Cấu trúc ICU khác với nguồn hoặc bị sai định dạng (các tệp không phải markdown)
+- `markdown_ast_mismatch`: cấu trúc tài liệu markdown hoặc MDX khác với nguồn (độ tương đồng của cây tiêu đề/thành phần)
+
+### Cảnh báo
+
+- `same_as_source`: giá trị đích khớp với văn bản nguồn. Thường gặp với thương hiệu, mã hoặc chuỗi không phụ thuộc ngôn ngữ; hãy dùng `--exclude-check same_as_source` nếu bạn muốn ẩn các chuỗi này
+- `orphaned_key`: khóa đích tồn tại nhưng khóa nguồn không tồn tại
+- `whitespace_only`: giá trị đích chỉ chứa khoảng trắng
+
+Việc chọn `--check icu_shape_mismatch` chỉ chạy các kiểm tra ICU; nó không bao gồm `markdown_ast_mismatch`. Hãy dùng cả hai cờ nếu bạn cần kiểm tra ICU và cấu trúc MD/MDX cùng nhau.
+
+## Cờ
+
+- `--config`: đường dẫn đến tệp cấu hình
+- `--locale`: bộ lọc ngôn ngữ đích (có thể lặp lại)
+- `--group`: lọc theo tên nhóm
+- `--bucket`: lọc theo tên bucket
+- `--check`: chỉ chạy các kiểm tra cụ thể (có thể lặp lại)
+- `--exclude-check`: bỏ qua các kiểm tra mặc định cụ thể (có thể lặp lại)
+- `--format`: định dạng đầu ra (mặc định là `stylish`, `text`, hoặc `json`). **Stylish** in chẩn đoán kiểu ESLint được nhóm theo tệp; khi stdout là terminal, mức độ nghiêm trọng sẽ dùng màu (không màu khi được pipe hoặc trong các log CI thông thường).
+- `--output-file`: ghi cùng định dạng văn bản thuần hoặc JSON như stdout vào một tệp
+- `--json-report`: luôn ghi toàn bộ báo cáo JSON có thể đọc bằng máy vào đường dẫn này, bất kể `--format` (hữu ích trong CI: nhật ký đẹp mắt cộng với một artifact JSON cho công cụ)
+- `--no-fail`: trả về mã thoát `0` ngay cả khi vẫn có phát hiện
+- `--quiet`: bỏ qua các kết quả **cảnh báo** khỏi stdout, `--output-file`, và `--json-report`; dùng mã thoát `0` khi kết quả đầy đủ chỉ bao gồm cảnh báo. Kiểm tra nội bộ vẫn chạy trên tất cả các mức độ nghiêm trọng; **`--fix`** vẫn lập kế hoạch từ kết quả đầy đủ (bao gồm cả cảnh báo) để các vấn đề có thể sửa không bị bỏ qua.
+- `--fix`: sau khi báo cáo, dịch lại các phát hiện **có thể sửa được** bằng cùng quy trình AI như [`run`](/commands/run) (cùng cấu hình, hồ sơ và biến môi trường). Áp dụng cho các phát hiện có khóa thuộc các loại `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, và `icu_shape_mismatch`. Đối với **`markdown_ast_mismatch`** trên các tệp `.md`/`.mdx` (các phát hiện theo từng tệp, thường không có `key`), `--fix` sẽ dịch lại **tất cả** các đoạn đã căn chỉnh cho cặp nguồn/đích/locale đó để cấu trúc có thể căn chỉnh lại. Không sửa `same_as_source` (bản sao có chủ ý), các tệp đích bị thiếu, hoặc các khóa mồ côi.
+- `--fix-dry-run`: với `--fix`, giải quyết các tác vụ dịch đã lên kế hoạch mà không ghi mục tiêu hoặc gọi mô hình (vẫn tải cấu hình và lập kế hoạch).
+- `--workers`: với `--fix`, số lượng worker dịch song song (mặc định: số lõi CPU)
+
+## Ví dụ
+
+```bash
+hyperlocalise check --bucket docs
+```
+
+```bash
+hyperlocalise check --no-fail --json-report report.json
+```
+
+```bash
+hyperlocalise check --format text --no-fail --output-file report.txt
+```
+
+```bash
+hyperlocalise check --format json --no-fail --output-file report.json
+```
+
+```bash
+hyperlocalise check --check orphaned_key --check missing_target_file
+```
+
+```bash
+hyperlocalise check --fix --locale fr --bucket ui
+```
+
+```bash
+hyperlocalise check --fix --fix-dry-run --no-fail
+```
+
+## Xem thêm
+
+- [trạng thái](/commands/status)
+- [run](/commands/run)

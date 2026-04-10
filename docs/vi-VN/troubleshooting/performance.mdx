@@ -1,22 +1,22 @@
 ---
-title: "Hiệu năng"
-description: "Cải thiện hiệu suất và độ ổn định trong các dự án dịch thuật lớn."
+title: "Hiệu suất"
+description: "Cải thiện hiệu suất chạy và độ ổn định trên các dự án bản địa hóa lớn."
 ---
 
-## Giảm thiểu công việc không cần thiết
+## Giảm bớt công việc có thể tránh được
 
-- dựa vào việc bỏ qua tệp khóa trong HLMDPH_027AA2E0049A_0
-- chia sẻ các bản ánh xạ rất lớn thành các nhóm nhỏ hơn
-- limit locale scope with repeated `--locale`
+- dựa vào việc bỏ qua tệp khóa trong `run`
+- chia các ánh xạ rất lớn thành các nhóm nhỏ hơn
+- giới hạn phạm vi ngôn ngữ với `--locale`
 
-## Cải thiện độ tin cậy của quá trình đồng bộ
+## Cải thiện độ tin cậy của đồng bộ hóa
 
-- set adapter `timeoutSeconds` when working with large projects
-- chạy các tác vụ đồng bộ theo từng khu vực thay vì đồng bộ toàn bộ khi cần thiết
-- sử dụng định dạng JSON để dễ dàng triển khai logic thử lại tự động
+- đặt bộ chuyển đổi `timeoutSeconds` khi làm việc với các dự án lớn
+- chạy các tác vụ đồng bộ theo từng locale thay vì fan-out toàn bộ khi cần thiết
+- sử dụng đầu ra JSON để dễ dàng tự động hóa logic thử lại
 
-## Xác định các điểm nghẽn
+## Chẩn đoán các điểm nóng
 
-- compare `planned_total` vs `executable_total`
-- inspect repeated failures by `target` and `key`
-- kiểm tra giới hạn tốc độ của mạng/API từ nhà cung cấp của bạn
+- so sánh `planned_total` với `executable_total`
+- kiểm tra các lỗi lặp lại theo `target` và `key`
+- kiểm tra giới hạn tốc độ mạng/API từ nhà cung cấp của bạn

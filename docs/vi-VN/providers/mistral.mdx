@@ -3,7 +3,7 @@ title: "Mistral"
 description: "Cấu hình hyperlocalise để sử dụng API tương thích với OpenAI của Mistral."
 ---
 
-Use `mistral` in `llm.profiles.<name>.provider`.
+Sử dụng `mistral` trong `llm.profiles.<name>.provider`.
 
 ## Ví dụ cấu hình
 
@@ -21,11 +21,18 @@ Use `mistral` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Biến môi trường
+## Biến môi trường bắt buộc
 
-```bash
-# Optional, defaults to https://api.mistral.ai/v1
-export MISTRAL_BASE_URL="https://api.mistral.ai/v1"
-
+<CodeGroup>
+```bash Export
 export MISTRAL_API_KEY="your-mistral-api-key"
 ```
+
+```bash .env.local
+MISTRAL_API_KEY="your-mistral-api-key"
+```
+</CodeGroup>
+
+## Biến môi trường tùy chọn
+
+`MISTRAL_BASE_URL` mặc định là `https://api.mistral.ai/v1`.

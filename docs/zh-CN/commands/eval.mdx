@@ -1,15 +1,15 @@
 ---
 title: "eval"
-description: "实验性：运行翻译质量实验，并将候选报告与基准进行比较。"
+description: "实验性：运行翻译质量实验，并将候选报告与基线进行比较。"
 ---
 
 <Note>
-此功能尚处于实验阶段。 标志、输出形状和行为可能会在不同版本之间发生变化。 请在受控的工作流程中使用，并在 CI 中固定版本。
+此功能为实验性功能。标志、输出结构和行为可能会在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
 
-报告模式和评分行为可能会随着评估工作流程的成熟而演变。
+随着评估工作流逐渐成熟，报告架构和评分行为可能会发生变化。
 </Note>
 
-使用`eval`命令，在具有代表性的评估集上衡量翻译质量，并在持续集成（CI）中强制执行质量阈值。
+使用 `eval` 命令在具有代表性的评估集上对翻译质量进行基准测试，并在 CI 中强制执行质量阈值。
 
 ## 用法
 
@@ -18,62 +18,131 @@ hyperlocalise eval run --eval-set <path> [flags]
 hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 ```
 
-## eval 运行
+## 评估运行
 
-在您的评估集上运行一个或多个实验变体。
+在你的评估集上运行一个或多个实验变体。
 
-### 这条命令的作用是什么
+### 求值流程
 
-1. 从`--eval-set`加载 eval 数据集。
-2. 从您选择的配置文件、提供商、模型和提示覆盖中扩展实验变体。
-3. 执行针对每个实验变体的每个用例。
-4. 使用内置启发式模式对每个翻译进行评分。
-5. Optionally adds an LLM judge lane when you pass both `--eval-provider` and `--eval-model`.
-6. Writes a JSON report when you pass `--output`.
-7. 打印一份简洁的实验摘要表格。
+```text
+eval set
+  |
+  v
+expand experiment matrix
+  |
+  v
+translate each case with each experiment
+  |
+  +--> heuristic lane
+  |      - placeholder / ICU / tag checks
+  |      - length / forbidden-term / locale checks
+  |      - reference similarity
+  |
+  +--> judge lane (optional)
+  |      - llm-rubric
+  |      - factuality
+  |      - g-eval
+  |      - model-graded-closedqa
+  |      - answer-relevance
+  |      - context-faithfulness
+  |      - context-recall
+  |
+  v
+per-run result
+  - quality.weightedAggregate
+  - judgeAggregateScore
+  - finalScore
+  - decision
+  |
+  v
+report aggregates
+  - overall aggregate
+  - byLocale
+```
 
-### 标志
+### 这个命令的作用
 
-- `--eval-set`：评估数据集路径 (`.json`, `.jsonc`, `.csv`) (必填)
-- `--profile`: 个人资料名称覆盖（可重复）
-- `--provider`: 供应商覆盖（可重复）
-- `--model`: model override (repeatable)
+1. 从`--eval-set`加载评估数据集。
+2. 从数据集 `experiments` 中，或从你选择的配置文件、提供商、模型和提示覆盖中扩展实验变体。
+3. 针对每个实验变体执行每个用例。
+4. 使用内置启发式通道对每个翻译进行评分。
+5. 当你同时传入 `--eval-provider` 和 `--eval-model` 时，可选地添加一个 LLM 裁判通道。
+6. 将启发式质量和成功的裁判得分协调为每次运行一个`finalScore`。
+7. 当你传入 `--output` 时，会写入一份 JSON 报告。
+8. 打印简洁的每个实验摘要表。
+
+### 标记
+
+- `--eval-set`：评估数据集的路径（`.yaml`、`.yml`）（必需）
+- `--profile`：配置文件名称覆盖（可重复）
+- `--provider`：提供程序覆盖（可重复）
+- `--model`：模型覆盖（可重复）
 - `--prompt-file`：提示文件覆盖
-- `--prompt`: inline prompt override (mutually exclusive with `--prompt-file`)
-- `--eval-provider`：LLM 评估提供者
-- `--eval-model`: model for LLM evaluation
-- `--eval-prompt-file`: 评估提示文件覆盖
-- `--eval-prompt`：内联评估提示覆盖（与`--eval-prompt-file`互斥）
+- `--prompt`：内联提示覆盖（与`--prompt-file`互斥）
+- `--eval-provider`：用于 LLM 评估的提供程序。当请求 judge 评估时，默认为 `openai`。
+- `--eval-model`：用于 LLM 评估的模型。当请求 judge 评估时，默认为 `gpt-5.2`。
+- `--eval-prompt-file`：评估提示文件覆盖
+- `--eval-prompt`：内联评估提示覆盖（与 `--eval-prompt-file` 互斥）
+- `--assertion`：要运行的 judge 断言（可重复）。支持的值：`llm-rubric`、`factuality`、`g-eval`、`model-graded-closedqa`、`answer-relevance`、`context-faithfulness`、`context-recall`
+- `--baseline`：使用 `--interactive` 时用于比较的基线评估报告 JSON 路径
 - `--output`: JSON 输出报告路径
 
-LLM evaluation mode turns on only when you pass both `--eval-provider` and `--eval-model`.
+当你请求评审评估时，LLM 评估模式会开启，无论是显式通过 `--eval-provider`、`--eval-model`、`--eval-prompt` 或 `--assertion`，还是通过 eval-set 评审断言隐式开启。
 
-Your translation flags keep their current meaning. The `--eval-*` flags only control the judge lane.
+如果请求了评审评估，而你省略了 provider/model，Hyperlocalise 将默认使用 `openai` 和 `gpt-5.2`。
 
-在LLM评估模式下，参考翻译是可选的。如果存在，则评估者会将其用作风格和语气的指导。
+你的翻译标志保持其当前含义。`--eval-*` 标志只控制评审通道。
 
-### 摘要表字段
+在 LLM 评估模式下，参考译文是可选的。当存在时，评估器会将它们用作风格和语气指导。
 
-- `score`：实验的平均加权质量得分
-- `pass_rate`: successful runs / total runs for the experiment
-- `placeholder_violations`: 占位符完整性硬失败违规次数
-- `latency_ms`: average latency for the experiment
+在 YAML eval-set 格式中，`reference` 是正常的目标侧字段。`assert` 是可选的。
+
+数据集级别的 `experiments` 和 `judge` 是可选的。如果你在 YAML 中定义了它们，并且没有传递 CLI 覆盖项，`eval run` 会直接使用这些设置。
+
+如果你传入 `--profile`、`--provider`、`--model` 或 `--prompt` 中的任意一个，CLI 实验矩阵将覆盖数据集 `experiments`。
+
+如果你传入 `--eval-provider`、`--eval-model`、`--eval-prompt` 或 `--assertion` 中的任意一个，这些 CLI 值将覆盖数据集 `judge` 字段。
+
+如果你不传入任何`--assertion`，默认的 judge 断言是`llm-rubric`。
+
+未知的断言名称会快速失败。
+
+### 评分机制如何运作
+
+- `quality.weightedAggregate` 是该次运行的内置启发式评分。
+- `judgeAggregateScore` 是该运行中成功的 judge 断言的平均值。
+- `finalScore` 是报告中用于诊断的调和后分数。
+- `decision` 是此次运行的粗略结果：`pass`、`review` 或 `fail`。
+
+当前对账规则：
+
+- 翻译错误会强制 `finalScore=0` 和 `decision=fail`
+- 启发式硬性失败强制 `finalScore=0` 和 `decision=fail`
+- 当判定车道不可用时，`finalScore` 会回退到启发式分数
+- 当两条车道都可用时，`finalScore = 0.65 * heuristic + 0.35 * judge`
+
+### 汇总表字段
+
+- `score`：实验的平均加权质量分数
+- `pass_rate`：实验的成功运行次数 / 总运行次数
+- `placeholder_violations`：占位符完整性严重失败违规计数
+- `latency_ms`：实验的平均延迟
 
 ### 示例
 
-使用配置中的默认设置运行，并生成报告：
+使用配置中的默认值运行并写入报告：
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.jsonc \
+  --eval-set ./evalsets/core.yaml \
   --output ./artifacts/eval-report.json
 ```
 
-运行一组配置文件和提供商/模型的覆盖选项：
+运行一组配置文件和提供方/模型覆盖项：
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.csv \
+  --eval-set ./evalsets/core.yaml \
   --profile default \
   --profile fast \
   --provider openai \
@@ -82,63 +151,273 @@ hyperlocalise eval run \
   --model claude-sonnet-4-5
 ```
 
-使用提示文件进行覆盖运行：
+使用提示文件覆盖运行：
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --prompt-file ./prompts/translation-eval.txt
 ```
 
-使用 LLM 评估，并使用内联评估提示：
+使用内联评判提示运行 LLM 评估：
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider openai \
   --eval-model gpt-4.1-mini \
   --eval-prompt "Score translation quality from 0.0 to 1.0 and explain briefly." \
   --output ./artifacts/eval-report.json
 ```
 
-使用 LLM 评估，并使用评判提示文件：
+一次运行多个断言判定器：
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --assertion g-eval \
+  --assertion context-faithfulness \
+  --output ./artifacts/eval-report.json
+```
+
+使用评审提示文件运行 LLM 评估：
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider anthropic \
   --eval-model claude-sonnet-4-5 \
   --eval-prompt-file ./prompts/eval-judge.txt \
   --output ./artifacts/eval-report.json
 ```
 
-## eval 比较
+在 CI 中使用 eval 并检查保存的报告：
 
-将候选报告与基准报告进行比较。
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/release-gate.yaml \
+  --provider openai \
+  --model gpt-4.1-mini \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --output ./artifacts/eval-candidate.json
+```
 
-使用此命令在 CI 中，以防止质量退化。
+### 报告示例
 
-The workflow stays the same: run `eval run` first, then run `eval compare`.
+示例评估集：
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
+
+带有显式断言的示例：
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+    assert:
+      - type: judge.translation_quality
+        threshold: 0.85
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+        assert:
+          - type: contains
+            value: "compte"
+```
+
+运行一个已经定义了 Ollama 实验的数据集：
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./eval_dataset/article_001.yaml \
+  --output ./artifacts/eval-report.json
+```
+
+由`--output`写入的 JSON 的精简示例：
+
+```json
+{
+  "aggregate": {
+    "weightedScore": 0.812,
+    "averageJudgeScore": 0.847,
+    "finalScore": 0.824,
+    "decisionCounts": {
+      "pass": 18,
+      "review": 3,
+      "fail": 1
+    },
+    "byLocale": {
+      "fr-FR": {
+        "totalRuns": 10,
+        "finalScore": 0.851
+      },
+      "de-DE": {
+        "totalRuns": 12,
+        "finalScore": 0.802
+      }
+    }
+  },
+  "experimentSummaries": [
+    {
+      "experimentId": "ollama-translategemma",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.838,
+      "weightedScore": 0.806,
+      "finalScore": 0.817,
+      "decisionCounts": {
+        "pass": 8,
+        "review": 3
+      }
+    },
+    {
+      "experimentId": "ollama-lfm2-24b",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.856,
+      "weightedScore": 0.819,
+      "finalScore": 0.832,
+      "decisionCounts": {
+        "pass": 10,
+        "review": 1
+      }
+    }
+  ],
+  "llmEvaluation": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "assertions": [
+      "llm-rubric",
+      "factuality"
+    ],
+    "aggregateScore": 0.847,
+    "averageScoreByName": {
+      "judge:llm-rubric": 0.835,
+      "judge:factuality": 0.859
+    },
+    "failedByName": {
+      "judge:factuality": 1
+    }
+  },
+  "runs": [
+    {
+      "caseId": "checkout.cta",
+      "targetLocale": "fr-FR",
+      "assertionResults": [
+        {
+          "type": "judge.translation_quality",
+          "passed": true,
+          "threshold": 0.85,
+          "score": 0.88
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "expected": "compte"
+        }
+      ],
+      "judgeAggregateScore": 0.88,
+      "quality": {
+        "weightedAggregate": 0.91
+      },
+      "finalScore": 0.9,
+      "decision": "pass",
+      "judgeResults": {
+        "judge:llm-rubric": {
+          "score": 0.86
+        },
+        "judge:factuality": {
+          "score": 0.9,
+          "details": {
+            "grounded": true,
+            "hallucinations": []
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+使用顶层报告进行趋势跟踪，并使用每次运行记录进行诊断：
+
+- `experimentSummaries` 是按 `finalScore`、`weightedScore` 或通过/复审/失败混合方式比较模型变体的最快方法。
+- `aggregate.byLocale` 是定位回归问题最快的方式。
+- `llmEvaluation.averageScoreByName` 显示了是哪一组断言在拖累 judge lane。
+- `assertionResults` 显示显式 eval-set 期望是否已通过。
+- `judgeResults` 详情解释特定断言的失败，例如幻觉、缺乏支持的主张或缺失的上下文事实。
+
+## 评估比较
+
+将候选报告与基线报告进行比较。
+
+在 CI 中使用此命令以防止质量回退。
+
+工作流程保持不变：先运行`eval run`，然后运行`eval compare`。
 
 ### 标志
 
-- `--candidate`: candidate report JSON path (required)
-- `--baseline`: baseline report JSON path (required)
-- `--min-score`：最小候选得分
-- `--max-regression`: maximum allowed score regression from baseline to candidate
+- `--candidate`：候选报告 JSON 路径（必填）
+- `--baseline`：基线报告 JSON 路径（必填）
+- `--min-score`：最低候选分数
+- `--max-regression`：从基线到候选的允许最大分数回退
 
 ### CI 行为
 
-`eval compare` prefers the LLM aggregate score when both reports include a usable LLM judge aggregate. Otherwise, it falls back to the heuristic weighted score.
+`eval compare` 在两个报告都包含可用的 LLM 裁判汇总分数时，优先使用 LLM 汇总分数。否则，它会回退到启发式加权分数。
 
-命令在以下情况下会退出时出错：
+这意味着 `eval compare` 当前基于以下条件进行门控：
 
-- candidate score is below `--min-score`, or
-- score regression exceeds `--max-regression`.
+- 当在两份报告中都启用了 LLM 评估时的 LLM 裁判汇总
+- 在没有可用的 LLM 评判聚合时使用启发式聚合
+
+它目前并不受 `finalScore` 的限制。
+
+当以下情况时，命令会以错误退出：
+
+- 候选分数低于`--min-score`，或者
+- 分数回归超过 `--max-regression`。
 
 ### 示例
 
-比较报告并仅打印摘要值：
+仅比较报告并打印汇总值：
 
 ```bash
 hyperlocalise eval compare \
@@ -146,7 +425,7 @@ hyperlocalise eval compare \
   --baseline ./artifacts/eval-baseline.json
 ```
 
-Fail CI if the candidate score drops below `0.82` or regresses by more than `0.02`:
+如果候选分数低于 `0.82` 或回退幅度超过 `0.02`，则使 CI 失败：
 
 ```bash
 hyperlocalise eval compare \
@@ -156,7 +435,7 @@ hyperlocalise eval compare \
   --max-regression 0.02
 ```
 
-## 参见
+## 另请参见
 
 - [运行](/commands/run)
 - [状态](/commands/status)

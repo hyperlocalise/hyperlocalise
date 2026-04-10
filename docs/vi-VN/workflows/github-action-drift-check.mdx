@@ -1,0 +1,77 @@
+---
+title: "Kiểm tra sai lệch GitHub Action"
+description: "Chạy kiểm tra trôi lệch bản địa hóa Hyperlocalise trong GitHub Actions."
+---
+
+## Tổng quan
+
+Sử dụng hành động ở thư mục gốc của kho lưu trữ khi bạn muốn một kiểm tra pull request sẽ thất bại nếu có sai lệch bản địa hóa.
+
+Hành động chạy `hyperlocalise run --dry-run`, truyền trực tiếp đầu ra CLI vào nhật ký quy trình làm việc, và tải lên hai artifact khi được bật:
+
+- `drift-report.json`
+- `drift-summary.txt`
+
+## Ví dụ quy trình
+
+```yaml
+name: localization-drift
+
+on:
+  pull_request:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./
+        with:
+          check: drift
+          config-path: i18n.yml
+          hyperlocalise-version: latest
+          fail-on-drift: true
+          upload-artifact: true
+```
+
+Các kho lưu trữ bên ngoài có thể sử dụng ref `v1` đang được di chuyển cho bản phát hành v1 ổn định mới nhất. Ghim một thẻ chính xác nếu bạn muốn kiểm soát thay đổi chặt chẽ hơn.
+
+```yaml
+- uses: hyperlocalise/hyperlocalise@v1
+  with:
+    check: drift
+```
+
+## Đầu vào
+
+- `check`: kiểm tra tên. Chỉ `drift` được hỗ trợ trong v1.
+- `config-path`: đường dẫn đến tệp cấu hình. Mặc định là `i18n.yml`.
+- `working-directory`: thư mục làm việc cho lệnh. Mặc định là `.`.
+- `hyperlocalise-version`: phiên bản phát hành để cài đặt. Mặc định là `latest`.
+- `fail-on-drift`: làm cho workflow thất bại khi phát hiện drift. Mặc định là `true`.
+- `upload-artifact`: tải lên các artifact JSON và văn bản. Mặc định là `true`.
+
+## Phát hiện trôi dữ liệu
+
+Hành động coi một trong hai điều kiện này là trôi dạt:
+
+- một hoặc nhiều tác vụ dịch có thể thực thi trong báo cáo chạy thử
+- một hoặc nhiều ứng viên cần cắt tỉa trong báo cáo chạy thử
+
+Lệnh thất bại vẫn khiến hành động thất bại ngay cả khi việc thực thi drift bị vô hiệu hóa.
+
+## Hiện vật
+
+`drift-summary.txt` là hiện vật sàng lọc nhanh. Nó ghi lại:
+
+- đường dẫn cấu hình được sử dụng
+- mã thoát của CLI
+- liệu có phát hiện thấy trôi dạt hay không
+- các đường dẫn đích bị ảnh hưởng
+- các ngôn ngữ mục tiêu bị ảnh hưởng
+- các khóa mục bị ảnh hưởng khi có sẵn
+
+Nếu CLI thất bại trước khi ghi JSON, hành động vẫn ghi một tệp hiện vật văn bản tối thiểu khi có thể.

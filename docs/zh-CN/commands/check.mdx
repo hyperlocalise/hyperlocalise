@@ -1,0 +1,83 @@
+---
+title: "检查"
+description: "检查本地化文件中的未本地化内容、孤立键、缺失的目标文件以及翻译卫生问题。"
+---
+
+## 用法
+
+```bash
+hyperlocalise check [--config <path>] [flags]
+```
+
+## 默认检查
+
+每个检查在报告 JSON 和 **stylish** 输出中都有一个 **严重性**（`error` 或 `warning`）。当存在任何发现时，退出代码 `1` 将适用，除非你传入 `--no-fail`。使用 **`--quiet`** 时，只有 **error** 级发现会计入退出代码以及打印/JSON 输出；仅有 warning 的运行会以 `0` 退出。
+
+### 错误
+
+- `not_localized`：目标键缺失或目标值为空（去除首尾空白后）
+- `missing_target_file`：已解析的目标文件不存在
+- `placeholder_mismatch`：占位符与源文本不同
+- `html_tag_mismatch`：HTML 标签结构与源内容不同
+- `icu_shape_mismatch`：ICU 结构与源文本不同或格式错误（非 Markdown 文件）
+- `markdown_ast_mismatch`：Markdown 或 MDX 文档结构与源内容不同（标题/组件树一致性）
+
+### 警告
+
+- `same_as_source`：目标值与源文本相匹配。常见于品牌、代码或与语言环境无关的字符串；如果你想隐藏这些内容，请使用`--exclude-check same_as_source`
+- `orphaned_key`：目标键存在，但源键不存在
+- `whitespace_only`：目标值仅包含空白字符
+
+选择 `--check icu_shape_mismatch` 仅运行 ICU 检查；它不包括 `markdown_ast_mismatch`。如果你需要同时进行 ICU 和 MD/MDX 结构检查，请同时使用这两个标志。
+
+## 标志
+
+- `--config`：配置文件路径
+- `--locale`：目标区域设置筛选器（可重复）
+- `--group`：按组名称筛选
+- `--bucket`：按存储桶名称筛选
+- `--check`：仅运行特定检查（可重复）
+- `--exclude-check`：跳过特定默认检查（可重复）
+- `--format`：输出格式（`stylish` 默认、`text`，或 `json`）。**Stylish** 会按文件分组打印类似 ESLint 风格的诊断；当 stdout 是终端时，严重级别会使用颜色（在管道输出或典型 CI 日志中则不使用颜色）。
+- `--output-file`：将与标准输出相同的人类可读格式或 JSON 格式写入文件
+- `--json-report`：始终将完整的机器可读 JSON 报告写入此路径，而不管 `--format`（在 CI 中很有用：既有美观的日志，也有供工具使用的 JSON 产物）
+- `--no-fail`：即使存在发现，也返回退出码 `0`
+- `--quiet`：从 stdout 中省略 **warning** 结果，`--output-file`，以及 `--json-report`；当完整结果仅包含 warnings 时，使用退出码 `0`。内部检查仍会对所有严重级别运行；**`--fix`** 仍会根据完整结果（包括 warnings）进行计划，因此可修复的问题不会被跳过。
+- `--fix`：在报告之后，使用与 [`run`](/commands/run) 相同的 AI 流水线（相同的配置、配置文件和环境变量）重新翻译**可修复**的问题。适用于类型为 `not_localized`、`whitespace_only`、`placeholder_mismatch`、`html_tag_mismatch` 和 `icu_shape_mismatch` 的带键问题。对于 `markdown_ast_mismatch` 在 `.md`/`.mdx` 文件上（按文件的问题，通常没有 `key`），`--fix` 会重新翻译该源/目标/区域设置对的**所有**对齐片段，以便结构可以重新对齐。不会修复 `same_as_source`（故意复制）、缺失的目标文件或孤立的键。
+- `--fix-dry-run`：使用`--fix`，在不写入目标或调用模型的情况下解决计划中的翻译任务（仍会加载配置和规划）。
+- `--workers`：使用 `--fix`，并行翻译工作进程数量（默认值：CPU 核心数）
+
+## 示例
+
+```bash
+hyperlocalise check --bucket docs
+```
+
+```bash
+hyperlocalise check --no-fail --json-report report.json
+```
+
+```bash
+hyperlocalise check --format text --no-fail --output-file report.txt
+```
+
+```bash
+hyperlocalise check --format json --no-fail --output-file report.json
+```
+
+```bash
+hyperlocalise check --check orphaned_key --check missing_target_file
+```
+
+```bash
+hyperlocalise check --fix --locale fr --bucket ui
+```
+
+```bash
+hyperlocalise check --fix --fix-dry-run --no-fail
+```
+
+## 另请参见
+
+- [状态](/commands/status)
+- [运行](/commands/run)

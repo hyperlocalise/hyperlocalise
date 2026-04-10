@@ -1,42 +1,139 @@
 ---
-title: "评估集策划"
-description: "构建一个具有代表性的翻译评估集，以发现和解决实际的质量问题。"
+title: "评估集整理"
+description: "构建一个具有代表性的翻译评估集，以发现真实的质量问题。"
 ---
 
-使用评估集来衡量您最关心的字符串的翻译质量。
+使用评估集来衡量对您最重要的字符串的翻译质量。
 
 ## 选择文件格式
 
-您可以将评估集存储为 JSON、JSONC 或 CSV 格式。
+将 YAML 用于评估集。
 
-- 使用 JSON 或 JSONC 格式时，如果您需要嵌套结构和明确的元数据。
-- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
-- in CSV, separate multiple tags with semicolons (`ui;short;icu`)
+- 将一个共享源字符串归入组一 `tests`
+- 在 `locales` 下定义一个或多个区域设置变体
+- 可选择在`experiments`下定义模型变体
+- 可选地在 `judge` 下定义 judge 配置
+- 将受信任的目标端文本放在`reference`下
+- 仅在你需要明确的通过/失败预期时添加 `assert`
 
-## 选择具有代表性的覆盖范围
+### YAML 示例
 
-包括各种类型的字符串，以便您可以在不同内容形态中检测回归。
+```yaml
+version: "1"
+metadata:
+  owner: localization
+  suite: release-gate
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
+
+### 最小示例
+
+```yaml
+tests:
+  - id: save-button
+    vars:
+      source: "Save"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer"
+```
+
+### 格式规则
+
+- `experiments[]` 是可选的
+- `experiments[].provider` 和 `experiments[].model` 在存在实验时是必需的
+- `experiments[].id`、`experiments[].profile`和`experiments[].prompt`是可选的
+- `judge` 是可选的
+- `judge.provider`、`judge.model`、`judge.prompt` 和 `judge.assertions[]` 是可选的
+- `tests[].id` 是必填项
+- `tests[].vars.source` 是必填项
+- `tests[].locales[]` 必须至少包含一个语言环境
+- `tests[].locales[].locale` 是必填项
+- `vars.query` 被接受为 `vars.source` 的别名
+- `vars.context` 是可选的
+- `locales[].reference` 是可选的，但当你有可信翻译时，它是正常的目标端字段
+- 顶级`assert`是可选的，并适用于测试中的每个语言区域变体
+- locale-level `assert` 是可选的，并且仅为该语言环境附加
+
+### 实验规则
+
+- 在想要让评估集本身定义要运行哪些模型时使用 `experiments`
+- 如果未设置 CLI 实验标志，则使用数据集 `experiments`
+- 如果你传入 CLI `--profile`、`--provider`、`--model` 或 `--prompt`，则 CLI 会覆盖数据集 `experiments`
+
+### 法官规则
+
+- 当你希望由评估集本身来定义 LLM 裁判配置时，请使用 `judge`
+- `judge.assertions` 接受与 CLI `--assertion` 相同的断言名称
+- CLI `--eval-provider`、`--eval-model`、`--eval-prompt`和`--assertion`逐字段覆盖数据集`judge`字段
+- 如果请求了 judge 评估，并且 CLI 和 YAML 都未设置 provider/model，Hyperlocalise 将默认使用 `openai` 和 `gpt-5.2`
+
+## 挑选具有代表性的覆盖范围
+
+包含多种字符串类型，这样你就可以检测不同内容形式中的回归问题。
 
 - 简短的 UI 字符串：按钮、标签、菜单项和简洁的错误文本
-- 长文本：包括入职流程、帮助文本、法律条款和交易消息
-- ICU 和复杂格式：包括复数规则、性别变体、选择语句以及日期或数字格式占位符
-- 占位符和变量：例如 `{name}`, `%s` 或 `{{count}}` 这样的标记，这些标记必须在未更改的情况下保留。
+- 长文本字符串：引导步骤、帮助文本、法律文案和事务性消息
+- ICU 和复杂格式：复数规则、性别变体、select 语句，以及日期或数字格式化占位符
+- 占位符和变量：诸如 `{name}`、`%s` 或 `{{count}}` 这样的标记必须保持不变
 
-## 尽量将上下文与每个用例保持一致。
+## 让上下文尽量靠近每个案例
 
-针对每个案例，请存储一个稳定的ID，并提供足够的上下文信息供审核人员参考。
+对于每种情况，存储一个稳定的 ID，并为审核者提供足够的上下文。
 
-- 添加目标区域和源文本
-- include screenshots, feature names, or intent notes in `context`
-- 当您已经拥有可信的翻译时，添加可选的`reference`文本
-- 使用标签对用例进行标记，并添加可选的“区域”或“组”，以便按区域对报告进行筛选。
+- 将共享源文本保留在 `vars.source`
+- 在 `vars.context` 中包含截图、功能名称或意图说明
+- 当你已经有可信译文时，请将特定于语言区域的引用放在每个语言区域条目下
+- 保持 ID 稳定，以便展开的案例在不同运行之间保持可比性
+
+## 有意地使用断言
+
+`assert` 是可选的。如果你省略它，eval 运行仍会生成启发式分数、可选的评判分数以及报告诊断信息。
+
+当你确切知道输出中必须出现什么内容时，请使用确定性断言。
+
+- `contains`
+- `not_contains`
+- `equals`
+
+当你想要基于阈值的评分时，请使用判定断言。
+
+- `judge.translation_quality`
+- `judge.factuality`
+- `judge.g_eval`
+- `judge.model_graded_closedqa`
+- `judge.answer_relevance`
+- `judge.context_faithfulness`
+- `judge.context_recall`
+- `judge.context_relevance`
 
 ## 长期保持质量
 
 将评估集视为生产测试数据。
 
-- - Review cycle: refresh set with UI or copy updates
-- Quality maintenance: update over time, keep context close
-- 删除不再与活动功能匹配的过时案例
-- 保持简单、中等和困难字符串的平衡
-- 重复运行相同的测试集，以便公平地比较模型或提示的变更。
+- 在 UI 或产品文案变更时，检查并更新该集合
+- 移除不再映射到活动功能的过期案例
+- 保持简单、中等和困难字符串之间的平衡
+- 重复运行同一组，以便公平比较模型或提示词的变化

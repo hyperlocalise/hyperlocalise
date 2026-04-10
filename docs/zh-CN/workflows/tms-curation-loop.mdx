@@ -1,31 +1,31 @@
 ---
-title: "TMS 流程"
-description: "实验性：从本地草稿生成迁移到人工翻译，再返回。"
+title: "TMS 筛选循环"
+description: "实验性：在本地草稿生成与人工审核翻译之间来回切换。"
 ---
 
 <Note>
-此功能为实验性功能。标志、输出形状和行为在不同版本之间可能发生变化。请在受控工作流程中使用，并在 CI 中固定版本。
+此功能为实验性功能。标志、输出形式和行为可能会在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
 
-工作流程指导可能会随着同步语义和冲突策略的不断完善而发生变化。
+随着同步语义和冲突策略不断成熟，工作流程指导可能会发生变化。
 </Note>
 
 ## 端到端序列
 
-1. generate drafts locally with `run`
-2. push drafts with `sync push --dry-run=false`
-3. 翻译人员在POEditor/Lokalise/Crowdin上进行翻译。
-4. pull curated updates with `sync pull --dry-run=false`
-5. 验证：`status`
+1. 在本地生成草稿，使用 `run`
+2. 推送草稿并带有`sync push --dry-run=false`
+3. 翻译人员在 POEditor/Lokalise/Crowdin 中整理
+4. 拉取精选更新，使用`sync pull --dry-run=false`
+5. 验证 `status`
 
 ## 决策点
 
-- 保留`--fail-on-conflict=true`以确保安全。
-- 使用`--apply-curated-over-draft`在拉取时，当经过人工整理的数据应该获胜时。
-- 使用`--force-conflicts`仅在已解决冲突后进行推送。
+- 为了安全起见，请保留 `--fail-on-conflict=true`。
+- 在下拉刷新时使用 `--apply-curated-over-draft`，当经过整理的数据应当优先时。
+- 仅在查看冲突后，才在推送时使用 `--force-conflicts`。
 
-## 审计性
+## 可审计性
 
-使用 JSON 格式输出进行机器可读的评审：
+使用 JSON 输出以便机器可读的审查：
 
 ```bash
 hyperlocalise sync pull --output json

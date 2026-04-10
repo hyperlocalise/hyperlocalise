@@ -1,14 +1,14 @@
 ---
 title: "存储概览"
-description: "本地文件、副载元数据以及远程适配器在同步期间的工作原理。"
+description: "本地文件、旁车元数据和远程适配器在同步过程中如何协同工作。"
 ---
 
 ## 存储层的作用
 
 存储连接：
 
-- 本地翻译文件,
-- sidecar 溯源元数据
+- 本地翻译文件，
+- 旁车来源元数据，
 - 远程适配器 API。
 
 ## 支持的适配器
@@ -20,30 +20,30 @@ description: "本地文件、副载元数据以及远程适配器在同步期间
 - [POEditor](/storage/poeditor)
 - [Smartling](/storage/smartling)
 
-## 条目身份
+## 条目标识
 
-每个翻译条目都通过以下方式进行标识：
+每个翻译条目由以下标识：
 
 - `key`
 - `context`
 - `locale`
 
-## 侧边车元数据的存在原因是什么
+## 为什么存在 sidecar 元数据
 
-您的面向用户的文本应保留在普通翻译文件中。 运营元数据（例如草稿与已整理状态）应保留在配套元数据文件中，以便翻译内容保持整洁。
+面向用户的文本保留在普通翻译文件中。操作元数据（例如草稿与精选状态）保留在旁路元数据文件中，这样翻译内容就能保持整洁。
 
 ## 拉取和推送生命周期
 
-1. `run` 生成本地草稿 (`origin=llm`, `state=draft`)。
-2. `sync push` sends local changes to remote storage.
-3. 人工翻译人员在远程TMS中进行值维护。
-4. `sync pull` 局部应用已整理的更改。
+1. `run` 生成本地草稿（`origin=llm`、`state=draft`）。
+2. `sync push` 将本地更改发送到远程存储。
+3. 人工翻译人员在远程 TMS 中整理数值。
+4. `sync pull` 在本地应用精选更改。
 
 ## 冲突规则
 
-- 如果已启用，Pull 可以自动应用预先配置的透支功能。
-- Push 默认情况下会保护经过选择的远程值。
-- `--fail-on-conflict` 阻止无声漂移。
-- `--force-conflicts` 是一个可选选项，用于处理风险较高的覆盖路径。
+- 启用后，Pull 可以自动应用 curated-over-draft。
+- 默认情况下，Push 会保护经过筛选的远程值。
+- `--fail-on-conflict` 可防止静默漂移。
+- `--force-conflicts` 适用于高风险覆盖路径的可选加入。
 
-对于具体的冲突决策，请参阅 [conflicts](/troubleshooting/conflicts)。
+对于具体的冲突决策，请参见 [冲突](/troubleshooting/conflicts)。
