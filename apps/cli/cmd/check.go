@@ -1258,6 +1258,12 @@ func (r *checkLocationResolver) resolveInFile(filePath, key, value string) (stri
 		content = data
 		r.content[filePath] = data
 	}
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if (ext == ".md" || ext == ".mdx") && strings.HasPrefix(key, "md.") {
+		if line := translationfileparser.LineForMarkdownKey(content, ext == ".mdx", key); line > 0 {
+			return filePath, line
+		}
+	}
 	if line := lineForKey(content, key); line > 0 {
 		return filePath, line
 	}

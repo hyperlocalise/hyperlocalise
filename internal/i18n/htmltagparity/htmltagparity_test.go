@@ -31,3 +31,11 @@ func TestMismatchPlainText(t *testing.T) {
 		t.Fatalf("plain text should not mismatch")
 	}
 }
+
+func TestMismatchIgnoresAngleBracketPathTokens(t *testing.T) {
+	src := "Use `bedrock` in `llm.profiles.<name>.provider`."
+	tgt := "Sử dụng 'bedrock' trong 'llm.profiles.<name>.provider'."
+	if Mismatch(src, tgt) {
+		t.Fatalf("expected <name> in paths not to count as HTML tags")
+	}
+}
