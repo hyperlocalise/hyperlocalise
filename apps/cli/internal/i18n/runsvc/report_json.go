@@ -12,6 +12,8 @@ const (
 )
 
 // NormalizeReportJSONDetail returns a canonical detail level for --output JSON.
+// Empty string is treated as "full" for backward compatibility with callers that omit the field;
+// the CLI sets an explicit default of "summary".
 func NormalizeReportJSONDetail(s string) (string, error) {
 	d := strings.ToLower(strings.TrimSpace(s))
 	if d == "" {

@@ -47,7 +47,9 @@ type Input struct {
 	OnEvent                   func(Event)
 	FixTargets                []FixTarget
 	FixMarkdownScopes         []FixMarkdownScope
-	// ReportJSONDetail controls --output JSON shape: summary (CLI default; aggregate-only file) or full (complete report).
+	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
+	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
+	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
 	ReportJSONDetail string
 }
 
@@ -409,7 +411,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
-							legacyPromptUsed := strings.TrimSpace(profile.Prompt) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
+							legacyRendered := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
+							legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
 							task := Task{
 								SourceLocale:         cfg.Locales.Source,
 								TargetLocale:         target,
@@ -806,6 +809,8 @@ func materializeTaskPrompts(task *Task) {
 	if task == nil {
 		return
 	}
+	// Invariant: assignment sites set SystemPrompt and UserPrompt together after rendering. The OR guard
+	// is only safe under that pairing—if one field were set alone, returning here could skip filling the other.
 	if strings.TrimSpace(task.SystemPrompt) != "" || strings.TrimSpace(task.UserPrompt) != "" {
 		return
 	}
