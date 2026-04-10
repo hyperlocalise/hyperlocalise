@@ -9,6 +9,7 @@ go_library(
         "//apps/cli/internal/i18n/cache",
         "//apps/cli/internal/i18n/lockfile",
         "//apps/cli/internal/i18n/pathresolver",
+        "//internal/i18n/htmltagparity",
         "//internal/i18n/icuparser",
         "//internal/i18n/translationfileparser",
         "//internal/i18n/translator",
