@@ -1104,4 +1104,109 @@ func TestRunWritesMachineReadableArtifact(t *testing.T) {
 	if _, ok := localeUsage["fr"]; !ok {
 		t.Fatalf("expected fr locale usage in report artifact, got %+v", localeUsage)
 	}
+	if _, ok := payload["batches"]; ok {
+		t.Fatalf("default --output-detail is summary; artifact must not include batches, got %+v", payload["batches"])
+	}
+}
+
+func TestRunWritesFullArtifactIncludesBatches(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	dir := t.TempDir()
+	reportPath := filepath.Join(dir, "full-report.json")
+	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{
+			PlannedTotal:    1,
+			ExecutableTotal: 1,
+			Batches:         []runsvc.BatchUsage{{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}}},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"run", "--output", reportPath, "--output-detail", "full"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with full artifact: %v", err)
+	}
+	content, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if _, ok := payload["batches"]; !ok {
+		t.Fatalf("full artifact should include batches")
+	}
+}
+
+func TestRunInvalidOutputDetailError(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"run", "--output-detail", "bogus"})
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "invalid") {
+		t.Fatalf("expected invalid --output-detail error, got %v", err)
+	}
+}
+
+func TestRunWritesSummaryArtifactOmitsHeavyFields(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	dir := t.TempDir()
+	reportPath := filepath.Join(dir, "summary-report.json")
+	runFunc = func(_ context.Context, _ runsvc.Input) (runsvc.Report, error) {
+		return runsvc.Report{
+			PlannedTotal:    1,
+			ExecutableTotal: 1,
+			Executable: []runsvc.Task{
+				{SourceLocale: "en", TargetLocale: "fr", SourcePath: "/s.json", TargetPath: "/t.json", EntryKey: "k", SourceText: "SECRET_SOURCE_BODY", ProfileName: "p"},
+			},
+			Batches:         []runsvc.BatchUsage{{TargetLocale: "fr", TargetPath: "/t.json", EntryKey: "k", TokenUsage: runsvc.TokenUsage{PromptTokens: 1, CompletionTokens: 2, TotalTokens: 3}}},
+			PruneCandidates: []runsvc.PruneCandidate{{TargetPath: "/stale.json", EntryKey: "old"}},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--output", reportPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with summary artifact: %v", err)
+	}
+
+	content, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read report artifact: %v", err)
+	}
+	if strings.Contains(string(content), "SECRET_SOURCE_BODY") {
+		t.Fatalf("summary artifact must not include source text")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode report artifact: %v", err)
+	}
+	if _, ok := payload["batches"]; ok {
+		t.Fatalf("summary artifact must omit batches, got %+v", payload["batches"])
+	}
+	if _, ok := payload["executable"]; ok {
+		t.Fatalf("summary artifact must omit executable list, got %v", payload["executable"])
+	}
+	if _, ok := payload["skipped"]; ok {
+		t.Fatalf("summary artifact must omit skipped list, got %v", payload["skipped"])
+	}
+	if _, ok := payload["pruneCandidates"]; ok {
+		t.Fatalf("summary artifact must omit pruneCandidates, got %v", payload["pruneCandidates"])
+	}
+	if got, ok := payload["pruneCandidateCount"].(float64); !ok || got != 1 {
+		t.Fatalf("expected pruneCandidateCount=1, got %v", payload["pruneCandidateCount"])
+	}
 }

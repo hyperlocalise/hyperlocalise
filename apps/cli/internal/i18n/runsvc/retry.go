@@ -58,6 +58,7 @@ func (e *postTranslateValidationError) Error() string { return e.msg }
 type translateValidator func(source, translated string) error
 
 func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, error) {
+	materializeTaskPrompts(&task)
 	runtimeContext := buildTranslationRuntimeContext(task.EntryKey, task.SourceContext, task.ContextMemory)
 	userPrompt := strings.TrimSpace(task.UserPrompt)
 

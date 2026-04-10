@@ -62,6 +62,7 @@ type executorState struct {
 	contextPlan          contextMemoryPlan
 	contextSlots         map[string]*contextMemorySlot
 	report               executionReport
+	omitPerEntryBatches  bool
 
 	stageMu   sync.Mutex
 	pendingMu sync.Mutex
@@ -74,7 +75,7 @@ type contextMemorySlot struct {
 	memory string
 }
 
-func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan) (*executorState, error) {
+func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, omitPerEntryBatches bool) (*executorState, error) {
 	staged := map[string]stagedOutput{}
 	for targetPath, output := range initialStaged {
 		entries := map[string]string{}
@@ -96,6 +97,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 		contextPlan:          contextPlan,
 		contextSlots:         map[string]*contextMemorySlot{},
 		report:               executionReport{LocaleUsage: map[string]TokenUsage{}},
+		omitPerEntryBatches:  omitPerEntryBatches,
 	}
 	for _, task := range tasks {
 		state.pendingByTarget[task.TargetPath]++
@@ -119,13 +121,13 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, l1 cache.ExactCache, emitter *eventEmitter) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, l1 cache.ExactCache, emitter *eventEmitter, omitPerEntryBatches bool) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
 	scheduledTasks := tasks
 	if contextPlan.Enabled {
 		scheduledTasks = interleaveTasksByContextKey(tasks)
 	}
 
-	state, err := newExecutorState(scheduledTasks, initialStaged, pruneTargets, contextPlan)
+	state, err := newExecutorState(scheduledTasks, initialStaged, pruneTargets, contextPlan, omitPerEntryBatches)
 	if err != nil {
 		return nil, nil, executionReport{}, err
 	}
@@ -561,12 +563,14 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))
 		localeUsage := state.report.LocaleUsage[task.TargetLocale]
 		state.report.LocaleUsage[task.TargetLocale] = addTokenUsage(localeUsage, toRunTokenUsage(usage))
-		state.report.Batches = append(state.report.Batches, BatchUsage{
-			TargetLocale: task.TargetLocale,
-			TargetPath:   task.TargetPath,
-			EntryKey:     task.EntryKey,
-			TokenUsage:   toRunTokenUsage(usage),
-		})
+		if !state.omitPerEntryBatches {
+			state.report.Batches = append(state.report.Batches, BatchUsage{
+				TargetLocale: task.TargetLocale,
+				TargetPath:   task.TargetPath,
+				EntryKey:     task.EntryKey,
+				TokenUsage:   toRunTokenUsage(usage),
+			})
+		}
 		succeeded := state.report.Succeeded
 		failed := state.report.Failed
 		tokenUsage := state.report.TokenUsage
