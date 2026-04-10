@@ -1067,50 +1067,60 @@ func TestMarshalMarkdownWithTargetFallbackRepairsDanglingReferenceLinkCloserInMD
 	}
 }
 
-func TestMarshalMarkdownWithTargetFallbackFixturesRepairDanglingInlineLinkClosersFromZhCNDocs(t *testing.T) {
-	t.Run("workflows/local-generation", func(t *testing.T) {
-		source := readFixture(t, "docs/workflows/local-generation.mdx")
-		target := readFixture(t, "docs/zh-CN/workflows/local-generation.mdx")
+func TestMarshalMarkdownWithTargetFallbackRepairsDanglingInlineLinkClosersFromTestdata(t *testing.T) {
+	t.Run("single_inline_link", func(t *testing.T) {
+		source := readTestdata(t, "marshal_target_fallback/dangling_inline_link.source.mdx")
+		target := readTestdata(t, "marshal_target_fallback/dangling_inline_link.target.mdx")
 
 		output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{}, true))
-		if strings.Contains(output, "[锁文件合约](/reference/lockfile-contract)]") {
-			t.Fatalf("expected dangling bracket after inline link repaired, got %q", output)
+		if strings.Contains(output, "](/reference/lockfile-contract)]") {
+			t.Fatalf("expected no dangling bracket after inline link, got %q", output)
 		}
-		if !strings.Contains(output, "[锁文件合约](/reference/lockfile-contract)") {
-			t.Fatalf("expected reconstructed inline link destination preserved, got %q", output)
+		if !strings.Contains(output, "](/reference/lockfile-contract)") {
+			t.Fatalf("expected inline link destination preserved, got %q", output)
 		}
 	})
 
-	t.Run("index/common-next-steps", func(t *testing.T) {
-		source := readFixture(t, "docs/index.mdx")
-		target := readFixture(t, "docs/zh-CN/index.mdx")
+	t.Run("multiple_inline_links", func(t *testing.T) {
+		source := readTestdata(t, "marshal_target_fallback/dangling_inline_links_multi.source.mdx")
+		target := readTestdata(t, "marshal_target_fallback/dangling_inline_links_multi.target.mdx")
 
 		output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{}, true))
-		if strings.Contains(output, "[命令概览](/commands/overview)].") {
-			t.Fatalf("expected dangling bracket repaired for commands overview link, got %q", output)
+		for _, bad := range []string{
+			"](/commands/overview)].",
+			"](/configuration/provider-credentials)]",
+			"](/reference/stability-matrix)]",
+		} {
+			if strings.Contains(output, bad) {
+				t.Fatalf("expected dangling bracket repaired, found %q in output", bad)
+			}
 		}
-		if strings.Contains(output, "[提供商凭据](/configuration/provider-credentials)]") {
-			t.Fatalf("expected dangling bracket repaired for provider credentials link, got %q", output)
-		}
-		if strings.Contains(output, "[稳定性矩阵](/reference/stability-matrix)]") {
-			t.Fatalf("expected dangling bracket repaired for stability matrix link, got %q", output)
+		for _, path := range []string{
+			"](/commands/overview)",
+			"](/configuration/provider-credentials)",
+			"](/reference/stability-matrix)",
+		} {
+			if !strings.Contains(output, path) {
+				t.Fatalf("expected link destination %q preserved, got %q", path, output)
+			}
 		}
 	})
 }
 
-func TestMarshalMarkdownWithTargetFallbackFixturesRepairDanglingTableRowClosersFromWhyHyperlocaliseDocs(t *testing.T) {
-	source := readFixture(t, "docs/getting-started/why-hyperlocalise.mdx")
-	target := readFixture(t, "docs/zh-CN/getting-started/why-hyperlocalise.mdx")
+func TestMarshalMarkdownWithTargetFallbackRepairsDanglingTableRowClosersFromTestdata(t *testing.T) {
+	source := readTestdata(t, "marshal_target_fallback/dangling_table_rows.source.mdx")
+	target := readTestdata(t, "marshal_target_fallback/dangling_table_rows.target.mdx")
 
 	output := string(MarshalMarkdownWithTargetFallback(source, target, map[string]string{}, true))
-	if strings.Contains(output, "| 手动脚本 | 🟡 中到高（需要自行构建和维护） | 🟢 高（完全自定义） | 🟡 中（取决于脚本的质量和标准） | 🟢 低\n") {
-		t.Fatalf("expected dangling table row closer repaired, got %q", output)
+	// First data row is intentionally missing a trailing "|" in the target fixture.
+	if strings.Contains(output, "| 手动脚本 | 中 | 低\n") {
+		t.Fatalf("expected first table row to end with a closing pipe, got %q", output)
 	}
-	if !strings.Contains(output, "| 手动脚本 | 🟡 中到高（需要自行构建和维护） | 🟢 高（完全自定义） | 🟡 中（取决于脚本的质量和标准） | 🟢 低 |") {
-		t.Fatalf("expected table row with restored closing pipe, got %q", output)
+	if !strings.Contains(output, "| 手动脚本 | 中 | 低 |") {
+		t.Fatalf("expected first table row with restored closing pipe, got %q", output)
 	}
-	if !strings.Contains(output, "| 细分地域化 | 🟢 低 (使用单一 CLI，配置简单) | 🟢 高 (AI 自动生成 + 可选的人工审核流程) | 🟢 高 (显式预演、同步、状态流程) | 🟢 低 (支持多提供商和多适配器) |") {
-		t.Fatalf("expected final table row with restored closing pipe, got %q", output)
+	if !strings.Contains(output, "| 本产品 | 低 | 低 |") {
+		t.Fatalf("expected second table row preserved, got %q", output)
 	}
 }
 
@@ -1651,6 +1661,16 @@ func readFixture(t *testing.T, rel string) []byte {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", rel, err)
+	}
+	return data
+}
+
+func readTestdata(t *testing.T, rel string) []byte {
+	t.Helper()
+	path := filepath.Join("testdata", rel)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read testdata %s: %v", rel, err)
 	}
 	return data
 }
