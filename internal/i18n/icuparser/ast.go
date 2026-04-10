@@ -31,23 +31,39 @@ type ArgumentElement struct {
 
 func (ArgumentElement) Type() ElementType { return TypeArgument }
 
+// NumberSkeleton is a parsed ICU number skeleton (::…) with tokens and Intl options.
+type NumberSkeleton struct {
+	Tokens        []NumberSkeletonToken
+	ParsedOptions NumberFormatOptions
+}
+
+// DateTimeSkeleton is a parsed ICU date/time skeleton (::…) with resolved pattern and options.
+type DateTimeSkeleton struct {
+	Pattern       string
+	ParsedOptions DateTimeFormatOptions
+}
+
 type NumberElement struct {
 	Value string
 	Style string
+	// Skeleton is set when Style uses ICU skeleton syntax (leading "::") after successful tokenization.
+	Skeleton *NumberSkeleton
 }
 
 func (NumberElement) Type() ElementType { return TypeNumber }
 
 type DateElement struct {
-	Value string
-	Style string
+	Value    string
+	Style    string
+	Skeleton *DateTimeSkeleton
 }
 
 func (DateElement) Type() ElementType { return TypeDate }
 
 type TimeElement struct {
-	Value string
-	Style string
+	Value    string
+	Style    string
+	Skeleton *DateTimeSkeleton
 }
 
 func (TimeElement) Type() ElementType { return TypeTime }
@@ -101,4 +117,7 @@ func (TagElement) Type() ElementType { return TypeTag }
 
 type ParseOptions struct {
 	IgnoreTag bool
+	// ShouldParseSkeletons controls whether :: number/date/time skeletons are converted into
+	// ParsedOptions (Intl-style structs). Token validation for number skeletons always runs for :: styles.
+	ShouldParseSkeletons bool
 }
