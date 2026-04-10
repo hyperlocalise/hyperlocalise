@@ -50,6 +50,17 @@ func TestExactCacheKeyChangesWhenSourceContextChanges(t *testing.T) {
 	}
 }
 
+func TestExactCacheKeyChangesWhenMarkdownSegmentSourceContextChanges(t *testing.T) {
+	base := baseCacheTask()
+	base.ParserMode = "other"
+	base.SourceContext = "Markdown translatable segment.\nStructural path: /doc/heading[1]"
+	other := base
+	other.SourceContext = "Markdown translatable segment.\nStructural path: /doc/heading[2]"
+	if exactCacheKey(base) == exactCacheKey(other) {
+		t.Fatal("expected markdown-style per-segment source context to affect exact cache key")
+	}
+}
+
 func TestExactCacheKeyIgnoresSourceContextChangesOutsidePromptLimit(t *testing.T) {
 	base := baseCacheTask()
 	limit := maxSourceContextLen

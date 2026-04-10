@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -60,7 +60,6 @@ var (
 		checkMarkdownAST,
 		checkWhitespaceOnly,
 	}
-	htmlTagPattern = regexp.MustCompile(`</?[A-Za-z][^>]*?>`)
 )
 
 type checkOptions struct {
@@ -656,7 +655,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 				AnnotationLine: annotationLine,
 			})
 		}
-		if _, ok := checkSet[checkHTMLTag]; ok && hasHTMLTagMismatch(sourceValue, targetValue) {
+		if _, ok := checkSet[checkHTMLTag]; ok && htmltagparity.Mismatch(sourceValue, targetValue) {
 			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, sourceValue, targetValue, false)
 			findings = append(findings, checkFinding{
 				Type:           checkHTMLTag,
@@ -875,28 +874,6 @@ func describeNotLocalized(_ string, _ string, hasTargetKey bool) string {
 
 func describeSameAsSource() string {
 	return "target value matches source"
-}
-
-func hasHTMLTagMismatch(sourceValue, targetValue string) bool {
-	sourceTags := normalizeHTMLTags(htmlTagPattern.FindAllString(sourceValue, -1))
-	targetTags := normalizeHTMLTags(htmlTagPattern.FindAllString(targetValue, -1))
-	return !slices.Equal(sourceTags, targetTags)
-}
-
-func normalizeHTMLTags(tags []string) []string {
-	out := make([]string, 0, len(tags))
-	for _, tag := range tags {
-		normalized := strings.ToLower(strings.TrimSpace(tag))
-		normalized = strings.TrimSuffix(normalized, "/>")
-		normalized = strings.TrimSuffix(normalized, ">")
-		normalized = strings.TrimPrefix(normalized, "<")
-		parts := strings.Fields(normalized)
-		if len(parts) == 0 {
-			continue
-		}
-		out = append(out, parts[0])
-	}
-	return out
 }
 
 func sortCheckFindings(findings []checkFinding) {

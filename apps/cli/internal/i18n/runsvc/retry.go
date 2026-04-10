@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	translationRetryMaxAttempts = 5
-	translationRetryBaseDelay   = 250 * time.Millisecond
-	translationRetryMaxDelay    = 5 * time.Second
-	maxSourceContextLen         = 800
+	translationAPIMaxAttempts        = 3 // initial + 2 retries
+	translationValidationMaxAttempts = 3 // initial output + 2 correction rounds
+	translationRetryBaseDelay        = 250 * time.Millisecond
+	translationRetryMaxDelay         = 5 * time.Second
+	maxSourceContextLen              = 800
 )
 
 var sleepWithContext = func(ctx context.Context, delay time.Duration) error {
@@ -47,6 +48,15 @@ func (e *invariantViolationError) Unwrap() error {
 	return e.cause
 }
 
+// postTranslateValidationError is a non-ICU validation failure (HTML, markdown tokens, etc.).
+type postTranslateValidationError struct {
+	msg string
+}
+
+func (e *postTranslateValidationError) Error() string { return e.msg }
+
+type translateValidator func(source, translated string) error
+
 func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, error) {
 	runtimeContext := buildTranslationRuntimeContext(task.EntryKey, task.SourceContext, task.ContextMemory)
 	userPrompt := strings.TrimSpace(task.UserPrompt)
@@ -61,7 +71,76 @@ func (s *Service) translateWithRetry(ctx context.Context, task Task) (string, er
 		RuntimeContext: runtimeContext,
 	}
 
-	return s.translateRequestWithRetry(ctx, request)
+	return s.translateWithValidationStrategy(ctx, request, func(_, translated string) error {
+		return validateTranslatedOutput(task, translated)
+	})
+}
+
+func (s *Service) translateRequestWithRetry(ctx context.Context, request translator.Request) (string, error) {
+	return s.translateWithValidationStrategy(ctx, request, validateTranslatedInvariant)
+}
+
+func (s *Service) translateWithValidationStrategy(ctx context.Context, request translator.Request, validate translateValidator) (string, error) {
+	source := request.Source
+	baseReq := request
+	baseRuntime := strings.TrimSpace(request.RuntimeContext)
+
+	var lastValErr error
+	var lastOut string
+
+	for valAttempt := 0; valAttempt < translationValidationMaxAttempts; valAttempt++ {
+		req := baseReq
+		if valAttempt == 0 {
+			req.RuntimeContext = baseRuntime
+		} else {
+			req.RuntimeContext = buildValidationFixRuntimeContext(baseRuntime, lastValErr, lastOut)
+		}
+
+		translated, err := s.translateWithAPIRetries(ctx, req)
+		if err != nil {
+			return "", err
+		}
+
+		vErr := validate(source, translated)
+		if vErr == nil {
+			return translated, nil
+		}
+		if valAttempt+1 >= translationValidationMaxAttempts {
+			return "", fmt.Errorf("translation validation failed after %d attempt(s): %w", translationValidationMaxAttempts, vErr)
+		}
+		lastValErr, lastOut = vErr, translated
+	}
+	panic("unreachable")
+}
+
+func buildValidationFixRuntimeContext(baseRuntime string, valErr error, previousOutput string) string {
+	var b strings.Builder
+	if baseRuntime != "" {
+		b.WriteString(baseRuntime)
+		b.WriteString("\n\n")
+	}
+	b.WriteString("Translation validation failed. Return only the corrected translation with no explanations.\n\nError:\n")
+	b.WriteString(valErr.Error())
+	b.WriteString("\n\nPrevious output:\n")
+	b.WriteString(elideInvariantDebugString(previousOutput, 400))
+	return strings.TrimSpace(b.String())
+}
+
+func (s *Service) translateWithAPIRetries(ctx context.Context, request translator.Request) (string, error) {
+	for attempt := 0; attempt < translationAPIMaxAttempts; attempt++ {
+		translated, err := s.translate(ctx, request)
+		if err == nil {
+			return translated, nil
+		}
+		if !isRetryableTranslateError(err) || attempt+1 >= translationAPIMaxAttempts {
+			return "", fmt.Errorf("translation failed after %d attempts: %w", attempt+1, err)
+		}
+		delay := translationRetryDelay(attempt)
+		if waitErr := sleepWithContext(ctx, delay); waitErr != nil {
+			return "", fmt.Errorf("translation retry wait interrupted: %w", waitErr)
+		}
+	}
+	panic("unreachable")
 }
 
 func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string) string {
@@ -76,50 +155,6 @@ func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string
 		parts = append(parts, "Shared memory:\n"+memory)
 	}
 	return strings.TrimSpace(strings.Join(parts, "\n\n"))
-}
-
-func (s *Service) translateRequestWithRetry(ctx context.Context, request translator.Request) (string, error) {
-	var lastErr error
-	attempt := 0
-	for attempt = range translationRetryMaxAttempts {
-		var attemptErr error
-		translated, err := s.translate(ctx, request)
-		if err == nil {
-			if err := validateTranslatedInvariant(request.Source, translated); err != nil {
-				attemptErr = err
-				lastErr = err
-			} else {
-				return translated, nil
-			}
-		} else {
-			attemptErr = err
-			lastErr = err
-		}
-		if !isRetryableTranslateAttemptError(attemptErr) || attempt+1 >= translationRetryMaxAttempts {
-			break
-		}
-
-		delay := translationRetryDelay(attempt)
-		if waitErr := sleepWithContext(ctx, delay); waitErr != nil {
-			return "", fmt.Errorf("translation retry wait interrupted: %w", waitErr)
-		}
-	}
-
-	if lastErr == nil {
-		return "", nil
-	}
-	return "", fmt.Errorf("translation failed after %d attempts: %w", attempt+1, lastErr)
-}
-
-func isRetryableTranslateAttemptError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var invErr *invariantViolationError
-	if errors.As(err, &invErr) {
-		return true
-	}
-	return isRetryableTranslateError(err)
 }
 
 func validateTranslatedInvariant(source, translated string) error {

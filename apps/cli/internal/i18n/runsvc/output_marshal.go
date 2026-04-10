@@ -134,13 +134,17 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 	if err != nil {
 		if os.IsNotExist(err) {
 			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries, mdx)
-			return content, markdownRenderWarnings(path, diags), nil
+			warnings := markdownRenderWarnings(path, diags)
+			warnings = append(warnings, translationfileparser.MarkdownASTParityWarnings(sourceTemplate, content, sourcePath, path)...)
+			return content, warnings, nil
 		}
 		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
 	}
 
 	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries, mdx)
-	return content, markdownRenderWarnings(path, diags), nil
+	warnings := markdownRenderWarnings(path, diags)
+	warnings = append(warnings, translationfileparser.MarkdownASTParityWarnings(sourceTemplate, content, sourcePath, path)...)
+	return content, warnings, nil
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {

@@ -343,6 +343,65 @@ msgstr "bonjour"
 	}
 }
 
+func TestStrategyParseWithContextMarkdown(t *testing.T) {
+	s := NewDefaultStrategy()
+	md := []byte("# Hello\n\nThis is a [link](https://example.com).\n")
+	messages, ctx, err := s.ParseWithContext("en/page.md", md)
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if len(messages) == 0 {
+		t.Fatal("expected markdown segments")
+	}
+	if len(ctx) != len(messages) {
+		t.Fatalf("context keys = %d, messages = %d", len(ctx), len(messages))
+	}
+	for k, v := range ctx {
+		if v == "" {
+			t.Fatalf("empty context for key %q", k)
+		}
+		if !strings.Contains(v, "Markdown translatable segment") {
+			t.Fatalf("expected markdown segment header in context for %q", k)
+		}
+		if !strings.Contains(v, "HLMDPH") {
+			t.Fatalf("expected placeholder preservation hint for %q", k)
+		}
+	}
+}
+
+func TestStrategyParseWithContextMDX(t *testing.T) {
+	s := NewDefaultStrategy()
+	content := []byte("---\ntitle: X\n---\n\nHello from MDX.\n")
+	_, ctx, err := s.ParseWithContext("en/page.mdx", content)
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	for _, v := range ctx {
+		if !strings.Contains(v, "MDX translatable segment") {
+			t.Fatalf("expected MDX header, got %q", v)
+		}
+	}
+}
+
+func TestStrategyParseWithContextMarkdownIncludesAdjacentHints(t *testing.T) {
+	s := NewDefaultStrategy()
+	content := []byte("---\ntitle: X\n---\n\nIntro line.\n\n## Section\n\nMiddle segment.\n\nFooter line.\n")
+	_, ctx, err := s.ParseWithContext("en/guide.md", content)
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	found := false
+	for _, v := range ctx {
+		if strings.Contains(v, "Adjacent source before") || strings.Contains(v, "Adjacent source after") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected adjacent literal hints in at least one segment context, got %#v", ctx)
+	}
+}
+
 func TestJSONParserRejectsInvalidShape(t *testing.T) {
 	_, err := (JSONParser{}).Parse([]byte(`{"count":1}`))
 	if err == nil {

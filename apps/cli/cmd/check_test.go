@@ -15,6 +15,7 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
@@ -881,10 +882,10 @@ func TestCheckHelperFunctions(t *testing.T) {
 	})
 
 	t.Run("normalize html tags", func(t *testing.T) {
-		got := normalizeHTMLTags([]string{"<Strong class=\"x\">", "</Strong>", "<Badge text=\"x\" />"})
+		got := htmltagparity.NormalizedTagNames([]string{"<Strong class=\"x\">", "</Strong>", "<Badge text=\"x\" />"})
 		want := []string{"strong", "/strong", "badge"}
 		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("normalizeHTMLTags() = %v, want %v", got, want)
+			t.Fatalf("NormalizedTagNames() = %v, want %v", got, want)
 		}
 	})
 }

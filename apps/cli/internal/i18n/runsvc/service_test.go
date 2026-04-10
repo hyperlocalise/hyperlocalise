@@ -1526,14 +1526,20 @@ func TestRunReportsMarkdownPlaceholderFallbackWarningsFromEarlyTargetFlush(t *te
 		t.Fatalf("run execution: %v", err)
 	}
 
-	if string(written) != source {
-		t.Fatalf("expected source markdown fallback content after unrecoverable placeholder corruption, got %q", string(written))
+	// Corrupted HLMDPH tokens fail segment validation (retries + correction rounds) before flush,
+	// so the bad translation never reaches marshal fallback.
+	if report.Failed != 1 {
+		t.Fatalf("expected 1 failed task from markdown placeholder corruption, got failed=%d report=%+v", report.Failed, report)
 	}
-	if len(report.Warnings) == 0 {
-		t.Fatalf("expected markdown placeholder fallback warning in report")
+	if len(written) != 0 {
+		t.Fatalf("expected no write when translation tasks fail validation, got %q", string(written))
 	}
-	if !strings.Contains(strings.Join(report.Warnings, "\n"), "fell back to source") {
-		t.Fatalf("expected fallback warning text, got %+v", report.Warnings)
+	if len(report.Failures) != 1 {
+		t.Fatalf("expected 1 failure detail, got %+v", report.Failures)
+	}
+	reason := strings.ToLower(report.Failures[0].Reason)
+	if !strings.Contains(reason, "placeholder") && !strings.Contains(reason, "validation") {
+		t.Fatalf("expected failure reason about validation or placeholder, got %q", report.Failures[0].Reason)
 	}
 }
 
@@ -5381,6 +5387,70 @@ func TestRunCacheReadFailureFallsBackToProvider(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(report.Warnings, "\n"), "cache_l1_get_failed") {
 		t.Fatalf("expected warning for cache read failure, got %+v", report.Warnings)
+	}
+}
+
+func TestRunSmokeMarkdownAndHTMLInOneGroup(t *testing.T) {
+	dir := t.TempDir()
+	enDir := filepath.Join(dir, "en")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	htmlSrc := filepath.Join(enDir, "page.html")
+	mdSrc := filepath.Join(enDir, "doc.md")
+	htmlTgt := filepath.Join(dir, "out", "fr", "page.html")
+	mdTgt := filepath.Join(dir, "out", "fr", "doc.md")
+	if err := os.WriteFile(htmlSrc, []byte("<!DOCTYPE html><html><body><p>Hi</p></body></html>"), 0o644); err != nil {
+		t.Fatalf("write html: %v", err)
+	}
+	if err := os.WriteFile(mdSrc, []byte("# Title\n\nHello.\n"), 0o644); err != nil {
+		t.Fatalf("write md: %v", err)
+	}
+
+	cfg := testConfig(htmlSrc, htmlTgt)
+	cfg.Buckets["ui"] = config.BucketConfig{Files: []config.BucketFileMapping{
+		{From: htmlSrc, To: htmlTgt},
+		{From: mdSrc, To: mdTgt},
+	}}
+
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case htmlSrc:
+			return os.ReadFile(htmlSrc)
+		case mdSrc:
+			return os.ReadFile(mdSrc)
+		case htmlTgt, mdTgt:
+			return nil, os.ErrNotExist
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	var written []string
+	svc.writeFile = func(path string, _ []byte) error {
+		written = append(written, path)
+		return nil
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "FR(" + req.Source + ")", nil
+	}
+	svc.numCPU = func() int { return 1 }
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if report.Failed != 0 {
+		t.Fatalf("unexpected failures: %+v", report.Failures)
+	}
+	if report.Succeeded < 1 {
+		t.Fatalf("expected succeeded tasks, got report=%+v", report)
+	}
+	if len(written) != 2 {
+		t.Fatalf("expected 2 target writes (html+md), got %d: %v", len(written), written)
 	}
 }
 
