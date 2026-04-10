@@ -158,12 +158,15 @@ func mustParseSkeleton(t *testing.T, s string) []NumberSkeletonToken {
 	return toks
 }
 
+func intPtr(n int) *int             { return &n }
+func float64Ptr(f float64) *float64 { return &f }
+
 func TestParseNumberSkeletonStems(t *testing.T) {
 	type want struct {
 		style, notation, currency, unit, compact, sign, curSign string
 		currencyDisplay, unitDisplay                            string
-		scale                                                   float64
-		minInt, minFrac, maxFrac, minSig, maxSig                int
+		scale                                                   *float64
+		minInt, minFrac, maxFrac, minSig, maxSig                *int
 		grouping                                                *bool
 		rounding, roundPri, trailing                            string
 	}
@@ -197,23 +200,23 @@ func TestParseNumberSkeletonStems(t *testing.T) {
 		if w.curSign != "" && got.CurrencySign != w.curSign {
 			t.Fatalf("CurrencySign: got %q want %q", got.CurrencySign, w.curSign)
 		}
-		if w.scale != 0 && got.Scale != w.scale {
-			t.Fatalf("Scale: got %v want %v", got.Scale, w.scale)
+		if w.scale != nil && got.Scale != *w.scale {
+			t.Fatalf("Scale: got %v want %v", got.Scale, *w.scale)
 		}
-		if w.minInt != 0 && got.MinimumIntegerDigits != w.minInt {
-			t.Fatalf("MinimumIntegerDigits: got %d want %d", got.MinimumIntegerDigits, w.minInt)
+		if w.minInt != nil && got.MinimumIntegerDigits != *w.minInt {
+			t.Fatalf("MinimumIntegerDigits: got %d want %d", got.MinimumIntegerDigits, *w.minInt)
 		}
-		if w.minFrac != 0 && got.MinimumFractionDigits != w.minFrac {
-			t.Fatalf("MinimumFractionDigits: got %d want %d", got.MinimumFractionDigits, w.minFrac)
+		if w.minFrac != nil && got.MinimumFractionDigits != *w.minFrac {
+			t.Fatalf("MinimumFractionDigits: got %d want %d", got.MinimumFractionDigits, *w.minFrac)
 		}
-		if w.maxFrac != 0 && got.MaximumFractionDigits != w.maxFrac {
-			t.Fatalf("MaximumFractionDigits: got %d want %d", got.MaximumFractionDigits, w.maxFrac)
+		if w.maxFrac != nil && got.MaximumFractionDigits != *w.maxFrac {
+			t.Fatalf("MaximumFractionDigits: got %d want %d", got.MaximumFractionDigits, *w.maxFrac)
 		}
-		if w.minSig != 0 && got.MinimumSignificantDigits != w.minSig {
-			t.Fatalf("MinimumSignificantDigits: got %d want %d", got.MinimumSignificantDigits, w.minSig)
+		if w.minSig != nil && got.MinimumSignificantDigits != *w.minSig {
+			t.Fatalf("MinimumSignificantDigits: got %d want %d", got.MinimumSignificantDigits, *w.minSig)
 		}
-		if w.maxSig != 0 && got.MaximumSignificantDigits != w.maxSig {
-			t.Fatalf("MaximumSignificantDigits: got %d want %d", got.MaximumSignificantDigits, w.maxSig)
+		if w.maxSig != nil && got.MaximumSignificantDigits != *w.maxSig {
+			t.Fatalf("MaximumSignificantDigits: got %d want %d", got.MaximumSignificantDigits, *w.maxSig)
 		}
 		if w.grouping != nil {
 			if got.UseGrouping == nil || *got.UseGrouping != *w.grouping {
@@ -237,11 +240,11 @@ func TestParseNumberSkeletonStems(t *testing.T) {
 			want want
 		}{
 			{"%", want{style: "percent"}},
-			{"%x100", want{style: "percent", scale: 100}},
+			{"%x100", want{style: "percent", scale: float64Ptr(100)}},
 			{"group-off", want{grouping: func() *bool { f := false; return &f }()}},
 			{",_", want{grouping: func() *bool { f := false; return &f }()}},
-			{"precision-integer", want{minFrac: 0, maxFrac: 0}},
-			{".", want{minFrac: 0, maxFrac: 0}},
+			{"precision-integer", want{minFrac: intPtr(0), maxFrac: intPtr(0)}},
+			{".", want{minFrac: intPtr(0), maxFrac: intPtr(0)}},
 			{"compact-short", want{notation: "compact", compact: "short"}},
 			{"K", want{notation: "compact", compact: "short"}},
 			{"compact-long", want{notation: "compact", compact: "long"}},
@@ -250,12 +253,12 @@ func TestParseNumberSkeletonStems(t *testing.T) {
 			{"scientific/sign-auto", want{notation: "scientific", sign: "auto"}},
 			{"scientific/sign-accounting-always", want{notation: "scientific", sign: "always", curSign: "accounting"}},
 			{"engineering/+?", want{notation: "engineering", sign: "exceptZero"}},
-			{"scale/3", want{scale: 3}},
-			{"000", want{minInt: 3}},
+			{"scale/3", want{scale: float64Ptr(3)}},
+			{"000", want{minInt: intPtr(3)}},
 			{"sign-never", want{sign: "never"}},
 			{"+!", want{sign: "always"}},
-			{"E00", want{notation: "scientific", minInt: 2}},
-			{"EE00", want{notation: "engineering", minInt: 2}},
+			{"E00", want{notation: "scientific", minInt: intPtr(2)}},
+			{"EE00", want{notation: "engineering", minInt: intPtr(2)}},
 		} {
 			toks := mustParseSkeleton(t, tc.in)
 			got, err := ParseNumberSkeleton(toks)
@@ -271,7 +274,7 @@ func TestParseNumberSkeletonStems(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert(t, got, want{notation: "scientific", minInt: 2, sign: "always"})
+		assert(t, got, want{notation: "scientific", minInt: intPtr(2), sign: "always"})
 	})
 
 	t.Run("currency_unit_widths", func(t *testing.T) {
@@ -324,15 +327,15 @@ func TestParseNumberSkeletonStems(t *testing.T) {
 			in   string
 			want want
 		}{
-			{".00*", want{minFrac: 2}},
-			{".###", want{maxFrac: 3}},
-			{".0#", want{minFrac: 1, maxFrac: 2}},
-			{".00/w", want{minFrac: 2, maxFrac: 2, trailing: "stripIfInteger"}},
-			{".00/@@@", want{minFrac: 2, maxFrac: 2, minSig: 3, maxSig: 3}},
-			{"@@@", want{minSig: 3, maxSig: 3}},
-			{"@@@r", want{minSig: 3, maxSig: 3, roundPri: "morePrecision"}},
-			{"@@+s", want{minSig: 2, roundPri: "lessPrecision"}},
-			{"@##", want{minSig: 1, maxSig: 3}},
+			{".00*", want{minFrac: intPtr(2)}},
+			{".###", want{maxFrac: intPtr(3)}},
+			{".0#", want{minFrac: intPtr(1), maxFrac: intPtr(2)}},
+			{".00/w", want{minFrac: intPtr(2), maxFrac: intPtr(2), trailing: "stripIfInteger"}},
+			{".00/@@@", want{minFrac: intPtr(2), maxFrac: intPtr(2), minSig: intPtr(3), maxSig: intPtr(3)}},
+			{"@@@", want{minSig: intPtr(3), maxSig: intPtr(3)}},
+			{"@@@r", want{minSig: intPtr(3), maxSig: intPtr(3), roundPri: "morePrecision"}},
+			{"@@+s", want{minSig: intPtr(2), roundPri: "lessPrecision"}},
+			{"@##", want{minSig: intPtr(1), maxSig: intPtr(3)}},
 		} {
 			toks := mustParseSkeleton(t, tc.in)
 			got, err := ParseNumberSkeleton(toks)
