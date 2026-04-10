@@ -41,14 +41,15 @@ func normalizeTagNames(tags []string) []string {
 	return out
 }
 
-// filterKnownHTMLTagNames keeps only names that exist in golang.org/x/net/html/atom, after stripping a
-// leading "/" from closing-tag tokens. Patterns such as <name> in documented paths are ignored.
+// filterKnownHTMLTagNames keeps only names that exist in golang.org/x/net/html/atom.
+// A leading "/" (closing tag) is stripped only for Lookup; the token passed through
+// preserves opening vs closing. Patterns such as <name> in documented paths are ignored.
 func filterKnownHTMLTagNames(names []string) []string {
 	out := make([]string, 0, len(names))
 	for _, n := range names {
 		tag := strings.TrimPrefix(n, "/")
 		if atom.Lookup([]byte(tag)) != 0 {
-			out = append(out, tag)
+			out = append(out, n)
 		}
 	}
 	return out
