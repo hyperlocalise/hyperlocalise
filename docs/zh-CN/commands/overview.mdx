@@ -1,9 +1,9 @@
 ---
 title: "命令概览"
-description: "顶层命令图表，包含指向任务导向的命令文档的链接。"
+description: "带有指向面向任务的命令文档链接的顶级命令映射。"
 ---
 
-## CLI 结构
+## CLI 形状
 
 ```bash
 hyperlocalise [command]
@@ -12,7 +12,9 @@ hyperlocalise [command]
 主要命令：
 
 - `init`
+- `crowdin`
 - `run`
+- `check`
 - `eval`
 - `status`
 - `sync pull`
@@ -21,11 +23,13 @@ hyperlocalise [command]
 - `update`
 - `completion`
 
-## 按任务启动
+## 按任务划分的起始点
 
-- 第一次设置：[init](/commands/init)
-- 创建本地草稿：[运行](/commands/run)
-- 质量实验和分级：[eval](/commands/eval)
-- 汇报进度：[状态](/commands/status)
-- 拉取经过筛选的翻译：[同步拉取](/commands/sync-pull)
-- 上传本地更改：[同步上传](/commands/sync-push)
+- 首次设置：[init](/commands/init)
+- Crowdin 文件工作流：[crowdin](/commands/crowdin)
+- 本地草稿生成：[运行](/commands/run)
+- 翻译完整性检查：[检查](/commands/check)
+- 质量实验与门控：[eval](/commands/eval)
+- 报告进度：[状态](/commands/status)
+- 拉取精选翻译：[同步拉取](/commands/sync-pull)
+- 推送本地更改：[同步推送](/commands/sync-push)

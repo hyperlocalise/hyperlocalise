@@ -1,9 +1,9 @@
 ---
 title: "Smartling 适配器"
-description: "配置 Smartling 以进行远程翻译的拉/推同步。"
+description: "为远程翻译拉取/推送同步配置 Smartling。"
 ---
 
-## 所需配置
+## 必需配置
 
 ```jsonc
 {
@@ -18,21 +18,21 @@ description: "配置 Smartling 以进行远程翻译的拉/推同步。"
 }
 ```
 
-## 必填凭证
+## 必填密钥
 
 ```bash
 export SMARTLING_USER_SECRET="your-smartling-user-secret"
 ```
 
-`userSecret` inline in config is not supported. Use environment variables only.
+`userSecret` 配置中的内联不受支持。仅使用环境变量。
 
 ## 可选配置字段
 
 - `targetLanguages`
-- `timeoutSeconds` (defaults to `30`)
+- `timeoutSeconds`（默认为`30`）
 
 ## 常见问题
 
-- missing secret: export `SMARTLING_USER_SECRET` in the same shell session
-- missing user identifier: set `storage.config.userIdentifier`
-- locale mismatch: align `targetLanguages` with your project locales
+- 缺少密钥：在同一个 shell 会话中导出 `SMARTLING_USER_SECRET`
+- 缺少用户标识符：设置 `storage.config.userIdentifier`
+- 区域设置不匹配：将 `targetLanguages` 与你的项目区域设置保持一致

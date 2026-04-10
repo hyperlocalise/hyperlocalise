@@ -1,11 +1,11 @@
 ---
 title: "快速入门"
-description: "在约10分钟内完成整个本地化过程。"
+description: "在大约 10 分钟内端到端运行 hyperlocalise。"
 ---
 
 ## 目标
 
-Create an `i18n.jsonc`, run translation planning safely, generate outputs, and review status.
+创建一个 `i18n.yml`，安全地运行翻译规划，生成输出，并检查状态。
 
 ## 1. 初始化配置
 
@@ -13,11 +13,11 @@ Create an `i18n.jsonc`, run translation planning safely, generate outputs, and r
 hyperlocalise init
 ```
 
-This writes `i18n.jsonc` in your current directory.
+这会将`i18n.yml`写入你当前的目录。
 
 ## 2. 配置提供商凭据
 
-`hyperlocalise` automatically reads credentials from `.env` and `.env.local` in your current project directory. Exported shell variables still take precedence.
+`hyperlocalise` 会自动从当前项目目录中的 `.env` 和 `.env.local` 读取凭据。导出的 shell 变量仍然优先生效。
 
 示例：
 
@@ -43,7 +43,7 @@ OPENAI_API_KEY="your-openai-api-key"
 ```
 </CodeGroup>
 
-Azure OpenAI
+Azure OpenAI：
 
 <CodeGroup>
 ```bash Export
@@ -59,7 +59,7 @@ AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
 </CodeGroup>
 
-Gemini:
+Gemini：
 
 <CodeGroup>
 ```bash Export
@@ -73,7 +73,7 @@ GEMINI_API_KEY="your-gemini-api-key"
 ```
 </CodeGroup>
 
-Anthropic:
+Anthropic：
 
 <CodeGroup>
 ```bash Export
@@ -115,7 +115,7 @@ OLLAMA_API_KEY="ollama"
 ```
 </CodeGroup>
 
-Groq:
+Groq：
 
 <CodeGroup>
 ```bash Export
@@ -129,13 +129,13 @@ GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
 
-## 3. 先进行测试
+## 3. 先进行试运行
 
 ```bash
 hyperlocalise run --dry-run
 ```
 
-检查 `planned_total`、`executable_total`以及列出的 `tasks`。
+检查`planned_total`、`executable_total`以及列出的`tasks`。
 
 ## 4. 执行生成
 
@@ -143,26 +143,26 @@ hyperlocalise run --dry-run
 hyperlocalise run
 ```
 
-This writes translations and updates `.hyperlocalise.lock.json`. For details, see [Lockfile contract](/reference/lockfile-contract).
+这会写入翻译并更新`.hyperlocalise.lock.json`。有关详细信息，请参阅 [锁定文件契约](/reference/lockfile-contract)。
 
-## 5. 检查状态
+## 5. 审核状态
 
 ```bash
 hyperlocalise status --output csv
 ```
 
-Use `needs_review` rows to identify entries that still need human curation.
+使用 `needs_review` 行来识别仍需要人工整理的条目。
 
-## 6. 根据需要评估翻译质量
+## 6. 在需要时评估翻译质量
 
 ```bash
 hyperlocalise eval run --eval-set ./eval-set.json --output ./eval-report.json
 ```
 
-使用此功能，在比较提示/个人资料/提供商选项或在推广大型翻译更新之前进行操作。
+在比较提示词/配置文件/提供方选项时，或在推广大规模翻译更新之前使用此项。
 
-## 下一页
+## 下一步
 
-- 调整配置在 [i18n 配置](/configuration/i18n-config)。
-- 使用 [同步推](/commands/sync-push)和 [同步拉](/commands/sync-pull)与您的TMS同步。
-- Check maturity expectations in the [stability matrix](/reference/stability-matrix).
+- 在 [i18n config](/configuration/i18n-config) 中调整配置。
+- 使用 [sync push](/commands/sync-push) 和 [sync pull](/commands/sync-pull) 与您的 TMS 同步。
+- 查看 [稳定性矩阵](/reference/stability-matrix) 中的成熟度预期。

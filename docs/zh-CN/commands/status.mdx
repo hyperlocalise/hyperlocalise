@@ -1,9 +1,9 @@
 ---
 title: "状态"
-description: "报告按键/命名空间/语言环境的翻译状态，以 CSV 格式，并提供可选的交互式 TTY 仪表盘。"
+description: "以 CSV 按键/命名空间/语言环境报告翻译状态，并提供可选的交互式 TTY 仪表盘。"
 ---
 
-## 使用方法
+## 用法
 
 ```bash
 hyperlocalise status [--config <path>] [flags]
@@ -11,56 +11,58 @@ hyperlocalise status [--config <path>] [flags]
 
 ## 标志
 
-- `--config`: path to config file
-- `--locale`：目标区域过滤器（可重复）
-- `--output`：输出格式 (`csv`)
-- `--group`：按组名称过滤
-- `--bucket`: 按桶名称过滤
-- `-i`, `--interactive`：在TTY中渲染交互式仪表板（需要`--output csv`）
+- `--config`：配置文件路径
+- `--locale`：目标区域设置筛选器（可重复）
+- `--output`：输出格式（`csv`）
+- `--group`：按组名筛选
+- `--bucket`：按桶名称筛选
+- `-i`，`--interactive`：在 TTY 中渲染交互式仪表板（需要 `--output csv`）
 
 ## 状态值
 
-- `translated`：值不为空且未标记为草稿
-- `needs_review`: provenance is `origin=llm` and `state=draft`
-- `untranslated`: value is empty
+- `translated`：值非空且未标记为草稿
+- `needs_review`：来源是 `origin=llm` 和 `state=draft`
+- `source_match`：markdown/mdx 段不为空，但与源文本相同
+- `untranslated`：值为空
 
-## CSV 结构
+## CSV 架构
 
-`status --output csv` always emits this header:
+`status --output csv` 始终会发出此标头：
 
 ```csv
 key,namespace,locale,status,origin,state
 ```
 
-列的含义：
+列含义：
 
-- `key`：翻译键标识
-- `namespace`：逻辑命名空间，用于按键分组
-- `locale`: 目标区域
-- `status`: 计算出的状态分类
-- `origin`: value source (`llm`, `human`, or adapter-originated provenance)
-- `state`: 工作流程状态 (例如 `draft` 或 经过筛选的等效状态)
+- `key`：翻译键标识符
+- `namespace`：用于键分组的逻辑命名空间
+- `locale`：目标区域设置
+- `status`：计算状态分类
+- `origin`：值来源（`llm`、`human`或适配器生成的来源）
+- `state`：工作流状态（例如 `draft` 或策划等效状态）
 
-## CI 兼容的标签映射（实验性）
+## CI 就绪标签映射（实验性）
 
-使用此映射，当您的流程需要产品级别的标签时：
+当你的流水线期望产品级标签时，请使用此映射：
 
-| CSV `status` | 准备好用于 CI 的标签 |
+| CSV `status` | 可用于 CI 的标签 |
 | --- | --- |
 | `translated` | `ready` |
 | `needs_review` | `needs review` |
+| `source_match` | `needs review` |
 | `untranslated` | `missing` |
 
-## CI 闸口示例
+## CI 门禁示例
 
-当有任何条目时，则阻止：`missing`
+当任何条目为 `missing` 时阻止：
 
 ```bash
 hyperlocalise status --output csv > status.csv
 awk -F, 'NR>1 && $4=="untranslated"{bad=1} END{exit bad}' status.csv
 ```
 
-当`needs review` 的行数超过`20` 时：
+当 `needs review` 超过 `20` 行时阻止：
 
 ```bash
 hyperlocalise status --output csv > status.csv
@@ -77,10 +79,10 @@ hyperlocalise status --locale es-ES --output csv
 hyperlocalise status --group default --output csv -i
 ```
 
-## 参见
+## 另请参见
 
 - [运行](/commands/run)
 - [eval](/commands/eval)
-- [同步拉取](/commands/sync-pull)
-- [同步推送](/commands/sync-push)
+- [同步 拉取](/commands/sync-pull)
+- [sync push](/commands/sync-push)
 - [输出格式](/reference/output-formats)

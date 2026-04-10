@@ -1,13 +1,13 @@
 ---
 title: "Azure OpenAI"
-description: "配置 Azure OpenAI 作为翻译生成的 LLM 提供者。"
+description: "将 Azure OpenAI 配置为翻译生成的 LLM 提供程序。"
 ---
 
-## 提供商值
+## 提供者值
 
-使用`azure_openai`在`llm.profiles.<name>.provider`中。
+在 `llm.profiles.<name>.provider` 中使用 `azure_openai`。
 
-## 示例个人资料
+## 示例资料
 
 ```json
 {
@@ -23,17 +23,15 @@ description: "配置 Azure OpenAI 作为翻译生成的 LLM 提供者。"
 }
 ```
 
-## 所需环境变量
+## 必需的环境变量
 
 <CodeGroup>
 ```bash Export
-# Example: https://<resource>.openai.azure.com/openai/v1
 export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
 export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
 
 ```bash .env.local
-# Example: https://<resource>.openai.azure.com/openai/v1
 AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
 AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```

@@ -1,15 +1,15 @@
 ---
-title: "sync push"
-description: "Thử nghiệm: Tải bản dịch cục bộ lên các bộ nhớ lưu trữ từ xa."
+title: "đồng bộ đẩy"
+description: "Thử nghiệm: Đẩy các thay đổi dịch thuật cục bộ lên các bộ điều hợp lưu trữ từ xa."
 ---
 
 <Note>
-Tính năng này đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và khóa phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Cờ, dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình làm việc có kiểm soát và cố định phiên bản trong CI.
 
-Việc giải quyết xung đột và các hợp đồng đồng bộ có thể thay đổi khi tích hợp TMS phát triển.
+Xử lý xung đột và các điều khoản đồng bộ có thể thay đổi khi các tích hợp TMS trưởng thành.
 </Note>
 
-## Sử dụng
+## Cách dùng
 
 ```bash
 hyperlocalise sync push [--config <path>] [flags]
@@ -17,16 +17,29 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync push` defaults to dry-run mode and conflict failure.
+`sync push` mặc định ở chế độ chạy thử và thất bại khi xung đột.
+
+Trong một lần đẩy thực sự, Hyperlocalise đọc các tệp cục bộ, lấy về một baseline từ xa mới cho cùng phạm vi, tính toán chênh lệch trong bộ nhớ và chỉ đẩy những mục đã thay đổi.
+
+Đối với các bộ chuyển đổi theo hướng chuỗi như Crowdin, đơn vị biến đổi mặc định là từng mục dịch riêng lẻ (`key + context + locale`), chứ không phải toàn bộ một tệp tải lên.
+
+Một số bộ điều hợp không hỗ trợ các thao tác ghi so sánh-và-hoán đổi nguyên tử. Trong những trường hợp đó, Hyperlocalise sử dụng mô hình an toàn theo nỗ lực tốt nhất:
+
+- lấy baseline từ xa mới ngay trước khi đẩy lên
+- chỉ áp dụng các mục đã thay đổi
+- đọc lại các mục bị ảnh hưởng sau khi push để phát hiện sai lệch
+
+Các tệp sidecar siêu dữ liệu cục bộ không bắt buộc để việc đẩy là chính xác.
 
 ## Cờ
 
-- `--config`: config path
-- `--locale`: vùng/khu vực đích (có thể lặp lại)
-- `--dry-run`: xem trước (mặc định `true`)
-- `--output`: `text` hoặc `json`
-- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
-- `--force-conflicts`: allow overwrite for mismatch cases where policy allows (default `false`)
+- `--config`: đường dẫn cấu hình
+- `--locale`: ngôn ngữ mục tiêu, có thể lặp lại
+- `--key-prefix`: giới hạn phạm vi đồng bộ cho các khóa có bất kỳ tiền tố khớp nào, có thể lặp lại
+- `--dry-run`: chỉ xem trước (mặc định `true`)
+- `--output`: `text`, `json`, hoặc `markdown`
+- `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
+- `--force-conflicts`: cho phép ghi đè trong các trường hợp không khớp khi chính sách cho phép (mặc định `false`)
 
 ## Ví dụ
 
@@ -34,12 +47,23 @@ hyperlocalise sync push [--config <path>] [flags]
 hyperlocalise sync push --locale es-ES --dry-run=false
 ```
 
-See [conflict handling](/troubleshooting/conflicts) before using `--force-conflicts`.
+```bash
+hyperlocalise sync push --locale es-ES --key-prefix checkout. --dry-run=false
+```
+
+## Ghi chú
+
+- các mục không thay đổi sẽ bị bỏ qua
+- các mục đã lọc hoặc không hợp lệ không được đẩy vào
+- các adapter có thể phát ra cảnh báo khi chúng chỉ có thể cung cấp bảo vệ đồng thời ở mức nỗ lực tốt nhất
+- một sai lệch xác minh sau khi đẩy được báo cáo là xung đột
+
+Xem [xử lý xung đột](/troubleshooting/conflicts) trước khi sử dụng `--force-conflicts`.
 
 ## Xem thêm
 
-- [chạy](/commands/run)
+- [run](/commands/run)
 - [trạng thái](/commands/status)
-- [kéo đồng bộ](/commands/sync-pull)
+- [sync pull](/commands/sync-pull)
 - [Tổng quan lưu trữ](/storage/overview)
-- [Vòng lặp quản lý nội dung (thử nghiệm)](/workflows/tms-curation-loop)
+- [Vòng lặp quản lý TMS (thử nghiệm)](/workflows/tms-curation-loop)

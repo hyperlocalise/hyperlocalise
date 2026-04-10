@@ -1,13 +1,13 @@
 ---
 title: "Azure OpenAI"
-description: "Cấu hình Azure OpenAI làm nhà cung cấp LLM để tạo bản dịch."
+description: "Cấu hình Azure OpenAI làm nhà cung cấp LLM cho việc tạo bản dịch."
 ---
 
-## Giá trị nhà cung cấp
+## Giá trị của Provider
 
-Sử dụng HLMDPH_10DE9655C125_0 trong HLMDPH_31D40B49F448_1.
+Sử dụng `azure_openai` trong `llm.profiles.<name>.provider`.
 
-## Ví dụ về hồ sơ
+## Hồ sơ ví dụ
 
 ```json
 {
@@ -23,17 +23,15 @@ Sử dụng HLMDPH_10DE9655C125_0 trong HLMDPH_31D40B49F448_1.
 }
 ```
 
-## Các biến môi trường cần thiết
+## Các biến môi trường bắt buộc
 
 <CodeGroup>
 ```bash Export
-# Example: https://<resource>.openai.azure.com/openai/v1
 export AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
 export AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```
 
 ```bash .env.local
-# Example: https://<resource>.openai.azure.com/openai/v1
 AZURE_OPENAI_BASE_URL="https://<resource>.openai.azure.com/openai/v1"
 AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
 ```

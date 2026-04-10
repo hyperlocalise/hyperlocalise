@@ -1,14 +1,14 @@
 ---
 title: "Cài đặt"
-description: "Các bước cài đặt Hyperlocalise, bao gồm xác thực và nâng cấp."
+description: "Các bước cài đặt cho hyperlocalise, bao gồm xác minh và nâng cấp."
 ---
 
-## Yêu cầu
+## Điều kiện tiên quyết
 
 - macOS hoặc Linux
-- một trong: Installer script, pre-built binary, gói `.deb`/`.rpm`, hoặc Go toolchain
+- một trong các loại sau: script cài đặt, tệp nhị phân dựng sẵn, gói `.deb`/`.rpm`, hoặc bộ công cụ Go
 
-## Cài đặt bằng script khởi tạo
+## Cài đặt bằng script bootstrap
 
 Sử dụng URL bootstrap ổn định:
 
@@ -16,15 +16,17 @@ Sử dụng URL bootstrap ổn định:
 curl -fsSL https://hyperlocalise.com/install | bash
 ```
 
-Gắn một phiên bản cụ thể:
+Ghim một bản phát hành cụ thể:
 
 ```bash
 curl -fsSL https://hyperlocalise.com/install | VERSION=v1.2.3 bash
 ```
 
-"Script cài đặt cũng được đính kèm với mỗi bản phát hành trên GitHub, vì vậy bạn có thể xem hoặc tải xuống phiên bản được đánh dấu trực tiếp từ tài sản của bản phát hành.
+Khi bạn mở `https://hyperlocalise.com/install` trong trình duyệt, nó sẽ chuyển hướng đến trang này. Các ứng dụng dòng lệnh như `curl` sẽ nhận luồng kịch bản cài đặt thay vào đó.
 
-## Cài đặt từ nguồn (Go)
+Script cài đặt cũng được đính kèm vào từng bản phát hành GitHub, vì vậy bạn có thể xem lại hoặc tải trực tiếp phiên bản được gắn thẻ từ các tài sản phát hành.
+
+## Cài đặt từ mã nguồn (Go)
 
 ```bash
 go install github.com/hyperlocalise/hyperlocalise@latest
@@ -37,16 +39,16 @@ make bootstrap
 make install
 ```
 
-## Kiểm tra cài đặt
+## Xác minh cài đặt
 
 ```bash
 hyperlocalise version
 hyperlocalise --help
 ```
 
-Kết quả dự kiến bao gồm các lệnh sau: `init`, `run`, `status`, `sync`, `version` và `update`.
+Đầu ra dự kiến bao gồm các lệnh khả dụng: `init`, `run`, `status`, `sync`, `version`, và `update`.
 
-## Cài đặt kỹ năng 'Hyperlocalise' (skills.sh)
+## Cài đặt kỹ năng Hyperlocalise (skills.sh)
 
 Cài đặt:
 
@@ -54,20 +56,20 @@ Cài đặt:
 npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
-This uses the [skills.sh](https://skills.sh) installer via `npx`.
+Bản này sử dụng trình cài đặt [skills.sh](https://skills.sh) thông qua `npx`.
 
-## Cập nhật
+## Nâng cấp
 
-Sử dụng lệnh tự cập nhật tích hợp:
+Sử dụng lệnh tự cập nhật tích hợp sẵn:
 
 ```bash
 hyperlocalise update
 ```
 
-Gắn một phiên bản cụ thể:
+Ghim một bản phát hành cụ thể:
 
 ```bash
 hyperlocalise update v1.2.3
 ```
 
-Bạn vẫn có thể thử lại phương pháp cài đặt ban đầu nếu muốn.
+Bạn vẫn có thể chạy lại phương pháp cài đặt ban đầu nếu muốn.

@@ -33,7 +33,7 @@ jobs:
         uses: ./
         with:
           check: check
-          config-path: i18n.jsonc
+          config-path: i18n.yml
           fail-on-findings: false
           upload-artifact: false
 

@@ -1,9 +1,9 @@
 ---
-title: "本地化适配器"
-description: "配置 Lokalise API v2 以进行拉/推同步。"
+title: "Lokalise 适配器"
+description: "配置 Lokalise API v2 以进行拉取/推送同步。"
 ---
 
-## 必需的配置
+## 必需配置
 
 ```jsonc
 {
@@ -22,13 +22,13 @@ description: "配置 Lokalise API v2 以进行拉/推同步。"
 - `targetLanguages`
 - `timeoutSeconds`
 
-## Token 解析
+## 令牌解析
 
 - 默认环境变量：`LOKALISE_API_TOKEN`
-- override with `apiTokenEnv`
+- 用`apiTokenEnv`覆盖
 
 ## 常见问题
 
-- 未授权错误：缺少或权限不足的令牌
-- 本地化不匹配：将 Lokalise 中的语言代码与目标本地化相对应
-- timeout errors: increase `timeoutSeconds` for large projects
+- 未授权错误：令牌缺失或权限范围不足
+- 语言区域不匹配：将 Lokalise 语言代码与目标区域设置对齐
+- 超时错误：对于大型项目，请增加`timeoutSeconds`

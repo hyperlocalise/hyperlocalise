@@ -1,16 +1,16 @@
 ---
 title: "安装"
-description: "安装步骤：包括对 hyperlocalise 的验证和升级。"
+description: "hyperlocalise 的安装步骤，包括验证和升级。"
 ---
 
 ## 先决条件
 
 - macOS 或 Linux
-- one of: installer script, prebuilt binary, `.deb`/`.rpm` package, or Go toolchain
+- 安装脚本、预构建二进制文件、`.deb`/`.rpm` 包或 Go 工具链之一
 
-## 使用引导脚本进行安装
+## 使用启动脚本安装
 
-使用稳定的 bootstrap URL
+使用稳定的 bootstrap URL：
 
 ```bash
 curl -fsSL https://hyperlocalise.com/install | bash
@@ -22,9 +22,11 @@ curl -fsSL https://hyperlocalise.com/install | bash
 curl -fsSL https://hyperlocalise.com/install | VERSION=v1.2.3 bash
 ```
 
-安装脚本也已附加到每个 GitHub 发布的资产中，这样您就可以直接从发布资产查看或下载标记版本。
+当你在浏览器中打开`https://hyperlocalise.com/install`时，它会重定向到此页面。像`curl`这样的终端客户端则会接收安装脚本流程。
 
-## 从源代码安装 （Go）
+安装脚本也附在每个 GitHub 版本发布中，因此你可以直接从发布资源中查看或下载带标签的版本。
+
+## 从源码安装（Go）
 
 ```bash
 go install github.com/hyperlocalise/hyperlocalise@latest
@@ -44,7 +46,7 @@ hyperlocalise version
 hyperlocalise --help
 ```
 
-预期的输出包括以下命令：`init`、`run`、`status`、`sync`、`version`以及`update`。
+预期输出包括可用的命令：`init`、`run`、`status`、`sync`、`version`和`update`。
 
 ## 安装 Hyperlocalise 技能 (skills.sh)
 
@@ -54,20 +56,20 @@ hyperlocalise --help
 npx skills add https://github.com/hyperlocalise/hyperlocalise --skill hyperlocalise
 ```
 
-这使用 [skills.sh](https://skills.sh)安装脚本，通过`npx` 运行。
+这使用 [skills.sh](https://skills.sh) 安装程序，通过 `npx`。
 
 ## 升级
 
-使用内置的自动更新命令：
+使用内置的自更新命令：
 
 ```bash
 hyperlocalise update
 ```
 
-指定版本：
+固定特定版本：
 
 ```bash
 hyperlocalise update v1.2.3
 ```
 
-您仍然可以选择重新运行您原始的安装方法。
+如果你愿意，仍然可以重新运行你原来的安装方法。

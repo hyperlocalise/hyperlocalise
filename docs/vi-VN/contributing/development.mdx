@@ -1,13 +1,13 @@
 ---
 title: "Phát triển"
-description: "Phát triển và xác thực tiện ích dòng lệnh (CLI) cục bộ trong Go."
+description: "Phát triển và kiểm thử CLI hyperlocalise bằng Go."
 ---
 
-## Các điều kiện tiên quyết
+## Điều kiện tiên quyết
 
 - Go 1.26+
 - `git`
-- `make` available in your shell
+- `make` có sẵn trong shell của bạn
 
 ## Sao chép kho lưu trữ
 
@@ -16,15 +16,15 @@ git clone https://github.com/hyperlocalise/hyperlocalise.git
 cd hyperlocalise
 ```
 
-## Công cụ và mô-đun Bootstrap
+## Các công cụ và mô-đun Bootstrap
 
 ```bash
 make bootstrap
 ```
 
-Chức năng này tải xuống các mô-đun Go và cài đặt công cụ kiểm lint đã được chỉ định.
+Thao tác này tải xuống các module Go và cài đặt bộ công cụ lint đã được ghim.
 
-## Vòng lặp phát triển hàng ngày
+## Vòng lặp phát triển hằng ngày
 
 ```bash
 make fmt
@@ -41,20 +41,20 @@ make run
 go run -ldflags "-X main.version=dev" ./apps/cli
 ```
 
-## Cài đặt bản nhị phân cục bộ
+## Cài đặt binary cục bộ
 
 ```bash
 make install
 hyperlocalise version
 ```
 
-## Vị trí các mã khóa
+## Các vị trí mã khóa
 
-- `apps/cli/cmd/`: Cobra commands, flags, and CLI output behavior
-- `pkg/i18nconfig/`: `i18n.jsonc` parsing and validation
-- `apps/cli/internal/i18n/runsvc/`: `run` planning and execution flow
-- `apps/cli/internal/i18n/syncsvc/`: sync orchestration and conflict logic
-- `internal/i18n/storage/`: hợp đồng và tích hợp nhà cung cấp
+- `apps/cli/cmd/`: Các lệnh Cobra, cờ và hành vi đầu ra của CLI
+- `pkg/i18nconfig/`: `i18n.yml` và `i18n.jsonc` phân tích cú pháp và xác thực
+- `apps/cli/internal/i18n/runsvc/`: `run` lập kế hoạch và quy trình thực thi
+- `apps/cli/internal/i18n/syncsvc/`: đồng bộ hóa điều phối và logic xung đột
+- `internal/i18n/storage/`: hợp đồng adapter và tích hợp nhà cung cấp
 
 ## Trước khi mở một PR
 
@@ -62,4 +62,4 @@ hyperlocalise version
 make precommit
 ```
 
-Điều này thực hiện định dạng, kiểm tra, chạy thử và kiểm tra xây dựng theo quy trình được sử dụng bởi các nhà đóng góp.
+Phần này chạy định dạng, lint, kiểm tra, và các kiểm tra build trong cùng luồng mà các cộng tác viên sử dụng.

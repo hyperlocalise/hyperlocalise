@@ -1,0 +1,77 @@
+---
+title: "GitHub Action 漂移检查"
+description: "在 GitHub Actions 中运行 Hyperlocalise 本地化漂移检查。"
+---
+
+## 概览
+
+当你需要一个在本地化偏移时失败的拉取请求检查时，请使用仓库根操作。
+
+该操作运行 `hyperlocalise run --dry-run`，将 CLI 输出流式传输到工作流日志，并在启用时上传两个工件：
+
+- `drift-report.json`
+- `drift-summary.txt`
+
+## 示例工作流
+
+```yaml
+name: localization-drift
+
+on:
+  pull_request:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./
+        with:
+          check: drift
+          config-path: i18n.yml
+          hyperlocalise-version: latest
+          fail-on-drift: true
+          upload-artifact: true
+```
+
+外部仓库可以使用移动的 `v1` 引用来获取最新稳定的 v1 版本。如果你想要更严格的变更控制，请固定到一个确切的标签。
+
+```yaml
+- uses: hyperlocalise/hyperlocalise@v1
+  with:
+    check: drift
+```
+
+## 输入
+
+- `check`：检查名称。v1 中仅支持 `drift`。
+- `config-path`：配置文件路径。默认为 `i18n.yml`。
+- `working-directory`：命令的工作目录。默认为 `.`。
+- `hyperlocalise-version`：要安装的发布版本。默认值为 `latest`。
+- `fail-on-drift`：在检测到漂移时使工作流失败。默认为 `true`。
+- `upload-artifact`：上传 JSON 和文本工件。默认为 `true`。
+
+## 漂移检测
+
+该操作将以下任一条件视为漂移：
+
+- dry-run 报告中的一个或多个可执行翻译任务
+- 干运行报告中的一个或多个修剪候选项
+
+即使禁用了漂移强制执行，命令失败仍然会使操作失败。
+
+## 工件
+
+`drift-summary.txt` 是快速分诊工件。它记录：
+
+- 使用的配置路径
+- CLI 退出代码
+- 是否检测到漂移
+- 受影响的目标路径
+- 受影响的目标语言环境
+- 可用时受影响的条目键
+
+如果 CLI 在写入 JSON 之前失败，该操作在可能的情况下仍会写入一个最小文本工件。

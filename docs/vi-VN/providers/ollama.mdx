@@ -1,11 +1,11 @@
 ---
 title: "Ollama"
-description: "Cấu hình Ollama để hoạt động như nhà cung cấp LLM cho việc tạo bản dịch."
+description: "Cấu hình Ollama làm nhà cung cấp LLM cho việc tạo bản dịch."
 ---
 
 ## Giá trị nhà cung cấp
 
-Use `ollama` in `llm.profiles.<name>.provider`.
+Sử dụng `ollama` trong `llm.profiles.<name>.provider`.
 
 ## Ví dụ về hồ sơ
 
@@ -23,16 +23,8 @@ Use `ollama` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Các biến môi trường cần thiết
+## Các biến môi trường tùy chọn
 
-<CodeGroup>
-```bash Export
-export OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-export OLLAMA_API_KEY="ollama"
-```
+`OLLAMA_BASE_URL` mặc định là `http://127.0.0.1:11434/v1`.
 
-```bash .env.local
-OLLAMA_BASE_URL="http://127.0.0.1:11434/v1"
-OLLAMA_API_KEY="ollama"
-```
-</CodeGroup>
+`OLLAMA_API_KEY` mặc định là `ollama`.

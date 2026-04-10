@@ -1,41 +1,139 @@
 ---
-title: "Lựa chọn tập đánh giá"
-description: "Xây dựng một bộ kiểm tra dịch thuật đại diện để phát hiện các vấn đề chất lượng thực tế."
+title: "Tập hợp đánh giá được tuyển chọn"
+description: "Xây dựng một bộ đánh giá bản dịch đại diện để phát hiện các vấn đề chất lượng thực sự."
 ---
 
-Sử dụng một bộ kiểm tra để đo lường chất lượng bản dịch trên các chuỗi có ý nghĩa nhất đối với bạn.
+Sử dụng một bộ eval để đo lường chất lượng dịch thuật trên các chuỗi quan trọng nhất đối với bạn.
 
-## Chọn định dạng tệp
+## Chọn một định dạng tệp
 
-Bạn có thể lưu tập dữ liệu đánh giá dưới dạng JSON, JSONC hoặc CSV.
+Dùng YAML cho các bộ eval.
 
-- Sử dụng JSON hoặc JSONC khi bạn muốn cấu trúc có nhiều cấp và dữ liệu siêu dữ liệu rõ ràng.
-- use CSV when you want quick spreadsheet editing with columns like `id`, `source`, `targetLocale`, `context`, `reference`, `tags`, `bucket`, and `group`
-- trong định dạng CSV, tách các thẻ nhiều bằng dấu chấm phẩy (`ui;short;icu`)
+- chuỗi nguồn chung nhóm một dưới `tests`
+- định nghĩa một hoặc nhiều biến thể ngôn ngữ trong `locales`
+- tùy chọn định nghĩa các biến thể mô hình bên dưới `experiments`
+- tùy chọn xác định cấu hình giám khảo bên dưới `judge`
+- đặt văn bản đáng tin cậy ở phía đích dưới `reference`
+- chỉ thêm `assert` khi bạn cần kỳ vọng đạt/không đạt rõ ràng
 
-## Chọn các trường hợp đại diện
+### Ví dụ YAML
 
-Bao gồm nhiều loại kiểu chuỗi để bạn có thể phát hiện các lỗi trên các loại nội dung khác nhau.
+```yaml
+version: "1"
+metadata:
+  owner: localization
+  suite: release-gate
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
 
-- chuỗi UI ngắn: nút, nhãn, mục menu và văn bản lỗi súc tích
-- chuỗi văn bản dài: các bước hướng dẫn, văn bản trợ giúp, bản sao pháp lý và các tin nhắn giao dịch
-- ICU và định dạng phức tạp: quy tắc số nhiều, biến thể giới tính, mệnh lệnh chọn, và các ký hiệu cho định dạng ngày hoặc số
-- placeholders and variables: tokens like `{name}`, `%s`, or `{{count}}` that must survive unchanged
+### Ví dụ tối giản
 
-## Duy trì thông tin liên quan đến từng trường hợp
+```yaml
+tests:
+  - id: save-button
+    vars:
+      source: "Save"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer"
+```
 
-Đối với mỗi trường hợp, hãy lưu một ID ổn định và cung cấp đủ thông tin để người xem đánh giá.
+### Quy tắc định dạng
 
-- Thêm khu vực ngôn ngữ đích và văn bản nguồn
-- include screenshots, feature names, or intent notes in `context`
-- add optional `reference` text when you already have a trusted translation
-- Gán nhãn cho các trường hợp với thẻ và/hoặc nhóm tùy chọn để bạn có thể phân loại báo cáo theo khu vực.
+- `experiments[]` là tùy chọn
+- `experiments[].provider` và `experiments[].model` là bắt buộc khi có một thử nghiệm
+- `experiments[].id`, `experiments[].profile` và `experiments[].prompt` là tùy chọn
+- `judge` là tùy chọn
+- `judge.provider`, `judge.model`, `judge.prompt` và `judge.assertions[]` là tùy chọn
+- `tests[].id` là bắt buộc
+- `tests[].vars.source` là bắt buộc
+- `tests[].locales[]` phải chứa ít nhất một ngôn ngữ locale
+- `tests[].locales[].locale` là bắt buộc
+- `vars.query` được chấp nhận làm bí danh cho `vars.source`
+- `vars.context` là tùy chọn
+- `locales[].reference` là tùy chọn nhưng là trường phía đích thông thường khi bạn có một bản dịch đáng tin cậy
+- top-level `assert` là tùy chọn và áp dụng cho mọi biến thể ngôn ngữ trong bài kiểm tra
+- mức ngôn ngữ `assert` là tùy chọn và chỉ được thêm cho ngôn ngữ đó
+
+### Quy tắc thử nghiệm
+
+- dùng `experiments` khi bạn muốn chính bộ eval xác định những mô hình nào sẽ được chạy
+- nếu các cờ thử nghiệm CLI chưa được đặt, tập dữ liệu `experiments` sẽ được sử dụng
+- nếu bạn truyền CLI `--profile`, `--provider`, `--model`, hoặc `--prompt`, thì CLI sẽ ghi đè dataset `experiments`
+
+### Quy tắc của thẩm phán
+
+- dùng `judge` khi bạn muốn chính tập eval tự định nghĩa cấu hình giám khảo LLM
+- `judge.assertions` chấp nhận cùng các tên khẳng định như CLI `--assertion`
+- CLI `--eval-provider`, `--eval-model`, `--eval-prompt`, và `--assertion` ghi đè từng trường của tập dữ liệu `judge` từng trường một
+- nếu yêu cầu đánh giá của judge và cả CLI lẫn YAML đều không đặt nhà cung cấp/mô hình, Hyperlocalise sẽ mặc định là `openai` và `gpt-5.2`
+
+## Chọn phạm vi bao phủ đại diện
+
+Bao gồm một sự kết hợp các kiểu chuỗi để bạn có thể phát hiện các lỗi hồi quy trên các dạng nội dung khác nhau.
+
+- chuỗi giao diện ngắn: nút, nhãn, mục меню và văn bản lỗi ngắn gọn
+- chuỗi dạng dài: các bước hướng dẫn ban đầu, văn bản trợ giúp, nội dung pháp lý và các thông điệp giao dịch
+- ICU và định dạng phức tạp: quy tắc số nhiều, biến thể theo giới tính, câu lệnh select và các chỗ giữ chỗ định dạng ngày hoặc số
+- placeholder và biến: các token như `{name}`, `%s`, hoặc `{{count}}` phải được giữ nguyên
+
+## Giữ ngữ cảnh gần với từng trường hợp
+
+Với mỗi trường hợp, hãy lưu một id ổn định và bao gồm đủ ngữ cảnh cho người xem xét.
+
+- giữ văn bản nguồn được chia sẻ trong `vars.source`
+- bao gồm ảnh chụp màn hình, tên tính năng hoặc ghi chú mục đích trong `vars.context`
+- đặt các tham chiếu cụ thể theo từng ngôn ngữ dưới mỗi mục ngôn ngữ khi bạn đã có bản dịch đáng tin cậy
+- giữ cho các ID ổn định để các trường hợp mở rộng vẫn có thể so sánh giữa các lần chạy
+
+## Sử dụng các khẳng định một cách có chủ đích
+
+`assert` là tùy chọn. Nếu bạn bỏ qua nó, lần chạy eval vẫn tạo ra điểm heuristic, điểm đánh giá tùy chọn, và chẩn đoán báo cáo.
+
+Sử dụng các khẳng định xác định khi bạn biết chính xác điều gì phải xuất hiện trong đầu ra.
+
+- `contains`
+- `not_contains`
+- `equals`
+
+Dùng các khẳng định của giám khảo khi bạn muốn chấm điểm dựa trên ngưỡng.
+
+- `judge.translation_quality`
+- `judge.factuality`
+- `judge.g_eval`
+- `judge.model_graded_closedqa`
+- `judge.answer_relevance`
+- `judge.context_faithfulness`
+- `judge.context_recall`
+- `judge.context_relevance`
 
 ## Duy trì chất lượng theo thời gian
 
-Xử lý tập đánh giá như dữ liệu kiểm thử sản xuất.
+Xem bộ eval như dữ liệu kiểm thử production.
 
-- - Đánh giá và cập nhật bộ dữ liệu khi giao diện người dùng hoặc nội dung sản phẩm thay đổi
-- Loại bỏ các trường hợp cũ không còn ánh xạ với các tính năng đang hoạt động.
-- giữ sự cân bằng giữa các chuỗi dễ, trung bình và khó
-- - Thực hiện lại cùng một tập dữ liệu nhiều lần để so sánh các thay đổi của mô hình hoặc prompt một cách công bằng.
+- xem xét và làm mới bộ này khi UI hoặc nội dung sản phẩm thay đổi
+- xóa các trường hợp cũ không còn ánh xạ tới các tính năng đang hoạt động
+- duy trì sự cân bằng giữa các chuỗi dễ, trung bình và khó
+- chạy cùng một bộ lặp đi lặp lại để so sánh công bằng các thay đổi về mô hình hoặc prompt

@@ -1,15 +1,15 @@
 ---
 title: "eval"
-description: "Thử nghiệm: Thực hiện các thí nghiệm đánh giá chất lượng bản dịch và so sánh các bản báo cáo đề xuất với một bộ tham chiếu."
+description: "Thử nghiệm: Chạy các thử nghiệm chất lượng bản dịch và so sánh các báo cáo ứng viên với một đường cơ sở."
 ---
 
 <Note>
-Tính năng này vẫn đang trong giai đoạn thử nghiệm. Các cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các phiên bản. Sử dụng trong quy trình làm việc được kiểm soát và ghi lại các phiên bản trong CI.
+Tính năng này đang ở giai đoạn thử nghiệm. Cờ, hình dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình làm việc được kiểm soát và cố định phiên bản trong CI.
 
-Cấu trúc báo cáo và hành vi chấm điểm có thể thay đổi khi quy trình đánh giá phát triển.
+Lược đồ báo cáo và hành vi chấm điểm có thể thay đổi khi các quy trình đánh giá trưởng thành.
 </Note>
 
-Use `eval` commands to benchmark translation quality on a representative eval set and enforce quality thresholds in CI.
+Dùng các lệnh `eval` để đánh giá chất lượng bản dịch trên một bộ eval đại diện và áp dụng các ngưỡng chất lượng trong CI.
 
 ## Cách sử dụng
 
@@ -18,62 +18,131 @@ hyperlocalise eval run --eval-set <path> [flags]
 hyperlocalise eval compare --candidate <path> --baseline <path> [flags]
 ```
 
-## eval chạy
+## chạy eval
 
-Chạy một hoặc nhiều biến thể thí nghiệm trên bộ dữ liệu đánh giá của bạn.
+Chạy một hoặc nhiều biến thể thí nghiệm trên bộ eval của bạn.
+
+### Luồng đánh giá
+
+```text
+eval set
+  |
+  v
+expand experiment matrix
+  |
+  v
+translate each case with each experiment
+  |
+  +--> heuristic lane
+  |      - placeholder / ICU / tag checks
+  |      - length / forbidden-term / locale checks
+  |      - reference similarity
+  |
+  +--> judge lane (optional)
+  |      - llm-rubric
+  |      - factuality
+  |      - g-eval
+  |      - model-graded-closedqa
+  |      - answer-relevance
+  |      - context-faithfulness
+  |      - context-recall
+  |
+  v
+per-run result
+  - quality.weightedAggregate
+  - judgeAggregateScore
+  - finalScore
+  - decision
+  |
+  v
+report aggregates
+  - overall aggregate
+  - byLocale
+```
 
 ### Lệnh này làm gì
 
-1. Tải tập dữ liệu eval từ `--eval-set`.
-2. Mở rộng các biến thí nghiệm từ các hồ sơ, nhà cung cấp, mô hình và tùy chỉnh prompt đã chọn của bạn.
-3. Thực hiện mọi trường hợp đối với mọi biến thể thí nghiệm.
-4. Đánh giá mỗi bản dịch bằng cách sử dụng quy tắc heuristic tích hợp.
-5. Optionally adds an LLM judge lane when you pass both `--eval-provider` and `--eval-model`.
-6. Writes a JSON report when you pass `--output`.
-7. In쇄 một bảng tóm tắt ngắn gọn cho mỗi thí nghiệm.
+1. Tải bộ dữ liệu eval từ `--eval-set`.
+2. Mở rộng các biến thể thử nghiệm từ tập dữ liệu `experiments` hoặc từ các hồ sơ, nhà cung cấp, mô hình và ghi đè prompt bạn đã chọn.
+3. Thực thi mọi trường hợp đối với mọi biến thể thử nghiệm.
+4. Chấm điểm mỗi bản dịch bằng làn heuristic tích hợp sẵn.
+5. Tùy chọn thêm một làn đánh giá LLM khi bạn truyền cả `--eval-provider` và `--eval-model`.
+6. Hòa giải chất lượng heuristic và điểm đánh giá thành công thành một `finalScore` cho mỗi lần chạy.
+7. Ghi một báo cáo JSON khi bạn truyền `--output`.
+8. In ra bảng tóm tắt ngắn gọn cho từng thí nghiệm.
 
 ### Cờ
 
-- `--eval-set`: path to eval dataset (`.json`, `.jsonc`, `.csv`) (required)
-- `--profile`: profile name override (repeatable)
+- `--eval-set`: đường dẫn đến bộ dữ liệu đánh giá (`.yaml`, `.yml`) (bắt buộc)
+- `--profile`: ghi đè tên hồ sơ (có thể lặp lại)
 - `--provider`: ghi đè nhà cung cấp (có thể lặp lại)
 - `--model`: ghi đè mô hình (có thể lặp lại)
-- `--prompt-file`: ghi đè tệp hướng dẫn
-- `--prompt`: inline prompt override (mutually exclusive with `--prompt-file`)
-- `--eval-provider`: provider for LLM evaluation
-- `--eval-model`: mô hình đánh giá cho LLM
-- `--eval-prompt-file`: evaluation prompt file override
-- `--eval-prompt`: inline evaluation prompt override (mutually exclusive with `--eval-prompt-file`)
-- `--output`: JSON output report path
+- `--prompt-file`: ghi đè tệp prompt
+- `--prompt`: ghi đè lời nhắc nội tuyến (loại trừ lẫn nhau với `--prompt-file`)
+- `--eval-provider`: nhà cung cấp cho đánh giá LLM. Mặc định là `openai` khi yêu cầu đánh giá của giám khảo.
+- `--eval-model`: mô hình để đánh giá LLM. Mặc định là `gpt-5.2` khi đánh giá của judge được yêu cầu.
+- `--eval-prompt-file`: ghi đè tệp prompt đánh giá
+- `--eval-prompt`: ghi đè lời nhắc đánh giá nội tuyến (loại trừ lẫn nhau với `--eval-prompt-file`)
+- `--assertion`: xác định mệnh đề để chạy (có thể lặp lại). Giá trị được hỗ trợ: `llm-rubric`, `factuality`, `g-eval`, `model-graded-closedqa`, `answer-relevance`, `context-faithfulness`, `context-recall`
+- `--baseline`: đường dẫn JSON của báo cáo đánh giá cơ sở để so sánh khi sử dụng `--interactive`
+- `--output`: đường dẫn báo cáo đầu ra JSON
 
-LLM evaluation mode turns on only when you pass both `--eval-provider` and `--eval-model`.
+Chế độ đánh giá LLM được bật khi bạn yêu cầu đánh giá của judge, dù là một cách tường minh với `--eval-provider`, `--eval-model`, `--eval-prompt`, hoặc `--assertion`, hoặc một cách ngầm thông qua các khẳng định của judge trong eval-set.
 
-Your translation flags keep their current meaning. The `--eval-*` flags only control the judge lane.
+Nếu yêu cầu đánh giá của judge và bạn bỏ qua provider/model, Hyperlocalise sẽ mặc định là `openai` và `gpt-5.2`.
 
-Trong chế độ đánh giá bằng LLM, các bản dịch tham khảo là tùy chọn. Khi có, người đánh giá sẽ sử dụng chúng làm hướng dẫn về phong cách và giọng văn.
+Các cờ dịch của bạn vẫn giữ nguyên ý nghĩa hiện tại. Các cờ `--eval-*` chỉ kiểm soát làn phán xét.
 
-### Các trường trong bảng tóm tắt
+Bản dịch tham chiếu là tùy chọn ở chế độ đánh giá LLM. Khi có, bộ đánh giá sẽ dùng chúng làm hướng dẫn về phong cách và giọng điệu.
 
-- `score`: điểm chất lượng trung bình có trọng số cho thí nghiệm
-- `pass_rate`: số lần chạy thành công / tổng số lần chạy cho thí nghiệm
-- `placeholder_violations`: count of placeholder integrity hard-fail violations
-- `latency_ms`: average latency for the experiment
+Trong định dạng eval-set YAML, `reference` là trường phía đích thông thường. `assert` là tùy chọn.
+
+Các `experiments` và `judge` ở cấp bộ dữ liệu là tùy chọn. Nếu bạn định nghĩa chúng trong YAML và không truyền ghi đè qua CLI, `eval run` sẽ sử dụng trực tiếp các cài đặt đó.
+
+Nếu bạn truyền bất kỳ giá trị nào trong `--profile`, `--provider`, `--model` hoặc `--prompt`, ma trận thử nghiệm CLI sẽ ghi đè tập dữ liệu `experiments`.
+
+Nếu bạn truyền bất kỳ giá trị nào trong số `--eval-provider`, `--eval-model`, `--eval-prompt` hoặc `--assertion`, thì các giá trị CLI đó sẽ ghi đè các trường `judge` của bộ dữ liệu.
+
+Nếu bạn không truyền `--assertion`, thì khẳng định mặc định của judge là `llm-rubric`.
+
+Các tên khẳng định không xác định sẽ thất bại ngay lập tức.
+
+### Cách chấm điểm hoạt động
+
+- `quality.weightedAggregate` là điểm heuristic tích hợp sẵn cho lần chạy.
+- `judgeAggregateScore` là giá trị trung bình của các khẳng định phán quyết thành công cho lần chạy đó.
+- `finalScore` là điểm số đã được đối chiếu được dùng để chẩn đoán trong báo cáo.
+- `decision` là một kết quả thô cho lần chạy: `pass`, `review`, hoặc `fail`.
+
+Các quy tắc đối chiếu hiện tại:
+
+- lỗi dịch buộc `finalScore=0` và `decision=fail`
+- lỗi cứng theo heuristic buộc `finalScore=0` và `decision=fail`
+- khi làn đường của phán quyết không khả dụng, `finalScore` sẽ quay về điểm số heuristic
+- khi cả hai làn đều khả dụng, `finalScore = 0.65 * heuristic + 0.35 * judge`
+
+### Các trường của bảng tóm tắt
+
+- `score`: điểm chất lượng trung bình có trọng số cho thử nghiệm
+- `pass_rate`: số lần chạy thành công / tổng số lần chạy của thí nghiệm
+- `placeholder_violations`: số lượng vi phạm toàn vẹn placeholder không thể chấp nhận được
+- `latency_ms`: độ trễ trung bình của thí nghiệm
 
 ### Ví dụ
 
-Chạy với các cài đặt mặc định từ cấu hình của bạn và tạo báo cáo:
+Chạy với các giá trị mặc định từ cấu hình của bạn và viết một báo cáo:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.jsonc \
+  --eval-set ./evalsets/core.yaml \
   --output ./artifacts/eval-report.json
 ```
 
-Thực hiện thử nghiệm với nhiều cấu hình và thay đổi cài đặt cho nhà cung cấp/mô hình:
+Chạy một ma trận các hồ sơ và ghi đè nhà cung cấp/mô hình:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.csv \
+  --eval-set ./evalsets/core.yaml \
   --profile default \
   --profile fast \
   --provider openai \
@@ -82,63 +151,273 @@ hyperlocalise eval run \
   --model claude-sonnet-4-5
 ```
 
-Chạy với tệp cấu hình tùy chỉnh:
+Chạy với ghi đè tệp lời nhắc:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --prompt-file ./prompts/translation-eval.txt
 ```
 
-Chạy với đánh giá bằng LLM bằng lời nhắc giám khảo trực tiếp:
+Chạy với đánh giá LLM bằng cách sử dụng một prompt đánh giá nội tuyến:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider openai \
   --eval-model gpt-4.1-mini \
   --eval-prompt "Score translation quality from 0.0 to 1.0 and explain briefly." \
   --output ./artifacts/eval-report.json
 ```
 
-Chạy với đánh giá bằng LLM sử dụng tệp hướng dẫn:
+Chạy nhiều bộ đánh giá khẳng định trong một lượt:
 
 ```bash
 hyperlocalise eval run \
-  --eval-set ./evalsets/core.json \
+  --eval-set ./evalsets/core.yaml \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --assertion g-eval \
+  --assertion context-faithfulness \
+  --output ./artifacts/eval-report.json
+```
+
+Chạy với đánh giá LLM bằng cách sử dụng một tệp prompt giám khảo:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/core.yaml \
   --eval-provider anthropic \
   --eval-model claude-sonnet-4-5 \
   --eval-prompt-file ./prompts/eval-judge.txt \
   --output ./artifacts/eval-report.json
 ```
 
-## eval so sánh
+Sử dụng eval trong CI và kiểm tra báo cáo đã lưu:
 
-So sánh báo cáo của ứng viên với báo cáo cơ sở.
+```bash
+hyperlocalise eval run \
+  --eval-set ./evalsets/release-gate.yaml \
+  --provider openai \
+  --model gpt-4.1-mini \
+  --eval-provider openai \
+  --eval-model gpt-4.1-mini \
+  --assertion llm-rubric \
+  --assertion factuality \
+  --output ./artifacts/eval-candidate.json
+```
 
-Sử dụng lệnh này trong CI để ngăn chặn các vấn đề về chất lượng.
+### Ví dụ báo cáo
 
-The workflow stays the same: run `eval run` first, then run `eval compare`.
+Bộ eval ví dụ:
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+  - id: ollama-lfm2-24b
+    provider: ollama
+    model: lfm2:24b
+judge:
+  provider: openai
+  model: gpt-5.2
+  assertions:
+    - llm-rubric
+    - factuality
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+      context: "Primary CTA on the checkout settings page"
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+      - locale: de-DE
+        reference: "Kontoeinstellungen speichern"
+```
+
+Ví dụ với các khẳng định rõ ràng:
+
+```yaml
+experiments:
+  - id: ollama-translategemma
+    provider: ollama
+    model: translategemma
+tests:
+  - id: checkout-cta
+    vars:
+      source: "Save account settings"
+    assert:
+      - type: judge.translation_quality
+        threshold: 0.85
+    locales:
+      - locale: fr-FR
+        reference: "Enregistrer les parametres du compte"
+        assert:
+          - type: contains
+            value: "compte"
+```
+
+Chạy một bộ dữ liệu đã xác định sẵn các thử nghiệm Ollama:
+
+```bash
+hyperlocalise eval run \
+  --eval-set ./eval_dataset/article_001.yaml \
+  --output ./artifacts/eval-report.json
+```
+
+Ví dụ rút gọn của JSON được ghi bởi `--output`:
+
+```json
+{
+  "aggregate": {
+    "weightedScore": 0.812,
+    "averageJudgeScore": 0.847,
+    "finalScore": 0.824,
+    "decisionCounts": {
+      "pass": 18,
+      "review": 3,
+      "fail": 1
+    },
+    "byLocale": {
+      "fr-FR": {
+        "totalRuns": 10,
+        "finalScore": 0.851
+      },
+      "de-DE": {
+        "totalRuns": 12,
+        "finalScore": 0.802
+      }
+    }
+  },
+  "experimentSummaries": [
+    {
+      "experimentId": "ollama-translategemma",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.838,
+      "weightedScore": 0.806,
+      "finalScore": 0.817,
+      "decisionCounts": {
+        "pass": 8,
+        "review": 3
+      }
+    },
+    {
+      "experimentId": "ollama-lfm2-24b",
+      "runCount": 11,
+      "successfulRuns": 11,
+      "averageJudgeScore": 0.856,
+      "weightedScore": 0.819,
+      "finalScore": 0.832,
+      "decisionCounts": {
+        "pass": 10,
+        "review": 1
+      }
+    }
+  ],
+  "llmEvaluation": {
+    "enabled": true,
+    "provider": "openai",
+    "model": "gpt-4.1-mini",
+    "assertions": [
+      "llm-rubric",
+      "factuality"
+    ],
+    "aggregateScore": 0.847,
+    "averageScoreByName": {
+      "judge:llm-rubric": 0.835,
+      "judge:factuality": 0.859
+    },
+    "failedByName": {
+      "judge:factuality": 1
+    }
+  },
+  "runs": [
+    {
+      "caseId": "checkout.cta",
+      "targetLocale": "fr-FR",
+      "assertionResults": [
+        {
+          "type": "judge.translation_quality",
+          "passed": true,
+          "threshold": 0.85,
+          "score": 0.88
+        },
+        {
+          "type": "contains",
+          "passed": true,
+          "expected": "compte"
+        }
+      ],
+      "judgeAggregateScore": 0.88,
+      "quality": {
+        "weightedAggregate": 0.91
+      },
+      "finalScore": 0.9,
+      "decision": "pass",
+      "judgeResults": {
+        "judge:llm-rubric": {
+          "score": 0.86
+        },
+        "judge:factuality": {
+          "score": 0.9,
+          "details": {
+            "grounded": true,
+            "hallucinations": []
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+Sử dụng báo cáo cấp cao nhất để theo dõi xu hướng và các bản ghi theo từng lần chạy để chẩn đoán:
+
+- `experimentSummaries` là cách nhanh nhất để so sánh các biến thể mô hình theo `finalScore`, `weightedScore`, hoặc tổ hợp pass/review/fail.
+- `aggregate.byLocale` là cách nhanh nhất để bản địa hóa các lỗi hồi quy.
+- `llmEvaluation.averageScoreByName` cho thấy họ khẳng định nào đang kéo làn đường thẩm phán xuống.
+- `assertionResults` cho biết liệu các kỳ vọng eval-set rõ ràng có được đáp ứng hay không.
+- `judgeResults` chi tiết giải thích các lỗi cụ thể của câu khẳng định, chẳng hạn như ảo giác, các tuyên bố không được hỗ trợ hoặc thiếu các факт ngữ cảnh.
+
+## đánh giá so sánh
+
+So sánh báo cáo của ứng viên với báo cáo chuẩn.
+
+Dùng lệnh này trong CI để ngăn chặn sự suy giảm chất lượng.
+
+Quy trình vẫn giữ nguyên: hãy chạy `eval run` trước, rồi chạy `eval compare`.
 
 ### Cờ
 
-- `--candidate`: candidate report JSON path (required)
-- `--baseline`: đường dẫn JSON báo cáo cơ sở (bắt buộc)
-- `--min-score`: minimum candidate score
-- `--max-regression`: maximum allowed score regression from baseline to candidate
+- `--candidate`: đường dẫn JSON của báo cáo ứng viên (bắt buộc)
+- `--baseline`: đường dẫn JSON của báo cáo cơ sở (bắt buộc)
+- `--min-score`: điểm ứng viên tối thiểu
+- `--max-regression`: mức suy giảm điểm số tối đa cho phép từ baseline đến candidate
 
-### Hành vi của CI
+### Hành vi CI
 
-`eval compare` prefers the LLM aggregate score when both reports include a usable LLM judge aggregate. Otherwise, it falls back to the heuristic weighted score.
+`eval compare` ưu tiên điểm tổng hợp LLM khi cả hai báo cáo đều bao gồm một điểm tổng hợp từ bộ đánh giá LLM có thể sử dụng. Nếu không, nó sẽ quay về điểm có trọng số theo heuristic.
 
-Lệnh này sẽ kết thúc với lỗi khi:
+Điều này có nghĩa là `eval compare` hiện đang phụ thuộc vào:
 
-- candidate score is below `--min-score`, or
-- score regression exceeds `--max-regression`.
+- Tổng hợp đánh giá của LLM khi đánh giá LLM được bật trong cả hai báo cáo
+- tổng hợp heuristic khi không có tổng hợp phán đoán LLM khả dụng
 
-### Ví dụ
+Hiện tại nó chưa chặn theo `finalScore`.
 
-So sánh các báo cáo và in chỉ các giá trị tóm tắt:
+Lệnh sẽ thoát với lỗi khi:
+
+- điểm ứng viên thấp hơn `--min-score`, hoặc
+- điểm hồi quy vượt quá `--max-regression`.
+
+### Các ví dụ
+
+So sánh báo cáo và chỉ in các giá trị tóm tắt:
 
 ```bash
 hyperlocalise eval compare \
@@ -146,7 +425,7 @@ hyperlocalise eval compare \
   --baseline ./artifacts/eval-baseline.json
 ```
 
-Fail CI if the candidate score drops below `0.82` or regresses by more than `0.02`:
+Thất bại CI nếu điểm của ứng viên giảm xuống dưới `0.82` hoặc bị giảm sút quá `0.02`:
 
 ```bash
 hyperlocalise eval compare \
@@ -159,6 +438,6 @@ hyperlocalise eval compare \
 ## Xem thêm
 
 - [run](/commands/run)
-- [trạng thái](/commands/status)
-- [Tự động hóa CI](/workflows/ci-automation)
+- [status](/commands/status)
+- [CI tự động hóa](/workflows/ci-automation)
 - [Định dạng đầu ra](/reference/output-formats)

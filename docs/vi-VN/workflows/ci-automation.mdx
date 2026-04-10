@@ -1,49 +1,49 @@
 ---
 title: "Tự động hóa CI"
-description: "Các mẫu CI an toàn cho kiểm tra sai số và đồng bộ hóa TMS theo lịch trình."
+description: "Mẫu CI an toàn cho kiểm tra sai lệch và đồng bộ kéo/đẩy TMS theo lịch."
 ---
 
-## Tiêu chuẩn tiêm bí mật CI
+## Tiêu chuẩn chèn bí mật CI
 
-For remote adapters, keep secrets in your CI secret manager and inject them only in jobs that call `hyperlocalise sync`.
+Đối với các bộ điều hợp từ xa, hãy giữ các bí mật trong trình quản lý bí mật CI của bạn và chỉ tiêm chúng vào các job gọi `hyperlocalise sync`.
 
-- Commit only `*Env` variable names in `i18n.jsonc`.
-- Tiêm giá trị token vào thời chạy thông qua biến môi trường cấp công việc.
-- Sử dụng thông tin đăng nhập riêng biệt cho việc kiểm tra chỉ đọc so với các công việc đồng bộ cho phép ghi.
+- Chỉ commit tên biến trong `*Env` `i18n.yml`.
+- Chèn giá trị token tại thời gian chạy thông qua các biến môi trường ở cấp công việc.
+- Sử dụng thông tin xác thực riêng cho các kiểm tra chỉ đọc so với các tác vụ đồng bộ có bật ghi.
 - Tránh in các biến môi trường trong các bước của pipeline.
 
 ## Các kiểm tra được đề xuất
 
-### 1. Cấu hình + lập kế hoạch kiểm thử khói
+### 1. Kiểm tra khói cấu hình + lập kế hoạch
 
 ```bash
 hyperlocalise run --dry-run
 ```
 
-### 2. Tóm tắt trạng thái
+### 2. Ảnh chụp trạng thái
 
 ```bash
 hyperlocalise status --output csv
 ```
 
-Lưu trữ tệp CSV làm một phần của dự án để theo dõi xu hướng.
+Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.
 
 ### 3. Cổng xung đột đồng bộ
 
-`sync pull` and `sync push` default to `--dry-run=true`, which is a safe CI baseline.
+`sync pull` và `sync push` mặc định là `--dry-run=true`, đây là một đường cơ sở CI an toàn.
 
 ```bash
 hyperlocalise sync pull --output json --fail-on-conflict --dry-run=true
 hyperlocalise sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-Use `--dry-run=false` only in jobs that are explicitly authorized to write local files or remote systems.
+Chỉ sử dụng `--dry-run=false` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
 
-## Ví dụ về công việc đồng bộ theo lịch trình
+## Ví dụ về tác vụ đồng bộ theo lịch
 
-Sử dụng các ví dụ GitHub Actions này làm cơ sở. Điều chỉnh tên và quy tắc phê duyệt để phù hợp với nền tảng CI của bạn.
+Sử dụng các ví dụ GitHub Actions này làm nền tảng. Điều chỉnh tên bí mật và quy tắc phê duyệt cho nền tảng CI của bạn.
 
-### Đồng bộ theo lịch (chỉ đọc, cài đặt mặc định an toàn)
+### Đồng bộ kéo theo lịch (chỉ đọc, mặc định an toàn)
 
 ```yaml
 name: tms-pull-sync
@@ -69,13 +69,13 @@ jobs:
       - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
 ```
 
-Để áp dụng các thay đổi từ xa đối với các tệp cục bộ trong CI, hãy chuyển sang:
+Để áp dụng các thay đổi từ xa vào các tệp cục bộ trong CI, chuyển sang:
 
 ```bash
 go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
 ```
 
-### Đẩy đồng bộ theo lịch (bật, đang hoạt động)
+### Đồng bộ đẩy theo lịch trình (đã bật ghi, đang hoạt động)
 
 ```yaml
 name: tms-push-sync
@@ -102,10 +102,10 @@ jobs:
       - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
 ```
 
-Để thực hiện kiểm tra không làm thay đổi dữ liệu, hãy sử dụng:
+Đối với một lần kiểm tra xác thực không làm thay đổi, hãy sử dụng:
 
 ```bash
 go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
 ```
 
-Đối với các công việc cho phép ghi, hãy ưu tiên sử dụng môi trường được bảo vệ, các cơ chế kiểm soát và thông tin xác thực dịch vụ có quyền hạn tối thiểu.
+Đối với các công việc có quyền ghi, hãy ưu tiên các môi trường được bảo vệ, các cổng phê duyệt và thông tin xác thực dịch vụ theo nguyên tắc đặc quyền tối thiểu.

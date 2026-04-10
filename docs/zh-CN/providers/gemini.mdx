@@ -1,11 +1,11 @@
 ---
 title: "Gemini"
-description: "将 Gemini 配置为用于翻译生成的 LLM 提供程序。"
+description: "将 Gemini 配置为用于生成翻译的 LLM 提供程序。"
 ---
 
-## 提供商值
+## 提供者值
 
-使用 `gemini` 在 `llm.profiles.<name>.provider` 中。
+在 `llm.profiles.<name>.provider` 中使用 `gemini`。
 
 ## 示例个人资料
 
@@ -23,16 +23,18 @@ description: "将 Gemini 配置为用于翻译生成的 LLM 提供程序。"
 }
 ```
 
-## 所需环境变量
+## 必需的环境变量
 
 <CodeGroup>
 ```bash Export
-export GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
 ```bash .env.local
-GEMINI_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai"
 GEMINI_API_KEY="your-gemini-api-key"
 ```
 </CodeGroup>
+
+## 可选环境变量
+
+`GEMINI_BASE_URL` 默认为 `https://generativelanguage.googleapis.com/v1beta/openai`。

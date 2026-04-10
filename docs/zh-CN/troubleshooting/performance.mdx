@@ -1,22 +1,22 @@
 ---
 title: "性能"
-description: "优化大型本地化项目在运行时和稳定性方面。"
+description: "在大型本地化项目中提升运行时性能和稳定性。"
 ---
 
-## 减少不必要的劳动
+## 减少可避免的工作
 
-- rely on lock-file skipping in `run`
-- 将非常大的映射分割成更小的块
-- limit locale scope with repeated `--locale`
+- 依赖于跳过锁文件在 `run`
+- 将非常大的映射拆分为更小的桶
+- 通过重复 `--locale` 限制区域范围
 
-## 提高同步可靠性
+## 提升同步可靠性
 
-- set adapter `timeoutSeconds` when working with large projects
-- 当需要时，执行按区域同步任务，而不是全量同步
-- 使用 JSON 输出，以便更轻松地实现自动重试逻辑
+- 在处理大型项目时设置适配器 `timeoutSeconds`
+- 在需要时按语言环境运行同步作业，而不是进行完整的全量分发
+- 使用 JSON 输出以便更容易实现自动重试逻辑
 
 ## 诊断热点
 
 - 比较 `planned_total` 与 `executable_total`
-- inspect repeated failures by `target` and `key`
-- 检查您提供商的网络/API 速率限制
+- 检查由`target`和`key`引起的重复失败
+- 检查来自提供商的网络/API 速率限制

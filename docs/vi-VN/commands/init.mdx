@@ -1,9 +1,9 @@
 ---
-title: "Khởi tạo"
-description: "Tạo hoặc ghi đè tệp mẫu i18n.yml trong dự án của bạn."
+title: "khởi tạo"
+description: "Tạo hoặc ghi đè mẫu i18n.yml trong dự án của bạn."
 ---
 
-## Sử dụng
+## Cách sử dụng
 
 ```bash
 hyperlocalise init [--force]
@@ -11,28 +11,28 @@ hyperlocalise init [--force]
 
 ## Nó làm gì
 
-- ghi `i18n.yml` tối giản nhưng chạy được từ mẫu dựng sẵn
-- chỉ bắt đầu với `locales`, `buckets`, và `llm.profiles.default`
-- không đưa `groups`, `llm.rules`, `context_memory`, hoặc `cache` vào tệp khởi đầu
-- lỗi nếu tệp đã tồn tại, trừ khi dùng `--force`
+- viết một `i18n.yml` tối giản, có thể chạy được từ mẫu có sẵn
+- bắt đầu chỉ với `locales`, `buckets`, và `llm.profiles.default`
+- để lại cấu hình nâng cao như `groups`, `llm.rules`, `context_memory` và `cache` ra khỏi tệp khởi đầu
+- thất bại nếu tệp đã tồn tại (trừ khi `--force`)
 
 ## Cờ
 
-- `--force`: ghi đè `i18n.yml` hiện có
+- `--force`: ghi đè một `i18n.yml` hiện có
 
-## Cấu trúc starter
+## Hình dạng khởi đầu
 
-Tệp được tạo ra giữ luồng làm việc cho người mới ở mức tối thiểu:
+Starter được tạo giữ cho lộ trình dành cho người mới bắt đầu thật nhỏ gọn:
 
 - `locales`: ngôn ngữ nguồn và các ngôn ngữ đích
-- `buckets`: ánh xạ tệp nguồn sang tệp đích
+- `buckets`: ánh xạ tệp nguồn sang đích
 - `llm.profiles.default`: nhà cung cấp và mô hình
 
-Khi bỏ qua `groups`, Hyperlocalise sẽ tự động coi cấu hình như một nhóm `default` ngầm bao gồm tất cả target locale và tất cả bucket.
+Khi `groups` bị bỏ qua, Hyperlocalise sẽ tự động coi cấu hình như một nhóm `default` ngầm định duy nhất bao gồm tất cả các locale đích và tất cả các bucket.
 
-Ví dụ đầy đủ cho `groups`, `llm.rules`, `context_memory`, fallback, và cache nằm ở [i18n config](/vi-VN/configuration/i18n-config).
+Để xem các ví dụ đầy đủ về `groups`, `llm.rules`, `context_memory`, các phương án dự phòng và bộ nhớ đệm, hãy xem [i18n config](/configuration/i18n-config).
 
-## Luồng hoạt động điển hình
+## Luồng điển hình
 
 ```bash
 hyperlocalise init

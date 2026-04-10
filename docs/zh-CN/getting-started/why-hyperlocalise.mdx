@@ -1,99 +1,99 @@
 ---
-title: "为什么在 AI 翻译工作流程中使用本地化"
-description: "一个用于 AI 辅助的内容生成、TMS 库同步，以及与 Git 友好的翻译工作流的 CLI。"
+title: "为什么选择 Hyperlocalise 进行 AI 本地化工作流"
+description: "用于 AI 草稿生成、TMS 维护同步以及适合 Git 的翻译工作流的本地化 CLI。"
 ---
 
-`hyperlocalise` is built for teams that want faster localization cycles without giving up reviewer control.
+`hyperlocalise` 专为希望加快本地化周期且不放弃审阅者控制权的团队而打造。
 
-它结合了本地草稿生成、显式 TMS 同步步骤和 Git 友好的工作流程，以便工程和本地化团队可以在一个交付路径中协作。
+它将本地草稿生成、明确的 TMS 同步步骤以及对 Git 友好的工作流结合起来，使工程和本地化团队能够在一条交付路径中协作。
 
-与仅使用TMS或自定义脚本的方法不同，Hyperlocalise 专为那些将翻译文件存储在代码仓库中的团队而设计，并需要一个可重复的从草稿到审查的流程，同时具备冲突感知同步功能。
+与仅使用 TMS 或自定义脚本的方法不同，Hyperlocalise 专为将翻译文件保留在仓库中、并需要一个可重复的从草稿到整理流程且具备冲突感知同步的团队而设计。
 
-## 这是给谁的
+## 这是为谁准备的
 
-Hyperlocalise 适合您的团队，如果您的团队：
+如果您的团队符合以下情况，Hyperlocalise 是一个不错的选择：
 
-- 将翻译文件保存在您的仓库中
-- 将AI生成的草稿作为起点，而不是最终输出
-- 可能在某些工作流程中使用人工审核，但希望这成为一种可选功能。
-- 需要在CI中显示本地化工作的状态和质量检查。
+- 将翻译文件保留在您的代码库中，
+- 使用 AI 草稿作为起点，而不是最终输出，
+- 某些工作流可能会使用人工审核，但希望将其设为可选，
+- 希望围绕本地化工作提供在 CI 中可见的状态和质量检查。
 
-## 团队选择 Hyperlocalise 的原因
+## 为什么团队选择 Hyperlocalise
 
-### 1. 开发速度与运维保障措施
+### 1. 通过运营护栏提升开发速度
 
-The CLI is designed around plan-first workflows. You can inspect work with `--dry-run`, generate drafts locally, and rerun incrementally with lockfile-backed checkpoints.
+CLI 的设计围绕先计划后执行的工作流。你可以使用`--dry-run`检查工作，先在本地生成草稿，并通过由锁文件支持的检查点进行增量重跑。
 
-这减少了重复的翻译工作，同时又能通过正常的 Git 差异来查看更改。
+这减少了重复的翻译工作，同时使更改在普通的 Git diff 中仍然可审查。
 
-### 2. 允许人工审核，但不是强制要求
+### 2. 支持人工策展，但并非必需
 
-Hyperlocalise 不假设机器输出可以直接用于生产。
+Hyperlocalise 不会假定机器输出已可直接用于生产环境。
 
-目标循环是简单的：生成草稿，推送到你的 TMS 系统，由人工审核员进行筛选，然后将筛选后的值再拉回仓库。这样可以将源数据决策权交给你的本地化团队。
+预期的流程很直接：生成草稿，将其推送到你的 TMS，由人工审校者进行审核整理，然后将整理后的值拉回到仓库中。这样可以让你的本地化团队掌握作为事实来源的决策。
 
-如果您团队在特定流程中更需要速度而非审查，您还可以运行仅在本地执行的路径，并在不进行 TMS 同步的情况下发布。
+如果你的团队在特定流水线中更看重速度而不是审查，你也可以运行仅本地路径，并在不同步 TMS 的情况下发布。
 
-### 3. 更好地了解发布决策
+### 3. 更清晰地了解发布决策
 
-Teams can use `status` reports to track translated, needs-review, and untranslated content by locale. For quality experiments, you can run [`eval` (experimental)](/commands/eval) to compare candidate outputs against a baseline in a repeatable format.
+团队可以使用`status`报告按区域设置跟踪已翻译、需要审核和未翻译的内容。对于质量实验，您可以运行[`eval`（实验性）](/commands/eval)，以重复一致的格式将候选输出与基线进行比较。
 
-### 4. 提供方和平台的灵活性
+### 4. 提供商和平台灵活性
 
-您可以在不重新设计整个工作流程以围绕单一供应商进行优化的情况下，同时运行多个 LLM 提供商，并与常见的 TMS 适配器（例如 Crowdin、Lokalise、POEditor、Phrase、Smartling 和 LILT AI）集成。
+你可以运行多个 LLM 提供商，并与常见的 TMS 适配器集成（例如 Crowdin、Lokalise、POEditor、Phrase、Smartling 和 LILT AI），而无需围绕某一家供应商重新设计整个工作流程。
 
-## 它如何与您现有的工作流程配合
+## 它如何适应你现有的工作流程
 
-一个典型的路径如下：
+典型路径如下：
 
-1. 使用以下配置初始化：[`init`](/commands/init)。
-2. 定义区域、桶和配置文件，请参见 [`i18n config`](/configuration/i18n-config)。
-3. 生成草稿：[`run`](/commands/run)
-4. 可选的精细路径：使用 [`sync push` (实验性)](/commands/sync-push)，在 TMS 中进行精细，然后使用 [`sync pull` (实验性)](/commands/sync-pull)。
-5. 在发布前，使用 [`status`](/commands/status)] 验证进度。
+1. 使用 [`init`](/commands/init) 初始化配置。
+2. 在[`i18n config`](/configuration/i18n-config)中定义语言环境、桶和配置文件。
+3. 生成草稿，使用[`run`](/commands/run)。
+4. 可选整理路径：使用 [`sync push`（实验性）](/commands/sync-push)，在 TMS 中整理，然后 [`sync pull`（实验性）](/commands/sync-pull)。
+5. 发布前请通过[`status`](/commands/status) 验证进度。
 
-为了完整地进行整理过程，请参阅 [TMS 整理循环（实验版）](/workflows/tms-curation-loop)。
+有关完整的整理流程，请参见 [TMS 整理循环（实验性）](/workflows/tms-curation-loop)。
 
-## 当 Hyperlocalise 并非最佳选择 (但尚未确定) 时
+## 当 Hyperlocalise 还不是最佳选择时（暂时还不是！）
 
-如果以下情况，那么“本地化”可能不是您今天的最佳选择：
+如果您符合以下情况，Hyperlocalise 今天可能不是正确的选择：
 
-- 需要一个完全托管的本地化平台，无需使用 CLI。
-- 无法在开发者或CI环境中运行基于仓库的工作流程。
-- 需要一个工作流程，其中所有本地化操作都仅在托管的TMS UI中进行管理。
+- 需要一个完全托管、本地化平台，且无需使用 CLI，
+- 无法在开发者或 CI 环境中运行基于仓库的工作流，
+- 要求有一个工作流，使所有本地化操作都只能在托管的 TMS 界面内进行。
 
 ## 快速比较
 
-| 方法 | 设置工作量 | 审查控制 | CI/Git 工作流程适应性 | 供应商锁定风险 |
+| 方法 | 设置工作量 | 审核控制 | CI/Git 工作流适配性 | 厂商锁定风险 |
 | --- | --- | --- | --- | --- |
-| 手动脚本 | 🟡 中到高（需要自行构建和维护） | 🟢 高（完全自定义） | 🟡 中（取决于脚本的质量和标准） | 🟢 低
-| 仅使用 TMS 的工作流程 | 🟢 低至中等 | 🟡 在 TMS 中为中等到高，但在基于 Git 的审查中较低 | 🟡 对于在仓库内的工作流程，为低至中等 | 🟠 中等到高
-| 细分地域化 | 🟢 低 (使用单一 CLI，配置简单) | 🟢 高 (AI 自动生成 + 可选的人工审核流程) | 🟢 高 (显式预演、同步、状态流程) | 🟢 低 (支持多提供商和多适配器) |
+| 手动脚本 | 🟡 中到高（自行构建和维护） | 🟢 高（完全自定义） | 🟡 中等（取决于脚本质量和标准） | 🟢 低 |
+| 仅限 TMS 的工作流 | 🟢 低到中 | 🟡 在 TMS 中为中到高，在基于 Git 的审阅中较低 | 🟡 在仓库内工作流中为低到中 | 🟠 中到高 |
+| 超本地化 | 🟢 低（单一 CLI，配置简单） | 🟢 高（AI 草稿 + 可选人工审核循环） | 🟢 高（明确的 dry-run、同步、状态流程） | 🟢 低（支持多提供商和多适配器） |
 
 ## 常见问题
 
-### Hyperlocalise是否可以替代我的TMS？
+### Hyperlocalise 是我的 TMS 的替代品吗？
 
-No. Hyperlocalise 的设计目的是与您的 TMS 协同工作，而不是取代它。 预期的模式是本地草稿生成加上在您现有的翻译平台上的人工审核。
+不。Hyperlocalise 的设计是与您的 TMS 协同工作，而不是取代它。预期的模式是在您现有的翻译平台中先生成本地草稿，再由人工进行整理。
 
-### 我可以将Hyperlocalise与Crowdin、Lokalise或POEditor一起使用吗？
+### 我可以将 Hyperlocalise 与 Crowdin、Lokalise 或 POEditor 一起使用吗？
 
-是的。Hyperlocalise 支持多种 TMS 适配器，包括 Crowdin、Lokalise 和 POEditor（以及 Phrase、Smartling 和 LILT AI）。
+是的。Hyperlocalise 支持多个 TMS 适配器，包括 Crowdin、Lokalise 和 POEditor（以及 Phrase、Smartling 和 LILT AI）。
 
-### 这在 CI 中可以运行吗？
+### 这可以在 CI 中运行吗？
 
-是的。 团队通常在 CI（持续集成）中运行计划、生成和报告等命令，以便将本地化更改集成到标准的发布流程中。
+是的。团队通常会在 CI 中运行规划、生成和报告命令，以便在标准发布工作流中使本地化更改保持可见。
 
-### Hyperlocalise 是否会将机器翻译直接发布到生产环境？
+### Hyperlocalise 会直接将机器翻译发布到生产环境吗？
 
-是的，可以。TMS 筛选是可选的，团队可以选择在不进行人工审核的情况下进行，这取决于他们的风险承受能力和发布流程。
+是的，可以。TMS 筛选是可选的，团队可以在与其风险承受能力和发布流程相匹配时选择零人工审核路径。
 
 ## 下一步
 
-New user path: [Install](/getting-started/install) -> [Quickstart](/getting-started/quickstart) -> [i18n config](/configuration/i18n-config)
+新用户路径：[安装](/getting-started/install) -> [快速入门](/getting-started/quickstart) -> [i18n 配置](/configuration/i18n-config)
 
-Evaluation path: [Quickstart](/getting-started/quickstart) -> [`eval` (experimental)](/commands/eval) -> [`status`](/commands/status)
+评估路径：[快速入门](/getting-started/quickstart) -> [`eval`（实验性）](/commands/eval) -> [`status`](/commands/status)
 
-TMS curation path: [Storage overview](/storage/overview) -> [`sync push` (experimental)](/commands/sync-push) -> [TMS curation loop (experimental)](/workflows/tms-curation-loop) -> [`sync pull` (experimental)](/commands/sync-pull)
+TMS 整理路径：[存储概览](/storage/overview) -> [`sync push`（实验性）](/commands/sync-push) -> [TMS 整理循环（实验性）](/workflows/tms-curation-loop) -> [`sync pull`（实验性）](/commands/sync-pull)
 
 决策支持：[稳定性矩阵](/reference/stability-matrix)

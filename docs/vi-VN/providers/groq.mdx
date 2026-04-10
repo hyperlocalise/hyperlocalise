@@ -1,13 +1,13 @@
 ---
 title: "Groq"
-description: "Cấu hình Groq làm nhà cung cấp LLM cho việc tạo bản dịch."
+description: "Cấu hình Groq làm nhà cung cấp LLM để tạo bản dịch."
 ---
 
-## Giá trị nhà cung cấp
+## Giá trị của nhà cung cấp
 
-Use `groq` in `llm.profiles.<name>.provider`.
+Sử dụng `groq` trong `llm.profiles.<name>.provider`.
 
-## Ví dụ
+## Hồ sơ ví dụ
 
 ```json
 {
@@ -23,16 +23,18 @@ Use `groq` in `llm.profiles.<name>.provider`.
 }
 ```
 
-## Các biến môi trường bắt buộc
+## Biến môi trường bắt buộc
 
 <CodeGroup>
 ```bash Export
-export GROQ_BASE_URL="https://api.groq.com/openai/v1"
 export GROQ_API_KEY="your-groq-api-key"
 ```
 
 ```bash .env.local
-GROQ_BASE_URL="https://api.groq.com/openai/v1"
 GROQ_API_KEY="your-groq-api-key"
 ```
 </CodeGroup>
+
+## Biến môi trường tùy chọn
+
+`GROQ_BASE_URL` mặc định là `https://api.groq.com/openai/v1`.

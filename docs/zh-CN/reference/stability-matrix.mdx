@@ -1,31 +1,31 @@
 ---
 title: "稳定性矩阵"
-description: "功能成熟度级别，包括提供方层、锁文件流程、TMS 适配器、评估以及 CI 准备状态标签。"
+description: "提供商层、锁文件流程、TMS 适配器、评估以及可用于 CI 的状态标签的功能成熟度级别。"
 ---
 
-使用此页面来确定哪些功能适合设置为生产环境的默认设置，以及哪些功能应保留在更严格的发布控制之下。
+使用此页面来决定哪些功能适合用于生产默认配置，哪些应继续保留在更严格的发布控制之后。
 
 ## 功能成熟度
 
-| 领域 | 范围 | 状态 | 备注 |
+| 区域 | 范围 | 状态 | 备注 |
 | --- | --- | --- | --- |
-| LLM 提供者层 | OpenAI, Azure OpenAI, Gemini, Anthropic, AWS Bedrock, LM Studio, Groq, Ollama | Stable | 主要生成路径：`run`。 |
-| Plan-first + lockfile | `run --dry-run`, deterministic planning, `.hyperlocalise.lock.json` checkpoints | Stable | Recommended default for CI and PR review flows. |
-| TMS adapters | Crowdin, LILT AI, Lokalise, Phrase, POEditor, Smartling | Experimental | `sync push` / `sync pull` contracts may evolve. Pin CLI versions in CI. |
-| 评估框架 | `eval run`, `eval compare`, 质量/回归评分 | 实验性 | 报告模式和评分可能会在不同版本之间更改。 |
-| CI-ready status labels | `ready`, `needs review`, `missing` derived from `status` CSV | Experimental | Label mapping is stable for current docs, but classification semantics may evolve. |
+| LLM 提供商层 | OpenAI、Azure OpenAI、Gemini、Anthropic、AWS Bedrock、LM Studio、Groq、Ollama | 稳定 | `run` 的主要生成路径。 |
+| 先规划 + 锁文件 | `run --dry-run`，确定性规划，`.hyperlocalise.lock.json` 检查点 | 稳定 | 推荐作为 CI 和 PR 审查流程的默认选项。 |
+| TMS 适配器 | Crowdin、LILT AI、Lokalise、Phrase、POEditor、Smartling | 实验性 | `sync push` / `sync pull` 合同可能会演变。Push 现在在支持的情况下使用新的远程基线和条目级变更，但适配器的并发保证仍然有所不同。在 CI 中固定 CLI 版本。 |
+| 评估框架 | `eval run`, `eval compare`，质量/回归评分 | 实验性 | 报告模式和评分可能会在不同版本之间发生变化。 |
+| CI 就绪状态标签 | `ready`, `needs review`, `missing` 源自 `status` CSV | 实验性 | 对于当前文档，标签映射是稳定的，但分类语义可能会演变。 |
 
-## 推荐的部署策略
+## 建议的发布策略
 
-1. 将`run` + lockfile 作为默认 CI 检查的基准。
-2. 使用`sync`和`eval`，在具有明确版本锁定（pinning）的控制流程中。
-3. Gate releases with status-based checks before enabling write-capable `sync` jobs.
+1. 将 `run` + 锁文件 作为默认 CI 检查中的基线。
+2. 在受控流水线中使用 `sync` 和 `eval`，并显式固定版本。
+3. 在启用具备写入能力的`sync`作业之前，使用基于状态的检查来控制发布。
 
-## 参见
+## 另请参阅
 
 - [运行](/commands/run)
 - [状态](/commands/status)
-- [同步拉取](/commands/sync-pull)
+- [sync pull](/commands/sync-pull)
 - [同步推送](/commands/sync-push)
 - [eval](/commands/eval)
-- [锁文件合约](/reference/lockfile-contract)
+- [锁定文件约定](/reference/lockfile-contract)

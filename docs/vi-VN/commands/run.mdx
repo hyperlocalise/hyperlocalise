@@ -1,111 +1,119 @@
 ---
 title: "chạy"
-description: "Lập kế hoạch và thực hiện tạo bản dịch cục bộ từ các tệp nguồn được cấu hình."
+description: "Lập kế hoạch và thực hiện việc tạo bản dịch cục bộ từ các tệp nguồn đã cấu hình."
 ---
 
 ## Cách sử dụng
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--target-locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## Hành vi
 
-1. Tải và xác thực cấu hình
-2. lập kế hoạch cho các nhiệm vụ từ các nhóm và thư mục
-3. skip tasks already in `.hyperlocalise.lock.json`,
-4. hoàn thành các nhiệm vụ còn lại
-5. Lưu trữ các tác vụ thành công để ghi trạng thái.
+1. tải và xác thực cấu hình,
+2. lập kế hoạch công việc từ các nhóm và bucket,
+3. bỏ qua các tác vụ đã có trong `.hyperlocalise.lock.json`,
+4. thực hiện các nhiệm vụ còn lại,
+5. duy trì các tác vụ thành công để khóa trạng thái.
 
-For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/reference/lockfile-contract).
+Đối với các trường lockfile, vòng đời và hướng dẫn đặt lại, xem [Hợp đồng lockfile](/reference/lockfile-contract).
 
 ## Các định dạng tệp cục bộ được hỗ trợ
 
-`run` can read source and target files with these extensions:
+`run` có thể đọc các tệp nguồn và tệp đích với các phần mở rộng này:
 
 - `.json`
 - `.arb`
-- `.xlf` and `.xliff`
+- `.xlf` và `.xliff`
 - `.po`
+- `.html`
 - `.md`
 - `.mdx`
-- `.html`
 - `.strings`
 - `.stringsdict`
 - `.csv`
 
-For JSON (`.json`), `run` supports:
+Đối với JSON (`.json`), `run` hỗ trợ:
 
-- đối tượng JSON có cấu trúc nhúng tiêu chuẩn
-- Định dạng JSON message FormatJS khi phần gốc khớp chính xác:
+- các đối tượng JSON khóa/giá trị lồng nhau tiêu chuẩn
+- JSON thông báo FormatJS khi phần gốc khớp chính xác:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
-In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+Trong chế độ FormatJS, chỉ `defaultMessage` được dịch. Các khóa (message ID), `description`, và các siêu dữ liệu khác không phải thông điệp được giữ nguyên.
 
-For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
+Đối với Flutter ARB (`.arb`), `run` chỉ dịch các khóa thông điệp, giữ nguyên các khóa siêu dữ liệu như `@key`, và chuẩn hóa `@@locale` sang ngôn ngữ đích khi ghi.
 
-For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and preserves non-translatable structure:
+Đối với Markdown và MDX (`.md`, `.mdx`), `run` dịch phần văn xuôi đã trích xuất và bảo toàn cấu trúc không thể dịch:
 
-- các khối frontmatter (`---`)
-- khu vực mã (```` ``` ```` và `~~~`)
-- dấu ngoặc, đoạn mã
-- Liên kết Markdown như đích đến
-- MDX `import` and `export` lines
-- Nhãn và giá trị thuộc tính của các thành phần JSX/MDX
+- khối frontmatter (`---`)
+- khối mã được đóng khung (```` ``` ```` và `~~~`)
+- các đoạn mã nội tuyến
+- Các neo Markdown như đích liên kết
+- MDX `import` và `export` dòng
+- Thẻ thành phần JSX/MDX và các giá trị thuộc tính
 
-Đối với chuỗi của Apple/Xcode (`.strings`), `run`, vẫn giữ lại các chú thích và định dạng khóa/giá trị từ mẫu, đồng thời thay thế các giá trị theo văn bản đã dịch.
+Đối với HTML (`.html`), `run` dịch nội dung văn bản bên trong các phần tử cấp khối:
+
+- `<script>`, `<style>`, `<pre>` và nội dung `<head>` không bao giờ được dịch và được giữ nguyên nguyên văn
+- thẻ nội dòng trong các đoạn có thể dịch (`<strong>`, `<em>`, `<a>`, v.v.) — đánh dấu thẻ được bảo vệ dưới dạng placeholder và được khôi phục nguyên văn sau khi dịch, nhưng phần văn xuôi xung quanh **được** dịch
+- `<img alt="...">` — giá trị thuộc tính `alt` được trích xuất thành một đơn vị dịch riêng; phần còn lại của thẻ (src, class, v.v.) được giữ nguyên nguyên văn
+- Các thực thể HTML (`&amp;`, `&lt;`, v.v.) được giữ nguyên trong suốt quá trình dịch qua lại
+- Chú thích HTML được giữ nguyên nguyên văn
+
+Đối với Chuỗi Apple/Xcode (`.strings`), `run` giữ nguyên các chú thích và định dạng khóa/giá trị từ mẫu trong khi thay thế các giá trị nguyên văn bằng văn bản đã dịch.
 
 
 Đối với CSV (`.csv`), `run` hỗ trợ hai bố cục:
 
-- Cấu trúc key/value (ví dụ: `key,value`)
-- per-locale column layout (for example: `id,en,fr,de`)
+- bố cục khóa/giá trị (ví dụ: `key,value`)
+- bố cục cột theo từng ngôn ngữ (ví dụ: `id,en,fr,de`)
 
-When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+Khi ghi các đích CSV, `run` giữ nguyên tiêu đề hiện có và các cột không phải đích, cập nhật các khóa khớp ngay tại chỗ và nối thêm các khóa mới theo thứ tự sắp xếp xác định.
 
 ## Cờ
 
-- `--config`: path to config file (default `i18n.jsonc` in current directory)
-- `--group`: Chỉ chạy các tác vụ cho nhóm được chỉ định
-- `--bucket`: run only tasks for the given bucket name
-- `--target-locale`: run only tasks for the given target locale (repeatable)
-- `--dry-run`: print plan only, do not translate or write files
-- `--force`: rerun all planned tasks and ignore lockfile skip state
-- `--prune`: remove target keys that no longer exist in source files
-- `--prune-max-deletions`: maximum stale keys deleted in one run before requiring an explicit override (default `100`)
-- `--prune-force`: bỏ qua giới hạn an toàn xóa
-- `--workers`: number of parallel translation workers (defaults to CPU cores)
+- `--config`: đường dẫn đến tệp cấu hình (mặc định `i18n.yml`, sẽ quay về `i18n.jsonc`, trong thư mục hiện tại)
+- `--group`: chỉ chạy các tác vụ cho tên nhóm đã cho
+- `--bucket`: chỉ chạy các tác vụ cho tên bucket đã cho
+- `--locale`: chỉ chạy các tác vụ cho ngôn ngữ đích đã cho (có thể lặp lại); `--target-locale` là bí danh
+- `--dry-run`: chỉ in kế hoạch, không dịch hoặc ghi tệp
+- `--force`: chạy lại tất cả các tác vụ đã lên kế hoạch và bỏ qua trạng thái bỏ qua của lockfile
+- `--prune`: xóa các khóa đích không còn tồn tại trong tệp nguồn
+- `--prune-max-deletions`: số khóa lỗi thời tối đa được xóa trong một lần chạy trước khi yêu cầu ghi đè rõ ràng (mặc định `100`)
+- `--prune-force`: bỏ qua giới hạn an toàn xóa prune
+- `--workers`: số lượng worker dịch song song (mặc định là số lõi CPU)
 - `--progress`: chế độ hiển thị tiến trình (`auto|on|off`, mặc định: `auto`)
-- `--output`: write machine-readable JSON run report to the given path
-- `--experimental-context-memory`: kích hoạt tạo bộ nhớ ngữ cảnh hai giai đoạn trước khi dịch mỗi phạm vi
-- `--context-memory-scope`: context sharing scope (`file|bucket|group`, default `file`)
-- `--context-memory-max-chars`: maximum context memory length injected into each translation request (default `1200`)
+- `--output`: ghi báo cáo chạy JSON có thể đọc bằng máy vào đường dẫn đã cho
+- `--experimental-context-memory`: bật tạo bộ nhớ ngữ cảnh hai giai đoạn trước khi dịch mỗi phạm vi
+- `--context-memory-scope`: phạm vi chia sẻ ngữ cảnh (`file|bucket|group`, `file` mặc định)
+- `--context-memory-max-chars`: độ dài bộ nhớ ngữ cảnh tối đa được chèn vào mỗi yêu cầu dịch (mặc định `1200`)
 
-## Prompt contract for `run`
+## Thỏa thuận lời nhắc cho `run`
 
-- `system_prompt` is used for instructions and runtime context.
-- `user_prompt` is used for payload content (text to translate, or source content to summarize for context memory).
-- Translation flow supports profile `user_prompt` override.
-- Context-memory summary flow always uses the built-in summary payload template and does not apply profile `user_prompt` override.
+- `system_prompt` được dùng cho hướng dẫn và ngữ cảnh thời gian chạy.
+- `user_prompt` được dùng cho nội dung payload (văn bản cần dịch, hoặc nội dung nguồn để tóm tắt cho bộ nhớ ngữ cảnh).
+- Luồng dịch hỗ trợ ghi đè hồ sơ `user_prompt`.
+- Luồng tóm tắt bộ nhớ ngữ cảnh luôn sử dụng mẫu payload tóm tắt tích hợp sẵn và không áp dụng ghi đè `user_prompt` của hồ sơ.
 
 <Note>
-Changing prompt structure (e.g. moving context from the user message to the system message) does not automatically invalidate cached translations. To force re-translation after a prompt restructure, bump the `prompt_version` in your profile.
+Việc thay đổi cấu trúc prompt (ví dụ: chuyển ngữ cảnh từ tin nhắn của người dùng sang tin nhắn hệ thống) không tự động làm mất hiệu lực các bản dịch đã được lưu trong bộ nhớ đệm. Để buộc dịch lại sau khi tái cấu trúc prompt, hãy tăng `prompt_version` trong hồ sơ của bạn.
 </Note>
 
-### Ghi nhật ký gỡ lỗi (tùy chọn)
+### Ghi nhật ký gỡ lỗi tiến trình (tùy chọn)
 
-Để khắc phục sự cố liên quan đến việc hiển thị tiến trình, bạn có thể bật nhật ký gỡ lỗi mà không cần thay đổi các tùy chọn dòng lệnh:
+Để khắc phục sự cố hiển thị tiến trình, bạn có thể bật nhật ký gỡ lỗi mà không cần thay đổi cờ CLI:
 
-- `HYPERLOCALISE_PROGRESS_DEBUG=1` enables progress debug logging.
+- `HYPERLOCALISE_PROGRESS_DEBUG=1` cho phép ghi nhật ký gỡ lỗi tiến trình.
 - `HYPERLOCALISE_PROGRESS_DEBUG_FILE=<path>` ghi đè vị trí tệp nhật ký.
 
-Đường dẫn nhật ký mặc định khi bật: `.hyperlocalise/logs/run.log`.
+Đường dẫn nhật ký mặc định khi được bật: `.hyperlocalise/logs/run.log`.
 
-## Luồng bộ nhớ trong môi trường thử nghiệm
+## Luồng bộ nhớ ngữ cảnh thử nghiệm
 
-When `--experimental-context-memory` is enabled, `run` builds shared memory once per scope (default: per source file), then reuses it for all entries in that scope.
+Khi `--experimental-context-memory` được bật, `run` sẽ tạo bộ nhớ dùng chung một lần cho mỗi phạm vi (mặc định: mỗi tệp nguồn), rồi tái sử dụng nó cho tất cả các mục trong phạm vi đó.
 
-If memory generation fails or times out, `run` logs a warning and continues translation without shared memory for that scope.
+Nếu quá trình tạo bộ nhớ thất bại hoặc hết thời gian chờ, `run` sẽ ghi một cảnh báo và tiếp tục dịch mà không dùng bộ nhớ dùng chung cho phạm vi đó.
 
 ```mermaid
 flowchart TD
@@ -123,52 +131,52 @@ flowchart TD
     I --> T
 ```
 
-### Tại sao nó có thể dường như đang chờ
+### Tại sao nó có thể dường như đang chờ đợi
 
-- Entry đầu tiên trong một phạm vi mới chờ bộ nhớ được tạo xong.
-- Các mục sau trong cùng một phạm vi sẽ sử dụng lại bộ nhớ đã lưu và tiếp tục mà không cần phải xây dựng lại.
-- Progress UI hiện đang hiển thị các bước liên quan đến bộ nhớ ngữ cảnh trong danh sách tệp, giúp bạn có thể thấy các tác vụ ở cấp độ phạm vi đang hoạt động.
+- Mục nhập đầu tiên trong một phạm vi mới sẽ đợi quá trình tạo bộ nhớ hoàn tất.
+- Các mục nhập sau đó trong cùng phạm vi sẽ tái sử dụng bộ nhớ đã được lưu đệm và tiếp tục mà không cần xây dựng lại.
+- Giao diện tiến trình giờ hiển thị các bước bộ nhớ ngữ cảnh trong danh sách tệp để bạn có thể xem công việc đang hoạt động ở cấp phạm vi.
 
 
-## Phạm vi áp dụng đối với một nhóm
+## Phạm vi áp dụng cho một nhóm
 
-Use `--group` when you want to run only one configured group.
+Sử dụng `--group` khi bạn muốn chỉ chạy một nhóm đã được cấu hình.
 
 ```bash
 hyperlocalise run --group tests --dry-run
 ```
 
-If the group does not exist in your config, `run` fails with an `unknown group` planning error.
+Nếu nhóm không tồn tại trong cấu hình của bạn, `run` sẽ thất bại với lỗi lập kế hoạch `unknown group`.
 
-## Phạm vi hoạt động kéo dài đến một ngăn chứa
+## Phạm vi áp dụng cho một bucket
 
-Use `--bucket` when you want to run only one configured bucket. This is useful for focused updates, CI partitioning, or validating a single area before a full run.
+Sử dụng `--bucket` khi bạn chỉ muốn chạy một bucket đã cấu hình. Điều này hữu ích cho các bản cập nhật tập trung, phân chia CI, hoặc xác thực một khu vực duy nhất trước khi chạy toàn bộ.
 
 ```bash
 hyperlocalise run --bucket ui --dry-run
 ```
 
-If the bucket does not exist in your config, `run` fails with an `unknown bucket` planning error.
+Nếu bucket không tồn tại trong cấu hình của bạn, `run` sẽ thất bại với một lỗi lập kế hoạch `unknown bucket`.
 
-## Phạm vi hoạt động giới hạn ở một múi giờ cụ thể
+## Phạm vi áp dụng đến một ngôn ngữ mục tiêu
 
-Use `--target-locale` when you want to re-run only specific locales without changing group or bucket selection. You can repeat the flag to select multiple locales.
-
-```bash
-hyperlocalise run --group tests --target-locale fr --target-locale de --dry-run
-```
-
-If a requested locale is not present in `locales.targets`, `run` fails with an `unknown target locale` planning error. When combined with `--group`, only locales that belong to that group are planned.
-
-When combined with `--prune`, stale-key detection is also limited to the selected target locales. `run` only scans and prunes target files that belong to the filtered locale set.
+Sử dụng `--locale` khi bạn muốn chỉ chạy lại một số locale cụ thể mà không thay đổi lựa chọn nhóm hoặc bucket. Bạn có thể lặp lại cờ này để chọn nhiều locale. Bộ lọc tương tự cũng có sẵn dưới dạng `--target-locale` để tương thích với các script cũ hơn.
 
 ```bash
-hyperlocalise run --prune --target-locale de --dry-run
+hyperlocalise run --group tests --locale fr --locale de --dry-run
 ```
 
-## Bắt buộc chạy lại tất cả các tác vụ đã lên kế hoạch
+Nếu một ngôn ngữ được yêu cầu không có trong `locales.targets`, `run` sẽ thất bại với lỗi lập kế hoạch `unknown target locale`. Khi kết hợp với `--group`, chỉ những ngôn ngữ thuộc nhóm đó mới được lập kế hoạch.
 
-Use `--force` to ignore lockfile skip state and execute every planned task again.
+Khi được kết hợp với `--prune`, việc phát hiện khóa cũ cũng chỉ giới hạn ở các ngôn ngữ mục tiêu đã chọn. `run` chỉ quét và cắt bớt các tệp đích thuộc tập ngôn ngữ đã lọc.
+
+```bash
+hyperlocalise run --prune --locale de --dry-run
+```
+
+## Buộc chạy lại tất cả các tác vụ đã lên kế hoạch
+
+Dùng `--force` để bỏ qua trạng thái bỏ qua của lockfile và thực thi lại mọi tác vụ đã lên kế hoạch.
 
 ```bash
 hyperlocalise run --group tests --force
@@ -186,25 +194,25 @@ hyperlocalise run --group tests --force
 - `completion_tokens`
 - `total_tokens`
 
-Sử dụng token theo từng ngôn ngữ được in ra như sau: `locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`.
+Mức sử dụng token theo từng ngôn ngữ được in dưới dạng: `locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`.
 
-When you pass `--output`, the JSON report includes run metadata (`generatedAt`, `configPath`), aggregate token usage, per-locale usage, and per-entry batch usage.
+Khi bạn truyền `--output`, báo cáo JSON sẽ bao gồm siêu dữ liệu chạy (`generatedAt`, `configPath`), mức sử dụng token tổng hợp, mức sử dụng theo từng ngôn ngữ, và mức sử dụng theo từng lô cho mỗi mục.
 
-## Kết quả lỗi
+## Đầu ra lỗi
 
 Khi tác vụ thất bại, đầu ra bao gồm `failure target=<...> key=<...> reason=<...>`.
 
 
-## Hướng dẫn điều chỉnh nhân viên
+## Hướng dẫn điều chỉnh Worker
 
-Lower `--workers` when you hit provider rate limits or run in constrained CI environments. Start with `1` to stabilize retries and then increase gradually.
+Hạ `--workers` khi bạn chạm giới hạn tốc độ của nhà cung cấp hoặc chạy trong các môi trường CI bị hạn chế. Bắt đầu với `1` để ổn định các lần thử lại rồi tăng dần.
 
-Raise `--workers` when your provider quota and machine resources allow more throughput. Increase in small steps and watch API error rates plus local CPU and memory usage.
+Tăng `--workers` khi hạn mức của nhà cung cấp và tài nguyên máy cho phép thông lượng cao hơn. Tăng theo từng bước nhỏ và theo dõi tỷ lệ lỗi API cùng mức sử dụng CPU và bộ nhớ cục bộ.
 
 ## Xem thêm
 
 - [eval](/commands/eval)
 - [status](/commands/status)
-- [đồng bộ đẩy](/commands/sync-push)
-- [đồng bộ kéo](/commands/sync-pull)
-- [Lockfile contract](/reference/lockfile-contract)
+- [sync push](/commands/sync-push)
+- [sync pull](/commands/sync-pull)
+- [Hợp đồng lockfile](/reference/lockfile-contract)

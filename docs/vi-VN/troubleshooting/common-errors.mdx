@@ -1,13 +1,13 @@
 ---
-title: "Lỗi phổ biến"
-description: "Khắc phục các sự cố thường xuyên xảy ra trong quá trình cài đặt, cấu hình, kết nối nhà cung cấp và đồng bộ."
+title: "Các lỗi thường gặp"
+description: "Khắc phục các lỗi thiết lập, cấu hình, nhà cung cấp và đồng bộ thường gặp."
 ---
 
-## `i18n.jsonc already exists; use --force to overwrite`
+## `i18n.yml already exists; use --force to overwrite`
 
-Cause: running `init` where config already exists.
+Nguyên nhân: đang chạy `init` trong khi cấu hình đã tồn tại.
 
-Sửa
+Sửa lỗi:
 
 ```bash
 hyperlocalise init --force
@@ -15,30 +15,30 @@ hyperlocalise init --force
 
 ## `storage config is required`
 
-Cause: `sync` command used without top-level `storage` config.
+Nguyên nhân: lệnh `sync` được dùng mà không có cấu hình `storage` cấp cao nhất.
 
-Sửa: thêm `storage.adapter` và `storage.config` vào `i18n.jsonc`.
+Sửa: thêm `storage.adapter` và `storage.config` trong `i18n.yml`.
 
 ## `unsupported output format`
 
-Cause: wrong `--output` value.
+Nguyên nhân: giá trị `--output` không đúng.
 
-Sửa lỗi:
+Bản sửa lỗi:
 
-- `status`: only `csv`
+- `status`: chỉ `csv`
 - `sync`: `text` hoặc `json`
 
-## `unsupported file extension` during `run`
+## `unsupported file extension` trong `run`
 
-Nguyên nhân: một tệp nguồn hoặc đích được chỉ định sử dụng phần mở rộng không được trình xử lý cục bộ hỗ trợ.
+Nguyên nhân: tệp nguồn hoặc tệp đích được ánh xạ sử dụng một phần mở rộng không được trình phân tích cú pháp cục bộ hỗ trợ.
 
 Sửa lỗi:
 
-- use one of: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.html`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
-- verify bucket `from` and `to` paths resolve to the expected file names
+- dùng một trong các: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.html`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`
+- xác minh rằng các đường dẫn `from` và `to` trỏ tới đúng tên tệp như mong đợi
 
-## `unsupported file extension` trong quá trình `run`
+## Lỗi xác thực của nhà cung cấp
 
-Nguyên nhân: [1mToken[0m môi trường bị thiếu/không hợp lệ.
+Nguyên nhân: thiếu/không hợp lệ env token.
 
-Khắc phục: xuất lại mã thông báo trong cùng một phiên và chạy lại.
+Sửa: xuất lại token trong cùng phiên shell và chạy lại.

@@ -1,32 +1,45 @@
 ---
-title: "sync push"
+title: "同步推送"
 description: "实验性：将本地翻译更改推送到远程存储适配器。"
 ---
 
 <Note>
-此功能是实验性的。标志、输出形状和行为在不同版本之间可能会发生变化。请在受控的工作流程中使用，并在 CI 中固定版本。
+此功能为实验性功能。标志、输出形式和行为可能会在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
 
-冲突处理和同步协议可能会随着TMS集成的发展而演变。
+随着 TMS 集成逐步成熟，冲突处理和同步约定可能会演变。
 </Note>
 
-## 使用方法
+## 用法
 
 ```bash
 hyperlocalise sync push [--config <path>] [flags]
 ```
 
-## 安全默认行为
+## 安全的默认行为
 
-`sync push` defaults to dry-run mode and conflict failure.
+`sync push` 默认处于 dry-run 模式和冲突失败。
+
+在实际推送过程中，Hyperlocalise 会读取本地文件，获取相同范围的最新远程基线，计算内存中的差异，并且只推送已更改的条目。
+
+对于像 Crowdin 这样的以字符串为导向的适配器，默认的变更单位是单个翻译条目（`key + context + locale`），而不是整个文件上传。
+
+某些适配器不支持原子比较并交换写入。在这些情况下，Hyperlocalise 使用尽力而为的安全模型：
+
+- 在推送前立即获取最新的远程基线
+- 仅应用已更改的条目
+- 在推送后重新读取受影响的条目以检测分歧
+
+本地元数据侧车对于推送正确性并非必需。
 
 ## 标志
 
-- `--config`: config path
-- `--locale`: 目标地区(们)，可重复
-- `--dry-run`：仅预览（默认 `true`）
-- `--output`：`text` 或 `json`
-- `--fail-on-conflict`：当检测到冲突时返回错误（默认：`true`）
-- `--force-conflicts`: allow overwrite for mismatch cases where policy allows (default `false`)
+- `--config`：配置路径
+- `--locale`：目标语言环境，可重复
+- `--key-prefix`：将同步范围限制为具有任意匹配前缀的键，可重复
+- `--dry-run`：仅预览（默认`true`）
+- `--output`：`text`、`json`，或`markdown`
+- `--fail-on-conflict`：检测到冲突时返回错误（默认 `true`）
+- `--force-conflicts`：允许在策略允许的不匹配情况下覆盖（默认 `false`）
 
 ## 示例
 
@@ -34,12 +47,23 @@ hyperlocalise sync push [--config <path>] [flags]
 hyperlocalise sync push --locale es-ES --dry-run=false
 ```
 
-请参阅 [冲突处理](/troubleshooting/conflicts)在使用前。`--force-conflicts`。
+```bash
+hyperlocalise sync push --locale es-ES --key-prefix checkout. --dry-run=false
+```
 
-## 参见
+## 注释
+
+- 未更改的条目会被跳过
+- 已筛选或无效的条目不会被推送
+- 当适配器只能提供尽力而为的并发保护时，可能会发出警告
+- 推送后验证不匹配被报告为冲突
+
+在使用`--force-conflicts`之前，请参阅[冲突处理](/troubleshooting/conflicts)。
+
+## 另请参阅
 
 - [运行](/commands/run)
 - [状态](/commands/status)
-- [同步拉](/commands/sync-pull)
+- [sync pull](/commands/sync-pull)
 - [存储概览](/storage/overview)
-- [TMS 策展循环（实验版）](/workflows/tms-curation-loop)
+- [TMS 筛选循环（实验性）](/workflows/tms-curation-loop)
