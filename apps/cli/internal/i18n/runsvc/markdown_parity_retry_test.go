@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
 
 func TestRetryMarkdownASTParityScopeExhausted(t *testing.T) {
