@@ -842,6 +842,21 @@ func (p MarkdownParser) Parse(content []byte) (map[string]string, error) {
 	return entries, nil
 }
 
+// ParseWithContext implements [ContextParser]: same entries as [MarkdownParser.Parse],
+// plus per-key prompt context (structure path, adjacent literals, placeholder preservation).
+func (p MarkdownParser) ParseWithContext(content []byte) (map[string]string, map[string]string, error) {
+	doc, entries := parseMarkdownDocument(stripBOM(content), p.MDX)
+	ctx := make(map[string]string, len(entries))
+	for _, kc := range doc.keyContexts() {
+		part := doc.parts[kc.partIndex]
+		if part.key == "" {
+			continue
+		}
+		ctx[part.key] = buildMarkdownSegmentContext(p.MDX, kc.path, kc.prevLiteral, kc.nextLiteral)
+	}
+	return entries, ctx, nil
+}
+
 func MarshalMarkdown(template []byte, values map[string]string, mdx bool) []byte {
 	content, _ := MarshalMarkdownWithDiagnostics(template, values, mdx)
 	return content

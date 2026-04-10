@@ -2,11 +2,45 @@ package runsvc
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 )
+
+func TestTranslateRequestWithRetryRecoversFromTransientAPIErrors(t *testing.T) {
+	// Context memory generation uses translateRequestWithRetry (ICU-only validation).
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	svc := &Service{}
+	attempts := 0
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		attempts++
+		if attempts < 2 {
+			return "", errors.New("status code 429")
+		}
+		return "concise shared glossary summary", nil
+	}
+	out, err := svc.translateRequestWithRetry(context.Background(), translator.Request{
+		Source:         "Long source text for summarization.",
+		TargetLanguage: "en",
+		Model:          "gpt-4.1-mini",
+	})
+	if err != nil {
+		t.Fatalf("translateRequestWithRetry: %v", err)
+	}
+	if out != "concise shared glossary summary" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected 2 translate attempts after 429, got %d", attempts)
+	}
+}
 
 func TestNormalizeContextMemoryPreservesUTF8WhenTruncating(t *testing.T) {
 	in := "  Xin chào 👋 thế giới  "

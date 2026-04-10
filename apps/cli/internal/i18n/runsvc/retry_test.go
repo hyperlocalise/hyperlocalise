@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -449,16 +450,16 @@ func TestTranslateRequestWithRetryStopsAfterMaxAttempts(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if attempts != translationRetryMaxAttempts {
-		t.Fatalf("attempts = %d, want %d", attempts, translationRetryMaxAttempts)
+	if attempts != translationAPIMaxAttempts {
+		t.Fatalf("attempts = %d, want %d", attempts, translationAPIMaxAttempts)
 	}
-	if sleepCalls != translationRetryMaxAttempts-1 {
-		t.Fatalf("sleepCalls = %d, want %d", sleepCalls, translationRetryMaxAttempts-1)
+	if sleepCalls != translationAPIMaxAttempts-1 {
+		t.Fatalf("sleepCalls = %d, want %d", sleepCalls, translationAPIMaxAttempts-1)
 	}
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("error does not wrap original error: %v", err)
 	}
-	if !strings.Contains(err.Error(), "translation failed after 5 attempts") {
+	if !strings.Contains(err.Error(), "translation failed after 3 attempts") {
 		t.Fatalf("error = %q, want max-attempt context", err.Error())
 	}
 }
@@ -558,6 +559,163 @@ var (
 	_ net.Error = timeoutNetError{}
 	_ net.Error = nonTimeoutNetError{}
 )
+
+func TestTranslateWithRetryICUSecondRoundAugmentsRuntimeContext(t *testing.T) {
+	svc := &Service{}
+	call := 0
+	var secondCtx string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		call++
+		if call == 1 {
+			return "Salut {user}", nil
+		}
+		secondCtx = req.RuntimeContext
+		return "Salut {name}", nil
+	}
+	task := Task{
+		SourcePath:   filepath.Join("pkg", "en.json"),
+		SourceText:   "Hello {name}",
+		TargetLocale: "fr",
+	}
+	got, err := svc.translateWithRetry(context.Background(), task)
+	if err != nil {
+		t.Fatalf("translateWithRetry: %v", err)
+	}
+	if got != "Salut {name}" {
+		t.Fatalf("result = %q", got)
+	}
+	if call != 2 {
+		t.Fatalf("translate calls = %d, want 2", call)
+	}
+	if !strings.Contains(secondCtx, "Translation validation failed") {
+		t.Fatalf("missing fix header in runtime context: %q", secondCtx)
+	}
+	if !strings.Contains(secondCtx, "Salut {user}") {
+		t.Fatalf("missing previous output in runtime context: %q", secondCtx)
+	}
+}
+
+func TestTranslateWithRetryHTMLTagSecondRound(t *testing.T) {
+	svc := &Service{}
+	call := 0
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		call++
+		if call == 1 {
+			return "Bonjour", nil
+		}
+		return "<p>Bonjour</p>", nil
+	}
+	task := Task{
+		SourcePath:   "/srv/page.html",
+		SourceText:   "<p>Hello</p>",
+		TargetLocale: "fr",
+	}
+	got, err := svc.translateWithRetry(context.Background(), task)
+	if err != nil {
+		t.Fatalf("translateWithRetry: %v", err)
+	}
+	if !strings.Contains(got, "Bonjour") {
+		t.Fatalf("result = %q", got)
+	}
+	if call != 2 {
+		t.Fatalf("translate calls = %d, want 2", call)
+	}
+}
+
+func TestTranslateWithRetryMarkdownSkipsICUInvariant(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "{notvalidicu", nil
+	}
+	task := Task{
+		SourcePath:   "/docs/page.md",
+		SourceText:   "{notvalidicu",
+		TargetLocale: "fr",
+	}
+	got, err := svc.translateWithRetry(context.Background(), task)
+	if err != nil {
+		t.Fatalf("unexpected error (ICU should be skipped for .md): %v", err)
+	}
+	if got != "{notvalidicu" {
+		t.Fatalf("result = %q", got)
+	}
+}
+
+// testHLMDPHToken matches internal markdown sentinel pattern (see translationfileparser).
+var testHLMDPHToken = "\x1eHLMDPH_ABCDEF0123456789_1\x1f"
+
+func TestTranslateWithRetryMarkdownHLMDPHSecondRound(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	svc := &Service{}
+	call := 0
+	var secondReq translator.Request
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		call++
+		if call == 1 {
+			return "Bonjour monde", nil
+		}
+		secondReq = req
+		return "Bonjour " + testHLMDPHToken + " monde", nil
+	}
+	task := Task{
+		SourcePath:   "/docs/page.md",
+		SourceText:   "Hello " + testHLMDPHToken + " world",
+		TargetLocale: "fr",
+	}
+	got, err := svc.translateWithRetry(context.Background(), task)
+	if err != nil {
+		t.Fatalf("translateWithRetry: %v", err)
+	}
+	if !strings.Contains(got, testHLMDPHToken) {
+		t.Fatalf("expected token preserved, got %q", got)
+	}
+	if call != 2 {
+		t.Fatalf("translate calls = %d, want 2", call)
+	}
+	if !strings.Contains(secondReq.RuntimeContext, "Translation validation failed") {
+		t.Fatalf("expected correction block in second request, got %q", secondReq.RuntimeContext)
+	}
+}
+
+func TestTranslateWithRetryMarkdownHLMDPHValidationExhausted(t *testing.T) {
+	originalSleep := sleepWithContext
+	t.Cleanup(func() { sleepWithContext = originalSleep })
+	sleepWithContext = func(_ context.Context, _ time.Duration) error { return nil }
+
+	svc := &Service{}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "no tokens here", nil
+	}
+	task := Task{
+		SourcePath:   "/docs/page.md",
+		SourceText:   "X " + testHLMDPHToken + " Y",
+		TargetLocale: "fr",
+	}
+	_, err := svc.translateWithRetry(context.Background(), task)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "translation validation failed after 3 attempt(s)") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestTranslateRequestWithRetryValidationExhausted(t *testing.T) {
+	svc := &Service{}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "nope {x}", nil
+	}
+	_, err := svc.translateRequestWithRetry(context.Background(), translator.Request{Source: "Hello {name}"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "translation validation failed after 3 attempt(s)") {
+		t.Fatalf("error = %v", err)
+	}
+}
 
 func TestSanitizePromptContextTruncatesWithEllipsis(t *testing.T) {
 	got := sanitizePromptContext("abcdefghij", 5)

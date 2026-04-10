@@ -100,6 +100,24 @@ func TestHasExactKeySet(t *testing.T) {
 	}
 }
 
+func TestMarkdownFlushMergesRenderAndASTParityWarnings(t *testing.T) {
+	src := []byte("# One\n\n## Two\n\n")
+	out := []byte("plain text only\n")
+	path := "/tmp/out/fr/page.md"
+	w1 := markdownRenderWarnings(path, translationfileparser.MarkdownRenderDiagnostics{SourceFallbackKeys: []string{"md.aaa"}})
+	w2 := translationfileparser.MarkdownASTParityWarnings(src, out, "/en/page.md", path)
+	merged := append(append([]string{}, w1...), w2...)
+	if len(merged) < 2 {
+		t.Fatalf("expected render + AST warnings, got %#v", merged)
+	}
+	if !strings.Contains(merged[0], "fell back to source") {
+		t.Fatalf("expected render warning first: %q", merged[0])
+	}
+	if !strings.Contains(merged[1], "markdown AST parity") {
+		t.Fatalf("expected AST parity warning: %q", merged[1])
+	}
+}
+
 func TestMarkdownRenderWarnings(t *testing.T) {
 	diags := translationfileparser.MarkdownRenderDiagnostics{SourceFallbackKeys: []string{"k3", "k1", "k2"}}
 	warnings := markdownRenderWarnings("/tmp/doc.md", diags)
