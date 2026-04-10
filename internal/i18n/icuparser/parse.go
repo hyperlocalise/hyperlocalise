@@ -20,9 +20,6 @@ func Parse(input string, opts *ParseOptions) ([]Element, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.pos != len(p.src) {
-		return nil, fmt.Errorf("unexpected trailing content at %d", p.pos)
-	}
 	return elems, nil
 }
 
@@ -187,12 +184,89 @@ func (p *astParser) parseSimpleTypedArgument(arg, kind string) (Element, error) 
 
 	switch kind {
 	case "number":
-		return NumberElement{Value: arg, Style: style}, nil
+		return p.finishNumberElement(arg, style)
 	case "date":
-		return DateElement{Value: arg, Style: style}, nil
+		return p.finishDateElement(arg, style)
 	default:
+		return p.finishTimeElement(arg, style)
+	}
+}
+
+func (p *astParser) finishNumberElement(arg, style string) (Element, error) {
+	if !strings.HasPrefix(style, "::") {
+		return NumberElement{Value: arg, Style: style}, nil
+	}
+	body := strings.TrimSpace(style[2:])
+	tokens, err := ParseNumberSkeletonTokens(body)
+	if err != nil {
+		return nil, err
+	}
+	var parsed NumberFormatOptions
+	if p.opts.ShouldParseSkeletons {
+		parsed, err = ParseNumberSkeleton(tokens)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NumberElement{
+		Value:    arg,
+		Style:    style,
+		Skeleton: &NumberSkeleton{Tokens: tokens, ParsedOptions: parsed},
+	}, nil
+}
+
+func (p *astParser) finishDateElement(arg, style string) (Element, error) {
+	if !strings.HasPrefix(style, "::") {
+		return DateElement{Value: arg, Style: style}, nil
+	}
+	body := strings.TrimSpace(style[2:])
+	if body == "" {
+		return nil, fmt.Errorf("date/time skeleton cannot be empty")
+	}
+	pattern := body
+	var parsed DateTimeFormatOptions
+	if p.opts.ShouldParseSkeletons {
+		var err error
+		parsed, err = ParseDateTimeSkeleton(pattern)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return DateElement{
+		Value: arg,
+		Style: style,
+		Skeleton: &DateTimeSkeleton{
+			Pattern:       pattern,
+			ParsedOptions: parsed,
+		},
+	}, nil
+}
+
+func (p *astParser) finishTimeElement(arg, style string) (Element, error) {
+	if !strings.HasPrefix(style, "::") {
 		return TimeElement{Value: arg, Style: style}, nil
 	}
+	body := strings.TrimSpace(style[2:])
+	if body == "" {
+		return nil, fmt.Errorf("date/time skeleton cannot be empty")
+	}
+	pattern := body
+	var parsed DateTimeFormatOptions
+	if p.opts.ShouldParseSkeletons {
+		var err error
+		parsed, err = ParseDateTimeSkeleton(pattern)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return TimeElement{
+		Value: arg,
+		Style: style,
+		Skeleton: &DateTimeSkeleton{
+			Pattern:       pattern,
+			ParsedOptions: parsed,
+		},
+	}, nil
 }
 
 func (p *astParser) parseSelectArgument(arg string) (Element, error) {
@@ -204,9 +278,8 @@ func (p *astParser) parseSelectArgument(arg string) (Element, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.consume('}') {
-		return nil, fmt.Errorf("expected closing brace for select at %d", p.pos)
-	}
+	// parseSelectOptions returns with pos at the closing "}" of the select argument.
+	p.pos++
 	return SelectElement{Value: arg, Options: opts}, nil
 }
 
@@ -219,9 +292,8 @@ func (p *astParser) parsePluralArgument(arg, kind string) (Element, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.consume('}') {
-		return nil, fmt.Errorf("expected closing brace for plural at %d", p.pos)
-	}
+	// parsePluralOptions returns with pos at the closing "}" of the plural argument.
+	p.pos++
 	ordinal := kind == "selectordinal"
 	pluralType := TypePlural
 	if ordinal {
@@ -301,9 +373,8 @@ func (p *astParser) parseSelectOptions(ctx parseCtx) ([]SelectOption, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !p.consume('}') {
-			return nil, fmt.Errorf("expected closing brace for select option at %d", p.pos)
-		}
+		// parseMessage(..., true) returns with pos at the closing "}" of the option body.
+		p.pos++
 		out = append(out, SelectOption{Selector: sel, Value: body})
 	}
 }
@@ -343,9 +414,8 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 		if err != nil {
 			return 0, nil, err
 		}
-		if !p.consume('}') {
-			return 0, nil, fmt.Errorf("expected closing brace for ICU option at %d", p.pos)
-		}
+		// parseMessage(..., true) returns with pos at the closing "}" of the option body.
+		p.pos++
 		out = append(out, PluralOption{Selector: sel, Value: body})
 	}
 }

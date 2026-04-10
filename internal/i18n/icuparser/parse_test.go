@@ -1,6 +1,9 @@
 package icuparser
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseASTBasicElements(t *testing.T) {
 	elems, err := Parse("Hi {name}", nil)
@@ -103,5 +106,99 @@ func TestParseASTBareAndEscapedApostrophesKeepArgumentParsing(t *testing.T) {
 				t.Fatalf("expected second element to be argument, got %s", elems[1].Type())
 			}
 		})
+	}
+}
+
+func TestParseTypedFormatterStyle(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want Element
+	}{
+		{
+			name: "date skeleton",
+			msg:  "{ts, date, ::yyyyMMdd}",
+			want: DateElement{
+				Value: "ts",
+				Style: "::yyyyMMdd",
+				Skeleton: &DateTimeSkeleton{
+					Pattern: "yyyyMMdd",
+				},
+			},
+		},
+		{
+			name: "time skeleton",
+			msg:  "{t, time, ::Hmm}",
+			want: TimeElement{
+				Value: "t",
+				Style: "::Hmm",
+				Skeleton: &DateTimeSkeleton{
+					Pattern: "Hmm",
+				},
+			},
+		},
+		{
+			name: "number skeleton",
+			msg:  "{n, number, ::currency/CAD}",
+			want: NumberElement{
+				Value: "n",
+				Style: "::currency/CAD",
+				Skeleton: &NumberSkeleton{
+					Tokens: []NumberSkeletonToken{{Stem: "currency", Options: []string{"CAD"}}},
+				},
+			},
+		},
+		{
+			name: "named date style",
+			msg:  "{d, date, short}",
+			want: DateElement{Value: "d", Style: "short"},
+		},
+		{
+			name: "empty style",
+			msg:  "{x, number}",
+			want: NumberElement{Value: "x", Style: ""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if len(elems) != 1 {
+				t.Fatalf("expected 1 element, got %d", len(elems))
+			}
+			if !reflect.DeepEqual(elems[0], tt.want) {
+				t.Fatalf("got %#v want %#v", elems[0], tt.want)
+			}
+		})
+	}
+}
+
+func TestParseTypedFormatterShouldParseSkeletons(t *testing.T) {
+	opts := &ParseOptions{ShouldParseSkeletons: true}
+	elems, err := Parse("{n, number, ::currency/CAD}", opts)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	ne, ok := elems[0].(NumberElement)
+	if !ok || ne.Skeleton == nil {
+		t.Fatalf("expected number skeleton: %#v", elems[0])
+	}
+	if ne.Skeleton.ParsedOptions.Style != "currency" || ne.Skeleton.ParsedOptions.Currency != "CAD" {
+		t.Fatalf("parsed options: %#v", ne.Skeleton.ParsedOptions)
+	}
+
+	elems, err = Parse("{ts, date, ::yyyyMMdd}", opts)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	de, ok := elems[0].(DateElement)
+	if !ok || de.Skeleton == nil {
+		t.Fatalf("expected date skeleton: %#v", elems[0])
+	}
+	if de.Skeleton.ParsedOptions.Year != "numeric" || de.Skeleton.ParsedOptions.Month != "2-digit" || de.Skeleton.ParsedOptions.Day != "2-digit" {
+		t.Fatalf("parsed date options: %#v", de.Skeleton.ParsedOptions)
 	}
 }
