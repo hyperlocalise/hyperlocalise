@@ -150,6 +150,41 @@ func TestParseExistingTargetEntriesCSV(t *testing.T) {
 	}
 }
 
+func TestFlushOutputForTargetMarkdownASTParityNoWrite(t *testing.T) {
+	source := []byte("# Welcome\n\nHello world.\n")
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en", "page.md")
+	targetPath := filepath.Join(dir, "fr", "page.md")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	key := markdownEntryKeyForValue(t, source, "Hello world.")
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	svc.writeFile = func(path string, _ []byte) error {
+		t.Fatalf("writeFile should not run on AST mismatch, got path %q", path)
+		return nil
+	}
+
+	_, err := svc.flushOutputForTarget(targetPath, stagedOutput{
+		entries: map[string]string{
+			key: "Bonjour monde.\n\n# Injected heading\n",
+		},
+		sourcePath:   sourcePath,
+		targetLocale: "fr",
+	}, nil)
+	if err == nil {
+		t.Fatal("expected markdown AST parity error")
+	}
+	if !strings.Contains(err.Error(), "markdown AST parity mismatch") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestFlushOutputForTargetWrapsWriteError(t *testing.T) {
 	targetPath := filepath.Join(t.TempDir(), "fr.json")
 	sourcePath := filepath.Join(t.TempDir(), "en.json")

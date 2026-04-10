@@ -100,21 +100,48 @@ func TestHasExactKeySet(t *testing.T) {
 	}
 }
 
-func TestMarkdownFlushMergesRenderAndASTParityWarnings(t *testing.T) {
-	src := []byte("# One\n\n## Two\n\n")
-	out := []byte("plain text only\n")
-	path := "/tmp/out/fr/page.md"
-	w1 := markdownRenderWarnings(path, translationfileparser.MarkdownRenderDiagnostics{SourceFallbackKeys: []string{"md.aaa"}})
-	w2 := translationfileparser.MarkdownASTParityWarnings(src, out, "/en/page.md", path)
-	merged := append(append([]string{}, w1...), w2...)
-	if len(merged) < 2 {
-		t.Fatalf("expected render + AST warnings, got %#v", merged)
+func markdownEntryKeyForValue(t *testing.T, content []byte, want string) string {
+	t.Helper()
+	entries, err := translationfileparser.MarkdownParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse markdown: %v", err)
 	}
-	if !strings.Contains(merged[0], "fell back to source") {
-		t.Fatalf("expected render warning first: %q", merged[0])
+	for k, v := range entries {
+		if v == want {
+			return k
+		}
 	}
-	if !strings.Contains(merged[1], "markdown AST parity") {
-		t.Fatalf("expected AST parity warning: %q", merged[1])
+	t.Fatalf("no markdown entry with value %q, got %#v", want, entries)
+	panic("unreachable")
+}
+
+func TestMarshalMarkdownTargetMarkdownASTParityError(t *testing.T) {
+	source := []byte("# Welcome\n\nHello world.\n")
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en", "page.md")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	targetPath := filepath.Join(dir, "fr", "page.md")
+	key := markdownEntryKeyForValue(t, source, "Hello world.")
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+
+	_, _, err := svc.marshalMarkdownTarget(targetPath, sourcePath, map[string]string{
+		key: "Bonjour monde.\n\n# Injected heading\n",
+	})
+	if err == nil {
+		t.Fatal("expected markdown AST parity error")
+	}
+	if !strings.Contains(err.Error(), "markdown AST parity mismatch") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(err.Error(), targetPath) {
+		t.Fatalf("error should mention target path: %v", err)
 	}
 }
 

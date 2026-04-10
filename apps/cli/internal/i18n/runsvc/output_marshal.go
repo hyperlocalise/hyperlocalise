@@ -135,7 +135,9 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 		if os.IsNotExist(err) {
 			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries, mdx)
 			warnings := markdownRenderWarnings(path, diags)
-			warnings = append(warnings, translationfileparser.MarkdownASTParityWarnings(sourceTemplate, content, sourcePath, path)...)
+			if astErr := markdownASTParityFlushError(path, sourceTemplate, content, sourcePath); astErr != nil {
+				return nil, nil, astErr
+			}
 			return content, warnings, nil
 		}
 		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
@@ -143,8 +145,18 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 
 	content, diags := translationfileparser.MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate, stagedEntries, mdx)
 	warnings := markdownRenderWarnings(path, diags)
-	warnings = append(warnings, translationfileparser.MarkdownASTParityWarnings(sourceTemplate, content, sourcePath, path)...)
+	if astErr := markdownASTParityFlushError(path, sourceTemplate, content, sourcePath); astErr != nil {
+		return nil, nil, astErr
+	}
 	return content, warnings, nil
+}
+
+func markdownASTParityFlushError(targetPath string, sourceTemplate, marshaledContent []byte, sourcePath string) error {
+	msgs := translationfileparser.MarkdownASTParityWarnings(sourceTemplate, marshaledContent, sourcePath, targetPath)
+	if len(msgs) == 0 {
+		return nil
+	}
+	return fmt.Errorf("flush outputs: markdown AST parity mismatch for %q: %s", targetPath, strings.Join(msgs, "; "))
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
