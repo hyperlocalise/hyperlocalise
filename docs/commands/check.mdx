@@ -18,7 +18,7 @@ Each check has a **severity** (`error` or `warning`) in the report JSON and in *
 - `not_localized`: target key is missing or the target value is empty (after trimming)
 - `missing_target_file`: resolved target file does not exist
 - `placeholder_mismatch`: placeholders differ from the source
-- `html_tag_mismatch`: HTML tag structure differs from the source
+- `html_tag_mismatch`: inline HTML tag **names** (known elements from the HTML tokenizer’s tag set) differ in sequence between source and target. Angle-bracket text in paths or docs—such as `&lt;name&gt;` in `llm.profiles.&lt;name&gt;.provider`—does not count as HTML for this check
 - `icu_shape_mismatch`: ICU structure differs from the source or is malformed (non-markdown files)
 - `markdown_ast_mismatch`: markdown or MDX document structure differs from the source (heading/component tree parity)
 
@@ -40,7 +40,7 @@ Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include
 - `--exclude-check`: skip specific default checks (repeatable)
 - `--format`: output format (`stylish` default, `text`, or `json`). **Stylish** prints ESLint-style diagnostics grouped by file; when stdout is a terminal, severities use color (no color when piped or in typical CI logs).
 - `--output-file`: write the same human or JSON format as stdout to a file
-- `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling)
+- `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling). Findings include `annotationFile` and `annotationLine` when the CLI can map a key to a line. For **`.md` / `.mdx`** segments with keys prefixed `md.`, the line is taken from the markdown/MDX parse order (start of that translatable segment). For other files, resolution falls back to searching for a quoted key fragment or a substring of the segment text in the target file, which can mis-rank lines when the same text appears more than once
 - `--no-fail`: return exit code `0` even when findings exist
 - `--quiet`: omit **warning** findings from stdout, `--output-file`, and `--json-report`; use exit code `0` when the full result would be warnings only. The internal check still runs on all severities; **`--fix`** still plans from the full result (including warnings) so fixable issues are not skipped.
 - `--fix`: after reporting, retranslate **fixable** findings using the same AI pipeline as [`run`](/commands/run) (same config, profiles, and environment variables). Applies to keyed findings of types `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. For **`markdown_ast_mismatch`** on `.md`/`.mdx` files (per-file findings, often without a `key`), `--fix` retranslates **all** aligned segments for that source/target/locale pair so structure can realign. Does not fix `same_as_source` (intentional copy), missing target files, or orphaned keys.

@@ -59,6 +59,20 @@ func MarkdownASTPaths(content []byte, mdx bool) []string {
 	return paths
 }
 
+// LineForMarkdownKey returns the 1-based source line of the first translatable markdown or MDX segment
+// with the given key (for example md.<hash>), or 0 if the key is not present.
+func LineForMarkdownKey(content []byte, mdx bool, key string) int {
+	doc, _ := parseMarkdownDocument(stripBOM(content), mdx)
+	line := 1
+	for _, part := range doc.parts {
+		if part.key == key {
+			return line
+		}
+		line += strings.Count(part.literal, "\n")
+	}
+	return 0
+}
+
 func (d markdownDocument) keyContexts() []markdownKeyContext {
 	out := make([]markdownKeyContext, 0)
 	for i, part := range d.parts {

@@ -1731,6 +1731,42 @@ func findKeyByValue(values map[string]string, needle string) string {
 	return ""
 }
 
+func TestLineForMarkdownKeyMdx(t *testing.T) {
+	content := []byte("---\ntitle: \"T\"\n---\n\n## Section\n\n- Use `bedrock` in `llm.profiles.<name>.provider`.\n")
+	entries, err := (MarkdownParser{MDX: true}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	var listKey string
+	for k, v := range entries {
+		if strings.HasPrefix(strings.TrimSpace(v), "Use ") {
+			listKey = k
+			break
+		}
+	}
+	if listKey == "" {
+		t.Fatalf("expected list item key, got entries=%v", entries)
+	}
+	if got := LineForMarkdownKey(content, true, listKey); got != 7 {
+		t.Fatalf("LineForMarkdownKey: got line %d, want 7", got)
+	}
+}
+
+func TestLineForMarkdownKeyMarkdown(t *testing.T) {
+	content := []byte("# Title\n\nHello world.\n\nSecond paragraph.\n")
+	entries, err := (MarkdownParser{MDX: false}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key := findKeyByValue(entries, "Hello world.")
+	if key == "" {
+		t.Fatalf("expected hello key")
+	}
+	if got := LineForMarkdownKey(content, false, key); got != 3 {
+		t.Fatalf("LineForMarkdownKey: got line %d, want 3", got)
+	}
+}
+
 func TestMarkdownParserParsePlainFrontmatterValues(t *testing.T) {
 	content := []byte("---\ntitle: Hello world\ndescription: A simple guide\ncount: 42\n---\n\nBody text.\n")
 	got, err := (MarkdownParser{}).Parse(content)
