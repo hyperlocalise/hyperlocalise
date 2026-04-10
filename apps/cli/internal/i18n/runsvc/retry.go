@@ -110,8 +110,7 @@ func (s *Service) translateWithValidationStrategy(ctx context.Context, request t
 		}
 		lastValErr, lastOut = vErr, translated
 	}
-
-	return "", fmt.Errorf("translation validation failed after %d attempt(s)", translationValidationMaxAttempts)
+	panic("unreachable")
 }
 
 func buildValidationFixRuntimeContext(baseRuntime string, valErr error, previousOutput string) string {
@@ -128,13 +127,11 @@ func buildValidationFixRuntimeContext(baseRuntime string, valErr error, previous
 }
 
 func (s *Service) translateWithAPIRetries(ctx context.Context, request translator.Request) (string, error) {
-	var lastErr error
 	for attempt := 0; attempt < translationAPIMaxAttempts; attempt++ {
 		translated, err := s.translate(ctx, request)
 		if err == nil {
 			return translated, nil
 		}
-		lastErr = err
 		if !isRetryableTranslateError(err) || attempt+1 >= translationAPIMaxAttempts {
 			return "", fmt.Errorf("translation failed after %d attempts: %w", attempt+1, err)
 		}
@@ -143,10 +140,7 @@ func (s *Service) translateWithAPIRetries(ctx context.Context, request translato
 			return "", fmt.Errorf("translation retry wait interrupted: %w", waitErr)
 		}
 	}
-	if lastErr == nil {
-		return "", nil
-	}
-	return "", fmt.Errorf("translation failed after %d attempts: %w", translationAPIMaxAttempts, lastErr)
+	panic("unreachable")
 }
 
 func buildTranslationRuntimeContext(entryKey, sourceContext, sharedMemory string) string {
