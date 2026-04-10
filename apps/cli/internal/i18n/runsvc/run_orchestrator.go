@@ -115,7 +115,14 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	if cacheSvc != nil {
 		l1Cache = cacheSvc.L1
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter, summaryReportMode)
+	parityRetry := &markdownParityRetryInput{
+		cfg:           cfg,
+		bucket:        in.Bucket,
+		group:         in.Group,
+		targetLocales: in.TargetLocales,
+		sourcePaths:   in.SourcePaths,
+	}
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter, summaryReportMode, parityRetry)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
@@ -133,7 +140,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 
 	emitter.emit(Event{Kind: EventPhase, Phase: PhaseFinalizingOutput})
 	remainingPruneTargets, remainingPruneMetadata := remainingPruneTargets(pruneTargets, pruneMetadata, flushedTargets)
-	flushWarnings, err := s.flushOutputs(staged, remainingPruneTargets, remainingPruneMetadata)
+	flushWarnings, err := s.flushOutputs(ctx, parityRetry, staged, remainingPruneTargets, remainingPruneMetadata)
 	report.Warnings = append(report.Warnings, flushWarnings...)
 	if err != nil {
 		emitter.emit(completedEvent(report))

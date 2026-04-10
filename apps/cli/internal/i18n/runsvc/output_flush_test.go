@@ -1,6 +1,7 @@
 package runsvc
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -84,7 +85,7 @@ func TestFlushOutputsSortedUniqueTargets(t *testing.T) {
 		paths[1]: {"k": {}},
 	}
 
-	_, err := svc.flushOutputs(staged, prune, nil)
+	_, err := svc.flushOutputs(context.Background(), nil, staged, prune, nil)
 	if err != nil {
 		t.Fatalf("flush outputs: %v", err)
 	}
@@ -227,7 +228,7 @@ func TestFlushOutputsPruneOnlyMissingTargetAfterScan(t *testing.T) {
 	}
 	svc.writeFile = func(_ string, _ []byte) error { return nil }
 
-	_, err := svc.flushOutputs(nil, map[string]map[string]struct{}{
+	_, err := svc.flushOutputs(context.Background(), nil, nil, map[string]map[string]struct{}{
 		targetPath: {"hello": {}},
 	}, nil)
 	if err == nil {
@@ -260,7 +261,7 @@ func TestFlushOutputsPruneOnlyUsesPlannedMetadata(t *testing.T) {
 		return nil
 	}
 
-	_, err := svc.flushOutputs(nil, map[string]map[string]struct{}{
+	_, err := svc.flushOutputs(context.Background(), nil, nil, map[string]map[string]struct{}{
 		targetPath: {"hello": {}},
 	}, map[string]stagedOutput{
 		targetPath: {entries: map[string]string{}, sourcePath: sourcePath, sourceLocale: "en", targetLocale: "fr"},

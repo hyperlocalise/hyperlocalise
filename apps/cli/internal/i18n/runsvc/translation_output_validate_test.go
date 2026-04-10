@@ -51,6 +51,21 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			errContains: "placeholder",
 		},
 		{
+			name:        "markdown_single_line_injected_heading",
+			path:        "/en/a.md",
+			source:      "Hello.",
+			translated:  "Bonjour.\n\n# Bad",
+			wantErr:     true,
+			errContains: "structure",
+		},
+		{
+			name:       "markdown_multiline_source_skips_block_heuristic",
+			path:       "/en/a.md",
+			source:     "Line1\nLine2",
+			translated: "L1\n\n# X",
+			wantErr:    false,
+		},
+		{
 			name:       "markdown_skips_icu_even_if_invalid_message_shape",
 			path:       "/en/a.md",
 			source:     "{not, valid icu",

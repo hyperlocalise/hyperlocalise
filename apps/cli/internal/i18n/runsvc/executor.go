@@ -64,6 +64,9 @@ type executorState struct {
 	report               executionReport
 	omitPerEntryBatches  bool
 
+	runCtx      context.Context
+	parityRetry *markdownParityRetryInput
+
 	stageMu   sync.Mutex
 	pendingMu sync.Mutex
 	reportMu  sync.Mutex
@@ -121,7 +124,7 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	return state, nil
 }
 
-func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, l1 cache.ExactCache, emitter *eventEmitter, omitPerEntryBatches bool) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
+func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged map[string]stagedOutput, lockPath string, lockState *lockfile.File, workers int, activeRunID string, pruneTargets map[string]map[string]struct{}, contextPlan contextMemoryPlan, l1 cache.ExactCache, emitter *eventEmitter, omitPerEntryBatches bool, parityRetry *markdownParityRetryInput) (map[string]stagedOutput, map[string]struct{}, executionReport, error) {
 	scheduledTasks := tasks
 	if contextPlan.Enabled {
 		scheduledTasks = interleaveTasksByContextKey(tasks)
@@ -131,6 +134,8 @@ func (s *Service) executePool(ctx context.Context, tasks []Task, initialStaged m
 	if err != nil {
 		return nil, nil, executionReport{}, err
 	}
+	state.runCtx = ctx
+	state.parityRetry = parityRetry
 
 	if contextPlan.Enabled {
 		if err := s.precomputeContextMemory(ctx, state, emitter, workers); err != nil {
@@ -422,7 +427,6 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 	if remaining == 0 {
 		if _, done := state.flushedTargets[targetPath]; !done {
 			shouldFlush = true
-			state.flushedTargets[targetPath] = struct{}{}
 			if knownSourcePath := state.sourceByTarget[targetPath]; knownSourcePath != "" {
 				expectedSourcePath = knownSourcePath
 			}
@@ -440,9 +444,6 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 
 	state.stageMu.Lock()
 	output, ok := state.staged[targetPath]
-	if ok {
-		delete(state.staged, targetPath)
-	}
 	state.stageMu.Unlock()
 
 	if !ok {
@@ -457,10 +458,26 @@ func (s *Service) flushIfTargetCompleted(targetPath, sourcePath string, state *e
 		output.targetLocale = expectedTargetLocale
 	}
 
-	warnings, err := s.flushOutputForTarget(targetPath, output, state.pruneTargets[targetPath])
+	ctx := state.runCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	warnings, err := s.flushOutputForTargetWithMarkdownParityRetry(ctx, state.parityRetry, targetPath, output, state.pruneTargets[targetPath])
 	if err != nil {
+		state.stageMu.Lock()
+		delete(state.staged, targetPath)
+		state.stageMu.Unlock()
 		return err
 	}
+
+	state.stageMu.Lock()
+	delete(state.staged, targetPath)
+	state.stageMu.Unlock()
+
+	state.pendingMu.Lock()
+	state.flushedTargets[targetPath] = struct{}{}
+	state.pendingMu.Unlock()
+
 	if len(warnings) > 0 {
 		state.reportMu.Lock()
 		state.report.Warnings = append(state.report.Warnings, warnings...)

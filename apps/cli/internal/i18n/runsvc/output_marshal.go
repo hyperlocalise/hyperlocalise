@@ -152,11 +152,10 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 }
 
 func markdownASTParityFlushError(targetPath string, sourceTemplate, marshaledContent []byte, sourcePath string) error {
-	msgs := translationfileparser.MarkdownASTParityWarnings(sourceTemplate, marshaledContent, sourcePath, targetPath)
-	if len(msgs) == 0 {
-		return nil
+	if err := translationfileparser.ValidateMarkdownMarshaledASTParity(sourceTemplate, marshaledContent, sourcePath, targetPath); err != nil {
+		return fmt.Errorf("flush outputs: markdown AST parity mismatch for %q: %w", targetPath, err)
 	}
-	return fmt.Errorf("flush outputs: markdown AST parity mismatch for %q: %s", targetPath, strings.Join(msgs, "; "))
+	return nil
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
