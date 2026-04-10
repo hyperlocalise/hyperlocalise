@@ -30,7 +30,7 @@ func (s *Service) flushOutputForTargetWithMarkdownParityRetry(ctx context.Contex
 		return warn, err
 	}
 	if rerr := s.retryMarkdownASTParityScope(ctx, retry, targetPath, output, pe.Messages); rerr != nil {
-		return nil, fmt.Errorf("%w: scope parity retry: %v", err, rerr)
+		return nil, fmt.Errorf("markdown AST parity scope retry failed for %q: %w", targetPath, rerr)
 	}
 	return s.flushOutputForTarget(targetPath, output, keep)
 }

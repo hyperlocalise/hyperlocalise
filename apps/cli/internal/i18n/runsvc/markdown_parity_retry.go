@@ -75,8 +75,5 @@ func (s *Service) retryMarkdownASTParityScope(ctx context.Context, in *markdownP
 		}
 		return lastMarshalErr
 	}
-	if lastMarshalErr == nil {
-		return errors.New("markdown parity retry: exhausted passes without marshal error")
-	}
 	return fmt.Errorf("markdown parity retry exhausted after %d passes: %w", markdownParityScopeMaxPasses, lastMarshalErr)
 }
