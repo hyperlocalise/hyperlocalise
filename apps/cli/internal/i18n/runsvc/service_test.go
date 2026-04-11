@@ -494,6 +494,69 @@ func TestRunDoesNotSkipWhenSourceTextChanges(t *testing.T) {
 	}
 }
 
+func TestRunTranslatesOnlyModifiedKeyForJSONWithLockState(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"title":"Title","cta":"New CTA"}`), nil
+		case targetPath:
+			return []byte(`{"title":"Titre","cta":"Ancien CTA"}`), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) {
+		return &lockfile.File{RunCompleted: map[string]lockfile.RunCompletion{
+			taskIdentity(targetPath, "title"): {SourceHash: hashSourceText("Title")},
+			taskIdentity(targetPath, "cta"):   {SourceHash: hashSourceText("Old CTA")},
+		}}, nil
+	}
+
+	var translated []string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translated = append(translated, req.Source)
+		return "Nouvel CTA", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.SkippedByLock != 1 || report.ExecutableTotal != 1 {
+		t.Fatalf("expected one lock skip and one executable task, got %+v", report)
+	}
+	if len(translated) != 1 || translated[0] != "New CTA" {
+		t.Fatalf("expected only modified key translation call, got %v", translated)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(written, &payload); err != nil {
+		t.Fatalf("decode written json: %v", err)
+	}
+	if payload["title"] != "Titre" {
+		t.Fatalf("expected unchanged key preserved, got %q", payload["title"])
+	}
+	if payload["cta"] != "Nouvel CTA" {
+		t.Fatalf("expected modified key translated, got %q", payload["cta"])
+	}
+}
+
 func TestRunForceBypassesLockFilter(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"
