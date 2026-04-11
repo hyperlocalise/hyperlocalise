@@ -63,15 +63,6 @@ func (p *Processor) buildFileOutcome(
 		return "", nil, time.Time{}, permanentErrorf("parse source file: %w", err)
 	}
 
-	existingVariants, err := p.repository.ListFileVariants(ctx, sourceFile.ID)
-	if err != nil {
-		return "", nil, time.Time{}, retryableErrorf("list existing file variants: %w", err)
-	}
-	existingVariantByLocale := make(map[string]store.TranslationFileVariantModel, len(existingVariants))
-	for _, variant := range existingVariants {
-		existingVariantByLocale[variant.Locale] = variant
-	}
-
 	checkpoint, err := decodeFileCheckpoint(job.CheckpointPayload)
 	if err != nil {
 		return "", nil, time.Time{}, permanentErrorf("decode file checkpoint: %w", err)
@@ -82,12 +73,7 @@ func (p *Processor) buildFileOutcome(
 			continue
 		}
 
-		existingTranslatedEntries, existingErr := p.loadExistingTranslatedEntries(ctx, adapter, sourceFile.Path, existingVariantByLocale[locale])
-		if existingErr != nil {
-			return "", nil, time.Time{}, retryableErrorf("load locale %q existing translation: %w", locale, existingErr)
-		}
-
-		translatedEntries, translateErr := p.translateFileEntries(ctx, job.ProjectID, sourceEntries, entryContext, input, locale, existingTranslatedEntries)
+		translatedEntries, translateErr := p.translateFileEntries(ctx, job.ProjectID, sourceEntries, entryContext, input, locale)
 		if translateErr != nil {
 			return "", nil, time.Time{}, retryableErrorf("translate locale %q: %w", locale, translateErr)
 		}
@@ -158,7 +144,6 @@ func (p *Processor) translateFileEntries(
 	entryContext map[string]string,
 	input *translationv1.FileTranslationJobInput,
 	targetLocale string,
-	existingTranslatedEntries map[string]string,
 ) (map[string]string, error) {
 	keys := make([]string, 0, len(sourceEntries))
 	for key := range sourceEntries {
@@ -178,11 +163,6 @@ func (p *Processor) translateFileEntries(
 	}
 
 	for _, key := range keys {
-		if existing, ok := existingTranslatedEntries[key]; ok && strings.TrimSpace(existing) != "" {
-			out[key] = existing
-			continue
-		}
-
 		metadata := cloneMetadata(input.GetMetadata())
 		metadata["file_entry_key"] = key
 		if contextValue := strings.TrimSpace(entryContext[key]); contextValue != "" {
@@ -203,34 +183,6 @@ func (p *Processor) translateFileEntries(
 		out[key] = text
 	}
 	return out, nil
-}
-
-func (p *Processor) loadExistingTranslatedEntries(
-	ctx context.Context,
-	adapter fileFormatAdapter,
-	filePath string,
-	variant store.TranslationFileVariantModel,
-) (map[string]string, error) {
-	if strings.TrimSpace(variant.ID) == "" {
-		return map[string]string{}, nil
-	}
-
-	targetBytes, err := p.objectStore.GetObject(ctx, objectstore.GetRequest{
-		Object: objectstore.ObjectRef{
-			Driver: variant.StorageDriver,
-			Bucket: variant.Bucket,
-			Key:    variant.ObjectKey,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("download existing artifact: %w", err)
-	}
-
-	existingEntries, _, err := adapter.Parse(filePath, targetBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parse existing artifact: %w", err)
-	}
-	return existingEntries, nil
 }
 
 func decodeFileCheckpoint(payload []byte) (*fileCheckpoint, error) {
