@@ -44,21 +44,9 @@ description: "hyperlocalise i18n 配置架构的简明参考。"
 ## `cache`
 
 - `enabled` 布尔值
-- `db_path` 字符串
-- `sqlite.max_open_conns` 整数
-- `sqlite.max_idle_conns` 整数
-- `sqlite.conn_max_lifetime_seconds` 整数
-- `l1.enabled` 布尔值
-- `l1.max_items` 整数
-- `l2.enabled` 布尔值
-- `l2.auto_accept_threshold` 位于 `[0,1]` 中的数字
-- `rag.enabled` 布尔值
-- `rag.top_k` 整数
-
-缓存使用的 TM 元数据值：
-
-- 出处：`curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `endpoint` 字符串
+- `project_key_env` 字符串
+- `timeout_seconds` 整数
 
 有关示例，请参见 [i18n config](/configuration/i18n-config)。
 

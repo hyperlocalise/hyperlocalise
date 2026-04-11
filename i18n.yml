@@ -151,19 +151,9 @@ llm:
       group: tests
       profile: ollama
 
-# Optional local cache foundation for run pipeline (disabled by default).
+# Optional remote caching client config for the run pipeline.
 # cache:
 #   enabled: true
-#   db_path: .hyperlocalise/cache/cache.sqlite
-#   sqlite:
-#     max_open_conns: 1
-#     max_idle_conns: 1
-#     conn_max_lifetime_seconds: 300
-#   l1:
-#     enabled: true
-#     max_items: 50000
-#   l2:
-#     enabled: true
-#   rag:
-#     enabled: false
-#     top_k: 5
+#   endpoint: dns:///cache.internal:443
+#   project_key_env: HYPERLOCALISE_CACHE_PROJECT_KEY
+#   timeout_seconds: 5

@@ -276,7 +276,7 @@ export const translationGlossaryTerms = pgTable(
 export const translationMemories = pgTable(
   "translation_memories",
   {
-    // Stable translation memory container identifier.
+    // Stable remote cache container identifier.
     id: uuid("id").defaultRandom().primaryKey(),
     // Tenant that owns this TM library.
     organizationId: uuid("organization_id")
@@ -414,7 +414,7 @@ export const translationProjectMemories = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => translationProjects.id, { onDelete: "cascade" }),
-    // Attached translation memory library.
+    // Attached remote cache library.
     translationMemoryId: uuid("translation_memory_id")
       .notNull()
       .references(() => translationMemories.id, { onDelete: "cascade" }),

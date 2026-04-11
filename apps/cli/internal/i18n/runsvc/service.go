@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/cache"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
@@ -172,13 +171,9 @@ type Task struct {
 	SourceContext   string `json:"-"`
 	ParserMode      string `json:"-"`
 	PromptVersion   string `json:"-"`
-	GlossaryVersion string `json:"-"`
-	RAGSnapshot     string `json:"-"`
 
-	sourceTextHash            string
-	sourceContextFingerprint  string
-	contextMemoryFingerprint  string
-	stableExactCacheKeyPrefix string
+	sourceTextHash           string
+	sourceContextFingerprint string
 }
 
 type Failure struct {
@@ -237,7 +232,6 @@ type Service struct {
 	writeFile  func(path string, content []byte) error
 	translate  func(ctx context.Context, req translator.Request) (string, error)
 	newParser  func() *translationfileparser.Strategy
-	newCache   func(cfg config.CacheConfig) (*cache.Service, error)
 	now        func() time.Time
 	numCPU     func() int
 
@@ -256,7 +250,6 @@ func New() *Service {
 		},
 		translate: translator.Translate,
 		newParser: translationfileparser.NewDefaultStrategy,
-		newCache:  cache.NewFromConfig,
 		now:       func() time.Time { return time.Now().UTC() },
 		numCPU:    runtime.NumCPU,
 
@@ -277,8 +270,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 	buckets := sortedBucketNames(cfg.Buckets)
 	filteredBucket := strings.TrimSpace(onlyBucket)
 	filteredGroup := strings.TrimSpace(onlyGroup)
-	glossaryVersion := resolveGlossaryVersion(cfg)
-	ragSnapshot := resolveRetrievalSnapshot(cfg)
 	filteredTargets, err := normalizeTargetLocales(onlyTargetLocales)
 	if err != nil {
 		return nil, nil, fmt.Errorf("planning tasks: %w", err)
@@ -434,8 +425,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								BucketName:           bucketName,
 								ParserMode:           parserMode,
 								PromptVersion:        promptVersion,
-								GlossaryVersion:      glossaryVersion,
-								RAGSnapshot:          ragSnapshot,
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
@@ -585,35 +574,12 @@ func intersectLocales(locales, selected []string) []string {
 	return intersection
 }
 
-func resolveGlossaryVersion(cfg *config.I18NConfig) string {
-	version := strings.TrimSpace(cfg.Cache.GlossaryTermbaseVersion)
-	if version == "" {
-		return "none"
-	}
-	return version
-}
-
 func resolvePromptVersion(profile config.LLMProfile) string {
 	return hashSourceText(strings.Join([]string{
 		"prompt_template=" + strings.TrimSpace(profile.Prompt),
 		"system_template=" + strings.TrimSpace(profile.SystemPrompt),
 		"user_template=" + strings.TrimSpace(profile.UserPrompt),
 	}, "\n"))
-}
-
-func resolveRetrievalSnapshot(cfg *config.I18NConfig) string {
-	version := strings.TrimSpace(cfg.Cache.RetrievalCorpusSnapshotVersion)
-	if version != "" {
-		return version
-	}
-	parts := []string{
-		"snapshot=none",
-		"rag_enabled=" + fmt.Sprintf("%t", cfg.Cache.RAG.Enabled),
-	}
-	if cfg.Cache.RAG.Enabled {
-		parts = append(parts, "rag_top_k="+fmt.Sprintf("%d", cfg.Cache.RAG.TopK))
-	}
-	return hashSourceText(strings.Join(parts, "\n"))
 }
 
 func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, map[string]string, string, error) {

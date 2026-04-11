@@ -97,7 +97,7 @@ When writing CSV targets, `run` preserves the existing header and non-target col
 - Context-memory summary flow always uses the built-in summary payload template and does not apply profile `user_prompt` override.
 
 <Note>
-Changing prompt structure (e.g. moving context from the user message to the system message) does not automatically invalidate cached translations. To force re-translation after a prompt restructure, bump the `prompt_version` in your profile.
+Changing prompt structure (e.g. moving context from the user message to the system message) does not automatically invalidate remote cache entries. To force re-translation after a prompt restructure, bump the `prompt_version` in your profile.
 </Note>
 
 ### Progress debug logging (optional)
@@ -120,8 +120,8 @@ flowchart TD
     A["Plan tasks"] --> B{"Context memory enabled?"}
     B -- "No" --> T["Translate entry immediately"]
     B -- "Yes" --> C["Resolve scope key (file/bucket/group)"]
-    C --> D{"Memory already cached for scope?"}
-    D -- "Yes" --> E["Reuse cached memory"]
+    C --> D{"Memory already available for scope?"}
+    D -- "Yes" --> E["Reuse scope memory"]
     D -- "No" --> F["Build context memory via configured LLM provider"]
     F --> G{"Success?"}
     G -- "Yes" --> H["Cache memory for scope"]
@@ -134,7 +134,7 @@ flowchart TD
 ### Why it can appear to wait
 
 - First entry in a new scope waits for memory generation to finish.
-- Later entries in the same scope reuse cached memory and proceed without rebuilding.
+- Later entries in the same scope reuse the existing scope memory and proceed without rebuilding.
 - Progress UI now shows context-memory steps in the file list so you can see active scope-level work.
 
 

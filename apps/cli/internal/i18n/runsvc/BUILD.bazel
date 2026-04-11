@@ -6,7 +6,6 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc",
     visibility = ["//visibility:public"],
     deps = [
-        "//apps/cli/internal/i18n/cache",
         "//apps/cli/internal/i18n/lockfile",
         "//apps/cli/internal/i18n/pathresolver",
         "//internal/i18n/htmltagparity",

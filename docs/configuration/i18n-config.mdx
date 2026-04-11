@@ -114,19 +114,12 @@ Prompt variables:
 
 ## Cache
 
-`cache` configures local L1/L2 behavior.
+`cache` configures the remote caching client.
 
-- `enabled` (optional): enable cache service.
-- `db_path` (optional): sqlite path for cache DB.
-- `sqlite` (optional): connection tuning.
-- `l1.max_items` (optional): L1 eviction cap.
-- `l2.enabled` (optional): enable translation memory lookup/upsert.
-- `l2.auto_accept_threshold` (optional): fuzzy auto-accept threshold in `[0,1]` (default `0.90`).
-
-TM metadata enums:
-
-- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `enabled` (optional): enable remote caching for `run`.
+- `endpoint` (optional unless `enabled=true`): remote cache service endpoint.
+- `project_key_env` (optional unless `enabled=true`): environment variable that contains the project cache key.
+- `timeout_seconds` (optional): remote cache request timeout in seconds.
 
 ## Advanced example
 
@@ -189,20 +182,9 @@ llm:
 
 cache:
   enabled: true
-  db_path: .hyperlocalise/cache/cache.sqlite
-  sqlite:
-    max_open_conns: 1
-    max_idle_conns: 1
-    conn_max_lifetime_seconds: 300
-  l1:
-    enabled: true
-    max_items: 50000
-  l2:
-    enabled: true
-    auto_accept_threshold: 0.9
-  rag:
-    enabled: false
-    top_k: 5
+  endpoint: dns:///cache.internal:443
+  project_key_env: HYPERLOCALISE_CACHE_PROJECT_KEY
+  timeout_seconds: 5
 ```
 
 ## Generate a starter

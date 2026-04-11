@@ -1,6 +1,6 @@
 # Minimal starter config.
 # Read this file top-to-bottom: locales -> buckets -> llm.
-# This starter intentionally skips advanced sections like groups, rules, and cache.
+# This starter intentionally skips advanced sections like groups, rules, and remote cache config.
 # When groups are omitted, Hyperlocalise runs all buckets for all target locales.
 locales:
   # Source locale: the language your original content is written in.

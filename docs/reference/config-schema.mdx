@@ -44,21 +44,9 @@ description: "Concise reference for the hyperlocalise i18n config schema."
 ## `cache`
 
 - `enabled` boolean
-- `db_path` string
-- `sqlite.max_open_conns` integer
-- `sqlite.max_idle_conns` integer
-- `sqlite.conn_max_lifetime_seconds` integer
-- `l1.enabled` boolean
-- `l1.max_items` integer
-- `l2.enabled` boolean
-- `l2.auto_accept_threshold` number in `[0,1]`
-- `rag.enabled` boolean
-- `rag.top_k` integer
-
-TM metadata values used by cache:
-
-- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `endpoint` string
+- `project_key_env` string
+- `timeout_seconds` integer
 
 For examples, see [i18n config](/configuration/i18n-config).
 

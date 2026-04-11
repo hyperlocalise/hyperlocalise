@@ -114,19 +114,12 @@ Biến nhắc:
 
 ## Bộ nhớ đệm
 
-`cache` cấu hình hành vi L1/L2 cục bộ.
+`cache` cấu hình client bộ nhớ đệm từ xa.
 
-- `enabled` (tùy chọn): bật dịch vụ bộ nhớ đệm.
-- `db_path` (tùy chọn): đường dẫn sqlite cho DB cache.
-- `sqlite` (tùy chọn): tinh chỉnh kết nối.
-- `l1.max_items` (tùy chọn): giới hạn buộc xóa L1.
-- `l2.enabled` (tùy chọn): bật tra cứu/cập nhật bộ nhớ dịch.
-- `l2.auto_accept_threshold` (tùy chọn): ngưỡng tự động chấp nhận mờ trong `[0,1]` (mặc định `0.90`).
-
-Enum metadata TM:
-
-- nguồn gốc: `curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `enabled` (tùy chọn): bật bộ nhớ đệm từ xa cho `run`.
+- `endpoint` (bắt buộc khi `enabled=true`): endpoint của dịch vụ bộ nhớ đệm từ xa.
+- `project_key_env` (bắt buộc khi `enabled=true`): tên biến môi trường chứa khóa cache của dự án.
+- `timeout_seconds` (tùy chọn): thời gian chờ yêu cầu bộ nhớ đệm từ xa, tính bằng giây.
 
 ## Ví dụ nâng cao
 
@@ -189,20 +182,9 @@ llm:
 
 cache:
   enabled: true
-  db_path: .hyperlocalise/cache/cache.sqlite
-  sqlite:
-    max_open_conns: 1
-    max_idle_conns: 1
-    conn_max_lifetime_seconds: 300
-  l1:
-    enabled: true
-    max_items: 50000
-  l2:
-    enabled: true
-    auto_accept_threshold: 0.9
-  rag:
-    enabled: false
-    top_k: 5
+  endpoint: dns:///cache.internal:443
+  project_key_env: HYPERLOCALISE_CACHE_PROJECT_KEY
+  timeout_seconds: 5
 ```
 
 ## Tạo một mẫu khởi đầu

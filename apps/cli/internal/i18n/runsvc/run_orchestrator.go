@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/cache"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
@@ -32,18 +31,8 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	if err != nil {
 		return Report{}, fmt.Errorf("load config: %w", err)
 	}
-	var cacheSvc *cache.Service
-	if s.newCache != nil {
-		var cacheErr error
-		cacheSvc, cacheErr = s.newCache(cfg.Cache)
-		if cacheErr != nil {
-			return Report{}, fmt.Errorf("initialize cache service: %w", cacheErr)
-		}
-		defer func() {
-			if cacheSvc != nil {
-				_ = cacheSvc.Close()
-			}
-		}()
+	if cfg.Cache.Enabled {
+		return Report{}, fmt.Errorf("remote cache client not yet implemented")
 	}
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
@@ -111,10 +100,6 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 			activeRunID = state.ActiveRunID
 		}
 	}
-	var l1Cache cache.ExactCache
-	if cacheSvc != nil {
-		l1Cache = cacheSvc.L1
-	}
 	parityRetry := &markdownParityRetryInput{
 		cfg:           cfg,
 		bucket:        in.Bucket,
@@ -122,7 +107,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		targetLocales: in.TargetLocales,
 		sourcePaths:   in.SourcePaths,
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter, summaryReportMode, parityRetry)
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
@@ -212,7 +197,8 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := lockStoredFingerprint(task.SourceText)
 		taskHash := lockTaskHash(task)
-		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash) {
+		legacyTaskHash := legacyDefaultLockTaskHash(task)
+		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash, legacyTaskHash) {
 			if strings.TrimSpace(cp.TaskHash) == "" {
 				cp.TaskHash = taskHash
 				checkpoints[identity] = cp
@@ -222,7 +208,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 			}
 		}
-		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash) {
+		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash, legacyTaskHash) {
 			if strings.TrimSpace(c.TaskHash) == "" {
 				c.TaskHash = taskHash
 				completed[identity] = c
@@ -247,16 +233,18 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash, legacyTaskHash string) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
-		return lockFingerprintEqual(completion.TaskHash, taskHash)
+		return lockFingerprintEqual(completion.TaskHash, taskHash) ||
+			lockFingerprintEqual(completion.TaskHash, legacyTaskHash)
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash, legacyTaskHash string) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
-		return lockFingerprintEqual(checkpoint.TaskHash, taskHash)
+		return lockFingerprintEqual(checkpoint.TaskHash, taskHash) ||
+			lockFingerprintEqual(checkpoint.TaskHash, legacyTaskHash)
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }

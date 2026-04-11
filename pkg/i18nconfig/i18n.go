@@ -15,26 +15,20 @@ import (
 )
 
 const (
-	defaultConfigYAMLPath             = "i18n.yml"
-	defaultConfigJSONCPath            = "i18n.jsonc"
-	DefaultCacheDBPath                = ".hyperlocalise/cache/cache.sqlite"
-	DefaultCacheMaxOpen               = 1
-	DefaultCacheMaxIdle               = 1
-	DefaultCacheMaxLifeSec            = 300
-	DefaultCacheL1MaxItems            = 50000
-	DefaultCacheL2AutoAcceptThreshold = 0.90
-	DefaultCacheRAGTopK               = 5
-	llmProviderOpenAI                 = "openai"
-	llmProviderAzureOpenAI            = "azure_openai"
-	llmProviderAnthropic              = "anthropic"
-	llmProviderLMStudio               = "lmstudio"
-	llmProviderGroq                   = "groq"
-	llmProviderMistral                = "mistral"
-	llmProviderOllama                 = "ollama"
-	llmProviderGemini                 = "gemini"
-	llmProviderBedrock                = "bedrock"
-	llmDefaultProfile                 = "default"
-	defaultGroupName                  = "default"
+	defaultConfigYAMLPath  = "i18n.yml"
+	defaultConfigJSONCPath = "i18n.jsonc"
+	DefaultCacheTimeoutSec = 5
+	llmProviderOpenAI      = "openai"
+	llmProviderAzureOpenAI = "azure_openai"
+	llmProviderAnthropic   = "anthropic"
+	llmProviderLMStudio    = "lmstudio"
+	llmProviderGroq        = "groq"
+	llmProviderMistral     = "mistral"
+	llmProviderOllama      = "ollama"
+	llmProviderGemini      = "gemini"
+	llmProviderBedrock     = "bedrock"
+	llmDefaultProfile      = "default"
+	defaultGroupName       = "default"
 )
 
 // I18NConfig defines the i18n configuration file structure.
@@ -106,36 +100,12 @@ type StorageConfig struct {
 	Config  json.RawMessage `json:"config,omitempty"`
 }
 
-// CacheConfig configures local cache foundation (L1/L2/RAG wiring + SQLite bootstrap).
+// CacheConfig configures the remote caching service client.
 type CacheConfig struct {
-	Enabled                        bool                 `json:"enabled,omitempty"`
-	DBPath                         string               `json:"db_path,omitempty"`
-	SQLite                         CacheSQLiteConfig    `json:"sqlite,omitempty"`
-	L1                             CacheTierConfig      `json:"l1,omitempty"`
-	L2                             CacheTierConfig      `json:"l2,omitempty"`
-	RAG                            CacheRetrieverConfig `json:"rag,omitempty"`
-	GlossaryTermbaseVersion        string               `json:"glossary_termbase_version,omitempty"`
-	RetrievalCorpusSnapshotVersion string               `json:"retrieval_corpus_snapshot_version,omitempty"`
-}
-
-// CacheSQLiteConfig controls sqlite connection pool tuning.
-type CacheSQLiteConfig struct {
-	MaxOpenConns    int `json:"max_open_conns,omitempty"`
-	MaxIdleConns    int `json:"max_idle_conns,omitempty"`
-	ConnMaxLifetime int `json:"conn_max_lifetime_seconds,omitempty"`
-}
-
-// CacheTierConfig configures a cache tier toggle and capacity hints.
-type CacheTierConfig struct {
-	Enabled             bool    `json:"enabled,omitempty"`
-	MaxItems            int     `json:"max_items,omitempty"`
-	AutoAcceptThreshold float64 `json:"auto_accept_threshold,omitempty"`
-}
-
-// CacheRetrieverConfig configures optional retrieval augmentation settings.
-type CacheRetrieverConfig struct {
-	Enabled bool `json:"enabled,omitempty"`
-	TopK    int  `json:"top_k,omitempty"`
+	Enabled        bool   `json:"enabled,omitempty"`
+	Endpoint       string `json:"endpoint,omitempty"`
+	ProjectKeyEnv  string `json:"project_key_env,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 
 // Load parses and validates i18n configuration from path.
@@ -167,11 +137,7 @@ func Load(path string) (*I18NConfig, error) {
 		return nil, err
 	}
 
-	autoAcceptThresholdSet, err := hasExplicitCacheL2AutoAcceptThreshold(jsonContent)
-	if err != nil {
-		return nil, err
-	}
-	cfg.applyDefaults(autoAcceptThresholdSet)
+	cfg.applyDefaults()
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate i18n config: %w", err)
@@ -274,25 +240,9 @@ func (c I18NConfig) Validate() error {
 	return nil
 }
 
-func hasExplicitCacheL2AutoAcceptThreshold(content []byte) (bool, error) {
-	type cacheL2Config struct {
-		Cache struct {
-			L2 struct {
-				AutoAcceptThreshold *float64 `json:"auto_accept_threshold"`
-			} `json:"l2"`
-		} `json:"cache"`
-	}
-
-	var cfg cacheL2Config
-	if err := json.Unmarshal(content, &cfg); err != nil {
-		return false, fmt.Errorf("decode i18n config defaults: %w", err)
-	}
-	return cfg.Cache.L2.AutoAcceptThreshold != nil, nil
-}
-
-func (c *I18NConfig) applyDefaults(autoAcceptThresholdSet bool) {
+func (c *I18NConfig) applyDefaults() {
 	c.applyDefaultGroups()
-	c.Cache.applyDefaults(autoAcceptThresholdSet)
+	c.Cache.applyDefaults()
 }
 
 func (c *I18NConfig) applyDefaultGroups() {
@@ -314,27 +264,9 @@ func (c *I18NConfig) applyDefaultGroups() {
 	}
 }
 
-func (c *CacheConfig) applyDefaults(autoAcceptThresholdSet bool) {
-	if strings.TrimSpace(c.DBPath) == "" {
-		c.DBPath = DefaultCacheDBPath
-	}
-	if c.SQLite.MaxOpenConns == 0 {
-		c.SQLite.MaxOpenConns = DefaultCacheMaxOpen
-	}
-	if c.SQLite.MaxIdleConns == 0 {
-		c.SQLite.MaxIdleConns = DefaultCacheMaxIdle
-	}
-	if c.SQLite.ConnMaxLifetime == 0 {
-		c.SQLite.ConnMaxLifetime = DefaultCacheMaxLifeSec
-	}
-	if c.L1.MaxItems == 0 {
-		c.L1.MaxItems = DefaultCacheL1MaxItems
-	}
-	if c.L2.AutoAcceptThreshold < 0 || (!autoAcceptThresholdSet && c.L2.AutoAcceptThreshold == 0) {
-		c.L2.AutoAcceptThreshold = DefaultCacheL2AutoAcceptThreshold
-	}
-	if c.RAG.TopK == 0 {
-		c.RAG.TopK = DefaultCacheRAGTopK
+func (c *CacheConfig) applyDefaults() {
+	if c.Enabled && c.TimeoutSeconds == 0 {
+		c.TimeoutSeconds = DefaultCacheTimeoutSec
 	}
 }
 
@@ -702,26 +634,17 @@ func (c I18NConfig) validateStorage() error {
 }
 
 func (c I18NConfig) validateCache() error {
-	if strings.TrimSpace(c.Cache.DBPath) == "" {
-		return fmt.Errorf("cache.db_path: must not be empty")
+	if !c.Cache.Enabled {
+		return nil
 	}
-	if c.Cache.SQLite.MaxOpenConns < 0 {
-		return fmt.Errorf("cache.sqlite.max_open_conns: must be >= 0")
+	if strings.TrimSpace(c.Cache.Endpoint) == "" {
+		return fmt.Errorf("cache.endpoint: must not be empty")
 	}
-	if c.Cache.SQLite.MaxIdleConns < 0 {
-		return fmt.Errorf("cache.sqlite.max_idle_conns: must be >= 0")
+	if strings.TrimSpace(c.Cache.ProjectKeyEnv) == "" {
+		return fmt.Errorf("cache.project_key_env: must not be empty")
 	}
-	if c.Cache.SQLite.ConnMaxLifetime < 0 {
-		return fmt.Errorf("cache.sqlite.conn_max_lifetime_seconds: must be >= 0")
-	}
-	if c.Cache.L1.MaxItems < 0 {
-		return fmt.Errorf("cache.l1.max_items: must be >= 0")
-	}
-	if c.Cache.L2.AutoAcceptThreshold < 0 || c.Cache.L2.AutoAcceptThreshold > 1 {
-		return fmt.Errorf("cache.l2.auto_accept_threshold: must be between 0 and 1")
-	}
-	if c.Cache.RAG.TopK < 0 {
-		return fmt.Errorf("cache.rag.top_k: must be >= 0")
+	if c.Cache.TimeoutSeconds < 0 {
+		return fmt.Errorf("cache.timeout_seconds: must be >= 0")
 	}
 	return nil
 }

@@ -114,19 +114,12 @@ llm:
 
 ## 缓存
 
-`cache` 配置本地 L1/L2 行为。
+`cache` 配置远程缓存客户端。
 
-- `enabled`（可选）：启用缓存服务。
-- `db_path`（可选）：缓存数据库的 sqlite 路径。
-- `sqlite`（可选）：连接调优。
-- `l1.max_items`（可选）：L1 驱逐上限。
-- `l2.enabled`（可选）：启用翻译记忆检索/更新。
-- `l2.auto_accept_threshold`（可选）：`[0,1]`中的模糊自动接受阈值（默认`0.90`）。
-
-TM 元数据枚举：
-
-- 来源：`curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `enabled`（可选）：为 `run` 启用远程缓存。
+- `endpoint`（当 `enabled=true` 时必填）：远程缓存服务端点。
+- `project_key_env`（当 `enabled=true` 时必填）：保存项目缓存密钥的环境变量名。
+- `timeout_seconds`（可选）：远程缓存请求超时时间（秒）。
 
 ## 高级示例
 
@@ -189,20 +182,9 @@ llm:
 
 cache:
   enabled: true
-  db_path: .hyperlocalise/cache/cache.sqlite
-  sqlite:
-    max_open_conns: 1
-    max_idle_conns: 1
-    conn_max_lifetime_seconds: 300
-  l1:
-    enabled: true
-    max_items: 50000
-  l2:
-    enabled: true
-    auto_accept_threshold: 0.9
-  rag:
-    enabled: false
-    top_k: 5
+  endpoint: dns:///cache.internal:443
+  project_key_env: HYPERLOCALISE_CACHE_PROJECT_KEY
+  timeout_seconds: 5
 ```
 
 ## 生成一个起始模板

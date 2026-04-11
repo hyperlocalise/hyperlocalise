@@ -53,35 +53,6 @@ func TestPlanTasksReusesParsedSourceAcrossGroups(t *testing.T) {
 	}
 }
 
-func TestPrecomputedExactCacheKeyMatchesColdComputation(t *testing.T) {
-	task := baseCacheTask()
-	cold := exactCacheKey(task)
-
-	precomputeStableTaskCacheFields(&task)
-	precomputeExecutionTaskCacheFields(&task)
-	got := exactCacheKey(task)
-
-	if got != cold {
-		t.Fatalf("precomputed exact cache key mismatch: got %q want %q", got, cold)
-	}
-}
-
-func TestPrecomputedExactCacheKeyTracksContextMemoryChanges(t *testing.T) {
-	base := baseCacheTask()
-	precomputeStableTaskCacheFields(&base)
-	precomputeExecutionTaskCacheFields(&base)
-	baseKey := exactCacheKey(base)
-
-	changed := base
-	changed.ContextMemory = "memory-B"
-	precomputeExecutionTaskCacheFields(&changed)
-	changedKey := exactCacheKey(changed)
-
-	if baseKey == changedKey {
-		t.Fatal("expected context-memory change to update precomputed exact cache key")
-	}
-}
-
 func BenchmarkPlanTasksSharedSourceMappings(b *testing.B) {
 	svc := newTestService()
 	sourcePath := "/tmp/shared.json"
@@ -141,28 +112,6 @@ func BenchmarkPlanTasksLarge(b *testing.B) {
 	b.ReportMetric(float64(entryCount), "keys/op")
 }
 
-func BenchmarkExactCacheKey(b *testing.B) {
-	b.Run("cold", func(b *testing.B) {
-		task := baseCacheTask()
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			benchmarkCacheKeySink = exactCacheKey(task)
-		}
-	})
-
-	b.Run("precomputed", func(b *testing.B) {
-		task := baseCacheTask()
-		precomputeStableTaskCacheFields(&task)
-		precomputeExecutionTaskCacheFields(&task)
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			benchmarkCacheKeySink = exactCacheKey(task)
-		}
-	})
-}
-
 func BenchmarkRunLargeBatch(b *testing.B) {
 	benchmarks := []struct {
 		name          string
@@ -199,8 +148,6 @@ func BenchmarkBuildSelectionCatalog(b *testing.B) {
 		_ = buildSelectionCatalogFromTasks("/tmp/i18n.jsonc", planned)
 	}
 }
-
-var benchmarkCacheKeySink string
 
 func benchmarkPlanningConfig(sourcePath, targetPath string, groups int) config.I18NConfig {
 	cfg := testConfig(sourcePath, targetPath)

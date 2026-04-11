@@ -7,8 +7,24 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
+func baseLockTask() Task {
+	return Task{
+		SourceLocale:  "en-US",
+		TargetLocale:  "fr-FR",
+		SourceText:    "Hello",
+		Provider:      "openai",
+		Model:         "gpt-5.2",
+		ProfileName:   "default",
+		PromptVersion: "p1",
+		ParserMode:    "json",
+		ContextKey:    "file:a",
+		SourceContext: "Checkout submit button",
+		ContextMemory: "memory-A",
+	}
+}
+
 func TestApplyLockFilterSkipsOnlyWhenTaskHashMatches(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -38,7 +54,7 @@ func TestApplyLockFilterSkipsOnlyWhenTaskHashMatches(t *testing.T) {
 }
 
 func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -68,7 +84,7 @@ func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
 }
 
 func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -76,16 +92,27 @@ func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) 
 	task.TargetLocale = "fr"
 
 	precomputeStableTaskCacheFields(&task)
-	canonical := task.stableExactCacheKeyPrefix +
-		"\nretrieval_corpus_snapshot_version=" + strings.TrimSpace(task.RAGSnapshot) +
-		"\ncontext_key=" + strings.TrimSpace(task.ContextKey) +
-		"\ncontext_provider=" + strings.TrimSpace(task.ContextProvider) +
-		"\ncontext_model=" + strings.TrimSpace(task.ContextModel)
+	canonical := strings.Join([]string{
+		"source_norm_hash=" + task.sourceTextHash,
+		"source_locale=" + strings.TrimSpace(task.SourceLocale),
+		"target_locale=" + strings.TrimSpace(task.TargetLocale),
+		"provider=" + strings.TrimSpace(task.Provider),
+		"model=" + strings.TrimSpace(task.Model),
+		"profile=" + strings.TrimSpace(task.ProfileName),
+		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
+		"glossary_termbase_version_hash=none",
+		"parser_mode=" + strings.TrimSpace(task.ParserMode),
+		"source_context_fingerprint=" + task.sourceContextFingerprint,
+		"retrieval_corpus_snapshot_version=" + legacyDefaultRetrievalSnapshot(),
+		"context_key=" + strings.TrimSpace(task.ContextKey),
+		"context_provider=" + strings.TrimSpace(task.ContextProvider),
+		"context_model=" + strings.TrimSpace(task.ContextModel),
+	}, "\n")
 	legacyFullTaskHash := hashSourceText(canonical)
 
 	completed := map[string]lockfile.RunCompletion{
 		taskIdentity(task.TargetPath, task.EntryKey): {
-			SourceHash: lockStoredFingerprint(task.SourceText),
+			SourceHash: hashSourceText(task.SourceText),
 			TaskHash:   legacyFullTaskHash,
 		},
 	}
@@ -103,7 +130,7 @@ func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) 
 }
 
 func TestApplyLockFilterFallsBackToLegacySourceHash(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -129,7 +156,7 @@ func TestApplyLockFilterFallsBackToLegacySourceHash(t *testing.T) {
 }
 
 func TestApplyLockFilterDoesNotStageCheckpointWhenTaskHashChanges(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
