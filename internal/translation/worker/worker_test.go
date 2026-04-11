@@ -727,6 +727,103 @@ func TestBuildOutcomeFileJSONSuccess(t *testing.T) {
 	}
 }
 
+func TestBuildOutcomeFileJSONReusesExistingLocaleEntries(t *testing.T) {
+	payload, err := translationapp.EncodeProto(&translationv1.FileTranslationJobInput{
+		SourceFileId:  "file-1",
+		FileFormat:    translationv1.FileTranslationJobInput_FILE_FORMAT_JSON,
+		SourceLocale:  "en",
+		TargetLocales: []string{"fr"},
+	})
+	if err != nil {
+		t.Fatalf("encode input: %v", err)
+	}
+
+	repo := newFakeRepository()
+	repo.jobs["job-1"] = &store.TranslationJobModel{
+		ID:        "job-1",
+		ProjectID: "proj",
+		Type:      store.JobTypeFile,
+		Status:    store.JobStatusRunning,
+	}
+	repo.files["file-1"] = &store.TranslationFileModel{
+		ID:            "file-1",
+		ProjectID:     "proj",
+		Path:          "content/messages.json",
+		FileFormat:    "json",
+		SourceLocale:  "en",
+		ContentType:   "application/json",
+		StorageDriver: "memory",
+		Bucket:        "translations",
+		ObjectKey:     "projects/proj/source/upload-1/content/messages.json",
+	}
+	repo.variants["file-1:fr"] = &store.TranslationFileVariantModel{
+		ID:            "file-1:fr",
+		FileID:        "file-1",
+		Locale:        "fr",
+		Path:          "content/messages.json",
+		ContentType:   "application/json",
+		StorageDriver: "memory",
+		Bucket:        "translations",
+		ObjectKey:     "projects/proj/variants/file-1/fr/content/messages.json",
+		Status:        store.FileVariantStatusReady,
+	}
+
+	memStore := objectstore.NewMemoryStore()
+	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
+		Object: objectstore.ObjectRef{Driver: "memory", Bucket: "translations", Key: "projects/proj/source/upload-1/content/messages.json"},
+		Body:   []byte("{\"hello\":\"Hello\",\"bye\":\"Goodbye\"}"),
+	}); err != nil {
+		t.Fatalf("put source object: %v", err)
+	}
+	if err := memStore.PutObject(context.Background(), objectstore.PutRequest{
+		Object: objectstore.ObjectRef{Driver: "memory", Bucket: "translations", Key: "projects/proj/variants/file-1/fr/content/messages.json"},
+		Body:   []byte("{\"hello\":\"Bonjour\"}"),
+	}); err != nil {
+		t.Fatalf("put variant object: %v", err)
+	}
+
+	var translatedKeys []string
+	processor := NewProcessor(repo, fakeExecutor{
+		translate: func(_ context.Context, task TranslationTask) (string, RoutingDecision, error) {
+			translatedKeys = append(translatedKeys, task.Metadata["file_entry_key"])
+			return "fr:" + task.SourceText, RoutingDecision{Provider: "openai", Model: "gpt-4o-mini"}, nil
+		},
+	}).WithObjectStore(memStore)
+	processor.clock = func() time.Time { return time.Unix(1700000000, 0).UTC() }
+
+	_, _, _, err = processor.buildOutcome(context.Background(), &store.TranslationJobModel{
+		ID:           "job-1",
+		ProjectID:    "proj",
+		Type:         store.JobTypeFile,
+		Status:       store.JobStatusRunning,
+		InputPayload: payload,
+	})
+	if err != nil {
+		t.Fatalf("build file outcome: %v", err)
+	}
+
+	if len(translatedKeys) != 1 || translatedKeys[0] != "bye" {
+		t.Fatalf("expected only missing key translated, got %v", translatedKeys)
+	}
+
+	rendered, err := memStore.GetObject(context.Background(), objectstore.GetRequest{
+		Object: objectstore.ObjectRef{Driver: "memory", Bucket: "translations", Key: "projects/proj/variants/file-1/fr/content/messages.json"},
+	})
+	if err != nil {
+		t.Fatalf("get rendered object: %v", err)
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal(rendered, &parsed); err != nil {
+		t.Fatalf("decode rendered json: %v", err)
+	}
+	if parsed["hello"] != "Bonjour" {
+		t.Fatalf("expected to keep existing translation, got %q", parsed["hello"])
+	}
+	if parsed["bye"] != "fr:Goodbye" {
+		t.Fatalf("expected to translate only missing key, got %q", parsed["bye"])
+	}
+}
+
 func TestNewTranslatorExecutorRejectsLocalProviders(t *testing.T) {
 	_, err := NewTranslatorExecutor(Config{Provider: "ollama", Model: "qwen2.5:7b"})
 	if err == nil || !strings.Contains(err.Error(), `provider "ollama" is not supported`) {
