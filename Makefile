@@ -48,7 +48,7 @@ test: test-workspace ## run workspace-wide tests
 
 .PHONY: bench-runsvc
 bench-runsvc: ## run focused runsvc benchmarks
-	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|PlanTasksLarge|ExactCacheKey|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
+	go test -run '^$$' -bench 'Benchmark(PlanTasksSharedSourceMappings|PlanTasksLarge|RunLargeBatch)' -benchmem -benchtime=20x ./apps/cli/internal/i18n/runsvc
 
 
 .PHONY: profile-runsvc-mem

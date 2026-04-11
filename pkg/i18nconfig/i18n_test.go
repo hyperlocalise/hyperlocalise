@@ -903,30 +903,18 @@ func TestLoadAppliesCacheDefaultsWhenOmitted(t *testing.T) {
 	if cfg.Cache.Enabled {
 		t.Fatal("cache should be disabled by default")
 	}
-	if cfg.Cache.DBPath != DefaultCacheDBPath {
-		t.Fatalf("unexpected cache.db_path default: %q", cfg.Cache.DBPath)
+	if cfg.Cache.Endpoint != "" {
+		t.Fatalf("unexpected cache.endpoint default: %q", cfg.Cache.Endpoint)
 	}
-	if cfg.Cache.SQLite.MaxOpenConns != DefaultCacheMaxOpen {
-		t.Fatalf("unexpected cache.sqlite.max_open_conns default: %d", cfg.Cache.SQLite.MaxOpenConns)
+	if cfg.Cache.ProjectKeyEnv != "" {
+		t.Fatalf("unexpected cache.project_key_env default: %q", cfg.Cache.ProjectKeyEnv)
 	}
-	if cfg.Cache.SQLite.MaxIdleConns != DefaultCacheMaxIdle {
-		t.Fatalf("unexpected cache.sqlite.max_idle_conns default: %d", cfg.Cache.SQLite.MaxIdleConns)
-	}
-	if cfg.Cache.SQLite.ConnMaxLifetime != DefaultCacheMaxLifeSec {
-		t.Fatalf("unexpected cache.sqlite.conn_max_lifetime_seconds default: %d", cfg.Cache.SQLite.ConnMaxLifetime)
-	}
-	if cfg.Cache.L1.MaxItems != DefaultCacheL1MaxItems {
-		t.Fatalf("unexpected cache.l1.max_items default: %d", cfg.Cache.L1.MaxItems)
-	}
-	if cfg.Cache.L2.AutoAcceptThreshold != DefaultCacheL2AutoAcceptThreshold {
-		t.Fatalf("unexpected cache.l2.auto_accept_threshold default: %f", cfg.Cache.L2.AutoAcceptThreshold)
-	}
-	if cfg.Cache.RAG.TopK != DefaultCacheRAGTopK {
-		t.Fatalf("unexpected cache.rag.top_k default: %d", cfg.Cache.RAG.TopK)
+	if cfg.Cache.TimeoutSeconds != 0 {
+		t.Fatalf("unexpected cache.timeout_seconds default: %d", cfg.Cache.TimeoutSeconds)
 	}
 }
 
-func TestLoadRejectsInvalidCacheConfig(t *testing.T) {
+func TestLoadRejectsEnabledCacheWithoutEndpoint(t *testing.T) {
 	path := writeConfigFile(t, `{
 	  "locales": {
 	    "source": "en-US",
@@ -956,19 +944,17 @@ func TestLoadRejectsInvalidCacheConfig(t *testing.T) {
 	  },
 	  "cache": {
 	    "enabled": true,
-	    "sqlite": {
-	      "max_open_conns": -1
-	    }
+	    "project_key_env": "HYPERLOCALISE_CACHE_PROJECT_KEY"
 	  }
 	}`)
 
 	_, err := Load(path)
-	if err == nil || !strings.Contains(err.Error(), "cache.sqlite.max_open_conns") {
-		t.Fatalf("expected cache sqlite validation error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "cache.endpoint") {
+		t.Fatalf("expected cache endpoint validation error, got %v", err)
 	}
 }
 
-func TestLoadRejectsInvalidCacheL2AutoAcceptThreshold(t *testing.T) {
+func TestLoadRejectsEnabledCacheWithoutProjectKeyEnv(t *testing.T) {
 	path := writeConfigFile(t, `{
 	  "locales": {
 	    "source": "en-US",
@@ -998,20 +984,17 @@ func TestLoadRejectsInvalidCacheL2AutoAcceptThreshold(t *testing.T) {
 	  },
 	  "cache": {
 	    "enabled": true,
-	    "l2": {
-	      "enabled": true,
-	      "auto_accept_threshold": 1.5
-	    }
+	    "endpoint": "dns:///cache.internal:443"
 	  }
 	}`)
 
 	_, err := Load(path)
-	if err == nil || !strings.Contains(err.Error(), "cache.l2.auto_accept_threshold") {
-		t.Fatalf("expected cache l2 threshold validation error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "cache.project_key_env") {
+		t.Fatalf("expected cache project_key_env validation error, got %v", err)
 	}
 }
 
-func TestLoadPreservesExplicitZeroCacheL2AutoAcceptThreshold(t *testing.T) {
+func TestLoadRejectsNegativeCacheTimeout(t *testing.T) {
 	path := writeConfigFile(t, `{
 	  "locales": {
 	    "source": "en-US",
@@ -1041,19 +1024,15 @@ func TestLoadPreservesExplicitZeroCacheL2AutoAcceptThreshold(t *testing.T) {
 	  },
 	  "cache": {
 	    "enabled": true,
-	    "l2": {
-	      "enabled": true,
-	      "auto_accept_threshold": 0
-	    }
+	    "endpoint": "dns:///cache.internal:443",
+	    "project_key_env": "HYPERLOCALISE_CACHE_PROJECT_KEY",
+	    "timeout_seconds": -1
 	  }
 	}`)
 
-	cfg, err := Load(path)
-	if err != nil {
-		t.Fatalf("load config: %v", err)
-	}
-	if cfg.Cache.L2.AutoAcceptThreshold != 0 {
-		t.Fatalf("cache.l2.auto_accept_threshold=%f, want 0", cfg.Cache.L2.AutoAcceptThreshold)
+	_, err := Load(path)
+	if err == nil || !strings.Contains(err.Error(), "cache.timeout_seconds") {
+		t.Fatalf("expected cache timeout validation error, got %v", err)
 	}
 }
 
@@ -1082,7 +1061,8 @@ llm:
       system_prompt: You are a localization expert.
 cache:
   enabled: true
-  db_path: .cache/test.sqlite
+  endpoint: dns:///cache.internal:443
+  project_key_env: HYPERLOCALISE_CACHE_PROJECT_KEY
 `)
 
 	cfg, err := Load(path)
@@ -1096,8 +1076,11 @@ cache:
 	if got := cfg.LLM.Profiles["default"].SystemPrompt; got != "You are a localization expert." {
 		t.Fatalf("system prompt=%q", got)
 	}
-	if got := cfg.Cache.DBPath; got != ".cache/test.sqlite" {
-		t.Fatalf("cache db path=%q", got)
+	if got := cfg.Cache.Endpoint; got != "dns:///cache.internal:443" {
+		t.Fatalf("cache endpoint=%q", got)
+	}
+	if got := cfg.Cache.ProjectKeyEnv; got != "HYPERLOCALISE_CACHE_PROJECT_KEY" {
+		t.Fatalf("cache project key env=%q", got)
 	}
 }
 

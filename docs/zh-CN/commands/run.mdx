@@ -97,7 +97,7 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale
 - 上下文记忆摘要流程始终使用内置的摘要负载模板，不会应用配置文件 `user_prompt` 覆盖。
 
 <Note>
-更改提示结构（例如将上下文从用户消息移到系统消息）不会自动使缓存的翻译失效。若要在重构提示后强制重新翻译，请在您的配置文件中提升 `prompt_version`。
+更改提示结构（例如将上下文从用户消息移到系统消息）不会自动使远程缓存条目失效。若要在重构提示后强制重新翻译，请在您的配置文件中提升 `prompt_version`。
 </Note>
 
 ### 进度调试日志（可选）
@@ -120,8 +120,8 @@ flowchart TD
     A["Plan tasks"] --> B{"Context memory enabled?"}
     B -- "No" --> T["Translate entry immediately"]
     B -- "Yes" --> C["Resolve scope key (file/bucket/group)"]
-    C --> D{"Memory already cached for scope?"}
-    D -- "Yes" --> E["Reuse cached memory"]
+    C --> D{"Memory already available for scope?"}
+    D -- "Yes" --> E["Reuse scope memory"]
     D -- "No" --> F["Build context memory via configured LLM provider"]
     F --> G{"Success?"}
     G -- "Yes" --> H["Cache memory for scope"]
@@ -134,7 +134,7 @@ flowchart TD
 ### 为什么它看起来像是在等待
 
 - 新作用域中的第一个条目会等待内存生成完成。
-- 后续在同一作用域中的条目会重用缓存内存，并继续执行而无需重新构建。
+- 后续在同一作用域中的条目会重用现有作用域内存，并继续执行而无需重新构建。
 - 进度 UI 现在会在文件列表中显示上下文记忆步骤，因此你可以看到当前作用域级别的工作。
 
 

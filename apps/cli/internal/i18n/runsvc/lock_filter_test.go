@@ -1,14 +1,29 @@
 package runsvc
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
+func baseLockTask() Task {
+	return Task{
+		SourceLocale:  "en-US",
+		TargetLocale:  "fr-FR",
+		SourceText:    "Hello",
+		Provider:      "openai",
+		Model:         "gpt-5.2",
+		ProfileName:   "default",
+		PromptVersion: "p1",
+		ParserMode:    "json",
+		ContextKey:    "file:a",
+		SourceContext: "Checkout submit button",
+		ContextMemory: "memory-A",
+	}
+}
+
 func TestApplyLockFilterSkipsOnlyWhenTaskHashMatches(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -38,7 +53,7 @@ func TestApplyLockFilterSkipsOnlyWhenTaskHashMatches(t *testing.T) {
 }
 
 func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -67,43 +82,8 @@ func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
 	}
 }
 
-func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) {
-	task := baseCacheTask()
-	task.TargetPath = "/tmp/out.json"
-	task.SourcePath = "/tmp/source.json"
-	task.EntryKey = "hello"
-	task.SourceLocale = "en"
-	task.TargetLocale = "fr"
-
-	precomputeStableTaskCacheFields(&task)
-	canonical := task.stableExactCacheKeyPrefix +
-		"\nretrieval_corpus_snapshot_version=" + strings.TrimSpace(task.RAGSnapshot) +
-		"\ncontext_key=" + strings.TrimSpace(task.ContextKey) +
-		"\ncontext_provider=" + strings.TrimSpace(task.ContextProvider) +
-		"\ncontext_model=" + strings.TrimSpace(task.ContextModel)
-	legacyFullTaskHash := hashSourceText(canonical)
-
-	completed := map[string]lockfile.RunCompletion{
-		taskIdentity(task.TargetPath, task.EntryKey): {
-			SourceHash: lockStoredFingerprint(task.SourceText),
-			TaskHash:   legacyFullTaskHash,
-		},
-	}
-
-	report, executable, _, _, err := applyLockFilter([]Task{task}, completed, nil, "", false)
-	if err != nil {
-		t.Fatalf("applyLockFilter: %v", err)
-	}
-	if report.SkippedByLock != 1 {
-		t.Fatalf("expected legacy full task_hash to match short fingerprint, got report %+v", report)
-	}
-	if len(executable) != 0 {
-		t.Fatalf("expected no executable tasks, got %d", len(executable))
-	}
-}
-
 func TestApplyLockFilterFallsBackToLegacySourceHash(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"
@@ -129,7 +109,7 @@ func TestApplyLockFilterFallsBackToLegacySourceHash(t *testing.T) {
 }
 
 func TestApplyLockFilterDoesNotStageCheckpointWhenTaskHashChanges(t *testing.T) {
-	task := baseCacheTask()
+	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"
 	task.SourcePath = "/tmp/source.json"
 	task.EntryKey = "hello"

@@ -44,21 +44,9 @@ description: "Tham chiếu ngắn gọn cho schema cấu hình i18n của hyperl
 ## `cache`
 
 - `enabled` boolean
-- `db_path` chuỗi
-- `sqlite.max_open_conns` số nguyên
-- `sqlite.max_idle_conns` số nguyên
-- `sqlite.conn_max_lifetime_seconds` số nguyên
-- `l1.enabled` boolean
-- `l1.max_items` số nguyên
-- `l2.enabled` boolean
-- `l2.auto_accept_threshold` số trong `[0,1]`
-- `rag.enabled` boolean
-- `rag.top_k` số nguyên
-
-Giá trị metadata TM được bộ nhớ đệm sử dụng:
-
-- provenance: `curated` | `draft` | `llm` | `tms` | `unknown`
-- source: `run` | `sync_pull` | `sync_push` | `manual` | `import` | `legacy` | `unknown`
+- `endpoint` chuỗi
+- `project_key_env` chuỗi
+- `timeout_seconds` số nguyên
 
 Để xem các ví dụ, hãy xem [i18n config](/configuration/i18n-config).
 

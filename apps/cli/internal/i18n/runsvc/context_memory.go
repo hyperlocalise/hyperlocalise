@@ -283,7 +283,7 @@ func buildContextMemorySource(tasks []Task, indexes []int) string {
 }
 
 func buildContextMemoryPrompt(sourceLocale, scope, sourceIdentifier string) string {
-	return "You produce compact translation memory notes for consistent localization. " +
+	return "You produce compact remote caching notes for consistent localization. " +
 		"Generate structured plain text under these headings: Terminology, Tone, Formatting, Do-not-translate. " +
 		"Do not quote long source passages, do not include secrets, and do not output markdown code fences. " +
 		fmt.Sprintf("The source language is %s. ", sourceLocale) +

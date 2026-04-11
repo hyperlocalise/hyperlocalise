@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/cache"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 )
 
@@ -31,19 +30,6 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	cfg, err := s.loadConfig(in.ConfigPath)
 	if err != nil {
 		return Report{}, fmt.Errorf("load config: %w", err)
-	}
-	var cacheSvc *cache.Service
-	if s.newCache != nil {
-		var cacheErr error
-		cacheSvc, cacheErr = s.newCache(cfg.Cache)
-		if cacheErr != nil {
-			return Report{}, fmt.Errorf("initialize cache service: %w", cacheErr)
-		}
-		defer func() {
-			if cacheSvc != nil {
-				_ = cacheSvc.Close()
-			}
-		}()
 	}
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
@@ -111,10 +97,6 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 			activeRunID = state.ActiveRunID
 		}
 	}
-	var l1Cache cache.ExactCache
-	if cacheSvc != nil {
-		l1Cache = cacheSvc.L1
-	}
 	parityRetry := &markdownParityRetryInput{
 		cfg:           cfg,
 		bucket:        in.Bucket,
@@ -122,7 +104,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		targetLocales: in.TargetLocales,
 		sourcePaths:   in.SourcePaths,
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, l1Cache, emitter, summaryReportMode, parityRetry)
+	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
