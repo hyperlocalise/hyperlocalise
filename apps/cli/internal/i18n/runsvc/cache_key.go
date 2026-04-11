@@ -44,3 +44,31 @@ func lockTaskHash(task Task) string {
 	}, "\n")
 	return lockStoredFingerprint(canonical)
 }
+
+func legacyDefaultRetrievalSnapshot() string {
+	return hashSourceText(strings.Join([]string{
+		"snapshot=none",
+		"rag_enabled=false",
+	}, "\n"))
+}
+
+func legacyDefaultLockTaskHash(task Task) string {
+	precomputeStableTaskCacheFields(&task)
+	canonical := strings.Join([]string{
+		"source_norm_hash=" + task.sourceTextHash,
+		"source_locale=" + strings.TrimSpace(task.SourceLocale),
+		"target_locale=" + strings.TrimSpace(task.TargetLocale),
+		"provider=" + strings.TrimSpace(task.Provider),
+		"model=" + strings.TrimSpace(task.Model),
+		"profile=" + strings.TrimSpace(task.ProfileName),
+		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
+		"glossary_termbase_version_hash=none",
+		"parser_mode=" + strings.TrimSpace(task.ParserMode),
+		"source_context_fingerprint=" + task.sourceContextFingerprint,
+		"retrieval_corpus_snapshot_version=" + legacyDefaultRetrievalSnapshot(),
+		"context_key=" + strings.TrimSpace(task.ContextKey),
+		"context_provider=" + strings.TrimSpace(task.ContextProvider),
+		"context_model=" + strings.TrimSpace(task.ContextModel),
+	}, "\n")
+	return lockStoredFingerprint(canonical)
+}

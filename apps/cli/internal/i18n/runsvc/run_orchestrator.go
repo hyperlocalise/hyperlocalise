@@ -31,6 +31,9 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	if err != nil {
 		return Report{}, fmt.Errorf("load config: %w", err)
 	}
+	if cfg.Cache.Enabled {
+		return Report{}, fmt.Errorf("remote cache client not yet implemented")
+	}
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
@@ -194,7 +197,8 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := lockStoredFingerprint(task.SourceText)
 		taskHash := lockTaskHash(task)
-		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash) {
+		legacyTaskHash := legacyDefaultLockTaskHash(task)
+		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash, legacyTaskHash) {
 			if strings.TrimSpace(cp.TaskHash) == "" {
 				cp.TaskHash = taskHash
 				checkpoints[identity] = cp
@@ -204,7 +208,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 			}
 		}
-		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash) {
+		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash, legacyTaskHash) {
 			if strings.TrimSpace(c.TaskHash) == "" {
 				c.TaskHash = taskHash
 				completed[identity] = c
@@ -229,16 +233,18 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash, legacyTaskHash string) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
-		return lockFingerprintEqual(completion.TaskHash, taskHash)
+		return lockFingerprintEqual(completion.TaskHash, taskHash) ||
+			lockFingerprintEqual(completion.TaskHash, legacyTaskHash)
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash, legacyTaskHash string) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
-		return lockFingerprintEqual(checkpoint.TaskHash, taskHash)
+		return lockFingerprintEqual(checkpoint.TaskHash, taskHash) ||
+			lockFingerprintEqual(checkpoint.TaskHash, legacyTaskHash)
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
 }

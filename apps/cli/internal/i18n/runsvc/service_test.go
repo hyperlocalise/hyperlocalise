@@ -114,6 +114,25 @@ func TestRunDefaultsWorkersToNumCPUWhenUnset(t *testing.T) {
 	}
 }
 
+func TestRunRejectsEnabledRemoteCache(t *testing.T) {
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig("/tmp/source.json", "/tmp/out.json")
+		cfg.Cache.Enabled = true
+		cfg.Cache.Endpoint = "dns:///cache.internal:443"
+		cfg.Cache.ProjectKeyEnv = "HYPERLOCALISE_CACHE_PROJECT_KEY"
+		return &cfg, nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err == nil {
+		t.Fatal("expected error for enabled remote cache")
+	}
+	if got := err.Error(); got != "remote cache client not yet implemented" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunLegacyProfilePromptMapsToSystemPrompt(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"

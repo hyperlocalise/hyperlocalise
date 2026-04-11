@@ -242,7 +242,7 @@ func benchmarkRunService(entryCount, localeCount int) *Service {
 	svc.writeFile = func(_ string, _ []byte) error { return nil }
 	svc.saveLock = func(_ string, _ lockfile.File) error { return nil }
 	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
-		if req.TargetLanguage == "en" && strings.Contains(req.SystemPrompt, "remote caching notes") {
+		if req.TargetLanguage == "en" && strings.Contains(req.SystemPrompt, "translation memory notes") {
 			return "Terminology: stable\nTone: neutral\nFormatting: preserve placeholders\nDo-not-translate: brand names", nil
 		}
 		return "T(" + req.Source + ")", nil

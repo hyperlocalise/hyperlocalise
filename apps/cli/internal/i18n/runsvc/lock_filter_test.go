@@ -1,6 +1,7 @@
 package runsvc
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
@@ -79,6 +80,52 @@ func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
 	}
 	if len(executable) != 1 {
 		t.Fatalf("expected task to remain executable, got %d", len(executable))
+	}
+}
+
+func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceLocale = "en"
+	task.TargetLocale = "fr"
+
+	precomputeStableTaskCacheFields(&task)
+	canonical := strings.Join([]string{
+		"source_norm_hash=" + task.sourceTextHash,
+		"source_locale=" + strings.TrimSpace(task.SourceLocale),
+		"target_locale=" + strings.TrimSpace(task.TargetLocale),
+		"provider=" + strings.TrimSpace(task.Provider),
+		"model=" + strings.TrimSpace(task.Model),
+		"profile=" + strings.TrimSpace(task.ProfileName),
+		"prompt_version_hash=" + strings.TrimSpace(task.PromptVersion),
+		"glossary_termbase_version_hash=none",
+		"parser_mode=" + strings.TrimSpace(task.ParserMode),
+		"source_context_fingerprint=" + task.sourceContextFingerprint,
+		"retrieval_corpus_snapshot_version=" + legacyDefaultRetrievalSnapshot(),
+		"context_key=" + strings.TrimSpace(task.ContextKey),
+		"context_provider=" + strings.TrimSpace(task.ContextProvider),
+		"context_model=" + strings.TrimSpace(task.ContextModel),
+	}, "\n")
+	legacyFullTaskHash := hashSourceText(canonical)
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(task.SourceText),
+			TaskHash:   legacyFullTaskHash,
+		},
+	}
+
+	report, executable, _, _, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 1 {
+		t.Fatalf("expected legacy full task_hash to match short fingerprint, got report %+v", report)
+	}
+	if len(executable) != 0 {
+		t.Fatalf("expected no executable tasks, got %d", len(executable))
 	}
 }
 
