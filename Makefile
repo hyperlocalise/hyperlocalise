@@ -100,7 +100,7 @@ staticcheck: ## run staticcheck directly
 
 .PHONY: bazel-build
 bazel-build: ## build Bazel-scaffolded targets
-	bazel build //:cli //apps/translation-service:translation-service
+	bazel build //:cli
 
 .PHONY: bazel-test
 bazel-test: ## run Bazel-scaffolded tests
