@@ -2,11 +2,9 @@ import type { ComponentProps } from "react";
 import {
   Alert02Icon,
   ArrowRight01Icon,
-  CheckmarkCircle02Icon,
   Clock01Icon,
   DollarCircleIcon,
   InformationCircleIcon,
-  LinkSquare02Icon,
   Shield01Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
@@ -255,7 +253,9 @@ export default function DashboardPage() {
               <p className="text-[0.68rem] font-medium tracking-[0.18em] text-white/40 uppercase">
                 {metric.label}
               </p>
-              <div className="mt-2 font-heading text-3xl font-medium text-white">{metric.value}</div>
+              <div className="mt-2 font-heading text-3xl font-medium text-white">
+                {metric.value}
+              </div>
               <p className="mt-2 text-sm text-white/56">{metric.delta}</p>
               <p className="mt-1 max-w-[24ch] text-sm leading-6 text-white/42">{metric.note}</p>
             </div>
@@ -272,7 +272,9 @@ export default function DashboardPage() {
             >
               Weekly flow
             </Badge>
-            <CardTitle className="text-xl font-medium text-white">Runs and volume over the week</CardTitle>
+            <CardTitle className="text-xl font-medium text-white">
+              Runs and volume over the week
+            </CardTitle>
             <CardDescription className="text-white/52">
               The week ramps through Thursday, with quality staying below the 2% error threshold.
             </CardDescription>
@@ -281,15 +283,15 @@ export default function DashboardPage() {
           <CardContent className="px-5 py-5 lg:px-6">
             <div className="grid grid-cols-7 gap-3">
               {weeklyFlow.map((day) => (
-                <div key={day.day} className="rounded-xl border border-white/8 bg-[#050505] px-3 py-3">
+                <div
+                  key={day.day}
+                  className="rounded-xl border border-white/8 bg-[#050505] px-3 py-3"
+                >
                   <p className="text-xs font-medium tracking-[0.18em] text-white/40 uppercase">
                     {day.day}
                   </p>
                   <div className="mt-4 flex h-28 items-end">
-                    <div
-                      className="w-full rounded-md bg-white/78"
-                      style={{ height: day.height }}
-                    />
+                    <div className="w-full rounded-md bg-white/78" style={{ height: day.height }} />
                   </div>
                   <p className="mt-3 text-sm text-white">{day.words}</p>
                   <p className="mt-1 text-sm text-white/46">{day.runs} runs</p>
@@ -342,7 +344,9 @@ export default function DashboardPage() {
             >
               Translation run
             </Badge>
-            <CardTitle className="text-xl font-medium text-white">Runs needing attention now</CardTitle>
+            <CardTitle className="text-xl font-medium text-white">
+              Runs needing attention now
+            </CardTitle>
             <CardDescription className="text-white/52">
               In-flight queue with the next action visible on each row.
             </CardDescription>
@@ -456,7 +460,9 @@ export default function DashboardPage() {
             >
               Blockers
             </Badge>
-            <CardTitle className="text-xl font-medium text-white">Blocked locales this week</CardTitle>
+            <CardTitle className="text-xl font-medium text-white">
+              Blocked locales this week
+            </CardTitle>
             <CardDescription className="text-white/52">
               This is the short list keeping weekly operations from clearing cleanly.
             </CardDescription>

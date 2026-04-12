@@ -143,7 +143,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <SidebarTrigger className="text-white hover:bg-white/8 hover:text-white md:hidden" />
               <p className="font-heading text-base font-medium text-white">Dashboard</p>
             </div>
-            <Badge variant="outline" className="rounded-full border-white/10 bg-transparent text-white/52">
+            <Badge
+              variant="outline"
+              className="rounded-full border-white/10 bg-transparent text-white/52"
+            >
               Mock
             </Badge>
           </div>
