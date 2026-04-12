@@ -42,30 +42,30 @@ import { env } from "@/lib/env";
 const workflowSteps = [
   {
     label: "01",
-    title: "Upload content or connect your app",
+    title: "Add content or connect your workflow",
     description:
-      "Start from product copy, docs, JSON, or a GitHub-connected workflow so work begins where your team already operates.",
+      "Start from product copy, docs, JSON, or GitHub so translation work begins where your team already works.",
     meta: "Files, API, and GitHub",
   },
   {
     label: "02",
-    title: "Translate with your model of choice",
+    title: "Translate with the model you choose",
     description:
-      "Run AI translation at scale, compare models when needed, and keep prompts and glossary context consistent across every locale.",
+      "Run AI translation at scale, compare models when needed, and keep prompts and glossary guidance consistent across every locale.",
     meta: "Model flexibility",
   },
   {
     label: "03",
-    title: "Review with human-in-the-loop",
+    title: "Send work into human review",
     description:
-      "Sync into Crowdin or your TMS of choice so reviewers stay in the loop with locale notes, glossary context, and full decision history.",
+      "Sync work into Crowdin or your TMS so reviewers have locale notes, glossary context, and a clear decision trail.",
     meta: "Review operations",
   },
   {
     label: "04",
-    title: "Track quality and ship safely",
+    title: "Check quality before release",
     description:
-      "Use evals, regressions, and release gates to see what changed, what passed, and what still needs attention before launch.",
+      "Use quality checks, regressions, and release gates to see what changed, what passed, and what still needs attention.",
     meta: "Quality control",
   },
 ];
@@ -73,23 +73,23 @@ const workflowSteps = [
 const valueCards = [
   {
     icon: SparklesIcon,
-    title: "Move faster with agentic AI runs",
+    title: "Move faster with AI-powered workflows",
     description:
-      "Let AI handle the first pass, routing, and follow-up checks so localisation teams can move faster without coordinating every step by hand.",
+      "Let AI handle the first translation pass, routing, and follow-up checks so localisation teams can move faster without managing every step by hand.",
     className: "",
   },
   {
     icon: LinkSquare02Icon,
-    title: "TMS integration that keeps humans in the loop",
+    title: "TMS integration that keeps reviewers involved",
     description:
-      "Sync into Crowdin or your TMS while keeping review decisions, context, and approvals attached as AI speeds up the first pass.",
+      "Sync into Crowdin or your TMS while keeping review decisions, context, and approvals attached to each run.",
     className: "",
   },
   {
     icon: Alert02Icon,
-    title: "Evals and regression checks before release",
+    title: "Quality checks before release",
     description:
-      "Catch quality drops across locales and model changes before they ship, so faster output does not create slower clean-up later.",
+      "Catch quality drops across locales and model changes before they ship, so faster output does not create more cleanup later.",
     className: "",
   },
   {
@@ -104,15 +104,15 @@ const valueCards = [
 const teamCards = [
   {
     icon: GithubIcon,
-    title: "For localisation operations",
+    title: "Built for localisation teams",
     description:
-      "Run faster translation cycles, keep reviewers aligned, and track release readiness across locales from one operational view.",
+      "Run faster translation cycles, keep reviewers aligned, and track release readiness across locales from one shared view.",
   },
   {
     icon: CheckmarkCircle02Icon,
-    title: "With the integrations engineering expects",
+    title: "With the integrations engineering needs",
     description:
-      "Connect through API and GitHub, keep source changes close to the workflow, and avoid breaking the systems your product teams already use.",
+      "Connect through API and GitHub, keep source changes close to the workflow, and fit into the systems your product teams already use.",
   },
 ];
 
@@ -122,26 +122,55 @@ const dashboardRows = [
     status: "Ready to ship",
     progress: "12/12 reviewed",
     signal: "Eval pass",
+    tone: "ready",
   },
   {
     locale: "de-DE",
     status: "Needs review",
     progress: "8/12 reviewed",
     signal: "Tone drift flagged",
+    tone: "review",
   },
   {
     locale: "ja-JP",
     status: "Blocked",
     progress: "Regression open",
     signal: "Terminology mismatch",
+    tone: "blocked",
   },
 ];
 
 const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
+const footerLinks = [
+  { label: "Open source", href: githubRepoUrl },
+  { label: "Join waitlist", href: env.NEXT_PUBLIC_WAITLIST_URL },
+] as const;
+
+function getStatusToneClasses(tone: "ready" | "review" | "blocked") {
+  switch (tone) {
+    case "ready":
+      return "border-primary/20 bg-primary/10 text-primary";
+    case "review":
+      return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    case "blocked":
+      return "border-destructive/20 bg-destructive/10 text-destructive dark:border-destructive/30";
+  }
+}
+
+function getSignalToneClasses(tone: "ready" | "review" | "blocked") {
+  switch (tone) {
+    case "ready":
+      return "text-primary";
+    case "review":
+      return "text-amber-700 dark:text-amber-300";
+    case "blocked":
+      return "text-destructive";
+  }
+}
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="relative isolate">
         <div className="absolute inset-x-0 top-0 -z-10 h-152 bg-[radial-gradient(circle_at_top,rgba(79,180,141,0.16),transparent_58%)]" />
         <div className="absolute inset-x-0 top-40 -z-10 h-120 bg-[radial-gradient(circle_at_center,rgba(79,180,141,0.08),transparent_62%)]" />
@@ -178,7 +207,7 @@ export default function Home() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -187,30 +216,29 @@ function Hero() {
     <>
       <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
         <h1 className="max-w-5xl font-heading text-5xl leading-[0.94] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
-          Faster localisation operations, powered by{" "}
-          <span className="text-foreground/42">agentic AI.</span>
+          Faster localisation operations{" "}
+          <span className="text-foreground/56">powered by AI.</span>
         </h1>
 
-        <p className="mt-6 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
-          Hyperlocalise Cloud helps localisation teams speed up AI translation, keep human review in
-          the loop, and ship with more confidence, on top of the open-source foundation available
-          today.
+        <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+          Hyperlocalise Cloud helps localisation teams run AI-led translation, route only the work
+          that needs human attention, and ship faster with clearer quality signals.
         </p>
 
-        <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+        <div className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
           <Button
             size="lg"
-            className="h-12 min-w-44 bg-primary px-6 text-primary-foreground shadow-[0_12px_30px_rgba(79,180,141,0.24)]"
+            className="h-12 w-full bg-primary px-6 text-primary-foreground shadow-[0_12px_30px_rgba(79,180,141,0.24)] sm:min-w-44 sm:w-auto"
             nativeButton={false}
             render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
           >
-            Join the waitlist
+            Join the cloud waitlist
             <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
           </Button>
           <Button
             variant="outline"
             size="lg"
-            className="h-12 min-w-44 border-border/70 bg-background/80 px-6"
+            className="h-12 w-full border-border/70 bg-background/80 px-6 sm:min-w-44 sm:w-auto"
             nativeButton={false}
             render={<a href={githubRepoUrl} target="_blank" rel="noreferrer" />}
           >
@@ -220,7 +248,7 @@ function Hero() {
         </div>
       </div>
 
-      <div className="mx-auto mt-14 w-full max-w-6xl">
+      <div className="mx-auto mt-12 w-full max-w-5xl">
         <HeroPreview />
       </div>
     </>
@@ -230,23 +258,23 @@ function Hero() {
 function HeroPreview() {
   return (
     <Card className="rounded-[2rem] border border-border/70 bg-card/90 py-0 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur">
-      <CardHeader className="gap-6 border-b border-border/70 px-6 py-6 sm:px-8 lg:px-10">
-        <div className="grid flex-1 grid-cols-2 gap-6 sm:grid-cols-4">
+      <CardHeader className="gap-6 border-b border-border/70 px-4 py-5 sm:px-8 sm:py-6 lg:px-10">
+        <div className="grid flex-1 grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 sm:gap-6">
           <Stat label="Runs tracked" value="184" />
           <Stat label="Locales" value="18" />
-          <Stat label="Reviews live" value="27" className="hidden sm:flex" />
           <Stat label="Quality gates" value="42" className="hidden sm:flex" />
         </div>
-        <CardAction className="col-auto row-auto">
+        <CardAction className="col-auto row-auto w-full sm:w-auto">
           <Tooltip>
-            <TooltipTrigger className="outline-none">
-              <Badge className="h-11 bg-foreground px-5 text-sm font-semibold text-background shadow-sm">
+            <TooltipTrigger className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+              <Badge className="h-11 w-full justify-center bg-foreground px-5 text-sm font-semibold text-background shadow-sm sm:w-auto">
                 <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} className="size-4" />
-                Preview workflow
+                AI-first workflow
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              A preview of how runs, review, and release confidence can look in Hyperlocalise Cloud.
+              A simplified example of how Hyperlocalise Cloud shows progress, review needs, and
+              release readiness.
             </TooltipContent>
           </Tooltip>
         </CardAction>
@@ -259,7 +287,7 @@ function HeroPreview() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Current run
+                    Example run
                   </div>
                   <div className="mt-1 text-sm font-medium text-foreground">
                     Help center rollout, April batch
@@ -272,37 +300,39 @@ function HeroPreview() {
             </CardHeader>
             <CardContent className="space-y-4 px-5 py-5">
               <div className="rounded-[1.1rem] border border-border/70 bg-muted/30 px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <div className="text-sm font-medium text-foreground">
-                      Source: `apps/web/src/messages/en.json`
+                      Source file: `apps/web/src/messages/en.json`
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      124 strings, 6 locales, glossary rules and product tone applied
+                      124 strings across 6 locales, with glossary rules and product tone applied
                     </div>
                   </div>
-                  <Badge variant="outline">GitHub sync</Badge>
+                  <Badge variant="outline" className="h-fit w-fit">
+                    Synced from GitHub
+                  </Badge>
                 </div>
               </div>
 
               <div className="space-y-3">
                 {[
                   {
-                    title: "Model pass",
+                    title: "AI translation pass",
                     detail:
-                      "AI completed the first pass across fr-FR, de-DE, ja-JP, and es-ES in one run",
+                      "AI completed the first pass for fr-FR, de-DE, ja-JP, and es-ES in one run",
                     badge: "Completed",
                   },
                   {
-                    title: "Human review",
-                    detail: "12 strings synced to Crowdin for tone review in French and German",
-                    badge: "Active",
+                    title: "Review by exception",
+                    detail: "12 strings were routed to Crowdin for tone review in French and German",
+                    badge: "Only where needed",
                   },
                   {
-                    title: "Quality gate",
+                    title: "Release check",
                     detail:
-                      "One terminology regression found in ja-JP, so release is still blocked",
-                    badge: "Needs attention",
+                      "A terminology regression was found in ja-JP, so this release is still blocked",
+                    badge: "Needs review",
                   },
                 ].map((item) => (
                   <div
@@ -335,11 +365,17 @@ function HeroPreview() {
                 {dashboardRows.map((row) => (
                   <div
                     key={row.locale}
-                    className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[1rem] bg-muted/30 px-3 py-3"
+                    className="grid gap-2 rounded-[1rem] bg-muted/30 px-3 py-3 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-3"
                   >
                     <div className="text-sm font-semibold text-foreground">{row.locale}</div>
-                    <div className="text-sm text-muted-foreground">{row.progress}</div>
-                    <Badge variant="outline" className="border-primary/15 bg-background">
+                    <div className="text-sm text-muted-foreground sm:min-w-0">{row.progress}</div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "w-fit bg-background sm:justify-self-start",
+                        getStatusToneClasses(row.tone),
+                      )}
+                    >
                       {row.status}
                     </Badge>
                   </div>
@@ -355,11 +391,11 @@ function HeroPreview() {
               </CardHeader>
               <CardContent className="space-y-4 px-5 py-5">
                 <Progress value={82} className="gap-2">
-                  <div className="flex w-full items-center gap-3">
+                  <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                     <ProgressLabel className="text-sm font-medium">
                       Review and eval coverage
                     </ProgressLabel>
-                    <span className="ms-auto text-sm text-muted-foreground tabular-nums">
+                    <span className="text-sm text-muted-foreground tabular-nums sm:ms-auto">
                       82 / 100
                     </span>
                   </div>
@@ -386,9 +422,9 @@ function WorkflowSection() {
           A faster path from source content to safe release.
         </h2>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-          Hyperlocalise Cloud turns localisation into a visible operating flow instead of a chain of
-          manual handoffs. Teams can start from content or code, route output into review, and ship
-          faster with clearer signals about quality.
+          Hyperlocalise Cloud turns localisation into a visible workflow instead of a chain of
+          manual handoffs. Teams can start from content or code, send output into review, and
+          release faster with clearer quality signals.
         </p>
       </div>
 
@@ -398,9 +434,12 @@ function WorkflowSection() {
             key={step.label}
             className="rounded-[1.6rem] border border-border/70 bg-background py-0 shadow-none"
           >
-            <CardContent className="px-6 py-6">
+            <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
               <div className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 {step.label}
+              </div>
+              <div className="mt-3 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-primary">
+                {step.meta}
               </div>
               <div className="mt-4 text-xl font-semibold tracking-[-0.03em] text-foreground">
                 {step.title}
@@ -446,22 +485,22 @@ function ValueSection() {
         </h2>
 
         <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-          Hyperlocalise Cloud helps localisation teams use agentic AI to accelerate translation,
-          review routing, and quality checks in one system. The result is faster turnaround, lighter
-          operations overhead, and more confidence in what is ready to ship.
+          Hyperlocalise Cloud gives localisation teams one system for AI translation, selective
+          review, and release checks. Teams spend less time coordinating handoffs and more time
+          shipping confidently.
         </p>
 
         <ItemGroup className="mt-8 gap-3">
           {[
             "Speed up the first pass with AI agents that translate, route, and track work",
-            "Keep human review in the loop instead of replacing it",
-            "Catch regressions early so faster releases do not mean lower quality",
+            "Send only higher-risk content into human review",
+            "Catch regressions early so faster releases do not lower quality",
           ].map((item) => (
             <Item
               key={item}
               variant="outline"
               size="sm"
-              className="w-fit max-w-full rounded-full border-border/70 bg-background/70 pr-4"
+              className="w-full max-w-full rounded-3xl border-border/70 bg-background/70 pr-4 sm:w-fit sm:rounded-full"
             >
               <HugeiconsIcon
                 icon={CheckmarkCircle02Icon}
@@ -485,24 +524,24 @@ function DashboardSection() {
       <div className="pt-3">
         <SectionEyebrow label="Run history and analytics" />
         <h2 className="mt-4 max-w-lg font-heading text-4xl leading-[1.04] font-semibold tracking-[-0.04em] text-balance sm:text-5xl">
-          The dashboard is where speed becomes operational confidence.
+          The dashboard turns speed into release confidence.
         </h2>
         <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground">
-          Past runs, locale status, review progress, quality signals, and regression visibility all
-          live in one view so localisation teams can move quickly without losing track of what is
-          safe to release.
+          Past runs, locale status, review progress, quality signals, and regressions live in one
+          view, so localisation teams can move quickly without losing track of what is safe to
+          release.
         </p>
 
         <ItemGroup className="mt-8 gap-5">
           <InsightItem
             icon={InformationCircleIcon}
             title="Past runs stay inspectable"
-            description="See what changed between runs, what model path was used, and how approvals moved over time."
+            description="See what changed between runs, which model path was used, and how approvals changed over time."
           />
           <InsightItem
             icon={Alert02Icon}
             title="Quality signals are visible before launch"
-            description="Track eval failures, review bottlenecks, and regression flags before they turn into release risk."
+            description="Track failed quality checks, review bottlenecks, and regression flags before they turn into release risk."
           />
         </ItemGroup>
       </div>
@@ -518,12 +557,12 @@ function DashboardSection() {
             Release dashboard
           </CardTitle>
           <CardDescription>
-            Review progress, quality status, and release confidence across every locale in one
-            place.
+            Review progress, quality status, and release readiness across every locale in one
+            view.
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-6 px-6 py-6">
+        <CardContent className="space-y-6 px-4 py-5 sm:px-6 sm:py-6">
           <div className="grid gap-3 sm:grid-cols-3">
             <MetricCard label="Past runs" value="184" />
             <MetricCard label="Locales active" value="18" />
@@ -533,7 +572,7 @@ function DashboardSection() {
           <Progress value={82} className="gap-2">
             <div className="flex w-full items-center gap-3">
               <ProgressLabel className="text-sm font-medium">
-                Release confidence across review and eval gates
+                Release readiness based on review and quality checks
               </ProgressLabel>
               <span className="ms-auto text-sm text-muted-foreground tabular-nums">82 / 100</span>
             </div>
@@ -545,18 +584,26 @@ function DashboardSection() {
             {dashboardRows.map((row) => (
               <div
                 key={row.locale}
-                className="grid gap-3 rounded-[1.1rem] bg-muted/35 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                className="grid gap-3 rounded-[1.1rem] bg-muted/35 px-4 py-4 sm:px-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground">{row.locale}</div>
                   <div className="mt-1 text-sm text-muted-foreground">{row.progress}</div>
                 </div>
                 <div className="sm:justify-self-center">
-                  <Badge variant="outline" className="border-primary/15 bg-primary/10 text-primary">
+                  <Badge
+                    variant="outline"
+                    className={cn("w-fit bg-background/80", getStatusToneClasses(row.tone))}
+                  >
                     {row.status}
                   </Badge>
                 </div>
-                <div className="text-sm text-muted-foreground sm:justify-self-end">
+                <div
+                  className={cn(
+                    "text-sm text-muted-foreground sm:justify-self-end",
+                    getSignalToneClasses(row.tone),
+                  )}
+                >
                   {row.signal}
                 </div>
               </div>
@@ -565,13 +612,13 @@ function DashboardSection() {
 
           <Field
             orientation="horizontal"
-            className="items-center rounded-[1.2rem] border border-border/70 bg-muted/40 px-4 py-4"
+            className="items-start rounded-[1.2rem] border border-border/70 bg-muted/40 px-4 py-4 sm:items-center"
           >
-            <Switch checked size="default" aria-label="Require quality gate before release" />
+            <Switch checked size="default" aria-label="Block release until quality checks pass" />
             <FieldContent>
-              <FieldTitle>Require quality gate before release</FieldTitle>
+              <FieldTitle>Block release until quality checks pass</FieldTitle>
               <FieldDescription>
-                Stop rollout when regressions remain open or review coverage is incomplete.
+                Keep this release blocked when regressions are still open or review coverage is incomplete.
               </FieldDescription>
             </FieldContent>
           </Field>
@@ -587,18 +634,18 @@ function TeamSection() {
       <ButtonGroup className="mb-6 gap-3">
         <ButtonGroupText className="h-8 border border-primary/15 bg-primary/8 px-4 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-primary">
           <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={2} className="size-3.5" />
-          Built for localisation teams first
+          Built for localisation teams
         </ButtonGroupText>
       </ButtonGroup>
 
       <h2 className="max-w-4xl font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.04em] text-balance sm:text-5xl lg:text-6xl">
-        Made for localisation operations, with integrations engineering expects.
+        Made for localisation operations, with the integrations engineering expects.
       </h2>
 
       <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">
         Hyperlocalise Cloud is designed for localisation teams that need speed, visibility, and
-        review control, without creating more process debt for engineering. The open-source
-        foundation is available now, and the hosted layer is the next step.
+        review control without adding more process overhead for engineering. The open-source
+        foundation is available now, and the hosted product is the next step.
       </p>
 
       <div className="mt-10 grid w-full gap-4 text-left lg:grid-cols-2">
@@ -620,20 +667,20 @@ function TeamSection() {
         ))}
       </div>
 
-      <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+      <div className="mt-8 flex w-full max-w-md flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
         <Button
           size="lg"
-          className="h-12 min-w-60 bg-foreground px-6 text-background"
+          className="h-12 w-full bg-foreground px-6 text-background sm:min-w-60 sm:w-auto"
           nativeButton={false}
           render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
         >
-          Join the waitlist
+          Join the cloud waitlist
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
         </Button>
         <Button
           variant="outline"
           size="lg"
-          className="h-12 min-w-44 px-6"
+          className="h-12 w-full px-6 sm:min-w-44 sm:w-auto"
           nativeButton={false}
           render={<a href={githubRepoUrl} target="_blank" rel="noreferrer" />}
         >
@@ -646,28 +693,36 @@ function TeamSection() {
         <TrustNote
           icon={Shield01Icon}
           title="Open source foundation"
-          description="Start with the core workflow today and see how Hyperlocalise fits your stack."
+          description="Start with the core workflow today and see how Hyperlocalise fits into your stack."
         />
         <TrustNote
           icon={Tick02Icon}
           title="Faster operations"
-          description="Move work through translation, review, and release checks without stitching together extra steps."
+          description="Move work through translation, review, and release checks without stitching together extra tools."
         />
         <TrustNote
           icon={Alert02Icon}
-          title="Cloud is next"
-          description="Join early access for the hosted layer built for localisation teams that need more speed and control."
+          title="Hosted product coming next"
+          description="Join early access for the hosted product built for localisation teams that need more speed and control."
         />
       </div>
 
       <Separator className="mt-14 mb-6 w-full" />
 
-      <footer className="flex w-full flex-col items-center justify-between gap-4 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:flex-row">
+      <footer className="flex w-full flex-col items-center justify-between gap-4 text-center text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:flex-row sm:text-left">
         <span>© 2026 Hyperlocalise. All rights reserved.</span>
-        <div className="flex items-center gap-5">
-          <span>Privacy</span>
-          <span>Terms</span>
-          <span>Contact</span>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
+          {footerLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors hover:text-foreground"
+            >
+              {link.label}
+            </a>
+          ))}
         </div>
       </footer>
     </section>
@@ -692,7 +747,7 @@ function Stat({ label, value, className }: { label: string; value: string; class
       <span className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
-      <span className="font-heading text-3xl font-semibold tracking-[-0.04em] text-foreground">
+      <span className="font-heading text-2xl font-semibold tracking-[-0.04em] text-foreground sm:text-3xl">
         {value}
       </span>
     </div>
