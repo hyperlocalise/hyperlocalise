@@ -151,19 +151,10 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-sm"
-            render={<a href={githubRepoUrl} />}
-          >
+          <Button variant="ghost" size="sm" className="text-sm" render={<a href={githubRepoUrl} />}>
             Star
           </Button>
-          <Button
-            size="sm"
-            className="text-sm"
-            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
-          >
+          <Button size="sm" className="text-sm" render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
             Join waitlist
           </Button>
         </div>

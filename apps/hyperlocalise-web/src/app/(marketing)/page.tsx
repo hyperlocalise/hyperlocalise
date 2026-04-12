@@ -226,8 +226,7 @@ function Hero() {
     <>
       <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
         <h1 className="max-w-5xl font-heading text-5xl leading-[0.94] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-6xl lg:text-7xl">
-          Faster localisation operations{" "}
-          <span className="text-foreground/56">powered by AI.</span>
+          Faster localisation operations <span className="text-foreground/56">powered by AI.</span>
         </h1>
 
         <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
@@ -335,7 +334,8 @@ function HeroPreview() {
                   },
                   {
                     title: "Review by exception",
-                    detail: "12 strings were routed to Crowdin for tone review in French and German",
+                    detail:
+                      "12 strings were routed to Crowdin for tone review in French and German",
                     badge: "Only where needed",
                   },
                   {
@@ -567,8 +567,7 @@ function DashboardSection() {
             Release dashboard
           </CardTitle>
           <CardDescription>
-            Review progress, quality status, and release readiness across every locale in one
-            view.
+            Review progress, quality status, and release readiness across every locale in one view.
           </CardDescription>
         </CardHeader>
 
@@ -628,7 +627,8 @@ function DashboardSection() {
             <FieldContent>
               <FieldTitle>Block release until quality checks pass</FieldTitle>
               <FieldDescription>
-                Keep this release blocked when regressions are still open or review coverage is incomplete.
+                Keep this release blocked when regressions are still open or review coverage is
+                incomplete.
               </FieldDescription>
             </FieldContent>
           </Field>
