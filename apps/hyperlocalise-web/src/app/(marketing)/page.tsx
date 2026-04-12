@@ -116,7 +116,17 @@ const teamCards = [
   },
 ];
 
-const dashboardRows = [
+type DashboardRowTone = "ready" | "review" | "blocked";
+
+type DashboardRow = {
+  locale: string;
+  status: string;
+  progress: string;
+  signal: string;
+  tone: DashboardRowTone;
+};
+
+const dashboardRows: DashboardRow[] = [
   {
     locale: "fr-FR",
     status: "Ready to ship",
@@ -146,7 +156,7 @@ const footerLinks = [
   { label: "Join waitlist", href: env.NEXT_PUBLIC_WAITLIST_URL },
 ] as const;
 
-function getStatusToneClasses(tone: "ready" | "review" | "blocked") {
+function getStatusToneClasses(tone: DashboardRowTone) {
   switch (tone) {
     case "ready":
       return "border-primary/20 bg-primary/10 text-primary";
@@ -157,7 +167,7 @@ function getStatusToneClasses(tone: "ready" | "review" | "blocked") {
   }
 }
 
-function getSignalToneClasses(tone: "ready" | "review" | "blocked") {
+function getSignalToneClasses(tone: DashboardRowTone) {
   switch (tone) {
     case "ready":
       return "text-primary";
