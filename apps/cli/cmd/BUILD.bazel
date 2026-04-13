@@ -10,6 +10,7 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/cmd",
     visibility = ["//visibility:public"],
     deps = [
+        "//apps/cli/internal/cliotel",
         "//apps/cli/internal/envloader",
         "//apps/cli/internal/i18n/evalsvc",
         "//apps/cli/internal/i18n/evalsvc/scoring",
@@ -40,6 +41,10 @@ go_library(
         "@com_github_mattn_go_isatty//:go-isatty",
         "@com_github_spf13_cobra//:cobra",
         "@com_github_spf13_cobra//doc",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute:attribute",
+        "@io_opentelemetry_go_otel//codes:codes",
+        "@io_opentelemetry_go_otel_trace//:trace",
     ],
 )
 

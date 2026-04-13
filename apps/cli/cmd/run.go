@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,9 +12,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/cliotel"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type runOptions struct {
@@ -110,11 +115,20 @@ func mergeRunLocaleFlags(primary, alias []string) []string {
 }
 
 func executeRun(cmd *cobra.Command, o runOptions) error {
+	baseCtx := cmd.Context()
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+	tr := otel.Tracer(cliotel.InstrumentationName)
+	spanCtx, span := tr.Start(baseCtx, cliotel.CommandSpanName(cmd))
+	defer span.End()
+
 	workers := o.workers
 	if workers == 0 {
 		workers = runtime.NumCPU()
 	}
 	if workers < 1 {
+		span.SetStatus(codes.Error, "invalid_workers")
 		return fmt.Errorf("invalid --workers value %d: must be >= 1", workers)
 	}
 	var targetLocales []string
@@ -138,21 +152,33 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	switch contextMemoryScope {
 	case runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup:
 	default:
+		span.SetStatus(codes.Error, "invalid_context_memory_scope")
 		return fmt.Errorf("invalid --context-memory-scope value %q: must be one of %s|%s|%s", o.contextMemoryScope, runsvc.ContextMemoryScopeFile, runsvc.ContextMemoryScopeBucket, runsvc.ContextMemoryScopeGroup)
 	}
 
 	progressMode, err := progressui.ParseMode(o.progress)
 	if err != nil {
+		span.SetStatus(codes.Error, "invalid_progress_mode")
 		return err
 	}
 
 	jsonDetail, err := runsvc.NormalizeReportJSONDetail(o.outputDetail)
 	if err != nil {
+		span.SetStatus(codes.Error, "invalid_output_detail")
 		return err
 	}
 
+	span.SetAttributes(
+		attribute.Bool("cli.dry_run", o.dryRun),
+		attribute.Bool("cli.force", o.force),
+		attribute.Bool("cli.interactive", o.interactive),
+		attribute.Bool("cli.prune", o.prune),
+		attribute.Int("cli.workers", workers),
+		attribute.Bool("cli.experimental_context_memory", o.experimentalContextMemory),
+	)
+
 	output := cmd.OutOrStdout()
-	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
+	runCtx, stop := signal.NotifyContext(spanCtx, os.Interrupt)
 	defer stop()
 
 	var renderer *progressui.Renderer
@@ -195,17 +221,34 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		renderer.Complete()
 	}
 
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.Int("run.planned_total", report.PlannedTotal),
+			attribute.Int("run.executable_total", report.ExecutableTotal),
+			attribute.Int("run.succeeded", report.Succeeded),
+			attribute.Int("run.failed", report.Failed),
+			attribute.Int("run.prune_applied", report.PruneApplied),
+			attribute.Int("run.prompt_tokens", report.PromptTokens),
+			attribute.Int("run.completion_tokens", report.CompletionTokens),
+			attribute.Int("run.total_tokens", report.TotalTokens),
+		)
+	}
+
 	if writeErr := writeRunReport(output, report, o.dryRun); writeErr != nil {
+		span.SetStatus(codes.Error, "write_run_report")
 		return fmt.Errorf("write run report: %w", writeErr)
 	}
 	if writeErr := writeRunReportArtifact(o.outputPath, report, jsonDetail); writeErr != nil {
+		span.SetStatus(codes.Error, "write_run_report_artifact")
 		return fmt.Errorf("write run report artifact: %w", writeErr)
 	}
 
 	if err != nil {
+		span.SetStatus(codes.Error, "run_service_error")
 		return err
 	}
 	if report.Failed > 0 {
+		span.SetStatus(codes.Error, "run_task_failures")
 		return fmt.Errorf("run completed with failures: %d", report.Failed)
 	}
 
