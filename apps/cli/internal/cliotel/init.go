@@ -63,6 +63,7 @@ func Init(ctx context.Context, serviceVersion string) (shutdown func(context.Con
 		),
 	)
 	if err != nil {
+		_ = exporter.Shutdown(ctx)
 		return nil, fmt.Errorf("cliotel: resource: %w", err)
 	}
 
