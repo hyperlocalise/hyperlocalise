@@ -14,5 +14,9 @@ go_library(
         "//internal/i18n/translator",
         "//pkg/i18nconfig",
         "@com_github_tidwall_jsonc//:jsonc",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute:attribute",
+        "@io_opentelemetry_go_otel//codes:codes",
+        "@io_opentelemetry_go_otel_trace//:trace",
     ],
 )

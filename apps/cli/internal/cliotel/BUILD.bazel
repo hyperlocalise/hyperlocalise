@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "cliotel",
+    srcs = glob(["*.go"]),
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/cliotel",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_spf13_cobra//:cobra",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//propagation:propagation",
+        "@io_opentelemetry_go_otel//semconv/v1.26.0:v1_26_0",
+        "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracehttp//:otlptracehttp",
+        "@io_opentelemetry_go_otel_sdk//resource:resource",
+        "@io_opentelemetry_go_otel_sdk//trace:trace",
+    ],
+)
