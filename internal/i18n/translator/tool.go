@@ -6,7 +6,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
+
+const otelTracerName = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
 
 type Tool struct {
 	mu        sync.RWMutex
@@ -90,10 +96,15 @@ func (t *Tool) Translate(ctx context.Context, req Request) (string, error) {
 	req.UserPrompt = userPrompt
 	req.RuntimeContext = ""
 
+	tctx, span := otel.Tracer(otelTracerName).Start(ctx, "translate")
+	defer span.End()
+	span.SetAttributes(attribute.String("llm.provider", providerName))
+
 	start := time.Now()
-	translated, err := provider.Translate(ctx, req)
+	translated, err := provider.Translate(tctx, req)
 	duration := time.Since(start)
 	if err != nil {
+		span.SetStatus(codes.Error, "translate_failed")
 		logPromptResult(req, providerName, "", err, duration)
 		return "", fmt.Errorf("translate with provider %q: %w", providerName, err)
 	}

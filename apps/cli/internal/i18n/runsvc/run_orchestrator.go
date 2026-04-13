@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) {
@@ -27,22 +28,28 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	}()
 	emitter.emit(Event{Kind: EventPhase, Phase: PhasePlanning})
 
+	_, planSpan := startRunSpan(ctx, "run.plan")
 	cfg, err := s.loadConfig(in.ConfigPath)
 	if err != nil {
+		endRunSpan(planSpan, err, "load_config")
 		return Report{}, fmt.Errorf("load config: %w", err)
 	}
 	if cfg.Cache.Enabled {
-		return Report{}, fmt.Errorf("remote cache client not yet implemented")
+		err = fmt.Errorf("remote cache client not yet implemented")
+		endRunSpan(planSpan, err, "cache_unsupported")
+		return Report{}, err
 	}
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
+		endRunSpan(planSpan, err, "plan_tasks")
 		return Report{}, err
 	}
 	legacyPromptWarnings := warningsForLegacyPrompts(planned)
 	if in.ExperimentalContextMemory {
 		scope, maxChars, normalizeErr := normalizeContextMemoryOptions(in)
 		if normalizeErr != nil {
+			endRunSpan(planSpan, normalizeErr, "context_memory_options")
 			return Report{}, normalizeErr
 		}
 		reportScope := scope
@@ -50,9 +57,12 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		in.ContextMemoryMaxChars = maxChars
 		assignContextKeys(planned, reportScope)
 	}
+	endRunSpan(planSpan, nil, "")
 
+	_, lockSpan := startRunSpan(ctx, "run.lock")
 	state, err := s.loadLock(in.LockPath)
 	if err != nil {
+		endRunSpan(lockSpan, err, "load_lock")
 		return Report{}, fmt.Errorf("load lock state: %w", err)
 	}
 	initializeLockState(state)
@@ -60,6 +70,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	activeRunID := ensureActiveRunID(state)
 	report, executable, checkpointStaged, lockMigrated, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force)
 	if err != nil {
+		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
 	}
 	report.GeneratedAt = s.now()
@@ -71,11 +82,20 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		report.ContextMemoryScope = in.ContextMemoryScope
 	}
 	emitter.emit(Event{Kind: EventPlanned, PlannedTotal: report.PlannedTotal, SkippedByLock: report.SkippedByLock, ExecutableTotal: report.ExecutableTotal})
+	lockSpan.SetAttributes(
+		attribute.Int("run.planned_total", report.PlannedTotal),
+		attribute.Int("run.skipped_by_lock", report.SkippedByLock),
+		attribute.Int("run.executable_total", report.ExecutableTotal),
+	)
+	endRunSpan(lockSpan, nil, "")
 
+	_, pruneSpan := startRunSpan(ctx, "run.prune")
 	pruneTargets, pruneMetadata, err := s.collectPruneTargets(in, planned, &report, emitter)
 	if err != nil {
+		endRunSpan(pruneSpan, err, "prune_collect")
 		return report, err
 	}
+	endRunSpan(pruneSpan, nil, "")
 
 	if in.DryRun || (len(executable) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
 		if !in.DryRun && lockMigrated {
@@ -89,8 +109,10 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 
 	contextPlan := contextMemoryPlan{}
 	if in.ExperimentalContextMemory && len(executable) > 0 {
+		_, cmSpan := startRunSpan(ctx, "run.context_memory")
 		emitter.emit(Event{Kind: EventPhase, Phase: PhaseContextMemory})
 		contextPlan = buildContextMemoryPlan(executable, in.ContextMemoryScope, in.ContextMemoryMaxChars)
+		endRunSpan(cmSpan, nil, "")
 	}
 
 	if len(executable) > 0 {
@@ -107,7 +129,10 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		targetLocales: in.TargetLocales,
 		sourcePaths:   in.SourcePaths,
 	}
-	staged, flushedTargets, execReport, err := s.executePool(ctx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
+	execCtx, execSpan := startRunSpan(ctx, "run.execute_pool")
+	execSpan.SetAttributes(attribute.Int("run.workers", in.Workers))
+	staged, flushedTargets, execReport, err := s.executePool(execCtx, executable, checkpointStaged, in.LockPath, state, in.Workers, activeRunID, pruneTargets, contextPlan, emitter, summaryReportMode, parityRetry)
+	endRunSpan(execSpan, err, "execute_pool")
 	report.Succeeded = execReport.Succeeded
 	report.Failed = execReport.Failed
 	report.PersistedToLock = execReport.PersistedToLock
@@ -125,7 +150,9 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 
 	emitter.emit(Event{Kind: EventPhase, Phase: PhaseFinalizingOutput})
 	remainingPruneTargets, remainingPruneMetadata := remainingPruneTargets(pruneTargets, pruneMetadata, flushedTargets)
+	_, outSpan := startRunSpan(ctx, "run.output")
 	flushWarnings, err := s.flushOutputs(ctx, parityRetry, staged, remainingPruneTargets, remainingPruneMetadata)
+	endRunSpan(outSpan, err, "flush_output")
 	report.Warnings = append(report.Warnings, flushWarnings...)
 	if err != nil {
 		emitter.emit(completedEvent(report))

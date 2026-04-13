@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/cliotel"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui"
@@ -26,6 +27,10 @@ import (
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var runCheckFixSvc = runsvc.Run
@@ -122,62 +127,98 @@ func newCheckCmd() *cobra.Command {
 		Short:        "check localized files for integrity issues",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			report, err := runCheck(context.Background(), o)
+			baseCtx := cmd.Context()
+			if baseCtx == nil {
+				baseCtx = context.Background()
+			}
+			tr := otel.Tracer(cliotel.InstrumentationName)
+			ctx, span := tr.Start(baseCtx, cliotel.CommandSpanName(cmd))
+			defer span.End()
+
+			formatLower := strings.ToLower(o.format)
+			span.SetAttributes(
+				attribute.Bool("cli.check.fix", o.fix),
+				attribute.Bool("cli.check.fix_dry_run", o.fixDryRun),
+				attribute.Bool("cli.check.no_fail", o.noFail),
+				attribute.Bool("cli.check.quiet", o.quiet),
+				attribute.String("cli.check.format", checkFormatTelemetryValue(formatLower)),
+			)
+			if o.fix {
+				span.SetAttributes(attribute.Int("cli.workers", o.workers))
+			}
+
+			report, err := runCheck(ctx, o)
 			if err != nil {
+				span.SetStatus(codes.Error, "check_run")
 				return err
 			}
 
 			display := applyCheckQuiet(report, o.quiet)
 
-			format := strings.ToLower(o.format)
+			format := formatLower
 			stdout := cmd.OutOrStdout()
 			switch {
 			case o.outputFile == "":
 				if err := writeCheckReport(stdout, display, format); err != nil {
+					span.SetStatus(codes.Error, "write_check_output")
 					return fmt.Errorf("write check output: %w", err)
 				}
 			case format == "stylish":
 				// Stylish uses *os.File for TTY color detection; MultiWriter would strip stdout color.
 				if err := writeCheckReport(stdout, display, format); err != nil {
+					span.SetStatus(codes.Error, "write_check_output")
 					return fmt.Errorf("write check output: %w", err)
 				}
 				var buf bytes.Buffer
 				if err := writeCheckReport(&buf, display, format); err != nil {
+					span.SetStatus(codes.Error, "write_check_output")
 					return err
 				}
 				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+					span.SetStatus(codes.Error, "write_output_file")
 					return fmt.Errorf("write output file %q: %w", o.outputFile, err)
 				}
 			default:
 				var buf bytes.Buffer
 				if err := writeCheckReport(io.MultiWriter(stdout, &buf), display, format); err != nil {
+					span.SetStatus(codes.Error, "write_check_output")
 					return fmt.Errorf("write check output: %w", err)
 				}
 				if err := os.WriteFile(o.outputFile, buf.Bytes(), 0o600); err != nil {
+					span.SetStatus(codes.Error, "write_output_file")
 					return fmt.Errorf("write output file %q: %w", o.outputFile, err)
 				}
 			}
 			if o.jsonReport != "" {
 				if err := writeCheckJSONReportFile(o.jsonReport, display); err != nil {
+					span.SetStatus(codes.Error, "write_json_report")
 					return err
 				}
 			}
 			if !o.fix {
+				applyCheckSpanSummary(span, display.Summary)
 				if display.Summary.Total > 0 && !o.noFail {
+					span.SetStatus(codes.Error, "check_findings")
 					return errCheckFindings
 				}
 				return nil
 			}
 
-			after, err := executeCheckFix(cmd, o, report)
+			after, err := executeCheckFix(cmd, ctx, o, report)
 			if err != nil {
+				span.SetStatus(codes.Error, "check_fix")
 				return err
 			}
 			exitReport := display
 			if after != nil {
 				exitReport = applyCheckQuiet(*after, o.quiet)
 			}
+			applyCheckSpanSummary(span, exitReport.Summary)
+			if o.fix && after != nil {
+				span.SetAttributes(attribute.Bool("check.fix_second_pass", true))
+			}
 			if exitReport.Summary.Total > 0 && !o.noFail {
+				span.SetStatus(codes.Error, "check_findings")
 				return errCheckFindings
 			}
 			return nil
@@ -202,30 +243,88 @@ func newCheckCmd() *cobra.Command {
 	return cmd
 }
 
-func runCheck(_ context.Context, o checkOptions) (checkReport, error) {
+func checkFormatTelemetryValue(f string) string {
+	switch strings.TrimSpace(strings.ToLower(f)) {
+	case "stylish", "text", "json":
+		return strings.TrimSpace(strings.ToLower(f))
+	default:
+		return "other"
+	}
+}
+
+func applyCheckSpanSummary(span trace.Span, s checkSummary) {
+	if !span.IsRecording() {
+		return
+	}
+	attrs := []attribute.KeyValue{
+		attribute.Int("check.findings_total", s.Total),
+		attribute.Int("check.severity_error", summarySeverityCount(s, checkSeverityError)),
+		attribute.Int("check.severity_warning", summarySeverityCount(s, checkSeverityWarning)),
+	}
+	for _, typ := range allCheckTypes {
+		if n := s.ByCheck[typ]; n > 0 {
+			attrs = append(attrs, attribute.Int("check.type."+typ, n))
+		}
+	}
+	span.SetAttributes(attrs...)
+}
+
+func summarySeverityCount(s checkSummary, sev string) int {
+	if s.BySeverity == nil {
+		return 0
+	}
+	return s.BySeverity[sev]
+}
+
+func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
+	tr := otel.Tracer(cliotel.InstrumentationName)
+
+	_, resolveSpan := tr.Start(ctx, "check.resolve")
 	cfg, err := config.Load(o.configPath)
 	if err != nil {
+		resolveSpan.SetStatus(codes.Error, "load_config")
+		resolveSpan.End()
 		return checkReport{}, fmt.Errorf("load config: %w", err)
 	}
 	locales, err := resolveStatusLocales(cfg, o.locales, o.group)
 	if err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_locales")
+		resolveSpan.End()
 		return checkReport{}, err
 	}
 	if len(locales) == 0 {
-		return checkReport{}, fmt.Errorf("no locales selected")
+		err = fmt.Errorf("no locales selected")
+		resolveSpan.SetStatus(codes.Error, "no_locales")
+		resolveSpan.End()
+		return checkReport{}, err
 	}
 	buckets, err := selectedStatusBuckets(cfg, o.group, o.bucket)
 	if err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_buckets")
+		resolveSpan.End()
 		return checkReport{}, err
 	}
 	enabledChecks, err := resolveEnabledChecks(o.checks, o.excludeChecks)
 	if err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_checks")
+		resolveSpan.End()
 		return checkReport{}, err
 	}
+	resolveSpan.SetAttributes(
+		attribute.Int("check.locale_count", len(locales)),
+		attribute.Int("check.bucket_count", len(buckets)),
+	)
+	resolveSpan.End()
+
+	_, collectSpan := tr.Start(ctx, "check.collect_findings")
 	findings, err := collectCheckFindings(cfg, buckets, locales, enabledChecks)
 	if err != nil {
+		collectSpan.SetStatus(codes.Error, "collect_findings")
+		collectSpan.End()
 		return checkReport{}, err
 	}
+	collectSpan.End()
+
 	sortCheckFindings(findings)
 	return checkReport{Checks: enabledChecks, Findings: findings, Summary: summarizeCheckFindings(findings)}, nil
 }
@@ -252,7 +351,7 @@ func filterCheckReportErrorsOnly(r checkReport) checkReport {
 	}
 }
 
-func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*checkReport, error) {
+func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptions, initial checkReport) (*checkReport, error) {
 	targets := buildFixTargetsFromFindings(initial.Findings)
 	mdScopes := buildFixMarkdownScopesFromFindings(initial.Findings)
 	if len(targets) == 0 && len(mdScopes) == 0 {
@@ -271,8 +370,16 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 	}
 	sourcePaths := uniqueSortedSourcePathsFromFixInputs(targets, mdScopes)
 
+	tr := otel.Tracer(cliotel.InstrumentationName)
+	fixCtx, fixSpan := tr.Start(parentCtx, "check.fix.run")
+	defer fixSpan.End()
+	fixSpan.SetAttributes(
+		attribute.Int("check.fix_targets", len(targets)),
+		attribute.Int("check.fix_markdown_scopes", len(mdScopes)),
+	)
+
 	output := cmd.OutOrStdout()
-	runCtx, stop := signal.NotifyContext(backgroundContext(), os.Interrupt)
+	runCtx, stop := signal.NotifyContext(fixCtx, os.Interrupt)
 	defer stop()
 
 	var renderer *progressui.Renderer
@@ -312,6 +419,7 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 		}
 	}
 	if err != nil {
+		fixSpan.SetStatus(codes.Error, "fix_run_service")
 		return nil, err
 	}
 	for _, w := range rpt.Warnings {
@@ -321,12 +429,18 @@ func executeCheckFix(cmd *cobra.Command, o checkOptions, initial checkReport) (*
 		return nil, nil
 	}
 	if rpt.Failed > 0 {
+		fixSpan.SetStatus(codes.Error, "fix_run_failures")
 		return nil, fmt.Errorf("check fix: run completed with %d failed task(s)", rpt.Failed)
 	}
-	after, err := runCheck(context.Background(), o)
+
+	_, verifySpan := tr.Start(parentCtx, "check.fix.verify")
+	after, err := runCheck(parentCtx, o)
 	if err != nil {
+		verifySpan.SetStatus(codes.Error, "verify_rerun")
+		verifySpan.End()
 		return nil, err
 	}
+	verifySpan.End()
 	if _, err := fmt.Fprintln(cmd.OutOrStdout(), ""); err != nil {
 		return nil, err
 	}
