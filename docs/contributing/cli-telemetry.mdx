@@ -1,0 +1,38 @@
+---
+title: "CLI OpenTelemetry (Jaeger)"
+description: "Optional traces for hyperlocalise run and check — off by default."
+---
+
+## Enablement
+
+Telemetry is **disabled by default**. Export traces only when **both** are true:
+
+1. Set `HYPERLOCALISE_OTEL=1`.
+2. Set a traces OTLP endpoint, for example `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (see [OTEL environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)).
+
+`OTEL_SDK_DISABLED=true` forces telemetry off.
+
+## Go modules
+
+Add OpenTelemetry to the workspace `go.mod` (versions should stay aligned), for example:
+
+```bash
+go get go.opentelemetry.io/otel@latest \
+  go.opentelemetry.io/otel/sdk@latest \
+  go.opentelemetry.io/otel/trace@latest \
+  go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@latest
+```
+
+The CLI uses semconv `go.opentelemetry.io/otel/semconv/v1.26.0` as imported by `apps/cli/internal/cliotel`.
+
+## Sampling
+
+- `HYPERLOCALISE_OTEL_TRACE_SAMPLE_RATIO` — optional value in `[0,1]` for head-based trace sampling (default `1` when unset).
+
+## What is exported
+
+Instrumented commands: **`run`** and **`check`** (including `check --fix`). Spans include phase timings for planning, lock, prune, execution, and output; LLM calls emit a `translate` child span with **provider name only** (no prompts, content, paths, or raw API errors).
+
+## What must not appear on spans
+
+Do not put prompts, user content, file paths, API keys, raw `error.Error()` strings from providers, or per-finding details on spans. Use stable error codes in span status descriptions only.
