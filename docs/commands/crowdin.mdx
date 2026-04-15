@@ -24,9 +24,11 @@ Use them when you want Crowdin-compatible file mode:
 - source-file upload from `files[].source`
 - translation upload from `files[].translation`
 - translation download/export back into your repo
-- strict validation of supported `crowdin.yml` fields
+- strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
 ## Supported config fields
+
+These drive Hyperlocalise Crowdin file mode:
 
 - `project_id`
 - `project_id_env`
@@ -45,13 +47,20 @@ Use them when you want Crowdin-compatible file mode:
 - `files[].skip_untranslated_files`
 - `files[].export_only_approved`
 
+## Crowdin CLI compatibility (parsed, not applied)
+
+The decoder also accepts several Crowdin-documented keys so you can reuse a standard `crowdin.yml` without stripping metadata. Hyperlocalise does **not** implement behavior for these yet; they are ignored after parse:
+
+- Root: `export_languages`, `branch`, `pull_request_title`, `pull_request_labels`, `commit_message`, `append_commit_message`, `pull_request_assignees`, `pull_request_reviewers`
+- Per file: `type`, `dest`, `update_option`, `export_pattern`, `translate_content`, `translate_attributes`, `content_segmentation`, `translatable_elements`, `ignore`, `translation_replace`, `first_line_contains_header`, `scheme`, `custom_segmentation`, `escape_quotes`, `escape_special_characters`, `labels`
+
 ## Unsupported features
 
-Validation fails closed for unsupported Crowdin CLI features.
+YAML keys not listed above still cause a decode error (`KnownFields`).
 
 This v1 file-mode implementation does not support:
 
-- branch workflows
+- branch workflows (the `branch` field is accepted but not used)
 - TM, glossary, task, screenshot, comment, distribution, or app commands
 - permissive "warn and ignore" compatibility mode
 - interactive Crowdin project bootstrap

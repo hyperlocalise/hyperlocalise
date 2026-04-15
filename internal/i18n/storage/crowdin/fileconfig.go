@@ -38,6 +38,16 @@ type fileConfigYAML struct {
 	BasePathEnv       string          `yaml:"base_path_env"`
 	PreserveHierarchy bool            `yaml:"preserve_hierarchy"`
 	Files             []fileGroupYAML `yaml:"files"`
+
+	// Optional Crowdin CLI / VCS keys (parsed for YAML compatibility; hl file mode does not use them yet).
+	ExportLanguages      []string `yaml:"export_languages"`
+	Branch               string   `yaml:"branch"`
+	PullRequestTitle     string   `yaml:"pull_request_title"`
+	PullRequestLabels    []string `yaml:"pull_request_labels"`
+	CommitMessage        string   `yaml:"commit_message"`
+	AppendCommitMessage  *bool    `yaml:"append_commit_message"`
+	PullRequestAssignees []any    `yaml:"pull_request_assignees"`
+	PullRequestReviewers []any    `yaml:"pull_request_reviewers"`
 }
 
 type identityConfigYAML struct {
@@ -50,6 +60,26 @@ type identityConfigYAML struct {
 }
 
 type fileGroupYAML struct {
+	// Optional Crowdin CLI fields (parsed for compatibility; hl file mode does not use them yet).
+	Type          string `yaml:"type"`
+	Dest          string `yaml:"dest"`
+	UpdateOption  string `yaml:"update_option"`
+	ExportPattern string `yaml:"export_pattern"`
+	// Crowdin accepts bool or 0/1 scalars; using any keeps YAML compatibility but does not reject other scalars.
+	// hl does not apply these fields yet; callers would need a type switch if they ever do.
+	TranslateContent        any               `yaml:"translate_content"`    // bool, 0, or 1
+	TranslateAttributes     any               `yaml:"translate_attributes"` // same semantics
+	ContentSegmentation     any               `yaml:"content_segmentation"` // same semantics
+	TranslatableElements    []string          `yaml:"translatable_elements"`
+	Ignore                  []string          `yaml:"ignore"`
+	TranslationReplace      map[string]string `yaml:"translation_replace"`
+	FirstLineContainsHeader *bool             `yaml:"first_line_contains_header"`
+	Scheme                  string            `yaml:"scheme"`
+	CustomSegmentation      string            `yaml:"custom_segmentation"`
+	EscapeQuotes            *int              `yaml:"escape_quotes"`
+	EscapeSpecialCharacters *int              `yaml:"escape_special_characters"`
+	Labels                  []string          `yaml:"labels"`
+
 	Source                  string                       `yaml:"source"`
 	Translation             string                       `yaml:"translation"`
 	LanguagesMapping        map[string]map[string]string `yaml:"languages_mapping"`
