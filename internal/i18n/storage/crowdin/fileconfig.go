@@ -61,13 +61,15 @@ type identityConfigYAML struct {
 
 type fileGroupYAML struct {
 	// Optional Crowdin CLI fields (parsed for compatibility; hl file mode does not use them yet).
-	Type                    string            `yaml:"type"`
-	Dest                    string            `yaml:"dest"`
-	UpdateOption            string            `yaml:"update_option"`
-	ExportPattern           string            `yaml:"export_pattern"`
-	TranslateContent        any               `yaml:"translate_content"` // bool or 0/1 in Crowdin examples
-	TranslateAttributes     any               `yaml:"translate_attributes"`
-	ContentSegmentation     any               `yaml:"content_segmentation"`
+	Type          string `yaml:"type"`
+	Dest          string `yaml:"dest"`
+	UpdateOption  string `yaml:"update_option"`
+	ExportPattern string `yaml:"export_pattern"`
+	// Crowdin accepts bool or 0/1 scalars; using any keeps YAML compatibility but does not reject other scalars.
+	// hl does not apply these fields yet; callers would need a type switch if they ever do.
+	TranslateContent        any               `yaml:"translate_content"`    // bool, 0, or 1
+	TranslateAttributes     any               `yaml:"translate_attributes"` // same semantics
+	ContentSegmentation     any               `yaml:"content_segmentation"` // same semantics
 	TranslatableElements    []string          `yaml:"translatable_elements"`
 	Ignore                  []string          `yaml:"ignore"`
 	TranslationReplace      map[string]string `yaml:"translation_replace"`

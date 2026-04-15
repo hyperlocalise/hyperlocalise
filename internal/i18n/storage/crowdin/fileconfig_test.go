@@ -174,6 +174,7 @@ files:
     translation: /dist/%locale%/%original_file_name%
     type: xml
     update_option: update_as_unapproved
+    export_pattern: /dist/%two_letters_code%/%original_file_name%
     ignore:
       - /src/legacy/**/*
     translation_replace:
@@ -200,6 +201,14 @@ files:
 	}
 	if len(cfg.Files) != 1 {
 		t.Fatalf("files len = %d, want 1", len(cfg.Files))
+	}
+	raw, err := decodeYAMLFile[fileConfigYAML](configPath)
+	if err != nil {
+		t.Fatalf("decode raw config: %v", err)
+	}
+	wantExport := "/dist/%two_letters_code%/%original_file_name%"
+	if got := raw.Files[0].ExportPattern; got != wantExport {
+		t.Fatalf("export_pattern = %q, want %q", got, wantExport)
 	}
 }
 
