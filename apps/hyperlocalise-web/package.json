@@ -25,7 +25,7 @@
     "dotenv": "17.4.2",
     "drizzle-orm": "0.45.2",
     "hono": "4.12.14",
-    "inngest": "4.2.2",
+    "inngest": "4.2.4",
     "next": "16.2.3",
     "next-themes": "0.4.6",
     "pg": "8.20.0",
