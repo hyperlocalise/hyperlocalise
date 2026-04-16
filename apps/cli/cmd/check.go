@@ -72,6 +72,8 @@ type checkOptions struct {
 	locales       []string
 	group         string
 	bucket        string
+	file          string
+	key           string
 	checks        []string
 	excludeChecks []string
 	format        string
@@ -229,6 +231,8 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "target locale(s) to check")
 	cmd.Flags().StringVar(&o.group, "group", "", "filter by group name")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter by bucket name")
+	cmd.Flags().StringVar(&o.file, "file", "", "filter by source file path")
+	cmd.Flags().StringVar(&o.key, "key", "", "filter by translation key")
 	cmd.Flags().StringSliceVar(&o.checks, "check", nil, "check(s) to run")
 	cmd.Flags().StringSliceVar(&o.excludeChecks, "exclude-check", nil, "default check(s) to skip")
 	cmd.Flags().StringVar(&o.format, "format", o.format, "output format: stylish (default), text, or json")
@@ -317,7 +321,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	resolveSpan.End()
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	findings, err := collectCheckFindings(cfg, buckets, locales, enabledChecks)
+	findings, err := collectCheckFindings(cfg, buckets, locales, enabledChecks, o.file, o.key)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -609,13 +613,17 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 	return enabled, nil
 }
 
-func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledChecks []string) ([]checkFinding, error) {
+func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledChecks []string, sourceFileFilter, keyFilter string) ([]checkFinding, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
 	for _, check := range enabledChecks {
 		checkSet[check] = struct{}{}
 	}
+
+	keyFilter = strings.TrimSpace(keyFilter)
+	fileFilter := filepath.Clean(strings.TrimSpace(sourceFileFilter))
+	filterByFile := strings.TrimSpace(sourceFileFilter) != ""
 
 	var findings []checkFinding
 	for _, bucketName := range buckets {
@@ -628,6 +636,9 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 			}
 			for _, sourcePath := range sourcePaths {
 				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+					continue
+				}
+				if filterByFile && filepath.Clean(sourcePath) != fileFilter {
 					continue
 				}
 				sourceEntries, err := readEntriesForStatus(parser, sourcePath)
@@ -646,25 +657,27 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 						return nil, err
 					}
 					if !targetExists {
-						if _, ok := checkSet[checkMissingTargetFile]; ok {
-							annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
-							findings = append(findings, checkFinding{
-								Type:           checkMissingTargetFile,
-								Severity:       severityForCheck(checkMissingTargetFile),
-								Bucket:         bucketName,
-								Locale:         locale,
-								SourceFile:     sourcePath,
-								TargetFile:     targetPath,
-								Message:        "target file does not exist",
-								AnnotationFile: annotationFile,
-								AnnotationLine: annotationLine,
-							})
+						if keyFilter == "" {
+							if _, ok := checkSet[checkMissingTargetFile]; ok {
+								annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
+								findings = append(findings, checkFinding{
+									Type:           checkMissingTargetFile,
+									Severity:       severityForCheck(checkMissingTargetFile),
+									Bucket:         bucketName,
+									Locale:         locale,
+									SourceFile:     sourcePath,
+									TargetFile:     targetPath,
+									Message:        "target file does not exist",
+									AnnotationFile: annotationFile,
+									AnnotationLine: annotationLine,
+								})
+							}
 						}
 						continue
 					}
 
-					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet)...)
-					if hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(targetPath) {
+					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet, keyFilter)...)
+					if keyFilter == "" && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(targetPath) {
 						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceContent, targetContent)...)
 					}
 				}
@@ -703,7 +716,7 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 	return targetEntries, nil, nil, true, nil
 }
 
-func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}) []checkFinding {
+func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}, keyFilter string) []checkFinding {
 	keys := make([]string, 0, len(sourceEntries))
 	for key := range sourceEntries {
 		keys = append(keys, key)
@@ -712,6 +725,9 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 
 	findings := make([]checkFinding, 0)
 	for _, key := range keys {
+		if keyFilter != "" && key != keyFilter {
+			continue
+		}
 		sourceValue := sourceEntries[key]
 		targetValue, hasTargetKey := targetEntries[key]
 		isWhitespaceOnlyTarget := hasTargetKey && targetValue != "" && strings.TrimSpace(targetValue) == ""
@@ -837,6 +853,9 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 		}
 		slices.Sort(orphanedKeys)
 		for _, key := range orphanedKeys {
+			if keyFilter != "" && key != keyFilter {
+				continue
+			}
 			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, "", targetEntries[key], false)
 			findings = append(findings, checkFinding{
 				Type:           checkOrphanedKey,

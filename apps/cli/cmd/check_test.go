@@ -146,6 +146,7 @@ func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocali
 			checkWhitespaceOnly: {},
 			checkHTMLTag:        {},
 		},
+		"",
 	)
 
 	if len(findings) != 1 {
@@ -498,6 +499,67 @@ func TestCheckCommandFiltersByBucketAndLocale(t *testing.T) {
 	}
 	if finding.AnnotationFile == "" || finding.AnnotationLine == 0 {
 		t.Fatalf("expected annotation location: %+v", finding)
+	}
+}
+
+func TestCheckCommandFiltersByFileAndKey(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	oneSourcePath := filepath.Join(dir, "content", "en", "one.json")
+	twoSourcePath := filepath.Join(dir, "content", "en", "two.json")
+	oneTargetPath := filepath.Join(dir, "dist", "fr", "one.json")
+	twoTargetPath := filepath.Join(dir, "dist", "fr", "two.json")
+
+	for _, path := range []string{oneSourcePath, twoSourcePath, oneTargetPath, twoTargetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(oneSourcePath, []byte(`{"hello":"Hello","cta":"Submit"}`), 0o600); err != nil {
+		t.Fatalf("write first source: %v", err)
+	}
+	if err := os.WriteFile(twoSourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write second source: %v", err)
+	}
+	if err := os.WriteFile(oneTargetPath, []byte(`{"hello":"Bonjour","cta":""}`), 0o600); err != nil {
+		t.Fatalf("write first target: %v", err)
+	}
+	if err := os.WriteFile(twoTargetPath, []byte(`{"hello":""}`), 0o600); err != nil {
+		t.Fatalf("write second target: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {
+	    "ui":{"files":[{"from":"` + filepath.ToSlash(oneSourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "one.json")) + `"}]},
+	    "docs":{"files":[{"from":"` + filepath.ToSlash(twoSourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "two.json")) + `"}]}
+	  },
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui","docs"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--file", oneSourcePath, "--key", "cta", "--check", checkNotLocalized, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command with --file and --key filters: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse filtered json output: %v", err)
+	}
+	if report.Summary.Total != 1 {
+		t.Fatalf("expected one finding, got %+v", report)
+	}
+	finding := report.Findings[0]
+	if finding.SourceFile != oneSourcePath || finding.Key != "cta" || finding.Type != checkNotLocalized {
+		t.Fatalf("unexpected finding with file/key filters: %+v", finding)
 	}
 }
 
