@@ -563,6 +563,53 @@ func TestCheckCommandFiltersByFileAndKey(t *testing.T) {
 	}
 }
 
+func TestCheckCommandFiltersByRelativeFilePath(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "one.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "one.json")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"cta":"Submit"}`), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"cta":""}`), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	relSourcePath, err := filepath.Rel(wd, sourcePath)
+	if err != nil {
+		t.Fatalf("build relative source path: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--file", relSourcePath, "--key", "cta", "--check", checkNotLocalized, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command with relative --file path: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse filtered json output: %v", err)
+	}
+	if report.Summary.Total != 1 {
+		t.Fatalf("expected one finding, got %+v", report)
+	}
+}
+
 func TestCheckCommandChecksMDXContent(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

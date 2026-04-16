@@ -622,8 +622,16 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 	}
 
 	keyFilter = strings.TrimSpace(keyFilter)
-	fileFilter := filepath.Clean(strings.TrimSpace(sourceFileFilter))
-	filterByFile := strings.TrimSpace(sourceFileFilter) != ""
+	trimmedFileFilter := strings.TrimSpace(sourceFileFilter)
+	filterByFile := trimmedFileFilter != ""
+	fileFilter := ""
+	if filterByFile {
+		var err error
+		fileFilter, err = filepath.Abs(trimmedFileFilter)
+		if err != nil {
+			return nil, fmt.Errorf("resolve --file path %q: %w", trimmedFileFilter, err)
+		}
+	}
 
 	var findings []checkFinding
 	for _, bucketName := range buckets {
@@ -638,8 +646,11 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
 					continue
 				}
-				if filterByFile && filepath.Clean(sourcePath) != fileFilter {
-					continue
+				if filterByFile {
+					absSourcePath, err := filepath.Abs(sourcePath)
+					if err != nil || absSourcePath != fileFilter {
+						continue
+					}
 				}
 				sourceEntries, err := readEntriesForStatus(parser, sourcePath)
 				if err != nil {
