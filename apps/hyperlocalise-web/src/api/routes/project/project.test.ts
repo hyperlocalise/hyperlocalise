@@ -3,17 +3,25 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";
 import { db } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
 
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+}));
+
+vi.mock("@/lib/workos/auth", () => ({
+  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+}));
+
 const client = testClient(app);
 const projectFixture = createProjectTestFixture(client);
-const { createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } = projectFixture;
+const { authHeadersFor, createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
+  projectFixture;
 
 type ProjectRecord = {
   id: string;
@@ -39,6 +47,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await projectFixture.cleanup();
 });
 
@@ -63,9 +72,7 @@ describe("projectRoutes", () => {
     const response = await client.api.project.$get(
       {},
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -102,9 +109,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -125,9 +130,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -148,9 +151,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -170,9 +171,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -196,9 +195,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -220,9 +217,7 @@ describe("projectRoutes", () => {
         json: {},
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -239,9 +234,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -262,9 +255,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -288,9 +279,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -314,9 +303,7 @@ describe("projectRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
-        },
+        headers: await authHeadersFor(memberIdentity),
       },
     );
 
@@ -333,9 +320,7 @@ describe("projectRoutes", () => {
         param: { projectId: `project_missing_${randomUUID()}` },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -355,9 +340,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -368,9 +351,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -388,9 +369,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -404,9 +383,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(ownerIdentity),
-        },
+        headers: await authHeadersFor(ownerIdentity),
       },
     );
 
@@ -420,9 +397,7 @@ describe("projectRoutes", () => {
         param: { projectId: `project_missing_${randomUUID()}` },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -443,9 +418,7 @@ describe("projectRoutes", () => {
         param: { projectId: createdBody.project.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
-        },
+        headers: await authHeadersFor(memberIdentity),
       },
     );
 

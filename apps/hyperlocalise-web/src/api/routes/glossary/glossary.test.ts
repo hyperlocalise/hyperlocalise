@@ -3,13 +3,20 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";
 import { db } from "@/lib/database";
 
 import { createGlossaryTestFixture } from "./glossary.fixture";
+
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+}));
+
+vi.mock("@/lib/workos/auth", () => ({
+  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+}));
 
 function generateNonExistentUuid(): string {
   return randomUUID();
@@ -17,7 +24,7 @@ function generateNonExistentUuid(): string {
 
 const client = testClient(app);
 const glossaryFixture = createGlossaryTestFixture(client);
-const { createGlossaryViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
+const { authHeadersFor, createGlossaryViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   glossaryFixture;
 
 type GlossaryRecord = {
@@ -46,23 +53,19 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await glossaryFixture.cleanup();
 });
 
 describe("glossaryRoutes", () => {
-  it("returns 400 for invalid auth context", async () => {
+  it("returns 401 when auth context is missing", async () => {
     const response = await client.api.glossary.$get(
       { query: { limit: "50", offset: "0" } },
-      {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify({ user: {}, organization: {}, membership: {} }),
-        },
-      },
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: "invalid_auth_context",
+      error: "unauthorized",
     });
   });
 
@@ -77,9 +80,7 @@ describe("glossaryRoutes", () => {
     const response = await client.api.glossary.$get(
       { query: { limit: "50", offset: "0" } },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -123,9 +124,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -147,9 +146,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -170,9 +167,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -204,9 +199,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -230,9 +223,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -254,9 +245,7 @@ describe("glossaryRoutes", () => {
         json: {},
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -273,9 +262,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -296,9 +283,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -322,9 +307,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -348,9 +331,7 @@ describe("glossaryRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
-        },
+        headers: await authHeadersFor(memberIdentity),
       },
     );
 
@@ -367,9 +348,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: generateNonExistentUuid() },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -389,9 +368,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -402,9 +379,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -422,9 +397,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -438,9 +411,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(ownerIdentity),
-        },
+        headers: await authHeadersFor(ownerIdentity),
       },
     );
 
@@ -454,9 +425,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: generateNonExistentUuid() },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -477,9 +446,7 @@ describe("glossaryRoutes", () => {
         param: { glossaryId: createdBody.glossary.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
-        },
+        headers: await authHeadersFor(memberIdentity),
       },
     );
 

@@ -7,13 +7,20 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobQueue } from "@/lib/inngest";
 import { createProjectTestFixture } from "./project.fixture";
+
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+}));
+
+vi.mock("@/lib/workos/auth", () => ({
+  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+}));
 
 function createInlineTestTranslationJobQueue(): TranslationJobQueue {
   return {
@@ -30,6 +37,7 @@ const client = testClient(
 );
 const projectFixture = createProjectTestFixture(client);
 const {
+  authHeadersFor,
   cleanup,
   createProjectViaApi,
   createWorkosIdentity,
@@ -95,6 +103,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await cleanup();
 });
 
@@ -121,9 +130,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -150,7 +157,7 @@ describe("translationJobRoutes", () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
-    const authHeader = { [AUTH_CONTEXT_HEADER]: JSON.stringify(identity) };
+    const authHeader = await authHeadersFor(identity);
     const localUserId = await getLocalUserId(identity.user.workosUserId);
 
     await insertTranslationJob({
@@ -251,9 +258,7 @@ describe("translationJobRoutes", () => {
       workflowRunId: "run_test",
     });
 
-    const authHeader = {
-      [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-    };
+    const authHeader = await authHeadersFor(identity);
 
     const getResponse = await client.api.project[":projectId"].jobs[":jobId"].$get(
       {
@@ -312,9 +317,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(memberIdentity),
-        },
+        headers: await authHeadersFor(memberIdentity),
       },
     );
 
@@ -348,9 +351,7 @@ describe("translationJobRoutes", () => {
         param: { projectId: project.id, jobId: job.id },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(otherIdentity),
-        },
+        headers: await authHeadersFor(otherIdentity),
       },
     );
 
@@ -378,9 +379,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -409,9 +408,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 
@@ -441,9 +438,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
     const project = ((await projectResponse.json()) as ProjectResponse).project;
@@ -461,9 +456,7 @@ describe("translationJobRoutes", () => {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
 

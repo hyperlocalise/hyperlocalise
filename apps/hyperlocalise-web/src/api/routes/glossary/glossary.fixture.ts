@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { AUTH_CONTEXT_HEADER, type WorkosAuthIdentity } from "@/api/auth/workos";
+import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
+import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 
 type CreateGlossaryInput = Partial<{
@@ -11,6 +12,10 @@ type CreateGlossaryInput = Partial<{
   sourceLocale: string;
   targetLocale: string;
 }>;
+
+declare global {
+  var __testApiAuthContext: ApiAuthContext | undefined;
+}
 
 export function createGlossaryTestFixture(client?: any) {
   const createdWorkosUserIds = new Set<string>();
@@ -85,11 +90,35 @@ export function createGlossaryTestFixture(client?: any) {
         },
       },
       {
-        headers: {
-          [AUTH_CONTEXT_HEADER]: JSON.stringify(identity),
-        },
+        headers: await authHeadersFor(identity),
       },
     );
+  }
+
+  async function authHeadersFor(identity: WorkosAuthIdentity) {
+    const { user, organization, membership } = await syncWorkosIdentity(db, identity);
+
+    globalThis.__testApiAuthContext = {
+      user: {
+        workosUserId: user.workosUserId,
+        localUserId: user.id,
+        email: user.email,
+      },
+      organization: {
+        workosOrganizationId: organization.workosOrganizationId,
+        localOrganizationId: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+      },
+      membership: {
+        workosMembershipId: membership.workosMembershipId,
+        role: membership.role,
+      },
+    };
+
+    return {
+      cookie: "wos-session=test",
+    };
   }
 
   async function getLocalUserId(workosUserId: string) {
@@ -142,6 +171,8 @@ export function createGlossaryTestFixture(client?: any) {
   }
 
   async function cleanup() {
+    globalThis.__testApiAuthContext = undefined;
+
     for (const workosOrganizationId of createdWorkosOrganizationIds) {
       await db
         .delete(schema.organizations)
@@ -157,6 +188,7 @@ export function createGlossaryTestFixture(client?: any) {
   }
 
   return {
+    authHeadersFor,
     cleanup,
     createGlossaryViaApi,
     createStoredGlossaryFixture,

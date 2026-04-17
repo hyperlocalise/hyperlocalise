@@ -4,30 +4,11 @@ import { testClient } from "hono/testing";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createWorkosAuthMiddleware, type IdentityResolver, type WorkosAuthIdentity } from "../auth/workos";
+import { createWorkosAuthMiddleware } from "../auth/workos";
 import type { ApiAuthContext } from "../auth/workos";
-
-function createWorkosIdentity(): WorkosAuthIdentity {
-  return {
-    user: {
-      workosUserId: "user_123",
-      email: "user@example.com",
-    },
-    organization: {
-      workosOrganizationId: "org_123",
-      name: "Example Org",
-      slug: "example-org",
-    },
-    membership: {
-      workosMembershipId: "membership_123",
-      role: "owner",
-    },
-  };
-}
 
 async function createClient(
   options: {
-    resolver?: IdentityResolver;
     sessionAuthContext?: ApiAuthContext | null;
   } = {},
 ) {
@@ -41,17 +22,6 @@ async function createClient(
     };
   });
 
-  if (options.resolver) {
-    vi.doMock("../auth/workos", async () => {
-      const actual = await vi.importActual<typeof import("../auth/workos")>("../auth/workos");
-
-      return {
-        ...actual,
-        workosAuthMiddleware: actual.createWorkosAuthMiddleware(options.resolver),
-      };
-    });
-  }
-
   vi.doMock("@/lib/workos/auth", () => ({
     resolveApiAuthContextFromSession: vi.fn().mockResolvedValue(options.sessionAuthContext ?? null),
   }));
@@ -64,73 +34,42 @@ async function createClient(
 describe("authRoutes", () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock("../auth/workos");
     vi.doUnmock("./health");
   });
 
-  it("returns 400 for known auth errors", async () => {
-    const resolver: IdentityResolver = {
-      resolve: vi.fn().mockRejectedValue(new Error("membership_sync_failed")),
-    };
-    const client = await createClient({ resolver });
+  it("returns 401 when auth context is missing", async () => {
+    const client = await createClient();
+    const response = await client.api.auth.context.$get();
 
-    const response = await client.api.auth.context.$get(
-      {},
-      {
-        headers: {
-          "x-hyperlocalise-auth": JSON.stringify(createWorkosIdentity()),
-        },
-      },
-    );
-
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: "invalid_auth_context",
+      error: "unauthorized",
     });
   });
 
-  it("returns 500 for unknown resolver errors", async () => {
-    const resolver: IdentityResolver = {
-      resolve: vi.fn().mockRejectedValue(new Error("database_timeout")),
-    };
-    const client = await createClient({ resolver });
-
-    const response = await client.api.auth.context.$get(
-      {},
-      {
-        headers: {
-          "x-hyperlocalise-auth": JSON.stringify(createWorkosIdentity()),
-        },
-      },
-    );
-
-    expect(response.status).toBe(500);
-  });
-
-  it("returns 400 for invalid WorkOS header values", async () => {
+  it("ignores forged auth headers without a session", async () => {
     const client = await createClient();
 
     const response = await client.api.auth.context.$get(
       {},
       {
         headers: {
-          "x-workos-user-id": "user_123",
-          "x-workos-user-email": "user@example.com",
-          "x-workos-organization-id": "org_123",
-          "x-workos-organization-name": "Example Org",
-          "x-workos-role": "owner",
-          "x-workos-user-avatar-url": "not-a-url",
+          "x-hyperlocalise-auth": JSON.stringify({
+            user: { workosUserId: "user_123", email: "user@example.com" },
+            organization: { workosOrganizationId: "org_123", name: "Example Org" },
+            membership: { role: "owner" },
+          }),
         },
       },
     );
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: "invalid_auth_context",
+      error: "unauthorized",
     });
   });
 
-  it("resolves auth from first-party session headers", async () => {
+  it("resolves auth from the first-party session", async () => {
     const client = await createClient({
       sessionAuthContext: {
         user: {
@@ -182,7 +121,7 @@ describe("authRoutes", () => {
     });
   });
 
-  it("does not remap downstream known errors from the session auth path", async () => {
+  it("does not remap downstream errors from the session auth path", async () => {
     vi.resetModules();
     vi.doMock("@/lib/workos/auth", () => ({
       resolveApiAuthContextFromSession: vi.fn().mockResolvedValue({
