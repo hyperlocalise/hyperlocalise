@@ -13,6 +13,8 @@ hyperlocalise check [--config <path>] [flags]
 
 Each check has a **severity** (`error` or `warning`) in the report JSON and in **stylish** output. Exit code `1` applies when any finding exists unless you pass `--no-fail`. With **`--quiet`**, only **error** findings count toward the exit code and printed/JSON output; warning-only runs exit `0`.
 
+With **`--diff-stdin`**, `check` reads a unified git patch from stdin and validates **changed keys only** for supported key-value translation files: **`.json`**, **`.jsonc`**, and **`.arb`**. In this mode, the CLI ignores unsupported file types in the patch, treats configured files with no identifiable changed keys as a no-op, and skips file-level or document-level checks that do not fit key-scoped diff validation.
+
 ### Error
 
 - `not_localized`: target key is missing or the target value is empty (after trimming)
@@ -36,6 +38,9 @@ Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include
 - `--locale`: target locale filter (repeatable)
 - `--group`: filter by group name
 - `--bucket`: filter by bucket name
+- `--file`: filter by source file path. Not supported with **`--diff-stdin`**
+- `--key`: filter by translation key. With **`--diff-stdin`**, this becomes an extra intersection filter on top of the changed keys extracted from the patch
+- `--diff-stdin`: read a unified diff from stdin and validate changed keys only. Supports configured **`.json`**, **`.jsonc`**, and **`.arb`** files. Runs only key-scoped checks: `not_localized`, `same_as_source`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, and `icu_shape_mismatch`. Skips `missing_target_file`, `orphaned_key`, and `markdown_ast_mismatch`
 - `--check`: run only specific checks (repeatable)
 - `--exclude-check`: skip specific default checks (repeatable)
 - `--format`: output format (`stylish` default, `text`, or `json`). **Stylish** prints ESLint-style diagnostics grouped by file; when stdout is a terminal, severities use color (no color when piped or in typical CI logs).
@@ -75,6 +80,10 @@ hyperlocalise check --fix --locale fr --bucket ui
 
 ```bash
 hyperlocalise check --fix --fix-dry-run --no-fail
+```
+
+```bash
+git diff --cached | hyperlocalise check --diff-stdin --no-fail
 ```
 
 ## See also
