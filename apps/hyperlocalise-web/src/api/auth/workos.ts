@@ -204,18 +204,30 @@ export function createWorkosAuthMiddleware(
 ) {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
-      const { resolveApiAuthContextFromRequestHeaders } = await import("@/lib/workos/auth");
-      const authFromSession = await resolveApiAuthContextFromRequestHeaders(c.req.raw.headers);
+      const authFromJsonHeader = readIdentityFromJsonHeader(c.req.raw.headers);
 
-      if (authFromSession) {
-        c.set("auth", authFromSession);
-        await next();
-        return;
+      if (authFromJsonHeader) {
+        const auth = await resolver.resolve(authFromJsonHeader);
+        c.set("auth", auth);
+      } else {
+        const authFromWorkosHeaders = readIdentityFromWorkosHeaders(c.req.raw.headers);
+
+        if (authFromWorkosHeaders) {
+          const auth = await resolver.resolve(authFromWorkosHeaders);
+          c.set("auth", auth);
+        } else if (c.req.raw.headers.has("cookie")) {
+          const { resolveApiAuthContextFromSession } = await import("@/lib/workos/auth");
+          const authFromSession = await resolveApiAuthContextFromSession();
+
+          if (!authFromSession) {
+            throw new Error("missing_auth_context");
+          }
+
+          c.set("auth", authFromSession);
+        } else {
+          throw new Error("missing_auth_context");
+        }
       }
-
-      const identity = parseWorkosIdentity(c.req.raw.headers);
-      const auth = await resolver.resolve(identity);
-      c.set("auth", auth);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
 

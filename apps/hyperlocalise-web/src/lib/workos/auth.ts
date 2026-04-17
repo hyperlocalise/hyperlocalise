@@ -112,7 +112,8 @@ function getActiveOrganizationId(
 }
 
 async function listUserOrganizations(userId: string): Promise<WorkosOrganizationOption[]> {
-  const membershipsResponse = await getWorkOS().userManagement.listOrganizationMemberships({
+  const workos = getWorkOS();
+  const membershipsResponse = await workos.userManagement.listOrganizationMemberships({
     userId,
     limit: 100,
   });
@@ -121,22 +122,30 @@ async function listUserOrganizations(userId: string): Promise<WorkosOrganization
     (membership) => membership.status === "active",
   );
 
-  const organizations = await Promise.all(
-    memberships.map(async (membership) => {
-      const organization = (await getWorkOS().organizations.getOrganization(
-        membership.organizationId,
-      )) as WorkosSdkOrganization;
-
-      return {
-        workosOrganizationId: organization.id,
-        name: organization.name,
-        slug: organization.slug ?? undefined,
-        workosMembershipId: membership.id,
-        role: normalizeRole(membership.role?.slug),
-        status: membership.status ?? "active",
-      } satisfies WorkosOrganizationOption;
-    }),
+  const organizationsResponse = (await workos.organizations.listOrganizations({
+    userId,
+    limit: 100,
+  })) as { data: WorkosSdkOrganization[] };
+  const organizationsById = new Map(
+    organizationsResponse.data.map((organization) => [organization.id, organization]),
   );
+
+  const organizations = memberships.flatMap((membership) => {
+    const organization = organizationsById.get(membership.organizationId);
+
+    if (!organization) {
+      return [];
+    }
+
+    return {
+      workosOrganizationId: organization.id,
+      name: organization.name,
+      slug: organization.slug ?? undefined,
+      workosMembershipId: membership.id,
+      role: normalizeRole(membership.role?.slug),
+      status: membership.status ?? "active",
+    } satisfies WorkosOrganizationOption;
+  });
 
   return organizations;
 }
@@ -317,9 +326,7 @@ export async function getDefaultReturnTo() {
   }
 }
 
-export async function resolveApiAuthContextFromRequestHeaders(
-  _requestHeaders: Headers,
-): Promise<ApiAuthContext | null> {
+export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext | null> {
   const session = await withAuth();
 
   if (!session?.user) {

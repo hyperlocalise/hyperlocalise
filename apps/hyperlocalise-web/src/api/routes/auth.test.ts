@@ -1,9 +1,10 @@
 import "dotenv/config";
 
 import { testClient } from "hono/testing";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { Hono } from "hono";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { IdentityResolver, WorkosAuthIdentity } from "../auth/workos";
+import { createWorkosAuthMiddleware, type IdentityResolver, type WorkosAuthIdentity } from "../auth/workos";
 import type { ApiAuthContext } from "../auth/workos";
 
 function createWorkosIdentity(): WorkosAuthIdentity {
@@ -52,9 +53,7 @@ async function createClient(
   }
 
   vi.doMock("@/lib/workos/auth", () => ({
-    resolveApiAuthContextFromRequestHeaders: vi
-      .fn()
-      .mockResolvedValue(options.sessionAuthContext ?? null),
+    resolveApiAuthContextFromSession: vi.fn().mockResolvedValue(options.sessionAuthContext ?? null),
   }));
 
   const { app } = await import("../app");
@@ -152,7 +151,14 @@ describe("authRoutes", () => {
       },
     });
 
-    const response = await client.api.auth.context.$get();
+    const response = await client.api.auth.context.$get(
+      {},
+      {
+        headers: {
+          cookie: "wos-session=test",
+        },
+      },
+    );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
@@ -174,5 +180,46 @@ describe("authRoutes", () => {
         },
       },
     });
+  });
+
+  it("does not remap downstream known errors from the session auth path", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/workos/auth", () => ({
+      resolveApiAuthContextFromSession: vi.fn().mockResolvedValue({
+        user: {
+          workosUserId: "user_123",
+          localUserId: "local_user_123",
+          email: "user@example.com",
+        },
+        organization: {
+          workosOrganizationId: "org_123",
+          localOrganizationId: "local_org_123",
+          name: "Example Org",
+          slug: "example-org",
+        },
+        membership: {
+          workosMembershipId: "membership_123",
+          role: "owner",
+        },
+      }),
+    }));
+
+    const app = new Hono()
+      .use("*", createWorkosAuthMiddleware())
+      .get("/", () => {
+        throw new Error("membership_sync_failed");
+      });
+    const client = testClient(app);
+
+    const response = await client.index.$get(
+      {},
+      {
+        headers: {
+          cookie: "wos-session=test",
+        },
+      },
+    );
+
+    expect(response.status).toBe(500);
   });
 });

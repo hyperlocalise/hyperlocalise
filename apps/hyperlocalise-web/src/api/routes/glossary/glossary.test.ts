@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";

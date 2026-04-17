@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { AUTH_CONTEXT_HEADER } from "@/api/auth/workos";

@@ -9,7 +9,7 @@ const {
   withAuthMock,
   getSignInUrlMock,
   listOrganizationMembershipsMock,
-  getOrganizationMock,
+  listOrganizationsMock,
   syncWorkosUserMock,
   syncWorkosIdentityMock,
   headersMock,
@@ -18,7 +18,7 @@ const {
   withAuthMock: vi.fn(),
   getSignInUrlMock: vi.fn(),
   listOrganizationMembershipsMock: vi.fn(),
-  getOrganizationMock: vi.fn(),
+  listOrganizationsMock: vi.fn(),
   syncWorkosUserMock: vi.fn(),
   syncWorkosIdentityMock: vi.fn(),
   headersMock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock("@workos-inc/authkit-nextjs", () => ({
       listOrganizationMemberships: listOrganizationMembershipsMock,
     },
     organizations: {
-      getOrganization: getOrganizationMock,
+      listOrganizations: listOrganizationsMock,
     },
   }),
 }));
@@ -78,10 +78,14 @@ describe("workos auth helpers", () => {
         },
       ],
     });
-    getOrganizationMock.mockResolvedValue({
-      id: "org_123",
-      name: "Example Org",
-      slug: "example-org",
+    listOrganizationsMock.mockResolvedValue({
+      data: [
+        {
+          id: "org_123",
+          name: "Example Org",
+          slug: "example-org",
+        },
+      ],
     });
     syncWorkosUserMock.mockResolvedValue({
       id: "local_user_123",
@@ -156,11 +160,20 @@ describe("workos auth helpers", () => {
         },
       ],
     });
-    getOrganizationMock.mockImplementation(async (organizationId: string) => ({
-      id: organizationId,
-      name: organizationId === "org_123" ? "Example Org" : "Second Org",
-      slug: organizationId === "org_123" ? "example-org" : "second-org",
-    }));
+    listOrganizationsMock.mockResolvedValue({
+      data: [
+        {
+          id: "org_123",
+          name: "Example Org",
+          slug: "example-org",
+        },
+        {
+          id: "org_456",
+          name: "Second Org",
+          slug: "second-org",
+        },
+      ],
+    });
 
     const { requireWorkosAppAuth } = await import("./auth");
 
@@ -204,10 +217,8 @@ describe("workos auth helpers", () => {
       accessToken: "token",
     });
 
-    const { resolveApiAuthContextFromRequestHeaders } = await import("./auth");
-    const result = await resolveApiAuthContextFromRequestHeaders(
-      new Headers({ "x-workos-session": "sealed-session" }),
-    );
+    const { resolveApiAuthContextFromSession } = await import("./auth");
+    const result = await resolveApiAuthContextFromSession();
 
     expect(result).toEqual({
       user: {
