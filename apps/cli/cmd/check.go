@@ -365,6 +365,10 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 			resolveSpan.End()
 			return checkReport{}, err
 		}
+		if len(selection.sourcePaths) == 0 {
+			resolveSpan.End()
+			return checkReport{Checks: enabledChecks}, nil
+		}
 	}
 	resolveSpan.SetAttributes(
 		attribute.Int("check.locale_count", len(locales)),
@@ -995,9 +999,6 @@ func parseCheckDiff(content []byte) (checkParsedDiff, error) {
 func parseCheckDiffPath(raw string) string {
 	path := strings.TrimSpace(raw)
 	if idx := strings.IndexByte(path, '\t'); idx >= 0 {
-		path = path[:idx]
-	}
-	if idx := strings.IndexByte(path, ' '); idx >= 0 {
 		path = path[:idx]
 	}
 	path = strings.TrimSpace(path)
