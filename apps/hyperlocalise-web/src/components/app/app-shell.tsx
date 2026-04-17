@@ -155,10 +155,12 @@ export function AppShell({ children, user, activeOrganization, organizations }: 
             ) : null}
           </div>
           <div className="flex items-center gap-3 rounded-xl px-1 py-1">
-            <div
-              className="size-7 rounded-full bg-[linear-gradient(135deg,#585858,#1c1c1c)] bg-cover bg-center"
-              style={user.avatarUrl ? { backgroundImage: `url(${user.avatarUrl})` } : undefined}
-            />
+            <div className="size-7 overflow-hidden rounded-full bg-[linear-gradient(135deg,#585858,#1c1c1c)]">
+              {user.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+              ) : null}
+            </div>
             <div className="min-w-0">
               <p className="truncate text-sm text-white">{user.name}</p>
               <p className="truncate text-xs text-white/45">{user.email}</p>
