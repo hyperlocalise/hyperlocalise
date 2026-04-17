@@ -12,6 +12,7 @@ export const env = createEnv({
     INNGEST_EVENT_KEY: z.string().min(1).optional(),
     INNGEST_SIGNING_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1).optional(),
+    GITHUB_APP_WEBHOOK_SECRET: z.string().min(1).optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
     WORKOS_REDIRECT_URI: z.url().optional(),
@@ -29,6 +30,9 @@ export const env = createEnv({
     INNGEST_SIGNING_KEY:
       process.env.INNGEST_SIGNING_KEY ?? (isTestEnv ? "test-signing-key" : undefined),
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
+    GITHUB_APP_WEBHOOK_SECRET:
+      process.env.GITHUB_APP_WEBHOOK_SECRET ??
+      (isTestEnv ? "test-github-app-webhook-secret" : undefined),
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:

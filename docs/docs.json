@@ -11,6 +11,10 @@
     "global": {
       "anchors": [
         {
+          "anchor": "Hyperlocalise Cloud",
+          "href": "https://hyperlocalise.com"
+        },
+        {
           "anchor": "GitHub",
           "href": "https://github.com/hyperlocalise/hyperlocalise"
         },
@@ -116,6 +120,13 @@
               "contributing/docs-contributions",
               "contributing/development",
               "contributing/release-maintenance"
+            ]
+          },
+          {
+            "group": "Legal",
+            "pages": [
+              "legal/privacy-policy",
+              "legal/terms-of-service"
             ]
           }
         ]
