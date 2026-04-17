@@ -11,8 +11,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -74,6 +76,8 @@ type checkOptions struct {
 	bucket        string
 	file          string
 	key           string
+	diffStdin     bool
+	diffContent   []byte
 	checks        []string
 	excludeChecks []string
 	format        string
@@ -117,6 +121,31 @@ type checkReport struct {
 	Summary  checkSummary   `json:"summary"`
 }
 
+type checkSelection struct {
+	fileFilterAbs         string
+	keyFilter             string
+	diffMode              bool
+	sourcePaths           map[string]struct{}
+	keysBySource          map[string]map[string]struct{}
+	keysBySourceAndLocale map[string]map[string]map[string]struct{}
+}
+
+type checkDiffPathIndex struct {
+	sourceToSource map[string]string
+	targetToSource map[string]checkTargetScope
+}
+
+type checkTargetScope struct {
+	sourcePath string
+	locale     string
+}
+
+type checkParsedDiff struct {
+	files map[string]map[string]struct{}
+}
+
+var checkDiffKeyPattern = regexp.MustCompile(`^\s*"((?:\\.|[^"\\])+)\"\s*:`)
+
 func defaultCheckOptions() checkOptions {
 	return checkOptions{format: "stylish"}
 }
@@ -147,6 +176,14 @@ func newCheckCmd() *cobra.Command {
 			)
 			if o.fix {
 				span.SetAttributes(attribute.Int("cli.workers", o.workers))
+			}
+			if o.diffStdin && o.diffContent == nil {
+				diffContent, err := io.ReadAll(cmd.InOrStdin())
+				if err != nil {
+					span.SetStatus(codes.Error, "read_diff_stdin")
+					return fmt.Errorf("read diff from stdin: %w", err)
+				}
+				o.diffContent = diffContent
 			}
 
 			report, err := runCheck(ctx, o)
@@ -233,6 +270,7 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter by bucket name")
 	cmd.Flags().StringVar(&o.file, "file", "", "filter by source file path")
 	cmd.Flags().StringVar(&o.key, "key", "", "filter by translation key")
+	cmd.Flags().BoolVar(&o.diffStdin, "diff-stdin", false, "read a unified diff from stdin and only check changed keys in supported key-value files")
 	cmd.Flags().StringSliceVar(&o.checks, "check", nil, "check(s) to run")
 	cmd.Flags().StringSliceVar(&o.excludeChecks, "exclude-check", nil, "default check(s) to skip")
 	cmd.Flags().StringVar(&o.format, "format", o.format, "output format: stylish (default), text, or json")
@@ -284,6 +322,12 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	tr := otel.Tracer(cliotel.InstrumentationName)
 
 	_, resolveSpan := tr.Start(ctx, "check.resolve")
+	selection, err := newCheckSelection(o.file, o.key, o.diffStdin)
+	if err != nil {
+		resolveSpan.SetStatus(codes.Error, "resolve_selection")
+		resolveSpan.End()
+		return checkReport{}, err
+	}
 	cfg, err := config.Load(o.configPath)
 	if err != nil {
 		resolveSpan.SetStatus(codes.Error, "load_config")
@@ -314,6 +358,14 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		resolveSpan.End()
 		return checkReport{}, err
 	}
+	if o.diffStdin {
+		enabledChecks = filterChecksForDiffScope(enabledChecks)
+		if err := selection.loadDiffScope(o.diffContent, cfg, buckets, locales); err != nil {
+			resolveSpan.SetStatus(codes.Error, "resolve_diff_scope")
+			resolveSpan.End()
+			return checkReport{}, err
+		}
+	}
 	resolveSpan.SetAttributes(
 		attribute.Int("check.locale_count", len(locales)),
 		attribute.Int("check.bucket_count", len(buckets)),
@@ -321,7 +373,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	resolveSpan.End()
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	findings, err := collectCheckFindings(cfg, buckets, locales, enabledChecks, o.file, o.key)
+	findings, err := collectCheckFindings(cfg, buckets, locales, enabledChecks, selection)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -613,24 +665,47 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 	return enabled, nil
 }
 
-func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledChecks []string, sourceFileFilter, keyFilter string) ([]checkFinding, error) {
+func newCheckSelection(sourceFileFilter, keyFilter string, diffMode bool) (checkSelection, error) {
+	selection := checkSelection{
+		keyFilter:             strings.TrimSpace(keyFilter),
+		diffMode:              diffMode,
+		keysBySource:          make(map[string]map[string]struct{}),
+		keysBySourceAndLocale: make(map[string]map[string]map[string]struct{}),
+	}
+	if diffMode && strings.TrimSpace(sourceFileFilter) != "" {
+		return checkSelection{}, fmt.Errorf("--diff-stdin cannot be used with --file")
+	}
+	trimmedFileFilter := strings.TrimSpace(sourceFileFilter)
+	if trimmedFileFilter == "" {
+		return selection, nil
+	}
+	fileFilterAbs, err := checkPathKey(trimmedFileFilter)
+	if err != nil {
+		return checkSelection{}, fmt.Errorf("resolve --file path %q: %w", trimmedFileFilter, err)
+	}
+	selection.fileFilterAbs = fileFilterAbs
+	return selection, nil
+}
+
+func filterChecksForDiffScope(enabledChecks []string) []string {
+	filtered := make([]string, 0, len(enabledChecks))
+	for _, name := range enabledChecks {
+		switch name {
+		case checkMissingTargetFile, checkOrphanedKey, checkMarkdownAST:
+			continue
+		default:
+			filtered = append(filtered, name)
+		}
+	}
+	return filtered
+}
+
+func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledChecks []string, selection checkSelection) ([]checkFinding, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
 	for _, check := range enabledChecks {
 		checkSet[check] = struct{}{}
-	}
-
-	keyFilter = strings.TrimSpace(keyFilter)
-	trimmedFileFilter := strings.TrimSpace(sourceFileFilter)
-	filterByFile := trimmedFileFilter != ""
-	fileFilter := ""
-	if filterByFile {
-		var err error
-		fileFilter, err = filepath.Abs(trimmedFileFilter)
-		if err != nil {
-			return nil, fmt.Errorf("resolve --file path %q: %w", trimmedFileFilter, err)
-		}
 	}
 
 	var findings []checkFinding
@@ -646,11 +721,8 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
 					continue
 				}
-				if filterByFile {
-					absSourcePath, err := filepath.Abs(sourcePath)
-					if err != nil || absSourcePath != fileFilter {
-						continue
-					}
+				if !selection.matchesSource(sourcePath) {
+					continue
 				}
 				sourceEntries, err := readEntriesForStatus(parser, sourcePath)
 				if err != nil {
@@ -668,7 +740,7 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 						return nil, err
 					}
 					if !targetExists {
-						if keyFilter == "" {
+						if selection.allowsFileLevelChecks() {
 							if _, ok := checkSet[checkMissingTargetFile]; ok {
 								annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, "", "", "", true)
 								findings = append(findings, checkFinding{
@@ -687,8 +759,8 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 						continue
 					}
 
-					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet, keyFilter)...)
-					if keyFilter == "" && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(targetPath) {
+					findings = append(findings, collectEntryCheckFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceEntries, targetEntries, checkSet, selection)...)
+					if selection.allowsDocumentLevelChecks() && hasCheck(checkSet, checkMarkdownAST) && isMarkdownPath(targetPath) {
 						findings = append(findings, collectMarkdownASTParityFindings(&resolver, bucketName, locale, sourcePath, targetPath, sourceContent, targetContent)...)
 					}
 				}
@@ -697,6 +769,277 @@ func collectCheckFindings(cfg *config.I18NConfig, buckets, locales, enabledCheck
 	}
 
 	return findings, nil
+}
+
+func (s checkSelection) matchesSource(sourcePath string) bool {
+	sourceKey, err := checkPathKey(sourcePath)
+	if err != nil {
+		return false
+	}
+	if s.fileFilterAbs != "" && sourceKey != s.fileFilterAbs {
+		return false
+	}
+	if len(s.sourcePaths) == 0 {
+		return true
+	}
+	_, ok := s.sourcePaths[sourceKey]
+	return ok
+}
+
+func (s checkSelection) allowsKey(sourcePath, locale, key string) bool {
+	if s.keyFilter != "" && key != s.keyFilter {
+		return false
+	}
+	if !s.diffMode {
+		return true
+	}
+
+	sourceKey, err := checkPathKey(sourcePath)
+	if err != nil {
+		return false
+	}
+	allowedAny := s.keysBySource[sourceKey]
+	allowedByLocale := s.keysBySourceAndLocale[sourceKey][locale]
+
+	if len(allowedAny) == 0 && len(allowedByLocale) == 0 {
+		return false
+	}
+	if _, ok := allowedAny[key]; ok {
+		return true
+	}
+	_, ok := allowedByLocale[key]
+	return ok
+}
+
+func (s checkSelection) allowsFileLevelChecks() bool {
+	return !s.diffMode && s.keyFilter == ""
+}
+
+func (s checkSelection) allowsDocumentLevelChecks() bool {
+	return !s.diffMode && s.keyFilter == ""
+}
+
+func (s *checkSelection) loadDiffScope(content []byte, cfg *config.I18NConfig, buckets, locales []string) error {
+	if strings.TrimSpace(string(content)) == "" {
+		return fmt.Errorf("read diff from stdin: no diff content")
+	}
+
+	parsed, err := parseCheckDiff(content)
+	if err != nil {
+		return err
+	}
+	index, err := buildCheckDiffPathIndex(cfg, buckets, locales)
+	if err != nil {
+		return err
+	}
+
+	s.sourcePaths = make(map[string]struct{})
+	for changedPath, keys := range parsed.files {
+		if len(keys) == 0 {
+			continue
+		}
+		if sourcePath, ok := index.sourceToSource[changedPath]; ok {
+			sourceKey, err := checkPathKey(sourcePath)
+			if err != nil {
+				return err
+			}
+			s.sourcePaths[sourceKey] = struct{}{}
+			addCheckSelectionKeys(s.keysBySource, sourceKey, keys)
+			continue
+		}
+		if targetScope, ok := index.targetToSource[changedPath]; ok {
+			sourceKey, err := checkPathKey(targetScope.sourcePath)
+			if err != nil {
+				return err
+			}
+			s.sourcePaths[sourceKey] = struct{}{}
+			addCheckSelectionLocaleKeys(s.keysBySourceAndLocale, sourceKey, targetScope.locale, keys)
+		}
+	}
+
+	return nil
+}
+
+func addCheckSelectionKeys(dst map[string]map[string]struct{}, sourceKey string, keys map[string]struct{}) {
+	keySet, ok := dst[sourceKey]
+	if !ok {
+		keySet = make(map[string]struct{}, len(keys))
+		dst[sourceKey] = keySet
+	}
+	for key := range keys {
+		keySet[key] = struct{}{}
+	}
+}
+
+func addCheckSelectionLocaleKeys(dst map[string]map[string]map[string]struct{}, sourceKey, locale string, keys map[string]struct{}) {
+	byLocale, ok := dst[sourceKey]
+	if !ok {
+		byLocale = make(map[string]map[string]struct{})
+		dst[sourceKey] = byLocale
+	}
+	keySet, ok := byLocale[locale]
+	if !ok {
+		keySet = make(map[string]struct{}, len(keys))
+		byLocale[locale] = keySet
+	}
+	for key := range keys {
+		keySet[key] = struct{}{}
+	}
+}
+
+func buildCheckDiffPathIndex(cfg *config.I18NConfig, buckets, locales []string) (checkDiffPathIndex, error) {
+	index := checkDiffPathIndex{
+		sourceToSource: make(map[string]string),
+		targetToSource: make(map[string]checkTargetScope),
+	}
+	for _, bucketName := range buckets {
+		bucket := cfg.Buckets[bucketName]
+		for _, file := range bucket.Files {
+			sourcePattern := pathresolver.ResolveSourcePath(file.From, cfg.Locales.Source)
+			sourcePaths, err := resolveSourcePathsForStatus(sourcePattern)
+			if err != nil {
+				return checkDiffPathIndex{}, fmt.Errorf("resolve source paths for %q: %w", sourcePattern, err)
+			}
+			for _, sourcePath := range sourcePaths {
+				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
+					continue
+				}
+				sourceKey, err := checkPathKey(sourcePath)
+				if err != nil {
+					return checkDiffPathIndex{}, err
+				}
+				index.sourceToSource[sourceKey] = sourcePath
+				for _, locale := range locales {
+					targetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, locale)
+					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					if err != nil {
+						return checkDiffPathIndex{}, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+					}
+					targetKey, err := checkPathKey(targetPath)
+					if err != nil {
+						return checkDiffPathIndex{}, err
+					}
+					index.targetToSource[targetKey] = checkTargetScope{
+						sourcePath: sourcePath,
+						locale:     locale,
+					}
+				}
+			}
+		}
+	}
+	return index, nil
+}
+
+func checkPathKey(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(abs), nil
+}
+
+func parseCheckDiff(content []byte) (checkParsedDiff, error) {
+	lines := strings.Split(string(content), "\n")
+	parsed := checkParsedDiff{files: make(map[string]map[string]struct{})}
+
+	var oldPath string
+	var currentPath string
+	sawHeader := false
+	for _, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "diff --git "):
+			oldPath = ""
+			currentPath = ""
+		case strings.HasPrefix(line, "--- "):
+			oldPath = parseCheckDiffPath(strings.TrimPrefix(line, "--- "))
+		case strings.HasPrefix(line, "+++ "):
+			newPath := parseCheckDiffPath(strings.TrimPrefix(line, "+++ "))
+			currentPath = chooseCheckDiffPath(oldPath, newPath)
+			if currentPath != "" {
+				sawHeader = true
+				if _, ok := parsed.files[currentPath]; !ok {
+					parsed.files[currentPath] = make(map[string]struct{})
+				}
+			}
+		case strings.HasPrefix(line, "@@"):
+			if currentPath == "" {
+				continue
+			}
+		default:
+			if currentPath == "" || !checkDiffSupportsChangedKeys(currentPath) {
+				continue
+			}
+			if line == "" {
+				continue
+			}
+			if line[0] != '+' && line[0] != '-' {
+				continue
+			}
+			if strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---") {
+				continue
+			}
+			key, ok := extractCheckDiffKey(line[1:])
+			if !ok {
+				continue
+			}
+			parsed.files[currentPath][key] = struct{}{}
+		}
+	}
+
+	if !sawHeader {
+		return checkParsedDiff{}, fmt.Errorf("parse diff from stdin: malformed unified diff")
+	}
+	return parsed, nil
+}
+
+func parseCheckDiffPath(raw string) string {
+	path := strings.TrimSpace(raw)
+	if idx := strings.IndexByte(path, '\t'); idx >= 0 {
+		path = path[:idx]
+	}
+	if idx := strings.IndexByte(path, ' '); idx >= 0 {
+		path = path[:idx]
+	}
+	path = strings.TrimSpace(path)
+	if path == "/dev/null" || path == "" {
+		return ""
+	}
+	if strings.HasPrefix(path, "a/") || strings.HasPrefix(path, "b/") {
+		path = path[2:]
+	}
+	key, err := checkPathKey(path)
+	if err != nil {
+		return ""
+	}
+	return key
+}
+
+func chooseCheckDiffPath(oldPath, newPath string) string {
+	if newPath != "" {
+		return newPath
+	}
+	return oldPath
+}
+
+func checkDiffSupportsChangedKeys(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json", ".jsonc", ".arb":
+		return true
+	default:
+		return false
+	}
+}
+
+func extractCheckDiffKey(line string) (string, bool) {
+	match := checkDiffKeyPattern.FindStringSubmatch(line)
+	if len(match) != 2 {
+		return "", false
+	}
+	key, err := strconv.Unquote(`"` + match[1] + `"`)
+	if err != nil {
+		return "", false
+	}
+	return key, true
 }
 
 func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, []byte, []byte, bool, error) {
@@ -727,7 +1070,7 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 	return targetEntries, nil, nil, true, nil
 }
 
-func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}, keyFilter string) []checkFinding {
+func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, locale, sourcePath, targetPath string, sourceEntries, targetEntries map[string]string, checkSet map[string]struct{}, selection checkSelection) []checkFinding {
 	keys := make([]string, 0, len(sourceEntries))
 	for key := range sourceEntries {
 		keys = append(keys, key)
@@ -736,7 +1079,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 
 	findings := make([]checkFinding, 0)
 	for _, key := range keys {
-		if keyFilter != "" && key != keyFilter {
+		if !selection.allowsKey(sourcePath, locale, key) {
 			continue
 		}
 		sourceValue := sourceEntries[key]
@@ -864,7 +1207,7 @@ func collectEntryCheckFindings(resolver *checkLocationResolver, bucketName, loca
 		}
 		slices.Sort(orphanedKeys)
 		for _, key := range orphanedKeys {
-			if keyFilter != "" && key != keyFilter {
+			if !selection.allowsKey(sourcePath, locale, key) {
 				continue
 			}
 			annotationFile, annotationLine := resolver.resolve(sourcePath, targetPath, key, "", targetEntries[key], false)

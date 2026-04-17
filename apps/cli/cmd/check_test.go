@@ -146,7 +146,7 @@ func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocali
 			checkWhitespaceOnly: {},
 			checkHTMLTag:        {},
 		},
-		"",
+		checkSelection{},
 	)
 
 	if len(findings) != 1 {
@@ -787,6 +787,352 @@ Bonjour
 			}
 		}
 	})
+}
+
+func TestCheckCommandDiffStdinScopesToChangedSourceKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\",\n  \"cta\": \"Submit\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("{\n  \"hello\": \"\",\n  \"cta\": \"Envoyer\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, sourcePath, "@@ -1,3 +1,3 @@\n-  \"hello\": \"Hello\",\n+  \"hello\": \"Hello there\",\n")))
+	cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --diff-stdin: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if report.Summary.Total != 1 {
+		t.Fatalf("expected one finding, got %+v", report)
+	}
+	if report.Findings[0].Key != "hello" || report.Findings[0].Type != checkNotLocalized {
+		t.Fatalf("unexpected finding: %+v", report.Findings[0])
+	}
+}
+
+func TestCheckCommandDiffStdinTargetDiffScopesToMatchingLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	deTargetPath := filepath.Join(dir, "dist", "de", "strings.json")
+
+	for _, path := range []string{sourcePath, frTargetPath, deTargetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(frTargetPath, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write fr target: %v", err)
+	}
+	if err := os.WriteFile(deTargetPath, []byte("{\n  \"hello\": \"Hallo\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write de target: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, filepath.Join(dir, "dist", "[locale]", "strings.json"), []string{"fr", "de"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, frTargetPath, "@@ -1,3 +1,3 @@\n-  \"hello\": \"Bonjour\",\n+  \"hello\": \"Hello\",\n")))
+	cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --diff-stdin: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if report.Summary.Total != 1 {
+		t.Fatalf("expected one finding, got %+v", report)
+	}
+	finding := report.Findings[0]
+	if finding.Locale != "fr" || finding.Key != "hello" || finding.Type != checkSameAsSource {
+		t.Fatalf("unexpected finding: %+v", finding)
+	}
+}
+
+func TestCheckCommandDiffStdinSupportsMultipleFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourceOne := filepath.Join(dir, "content", "en", "one.json")
+	sourceTwo := filepath.Join(dir, "content", "en", "two.json")
+	targetOne := filepath.Join(dir, "dist", "fr", "one.json")
+	targetTwo := filepath.Join(dir, "dist", "fr", "two.json")
+
+	for _, path := range []string{sourceOne, sourceTwo, targetOne, targetTwo} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourceOne, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source one: %v", err)
+	}
+	if err := os.WriteFile(sourceTwo, []byte("{\n  \"cta\": \"Submit\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source two: %v", err)
+	}
+	if err := os.WriteFile(targetOne, []byte("{\n  \"hello\": \"\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target one: %v", err)
+	}
+	if err := os.WriteFile(targetTwo, []byte("{\n  \"cta\": \"Submit\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target two: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {
+	    "ui":{"files":[{"from":"` + filepath.ToSlash(sourceOne) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "one.json")) + `"}]},
+	    "docs":{"files":[{"from":"` + filepath.ToSlash(sourceTwo) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "two.json")) + `"}]}
+	  },
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui","docs"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	diff := testCheckDiffForPath(t, sourceOne, "@@ -1,3 +1,3 @@\n-  \"hello\": \"Hello\",\n+  \"hello\": \"Hello there\",\n") +
+		testCheckDiffForPath(t, sourceTwo, "@@ -1,3 +1,3 @@\n-  \"cta\": \"Submit\",\n+  \"cta\": \"Submit now\",\n")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(strings.NewReader(diff))
+	cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --diff-stdin: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if report.Summary.Total != 2 {
+		t.Fatalf("expected two findings, got %+v", report)
+	}
+	assertFindingType(t, report.Findings, checkNotLocalized)
+	assertFindingType(t, report.Findings, checkSameAsSource)
+}
+
+func TestCheckCommandDiffStdinIgnoresUnsupportedFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "page.mdx")
+	targetPath := filepath.Join(dir, "dist", "fr", "page.mdx")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("# Hello\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("# Hello\n"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, sourcePath, "@@ -1 +1 @@\n-# Hello\n+# Bonjour\n")))
+	cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --diff-stdin: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if report.Summary.Total != 0 {
+		t.Fatalf("expected no findings, got %+v", report)
+	}
+}
+
+func TestCheckCommandDiffStdinSkipsFileLevelChecks(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(frTargetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(frTargetPath, []byte("{\n  \"hello\": \"Bonjour\",\n  \"extra\": \"orphan\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, filepath.Join(dir, "dist", "[locale]", "strings.json"), []string{"fr", "de"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, sourcePath, "@@ -1,3 +1,3 @@\n-  \"hello\": \"Hello\",\n+  \"hello\": \"Hello there\",\n")))
+	cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --diff-stdin: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	for _, finding := range report.Findings {
+		if finding.Type == checkMissingTargetFile || finding.Type == checkOrphanedKey || finding.Type == checkMarkdownAST {
+			t.Fatalf("unexpected file-level finding in diff mode: %+v", finding)
+		}
+	}
+}
+
+func TestCheckCommandDiffStdinRejectsEmptyOrMalformedDiff(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"Bonjour"}`), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	t.Run("empty", func(t *testing.T) {
+		cmd := newRootCmd("")
+		cmd.SetIn(strings.NewReader(""))
+		cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin"})
+		err := cmd.Execute()
+		if err == nil || !strings.Contains(err.Error(), "no diff content") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("malformed", func(t *testing.T) {
+		cmd := newRootCmd("")
+		cmd.SetIn(strings.NewReader("not a diff"))
+		cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin"})
+		err := cmd.Execute()
+		if err == nil || !strings.Contains(err.Error(), "malformed unified diff") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestCheckCommandDiffStdinRejectsFileFilterAndIntersectsKeyFilter(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\",\n  \"cta\": \"Submit\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("{\n  \"hello\": \"\",\n  \"cta\": \"Submit\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	t.Run("rejects --file", func(t *testing.T) {
+		cmd := newRootCmd("")
+		cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, sourcePath, "@@ -1,3 +1,3 @@\n-  \"hello\": \"Hello\",\n+  \"hello\": \"Hello there\",\n")))
+		cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--file", sourcePath})
+		err := cmd.Execute()
+		if err == nil || !strings.Contains(err.Error(), "--diff-stdin cannot be used with --file") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("intersects --key", func(t *testing.T) {
+		cmd := newRootCmd("")
+		out := bytes.NewBuffer(nil)
+		cmd.SetOut(out)
+		cmd.SetErr(out)
+		cmd.SetIn(strings.NewReader(testCheckDiffForPath(t, sourcePath, "@@ -1,4 +1,4 @@\n-  \"hello\": \"Hello\",\n+  \"hello\": \"Hello there\",\n-  \"cta\": \"Submit\"\n+  \"cta\": \"Submit now\"\n")))
+		cmd.SetArgs([]string{"check", "--config", configPath, "--diff-stdin", "--key", "cta", "--format", "json", "--no-fail"})
+
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("check --diff-stdin --key: %v", err)
+		}
+
+		var report checkReport
+		if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+			t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+		}
+		if report.Summary.Total != 1 {
+			t.Fatalf("expected one finding, got %+v", report)
+		}
+		if report.Findings[0].Key != "cta" || report.Findings[0].Type != checkSameAsSource {
+			t.Fatalf("unexpected finding: %+v", report.Findings[0])
+		}
+	})
+}
+
+func testCheckDiffForPath(t *testing.T, path, hunk string) string {
+	t.Helper()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	relPath, err := filepath.Rel(wd, path)
+	if err != nil {
+		t.Fatalf("build relative path: %v", err)
+	}
+	relPath = filepath.ToSlash(relPath)
+	return "diff --git a/" + relPath + " b/" + relPath + "\n--- a/" + relPath + "\n+++ b/" + relPath + "\n" + hunk
 }
 
 func TestResolveEnabledChecks(t *testing.T) {
