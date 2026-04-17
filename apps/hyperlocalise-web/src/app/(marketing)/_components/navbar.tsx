@@ -154,12 +154,28 @@ export default function Navbar() {
           <Button variant="ghost" size="sm" className="text-sm" render={<a href={githubRepoUrl} />}>
             Star
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-sm"
+            render={<Link href="/auth/sign-in" />}
+          >
+            Sign in
+          </Button>
           <Button size="sm" className="text-sm" render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
             Join waitlist
           </Button>
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="px-3.5 text-sm"
+            render={<Link href="/auth/sign-in" />}
+          >
+            Sign in
+          </Button>
           <Button
             size="sm"
             className="px-3.5 text-sm"

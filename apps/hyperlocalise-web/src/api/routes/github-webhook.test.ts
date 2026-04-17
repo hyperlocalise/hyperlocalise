@@ -55,6 +55,50 @@ describe("githubWebhookRoutes", () => {
     });
   });
 
+  it("accepts verified PR comment mentions without triggering review work yet", async () => {
+    const payload = JSON.stringify({
+      action: "created",
+      issue: {
+        number: 42,
+        pull_request: {
+          url: "https://api.github.com/repos/hyperlocalise/hyperlocalise/pulls/42",
+        },
+      },
+      comment: {
+        id: 7001,
+        body: "@hyperlocalise please rerun",
+      },
+      installation: {
+        id: 123,
+      },
+      repository: {
+        name: "hyperlocalise",
+        full_name: "hyperlocalise/hyperlocalise",
+        owner: {
+          login: "hyperlocalise",
+        },
+      },
+    });
+
+    const response = await app.request("http://localhost/api/webhooks/github", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-delivery": "delivery-comment-123",
+        "x-github-event": "issue_comment",
+        "x-hub-signature-256": sign(payload),
+      },
+      body: payload,
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      deliveryId: "delivery-comment-123",
+      event: "issue_comment",
+    });
+  });
+
   it("accepts verified form-encoded payloads", async () => {
     const encodedPayload = JSON.stringify({
       action: "pending_change",

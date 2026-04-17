@@ -85,7 +85,13 @@ export const githubWebhookRoutes = new Hono().post("/", async (c) => {
       // TODO: Handle Marketplace purchase state changes if this app is listed on GitHub Marketplace.
       break;
     case "pull_request":
-      // TODO: React to pull request activity after the app starts processing repo events.
+      // TODO: Once GitHub auth is available, wire this to the GitHub review queue and enqueue the unified review flow.
+      break;
+    case "issue_comment":
+      // TODO: Once GitHub auth is available, detect `@hyperlocalise` mentions on PR comments and enqueue a rerun via the GitHub review queue.
+      break;
+    case "pull_request_review_comment":
+      // TODO: Once GitHub auth is available, detect `@hyperlocalise` mentions on review comments and enqueue a rerun via the GitHub review queue.
       break;
     default:
       // TODO: Decide which additional GitHub webhook events should be handled here.
