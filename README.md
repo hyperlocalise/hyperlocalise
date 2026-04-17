@@ -67,7 +67,6 @@ Current scope:
 - Supported checks in `v1`: `drift` and `check`
 - `drift` runs `hyperlocalise run --dry-run` and reports planned localization changes
 - `check` runs `hyperlocalise check --format json` and reports localization integrity findings
-- `check` also supports diff-scoped validation for changed keys in `.json`, `.jsonc`, and `.arb` files via `git diff --cached | hyperlocalise check --diff-stdin`
 
 This repository publishes a moving major ref for stable v1 releases. Use `@v1` for the latest compatible action, or pin an exact tag such as `@v1.3.1` for stricter control.
 
