@@ -4,6 +4,7 @@ import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { IdentityResolver, WorkosAuthIdentity } from "../auth/workos";
+import type { ApiAuthContext } from "../auth/workos";
 
 function createWorkosIdentity(): WorkosAuthIdentity {
   return {
@@ -23,7 +24,12 @@ function createWorkosIdentity(): WorkosAuthIdentity {
   };
 }
 
-async function createClient(resolver?: IdentityResolver) {
+async function createClient(
+  options: {
+    resolver?: IdentityResolver;
+    sessionAuthContext?: ApiAuthContext | null;
+  } = {},
+) {
   vi.resetModules();
 
   vi.doMock("./health", async () => {
@@ -34,16 +40,22 @@ async function createClient(resolver?: IdentityResolver) {
     };
   });
 
-  if (resolver) {
+  if (options.resolver) {
     vi.doMock("../auth/workos", async () => {
       const actual = await vi.importActual<typeof import("../auth/workos")>("../auth/workos");
 
       return {
         ...actual,
-        workosAuthMiddleware: actual.createWorkosAuthMiddleware(resolver),
+        workosAuthMiddleware: actual.createWorkosAuthMiddleware(options.resolver),
       };
     });
   }
+
+  vi.doMock("@/lib/workos/auth", () => ({
+    resolveApiAuthContextFromRequestHeaders: vi
+      .fn()
+      .mockResolvedValue(options.sessionAuthContext ?? null),
+  }));
 
   const { app } = await import("../app");
 
@@ -61,7 +73,7 @@ describe("authRoutes", () => {
     const resolver: IdentityResolver = {
       resolve: vi.fn().mockRejectedValue(new Error("membership_sync_failed")),
     };
-    const client = await createClient(resolver);
+    const client = await createClient({ resolver });
 
     const response = await client.api.auth.context.$get(
       {},
@@ -82,7 +94,7 @@ describe("authRoutes", () => {
     const resolver: IdentityResolver = {
       resolve: vi.fn().mockRejectedValue(new Error("database_timeout")),
     };
-    const client = await createClient(resolver);
+    const client = await createClient({ resolver });
 
     const response = await client.api.auth.context.$get(
       {},
@@ -116,6 +128,51 @@ describe("authRoutes", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "invalid_auth_context",
+    });
+  });
+
+  it("resolves auth from first-party session headers", async () => {
+    const client = await createClient({
+      sessionAuthContext: {
+        user: {
+          workosUserId: "user_123",
+          localUserId: "local_user_123",
+          email: "user@example.com",
+        },
+        organization: {
+          workosOrganizationId: "org_123",
+          localOrganizationId: "local_org_123",
+          name: "Example Org",
+          slug: "example-org",
+        },
+        membership: {
+          workosMembershipId: "membership_123",
+          role: "owner",
+        },
+      },
+    });
+
+    const response = await client.api.auth.context.$get();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      auth: {
+        user: {
+          workosUserId: "user_123",
+          localUserId: "local_user_123",
+          email: "user@example.com",
+        },
+        organization: {
+          workosOrganizationId: "org_123",
+          localOrganizationId: "local_org_123",
+          name: "Example Org",
+          slug: "example-org",
+        },
+        membership: {
+          workosMembershipId: "membership_123",
+          role: "owner",
+        },
+      },
     });
   });
 });

@@ -16,11 +16,13 @@ export const env = createEnv({
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
     WORKOS_REDIRECT_URI: z.url().optional(),
+    WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
   },
   client: {
     NEXT_PUBLIC_WAITLIST_URL: z.url(),
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "test", "production"]).default("development"),
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -37,10 +39,17 @@ export const env = createEnv({
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),
+    WORKOS_COOKIE_PASSWORD:
+      process.env.WORKOS_COOKIE_PASSWORD ??
+      (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
+    NEXT_PUBLIC_WORKOS_REDIRECT_URI:
+      process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
+      process.env.WORKOS_REDIRECT_URI ??
+      (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
   },
 });

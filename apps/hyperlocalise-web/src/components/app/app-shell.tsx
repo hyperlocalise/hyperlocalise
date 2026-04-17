@@ -13,6 +13,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +32,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import type { WorkosOrganizationOption } from "@/lib/workos/auth";
 
 const navigation = [
   { label: "Weekly ops", href: "/dashboard", icon: SparklesIcon },
@@ -40,7 +42,18 @@ const navigation = [
   { label: "Analytics", href: "/dashboard#analytics", icon: InformationCircleIcon },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+type AppShellProps = {
+  children: ReactNode;
+  user: {
+    name: string;
+    email: string;
+    avatarUrl?: string;
+  };
+  activeOrganization: WorkosOrganizationOption;
+  organizations: WorkosOrganizationOption[];
+};
+
+export function AppShell({ children, user, activeOrganization, organizations }: AppShellProps) {
   const pathname = usePathname();
 
   return (
@@ -67,10 +80,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               <div className="size-7 rounded-full border border-white/15 bg-[linear-gradient(135deg,#2a2a2a,#101010)]" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
+                <p className="truncate text-xs text-white/42">{activeOrganization.name}</p>
               </div>
             </div>
             <Badge className="bg-[#0f0f0f] text-[0.68rem] text-white/72 ring-1 ring-white/10">
-              Pro
+              {activeOrganization.role}
             </Badge>
           </div>
 
@@ -120,18 +134,44 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SidebarFooter className="gap-3 px-3 py-3">
           <div className="rounded-xl border border-white/8 bg-[#0a0a0a] px-3 py-3">
             <p className="text-xs font-medium tracking-[0.18em] text-white/38 uppercase">
-              This week
+              Organization
             </p>
             <p className="mt-2 text-sm text-white/70">
-              Weekly operations view for runs, quality, turnaround, and blocked locales.
+              {organizations.length > 1
+                ? `${organizations.length} organizations available in this account.`
+                : "Single workspace active in this account."}
             </p>
+            {organizations.length > 1 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-3 w-full border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                render={
+                  <Link href={`/auth/organizations?returnTo=${encodeURIComponent(pathname)}`} />
+                }
+              >
+                Switch organization
+              </Button>
+            ) : null}
           </div>
           <div className="flex items-center gap-3 rounded-xl px-1 py-1">
-            <div className="size-7 rounded-full bg-[linear-gradient(135deg,#585858,#1c1c1c)]" />
+            <div
+              className="size-7 rounded-full bg-[linear-gradient(135deg,#585858,#1c1c1c)] bg-cover bg-center"
+              style={user.avatarUrl ? { backgroundImage: `url(${user.avatarUrl})` } : undefined}
+            />
             <div className="min-w-0">
-              <p className="truncate text-sm text-white">Minh Cung</p>
+              <p className="truncate text-sm text-white">{user.name}</p>
+              <p className="truncate text-xs text-white/45">{user.email}</p>
             </div>
           </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="justify-start px-1 text-white/65 hover:bg-white/8 hover:text-white"
+            render={<Link href="/auth/sign-out?returnTo=/" />}
+          >
+            Sign out
+          </Button>
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
@@ -147,7 +187,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               variant="outline"
               className="rounded-full border-white/10 bg-transparent text-white/52"
             >
-              Mock
+              {activeOrganization.name}
             </Badge>
           </div>
         </div>

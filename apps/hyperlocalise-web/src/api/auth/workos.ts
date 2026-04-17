@@ -204,6 +204,15 @@ export function createWorkosAuthMiddleware(
 ) {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
+      const { resolveApiAuthContextFromRequestHeaders } = await import("@/lib/workos/auth");
+      const authFromSession = await resolveApiAuthContextFromRequestHeaders(c.req.raw.headers);
+
+      if (authFromSession) {
+        c.set("auth", authFromSession);
+        await next();
+        return;
+      }
+
       const identity = parseWorkosIdentity(c.req.raw.headers);
       const auth = await resolver.resolve(identity);
       c.set("auth", auth);

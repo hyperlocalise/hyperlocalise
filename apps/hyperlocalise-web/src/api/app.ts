@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { serve } from "inngest/hono";
 
 import { inngest } from "@/lib/inngest";
-import type { TranslationJobQueue } from "@/lib/inngest";
+import type { GitHubReviewQueue, TranslationJobQueue } from "@/lib/inngest";
 import { translationJobQueuedFunction } from "@/lib/translation/translation-job-queued-function";
 import { authRoutes } from "./routes/auth";
 import { githubWebhookRoutes } from "./routes/github-webhook";
@@ -12,6 +12,7 @@ import { createProjectRoutes } from "./routes/project/project.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
+  githubReviewQueue?: GitHubReviewQueue;
   translationJobQueue?: TranslationJobQueue;
 };
 
