@@ -1188,11 +1188,58 @@ func TestCheckCommandDiffStdinScopesKeysPerFile(t *testing.T) {
 	}
 }
 
+func TestCheckCommandDiffStdinSourceAndTargetTogetherKeepAllLocales(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	frTargetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	deTargetPath := filepath.Join(dir, "dist", "de", "strings.json")
+
+	for _, path := range []string{sourcePath, frTargetPath, deTargetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(frTargetPath, []byte("{\n  \"hello\": \"\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write fr target file: %v", err)
+	}
+	if err := os.WriteFile(deTargetPath, []byte("{\n  \"hello\": \"\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write de target file: %v", err)
+	}
+	writeCheckConfigWithMappings(t, configPath, []checkConfigMapping{{source: sourcePath, target: filepath.Join(dir, "dist", "[locale]", "strings.json")}}, []string{"fr", "de"})
+
+	diff := unifiedDiffForPath(sourcePath, `@@ -1,3 +1,3 @@
+ {
+-  "hello": "Hi"
++  "hello": "Hello"
+ }
+`) + "\n" + unifiedDiffForPath(frTargetPath, `@@ -1,3 +1,3 @@
+ {
+-  "hello": "Bonjour"
++  "hello": ""
+ }
+`)
+
+	report := executeCheckJSON(t, configPath, diff, "--diff-stdin", "--no-fail")
+	if len(report.Findings) != 2 {
+		t.Fatalf("expected both locales to remain in scope, got %+v", report.Findings)
+	}
+	locales := []string{report.Findings[0].Locale, report.Findings[1].Locale}
+	slices.Sort(locales)
+	if !reflect.DeepEqual(locales, []string{"de", "fr"}) {
+		t.Fatalf("unexpected locales after mixed source/target diff: %+v", locales)
+	}
+}
+
 func TestCheckCommandDiffStdinIgnoresUnsupportedFileTypes(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
-	sourcePath := filepath.Join(dir, "content", "en", "doc.md")
-	targetPath := filepath.Join(dir, "dist", "fr", "doc.md")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+	unsupportedPath := filepath.Join(dir, "src", "feature.ts")
 
 	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
 		t.Fatalf("create source dir: %v", err)
@@ -1200,17 +1247,20 @@ func TestCheckCommandDiffStdinIgnoresUnsupportedFileTypes(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 		t.Fatalf("create target dir: %v", err)
 	}
-	if err := os.WriteFile(sourcePath, []byte("# Hello\n"), 0o600); err != nil {
+	if err := os.MkdirAll(filepath.Dir(unsupportedPath), 0o755); err != nil {
+		t.Fatalf("create unsupported dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"hello\": \"Hello\"\n}\n"), 0o600); err != nil {
 		t.Fatalf("write source file: %v", err)
 	}
-	if err := os.WriteFile(targetPath, []byte("# Bonjour\n"), 0o600); err != nil {
+	if err := os.WriteFile(targetPath, []byte("{\n  \"hello\": \"\"\n}\n"), 0o600); err != nil {
 		t.Fatalf("write target file: %v", err)
 	}
 	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
 
-	report := executeCheckJSON(t, configPath, unifiedDiffForPath(sourcePath, `@@ -1 +1 @@
--# Hi
-+# Hello
+	report := executeCheckJSON(t, configPath, unifiedDiffForPath(unsupportedPath, `@@ -1 +1 @@
+-const enabled = false;
++const enabled = true;
 `), "--diff-stdin", "--no-fail")
 	if report.Summary.Total != 0 {
 		t.Fatalf("expected unsupported diff path to be ignored, got %+v", report)

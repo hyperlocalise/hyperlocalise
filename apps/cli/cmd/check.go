@@ -142,8 +142,9 @@ type checkTargetLookup struct {
 }
 
 type checkSourceScope struct {
-	keys    map[string]struct{}
-	locales map[string]struct{}
+	keys         map[string]struct{}
+	locales      map[string]struct{}
+	sourceInDiff bool
 }
 
 type checkSelection struct {
@@ -495,6 +496,8 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		if sourceDesc, ok := index.sourceByPath[changedPath]; ok {
 			scope := selection.bySource[filepath.Clean(sourceDesc.sourcePath)]
 			scope.keys = intersectChangedKeys(scope.keys, changed.keys, filterKey)
+			scope.sourceInDiff = true
+			scope.locales = nil
 			selection.bySource[filepath.Clean(sourceDesc.sourcePath)] = scope
 			continue
 		}
@@ -504,10 +507,12 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		}
 		scope := selection.bySource[filepath.Clean(targetLookup.sourcePath)]
 		scope.keys = intersectChangedKeys(scope.keys, changed.keys, filterKey)
-		if scope.locales == nil {
-			scope.locales = make(map[string]struct{})
+		if !scope.sourceInDiff {
+			if scope.locales == nil {
+				scope.locales = make(map[string]struct{})
+			}
+			scope.locales[targetLookup.locale] = struct{}{}
 		}
-		scope.locales[targetLookup.locale] = struct{}{}
 		selection.bySource[filepath.Clean(targetLookup.sourcePath)] = scope
 	}
 
@@ -1148,7 +1153,7 @@ func collectMarkdownASTParityFindings(resolver *checkLocationResolver, bucketNam
 
 func (s checkSelection) allowsSource(sourcePath string) bool {
 	if len(s.bySource) == 0 {
-		return true
+		return !s.diffMode
 	}
 	_, ok := s.bySource[filepath.Clean(sourcePath)]
 	return ok
