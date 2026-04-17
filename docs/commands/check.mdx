@@ -30,18 +30,6 @@ Each check has a **severity** (`error` or `warning`) in the report JSON and in *
 
 Selecting `--check icu_shape_mismatch` runs ICU checks only; it does not include `markdown_ast_mismatch`. Use both flags if you need ICU and MD/MDX structure checks together.
 
-## Diff-scoped mode
-
-With `--diff-stdin`, `check` reads a unified patch from stdin and scopes validation to changed keys only. This mode currently supports structured key-value files parsed by the CLI diff scanner: `.json`, `.jsonc`, and `.arb`.
-
-Diff-scoped mode is intentionally narrower than a normal run:
-
-- only changed keys are validated
-- source-file diffs apply to all selected target locales for those keys
-- target-file diffs only apply to the matching locale for those keys
-- `missing_target_file`, `orphaned_key`, and `markdown_ast_mismatch` are skipped
-- files with diff hunks but no identifiable changed translation keys are treated as no-op
-
 ## Flags
 
 - `--config`: path to config file
@@ -50,7 +38,6 @@ Diff-scoped mode is intentionally narrower than a normal run:
 - `--bucket`: filter by bucket name
 - `--check`: run only specific checks (repeatable)
 - `--exclude-check`: skip specific default checks (repeatable)
-- `--diff-stdin`: read a unified diff from stdin and only validate changed keys in supported key-value files (`.json`, `.jsonc`, `.arb`). In this mode, `missing_target_file`, `orphaned_key`, and `markdown_ast_mismatch` are skipped, and `--file` is not allowed.
 - `--format`: output format (`stylish` default, `text`, or `json`). **Stylish** prints ESLint-style diagnostics grouped by file; when stdout is a terminal, severities use color (no color when piped or in typical CI logs).
 - `--output-file`: write the same human or JSON format as stdout to a file
 - `--json-report`: always write the full machine-readable JSON report to this path, regardless of `--format` (useful in CI: stylish logs plus a JSON artifact for tooling). Findings include `annotationFile` and `annotationLine` when the CLI can map a key to a line. For **`.md` / `.mdx`** segments with keys prefixed `md.`, the line is taken from the markdown/MDX parse order (start of that translatable segment). For other files, resolution falls back to searching for a quoted key fragment or a substring of the segment text in the target file, which can mis-rank lines when the same text appears more than once
@@ -88,10 +75,6 @@ hyperlocalise check --fix --locale fr --bucket ui
 
 ```bash
 hyperlocalise check --fix --fix-dry-run --no-fail
-```
-
-```bash
-git diff --cached | hyperlocalise check --diff-stdin --no-fail
 ```
 
 ## See also
