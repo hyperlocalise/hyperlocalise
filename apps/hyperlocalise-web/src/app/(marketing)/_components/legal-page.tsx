@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -5,7 +6,7 @@ type LegalPageProps = {
   eyebrow: string;
   title: string;
   description: string;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export function createLegalMetadata({
@@ -55,7 +56,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
   );
 }
 
-export function LegalSection({ title, children }: { title: string; children: React.ReactNode }) {
+export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
       <h2 className="font-heading text-2xl font-semibold tracking-[-0.03em] text-foreground">
@@ -66,6 +67,6 @@ export function LegalSection({ title, children }: { title: string; children: Rea
   );
 }
 
-export function LegalList({ children }: { children: React.ReactNode }) {
+export function LegalList({ children }: { children: ReactNode }) {
   return <ul className="list-disc space-y-2 pl-6 marker:text-foreground/50">{children}</ul>;
 }

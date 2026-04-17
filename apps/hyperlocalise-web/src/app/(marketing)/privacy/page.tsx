@@ -14,7 +14,7 @@ export default function PrivacyPage() {
     >
       <p>
         This page describes the default privacy posture for Hyperlocalise documentation and product
-        surfaces. Review it with legal counsel before using it as your published privacy policy.
+        surfaces.
       </p>
 
       <LegalSection title="Scope">

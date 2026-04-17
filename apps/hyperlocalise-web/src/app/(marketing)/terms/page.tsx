@@ -12,10 +12,7 @@ export default function TermsPage() {
       title="Terms of service"
       description="The baseline terms that govern use of Hyperlocalise websites, docs, and services."
     >
-      <p>
-        This page is a starting point for Hyperlocalise terms of service. Review it with legal
-        counsel before publishing it as binding legal terms.
-      </p>
+      <p>This page is a starting point for Hyperlocalise terms of service.</p>
 
       <LegalSection title="Acceptance of terms">
         <p>
@@ -139,7 +136,7 @@ export default function TermsPage() {
         <p>
           Our aggregate liability for claims arising out of or related to the service will not
           exceed the greater of the amount you paid us in the 12 months before the claim arose or{" "}
-          <code>100 USD</code>.
+          <strong>USD 100</strong>.
         </p>
       </LegalSection>
 
@@ -154,8 +151,7 @@ export default function TermsPage() {
       <LegalSection title="Governing law">
         <p>
           These terms are governed by the laws of the jurisdiction where the service operator is
-          established, excluding conflict of law rules. Update this section with the correct
-          governing law and dispute venue before publishing.
+          established, excluding conflict of law rules.
         </p>
       </LegalSection>
 
