@@ -59,9 +59,7 @@ afterEach(async () => {
 
 describe("glossaryRoutes", () => {
   it("returns 401 when auth context is missing", async () => {
-    const response = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0" } },
-    );
+    const response = await client.api.glossary.$get({ query: { limit: "50", offset: "0" } });
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({

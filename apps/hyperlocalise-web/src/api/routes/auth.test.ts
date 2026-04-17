@@ -143,21 +143,14 @@ describe("authRoutes", () => {
       }),
     }));
 
-    const app = new Hono()
-      .use("*", createWorkosAuthMiddleware())
-      .get("/", () => {
-        throw new Error("membership_sync_failed");
-      });
-    const client = testClient(app);
-
-    const response = await client.index.$get(
-      {},
-      {
-        headers: {
-          cookie: "wos-session=test",
-        },
+    const app = new Hono().use("*", createWorkosAuthMiddleware()).get("/", () => {
+      throw new Error("membership_sync_failed");
+    });
+    const response = await app.request("http://localhost/", {
+      headers: {
+        cookie: "wos-session=test",
       },
-    );
+    });
 
     expect(response.status).toBe(500);
   });

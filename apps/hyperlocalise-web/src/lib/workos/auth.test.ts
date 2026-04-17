@@ -9,7 +9,7 @@ const {
   withAuthMock,
   getSignInUrlMock,
   listOrganizationMembershipsMock,
-  listOrganizationsMock,
+  getOrganizationMock,
   syncWorkosUserMock,
   syncWorkosIdentityMock,
   headersMock,
@@ -18,7 +18,7 @@ const {
   withAuthMock: vi.fn(),
   getSignInUrlMock: vi.fn(),
   listOrganizationMembershipsMock: vi.fn(),
-  listOrganizationsMock: vi.fn(),
+  getOrganizationMock: vi.fn(),
   syncWorkosUserMock: vi.fn(),
   syncWorkosIdentityMock: vi.fn(),
   headersMock: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock("@workos-inc/authkit-nextjs", () => ({
       listOrganizationMemberships: listOrganizationMembershipsMock,
     },
     organizations: {
-      listOrganizations: listOrganizationsMock,
+      getOrganization: getOrganizationMock,
     },
   }),
 }));
@@ -78,14 +78,16 @@ describe("workos auth helpers", () => {
         },
       ],
     });
-    listOrganizationsMock.mockResolvedValue({
-      data: [
-        {
+    getOrganizationMock.mockImplementation(async (organizationId: string) => {
+      if (organizationId === "org_123") {
+        return {
           id: "org_123",
           name: "Example Org",
           slug: "example-org",
-        },
-      ],
+        };
+      }
+
+      throw new Error(`unknown organization:${organizationId}`);
     });
     syncWorkosUserMock.mockResolvedValue({
       id: "local_user_123",
@@ -160,19 +162,24 @@ describe("workos auth helpers", () => {
         },
       ],
     });
-    listOrganizationsMock.mockResolvedValue({
-      data: [
-        {
+    getOrganizationMock.mockImplementation(async (organizationId: string) => {
+      if (organizationId === "org_123") {
+        return {
           id: "org_123",
           name: "Example Org",
           slug: "example-org",
-        },
-        {
+        };
+      }
+
+      if (organizationId === "org_456") {
+        return {
           id: "org_456",
           name: "Second Org",
           slug: "second-org",
-        },
-      ],
+        };
+      }
+
+      throw new Error(`unknown organization:${organizationId}`);
     });
 
     const { requireWorkosAppAuth } = await import("./auth");

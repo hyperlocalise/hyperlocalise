@@ -49,9 +49,7 @@ export interface AuthVariables {
   auth: ApiAuthContext;
 }
 
-const knownWorkosAuthErrors = new Set([
-  "missing_auth_context",
-]);
+const knownWorkosAuthErrors = new Set(["missing_auth_context"]);
 export function createWorkosAuthMiddleware() {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {

@@ -122,12 +122,15 @@ async function listUserOrganizations(userId: string): Promise<WorkosOrganization
     (membership) => membership.status === "active",
   );
 
-  const organizationsResponse = (await workos.organizations.listOrganizations({
-    userId,
-    limit: 100,
-  })) as { data: WorkosSdkOrganization[] };
+  const organizationIds = [...new Set(memberships.map((membership) => membership.organizationId))];
+  const organizationsResponse = await Promise.all(
+    organizationIds.map((organizationId) => workos.organizations.getOrganization(organizationId)),
+  );
   const organizationsById = new Map(
-    organizationsResponse.data.map((organization) => [organization.id, organization]),
+    (organizationsResponse as WorkosSdkOrganization[]).map((organization) => [
+      organization.id,
+      organization,
+    ]),
   );
 
   const organizations = memberships.flatMap((membership) => {
