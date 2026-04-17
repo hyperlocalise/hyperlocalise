@@ -64,8 +64,8 @@ export default async function OrganizationsPage({ searchParams }: OrganizationsP
             {authState.organizations.map((organization) => (
               <form
                 key={organization.workosMembershipId}
-                action="/auth/organizations"
-                method="post"
+                action="/auth/organizations/activate"
+                method="get"
               >
                 <input
                   type="hidden"

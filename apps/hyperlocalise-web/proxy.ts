@@ -9,8 +9,6 @@ export const proxy = authkitProxy({
   eagerAuth: false,
 });
 
-export const proxyConfig = {
+export const config = {
   matcher: ["/dashboard/:path*", "/auth/:path*", "/api/:path*"],
 };
-
-export const config = proxyConfig;
