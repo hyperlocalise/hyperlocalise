@@ -11,6 +11,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { IconSvgElement } from "@hugeicons/react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -151,10 +152,12 @@ const dashboardRows: DashboardRow[] = [
 ];
 
 const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
-const footerLinks = [
-  { label: "Open source", href: githubRepoUrl },
-  { label: "Join waitlist", href: env.NEXT_PUBLIC_WAITLIST_URL },
-] as const;
+const footerLinks: ReadonlyArray<{ label: string; href: string; external?: boolean }> = [
+  { label: "Terms of service", href: "/terms" },
+  { label: "Privacy policy", href: "/privacy" },
+  { label: "Open source", href: githubRepoUrl, external: true },
+  { label: "Join waitlist", href: env.NEXT_PUBLIC_WAITLIST_URL, external: true },
+];
 
 function getStatusToneClasses(tone: DashboardRowTone) {
   switch (tone) {
@@ -722,17 +725,27 @@ function TeamSection() {
       <footer className="flex w-full flex-col items-center justify-between gap-4 text-center text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:flex-row sm:text-left">
         <span>© 2026 Hyperlocalise. All rights reserved.</span>
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-end">
-          {footerLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target="_blank"
-              rel="noreferrer"
-              className="transition-colors hover:text-foreground"
-            >
-              {link.label}
-            </a>
-          ))}
+          {footerLinks.map((link) =>
+            link.external ? (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-foreground"
+              >
+                {link.label}
+              </a>
+            ) : (
+              <Link
+                key={link.label}
+                href={link.href}
+                className="transition-colors hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ),
+          )}
         </div>
       </footer>
     </section>
