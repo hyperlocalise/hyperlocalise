@@ -72,14 +72,7 @@ export function createWorkosAuthMiddleware() {
         throw error;
       }
 
-      const status = message === "missing_auth_context" ? 401 : 400;
-
-      return c.json(
-        {
-          error: status === 401 ? "unauthorized" : "invalid_auth_context",
-        },
-        status,
-      );
+      return c.json({ error: "unauthorized" }, 401);
     }
 
     await next();
