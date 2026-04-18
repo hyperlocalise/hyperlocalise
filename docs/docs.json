@@ -12,15 +12,18 @@
       "anchors": [
         {
           "anchor": "Hyperlocalise Cloud",
-          "href": "https://hyperlocalise.com"
+          "href": "https://hyperlocalise.com",
+          "icon": "cloud"
         },
         {
           "anchor": "GitHub",
-          "href": "https://github.com/hyperlocalise/hyperlocalise"
+          "href": "https://github.com/hyperlocalise/hyperlocalise",
+          "icon": "github"
         },
         {
           "anchor": "Issues",
-          "href": "https://github.com/hyperlocalise/hyperlocalise/issues"
+          "href": "https://github.com/hyperlocalise/hyperlocalise/issues",
+          "icon": "circle-exclamation"
         }
       ]
     },
