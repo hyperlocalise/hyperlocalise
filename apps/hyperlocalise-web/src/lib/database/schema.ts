@@ -56,6 +56,13 @@ export const translationAssetStatusEnum = pgEnum("translation_asset_status", [
   "active",
   "archived",
 ]);
+export const llmProviderEnum = pgEnum("llm_provider", [
+  "openai",
+  "anthropic",
+  "gemini",
+  "groq",
+  "mistral",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -479,6 +486,40 @@ export const translationProjectMemories = pgTable(
       table.translationMemoryId,
     ),
     index("idx_translation_project_memories_project_priority").on(table.projectId, table.priority),
+  ],
+);
+
+export const organizationLlmProviderCredentials = pgTable(
+  "organization_llm_provider_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    provider: llmProviderEnum("provider").notNull(),
+    defaultModel: text("default_model").notNull(),
+    maskedApiKeySuffix: text("masked_api_key_suffix").notNull(),
+    encryptionAlgorithm: text("encryption_algorithm").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("organization_llm_provider_credentials_org_key").on(table.organizationId),
+    index("idx_organization_llm_provider_credentials_updated_at").on(table.updatedAt),
   ],
 );
 

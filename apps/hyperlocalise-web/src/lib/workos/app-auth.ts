@@ -28,7 +28,7 @@ export async function requireAppAuthContext(options: { organizationSlug?: string
   }
 
   if (!auth) {
-    redirect("/auth/access-denied?reason=no-memberships");
+    redirect("/auth/onboarding");
   }
 
   return {

@@ -11,17 +11,6 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(),
 }));
 
-vi.mock("inngest/hono", () => ({
-  serve: () => () => new Response(null, { status: 204 }),
-}));
-
-vi.mock("@/lib/inngest", () => ({
-  inngest: {},
-  createInngestTranslationJobQueue: () => ({
-    enqueue: async () => ({ ids: [] }),
-  }),
-}));
-
 vi.mock("@/lib/translation/translation-job-queued-function", () => ({
   translationJobQueuedFunction: {},
 }));
