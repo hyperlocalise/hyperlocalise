@@ -1,6 +1,5 @@
 import "dotenv/config";
 
-
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";

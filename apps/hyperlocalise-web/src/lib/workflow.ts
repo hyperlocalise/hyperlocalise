@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { waitUntil } from "@vercel/functions";
+
 import { executeTranslationJobQueued } from "@/lib/translation/translation-job-queued-function";
 
 export const TRANSLATION_JOB_QUEUED_EVENT = "translation/job.queued";
@@ -71,10 +73,14 @@ export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
   return {
     async enqueue(event) {
       const runId = `run_${randomUUID()}`;
-      await executeTranslationJobQueued({
-        event,
-        runId,
-      });
+      waitUntil(
+        executeTranslationJobQueued({
+          event,
+          runId,
+        }).catch((error) => {
+          console.error("translation job execution failed", error);
+        }),
+      );
 
       return {
         ids: [getTranslationJobQueuedEventId(event.jobId)],

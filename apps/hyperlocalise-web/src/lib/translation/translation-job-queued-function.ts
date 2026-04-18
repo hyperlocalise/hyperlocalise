@@ -115,7 +115,10 @@ export function createTranslationJobQueuedFunction(
         and(
           eq(schema.translationJobs.id, event.jobId),
           eq(schema.translationJobs.projectId, event.projectId),
-          or(eq(schema.translationJobs.status, "queued"), eq(schema.translationJobs.status, "running")),
+          or(
+            eq(schema.translationJobs.status, "queued"),
+            eq(schema.translationJobs.status, "running"),
+          ),
           eq(schema.translationJobs.workflowRunId, attachedJob.runId),
         ),
       )
@@ -130,7 +133,9 @@ export function createTranslationJobQueuedFunction(
       const existingJob = await getStoredJob(event.jobId, event.projectId);
 
       if (!existingJob) {
-        throw new Error(`translation job ${event.jobId} was not found in project ${event.projectId}`);
+        throw new Error(
+          `translation job ${event.jobId} was not found in project ${event.projectId}`,
+        );
       }
 
       return existingJob;

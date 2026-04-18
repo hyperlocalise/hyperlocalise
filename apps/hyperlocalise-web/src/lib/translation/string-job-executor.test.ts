@@ -2,8 +2,8 @@ import "dotenv/config";
 
 process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
 
-import { describe, expect, it } from "vite-plus/test";
 import { MockLanguageModelV3, mockId, mockValues } from "ai/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
   createStringTranslationGenerator,
