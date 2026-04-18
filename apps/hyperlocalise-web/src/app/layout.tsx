@@ -1,10 +1,13 @@
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/components/theme-provider";
+import { withAuth } from "@workos-inc/authkit-nextjs";
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Figtree, Montserrat, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import { Geist_Mono, Figtree, Montserrat } from "next/font/google";
+
+import { ThemeProvider } from "@/components/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
 const figtreeHeading = Figtree({ subsets: ["latin"], variable: "--font-heading" });
 
@@ -21,11 +24,13 @@ export const metadata: Metadata = {
     "Localisation for the Agentic Era. Hyperlocalise helps teams review multilingual product copy for quality, nuance, and release safety before it ships.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { accessToken: _accessToken, ...initialAuth } = await withAuth();
+
   return (
     <html
       lang="en"
@@ -40,7 +45,9 @@ export default function RootLayout({
       <body>
         <Analytics />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>{children}</TooltipProvider>
+          <AuthKitProvider initialAuth={initialAuth}>
+            <TooltipProvider>{children}</TooltipProvider>
+          </AuthKitProvider>
         </ThemeProvider>
       </body>
     </html>

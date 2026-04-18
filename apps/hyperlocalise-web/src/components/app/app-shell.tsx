@@ -32,7 +32,6 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import type { WorkosOrganizationOption } from "@/lib/workos/auth";
 
 const navigation = [
   { label: "Weekly ops", href: "/dashboard", icon: SparklesIcon },
@@ -49,11 +48,11 @@ type AppShellProps = {
     email: string;
     avatarUrl?: string;
   };
-  activeOrganization: WorkosOrganizationOption;
-  organizations: WorkosOrganizationOption[];
+  organizationName: string;
+  organizationRole: string;
 };
 
-export function AppShell({ children, user, activeOrganization, organizations }: AppShellProps) {
+export function AppShell({ children, user, organizationName, organizationRole }: AppShellProps) {
   const pathname = usePathname();
 
   return (
@@ -80,11 +79,11 @@ export function AppShell({ children, user, activeOrganization, organizations }: 
               <div className="size-7 rounded-full border border-white/15 bg-[linear-gradient(135deg,#2a2a2a,#101010)]" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
-                <p className="truncate text-xs text-white/42">{activeOrganization.name}</p>
+                <p className="truncate text-xs text-white/42">{organizationName}</p>
               </div>
             </div>
             <Badge className="bg-[#0f0f0f] text-[0.68rem] text-white/72 ring-1 ring-white/10">
-              {activeOrganization.role}
+              {organizationRole}
             </Badge>
           </div>
 
@@ -133,26 +132,10 @@ export function AppShell({ children, user, activeOrganization, organizations }: 
 
         <SidebarFooter className="gap-3 px-3 py-3">
           <div className="rounded-xl border border-white/8 bg-[#0a0a0a] px-3 py-3">
-            <p className="text-xs font-medium tracking-[0.18em] text-white/38 uppercase">
-              Organization
-            </p>
+            <p className="text-xs font-medium tracking-[0.18em] text-white/38 uppercase">Role</p>
             <p className="mt-2 text-sm text-white/70">
-              {organizations.length > 1
-                ? `${organizations.length} organizations available in this account.`
-                : "Single workspace active in this account."}
+              Signed in to {organizationName} as {organizationRole}.
             </p>
-            {organizations.length > 1 ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-3 w-full border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
-                render={
-                  <Link href={`/auth/organizations?returnTo=${encodeURIComponent(pathname)}`} />
-                }
-              >
-                Switch organization
-              </Button>
-            ) : null}
           </div>
           <div className="flex items-center gap-3 rounded-xl px-1 py-1">
             <div className="size-7 overflow-hidden rounded-full bg-[linear-gradient(135deg,#585858,#1c1c1c)]">
@@ -189,7 +172,7 @@ export function AppShell({ children, user, activeOrganization, organizations }: 
               variant="outline"
               className="rounded-full border-white/10 bg-transparent text-white/52"
             >
-              {activeOrganization.name}
+              {organizationName}
             </Badge>
           </div>
         </div>

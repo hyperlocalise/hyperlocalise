@@ -1,23 +1,23 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app/app-shell";
-import { getDefaultReturnTo, requireWorkosAppAuth } from "@/lib/workos/auth";
+import { requireWorkosAppAuth } from "@/lib/workos/auth";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AuthenticatedLayout({ children }: { children: ReactNode }) {
-  const returnTo = await getDefaultReturnTo();
-  const authState = await requireWorkosAppAuth(returnTo);
+  const { user, auth } = await requireWorkosAppAuth();
 
   return (
     <AppShell
       user={{
-        email: authState.user.email,
-        name:
-          [authState.user.firstName, authState.user.lastName].filter(Boolean).join(" ") ||
-          authState.user.email,
-        avatarUrl: authState.user.profilePictureUrl ?? undefined,
+        email: user.email,
+        name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
+        avatarUrl: user.profilePictureUrl ?? undefined,
       }}
-      activeOrganization={authState.activeOrganization}
-      organizations={authState.organizations}
+      organizationName={auth.organization.name}
+      organizationRole={auth.membership.role}
     >
       {children}
     </AppShell>

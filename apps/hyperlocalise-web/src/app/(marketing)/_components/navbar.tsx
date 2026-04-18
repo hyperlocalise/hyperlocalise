@@ -112,12 +112,18 @@ function MobileNavigation() {
         </div>
         <SheetFooter className="gap-2 border-t border-border/70 px-5 py-5">
           <SheetClose render={<a href={githubRepoUrl} />} className="w-full">
-            <Button variant="ghost" size="lg" className="w-full" render={<span />}>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="w-full"
+              nativeButton={false}
+              render={<span />}
+            >
               Star
             </Button>
           </SheetClose>
           <SheetClose render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />} className="w-full">
-            <Button size="lg" className="w-full" render={<span />}>
+            <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
               Join waitlist
             </Button>
           </SheetClose>
@@ -151,18 +157,30 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" size="sm" className="text-sm" render={<a href={githubRepoUrl} />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-sm"
+            nativeButton={false}
+            render={<a href={githubRepoUrl} />}
+          >
             Star
           </Button>
           <Button
             variant="ghost"
             size="sm"
             className="text-sm"
+            nativeButton={false}
             render={<Link href="/auth/sign-in" />}
           >
             Sign in
           </Button>
-          <Button size="sm" className="text-sm" render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
+          <Button
+            size="sm"
+            className="text-sm"
+            nativeButton={false}
+            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
+          >
             Join waitlist
           </Button>
         </div>
@@ -172,6 +190,7 @@ export default function Navbar() {
             size="sm"
             variant="ghost"
             className="px-3.5 text-sm"
+            nativeButton={false}
             render={<Link href="/auth/sign-in" />}
           >
             Sign in
@@ -179,6 +198,7 @@ export default function Navbar() {
           <Button
             size="sm"
             className="px-3.5 text-sm"
+            nativeButton={false}
             render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
           >
             Join waitlist

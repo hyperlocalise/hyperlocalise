@@ -20,8 +20,10 @@ export default function AccessDeniedPage() {
             and retry with another account.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Button render={<Link href="/auth/sign-out?returnTo=/" />}>Sign out</Button>
-            <Button variant="outline" render={<Link href="/" />}>
+            <Button nativeButton={false} render={<Link href="/auth/sign-out?returnTo=/" />}>
+              Sign out
+            </Button>
+            <Button variant="outline" nativeButton={false} render={<Link href="/" />}>
               Back to site
             </Button>
           </div>

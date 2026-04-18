@@ -7,21 +7,17 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   withAuthMock,
-  getSignInUrlMock,
   listOrganizationMembershipsMock,
   getOrganizationMock,
   syncWorkosUserMock,
   syncWorkosIdentityMock,
-  headersMock,
   redirectMock,
 } = vi.hoisted(() => ({
   withAuthMock: vi.fn(),
-  getSignInUrlMock: vi.fn(),
   listOrganizationMembershipsMock: vi.fn(),
   getOrganizationMock: vi.fn(),
   syncWorkosUserMock: vi.fn(),
   syncWorkosIdentityMock: vi.fn(),
-  headersMock: vi.fn(),
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
   }),
@@ -29,7 +25,6 @@ const {
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
-  getSignInUrl: getSignInUrlMock,
   getWorkOS: () => ({
     userManagement: {
       listOrganizationMemberships: listOrganizationMembershipsMock,
@@ -38,10 +33,6 @@ vi.mock("@workos-inc/authkit-nextjs", () => ({
       getOrganization: getOrganizationMock,
     },
   }),
-}));
-
-vi.mock("next/headers", () => ({
-  headers: headersMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -66,8 +57,6 @@ describe("workos auth helpers", () => {
     vi.resetModules();
     vi.clearAllMocks();
 
-    headersMock.mockResolvedValue(new Headers({ "x-url": "http://localhost:3000/dashboard" }));
-    getSignInUrlMock.mockResolvedValue("https://auth.example.com/sign-in");
     listOrganizationMembershipsMock.mockResolvedValue({
       data: [
         {
@@ -113,15 +102,6 @@ describe("workos auth helpers", () => {
     });
   });
 
-  it("marks signed-out sessions as unauthenticated", async () => {
-    withAuthMock.mockResolvedValue({ user: null });
-
-    const { getWorkosAppAuthState } = await import("./auth");
-    await expect(getWorkosAppAuthState()).resolves.toEqual({
-      kind: "unauthenticated",
-    });
-  });
-
   it("returns a ready state when the session has an active organization", async () => {
     withAuthMock.mockResolvedValue({
       user: baseUser,
@@ -129,80 +109,15 @@ describe("workos auth helpers", () => {
       accessToken: "token",
     });
 
-    const { getWorkosAppAuthState } = await import("./auth");
-    const result = await getWorkosAppAuthState();
+    const { requireWorkosAppAuth } = await import("./auth");
+    const result = await requireWorkosAppAuth();
 
-    expect(result.kind).toBe("ready");
-    if (result.kind !== "ready") {
-      throw new Error("expected ready state");
-    }
-
-    expect(result.activeOrganization.name).toBe("Example Org");
     expect(result.auth.organization.localOrganizationId).toBe("local_org_123");
+    expect(result.auth.organization.name).toBe("Example Org");
+    expect(result.user.email).toBe("user@example.com");
   });
 
-  it("redirects multi-org users to the organization picker until an org is selected", async () => {
-    withAuthMock.mockResolvedValue({
-      user: baseUser,
-      accessToken: "token",
-    });
-    listOrganizationMembershipsMock.mockResolvedValue({
-      data: [
-        {
-          id: "membership_123",
-          organizationId: "org_123",
-          role: { slug: "owner" },
-          status: "active",
-        },
-        {
-          id: "membership_456",
-          organizationId: "org_456",
-          role: { slug: "admin" },
-          status: "active",
-        },
-      ],
-    });
-    getOrganizationMock.mockImplementation(async (organizationId: string) => {
-      if (organizationId === "org_123") {
-        return {
-          id: "org_123",
-          name: "Example Org",
-          slug: "example-org",
-        };
-      }
-
-      if (organizationId === "org_456") {
-        return {
-          id: "org_456",
-          name: "Second Org",
-          slug: "second-org",
-        };
-      }
-
-      throw new Error(`unknown organization:${organizationId}`);
-    });
-
-    const { requireWorkosAppAuth } = await import("./auth");
-
-    await expect(requireWorkosAppAuth("/dashboard")).rejects.toThrow(
-      "redirect:/auth/organizations?returnTo=%2Fdashboard",
-    );
-  });
-
-  it("redirects single-org users into an auto-activation flow when no org is active yet", async () => {
-    withAuthMock.mockResolvedValue({
-      user: baseUser,
-      accessToken: "token",
-    });
-
-    const { requireWorkosAppAuth } = await import("./auth");
-
-    await expect(requireWorkosAppAuth("/dashboard")).rejects.toThrow(
-      "redirect:/auth/organizations/activate?organizationId=org_123&returnTo=%2Fdashboard",
-    );
-  });
-
-  it("returns access denied when no active memberships are available", async () => {
+  it("redirects to access denied when no active memberships are available", async () => {
     withAuthMock.mockResolvedValue({
       user: baseUser,
       accessToken: "token",
@@ -211,10 +126,9 @@ describe("workos auth helpers", () => {
       data: [],
     });
 
-    const { getWorkosAppAuthState } = await import("./auth");
-    const result = await getWorkosAppAuthState();
+    const { requireWorkosAppAuth } = await import("./auth");
 
-    expect(result.kind).toBe("access_denied");
+    await expect(requireWorkosAppAuth()).rejects.toThrow("redirect:/auth/access-denied");
   });
 
   it("resolves API auth context from the current first-party WorkOS session", async () => {
@@ -244,5 +158,16 @@ describe("workos auth helpers", () => {
         role: "owner",
       },
     });
+  });
+
+  it("returns null when the session has no active organization", async () => {
+    withAuthMock.mockResolvedValue({
+      user: baseUser,
+      accessToken: "token",
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./auth");
+
+    await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
   });
 });

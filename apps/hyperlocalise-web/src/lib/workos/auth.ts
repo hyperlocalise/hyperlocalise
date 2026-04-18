@@ -1,5 +1,4 @@
-import { getSignInUrl, getWorkOS, type UserInfo, withAuth } from "@workos-inc/authkit-nextjs";
-import { headers } from "next/headers";
+import { getWorkOS, type UserInfo, withAuth } from "@workos-inc/authkit-nextjs";
 import { redirect } from "next/navigation";
 
 import { syncWorkosIdentity, syncWorkosUser } from "@/api/auth/workos-sync";
@@ -36,35 +35,10 @@ export type WorkosOrganizationOption = {
   status: string;
 };
 
-type UnauthenticatedState = {
-  kind: "unauthenticated";
-};
-
-type NoMembershipsState = {
-  kind: "access_denied";
-  user: UserInfo["user"];
-  organizations: WorkosOrganizationOption[];
-};
-
-type NeedsOrganizationState = {
-  kind: "needs_organization";
-  user: UserInfo["user"];
-  organizations: WorkosOrganizationOption[];
-};
-
 type ReadyState = {
-  kind: "ready";
   user: UserInfo["user"];
-  organizations: WorkosOrganizationOption[];
-  activeOrganization: WorkosOrganizationOption;
   auth: ApiAuthContext;
 };
-
-export type WorkosAppAuthState =
-  | UnauthenticatedState
-  | NoMembershipsState
-  | NeedsOrganizationState
-  | ReadyState;
 
 function normalizeRole(value: string | null | undefined): OrganizationMembershipRole {
   if (value === "owner" || value === "admin" || value === "member") {
@@ -232,107 +206,16 @@ export async function syncWorkosCallbackUser(input: {
   });
 }
 
-export async function getWorkosAppAuthState(): Promise<WorkosAppAuthState> {
-  const session = await withAuth();
-
+async function resolveApiAuthContext(
+  session:
+    | Pick<UserInfo, "user" | "organizationId">
+    | {
+        user: UserInfo["user"] | null;
+        organizationId?: string;
+        accessToken?: string;
+      },
+): Promise<ApiAuthContext | null> {
   if (!session.user) {
-    return { kind: "unauthenticated" };
-  }
-
-  await syncUserProfile(session.user);
-
-  const organizations = await listUserOrganizations(session.user.id);
-
-  if (organizations.length === 0) {
-    return {
-      kind: "access_denied",
-      user: session.user,
-      organizations,
-    };
-  }
-
-  const activeOrganizationId = getActiveOrganizationId(session);
-
-  if (!activeOrganizationId) {
-    return {
-      kind: "needs_organization",
-      user: session.user,
-      organizations,
-    };
-  }
-
-  const activeOrganization = organizations.find(
-    (organization) => organization.workosOrganizationId === activeOrganizationId,
-  );
-
-  if (!activeOrganization) {
-    return {
-      kind: "access_denied",
-      user: session.user,
-      organizations,
-    };
-  }
-
-  const auth = await syncIdentityFromSelection({
-    user: session.user,
-    organization: activeOrganization,
-  });
-
-  return {
-    kind: "ready",
-    user: session.user,
-    organizations,
-    activeOrganization,
-    auth,
-  };
-}
-
-export async function requireWorkosAppAuth(returnTo = "/dashboard"): Promise<ReadyState> {
-  const authState = await getWorkosAppAuthState();
-
-  if (authState.kind === "ready") {
-    return authState;
-  }
-
-  if (authState.kind === "unauthenticated") {
-    redirect(await getSignInUrl({ returnTo }));
-  }
-
-  if (authState.kind === "needs_organization") {
-    if (authState.organizations.length === 1) {
-      redirect(
-        `/auth/organizations/activate?organizationId=${encodeURIComponent(
-          authState.organizations[0].workosOrganizationId,
-        )}&returnTo=${encodeURIComponent(returnTo)}`,
-      );
-    }
-
-    redirect(`/auth/organizations?returnTo=${encodeURIComponent(returnTo)}`);
-  }
-
-  redirect("/auth/access-denied");
-}
-
-export async function getDefaultReturnTo() {
-  const requestHeaders = await headers();
-  const url = requestHeaders.get("x-url");
-
-  if (!url) {
-    return "/dashboard";
-  }
-
-  try {
-    const parsed = new URL(url);
-    return `${parsed.pathname}${parsed.search}`;
-  } catch {
-    return "/dashboard";
-  }
-}
-
-export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext | null> {
-  const session = await withAuth();
-
-  if (!session?.user) {
     return null;
   }
 
@@ -356,4 +239,25 @@ export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext
     user: session.user,
     organization: activeOrganization,
   });
+}
+
+export async function requireWorkosAppAuth(): Promise<ReadyState> {
+  const session = await withAuth({ ensureSignedIn: true });
+
+  await syncUserProfile(session.user);
+
+  const auth = await resolveApiAuthContext(session);
+
+  if (!auth) {
+    redirect("/auth/access-denied");
+  }
+
+  return {
+    user: session.user,
+    auth,
+  };
+}
+
+export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext | null> {
+  return resolveApiAuthContext(await withAuth());
 }
