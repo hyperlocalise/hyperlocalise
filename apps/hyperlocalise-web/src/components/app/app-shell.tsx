@@ -26,10 +26,6 @@ export type AppShellProps = {
 export async function AppShell({ children }: AppShellProps) {
   const { user } = await withAuth({ ensureSignedIn: true });
 
-  if (!user) {
-    return null;
-  }
-
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
 
   return (
