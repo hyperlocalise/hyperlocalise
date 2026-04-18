@@ -167,15 +167,6 @@ export default function Navbar() {
             Star
           </Button>
           <Button
-            variant="ghost"
-            size="sm"
-            className="text-sm"
-            nativeButton={false}
-            render={<Link href="/auth/sign-in" />}
-          >
-            Sign in
-          </Button>
-          <Button
             size="sm"
             className="text-sm"
             nativeButton={false}
