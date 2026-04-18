@@ -1,9 +1,6 @@
 import { Hono } from "hono";
-import { serve } from "inngest/hono";
 
-import { inngest } from "@/lib/inngest";
-import type { GitHubReviewQueue, TranslationJobQueue } from "@/lib/inngest";
-import { translationJobQueuedFunction } from "@/lib/translation/translation-job-queued-function";
+import type { GitHubReviewQueue, TranslationJobQueue } from "@/lib/workflow";
 import { authRoutes } from "./routes/auth";
 import { githubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
@@ -17,18 +14,8 @@ type CreateAppOptions = {
 };
 
 export function createApp(options: CreateAppOptions = {}) {
-  const functions = [translationJobQueuedFunction];
-
   return new Hono()
     .basePath("/api")
-    .on(
-      ["GET", "PUT", "POST"],
-      "/inngest",
-      serve({
-        client: inngest,
-        functions,
-      }),
-    )
     .route("/health", healthRoutes)
     .route("/auth", authRoutes)
     .route("/webhooks/github", githubWebhookRoutes)

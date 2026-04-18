@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-process.env.INNGEST_EVENT_KEY ??= "test-event-key";
-process.env.INNGEST_SIGNING_KEY ??= "test-signing-key";
 
 import { randomUUID } from "node:crypto";
 
@@ -11,7 +9,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueue } from "@/lib/inngest";
+import type { TranslationJobQueue } from "@/lib/workflow";
 import { createProjectTestFixture } from "./project.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({

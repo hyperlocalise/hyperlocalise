@@ -1,6 +1,6 @@
-import { Inngest } from "inngest";
+import { randomUUID } from "node:crypto";
 
-import { env } from "@/lib/env";
+import { executeTranslationJobQueued } from "@/lib/translation/translation-job-queued-function";
 
 export const TRANSLATION_JOB_QUEUED_EVENT = "translation/job.queued";
 export const GITHUB_REVIEW_REQUESTED_EVENT = "github/review.requested";
@@ -67,38 +67,35 @@ export function getGitHubReviewRequestedEventId(
   return `github-review-requested:${triggerType}:${reviewKey}`;
 }
 
-export const inngest = new Inngest({
-  id: "hyperlocalise-web",
-  eventKey: env.INNGEST_EVENT_KEY,
-  isDev: env.NODE_ENV !== "production",
-});
-
-export function createInngestTranslationJobQueue(client: Inngest = inngest): TranslationJobQueue {
+export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
   return {
-    enqueue(event) {
-      return client.send({
-        id: getTranslationJobQueuedEventId(event.jobId),
-        name: TRANSLATION_JOB_QUEUED_EVENT,
-        data: event,
+    async enqueue(event) {
+      const runId = `run_${randomUUID()}`;
+      void executeTranslationJobQueued({
+        event,
+        runId,
       });
+
+      return {
+        ids: [getTranslationJobQueuedEventId(event.jobId)],
+      };
     },
   };
 }
 
-export function createInngestGitHubReviewQueue(client: Inngest = inngest): GitHubReviewQueue {
+export function createWorkflowGitHubReviewQueue(): GitHubReviewQueue {
   return {
-    enqueue(event, eventId) {
-      return client.send({
-        id:
+    async enqueue(event, eventId) {
+      return {
+        ids: [
           eventId ??
-          getGitHubReviewRequestedEventId(
-            event.reviewKey,
-            event.trigger.type,
-            event.trigger.deliveryId,
-          ),
-        name: GITHUB_REVIEW_REQUESTED_EVENT,
-        data: event,
-      });
+            getGitHubReviewRequestedEventId(
+              event.reviewKey,
+              event.trigger.type,
+              event.trigger.deliveryId,
+            ),
+        ],
+      };
     },
   };
 }
