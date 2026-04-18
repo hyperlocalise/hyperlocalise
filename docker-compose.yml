@@ -15,18 +15,5 @@ services:
     volumes:
       - postgres18-data:/var/lib/postgresql
 
-  inngest:
-    image: inngest/inngest:v1.17.9
-    command:
-      - inngest
-      - dev
-      - --host=0.0.0.0
-      - --port=8288
-      - --sdk-url=http://host.docker.internal:3000/api/inngest
-    ports:
-      - "8288:8288"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
 volumes:
   postgres18-data:

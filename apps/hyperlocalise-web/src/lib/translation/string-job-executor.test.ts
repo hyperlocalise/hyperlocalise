@@ -1,11 +1,9 @@
 import "dotenv/config";
 
 process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
-process.env.INNGEST_EVENT_KEY ??= "test-event-key";
-process.env.INNGEST_SIGNING_KEY ??= "test-signing-key";
 
-import { describe, expect, it } from "vitest";
 import { MockLanguageModelV3, mockId, mockValues } from "ai/test";
+import { describe, expect, it } from "vite-plus/test";
 
 import {
   createStringTranslationGenerator,
