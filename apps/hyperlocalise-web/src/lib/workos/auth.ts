@@ -221,7 +221,10 @@ async function resolveApiAuthContext(
 
   const organizations = await listUserOrganizations(session.user.id);
   const activeOrganizationId =
-    session.organizationId ?? (session.accessToken ? getActiveOrganizationId(session) : undefined);
+    session.organizationId ??
+    ("accessToken" in session && session.accessToken
+      ? getActiveOrganizationId({ accessToken: session.accessToken })
+      : undefined);
 
   if (!activeOrganizationId) {
     return null;
