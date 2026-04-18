@@ -351,7 +351,19 @@ export function createTeamRoutes() {
       const [user] = await db
         .select({ id: schema.users.id })
         .from(schema.users)
-        .where(eq(schema.users.workosUserId, workosUserId))
+        .innerJoin(
+          schema.organizationMemberships,
+          eq(schema.organizationMemberships.userId, schema.users.id),
+        )
+        .where(
+          and(
+            eq(schema.users.workosUserId, workosUserId),
+            eq(
+              schema.organizationMemberships.organizationId,
+              c.var.auth.activeOrganization.localOrganizationId,
+            ),
+          ),
+        )
         .limit(1);
 
       if (!user) {

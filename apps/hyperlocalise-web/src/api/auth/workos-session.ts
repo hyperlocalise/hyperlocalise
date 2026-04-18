@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/database";
 
 type ResolveApiAuthContextOptions = {
   organizationSlug?: string;
+  session?: Awaited<ReturnType<typeof withAuth>>;
 };
 
 type OrganizationMembershipRecord = {
@@ -53,7 +54,7 @@ function selectActiveOrganization(
 export async function resolveApiAuthContextFromSession(
   options: ResolveApiAuthContextOptions = {},
 ): Promise<ApiAuthContext | null> {
-  const session = await withAuth();
+  const session = options.session ?? (await withAuth());
 
   if (!session.user) {
     return null;
@@ -99,6 +100,10 @@ export async function resolveApiAuthContextFromSession(
     organizationSlug: options.organizationSlug,
     workosOrganizationId: session.organizationId,
   });
+
+  if (!activeOrganization) {
+    return null;
+  }
 
   const membership = memberships.find(
     (item) => item.localOrganizationId === activeOrganization.localOrganizationId,

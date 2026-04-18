@@ -6,7 +6,6 @@ import {
   LinkSquare02Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
-import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AppShellClient } from "@/components/app/app-shell-client";
@@ -18,11 +17,12 @@ export type AppShellProps = {
 };
 
 export async function AppShell({ children, organizationSlug }: AppShellProps) {
-  const { user } = await withAuth({ ensureSignedIn: true });
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
 
-  const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+  const displayName =
+    [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
+    auth.sessionUser.email;
   const navigation = [
     {
       label: "Weekly ops",
@@ -56,9 +56,9 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
       activeOrganization={auth.activeOrganization}
       organizations={auth.organizations}
       user={{
-        email: user.email,
+        email: auth.sessionUser.email,
         name: displayName,
-        avatarUrl: user.profilePictureUrl ?? undefined,
+        avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
       navigation={<AppShellNavigation items={navigation} />}
     >

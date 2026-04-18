@@ -3,7 +3,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
-import { db, schema } from "@/lib/database";
+import { db } from "@/lib/database";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 
@@ -91,5 +91,27 @@ describe("resolveApiAuthContextFromSession", () => {
         organizationSlug: "not-a-real-membership",
       }),
     ).rejects.toThrow("organization_access_denied");
+  });
+
+  it("uses the injected session without performing another withAuth lookup", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    const auth = await resolveApiAuthContextFromSession({
+      session: {
+        user: {
+          id: identity.user.workosUserId,
+          email: identity.user.email,
+          firstName: identity.user.firstName ?? null,
+          lastName: identity.user.lastName ?? null,
+          profilePictureUrl: identity.user.avatarUrl ?? null,
+        },
+        organizationId: identity.organization.workosOrganizationId,
+      } as Awaited<ReturnType<typeof withAuthMock>>,
+    });
+
+    expect(auth?.user.workosUserId).toBe(identity.user.workosUserId);
+    expect(withAuthMock).not.toHaveBeenCalled();
   });
 });
