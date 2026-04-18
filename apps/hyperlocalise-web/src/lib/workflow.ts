@@ -71,7 +71,7 @@ export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
   return {
     async enqueue(event) {
       const runId = `run_${randomUUID()}`;
-      void executeTranslationJobQueued({
+      await executeTranslationJobQueued({
         event,
         runId,
       });
