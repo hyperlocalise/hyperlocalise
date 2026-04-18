@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { createWorkosAuthMiddleware } from "../auth/workos";
 import type { ApiAuthContext } from "../auth/workos";
 
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(),
+}));
+
 async function createClient(
   options: {
     sessionAuthContext?: ApiAuthContext | null;
@@ -22,8 +26,10 @@ async function createClient(
     };
   });
 
-  vi.doMock("@/lib/workos/auth", () => ({
-    resolveApiAuthContextFromSession: vi.fn().mockResolvedValue(options.sessionAuthContext ?? null),
+  resolveApiAuthContextFromSessionMock.mockResolvedValue(options.sessionAuthContext ?? null);
+
+  vi.doMock("@/api/auth/workos-session", () => ({
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   }));
 
   const { app } = await import("../app");
@@ -123,24 +129,25 @@ describe("authRoutes", () => {
 
   it("does not remap downstream errors from the session auth path", async () => {
     vi.resetModules();
-    vi.doMock("@/lib/workos/auth", () => ({
-      resolveApiAuthContextFromSession: vi.fn().mockResolvedValue({
-        user: {
-          workosUserId: "user_123",
-          localUserId: "local_user_123",
-          email: "user@example.com",
-        },
-        organization: {
-          workosOrganizationId: "org_123",
-          localOrganizationId: "local_org_123",
-          name: "Example Org",
-          slug: "example-org",
-        },
-        membership: {
-          workosMembershipId: "membership_123",
-          role: "owner",
-        },
-      }),
+    resolveApiAuthContextFromSessionMock.mockResolvedValue({
+      user: {
+        workosUserId: "user_123",
+        localUserId: "local_user_123",
+        email: "user@example.com",
+      },
+      organization: {
+        workosOrganizationId: "org_123",
+        localOrganizationId: "local_org_123",
+        name: "Example Org",
+        slug: "example-org",
+      },
+      membership: {
+        workosMembershipId: "membership_123",
+        role: "owner",
+      },
+    });
+    vi.doMock("@/api/auth/workos-session", () => ({
+      resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
     }));
 
     const app = new Hono().use("*", createWorkosAuthMiddleware()).get("/", () => {

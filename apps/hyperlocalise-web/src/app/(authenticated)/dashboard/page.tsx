@@ -200,7 +200,7 @@ function runStatusClass(status: (typeof inFlightRuns)[number]["status"]) {
   }
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <section className="rounded-2xl border border-white/8 bg-[#080808]" id="analytics">

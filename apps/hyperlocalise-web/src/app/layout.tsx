@@ -1,9 +1,7 @@
-import { withAuth } from "@workos-inc/authkit-nextjs";
-import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Geist_Mono, Figtree, Montserrat } from "next/font/google";
-
+import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -29,8 +27,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { accessToken: _accessToken, ...initialAuth } = await withAuth();
-
   return (
     <html
       lang="en"
@@ -44,11 +40,11 @@ export default async function RootLayout({
     >
       <body>
         <Analytics />
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthKitProvider initialAuth={initialAuth}>
+        <AuthKitProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <TooltipProvider>{children}</TooltipProvider>
-          </AuthKitProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AuthKitProvider>
       </body>
     </html>
   );
