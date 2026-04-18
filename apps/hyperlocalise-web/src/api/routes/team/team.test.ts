@@ -138,6 +138,125 @@ describe("teamRoutes", () => {
     });
   });
 
+  it("returns 409 when creating or updating a team to a duplicate slug", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const firstCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Platform",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(firstCreateResponse.status).toBe(201);
+
+    const duplicateCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Platform",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(duplicateCreateResponse.status).toBe(409);
+    await expect(duplicateCreateResponse.json()).resolves.toEqual({
+      error: "team_slug_already_exists",
+    });
+
+    const secondCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Operations",
+          slug: "operations",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    const secondCreateBody = (await secondCreateResponse.json()) as {
+      team: {
+        id: string;
+      };
+    };
+
+    const duplicatePatchResponse = await client.api.orgs[":organizationSlug"].teams[
+      ":teamId"
+    ].$patch(
+      {
+        param: { organizationSlug, teamId: secondCreateBody.team.id },
+        json: {
+          slug: "platform",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(duplicatePatchResponse.status).toBe(409);
+    await expect(duplicatePatchResponse.json()).resolves.toEqual({
+      error: "team_slug_already_exists",
+    });
+  });
+
+  it("allows admins to update teams", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Platform",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    const createBody = (await createResponse.json()) as {
+      team: {
+        id: string;
+      };
+    };
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].teams[":teamId"].$patch(
+      {
+        param: { organizationSlug, teamId: createBody.team.id },
+        json: {
+          name: "Platform Core",
+          slug: "platform-core",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      team: expect.objectContaining({
+        id: createBody.team.id,
+        name: "Platform Core",
+        slug: "platform-core",
+      }),
+    });
+  });
+
   it("allows admins to add members from the same organization and restricts other orgs", async () => {
     const adminIdentity = fixture.createWorkosIdentity();
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
@@ -216,5 +335,116 @@ describe("teamRoutes", () => {
     );
 
     expect(otherOrgResponse.status).toBe(404);
+  });
+
+  it("preserves an existing manager role when re-adding without an explicit role", async () => {
+    const adminIdentity = fixture.createWorkosIdentity();
+    const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
+
+    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Localization",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(adminIdentity),
+      },
+    );
+
+    const createBody = (await createResponse.json()) as {
+      team: {
+        id: string;
+      };
+    };
+
+    const sameOrgManager = fixture.createWorkosIdentityForOrganization(
+      adminIdentity.organization,
+      "member",
+    );
+    await fixture.authHeadersFor(sameOrgManager);
+
+    const firstAddResponse = await client.api.orgs[":organizationSlug"].teams[
+      ":teamId"
+    ].members.$post(
+      {
+        param: { organizationSlug, teamId: createBody.team.id },
+        json: {
+          workosUserId: sameOrgManager.user.workosUserId,
+          role: "manager",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(adminIdentity),
+      },
+    );
+
+    expect(firstAddResponse.status).toBe(201);
+
+    const secondAddResponse = await client.api.orgs[":organizationSlug"].teams[
+      ":teamId"
+    ].members.$post(
+      {
+        param: { organizationSlug, teamId: createBody.team.id },
+        json: {
+          workosUserId: sameOrgManager.user.workosUserId,
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(adminIdentity),
+      },
+    );
+
+    expect(secondAddResponse.status).toBe(201);
+    await expect(secondAddResponse.json()).resolves.toMatchObject({
+      member: expect.objectContaining({
+        workosUserId: sameOrgManager.user.workosUserId,
+        role: "manager",
+      }),
+    });
+  });
+
+  it("returns 204 when removing a cross-org user from a team", async () => {
+    const adminIdentity = fixture.createWorkosIdentity();
+    const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
+
+    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Localization",
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(adminIdentity),
+      },
+    );
+
+    const createBody = (await createResponse.json()) as {
+      team: {
+        id: string;
+      };
+    };
+
+    const otherOrgUser = fixture.createWorkosIdentity();
+    await fixture.authHeadersFor(otherOrgUser);
+
+    const deleteResponse = await client.api.orgs[":organizationSlug"].teams[":teamId"].members[
+      ":workosUserId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          teamId: createBody.team.id,
+          workosUserId: otherOrgUser.user.workosUserId,
+        },
+      },
+      {
+        headers: await fixture.authHeadersFor(adminIdentity),
+      },
+    );
+
+    expect(deleteResponse.status).toBe(204);
   });
 });

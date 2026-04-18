@@ -53,6 +53,25 @@ function invalidTeamPayloadResponse(c: { json(body: { error: string }, status: 4
   return c.json({ error: "invalid_team_payload" }, 400);
 }
 
+function teamSlugAlreadyExistsResponse(c: {
+  json(body: { error: string }, status: 409): Response;
+}) {
+  return c.json({ error: "team_slug_already_exists" }, 409);
+}
+
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
 function isOrganizationAdmin(auth: ApiAuthContext) {
   return auth.membership.role === "owner" || auth.membership.role === "admin";
 }
@@ -207,22 +226,34 @@ export function createTeamRoutes() {
       }
 
       const payload = c.req.valid("json");
-      const [team] = await db
-        .insert(schema.teams)
-        .values({
-          organizationId: c.var.auth.activeOrganization.localOrganizationId,
-          name: payload.name,
-          slug: payload.slug ?? slugifyTeamName(payload.name),
-        })
-        .returning();
+      try {
+        const team = await db.transaction(async (tx) => {
+          const [createdTeam] = await tx
+            .insert(schema.teams)
+            .values({
+              organizationId: c.var.auth.activeOrganization.localOrganizationId,
+              name: payload.name,
+              slug: payload.slug ?? slugifyTeamName(payload.name),
+            })
+            .returning();
 
-      await db.insert(schema.teamMemberships).values({
-        teamId: team.id,
-        userId: c.var.auth.user.localUserId,
-        role: "manager",
-      });
+          await tx.insert(schema.teamMemberships).values({
+            teamId: createdTeam.id,
+            userId: c.var.auth.user.localUserId,
+            role: "manager",
+          });
 
-      return c.json({ team }, 201);
+          return createdTeam;
+        });
+
+        return c.json({ team }, 201);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return teamSlugAlreadyExistsResponse(c);
+        }
+
+        throw error;
+      }
     })
     .get("/:teamId", validateTeamParams, async (c) => {
       const { teamId } = c.req.valid("param");
@@ -251,25 +282,33 @@ export function createTeamRoutes() {
 
       const { teamId } = c.req.valid("param");
       const payload = c.req.valid("json");
-      const [team] = await db
-        .update(schema.teams)
-        .set({
-          name: payload.name,
-          slug: payload.slug,
-        })
-        .where(
-          and(
-            eq(schema.teams.id, teamId),
-            eq(schema.teams.organizationId, c.var.auth.activeOrganization.localOrganizationId),
-          ),
-        )
-        .returning();
+      try {
+        const [team] = await db
+          .update(schema.teams)
+          .set({
+            name: payload.name,
+            slug: payload.slug,
+          })
+          .where(
+            and(
+              eq(schema.teams.id, teamId),
+              eq(schema.teams.organizationId, c.var.auth.activeOrganization.localOrganizationId),
+            ),
+          )
+          .returning();
 
-      if (!team) {
-        return teamNotFoundResponse(c);
+        if (!team) {
+          return teamNotFoundResponse(c);
+        }
+
+        return c.json({ team }, 200);
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          return teamSlugAlreadyExistsResponse(c);
+        }
+
+        throw error;
       }
-
-      return c.json({ team }, 200);
     })
     .post("/:teamId/members", validateTeamParams, validateAddTeamMemberBody, async (c) => {
       if (!isOrganizationAdmin(c.var.auth)) {
@@ -310,27 +349,55 @@ export function createTeamRoutes() {
         return c.json({ error: "organization_member_not_found" }, 404);
       }
 
-      const [teamMembership] = await db
-        .insert(schema.teamMemberships)
-        .values({
-          teamId: team.id,
-          userId: user.id,
-          role: (payload.role ?? "member") as TeamMembershipRole,
-        })
-        .onConflictDoUpdate({
-          target: [schema.teamMemberships.teamId, schema.teamMemberships.userId],
-          set: { role: payload.role ?? "member" },
-        })
-        .returning({
-          role: schema.teamMemberships.role,
-        });
+      const [teamMembership] =
+        payload.role === undefined
+          ? await db
+              .insert(schema.teamMemberships)
+              .values({
+                teamId: team.id,
+                userId: user.id,
+                role: "member",
+              })
+              .onConflictDoNothing()
+              .returning({
+                role: schema.teamMemberships.role,
+              })
+          : await db
+              .insert(schema.teamMemberships)
+              .values({
+                teamId: team.id,
+                userId: user.id,
+                role: payload.role as TeamMembershipRole,
+              })
+              .onConflictDoUpdate({
+                target: [schema.teamMemberships.teamId, schema.teamMemberships.userId],
+                set: { role: payload.role },
+              })
+              .returning({
+                role: schema.teamMemberships.role,
+              });
+
+      const membership =
+        teamMembership ??
+        (
+          await db
+            .select({ role: schema.teamMemberships.role })
+            .from(schema.teamMemberships)
+            .where(
+              and(
+                eq(schema.teamMemberships.teamId, team.id),
+                eq(schema.teamMemberships.userId, user.id),
+              ),
+            )
+            .limit(1)
+        )[0];
 
       return c.json(
         {
           member: {
             workosUserId: user.workosUserId,
             email: user.email,
-            role: teamMembership.role,
+            role: membership.role,
           },
         },
         201,
