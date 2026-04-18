@@ -32,7 +32,10 @@ export function AppShellNavigation({ items }: AppShellNavigationProps) {
       <SidebarGroupContent>
         <SidebarMenu className="gap-1">
           {items.map((item) => {
-            const isActive = pathname === "/dashboard" && item.href === "/dashboard";
+            const itemPathname = item.href.split("#", 1)[0];
+            const isActive =
+              pathname === itemPathname ||
+              (itemPathname.endsWith("/dashboard") && pathname.startsWith(itemPathname));
 
             return (
               <SidebarMenuItem key={item.href}>

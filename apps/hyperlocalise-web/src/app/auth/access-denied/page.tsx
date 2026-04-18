@@ -10,16 +10,23 @@ export default function AccessDeniedPage() {
         <CardHeader>
           <CardTitle className="font-heading text-2xl">Access denied</CardTitle>
           <CardDescription className="text-white/60">
-            Your account is signed in, but there is no active organization membership available for
-            this workspace.
+            Your account is signed in, but this workspace does not have an active organization
+            context you can use.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <p className="text-sm leading-6 text-white/70">
-            Ask your organization admin to confirm your WorkOS organization membership, or sign out
-            and retry with another account.
+            Ask your organization admin to confirm your WorkOS membership, choose another
+            organization, or sign out and retry with another account.
           </p>
           <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/auth/select-organization" />}
+            >
+              Choose organization
+            </Button>
             <Button nativeButton={false} render={<Link href="/auth/sign-out?returnTo=/" />}>
               Sign out
             </Button>

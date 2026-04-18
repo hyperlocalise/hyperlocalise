@@ -50,6 +50,7 @@ export const organizationMembershipRoleEnum = pgEnum("organization_membership_ro
   "admin",
   "member",
 ]);
+export const teamMembershipRoleEnum = pgEnum("team_membership_role", ["manager", "member"]);
 export const translationAssetStatusEnum = pgEnum("translation_asset_status", [
   "draft",
   "active",
@@ -139,6 +140,50 @@ export const organizationMemberships = pgTable(
     uniqueIndex("organization_memberships_org_user_key").on(table.organizationId, table.userId),
     uniqueIndex("organization_memberships_workos_membership_id_key").on(table.workosMembershipId),
     index("idx_organization_memberships_user_id").on(table.userId),
+  ],
+);
+
+export const teams = pgTable(
+  "teams",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("teams_org_slug_key").on(table.organizationId, table.slug),
+    index("idx_teams_org_created_at").on(table.organizationId, table.createdAt),
+  ],
+);
+
+export const teamMemberships = pgTable(
+  "team_memberships",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: teamMembershipRoleEnum("role").notNull().default("member"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("team_memberships_team_user_key").on(table.teamId, table.userId),
+    index("idx_team_memberships_user_id").on(table.userId),
   ],
 );
 

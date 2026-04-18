@@ -97,6 +97,16 @@ export function createGlossaryTestFixture(client?: any) {
 
   async function authHeadersFor(identity: WorkosAuthIdentity) {
     const { user, organization, membership } = await syncWorkosIdentity(db, identity);
+    const activeOrganization = {
+      workosOrganizationId: organization.workosOrganizationId,
+      localOrganizationId: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      membership: {
+        workosMembershipId: membership.workosMembershipId,
+        role: membership.role,
+      },
+    };
 
     globalThis.__testApiAuthContext = {
       user: {
@@ -104,16 +114,14 @@ export function createGlossaryTestFixture(client?: any) {
         localUserId: user.id,
         email: user.email,
       },
-      organization: {
-        workosOrganizationId: organization.workosOrganizationId,
-        localOrganizationId: organization.id,
-        name: organization.name,
-        slug: organization.slug,
-      },
+      organizations: [activeOrganization],
+      organization: activeOrganization,
+      activeOrganization,
       membership: {
         workosMembershipId: membership.workosMembershipId,
         role: membership.role,
       },
+      activeTeam: null,
     };
 
     return {

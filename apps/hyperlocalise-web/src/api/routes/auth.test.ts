@@ -11,6 +11,21 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(),
 }));
 
+vi.mock("inngest/hono", () => ({
+  serve: () => () => new Response(null, { status: 204 }),
+}));
+
+vi.mock("@/lib/inngest", () => ({
+  inngest: {},
+  createInngestTranslationJobQueue: () => ({
+    enqueue: async () => ({ ids: [] }),
+  }),
+}));
+
+vi.mock("@/lib/translation/translation-job-queued-function", () => ({
+  translationJobQueuedFunction: {},
+}));
+
 async function createClient(
   options: {
     sessionAuthContext?: ApiAuthContext | null;
@@ -76,6 +91,16 @@ describe("authRoutes", () => {
   });
 
   it("resolves auth from the first-party session", async () => {
+    const activeOrganization = {
+      workosOrganizationId: "org_123",
+      localOrganizationId: "local_org_123",
+      name: "Example Org",
+      slug: "example-org",
+      membership: {
+        workosMembershipId: "membership_123",
+        role: "owner" as const,
+      },
+    };
     const client = await createClient({
       sessionAuthContext: {
         user: {
@@ -83,16 +108,14 @@ describe("authRoutes", () => {
           localUserId: "local_user_123",
           email: "user@example.com",
         },
-        organization: {
-          workosOrganizationId: "org_123",
-          localOrganizationId: "local_org_123",
-          name: "Example Org",
-          slug: "example-org",
-        },
+        organizations: [activeOrganization],
+        organization: activeOrganization,
+        activeOrganization,
         membership: {
           workosMembershipId: "membership_123",
           role: "owner",
         },
+        activeTeam: null,
       },
     });
 
@@ -118,16 +141,53 @@ describe("authRoutes", () => {
           localOrganizationId: "local_org_123",
           name: "Example Org",
           slug: "example-org",
+          membership: {
+            workosMembershipId: "membership_123",
+            role: "owner",
+          },
         },
+        activeOrganization: {
+          workosOrganizationId: "org_123",
+          localOrganizationId: "local_org_123",
+          name: "Example Org",
+          slug: "example-org",
+          membership: {
+            workosMembershipId: "membership_123",
+            role: "owner",
+          },
+        },
+        organizations: [
+          {
+            workosOrganizationId: "org_123",
+            localOrganizationId: "local_org_123",
+            name: "Example Org",
+            slug: "example-org",
+            membership: {
+              workosMembershipId: "membership_123",
+              role: "owner",
+            },
+          },
+        ],
         membership: {
           workosMembershipId: "membership_123",
           role: "owner",
         },
+        activeTeam: null,
       },
     });
   });
 
   it("does not remap downstream errors from the session auth path", async () => {
+    const activeOrganization = {
+      workosOrganizationId: "org_123",
+      localOrganizationId: "local_org_123",
+      name: "Example Org",
+      slug: "example-org",
+      membership: {
+        workosMembershipId: "membership_123",
+        role: "owner" as const,
+      },
+    };
     vi.resetModules();
     resolveApiAuthContextFromSessionMock.mockResolvedValue({
       user: {
@@ -135,16 +195,14 @@ describe("authRoutes", () => {
         localUserId: "local_user_123",
         email: "user@example.com",
       },
-      organization: {
-        workosOrganizationId: "org_123",
-        localOrganizationId: "local_org_123",
-        name: "Example Org",
-        slug: "example-org",
-      },
+      organizations: [activeOrganization],
+      organization: activeOrganization,
+      activeOrganization,
       membership: {
         workosMembershipId: "membership_123",
         role: "owner",
       },
+      activeTeam: null,
     });
     vi.doMock("@/api/auth/workos-session", () => ({
       resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,

@@ -21,6 +21,14 @@ import { cn } from "@/lib/utils";
 type AppShellClientProps = {
   children: ReactNode;
   navigation: ReactNode;
+  activeOrganization: {
+    name: string;
+    slug?: string | null;
+  };
+  organizations: Array<{
+    name: string;
+    slug?: string | null;
+  }>;
   user: {
     name: string;
     email: string;
@@ -28,7 +36,13 @@ type AppShellClientProps = {
   };
 };
 
-export function AppShellClient({ children, navigation, user }: AppShellClientProps) {
+export function AppShellClient({
+  children,
+  navigation,
+  activeOrganization,
+  organizations,
+  user,
+}: AppShellClientProps) {
   return (
     <SidebarProvider
       defaultOpen
@@ -52,8 +66,31 @@ export function AppShellClient({ children, navigation, user }: AppShellClientPro
             <div className="size-7 rounded-full border border-white/15 bg-[linear-gradient(135deg,#2a2a2a,#101010)]" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
+              <p className="truncate text-xs text-white/45">{activeOrganization.name}</p>
             </div>
           </div>
+
+          {organizations.length > 1 ? (
+            <div className="flex flex-wrap gap-1">
+              {organizations
+                .filter(
+                  (organization) =>
+                    organization.slug && organization.slug !== activeOrganization.slug,
+                )
+                .map((organization) => (
+                  <Button
+                    key={organization.slug}
+                    size="sm"
+                    variant="ghost"
+                    nativeButton={false}
+                    className="h-8 rounded-lg border border-white/8 px-2 text-xs text-white/58 hover:bg-white/8 hover:text-white"
+                    render={<Link href={`/auth/select-organization/${organization.slug}`} />}
+                  >
+                    {organization.name}
+                  </Button>
+                ))}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-2">
             <SidebarInput
