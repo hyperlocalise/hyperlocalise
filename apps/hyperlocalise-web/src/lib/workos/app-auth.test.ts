@@ -59,4 +59,19 @@ describe("requireAppAuthContext", () => {
       session,
     });
   });
+
+  it("redirects to onboarding when the signed-in user has no memberships yet", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
+    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
+  });
 });

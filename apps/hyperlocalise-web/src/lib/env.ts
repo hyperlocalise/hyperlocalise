@@ -10,6 +10,7 @@ export const env = createEnv({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1).optional(),
+    PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
     GITHUB_APP_WEBHOOK_SECRET: z.string().min(1).optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
@@ -27,6 +28,9 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
+    PROVIDER_CREDENTIALS_MASTER_KEY:
+      process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
+      (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     GITHUB_APP_WEBHOOK_SECRET:
       process.env.GITHUB_APP_WEBHOOK_SECRET ??
       (isTestEnv ? "test-github-app-webhook-secret" : undefined),
