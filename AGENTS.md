@@ -18,4 +18,9 @@
 - Run `make lint`.
 - Run `make test`.
 
-Do not finalize work until all three commands complete successfully.
+In apps/hyperlocalise-web:
+
+- Run `vp test`
+- Run `vp check --fix`
+
+Do not finalize work until all commands complete successfully.

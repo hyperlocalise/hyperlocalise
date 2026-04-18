@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default function AccessDeniedPage() {
   return (
     <main className="flex min-h-svh items-center justify-center bg-[#050505] px-4 py-10 text-white">
-      <Card className="w-full max-w-lg border-white/10 bg-white/[0.03] text-white shadow-2xl shadow-black/30">
+      <Card className="w-full max-w-lg border-white/10 bg-white/3 text-white shadow-2xl shadow-black/30">
         <CardHeader>
           <CardTitle className="font-heading text-2xl">Access denied</CardTitle>
           <CardDescription className="text-white/60">

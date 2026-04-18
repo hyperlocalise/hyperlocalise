@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 
 export type WorkosUserIdentity = {
   workosUserId: string;
@@ -57,9 +58,7 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
-      const { resolveApiAuthContextFromSession } = await import("@/lib/workos/auth");
       const authFromSession = await resolveApiAuthContextFromSession();
-
       if (!authFromSession) {
         throw new Error("missing_auth_context");
       }
