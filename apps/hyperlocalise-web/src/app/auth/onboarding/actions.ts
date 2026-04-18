@@ -7,6 +7,7 @@ import { updateProviderCredentialBodySchema } from "@/api/routes/provider-creden
 import { createWorkspaceForSessionUser } from "@/lib/onboarding/workspace";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import {
+  assertProviderCredentialAdmin,
   getOrganizationProviderCredentialSummary,
   upsertOrganizationProviderCredential,
 } from "@/lib/providers/organization-provider-credentials";
@@ -75,10 +76,22 @@ export async function createWorkspaceAction(
     redirect("/auth/sign-in?returnTo=/auth/onboarding");
   }
 
-  const { organization } = await createWorkspaceForSessionUser({
-    sessionUser: session.user,
-    organizationName: parsed.data.organizationName,
-  });
+  let organization;
+
+  try {
+    ({ organization } = await createWorkspaceForSessionUser({
+      sessionUser: session.user,
+      organizationName: parsed.data.organizationName,
+    }));
+  } catch (error) {
+    if (error instanceof Error && error.message === "workspace_slug_conflict") {
+      return {
+        error: "Unable to create a unique workspace URL right now. Please retry.",
+      };
+    }
+
+    throw error;
+  }
 
   if (!organization.slug) {
     return {
@@ -124,6 +137,7 @@ export async function saveProviderCredentialAction(
   }
 
   try {
+    assertProviderCredentialAdmin(auth.membership.role);
     await upsertOrganizationProviderCredential({
       organizationId: auth.activeOrganization.localOrganizationId,
       userId: auth.user.localUserId,
@@ -135,7 +149,10 @@ export async function saveProviderCredentialAction(
     const message = error instanceof Error ? error.message : "Unable to validate the credential.";
 
     return {
-      error: message,
+      error:
+        message === "forbidden"
+          ? "You do not have permission to update provider credentials."
+          : message,
     };
   }
 

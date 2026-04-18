@@ -1,11 +1,14 @@
 import { cookies } from "next/headers";
+import { z } from "zod";
 
 export const onboardingStateCookieName = "hl_onboarding_state";
 
-export type OnboardingState = {
-  organizationSlug: string;
-  providerSetupStatus: "pending" | "configured" | "skipped";
-};
+const onboardingStateSchema = z.object({
+  organizationSlug: z.string().min(1),
+  providerSetupStatus: z.enum(["pending", "configured", "skipped"]),
+});
+
+export type OnboardingState = z.infer<typeof onboardingStateSchema>;
 
 export async function getStoredOnboardingState(): Promise<OnboardingState | null> {
   const rawValue = (await cookies()).get(onboardingStateCookieName)?.value;
@@ -14,7 +17,7 @@ export async function getStoredOnboardingState(): Promise<OnboardingState | null
   }
 
   try {
-    return JSON.parse(rawValue) as OnboardingState;
+    return onboardingStateSchema.parse(JSON.parse(rawValue));
   } catch {
     return null;
   }

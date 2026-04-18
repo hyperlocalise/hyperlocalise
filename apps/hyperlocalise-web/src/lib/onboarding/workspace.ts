@@ -15,13 +15,26 @@ function slugifyOrganizationName(name: string) {
   return normalized || "workspace";
 }
 
-async function createUniqueOrganizationSlug(name: string) {
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
+async function createUniqueOrganizationSlug(name: string, dbHandle: Pick<typeof db, "select">) {
   const baseSlug = slugifyOrganizationName(name);
   let attempt = 0;
 
   while (attempt < 100) {
     const candidate = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
-    const [existingOrganization] = await db
+    const [existingOrganization] = await dbHandle
       .select({ id: schema.organizations.id })
       .from(schema.organizations)
       .where(eq(schema.organizations.slug, candidate))
@@ -55,32 +68,44 @@ export async function createWorkspaceForSessionUser(input: {
     avatarUrl: input.sessionUser.profilePictureUrl ?? undefined,
   });
 
-  return db.transaction(async (tx) => {
-    const slug = await createUniqueOrganizationSlug(input.organizationName);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await db.transaction(async (tx) => {
+        const slug = await createUniqueOrganizationSlug(input.organizationName, tx);
 
-    const [organization] = await tx
-      .insert(schema.organizations)
-      .values({
-        workosOrganizationId: `local_org_${randomUUID()}`,
-        name: input.organizationName.trim(),
-        slug,
-      })
-      .returning({
-        id: schema.organizations.id,
-        name: schema.organizations.name,
-        slug: schema.organizations.slug,
+        const [organization] = await tx
+          .insert(schema.organizations)
+          .values({
+            workosOrganizationId: `local_org_${randomUUID()}`,
+            name: input.organizationName.trim(),
+            slug,
+          })
+          .returning({
+            id: schema.organizations.id,
+            name: schema.organizations.name,
+            slug: schema.organizations.slug,
+          });
+
+        await tx.insert(schema.organizationMemberships).values({
+          organizationId: organization.id,
+          userId: user.id,
+          role: "owner",
+          workosMembershipId: null,
+        });
+
+        return {
+          user,
+          organization,
+        };
       });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        continue;
+      }
 
-    await tx.insert(schema.organizationMemberships).values({
-      organizationId: organization.id,
-      userId: user.id,
-      role: "owner",
-      workosMembershipId: null,
-    });
+      throw error;
+    }
+  }
 
-    return {
-      user,
-      organization,
-    };
-  });
+  throw new Error("workspace_slug_conflict");
 }

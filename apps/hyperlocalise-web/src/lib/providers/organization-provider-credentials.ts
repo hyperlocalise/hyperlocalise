@@ -137,6 +137,7 @@ export async function revealOrganizationProviderCredential(input: {
     summary: summarizeCredential(credential),
     apiKey: decryptProviderCredential({
       algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
       ciphertext: credential.ciphertext,
       iv: credential.iv,
       authTag: credential.authTag,

@@ -17,14 +17,14 @@ function parseMasterKey(input: string) {
     return base64Buffer;
   }
 
-  if (trimmed.length === 32) {
-    return Buffer.from(trimmed, "utf8");
-  }
-
   throw new Error("invalid_provider_credentials_master_key");
 }
 
-function getMasterKey() {
+function getMasterKey(keyVersion = currentKeyVersion) {
+  if (keyVersion !== currentKeyVersion) {
+    throw new Error("unsupported_provider_credential_key_version");
+  }
+
   const key = parseMasterKey(env.PROVIDER_CREDENTIALS_MASTER_KEY);
   if (key.length !== 32) {
     throw new Error("invalid_provider_credentials_master_key");
@@ -50,6 +50,7 @@ export function encryptProviderCredential(plaintext: string) {
 
 export function decryptProviderCredential(input: {
   algorithm: string;
+  keyVersion: number;
   ciphertext: string;
   iv: string;
   authTag: string;
@@ -60,7 +61,7 @@ export function decryptProviderCredential(input: {
 
   const decipher = createDecipheriv(
     input.algorithm,
-    getMasterKey(),
+    getMasterKey(input.keyVersion),
     Buffer.from(input.iv, "base64"),
   );
   decipher.setAuthTag(Buffer.from(input.authTag, "base64"));
