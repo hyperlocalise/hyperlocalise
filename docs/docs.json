@@ -53,6 +53,7 @@
               "commands/init",
               "commands/crowdin",
               "commands/run",
+              "commands/check",
               "commands/eval",
               "commands/status",
               "commands/sync-pull",
