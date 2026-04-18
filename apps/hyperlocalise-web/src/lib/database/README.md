@@ -5,6 +5,7 @@ This folder contains the Drizzle schema for the app database.
 ## Design
 
 - `organizations`, `users`, and `organization_memberships` are local identity tables.
+- `teams` and `team_memberships` are local collaboration tables nested under organizations.
 - WorkOS IDs are stored as external mapping fields so domain tables do not depend on vendor IDs.
 - `translation_projects` belongs to an organization and may record the creating user.
 - `translation_jobs` belongs to a project and may record the triggering user.
@@ -41,6 +42,24 @@ erDiagram
         uuid organization_id FK
         uuid user_id FK
         text workos_membership_id UK
+        enum role
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    teams {
+        uuid id PK
+        uuid organization_id FK
+        text slug
+        text name
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    team_memberships {
+        uuid id PK
+        uuid team_id FK
+        uuid user_id FK
         enum role
         timestamptz created_at
         timestamptz updated_at
@@ -139,7 +158,10 @@ erDiagram
     }
 
     organizations ||--o{ organization_memberships : has
+    organizations ||--o{ teams : has
     users ||--o{ organization_memberships : joins
+    teams ||--o{ team_memberships : has
+    users ||--o{ team_memberships : joins
     organizations ||--o{ translation_projects : owns
     organizations ||--o{ translation_glossaries : owns
     organizations ||--o{ translation_memories : owns
@@ -159,6 +181,8 @@ erDiagram
 ## Notes
 
 - `organization_memberships` is the authorization join table between users and organizations.
+- `teams` are local app-level subgroups inside an organization; WorkOS does not manage them.
+- `team_memberships` controls collaboration inside an organization after org membership is established.
 - `translation_projects` and `translation_jobs` reference local UUIDs for users and organizations, not WorkOS IDs.
 - Reusable translation assets are owned at the organization layer, then attached to projects through join tables with `priority`.
 - Glossary and TM content are normalized into term and entry tables.

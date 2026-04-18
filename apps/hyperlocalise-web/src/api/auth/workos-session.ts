@@ -4,14 +4,62 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
-export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext | null> {
+type ResolveApiAuthContextOptions = {
+  organizationSlug?: string;
+};
+
+type OrganizationMembershipRecord = {
+  workosUserId: string;
+  localUserId: string;
+  email: string;
+  workosOrganizationId: string;
+  localOrganizationId: string;
+  organizationName: string;
+  organizationSlug: string | null;
+  workosMembershipId: string | null;
+  role: ApiAuthContext["membership"]["role"];
+};
+
+function selectActiveOrganization(
+  organizations: ApiAuthContext["organizations"],
+  options: {
+    organizationSlug?: string;
+    workosOrganizationId?: string | null;
+  },
+) {
+  if (options.organizationSlug) {
+    const organization = organizations.find((item) => item.slug === options.organizationSlug);
+
+    if (!organization) {
+      throw new Error("organization_access_denied");
+    }
+
+    return organization;
+  }
+
+  if (options.workosOrganizationId) {
+    const organization = organizations.find(
+      (item) => item.workosOrganizationId === options.workosOrganizationId,
+    );
+
+    if (organization) {
+      return organization;
+    }
+  }
+
+  return organizations[0] ?? null;
+}
+
+export async function resolveApiAuthContextFromSession(
+  options: ResolveApiAuthContextOptions = {},
+): Promise<ApiAuthContext | null> {
   const session = await withAuth();
 
-  if (!session.user || !session.organizationId) {
+  if (!session.user) {
     return null;
   }
 
-  const [membership] = await db
+  const memberships = await db
     .select({
       workosUserId: schema.users.workosUserId,
       localUserId: schema.users.id,
@@ -29,13 +77,32 @@ export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext
       schema.organizations,
       eq(schema.organizationMemberships.organizationId, schema.organizations.id),
     )
-    .where(
-      and(
-        eq(schema.users.workosUserId, session.user.id),
-        eq(schema.organizations.workosOrganizationId, session.organizationId),
-      ),
-    )
-    .limit(1);
+    .where(eq(schema.users.workosUserId, session.user.id))
+    .orderBy(schema.organizations.name);
+
+  if (memberships.length === 0) {
+    return null;
+  }
+
+  const organizations = memberships.map((membership: OrganizationMembershipRecord) => ({
+    workosOrganizationId: membership.workosOrganizationId,
+    localOrganizationId: membership.localOrganizationId,
+    name: membership.organizationName,
+    slug: membership.organizationSlug,
+    membership: {
+      workosMembershipId: membership.workosMembershipId,
+      role: membership.role,
+    },
+  }));
+
+  const activeOrganization = selectActiveOrganization(organizations, {
+    organizationSlug: options.organizationSlug,
+    workosOrganizationId: session.organizationId,
+  });
+
+  const membership = memberships.find(
+    (item) => item.localOrganizationId === activeOrganization.localOrganizationId,
+  );
 
   if (!membership) {
     return null;
@@ -47,15 +114,13 @@ export async function resolveApiAuthContextFromSession(): Promise<ApiAuthContext
       localUserId: membership.localUserId,
       email: membership.email,
     },
-    organization: {
-      workosOrganizationId: membership.workosOrganizationId,
-      localOrganizationId: membership.localOrganizationId,
-      name: membership.organizationName,
-      slug: membership.organizationSlug,
-    },
+    organizations,
+    organization: activeOrganization,
+    activeOrganization,
     membership: {
-      workosMembershipId: membership.workosMembershipId,
-      role: membership.role,
+      workosMembershipId: activeOrganization.membership.workosMembershipId,
+      role: activeOrganization.membership.role,
     },
+    activeTeam: null,
   };
 }

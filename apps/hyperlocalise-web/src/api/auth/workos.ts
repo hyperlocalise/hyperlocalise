@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
-import type { OrganizationMembershipRole } from "@/lib/database/types";
+import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 
 export type WorkosUserIdentity = {
@@ -34,23 +34,59 @@ export type ApiAuthContext = {
     localUserId: string;
     email: string;
   };
+  organizations: Array<{
+    workosOrganizationId: string;
+    localOrganizationId: string;
+    name: string;
+    slug?: string | null;
+    membership: {
+      workosMembershipId?: string | null;
+      role: OrganizationMembershipRole;
+    };
+  }>;
   organization: {
     workosOrganizationId: string;
     localOrganizationId: string;
     name: string;
     slug?: string | null;
+    membership: {
+      workosMembershipId?: string | null;
+      role: OrganizationMembershipRole;
+    };
+  };
+  activeOrganization: {
+    workosOrganizationId: string;
+    localOrganizationId: string;
+    name: string;
+    slug?: string | null;
+    membership: {
+      workosMembershipId?: string | null;
+      role: OrganizationMembershipRole;
+    };
   };
   membership: {
     workosMembershipId?: string | null;
     role: OrganizationMembershipRole;
   };
+  activeTeam: {
+    id: string;
+    slug: string;
+    name: string;
+    role: TeamMembershipRole;
+  } | null;
 };
 
 export interface AuthVariables {
   auth: ApiAuthContext;
 }
 
-const knownWorkosAuthErrors = new Set(["missing_auth_context"]);
+const authErrorResponses = new Map([
+  ["missing_auth_context", { status: 401, body: { error: "unauthorized" as const } }],
+  [
+    "organization_access_denied",
+    { status: 403, body: { error: "organization_access_denied" as const } },
+  ],
+]);
 export function createWorkosAuthMiddleware() {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
@@ -58,7 +94,14 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
-      const authFromSession = await resolveApiAuthContextFromSession();
+      const requestUrl = new URL(c.req.url);
+      const organizationSlug =
+        c.req.param("organizationSlug") ||
+        c.req.header("x-hyperlocalise-organization-slug") ||
+        requestUrl.searchParams.get("organizationSlug") ||
+        undefined;
+
+      const authFromSession = await resolveApiAuthContextFromSession({ organizationSlug });
       if (!authFromSession) {
         throw new Error("missing_auth_context");
       }
@@ -66,12 +109,12 @@ export function createWorkosAuthMiddleware() {
       c.set("auth", authFromSession);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
-
-      if (!knownWorkosAuthErrors.has(message)) {
+      const mapped = authErrorResponses.get(message);
+      if (!mapped) {
         throw error;
       }
 
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json(mapped.body, mapped.status as 401 | 403);
     }
 
     await next();

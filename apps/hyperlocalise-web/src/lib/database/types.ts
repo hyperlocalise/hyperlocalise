@@ -1,6 +1,9 @@
 import type {
   translationJobs,
   organizationMembershipRoleEnum,
+  teamMembershipRoleEnum,
+  teamMemberships,
+  teams,
   translationProjects,
   translationJobOutcomeKindEnum,
   translationJobStatusEnum,
@@ -17,3 +20,8 @@ export type TranslationJobType = (typeof translationJobTypeEnum.enumValues)[numb
 export type TranslationJobStatus = (typeof translationJobStatusEnum.enumValues)[number];
 export type TranslationJobOutcomeKind = (typeof translationJobOutcomeKindEnum.enumValues)[number];
 export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.enumValues)[number];
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMembership = typeof teamMemberships.$inferSelect;
+export type NewTeamMembership = typeof teamMemberships.$inferInsert;
+export type TeamMembershipRole = (typeof teamMembershipRoleEnum.enumValues)[number];
