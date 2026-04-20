@@ -8,11 +8,11 @@ export default async function SelectOrganizationPage() {
   const auth = await requireAppAuthContext();
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-[#050505] px-4 py-10 text-white">
-      <Card className="w-full max-w-2xl border-white/10 bg-white/3 text-white shadow-2xl shadow-black/30">
+    <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
+      <Card className="w-full max-w-2xl border-border/70 bg-background shadow-2xl shadow-foreground/12">
         <CardHeader>
           <CardTitle className="font-heading text-2xl">Choose an organization</CardTitle>
-          <CardDescription className="text-white/60">
+          <CardDescription className="text-muted-foreground">
             Select the workspace you want to open. Your organization membership still comes from
             WorkOS.
           </CardDescription>

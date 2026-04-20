@@ -37,7 +37,7 @@ export function HeroSection() {
           transition={headlineTransition}
         >
           <TypographyH1 className="text-left">
-            The localization system to launch globally in days
+            The localization platform to launch globally in days
           </TypographyH1>
         </motion.div>
         <motion.div

@@ -32,11 +32,16 @@ function ProviderTile({ label, accentClassName, tileAccentClassName }: ProviderC
   return (
     <div
       className={cn(
-        "group flex min-h-20 items-center justify-center rounded-[1.05rem] border border-black/6 bg-muted px-4 py-4 text-center shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-200 hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]",
+        "group flex min-h-16 items-center justify-center rounded-[0.95rem] border border-border/60 bg-muted/80 px-3 py-3 text-center shadow-[0_1px_2px_color-mix(in_srgb,var(--foreground)_4%,transparent)] transition duration-200 hover:-translate-y-0.5 hover:border-border hover:bg-muted hover:shadow-[0_8px_20px_color-mix(in_srgb,var(--foreground)_7%,transparent)] sm:min-h-20 sm:rounded-[1.05rem] sm:bg-muted sm:px-4 sm:py-4 sm:hover:shadow-[0_10px_24px_color-mix(in_srgb,var(--foreground)_8%,transparent)]",
         tileAccentClassName,
       )}
     >
-      <TypographyMuted className={cn("font-semibold transition duration-200", accentClassName)}>
+      <TypographyMuted
+        className={cn(
+          "text-sm font-semibold leading-5 transition duration-200 sm:text-base",
+          accentClassName,
+        )}
+      >
         {label}
       </TypographyMuted>
     </div>
@@ -45,12 +50,14 @@ function ProviderTile({ label, accentClassName, tileAccentClassName }: ProviderC
 
 export function ProviderSwitchingIllustration() {
   return (
-    <div className="rounded-[1.8rem] border border-black/8 bg-background p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-7 mask-radial-from-65% mask-radial-at-top">
+    <div className="rounded-[1.5rem] border border-border/60 bg-background p-4 shadow-[0_18px_56px_color-mix(in_srgb,var(--foreground)_7%,transparent)] sm:rounded-[1.8rem] sm:p-7 sm:shadow-[0_24px_80px_color-mix(in_srgb,var(--foreground)_8%,transparent)] mask-radial-from-65% mask-radial-at-top">
       <div className="flex items-center justify-between gap-3">
-        <TypographyH4>Providers</TypographyH4>
+        <TypographyH4 className="text-[1.05rem] font-semibold tracking-[-0.02em] sm:text-[inherit] sm:tracking-[inherit]">
+          Providers
+        </TypographyH4>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:mt-5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
         {providers.map((provider) => (
           <ProviderTile key={provider.id} {...provider} />
         ))}

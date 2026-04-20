@@ -5,17 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function AccessDeniedPage() {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-[#050505] px-4 py-10 text-white">
-      <Card className="w-full max-w-lg border-white/10 bg-white/3 text-white shadow-2xl shadow-black/30">
+    <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
+      <Card className="w-full max-w-lg border-border/70 bg-background shadow-2xl shadow-foreground/12">
         <CardHeader>
           <CardTitle className="font-heading text-2xl">Access denied</CardTitle>
-          <CardDescription className="text-white/60">
+          <CardDescription className="text-muted-foreground">
             Your account is signed in, but this workspace does not have an active organization
             context you can use.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <p className="text-sm leading-6 text-white/70">
+          <p className="text-sm leading-6 text-muted-foreground">
             Ask your organization admin to confirm your WorkOS membership, choose another
             organization, or sign out and retry with another account.
           </p>

@@ -19,6 +19,8 @@ import { env } from "@/lib/env";
 import Image from "next/image";
 import Link from "next/link";
 
+import ThemeToggle from "@/components/theme-toggle";
+
 const navigationLinks: { href: string; label: string; active?: boolean }[] = [
   // { href: "#home", label: "Home", active: true },
   // { href: "#overview", label: "Overview" },
@@ -172,34 +174,29 @@ export default function Navbar() {
         <div className="hidden items-center gap-2 md:flex">
           <Button
             variant="ghost"
-            size="sm"
-            className="gap-2 text-sm"
+            className="gap-2"
             nativeButton={false}
             render={<a href={githubRepoUrl} />}
           >
             <GitHubMark />
             Star on Github
           </Button>
-          <Button
-            size="sm"
-            className="text-sm"
-            nativeButton={false}
-            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
-          >
+          <Button nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
             Join waitlist
           </Button>
+          <ThemeToggle />
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
           <Button
-            size="sm"
-            className="px-3.5 text-sm"
+            className="px-3.5"
             nativeButton={false}
             render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}
           >
             Join waitlist
           </Button>
           <MobileNavigation />
+          <ThemeToggle />
         </div>
       </div>
     </header>

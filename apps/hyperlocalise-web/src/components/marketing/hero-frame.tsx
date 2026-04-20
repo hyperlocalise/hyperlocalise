@@ -272,73 +272,31 @@ const mobileMatrix = {
   sequence: generateGameOfLifeSequence(MOBILE_DIMENSION),
 } as const;
 
-const flipDotItems = [
-  {
-    title: "Reviewing the source copy",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
-  {
-    title: "Adapting for local context",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
-  {
-    title: "Refining the tone",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
-  {
-    title: "Localizing key phrases",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
-  {
-    title: "Finalizing the locale",
-    frames: [
-      [0, 4, 7, 8, 10, 11, 15],
-      [0, 4, 5, 7, 8, 11, 15],
-      [4, 5, 7, 8, 11, 12, 15],
-      [3, 4, 5, 7, 8, 11, 12],
-      [2, 3, 4, 7, 8, 11, 12],
-      [3, 4, 7, 8, 11, 12, 13],
-      [4, 7, 8, 11, 12, 13, 15],
-      [4, 7, 8, 10, 11, 12, 15],
-    ],
-  },
+const sharedFlipDotFrames: number[][] = [
+  [0, 4, 7, 8, 10, 11, 15],
+  [0, 4, 5, 7, 8, 11, 15],
+  [4, 5, 7, 8, 11, 12, 15],
+  [3, 4, 5, 7, 8, 11, 12],
+  [2, 3, 4, 7, 8, 11, 12],
+  [3, 4, 7, 8, 11, 12, 13],
+  [4, 7, 8, 11, 12, 13, 15],
+  [4, 7, 8, 10, 11, 12, 15],
 ];
+
+const flipDotItems = [
+  "Reviewing the source copy",
+  "KFC Christmas in Japan",
+  "Refining the tone",
+  "Singles' Day in Shanghai",
+  "Localizing key phrases",
+  "Ramadan menus in Dubai",
+  "Finalizing the locale",
+  "Diwali offers in Mumbai",
+  "7-Eleven onigiri in Hawaii",
+].map((title) => ({
+  title,
+  frames: sharedFlipDotFrames,
+}));
 
 export function HeroFrame() {
   const shouldReduceMotion = useReducedMotion();
@@ -374,7 +332,7 @@ export function HeroFrame() {
         dotSize={matrix.dotSize}
         gap={matrix.gap}
         shape="rounded"
-        interval={120}
+        interval={150}
         color="var(--color-neutral)"
         inactiveColor="color-mix(in srgb, var(--color-neutral) 18%, transparent)"
         activeDotStyle={{

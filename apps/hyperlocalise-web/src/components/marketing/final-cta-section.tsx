@@ -12,7 +12,7 @@ export function FinalCtaSection() {
       </TypographyH2>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
-          className="rounded-full bg-white px-5 text-black hover:bg-white/90"
+          className="rounded-full px-5"
           nativeButton={false}
           render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
         >
@@ -20,7 +20,7 @@ export function FinalCtaSection() {
         </Button>
         <Button
           variant="outline"
-          className="rounded-full border-white/12 bg-white/[0.03] px-5 text-white hover:bg-white/[0.06]"
+          className="rounded-full border-border bg-muted/40 px-5 text-foreground hover:bg-muted"
           nativeButton={false}
           render={<a href={githubRepoUrl} target="_blank" rel="noreferrer" />}
         >

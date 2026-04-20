@@ -47,7 +47,6 @@ const flagshipModelsByAgent: Record<string, string> = {
 };
 
 const CONSOLE_STEP_MS = 520;
-const CONSOLE_HOLD_MS = 6000;
 const CONSOLE_EASE_OUT = [0.19, 1, 0.22, 1] as const;
 
 export type AssignmentTarget = {
@@ -124,35 +123,27 @@ export function TranslationFlowIllustration({
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const advance = (nextVisibleCount: number, cycle: number) => {
+    const advance = (nextVisibleCount: number) => {
       timeoutId = setTimeout(
         () => {
           if (nextVisibleCount <= consoleLines.length) {
             setVisibleLineCount(nextVisibleCount);
 
-            if (nextVisibleCount === consoleLines.length) {
-              timeoutId = setTimeout(() => {
-                setVisibleLineCount(0);
-                advance(1, cycle + 1);
-              }, CONSOLE_HOLD_MS);
-              return;
-            }
-
-            advance(nextVisibleCount + 1, cycle);
+            advance(nextVisibleCount + 1);
           }
         },
-        nextVisibleCount === 1 && cycle === 0 ? 180 : CONSOLE_STEP_MS,
+        nextVisibleCount === 1 ? 180 : CONSOLE_STEP_MS,
       );
     };
 
-    advance(1, 0);
+    advance(1);
 
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
     };
-  }, [shouldReduceMotion]);
+  }, [activeAgent, shouldReduceMotion]);
 
   return (
     <div className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top">
@@ -169,7 +160,7 @@ export function TranslationFlowIllustration({
               </TypographyMuted>
             </div>
           </div>
-          <Badge className="rounded-full bg-primary px-3 text-primary-foreground">
+          <Badge variant="secondary" className="rounded-full px-3">
             Agentic workflow
           </Badge>
         </div>

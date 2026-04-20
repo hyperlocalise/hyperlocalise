@@ -142,7 +142,7 @@ const providers: readonly Provider[] = [
 
 function ProviderChip({ provider }: { provider: Provider }) {
   return (
-    <div className="flex h-14 items-center rounded-full border border-white/10 bg-white/[0.03] px-5 text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="flex h-14 items-center rounded-full border border-border/70 bg-muted/40 px-5 text-muted-foreground shadow-[inset_0_1px_0_color-mix(in_srgb,var(--background)_65%,transparent)]">
       <svg
         aria-hidden="true"
         className="h-6 w-auto"
@@ -163,22 +163,22 @@ export function LogoStripSection() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <p
           id="supported-llm-providers"
-          className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white/42"
+          className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
         >
           Supported LLM providers
         </p>
-        <p className="hidden text-xs text-white/28 sm:block">Bring your own model stack</p>
+        <p className="hidden text-xs text-muted-foreground sm:block">Bring your own model stack</p>
       </div>
 
-      <div className="relative hidden overflow-hidden motion-reduce:hidden md:block">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#050505] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#050505] to-transparent" />
+      <div className="relative overflow-hidden motion-reduce:hidden">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent sm:w-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent sm:w-20" />
         <div
-          className="marketing-marquee flex w-max items-center [--marquee-duration:26s] [--marquee-gap:1rem]"
+          className="marketing-marquee flex w-max items-center [--marquee-duration:22s] [--marquee-gap:0.75rem] sm:[--marquee-duration:26s] sm:[--marquee-gap:1rem]"
           aria-hidden="true"
         >
           {[0, 1].map((track) => (
-            <div key={track} className="flex shrink-0 items-center gap-4 pr-4">
+            <div key={track} className="flex shrink-0 items-center gap-3 pr-3 sm:gap-4 sm:pr-4">
               {providers.map((provider) => (
                 <ProviderChip key={`${track}-${provider.id}`} provider={provider} />
               ))}
@@ -187,7 +187,7 @@ export function LogoStripSection() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 md:hidden md:motion-reduce:flex">
+      <div className="hidden flex-wrap items-center gap-3 motion-reduce:flex">
         {providers.map((provider) => (
           <ProviderChip key={provider.id} provider={provider} />
         ))}
