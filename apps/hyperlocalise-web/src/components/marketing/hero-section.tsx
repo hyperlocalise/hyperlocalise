@@ -9,12 +9,18 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
 
-  const copyTransition = shouldReduceMotion
+  const headlineTransition = shouldReduceMotion
     ? { duration: 0 }
-    : { duration: 0.52, ease: [0.19, 1, 0.22, 1] as const };
+    : { duration: 0.88, ease: [0.19, 1, 0.22, 1] as const };
+  const bodyTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.82, ease: [0.19, 1, 0.22, 1] as const };
+  const ctaTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.78, ease: [0.19, 1, 0.22, 1] as const };
   const frameTransition = shouldReduceMotion
     ? { duration: 0 }
-    : { duration: 0.74, ease: [0.19, 1, 0.22, 1] as const };
+    : { duration: 1.18, ease: [0.19, 1, 0.22, 1] as const };
 
   return (
     <div id="home" className="pt-16 lg:pt-20">
@@ -25,10 +31,10 @@ export function HeroSection() {
       >
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 14 },
+            hidden: { opacity: 0, y: 26 },
             visible: { opacity: 1, y: 0 },
           }}
-          transition={copyTransition}
+          transition={headlineTransition}
         >
           <TypographyH1 className="text-left">
             The localization system to launch globally in days
@@ -36,12 +42,12 @@ export function HeroSection() {
         </motion.div>
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 14 },
+            hidden: { opacity: 0, y: 22 },
             visible: { opacity: 1, y: 0 },
           }}
           transition={{
-            ...copyTransition,
-            delay: shouldReduceMotion ? 0 : 0.22,
+            ...bodyTransition,
+            delay: shouldReduceMotion ? 0 : 0.26,
           }}
         >
           <TypographyP className="max-w-5xl text-muted-foreground">
@@ -50,12 +56,12 @@ export function HeroSection() {
         </motion.div>
         <motion.div
           variants={{
-            hidden: { opacity: 0, y: 14 },
+            hidden: { opacity: 0, y: 18 },
             visible: { opacity: 1, y: 0 },
           }}
           transition={{
-            ...copyTransition,
-            delay: shouldReduceMotion ? 0 : 0.3,
+            ...ctaTransition,
+            delay: shouldReduceMotion ? 0 : 0.42,
           }}
         >
           <Button
@@ -72,22 +78,22 @@ export function HeroSection() {
         <motion.div
           aria-hidden
           className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-[3rem] bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.18),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.12),transparent_46%)] blur-3xl"
-          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.94 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{
-            duration: shouldReduceMotion ? 0 : 1,
-            delay: shouldReduceMotion ? 0 : 0.52,
+            duration: shouldReduceMotion ? 0 : 1.48,
+            delay: shouldReduceMotion ? 0 : 0.66,
             ease: [0.19, 1, 0.22, 1],
           }}
         />
 
         <motion.div
           className="relative"
-          initial={shouldReduceMotion ? false : { opacity: 0, y: 28, scale: 0.975 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 46, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{
             ...frameTransition,
-            delay: shouldReduceMotion ? 0 : 0.4,
+            delay: shouldReduceMotion ? 0 : 0.54,
           }}
         >
           <HeroFrame />

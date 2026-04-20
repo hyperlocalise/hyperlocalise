@@ -4,7 +4,7 @@ import { DotFlow, DotMatrix } from "dot-anime-react";
 import { motion, useReducedMotion } from "motion/react";
 
 const DIMENSION = 45;
-const ROWS = Math.max(1, Math.floor(DIMENSION / 3));
+const ROWS = Math.max(1, Math.floor(DIMENSION / 4));
 const GAME_OF_LIFE_FRAMES = 512;
 const INITIAL_DENSITY = 0.34;
 const RANDOM_SEED = 0x51f15e;
@@ -148,7 +148,7 @@ function nextGeneration(liveCells: ReadonlySet<number>, cols: number, rows: numb
 
 function generateGameOfLifeSequence(dimension: number) {
   const cols = dimension;
-  const rows = Math.max(1, Math.floor(dimension / 4));
+  const rows = ROWS;
   const frames: number[][] = [];
   const random = createRandomNumberGenerator(RANDOM_SEED + dimension);
   const seenFrames = new Set<string>();
