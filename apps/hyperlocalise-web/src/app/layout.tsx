@@ -1,15 +1,15 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Geist_Mono, Figtree, Montserrat } from "next/font/google";
+import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const figtreeHeading = Figtree({ subsets: ["latin"], variable: "--font-heading" });
+const opensans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
-const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
+const domine = Domine({ subsets: ["latin"], variable: "--font-heading" });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -34,8 +34,8 @@ export default async function RootLayout({
         "antialiased",
         "font-sans",
         geistMono.variable,
-        montserrat.variable,
-        figtreeHeading.variable,
+        domine.variable,
+        opensans.variable,
       )}
     >
       <body>

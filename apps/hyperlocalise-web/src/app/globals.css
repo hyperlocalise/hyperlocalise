@@ -5,6 +5,73 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Gray Scale */
+  --color-gray-900: #323231;
+  --color-gray-700: #646361;
+  --color-gray-500: #b0afae;
+  --color-gray-300: #e1dfdb;
+  --color-gray-100: #faf8f3;
+  --color-gray-50: #fcfaf5;
+
+  /* Primary - Green - GROVE */
+  --color-grove-900: #0d4f39;
+  --color-grove-700: #0d6248;
+  --color-grove-500: #107a5a;
+  --color-grove-300: #3dc39b;
+  --color-grove-100: #c5e9de;
+
+  /* Secondary - PINK - BUD */
+  --color-bud-900: #ff71c4;
+  --color-bud-700: #ff8dd0;
+  --color-bud-500: #ffabdc;
+  --color-bud-300: #ffc6e8;
+  --color-bud-100: #ffe8f6;
+
+  /* Accent - LIGHT GREEN - SPRUCE */
+  --color-spruce-900: #607409;
+  --color-spruce-700: #9ebe13;
+  --color-spruce-500: #b6db15;
+  --color-spruce-300: #d3e973;
+  --color-spruce-100: #e9f4b9;
+
+  /* YELLOW - BEAM */
+  --color-beam-900: #ffb200;
+  --color-beam-700: #ffcc3f;
+  --color-beam-500: #ffd943;
+  --color-beam-100: #ffe8aa;
+
+  /* ORANGE - FLAME */
+  --color-flame-900: #f0510d;
+  --color-flame-700: #ff6a29;
+  --color-flame-500: #ff8f4a;
+  --color-flame-100: #ffc1ad;
+
+  /* BLUE - DEW*/
+  --color-dew-900: #096ce5;
+  --color-dew-700: #378ffb;
+  --color-dew-500: #62a8ff;
+  --color-dew-100: #9cc7ff;
+
+  /* BROWN - CLAY */
+  --color-clay-900: #613b30;
+  --color-clay-700: #794a3c;
+  --color-clay-500: #db9a7e;
+  --color-clay-100: #ecc5b8;
+
+  /* STATUS COLORS */
+  --color-warning: var(--color-beam-700);
+  --color-warning-foreground: var(--color-gray-900);
+  --color-success: var(--color-spruce-500);
+  --color-success-foreground: var(--color-gray-900);
+  --color-error: var(--color-flame-900);
+  --color-error-foreground: var(--color-gray-900);
+  --color-info: var(--color-dew-500);
+  --color-info-foreground: var(--color-gray-900);
+  --color-neutral: var(--color-gray-500);
+  --color-neutral-foreground: var(--color-gray-900);
+
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -126,5 +193,20 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@keyframes marketing-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(-50% - (var(--marquee-gap, 0px) / 2)), 0, 0);
+  }
+}
+
+@layer utilities {
+  .marketing-marquee {
+    animation: marketing-marquee var(--marquee-duration, 24s) linear infinite;
   }
 }

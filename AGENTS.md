@@ -3,7 +3,7 @@
 ## Setup
 
 - Run `make bootstrap` before working if dependencies are not installed yet.
-- For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](/Users/minhcung/work/hyperlocalise/apps/hyperlocalise-web/AGENTS.md).
+- For web-related work, also check [`apps/hyperlocalise-web/AGENTS.md`](apps/hyperlocalise-web/AGENTS.md).
 
 ## Commit Messages
 
