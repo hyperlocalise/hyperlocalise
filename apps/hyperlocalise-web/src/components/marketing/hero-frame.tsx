@@ -2,9 +2,10 @@
 
 import { DotFlow, DotMatrix } from "dot-anime-react";
 import { motion, useReducedMotion } from "motion/react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-const DIMENSION = 45;
-const ROWS = Math.max(1, Math.floor(DIMENSION / 4));
+const DESKTOP_DIMENSION = 45;
+const MOBILE_DIMENSION = 31;
 const GAME_OF_LIFE_FRAMES = 512;
 const INITIAL_DENSITY = 0.34;
 const RANDOM_SEED = 0x51f15e;
@@ -148,7 +149,7 @@ function nextGeneration(liveCells: ReadonlySet<number>, cols: number, rows: numb
 
 function generateGameOfLifeSequence(dimension: number) {
   const cols = dimension;
-  const rows = ROWS;
+  const rows = Math.max(1, Math.floor(dimension / 4));
   const frames: number[][] = [];
   const random = createRandomNumberGenerator(RANDOM_SEED + dimension);
   const seenFrames = new Set<string>();
@@ -174,7 +175,21 @@ function generateGameOfLifeSequence(dimension: number) {
   return frames;
 }
 
-const abstractSequences = generateGameOfLifeSequence(DIMENSION);
+const desktopMatrix = {
+  cols: DESKTOP_DIMENSION,
+  rows: Math.max(1, Math.floor(DESKTOP_DIMENSION / 4)),
+  dotSize: 24,
+  gap: 11,
+  sequence: generateGameOfLifeSequence(DESKTOP_DIMENSION),
+} as const;
+
+const mobileMatrix = {
+  cols: MOBILE_DIMENSION,
+  rows: Math.max(1, Math.floor(MOBILE_DIMENSION / 4)),
+  dotSize: 18,
+  gap: 8,
+  sequence: generateGameOfLifeSequence(MOBILE_DIMENSION),
+} as const;
 
 const flipDotItems = [
   {
@@ -246,10 +261,12 @@ const flipDotItems = [
 
 export function HeroFrame() {
   const shouldReduceMotion = useReducedMotion();
+  const isMobile = useIsMobile();
+  const matrix = isMobile ? mobileMatrix : desktopMatrix;
 
   return (
     <motion.div
-      className=" overflow-hidden text-center mx-auto p-4.5 space-y-1.5"
+      className="mx-auto space-y-1.5 overflow-hidden p-3.5 text-center sm:p-4.5"
       initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -270,11 +287,11 @@ export function HeroFrame() {
       />
 
       <DotMatrix
-        sequence={abstractSequences}
-        cols={DIMENSION}
-        rows={ROWS}
-        dotSize={24}
-        gap={11}
+        sequence={matrix.sequence}
+        cols={matrix.cols}
+        rows={matrix.rows}
+        dotSize={matrix.dotSize}
+        gap={matrix.gap}
         shape="rounded"
         interval={120}
         color="var(--color-neutral)"

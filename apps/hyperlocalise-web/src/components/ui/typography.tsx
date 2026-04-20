@@ -88,7 +88,7 @@ export function TypographyH1({
   return (
     <h1
       className={cn(
-        "font-heading scroll-m-20 text-6xl tracking-[-0.04em] text-balance font-semibold",
+        "font-heading scroll-m-20 text-3xl md:text-6xl tracking-[-0.04em] text-balance font-semibold",
         className,
       )}
       {...props}
@@ -106,7 +106,10 @@ export function TypographyH2({
 }: TypographyHeadingProps) {
   return (
     <h2
-      className={cn("font-heading scroll-m-20 pb-2 text-5xl first:mt-0 font-semibold", className)}
+      className={cn(
+        "font-heading scroll-m-20 pb-2 text-2xl md:text-5xl first:mt-0 font-semibold",
+        className,
+      )}
       {...props}
     >
       <HeadingContent floatingBlob={floatingBlob}>{children}</HeadingContent>
@@ -122,7 +125,10 @@ export function TypographyH3({
 }: TypographyHeadingProps) {
   return (
     <h3
-      className={cn("scroll-m-20 font-sans text-3xl font-semibold tracking-wide", className)}
+      className={cn(
+        "scroll-m-20 font-sans text-xl md:text-3xl font-semibold tracking-wide",
+        className,
+      )}
       {...props}
     >
       <HeadingContent floatingBlob={floatingBlob}>{children}</HeadingContent>

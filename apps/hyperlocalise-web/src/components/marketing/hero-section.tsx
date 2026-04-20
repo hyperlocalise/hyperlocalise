@@ -51,7 +51,7 @@ export function HeroSection() {
           }}
         >
           <TypographyP className="max-w-5xl text-muted-foreground">
-            Purpose-built for localization in the AI era. With human in the loop.
+            Purpose-built for localization in the AI era. <br /> Designed for human-in-the-loop.
           </TypographyP>
         </motion.div>
         <motion.div
