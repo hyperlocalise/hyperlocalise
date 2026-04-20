@@ -1,6 +1,6 @@
 "use client";
 
-import { DotFlow, DotMatrix, ScrambleText } from "dot-anime-react";
+import { DotFlow, DotMatrix } from "dot-anime-react";
 import { motion, useReducedMotion } from "motion/react";
 
 const DIMENSION = 45;
@@ -189,7 +189,8 @@ const flipDotItems = [
       [4, 7, 8, 11, 12, 13, 15],
       [4, 7, 8, 10, 11, 12, 15],
     ],
-  },{
+  },
+  {
     title: "Gathering cultural context",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
@@ -243,7 +244,6 @@ const flipDotItems = [
   },
 ];
 
-
 export function HeroFrame() {
   const shouldReduceMotion = useReducedMotion();
 
@@ -283,8 +283,6 @@ export function HeroFrame() {
           boxShadow: "0 0 8px color-mix(in srgb, var(--color-neutral) 20%, transparent)",
         }}
       />
-
-
 
       <DotFlow
         items={flipDotItems}
