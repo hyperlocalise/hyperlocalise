@@ -274,7 +274,7 @@ const mobileMatrix = {
 
 const flipDotItems = [
   {
-    title: "Connecting to Github",
+    title: "Reviewing the source copy",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
       [0, 4, 5, 7, 8, 11, 15],
@@ -287,7 +287,7 @@ const flipDotItems = [
     ],
   },
   {
-    title: "Gathering cultural context",
+    title: "Adapting for local context",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
       [0, 4, 5, 7, 8, 11, 15],
@@ -300,7 +300,7 @@ const flipDotItems = [
     ],
   },
   {
-    title: "Thinking",
+    title: "Refining the tone",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
       [0, 4, 5, 7, 8, 11, 15],
@@ -313,7 +313,7 @@ const flipDotItems = [
     ],
   },
   {
-    title: "Translating 30 strings",
+    title: "Localizing key phrases",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
       [0, 4, 5, 7, 8, 11, 15],
@@ -326,7 +326,7 @@ const flipDotItems = [
     ],
   },
   {
-    title: "Evaluating OpenAI",
+    title: "Finalizing the locale",
     frames: [
       [0, 4, 7, 8, 10, 11, 15],
       [0, 4, 5, 7, 8, 11, 15],
@@ -347,7 +347,7 @@ export function HeroFrame() {
 
   return (
     <motion.div
-      className="mx-auto space-y-1.5 overflow-hidden p-3.5 text-center sm:p-4.5"
+      className="mx-auto space-y-1.5 overflow-hidden text-center"
       initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
