@@ -9,8 +9,45 @@ const MOBILE_DIMENSION = 31;
 const GAME_OF_LIFE_FRAMES = 512;
 const INITIAL_DENSITY = 0.34;
 const RANDOM_SEED = 0x51f15e;
+const RECENT_FRAME_WINDOW = 48;
+const MIN_ACTIVE_RATIO = 0.06;
+const RESEED_CLEAR_RATIO = 0.14;
 
 type Cell = readonly [row: number, col: number];
+type Pattern = readonly Cell[];
+
+const RESEED_PATTERNS: readonly Pattern[] = [
+  [
+    [0, 1],
+    [1, 2],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+  ],
+  [
+    [0, 1],
+    [0, 2],
+    [1, 0],
+    [1, 1],
+    [2, 1],
+  ],
+  [
+    [0, 1],
+    [1, 2],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+    [3, 1],
+  ],
+  [
+    [0, 0],
+    [0, 1],
+    [1, 0],
+    [1, 2],
+    [2, 1],
+    [2, 2],
+  ],
+] as const;
 
 function toIndex(row: number, col: number, cols: number) {
   return row * cols + col;
@@ -82,33 +119,76 @@ function createChaoticSeed(cols: number, rows: number, random: () => number) {
   return liveCells;
 }
 
-function injectRandomDot(
+function computePopulationFloor(cols: number, rows: number) {
+  return Math.max(6, Math.floor(cols * rows * MIN_ACTIVE_RATIO));
+}
+
+function createWindowedFrameTracker(limit: number) {
+  const queue: string[] = [];
+  const frames = new Set<string>();
+
+  return {
+    has(key: string) {
+      return frames.has(key);
+    },
+    add(key: string) {
+      queue.push(key);
+      frames.add(key);
+
+      if (queue.length > limit) {
+        const removed = queue.shift();
+
+        if (removed !== undefined) {
+          frames.delete(removed);
+        }
+      }
+    },
+  };
+}
+
+function reseedCluster(
   liveCells: ReadonlySet<number>,
   cols: number,
   rows: number,
   random: () => number,
 ) {
-  const availableCells: number[] = [];
+  const reseededCells = new Set<number>();
+  const shouldBlendWithExisting = liveCells.size <= Math.floor(cols * rows * RESEED_CLEAR_RATIO);
 
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      const index = toIndex(row, col, cols);
-
-      if (!liveCells.has(index)) {
-        availableCells.push(index);
-      }
+  if (shouldBlendWithExisting) {
+    for (const cell of liveCells) {
+      reseededCells.add(cell);
     }
   }
 
-  if (availableCells.length === 0) {
-    return new Set(liveCells);
+  const pattern =
+    RESEED_PATTERNS[Math.floor(random() * RESEED_PATTERNS.length)] ?? RESEED_PATTERNS[0];
+  const patternHeight = Math.max(...pattern.map(([row]) => row)) + 1;
+  const patternWidth = Math.max(...pattern.map(([, col]) => col)) + 1;
+  const maxAnchorRow = Math.max(0, rows - patternHeight);
+  const maxAnchorCol = Math.max(0, cols - patternWidth);
+  const centerBiasRow = Math.max(0, Math.floor((rows - patternHeight) / 2));
+  const centerBiasCol = Math.max(0, Math.floor((cols - patternWidth) / 2));
+  const rowJitter = Math.max(1, Math.floor(rows / 3));
+  const colJitter = Math.max(1, Math.floor(cols / 5));
+  const anchorRow = Math.min(
+    maxAnchorRow,
+    Math.max(0, centerBiasRow + Math.floor((random() - 0.5) * rowJitter)),
+  );
+  const anchorCol = Math.min(
+    maxAnchorCol,
+    Math.max(0, centerBiasCol + Math.floor((random() - 0.5) * colJitter)),
+  );
+
+  for (const [rowOffset, colOffset] of pattern) {
+    reseededCells.add(toIndex(anchorRow + rowOffset, anchorCol + colOffset, cols));
   }
 
-  const injectedCells = new Set(liveCells);
-  const randomIndex = Math.floor(random() * availableCells.length);
-  injectedCells.add(availableCells[randomIndex]);
+  if (reseededCells.size === 0) {
+    reseededCells.add(toIndex(Math.floor(rows / 2), Math.floor(cols / 2), cols));
+  }
 
-  return injectedCells;
+  return reseededCells;
 }
 
 function nextGeneration(liveCells: ReadonlySet<number>, cols: number, rows: number) {
@@ -152,7 +232,8 @@ function generateGameOfLifeSequence(dimension: number) {
   const rows = Math.max(1, Math.floor(dimension / 4));
   const frames: number[][] = [];
   const random = createRandomNumberGenerator(RANDOM_SEED + dimension);
-  const seenFrames = new Set<string>();
+  const recentFrames = createWindowedFrameTracker(RECENT_FRAME_WINDOW);
+  const populationFloor = computePopulationFloor(cols, rows);
   let liveCells = createChaoticSeed(cols, rows, random);
 
   for (let frame = 0; frame < GAME_OF_LIFE_FRAMES; frame += 1) {
@@ -160,16 +241,16 @@ function generateGameOfLifeSequence(dimension: number) {
     const currentKey = currentFrame.join(",");
 
     frames.push(currentFrame);
-    seenFrames.add(currentKey);
+    recentFrames.add(currentKey);
 
     const nextCells = nextGeneration(liveCells, cols, rows);
     const nextFrame = [...nextCells].sort((left, right) => left - right);
     const nextKey = nextFrame.join(",");
+    const isRepeating = nextKey === currentKey || recentFrames.has(nextKey);
+    const isTooSparse = nextCells.size < populationFloor;
 
     liveCells =
-      nextKey === currentKey || seenFrames.has(nextKey)
-        ? injectRandomDot(nextCells, cols, rows, random)
-        : nextCells;
+      isRepeating || isTooSparse ? reseedCluster(nextCells, cols, rows, random) : nextCells;
   }
 
   return frames;

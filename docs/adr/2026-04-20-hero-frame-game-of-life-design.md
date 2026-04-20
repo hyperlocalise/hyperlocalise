@@ -6,22 +6,24 @@ Replace the hard-coded `abstractSequences` frames in the marketing hero with a g
 
 ## Decision
 
-Use a deterministic Conway's Game of Life generator that:
+Use a deterministic Game of Life variant that:
 
 - derives `cols` from `DIMENSION`
 - derives `rows` from `Math.floor(DIMENSION / 4)`
-- seeds a centered glider pattern
+- seeds a dense starting field inside a centered band
 - simulates a fixed number of generations
+- monitors for short loops and low-population collapse
+- reseeds the board with a deterministic multi-cell cluster when the system stabilizes
 - converts each generation into the `number[]` frame format expected by `DotMatrix`
 
 ## Why This Approach
 
-This keeps the animation reproducible, removes the brittle hard-coded indices, and makes the sequence scale with the configured matrix size. A glider is compact, recognizable, and fits the current shallow hero grid without additional heuristics.
+This keeps the animation reproducible, removes the brittle hard-coded indices, and makes the sequence scale with the configured matrix size. The hero keeps the recognizable Game of Life feel, but the deterministic reseeding step prevents the shallow grid from dying out or getting trapped in a tiny oscillator.
 
 ## Tradeoffs
 
-- A glider eventually exits a bounded grid, so the loop repeats after a finite run rather than evolving indefinitely.
-- The helper is tailored to the hero's current dimensions instead of being a full pattern library.
+- The animation is no longer a strict Conway run because it injects new structure when the board becomes too quiet.
+- The helper is tuned for the hero's shallow matrix rather than being a general-purpose cellular automaton engine.
 
 ## Validation
 
