@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "https://hyperlocalise.com/images/logo.png",
+        url: "https://www.hyperlocalise.com/images/logo.png",
         width: 512,
         height: 512,
         alt: "Hyperlocalise",
