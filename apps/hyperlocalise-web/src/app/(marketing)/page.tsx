@@ -19,10 +19,18 @@ export const metadata: Metadata = {
     "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
   keywords: ["localisation", "translation", "AI", "agentic", "TMS", "localization", "GitHub"],
   openGraph: {
-    title: "Hyperlocalise | Agent-Native Localisation",
+    title: "Hyperlocalise | Localisation Platform for the Agentic Era",
     description:
       "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
     type: "website",
+    images: [
+      {
+        url: "https://hyperlocalise.com/images/logo.png",
+        width: 512,
+        height: 512,
+        alt: "Hyperlocalise",
+      },
+    ],
   },
 };
 
