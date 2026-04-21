@@ -34,7 +34,7 @@
     "pg": "8.20.0",
     "react": "19.2.5",
     "react-dom": "19.2.5",
-    "react-hook-form": "7.72.1",
+    "react-hook-form": "7.73.1",
     "react-resizable-panels": "4.10.0",
     "recharts": "3.8.1",
     "shadcn": "4.3.1",
