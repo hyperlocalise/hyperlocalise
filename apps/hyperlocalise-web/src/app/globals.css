@@ -61,8 +61,8 @@
   /* STATUS COLORS */
   --color-warning: var(--color-beam-700);
   --color-warning-foreground: var(--color-gray-900);
-  --color-success: var(--color-spruce-500);
-  --color-success-foreground: var(--color-gray-900);
+  --color-success: var(--color-grove-300);
+  --color-success-foreground: var(--color-gray-100);
   --color-error: var(--color-flame-900);
   --color-error-foreground: var(--color-gray-900);
   --color-info: var(--color-dew-500);
@@ -197,16 +197,22 @@
 }
 
 @keyframes marketing-marquee {
-  from {
+  0% {
     transform: translate3d(0, 0, 0);
   }
-  to {
-    transform: translate3d(calc(-50% - (var(--marquee-gap, 0px) / 2)), 0, 0);
+  100% {
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
 @layer utilities {
   .marketing-marquee {
     animation: marketing-marquee var(--marquee-duration, 24s) linear infinite;
+    display: flex;
+    width: max-content;
+  }
+
+  .marketing-marquee > * {
+    flex-shrink: 0;
   }
 }

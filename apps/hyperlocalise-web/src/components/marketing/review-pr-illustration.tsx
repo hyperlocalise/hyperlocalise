@@ -146,8 +146,8 @@ export function ReviewPrIllustration() {
   const showComposer = step === "draft";
 
   return (
-    <div className="relative overflow-hidden rounded-xl mask-radial-from-85% mask-radial-at-top bg-background border-border">
-      <div className="relative flex items-center justify-between gap-2.5 border-b bg-background border-border px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
+    <div className="relative overflow-hidden rounded-xl mask-radial-from-85% mask-radial-at-top bg-background border border-border">
+      <div className="relative flex items-center justify-between gap-2.5 bg-background px-4 py-3 sm:gap-3 sm:px-6 sm:py-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[0.72rem] font-medium tracking-[0.02em] text-muted-foreground">
             <motion.span
@@ -188,18 +188,18 @@ export function ReviewPrIllustration() {
 
       <div className="relative p-2.5 sm:p-5">
         <div className="overflow-hidden rounded-[1.35rem] border border-border bg-card">
-          <div className="grid grid-cols-[4rem_4rem_1fr] border-b border-border bg-muted/60 px-2.5 py-1.5 text-[0.62rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase sm:grid-cols-[4.25rem_4.25rem_1fr] sm:px-3 sm:py-2 sm:text-[0.68rem] sm:tracking-[0.18em]">
-            <span>Old</span>
-            <span>New</span>
-            <span>Diff</span>
+          <div className="grid grid-cols-[1fr] border-b border-border bg-muted/60 px-2.5 py-1.5 text-[0.62rem] font-semibold tracking-[0.16em] text-muted-foreground uppercase sm:grid-cols-[4.25rem_4.25rem_1fr] sm:px-3 sm:py-2 sm:text-[0.68rem] sm:tracking-[0.18em]">
+            <span className="hidden sm:inline">Old</span>
+            <span className="hidden sm:inline">New</span>
+            <span className="sm:pl-0 pl-2">Diff</span>
           </div>
 
           <div className="border-b border-border bg-card px-2.5 py-2 font-mono text-[0.74rem] leading-6 text-card-foreground sm:px-3 sm:text-[0.8rem] sm:leading-7">
-            <div className="grid grid-cols-[4rem_4rem_1fr] gap-0 rounded-t-lg bg-[color:color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]">
-              <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+            <div className="grid grid-cols-[2rem_2rem_1fr] md:grid-cols-[4rem_4rem_1fr] gap-0 rounded-t-lg bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]">
+              <div className="border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
                 41
               </div>
-              <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+              <div className="border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
                 41
               </div>
               <div className="px-2.5 text-card-foreground sm:px-3">{`{`}</div>
@@ -208,16 +208,16 @@ export function ReviewPrIllustration() {
             {beforeLines.map((line) => (
               <div
                 key={`before-${line.code}`}
-                className="grid grid-cols-[4rem_4rem_1fr] gap-0 bg-[color:color-mix(in_srgb,var(--color-error)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]"
+                className="grid grid-cols-[1fr] bg-[color-mix(in_srgb,var(--color-error)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]"
               >
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-error)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-error)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {line.left}
                 </div>
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-error)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-error)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {line.right}
                 </div>
                 <div className="overflow-hidden px-2.5 text-ellipsis whitespace-nowrap text-card-foreground sm:px-3">
-                  <span className="mr-3 inline-block w-3 text-[color:var(--color-error)]">
+                  <span className="mr-3 inline-block w-3 text-(--color-error)">
                     {line.prefix}
                   </span>
                   {line.code}
@@ -228,21 +228,21 @@ export function ReviewPrIllustration() {
             <div
               className={
                 step === "resolved"
-                  ? "bg-[color:color-mix(in_srgb,var(--color-success)_18%,var(--color-card))]"
-                  : "bg-[color:color-mix(in_srgb,var(--color-success)_12%,var(--color-card))]"
+                  ? "bg-[color-mix(in_srgb,var(--color-success)_18%,var(--color-card))]"
+                  : "bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))]"
               }
             >
-              <div className="grid grid-cols-[4rem_4rem_1fr] gap-0 sm:grid-cols-[4.25rem_4.25rem_1fr]">
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+              <div className="grid grid-cols-[1fr] sm:grid-cols-[4.25rem_4.25rem_1fr]">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {interactiveLine.left}
                 </div>
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {interactiveLine.right}
                 </div>
                 <motion.div
                   className={`overflow-hidden px-2.5 text-ellipsis whitespace-nowrap sm:px-3 ${
                     step === "resolved"
-                      ? "text-[color:var(--color-success-foreground)]"
+                      ? "text-(--color-success-foreground)"
                       : "text-card-foreground"
                   }`}
                   key={displayedInteractiveCode}
@@ -252,16 +252,16 @@ export function ReviewPrIllustration() {
                     shouldReduceMotion ? { duration: 0 } : { duration: 0.18, ease: EASE_OUT }
                   }
                 >
-                  <span className="mr-3 inline-block w-3 text-[color:var(--color-success)]">
+                  <span className="mr-3 inline-block w-3 text-(--color-success)">
                     {interactiveLine.prefix}
                   </span>
                   {displayedInteractiveCode}
                 </motion.div>
               </div>
 
-              <div className="grid grid-cols-[4rem_4rem_1fr] gap-0 sm:grid-cols-[4.25rem_4.25rem_1fr]">
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))]" />
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))]" />
+              <div className="grid grid-cols-[1fr] sm:grid-cols-[4.25rem_4.25rem_1fr]">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] sm:block" />
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] sm:block" />
                 <div className="px-2.5 pt-1 pb-2.5 sm:px-3 sm:pb-3">
                   <div className="overflow-hidden rounded-[1rem] border border-border bg-background shadow-[0_10px_30px_color-mix(in_srgb,var(--foreground)_10%,transparent)]">
                     <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5 text-sm text-muted-foreground sm:px-4 sm:py-3">
@@ -293,8 +293,8 @@ export function ReviewPrIllustration() {
                           </div>
                         </div>
 
-                        <div className="mt-2.5 border-l-2 border-[color:var(--color-error)] bg-[color:color-mix(in_srgb,var(--color-error)_10%,var(--color-card))] px-3 py-2 text-sm leading-6 text-foreground sm:mt-3 sm:py-2.5">
-                          <div className="font-semibold text-[color:var(--color-error)]">
+                        <div className="mt-2.5 border-l-2 border-(--color-error) bg-[color-mix(in_srgb,var(--color-error)_10%,var(--color-card))] px-3 py-2 text-sm leading-6 text-foreground sm:mt-3 sm:py-2.5">
+                          <div className="font-semibold text-(--color-error)">
                             {interactiveLine.reviewTitle}
                           </div>
                           <div className="mt-1">{interactiveLine.reviewBody}</div>
@@ -342,7 +342,7 @@ export function ReviewPrIllustration() {
                       >
                         <div className="px-3 py-2.5 sm:px-4 sm:py-3">
                           <div className="flex items-center gap-3">
-                            <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-[color:var(--color-info)]">
+                            <div className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-(--color-info)">
                               <Image
                                 src="/images/logo.png"
                                 alt="Hyperlocalise logo"
@@ -358,7 +358,7 @@ export function ReviewPrIllustration() {
                               </span>
                             </div>
                           </div>
-                          <div className="mt-2.5 border-l-2 border-[color:var(--color-info)] pl-3 text-sm leading-6 text-foreground sm:mt-3 sm:pl-4">
+                          <div className="mt-2.5 border-l-2 border-(--color-info) pl-3 text-sm leading-6 text-foreground sm:mt-3 sm:pl-4">
                             {step === "fixing" ? (
                               <div className="flex items-center gap-3">
                                 <DotFlow
@@ -378,7 +378,7 @@ export function ReviewPrIllustration() {
                                   }}
                                 />
                                 <div>
-                                  <div className="font-medium text-[color:var(--color-info)]">
+                                  <div className="font-medium text-(--color-info)">
                                     Fixing
                                   </div>
                                   <div className="text-muted-foreground">
@@ -388,7 +388,7 @@ export function ReviewPrIllustration() {
                               </div>
                             ) : step === "resolved" ? (
                               <div className="space-y-2.5 sm:space-y-3">
-                                <div className="font-medium text-[color:var(--color-success)]">
+                                <div className="font-medium text-(--color-success)">
                                   Fixed and committed to this branch.
                                 </div>
                                 <div className="text-muted-foreground">
@@ -425,16 +425,16 @@ export function ReviewPrIllustration() {
             {remainingAfterLines.map((line) => (
               <div
                 key={`after-${line.code}`}
-                className="grid grid-cols-[4rem_4rem_1fr] gap-0 bg-[color:color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]"
+                className="grid grid-cols-[1fr] bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]"
               >
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {line.left}
                 </div>
-                <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+                <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                   {line.right}
                 </div>
                 <div className="overflow-hidden px-2.5 text-ellipsis whitespace-nowrap text-card-foreground sm:px-3">
-                  <span className="mr-3 inline-block w-3 text-[color:var(--color-success)]">
+                  <span className="mr-3 inline-block w-3 text-(--color-success)">
                     {line.prefix}
                   </span>
                   {line.code}
@@ -442,11 +442,11 @@ export function ReviewPrIllustration() {
               </div>
             ))}
 
-            <div className="grid grid-cols-[4rem_4rem_1fr] gap-0 rounded-b-lg bg-[color:color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] sm:grid-cols-[4.25rem_4.25rem_1fr]">
-              <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+            <div className="grid grid-cols-[1fr] sm:grid-cols-[4.25rem_4.25rem_1fr]">
+              <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                 46
               </div>
-              <div className="border-r border-[color:color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:px-3">
+              <div className="hidden border-r border-[color-mix(in_srgb,var(--color-success)_35%,var(--color-border))] px-2.5 text-right text-muted-foreground sm:block sm:px-3">
                 46
               </div>
               <div className="px-2.5 text-card-foreground sm:px-3">{`}`}</div>

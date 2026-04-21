@@ -22,6 +22,8 @@ export function PrinciplesSection() {
         <div className="grid divide-y divide-white/10 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
           {principles.map((item, index) => {
             const chapterNumber = `0${index + 1}.0`;
+            const anchorIds = ["translate-task", "providers", "evaluations"] as const;
+            const href = `#${anchorIds[index]}`;
 
             return (
               <article
@@ -42,15 +44,13 @@ export function PrinciplesSection() {
                 </div>
 
                 <div className="flex items-center gap-6 text-white/42">
-                  <div className="inline-flex items-center gap-2 text-[1rem] tracking-[-0.02em] transition-colors duration-300 hover:text-white/72 sm:text-[1.05rem]">
+                  <a
+                    href={href}
+                    className="inline-flex items-center gap-2 text-[1rem] tracking-[-0.02em] transition-colors duration-300 hover:text-white/72 sm:text-[1.05rem]"
+                  >
                     <span>Learn more</span>
                     <HugeiconsIcon icon={ArrowRightIcon} className="size-4" strokeWidth={1.7} />
-                  </div>
-
-                  <div className="inline-flex items-center gap-2 text-[0.95rem] tracking-[-0.02em]">
-                    <span>{chapterNumber}</span>
-                    <HugeiconsIcon icon={ArrowRightIcon} className="size-4" strokeWidth={1.7} />
-                  </div>
+                  </a>
                 </div>
               </article>
             );

@@ -129,7 +129,7 @@ function ClaudeSourceCard() {
         <TypographyP className="font-mono text-[1rem] leading-8 text-background/96">
           claude
         </TypographyP>
-        <TypographyP className="mt-6 max-w-56 font-mono text-[0.9rem] leading-6 text-background/96 sm:mt-7 sm:max-w-60 sm:text-[0.95rem] sm:leading-7 lg:mt-8 lg:max-w-64 lg:text-[1rem] lg:leading-8">
+        <TypographyP className="mt-6 max-w-56 font-mono text-[0.9rem] leading-6 text-background/96 sm:mt-7 sm:max-w-96 sm:text-[0.95rem] sm:leading-7 lg:mt-8 lg:text-[1rem] lg:leading-8 overflow-hidden">
           mcp add --transport http hyperlocalise
           <br />
           https://hyperlocalise.com/mcp

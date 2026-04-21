@@ -48,7 +48,10 @@ function TmsLogoMarquee() {
 export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
   return (
     <section>
-      <div className="max-w-2xl">
+      <div className="max-w-2xl space-y-1.5">
+        <div className="mt-6 text-sm text-muted-foreground/60">
+          {chapter.id} {chapter.label}
+        </div>
         <TypographyH2 className="text-4xl sm:text-5xl">{chapter.title}</TypographyH2>
         <TypographyP className="mt-5 max-w-xl text-muted-foreground">
           {chapter.description}
@@ -65,16 +68,13 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
             </Button>
           </div>
         ) : null}{" "}
-        <div className="mt-6 text-sm text-muted-foreground">
-          {chapter.id}.0 {chapter.label} <span className="text-foreground/70">→</span>
-        </div>
       </div>
 
       <div className="mt-10">
         <ChapterPlaceholder chapter={chapter} />
       </div>
 
-      <div className="mt-8 grid gap-4 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-4 text-sm text-muted-foreground/75 sm:grid-cols-2 lg:grid-cols-4">
         {chapter.links.map((link, index) => (
           <div key={link}>
             {chapter.id}.{index + 1} {link}

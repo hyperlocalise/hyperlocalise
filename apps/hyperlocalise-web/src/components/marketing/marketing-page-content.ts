@@ -147,6 +147,13 @@ export const changelog = [
     href: `${githubReleasesUrl}/tag/v1.4.2`,
     ctaLabel: "Read release",
   },
+  {
+    title: "v1.4.1",
+    body: "Added check --fix, AST/ICU split, severity tuning, and --quiet mode for cleaner CI output.",
+    meta: "Apr 9, 2026",
+    href: `${githubReleasesUrl}/tag/v1.4.1`,
+    ctaLabel: "Read release",
+  },
 ];
 
 export const testimonials = [
