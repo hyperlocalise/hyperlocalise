@@ -217,9 +217,7 @@ export function ReviewPrIllustration() {
                   {line.right}
                 </div>
                 <div className="overflow-hidden px-2.5 text-ellipsis whitespace-nowrap text-card-foreground sm:px-3">
-                  <span className="mr-3 inline-block w-3 text-(--color-error)">
-                    {line.prefix}
-                  </span>
+                  <span className="mr-3 inline-block w-3 text-(--color-error)">{line.prefix}</span>
                   {line.code}
                 </div>
               </div>
@@ -378,9 +376,7 @@ export function ReviewPrIllustration() {
                                   }}
                                 />
                                 <div>
-                                  <div className="font-medium text-(--color-info)">
-                                    Fixing
-                                  </div>
+                                  <div className="font-medium text-(--color-info)">Fixing</div>
                                   <div className="text-muted-foreground">
                                     Updating the string to use the correct accented French noun.
                                   </div>
