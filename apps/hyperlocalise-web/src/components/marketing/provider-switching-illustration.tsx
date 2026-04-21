@@ -1,34 +1,37 @@
 "use client";
 
+import Image from "next/image";
+
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 type ProviderCard = {
   id: string;
   label: string;
+  src?: string;
   accentClassName?: string;
   tileAccentClassName?: string;
 };
 
 const providers: readonly ProviderCard[] = [
-  { id: "openai", label: "OpenAI", accentClassName: "group-hover:text-[#111111]" },
+  { id: "openai", label: "OpenAI", src: "/images/openai-old-logo.webp", accentClassName: "group-hover:text-[#111111]" },
   { id: "azure-openai", label: "Azure OpenAI", accentClassName: "group-hover:text-[#2563eb]" },
-  { id: "gemini", label: "Gemini", accentClassName: "group-hover:text-[#5b84f1]" },
-  { id: "anthropic", label: "Anthropic", accentClassName: "group-hover:text-[#3f3f46]" },
+  { id: "gemini", label: "Gemini", src: "/images/gemini.webp", accentClassName: "group-hover:text-[#5b84f1]" },
+  { id: "anthropic", label: "Anthropic", src: "/images/claude.png", accentClassName: "group-hover:text-[#3f3f46]" },
   { id: "bedrock", label: "AWS Bedrock", accentClassName: "group-hover:text-[#ff9900]" },
   { id: "lmstudio", label: "LM Studio", accentClassName: "group-hover:text-[#7c3aed]" },
-  { id: "groq", label: "Groq", accentClassName: "group-hover:text-[#111111]" },
-  { id: "mistral", label: "Mistral", accentClassName: "group-hover:text-[#d97706]" },
+  { id: "groq", label: "Groq", src: "/images/groq.webp", accentClassName: "group-hover:text-[#111111]" },
+  { id: "mistral", label: "Mistral", src: "/images/mistral.jpg", accentClassName: "group-hover:text-[#d97706]" },
   { id: "ollama", label: "Ollama", accentClassName: "group-hover:text-[#0f766e]" },
-  { id: "crowdin", label: "Crowdin", accentClassName: "group-hover:text-[#2563eb]" },
+  { id: "crowdin", label: "Crowdin", src: "/images/tms/crowdin.png", accentClassName: "group-hover:text-[#2563eb]" },
   { id: "lilt", label: "LILT AI", accentClassName: "group-hover:text-[#7c3aed]" },
-  { id: "lokalise", label: "Lokalise", accentClassName: "group-hover:text-[#111111]" },
-  { id: "phrase", label: "Phrase", accentClassName: "group-hover:text-[#15803d]" },
-  { id: "poeditor", label: "POEditor", accentClassName: "group-hover:text-[#d97706]" },
-  { id: "smartling", label: "Smartling", accentClassName: "group-hover:text-[#dc2626]" },
+  { id: "lokalise", label: "Lokalise", src: "/images/tms/lokalise.webp", accentClassName: "group-hover:text-[#111111]" },
+  { id: "phrase", label: "Phrase", src: "/images/tms/phrase.png", accentClassName: "group-hover:text-[#15803d]" },
+  { id: "poeditor", label: "POEditor", src: "/images/tms/poeditor.png", accentClassName: "group-hover:text-[#d97706]" },
+  { id: "smartling", label: "Smartling", src: "/images/tms/smartling.png", accentClassName: "group-hover:text-[#dc2626]" },
 ] as const;
 
-function ProviderTile({ label, accentClassName, tileAccentClassName }: ProviderCard) {
+function ProviderTile({ label, src, accentClassName, tileAccentClassName }: ProviderCard) {
   return (
     <div
       className={cn(
@@ -36,14 +39,25 @@ function ProviderTile({ label, accentClassName, tileAccentClassName }: ProviderC
         tileAccentClassName,
       )}
     >
-      <TypographyMuted
-        className={cn(
-          "text-sm font-semibold leading-5 transition duration-200 sm:text-base",
-          accentClassName,
-        )}
-      >
-        {label}
-      </TypographyMuted>
+      {src ? (
+        <Image
+          alt={label}
+          className="h-6 w-auto rounded object-cover sm:h-8"
+          height={src ? 24 : 0}
+          src={src}
+          unoptimized
+          width={src ? 60 : 0}
+        />
+      ) : (
+        <TypographyMuted
+          className={cn(
+            "text-sm font-semibold leading-5 transition duration-200 sm:text-base",
+            accentClassName,
+          )}
+        >
+          {label}
+        </TypographyMuted>
+      )}
     </div>
   );
 }
@@ -52,7 +66,7 @@ export function ProviderSwitchingIllustration() {
   return (
     <div className="rounded-[1.5rem] border border-border/60 bg-background p-4 shadow-[0_18px_56px_color-mix(in_srgb,var(--foreground)_7%,transparent)] sm:rounded-[1.8rem] sm:p-7 sm:shadow-[0_24px_80px_color-mix(in_srgb,var(--foreground)_8%,transparent)] mask-radial-from-65% mask-radial-at-top">
       <div className="flex items-center justify-between gap-3">
-        <TypographyH4 className="text-[1.05rem] font-semibold tracking-[-0.02em] sm:text-[inherit] sm:tracking-[inherit]">
+        <TypographyH4 className="text-[1.05rem] font-semibold tracking-[-0.02em] sm:text-inherit sm:tracking-[inherit]">
           Providers
         </TypographyH4>
       </div>

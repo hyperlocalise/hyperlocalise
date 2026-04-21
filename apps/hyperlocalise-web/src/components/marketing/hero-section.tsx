@@ -47,7 +47,7 @@ export function HeroSection() {
           }}
           transition={{
             ...bodyTransition,
-            delay: shouldReduceMotion ? 0 : 0.26,
+            delay: shouldReduceMotion ? 0 : 0.56,
           }}
         >
           <TypographyP className="max-w-5xl text-muted-foreground">
@@ -61,7 +61,7 @@ export function HeroSection() {
           }}
           transition={{
             ...ctaTransition,
-            delay: shouldReduceMotion ? 0 : 0.42,
+            delay: shouldReduceMotion ? 0 : 1.11,
           }}
         >
           <Button
@@ -82,7 +82,7 @@ export function HeroSection() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{
             duration: shouldReduceMotion ? 0 : 1.48,
-            delay: shouldReduceMotion ? 0 : 0.66,
+            delay: shouldReduceMotion ? 0 : 1.16,
             ease: [0.19, 1, 0.22, 1],
           }}
         />
@@ -93,7 +93,7 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{
             ...frameTransition,
-            delay: shouldReduceMotion ? 0 : 0.54,
+            delay: shouldReduceMotion ? 0 : 1.52,
           }}
         >
           <HeroFrame />

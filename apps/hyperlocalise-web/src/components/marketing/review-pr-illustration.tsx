@@ -314,7 +314,7 @@ export function ReviewPrIllustration() {
                               <motion.button
                                 type="button"
                                 onClick={handleSend}
-                                className="rounded-md border border-[color:var(--color-success)] bg-[color:var(--color-success)] px-3 py-1.5 text-sm font-semibold text-[color:var(--color-success-foreground)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--background)_3%,transparent)_inset] transition-colors hover:bg-[color:color-mix(in_srgb,var(--color-success)_90%,black)] disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground"
+                                className="rounded-md border border-(--color-success) bg-(--color-success) px-3 py-1.5 text-sm font-semibold text-(--color-success-foreground) shadow-[0_0_0_1px_color-mix(in_srgb,var(--background)_3%,transparent)_inset] transition-colors hover:bg-[color:color-mix(in_srgb,var(--color-success)_90%,black)] disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground"
                                 whileTap={shouldReduceMotion ? undefined : { scale: 0.97 }}
                               >
                                 Comment

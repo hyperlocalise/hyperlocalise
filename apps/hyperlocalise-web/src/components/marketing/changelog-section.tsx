@@ -25,13 +25,13 @@ export function ChangelogSection() {
             key={entry.title}
             className={cn(
               "group flex h-full flex-col justify-between rounded-[1.75rem] border p-6 transition-all duration-300 ease-out",
-              "bg-[color:color-mix(in_oklch,var(--background)_96%,var(--muted)_4%)]",
-              "border-[color:color-mix(in_oklch,var(--border)_88%,var(--chart-1)_12%)]",
+              "bg-[color-mix(in_oklch,var(--background)_96%,var(--muted)_4%)]",
+              "border-[color-mix(in_oklch,var(--border)_88%,var(--chart-1)_12%)]",
               "shadow-[inset_0_1px_0_color-mix(in_oklch,var(--background)_78%,transparent)]",
-              "hover:-translate-y-0.5 hover:border-[color:color-mix(in_oklch,var(--border)_70%,var(--chart-2)_30%)]",
-              "hover:bg-[color:color-mix(in_oklch,var(--background)_93%,var(--muted)_7%)]",
+              "hover:-translate-y-0.5 hover:border-[color-mix(in_oklch,var(--border)_70%,var(--chart-2)_30%)]",
+              "hover:bg-[color-mix(in_oklch,var(--background)_93%,var(--muted)_7%)]",
               index === 0 &&
-                "bg-[color:color-mix(in_oklch,var(--background)_90%,var(--chart-1)_10%)] border-[color:color-mix(in_oklch,var(--border)_58%,var(--chart-2)_42%)]",
+                "bg-[color-mix(in_oklch,var(--background)_90%,var(--chart-1)_10%)] border-[color-mix(in_oklch,var(--border)_58%,var(--chart-2)_42%)]",
             )}
           >
             <div className="space-y-5">
@@ -39,27 +39,27 @@ export function ChangelogSection() {
                 <span
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em]",
-                    "bg-[color:color-mix(in_oklch,var(--muted)_82%,var(--chart-1)_18%)]",
-                    "text-[color:color-mix(in_oklch,var(--foreground)_82%,var(--chart-4)_18%)]",
+                    "bg-[color-mix(in_oklch,var(--muted)_82%,var(--chart-1)_18%)]",
+                    "text-[color-mix(in_oklch,var(--foreground)_82%,var(--chart-4)_18%)]",
                     index === 0
-                      ? "bg-[color:color-mix(in_oklch,var(--muted)_58%,var(--chart-2)_42%)] text-[color:color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)]"
-                      : "bg-[color:color-mix(in_oklch,var(--muted)_82%,var(--chart-1)_18%)]",
+                      ? "bg-[color-mix(in_oklch,var(--muted)_58%,var(--chart-2)_42%)] text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)]"
+                      : "bg-[color-mix(in_oklch,var(--muted)_82%,var(--chart-1)_18%)]",
                   )}
                 >
                   <span
                     className={cn(
-                      "size-2 rounded-full bg-[color:color-mix(in_oklch,var(--chart-2)_78%,white_22%)] shadow-[0_0_0_4px_color-mix(in_oklch,var(--chart-1)_16%,transparent)]",
+                      "size-2 rounded-full bg-[color-mix(in_oklch,var(--chart-2)_78%,white_22%)] shadow-[0_0_0_4px_color-mix(in_oklch,var(--chart-1)_16%,transparent)]",
                       index === 0 &&
-                        "bg-[color:color-mix(in_oklch,var(--chart-2)_84%,white_16%)] shadow-[0_0_0_5px_color-mix(in_oklch,var(--chart-2)_20%,transparent)]",
+                        "bg-[color-mix(in_oklch,var(--chart-2)_84%,white_16%)] shadow-[0_0_0_5px_color-mix(in_oklch,var(--chart-2)_20%,transparent)]",
                     )}
                   />
                   {index === 0 ? "Latest" : "Release"}
                 </span>
-                <span className="text-[0.68rem] uppercase tracking-[0.16em] text-[color:color-mix(in_oklch,var(--foreground)_68%,var(--muted-foreground)_32%)]">
+                <span className="text-[0.68rem] uppercase tracking-[0.16em] text-[color-mix(in_oklch,var(--foreground)_68%,var(--muted-foreground)_32%)]">
                   {entry.meta}
                 </span>
               </div>
-              <div className="h-px bg-[color:color-mix(in_oklch,var(--border)_84%,var(--chart-1)_16%)]" />
+              <div className="h-px bg-[color-mix(in_oklch,var(--border)_84%,var(--chart-1)_16%)]" />
               <div className="space-y-3">
                 <TypographyH3 className="text-lg font-medium normal-case text-foreground">
                   {entry.title}
@@ -76,7 +76,7 @@ export function ChangelogSection() {
                   href={entry.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-[color:color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color:color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   {entry.ctaLabel}
                 </a>

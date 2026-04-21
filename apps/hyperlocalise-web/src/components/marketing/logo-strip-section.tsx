@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import { InfiniteSlider } from "@/components/ui/infinite-slider";
+
 type Provider = {
   id: string;
   label: string;
@@ -50,12 +52,22 @@ function ProviderChip({ provider }: { provider: Provider }) {
   return (
     <Image
       alt={provider.label}
-      className="h-12 w-12 object-cover rounded-full"
+      className="h-8 w-8 md:h-12 md:w-12 object-cover rounded-full"
       height={32}
       src={provider.src}
       unoptimized
       width={provider.width}
     />
+  );
+}
+
+function ProviderTrack() {
+  return (
+      <>{[...Array(5)].map((_, i) =>
+        providers.map((provider) => (
+          <ProviderChip key={`${provider.id}-${i}`} provider={provider} />
+        )),
+      )}</>
   );
 }
 
@@ -73,20 +85,11 @@ export function LogoStripSection() {
       </div>
 
       <div className="relative overflow-hidden motion-reduce:hidden">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent sm:w-20" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent sm:w-20" />
-        <div
-          className="marketing-marquee flex w-max items-center [--marquee-duration:22s] [--marquee-gap:0.75rem] sm:[--marquee-duration:26s] sm:[--marquee-gap:1rem]"
-          aria-hidden="true"
-        >
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((track) => (
-            <div key={track} className="flex shrink-0 items-center gap-3 pr-3 sm:gap-4 sm:pr-4">
-              {providers.map((provider) => (
-                <ProviderChip key={`${track}-${provider.id}`} provider={provider} />
-              ))}
-            </div>
-          ))}
-        </div>
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r from-background to-transparent sm:w-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l from-background to-transparent sm:w-20" />
+        <InfiniteSlider gap={16} speed={60}>
+          <ProviderTrack />
+        </InfiniteSlider>
       </div>
 
       <div className="hidden flex-wrap items-center gap-3 motion-reduce:flex">

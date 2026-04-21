@@ -30,12 +30,12 @@ function DetailPill({
 
 function GithubSourceCard() {
   return (
-    <article className="relative flex min-h-[22.5rem] flex-col overflow-hidden rounded-[1.35rem] border border-background/10 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--foreground)_88%,var(--background)_12%)_0%,color-mix(in_srgb,var(--foreground)_94%,var(--background)_6%)_100%)] p-5 text-background shadow-[0_28px_80px_color-mix(in_srgb,var(--foreground)_18%,transparent)] sm:min-h-[25rem] sm:rounded-[1.55rem] sm:p-6 lg:min-h-[29rem] lg:rounded-[1.7rem]">
+    <article className="relative flex min-h-90 flex-col overflow-hidden rounded-[1.35rem] border border-background/10 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--foreground)_88%,var(--background)_12%)_0%,color-mix(in_srgb,var(--foreground)_94%,var(--background)_6%)_100%)] p-5 text-background shadow-[0_28px_80px_color-mix(in_srgb,var(--foreground)_18%,transparent)] sm:min-h-100 sm:rounded-[1.55rem] sm:p-6 lg:min-h-116 lg:rounded-[1.7rem]">
       <div className="flex items-start justify-between gap-4">
         <TypographyH2 className="pb-0 text-[2.4rem] leading-none tracking-[-0.07em] text-background sm:text-[2.7rem] lg:text-[3rem]">
           GitHub
         </TypographyH2>
-        <TypographySmall className="rounded-full border border-background/16 bg-background/10 px-3 py-1 text-[0.7rem] tracking-[0.1em] uppercase text-background/74">
+        <TypographySmall className="rounded-full border border-background/16 bg-background/10 px-3 py-1 text-[0.7rem] tracking-widest uppercase text-background/74">
           Pull request
         </TypographySmall>
       </div>
@@ -69,7 +69,7 @@ function GithubSourceCard() {
 
 function SlackSourceCard() {
   return (
-    <article className="relative flex min-h-[22.5rem] flex-col overflow-hidden rounded-[1.35rem] border border-[#e9e0fb] bg-[linear-gradient(180deg,#faf8ff_0%,#f2edff_100%)] p-5 text-slate-950 shadow-[0_28px_80px_rgba(0,0,0,0.12)] sm:min-h-[25rem] sm:rounded-[1.55rem] sm:p-6 lg:min-h-[29rem] lg:rounded-[1.7rem]">
+    <article className="relative flex min-h-90 flex-col overflow-hidden rounded-[1.35rem] border border-[#e9e0fb] bg-[linear-gradient(180deg,#faf8ff_0%,#f2edff_100%)] p-5 text-slate-950 shadow-[0_28px_80px_rgba(0,0,0,0.12)] sm:min-h-100 sm:rounded-[1.55rem] sm:p-6 lg:min-h-116 lg:rounded-[1.7rem]">
       <div className="flex items-start justify-between gap-4">
         <TypographyH2 className="pb-0 text-[2.4rem] leading-none tracking-[-0.07em] text-slate-950 sm:text-[2.7rem] lg:text-[3rem]">
           Slack
@@ -95,7 +95,7 @@ function SlackSourceCard() {
           </div>
         </div>
 
-        <TypographyP className="mt-5 max-w-[15rem] text-[0.94rem] leading-6 text-slate-700 sm:mt-6 sm:max-w-[16rem] sm:text-[0.98rem] sm:leading-7 lg:max-w-[17rem] lg:text-[1.02rem] lg:leading-8">
+        <TypographyP className="mt-5 max-w-60 text-[0.94rem] leading-6 text-slate-700 sm:mt-6 sm:max-w-[16rem] sm:text-[0.98rem] sm:leading-7 lg:max-w-68 lg:text-[1.02rem] lg:leading-8">
           Need hero copy and pricing updates translated for the Friday campaign launch.
         </TypographyP>
 
@@ -120,7 +120,7 @@ function SlackSourceCard() {
 
 function ClaudeSourceCard() {
   return (
-    <article className="relative flex min-h-[22.5rem] flex-col overflow-hidden rounded-[1.35rem] border border-clay-500 bg-[linear-gradient(180deg,var(--color-flame-500)_0%,var(--color-flame-700)_100%)] p-5 text-background shadow-[0_28px_80px_color-mix(in_srgb,var(--foreground)_14%,transparent)] sm:min-h-[25rem] sm:rounded-[1.55rem] sm:p-6 lg:min-h-[29rem] lg:rounded-[1.7rem]">
+    <article className="relative flex min-h-90 flex-col overflow-hidden rounded-[1.35rem] border border-clay-500 bg-[linear-gradient(180deg,var(--color-flame-500)_0%,var(--color-flame-700)_100%)] p-5 text-background shadow-[0_28px_80px_color-mix(in_srgb,var(--foreground)_14%,transparent)] sm:min-h-100 sm:rounded-[1.55rem] sm:p-6 lg:min-h-116 lg:rounded-[1.7rem]">
       <TypographyH2 className="relative pb-0 text-[2.85rem] leading-none tracking-[-0.08em] text-background sm:text-[3.2rem] lg:text-[3.6rem]">
         Anthropic
       </TypographyH2>
