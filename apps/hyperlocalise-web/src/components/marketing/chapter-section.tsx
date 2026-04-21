@@ -55,7 +55,7 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
           <div className="mt-5">
             <Button
               variant="secondary"
-              className="rounded-full border-border  px-4"
+              className="rounded-full border-border px-4"
               nativeButton={false}
               render={<a href={chapter.cta.href} target="_blank" rel="noreferrer" />}
             >

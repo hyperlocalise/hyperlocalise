@@ -93,10 +93,10 @@ function ProviderTile({ label, src, accentClassName, tileAccentClassName }: Prov
         <Image
           alt={label}
           className="h-6 w-auto rounded object-cover sm:h-8"
-          height={src ? 24 : 0}
+          height={24}
           src={src}
           unoptimized
-          width={src ? 60 : 0}
+          width={60}
         />
       ) : (
         <TypographyMuted
