@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "3.0.53",
-    "@base-ui/react": "1.4.0",
+    "@base-ui/react": "1.4.1",
     "@hookform/resolvers": "5.2.2",
     "@hugeicons/core-free-icons": "4.1.1",
     "@hugeicons/react": "1.1.6",
