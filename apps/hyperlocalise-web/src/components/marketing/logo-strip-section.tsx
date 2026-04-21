@@ -63,11 +63,13 @@ function ProviderChip({ provider }: { provider: Provider }) {
 
 function ProviderTrack() {
   return (
-      <>{[...Array(5)].map((_, i) =>
+    <>
+      {[...Array(5)].map((_, i) =>
         providers.map((provider) => (
           <ProviderChip key={`${provider.id}-${i}`} provider={provider} />
         )),
-      )}</>
+      )}
+    </>
   );
 }
 

@@ -22,19 +22,19 @@ function TmsLogoMarquee() {
   return (
     <div className="mt-12 overflow-hidden">
       <InfiniteSlider gap={12} speed={60}>
-          {[...Array(5)].map((_, i) =>
-            tmsLogos.map((logo) => (
-              <Image
-                key={`${logo.id}-${i}`}
-                alt={logo.id}
-                className="h-8 md:h-12 w-auto rounded object-cover"
-                height={32}
-                src={logo.src}
-                unoptimized
-                width={80}
-              />
-            )),
-          )}
+        {[...Array(5)].map((_, i) =>
+          tmsLogos.map((logo) => (
+            <Image
+              key={`${logo.id}-${i}`}
+              alt={logo.id}
+              className="h-8 md:h-12 w-auto rounded object-cover"
+              height={32}
+              src={logo.src}
+              unoptimized
+              width={80}
+            />
+          )),
+        )}
       </InfiniteSlider>
     </div>
   );

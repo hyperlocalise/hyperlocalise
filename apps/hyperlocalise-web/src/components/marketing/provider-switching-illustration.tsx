@@ -14,21 +14,71 @@ type ProviderCard = {
 };
 
 const providers: readonly ProviderCard[] = [
-  { id: "openai", label: "OpenAI", src: "/images/openai-old-logo.webp", accentClassName: "group-hover:text-[#111111]" },
+  {
+    id: "openai",
+    label: "OpenAI",
+    src: "/images/openai-old-logo.webp",
+    accentClassName: "group-hover:text-[#111111]",
+  },
   { id: "azure-openai", label: "Azure OpenAI", accentClassName: "group-hover:text-[#2563eb]" },
-  { id: "gemini", label: "Gemini", src: "/images/gemini.webp", accentClassName: "group-hover:text-[#5b84f1]" },
-  { id: "anthropic", label: "Anthropic", src: "/images/claude.png", accentClassName: "group-hover:text-[#3f3f46]" },
+  {
+    id: "gemini",
+    label: "Gemini",
+    src: "/images/gemini.webp",
+    accentClassName: "group-hover:text-[#5b84f1]",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    src: "/images/claude.png",
+    accentClassName: "group-hover:text-[#3f3f46]",
+  },
   { id: "bedrock", label: "AWS Bedrock", accentClassName: "group-hover:text-[#ff9900]" },
   { id: "lmstudio", label: "LM Studio", accentClassName: "group-hover:text-[#7c3aed]" },
-  { id: "groq", label: "Groq", src: "/images/groq.webp", accentClassName: "group-hover:text-[#111111]" },
-  { id: "mistral", label: "Mistral", src: "/images/mistral.jpg", accentClassName: "group-hover:text-[#d97706]" },
+  {
+    id: "groq",
+    label: "Groq",
+    src: "/images/groq.webp",
+    accentClassName: "group-hover:text-[#111111]",
+  },
+  {
+    id: "mistral",
+    label: "Mistral",
+    src: "/images/mistral.jpg",
+    accentClassName: "group-hover:text-[#d97706]",
+  },
   { id: "ollama", label: "Ollama", accentClassName: "group-hover:text-[#0f766e]" },
-  { id: "crowdin", label: "Crowdin", src: "/images/tms/crowdin.png", accentClassName: "group-hover:text-[#2563eb]" },
+  {
+    id: "crowdin",
+    label: "Crowdin",
+    src: "/images/tms/crowdin.png",
+    accentClassName: "group-hover:text-[#2563eb]",
+  },
   { id: "lilt", label: "LILT AI", accentClassName: "group-hover:text-[#7c3aed]" },
-  { id: "lokalise", label: "Lokalise", src: "/images/tms/lokalise.webp", accentClassName: "group-hover:text-[#111111]" },
-  { id: "phrase", label: "Phrase", src: "/images/tms/phrase.png", accentClassName: "group-hover:text-[#15803d]" },
-  { id: "poeditor", label: "POEditor", src: "/images/tms/poeditor.png", accentClassName: "group-hover:text-[#d97706]" },
-  { id: "smartling", label: "Smartling", src: "/images/tms/smartling.png", accentClassName: "group-hover:text-[#dc2626]" },
+  {
+    id: "lokalise",
+    label: "Lokalise",
+    src: "/images/tms/lokalise.webp",
+    accentClassName: "group-hover:text-[#111111]",
+  },
+  {
+    id: "phrase",
+    label: "Phrase",
+    src: "/images/tms/phrase.png",
+    accentClassName: "group-hover:text-[#15803d]",
+  },
+  {
+    id: "poeditor",
+    label: "POEditor",
+    src: "/images/tms/poeditor.png",
+    accentClassName: "group-hover:text-[#d97706]",
+  },
+  {
+    id: "smartling",
+    label: "Smartling",
+    src: "/images/tms/smartling.png",
+    accentClassName: "group-hover:text-[#dc2626]",
+  },
 ] as const;
 
 function ProviderTile({ label, src, accentClassName, tileAccentClassName }: ProviderCard) {
