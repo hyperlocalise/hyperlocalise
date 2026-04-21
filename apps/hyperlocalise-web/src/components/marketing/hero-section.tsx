@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { HeroFrame } from "./hero-frame";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { env } from "@/lib/env";
 
 export function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
@@ -67,7 +68,7 @@ export function HeroSection() {
           <Button
             className="rounded-full px-5"
             nativeButton={false}
-            render={<a href="#waitlist" />}
+            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="__blank" />}
           >
             Join waitlist
           </Button>
