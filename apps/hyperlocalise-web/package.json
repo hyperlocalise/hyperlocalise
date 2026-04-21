@@ -45,7 +45,7 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.2.2",
+    "@tailwindcss/postcss": "4.2.3",
     "@types/node": "24.12.2",
     "@types/pg": "8.20.0",
     "@types/react": "19.2.14",
@@ -53,7 +53,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "drizzle-kit": "0.31.10",
     "schema-dts": "^2.0.0",
-    "tailwindcss": "4.2.2",
+    "tailwindcss": "4.2.3",
     "typescript": "6.0.3",
     "vite-plus": "0.1.18",
     "vitest": "catalog:"
