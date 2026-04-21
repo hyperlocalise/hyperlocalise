@@ -195,24 +195,3 @@
     @apply font-sans;
   }
 }
-
-@keyframes marketing-marquee {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-  100% {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-@layer utilities {
-  .marketing-marquee {
-    animation: marketing-marquee var(--marquee-duration, 24s) linear infinite;
-    display: flex;
-    width: max-content;
-  }
-
-  .marketing-marquee > * {
-    flex-shrink: 0;
-  }
-}

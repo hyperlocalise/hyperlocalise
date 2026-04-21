@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 
 import { DotFlow } from "dot-anime-react";
+import { useInView } from "react-intersection-observer";
 import { motion, useReducedMotion } from "motion/react";
 
 import { TranslateIcon } from "@hugeicons/core-free-icons";
@@ -104,6 +105,10 @@ export function TranslationFlowIllustration({
   const [visibleLineCount, setVisibleLineCount] = useState(
     shouldReduceMotion ? consoleLines.length : 0,
   );
+  const { ref: inViewRef, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.3,
+  });
 
   useEffect(() => {
     setActiveAgent((currentAgent) =>
@@ -119,7 +124,10 @@ export function TranslationFlowIllustration({
       return;
     }
 
-    setVisibleLineCount(0);
+    if (!inView) {
+      setVisibleLineCount(0);
+      return;
+    }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -143,10 +151,13 @@ export function TranslationFlowIllustration({
         clearTimeout(timeoutId);
       }
     };
-  }, [activeAgent, shouldReduceMotion]);
+  }, [activeAgent, shouldReduceMotion, inView]);
 
   return (
-    <div className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top">
+    <div
+      ref={inViewRef}
+      className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top"
+    >
       <div className="relative">
         <div className="flex items-center justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">

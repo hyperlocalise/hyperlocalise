@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 
-import { motion, useReducedMotion } from "motion/react";
 import {
   Bar,
   BarChart,
@@ -129,8 +128,6 @@ const releasePulse = [
   { label: "Critical blockers", value: "1" },
 ] as const;
 
-const EASE_OUT = [0.19, 1, 0.22, 1] as const;
-
 function getReadinessCellClassName(tone: "safe" | "watch" | "risk") {
   if (tone === "safe") {
     return "border-[color:var(--color-success)] bg-[color:color-mix(in_srgb,var(--color-success)_16%,var(--color-card))] text-[color:var(--color-success)]";
@@ -187,16 +184,8 @@ function MonitorCard({
 }
 
 export function MonitorO11yBento() {
-  const shouldReduceMotion = useReducedMotion();
-
   return (
-    <motion.div
-      className="relative overflow-hidden rounded-[1.8rem] border border-border bg-[linear-gradient(180deg,var(--color-card),color-mix(in_srgb,var(--color-card)_72%,var(--color-muted)))] shadow-[0_30px_90px_color-mix(in_srgb,var(--foreground)_16%,transparent)] mask-radial-from-65% mask-radial-at-top"
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 18 }}
-      whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={shouldReduceMotion ? undefined : { duration: 0.55, ease: EASE_OUT }}
-    >
+    <div className="relative overflow-hidden rounded-[1.8rem] border border-border bg-[linear-gradient(180deg,var(--color-card),color-mix(in_srgb,var(--color-card)_72%,var(--color-muted)))] shadow-[0_30px_90px_color-mix(in_srgb,var(--foreground)_16%,transparent)] mask-radial-from-65% mask-radial-at-top">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--color-success)_18%,transparent),transparent_42%),radial-gradient(circle_at_top_right,color-mix(in_srgb,var(--color-info)_16%,transparent),transparent_36%)]"
@@ -211,7 +200,7 @@ export function MonitorO11yBento() {
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <TypographyH4 className="text-foreground">Locale ops observability</TypographyH4>
-              <Badge className="rounded-full border-[color:var(--color-success)] bg-[color:color-mix(in_srgb,var(--color-success)_14%,var(--color-card))] px-3 text-[color:var(--color-success)]">
+              <Badge className="rounded-full border-(--color-success) bg-[color-mix(in_srgb,var(--color-success)_14%,var(--color-card))] px-3 text-(--color-success)">
                 Release window active
               </Badge>
             </div>
@@ -300,7 +289,7 @@ export function MonitorO11yBento() {
                 current ship-safe coverage
               </TypographyMuted>
             </div>
-            <Badge className="rounded-full border-[color:var(--color-success)] bg-[color:color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] px-3 text-[color:var(--color-success)]">
+            <Badge className="rounded-full border-(--color-success) bg-[color-mix(in_srgb,var(--color-success)_12%,var(--color-card))] px-3 text-(--color-success)">
               +8 pts recovery
             </Badge>
           </div>
@@ -358,7 +347,7 @@ export function MonitorO11yBento() {
               Human reviewed
             </div>
             <div className="flex items-center gap-2">
-              <span className="size-2.5 rounded-full bg-[color:var(--color-error)]" />
+              <span className="size-2.5 rounded-full bg-(--color-error)" />
               Blocked
             </div>
           </div>
@@ -477,6 +466,6 @@ export function MonitorO11yBento() {
           </div>
         </MonitorCard>
       </div>
-    </motion.div>
+    </div>
   );
 }

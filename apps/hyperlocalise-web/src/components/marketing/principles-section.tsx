@@ -28,7 +28,7 @@ export function PrinciplesSection() {
             return (
               <article
                 key={item.title}
-                className="flex flex-col gap-8 px-6 py-7 text-white sm:px-7 sm:py-8 lg:min-h-[28rem] lg:justify-between lg:gap-16 lg:px-8 lg:py-9"
+                className="flex flex-col gap-8 px-6 py-7 text-white sm:px-7 sm:py-8 lg:min-h-112 lg:justify-between lg:gap-16 lg:px-8 lg:py-9"
               >
                 <div className="space-y-8 sm:space-y-12 lg:space-y-16">
                   <p className="text-[0.95rem] tracking-[-0.02em] text-white/40">{chapterNumber}</p>
