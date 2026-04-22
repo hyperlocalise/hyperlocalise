@@ -1,8 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { start } from "workflow/api";
 
-import { waitUntil } from "@vercel/functions";
-
-import { executeTranslationJobQueued } from "@/lib/translation/translation-job-queued-function";
+import { translationJobWorkflow } from "@/workflows/translation-job";
 
 export const TRANSLATION_JOB_QUEUED_EVENT = "translation/job.queued";
 export const GITHUB_REVIEW_REQUESTED_EVENT = "github/review.requested";
@@ -72,18 +70,10 @@ export function getGitHubReviewRequestedEventId(
 export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
   return {
     async enqueue(event) {
-      const runId = `run_${randomUUID()}`;
-      waitUntil(
-        executeTranslationJobQueued({
-          event,
-          runId,
-        }).catch((error) => {
-          console.error("translation job execution failed", error);
-        }),
-      );
+      const run = await start(translationJobWorkflow, [event]);
 
       return {
-        ids: [getTranslationJobQueuedEventId(event.jobId)],
+        ids: [run.runId],
       };
     },
   };

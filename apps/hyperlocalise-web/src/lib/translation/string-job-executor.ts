@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
@@ -141,3 +141,16 @@ export const translateStringJobWithOpenAI: StringTranslationGenerator = async (i
 
   return translateStringJob(input);
 };
+
+export function createOpenAIStringTranslationGenerator(input: {
+  apiKey: string;
+  model: string;
+}): StringTranslationGenerator {
+  const provider = createOpenAI({
+    apiKey: input.apiKey,
+  });
+
+  return createStringTranslationGenerator({
+    model: provider(input.model),
+  });
+}
