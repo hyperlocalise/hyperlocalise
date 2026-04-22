@@ -42,5 +42,9 @@ export async function verifyGitHubState(
 }
 
 export function getGitHubStateSecret(): string {
-  return env.GITHUB_APP_WEBHOOK_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
+  const secret = env.GITHUB_OAUTH_STATE_SECRET ?? env.GITHUB_APP_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error("missing GITHUB_OAUTH_STATE_SECRET or GITHUB_APP_WEBHOOK_SECRET");
+  }
+  return secret;
 }

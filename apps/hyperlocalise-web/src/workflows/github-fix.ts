@@ -258,7 +258,7 @@ async function commitAndPush(sandboxId: string, headBranch: string): Promise<voi
 
   for (const [command, args] of [
     ["git", ["add", "-A"]],
-    ["git", ["commit", "--no-verify", "-m", "fix(i18n): apply hyperlocalise fixes"]],
+    ["git", ["commit", "-m", "fix(i18n): apply hyperlocalise fixes"]],
     ["git", ["push", "origin", headBranch]],
   ] satisfies Array<[string, string[]]>) {
     const result = await runSandboxCommand(sandboxId, command, args);

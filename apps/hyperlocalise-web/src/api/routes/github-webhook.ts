@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import { db, schema } from "@/lib/database";
 import { getGitHubBot } from "@/lib/github-bot";
+import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import type { GitHubFixQueue } from "@/lib/workflow/types";
 import { createGitHubFixQueue } from "@/workflows/adapters";
 
@@ -26,22 +27,17 @@ async function defaultGithubWebhookHandler(queue: GitHubFixQueue) {
 export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOptions = {}) {
   return new Hono().post("/", async (c) => {
     const bodyBuffer = await c.req.raw.arrayBuffer();
-    const payload = JSON.parse(new TextDecoder().decode(bodyBuffer)) as {
-      action?: string;
-      installation?: { id: number };
-    };
+
+    const parseResult = safeJsonParse(new TextDecoder().decode(bodyBuffer));
+    if (!parseResult.ok) {
+      return c.json({ error: "invalid_payload" }, 400);
+    }
+    const payload = parseResult.value as { action?: string; installation?: { id: number } };
 
     // TODO: verify the installation exists in our database before processing.
     // This prevents unauthorized installations from consuming bot resources.
     // We should look up githubInstallations by githubInstallationId and reject
     // (or silently accept 200) if the row is missing.
-
-    if (payload.action === "deleted" && payload.installation?.id) {
-      await db
-        .delete(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.githubInstallationId, payload.installation.id));
-      return c.json({ ok: true }, 200);
-    }
 
     const handler =
       options.githubWebhookHandler ??
@@ -58,6 +54,14 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       body: bodyBuffer,
     });
 
-    return handler(request);
+    const response = await handler(request);
+
+    if (payload.action === "deleted" && payload.installation?.id && response.ok) {
+      await db
+        .delete(schema.githubInstallations)
+        .where(eq(schema.githubInstallations.githubInstallationId, payload.installation.id));
+    }
+
+    return response;
   });
 }
