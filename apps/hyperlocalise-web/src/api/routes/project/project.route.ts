@@ -6,7 +6,8 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import { createWorkflowTranslationJobQueue, type TranslationJobQueue } from "@/lib/workflow";
+import type { TranslationJobQueue } from "@/lib/workflow/types";
+import { createTranslationJobQueue } from "@/workflows/adapters";
 
 import {
   createProjectBodySchema,
@@ -118,7 +119,7 @@ type CreateProjectRoutesOptions = {
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
-  const translationJobQueue = options.translationJobQueue ?? createWorkflowTranslationJobQueue();
+  const translationJobQueue = options.translationJobQueue ?? createTranslationJobQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)

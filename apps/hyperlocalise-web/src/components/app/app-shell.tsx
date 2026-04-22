@@ -4,6 +4,7 @@ import {
   CheckmarkCircle02Icon,
   InformationCircleIcon,
   LinkSquare02Icon,
+  Settings01Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 
@@ -48,6 +49,11 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
       label: "Analytics",
       href: `/org/${activeOrganizationSlug}/dashboard#analytics`,
       icon: InformationCircleIcon,
+    },
+    {
+      label: "Settings",
+      href: `/org/${activeOrganizationSlug}/settings`,
+      icon: Settings01Icon,
     },
   ] as const;
 
