@@ -80,6 +80,28 @@ describe("createStringTranslationGenerator", () => {
     });
   });
 
+  it("deduplicates repeated target locales", async () => {
+    const translateStringJob = createStringTranslationGenerator({
+      model: createMockStructuredModel({
+        translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+      }),
+    });
+
+    const result = await translateStringJob(
+      createInput({
+        jobInput: {
+          sourceText: "Hello world",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR", "fr-FR"],
+        },
+      }),
+    );
+
+    expect(result).toEqual({
+      translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+    });
+  });
+
   it("rejects whitespace-only translation text", async () => {
     const translateStringJob = createStringTranslationGenerator({
       model: createMockStructuredModel({

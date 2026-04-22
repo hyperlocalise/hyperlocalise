@@ -1,10 +1,17 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/translation-job.schema";
 import { env } from "@/lib/env";
 
+/**
+ * Structured model output for v1 string translation jobs.
+ *
+ * Later work should add richer per-locale diagnostics here once review and QA
+ * checks are part of the job lifecycle. Good candidates are glossary matches,
+ * max-length repair attempts, provider usage, and model warnings.
+ */
 const stringTranslationOutputSchema = z.object({
   translations: z.array(
     z.object({
@@ -30,6 +37,13 @@ type CreateStringTranslationGeneratorOptions = {
   model: LanguageModel;
 };
 
+/**
+ * Builds the legacy app-level OpenAI model.
+ *
+ * New production workflow execution should prefer
+ * `createOpenAIStringTranslationGenerator()` so each organization uses its
+ * own encrypted provider credential and configured default model.
+ */
 function getDefaultTranslationModel() {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
@@ -38,6 +52,13 @@ function getDefaultTranslationModel() {
   return openai("gpt-5.4-mini");
 }
 
+/**
+ * Builds stable system instructions for deterministic string translation.
+ *
+ * Future improvements should pull in attached project glossaries, translation
+ * memory examples, brand voice rules, and file-format-specific preservation
+ * rules. Keep those additions structured and bounded so prompts stay auditable.
+ */
 function buildSystemPrompt(input: StringTranslationGeneratorInput) {
   const instructions = [
     "You are an expert software localization engine.",
@@ -56,6 +77,13 @@ function buildSystemPrompt(input: StringTranslationGeneratorInput) {
   return instructions.join("\n");
 }
 
+/**
+ * Builds the user prompt with project and job-specific context.
+ *
+ * Later work should replace the raw metadata JSON blob with a typed prompt
+ * section once clients start sending stable metadata keys. That will make
+ * prompt changes easier to review and test.
+ */
 function buildPrompt(input: StringTranslationGeneratorInput) {
   return [
     `Project: ${input.projectName}`,
@@ -69,6 +97,13 @@ function buildPrompt(input: StringTranslationGeneratorInput) {
   ].join("\n\n");
 }
 
+/**
+ * Validates and normalizes model output into the requested target-locale order.
+ *
+ * This is intentionally strict: job persistence should only store complete
+ * results. Future repair logic can live before this function or in a retry step
+ * that asks the model to fix a specific schema/locale/length problem.
+ */
 function normalizeTranslations(
   jobInput: StringTranslationJobInput,
   result: StringTranslationJobResult,
@@ -95,7 +130,7 @@ function normalizeTranslations(
     }
   }
 
-  const translations = jobInput.targetLocales.map((locale) => {
+  const translations = [...new Set(jobInput.targetLocales)].map((locale) => {
     const text = translationsByLocale.get(locale);
 
     if (!text) {
@@ -113,8 +148,10 @@ function normalizeTranslations(
 }
 
 /**
- * Executes the v1 string-translation job against OpenAI and returns a
- * normalized per-locale result payload ready to persist as `string_result`.
+ * Creates a string translation generator around any AI SDK language model.
+ *
+ * The returned generator executes one v1 string-translation job and returns a
+ * normalized per-locale payload ready to persist as `string_result`.
  */
 export function createStringTranslationGenerator({
   model,
@@ -134,6 +171,12 @@ export function createStringTranslationGenerator({
   };
 }
 
+/**
+ * Executes string translation with the app-level OpenAI API key.
+ *
+ * This remains useful for local development and focused unit tests, but the
+ * durable translation job workflow should use organization-scoped credentials.
+ */
 export const translateStringJobWithOpenAI: StringTranslationGenerator = async (input) => {
   const translateStringJob = createStringTranslationGenerator({
     model: getDefaultTranslationModel(),
@@ -141,3 +184,23 @@ export const translateStringJobWithOpenAI: StringTranslationGenerator = async (i
 
   return translateStringJob(input);
 };
+
+/**
+ * Creates a string translation generator backed by an organization OpenAI key.
+ *
+ * Later provider work should add sibling factories for Anthropic, Gemini, Groq,
+ * and Mistral rather than expanding this OpenAI-specific factory. That keeps
+ * provider differences isolated from prompt and normalization logic.
+ */
+export function createOpenAIStringTranslationGenerator(input: {
+  apiKey: string;
+  model: string;
+}): StringTranslationGenerator {
+  const provider = createOpenAI({
+    apiKey: input.apiKey,
+  });
+
+  return createStringTranslationGenerator({
+    model: provider(input.model),
+  });
+}
