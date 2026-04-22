@@ -1,4 +1,4 @@
-import { createOpenAI, openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateImage, generateText, Output } from "ai";
 import { z } from "zod";
 
@@ -23,7 +23,8 @@ function getVisionModel() {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
-  return openai("gpt-5.4-mini");
+  const provider = createOpenAI({ apiKey: env.OPENAI_API_KEY });
+  return provider("gpt-5.4-mini");
 }
 
 function getImageModel() {

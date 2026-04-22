@@ -15,6 +15,7 @@ import {
   type ThreadInfo,
   type WebhookOptions,
 } from "chat";
+import { createHash } from "node:crypto";
 import { Resend } from "resend";
 
 export type ResendThreadId = {
@@ -48,21 +49,16 @@ export interface ResendAdapterConfig {
 }
 
 function normalizeSubject(subject: string): string {
-  return subject
-    .replace(/^(re|fwd|fw):\s*/gi, "")
-    .replace(/^(re|fwd|fw):\s*/gi, "")
-    .trim()
-    .toLowerCase();
+  let s = subject.trim();
+  const prefix = /^(?:re|fwd|fw):\s*/i;
+  while (prefix.test(s)) {
+    s = s.replace(prefix, "");
+  }
+  return s.toLowerCase();
 }
 
 function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36);
+  return createHash("sha256").update(str).digest("hex").slice(0, 12);
 }
 
 function getThreadHash(subject: string): string {
@@ -280,7 +276,11 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
       return new Response(JSON.stringify({ error: "not_initialized" }), { status: 503 });
     }
 
-    this.chat.processMessage(this, message.threadId, message, options);
+    Promise.resolve()
+      .then(() => this.chat!.processMessage(this, message.threadId, message, options))
+      .catch((err: unknown) => {
+        this.logger.error("Failed to process message", err);
+      });
     return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
   }
 
