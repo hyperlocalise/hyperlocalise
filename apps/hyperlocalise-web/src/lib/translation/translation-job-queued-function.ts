@@ -2,7 +2,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 
 import { stringTranslationJobInputSchema } from "@/api/routes/project/translation-job.schema";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueuedEventData } from "@/lib/workflow";
+import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
   createOpenAIStringTranslationGenerator,

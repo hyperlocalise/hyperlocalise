@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { describe, expect, it } from "vite-plus/test";
 
 import { createGithubWebhookRoutes } from "./github-webhook";

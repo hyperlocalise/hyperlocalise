@@ -1,7 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { getInstallationOctokit } from "@/lib/github-app";
-import type { GitHubFixRequestedEventData } from "@/lib/workflow";
+import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 const reportPath = ".hyperlocalise/fix-report.json";

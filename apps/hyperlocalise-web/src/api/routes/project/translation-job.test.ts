@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueue } from "@/lib/workflow";
+import type { TranslationJobQueue } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({

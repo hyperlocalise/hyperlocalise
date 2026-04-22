@@ -1,6 +1,6 @@
 import { getWorkflowMetadata } from "workflow";
 
-import type { TranslationJobQueuedEventData } from "@/lib/workflow";
+import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJob,
   completeTranslationJob,

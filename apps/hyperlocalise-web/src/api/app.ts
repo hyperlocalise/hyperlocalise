@@ -1,17 +1,17 @@
 import { Hono } from "hono";
 
-import type { GitHubReviewQueue, TranslationJobQueue } from "@/lib/workflow";
+import type { GitHubFixQueue, TranslationJobQueue } from "@/lib/workflow/types";
 import { authRoutes } from "./routes/auth";
+import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
-import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
-  githubReviewQueue?: GitHubReviewQueue;
+  githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   translationJobQueue?: TranslationJobQueue;
 };
@@ -19,22 +19,22 @@ type CreateAppOptions = {
 export function createApp(options: CreateAppOptions = {}) {
   return new Hono()
     .basePath("/api")
-    .route("/health", healthRoutes)
     .route("/auth", authRoutes)
-    .route(
-      "/webhooks/github",
-      createGithubWebhookRoutes({
-        githubReviewQueue: options.githubReviewQueue,
-        githubWebhookHandler: options.githubWebhookHandler,
-      }),
-    )
     .route("/glossary", createGlossaryRoutes())
     .route("/orgs/:organizationSlug/glossaries", createGlossaryRoutes())
-    .route("/webhooks/workos", workosWebhookRoutes)
+    .route("/health", healthRoutes)
     .route("/project", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/projects", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
-    .route("/orgs/:organizationSlug/teams", createTeamRoutes());
+    .route("/orgs/:organizationSlug/teams", createTeamRoutes())
+    .route(
+      "/webhooks/github",
+      createGithubWebhookRoutes({
+        githubFixQueue: options.githubFixQueue,
+        githubWebhookHandler: options.githubWebhookHandler,
+      }),
+    )
+    .route("/webhooks/workos", workosWebhookRoutes);
 }
 
 export const app = createApp();

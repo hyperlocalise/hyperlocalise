@@ -6,11 +6,7 @@ import { Chat, emoji } from "chat";
 import type { Message, Thread } from "chat";
 
 import { env } from "@/lib/env";
-import {
-  getGitHubReviewRequestedEventId,
-  type GitHubFixRequestedEventData,
-  type GitHubReviewQueue,
-} from "@/lib/workflow";
+import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow/types";
 
 type HyperlocaliseFixCommand = {
   command: "fix";
@@ -18,7 +14,7 @@ type HyperlocaliseFixCommand = {
 };
 
 type GitHubBotOptions = {
-  githubReviewQueue: GitHubReviewQueue;
+  githubFixQueue: GitHubFixQueue;
 };
 
 type GitHubBotState = {
@@ -27,7 +23,7 @@ type GitHubBotState = {
 
 let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHubBotState> | null =
   null;
-let botQueue: GitHubReviewQueue | null = null;
+let botQueue: GitHubFixQueue | null = null;
 
 function gitHubAppInstallationId(): number | undefined {
   if (!env.GITHUB_APP_INSTALLATION_ID) {
@@ -157,18 +153,11 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
 
   await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
   await thread.setState({ lastFixEvent: event });
-  await queue.enqueue(
-    event,
-    getGitHubReviewRequestedEventId(
-      `fix:${event.repositoryFullName}:${event.pullRequestNumber}:${event.trigger.commentId ?? "comment"}`,
-      "mention",
-      event.trigger.deliveryId,
-    ),
-  );
+  await queue.enqueue(event);
 }
 
 export async function getGitHubBot(options: GitHubBotOptions) {
-  botQueue = options.githubReviewQueue;
+  botQueue = options.githubFixQueue;
   if (botInstance) {
     return botInstance;
   }

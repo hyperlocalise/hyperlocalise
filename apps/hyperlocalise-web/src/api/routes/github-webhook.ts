@@ -1,17 +1,18 @@
 import { Hono } from "hono";
 
 import { getGitHubBot } from "@/lib/github-bot";
-import { createWorkflowGitHubReviewQueue, type GitHubReviewQueue } from "@/lib/workflow";
+import type { GitHubFixQueue } from "@/lib/workflow/types";
+import { createGitHubFixQueue } from "@/workflows/adapters";
 
 type GithubWebhookHandler = (request: Request) => Promise<Response>;
 
 type CreateGithubWebhookRoutesOptions = {
-  githubReviewQueue?: GitHubReviewQueue;
+  githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: GithubWebhookHandler;
 };
 
-async function defaultGithubWebhookHandler(queue: GitHubReviewQueue) {
-  const bot = await getGitHubBot({ githubReviewQueue: queue });
+async function defaultGithubWebhookHandler(queue: GitHubFixQueue) {
+  const bot = await getGitHubBot({ githubFixQueue: queue });
   const handler = bot.webhooks.github;
   if (!handler) {
     return null;
@@ -24,9 +25,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
   return new Hono().post("/", async (c) => {
     const handler =
       options.githubWebhookHandler ??
-      (await defaultGithubWebhookHandler(
-        options.githubReviewQueue ?? createWorkflowGitHubReviewQueue(),
-      ));
+      (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
 
     if (!handler) {
       return c.json({ error: "github_adapter_not_configured" }, 503);

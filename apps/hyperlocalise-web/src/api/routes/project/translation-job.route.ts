@@ -6,7 +6,7 @@ import { validator } from "hono/validator";
 
 import { type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueue } from "@/lib/workflow";
+import type { TranslationJobQueue } from "@/lib/workflow/types";
 
 import {
   forbiddenResponse,
