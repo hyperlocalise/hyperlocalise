@@ -48,6 +48,18 @@ export const env = createEnv({
 
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    /** Resend API key for sending and receiving emails. Required for email bot integration. */
+    RESEND_API_KEY: z.string().min(1).optional(),
+
+    /** Resend webhook secret for verifying inbound email webhooks. Required for secure email handling. */
+    RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    /** From address for outbound emails sent by the email bot. */
+    RESEND_FROM_ADDRESS: z.string().email().optional(),
+
+    /** Display name for outbound emails sent by the email bot. */
+    RESEND_FROM_NAME: z.string().min(1).optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -86,6 +98,12 @@ export const env = createEnv({
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
+    RESEND_API_KEY: process.env.RESEND_API_KEY ?? (isTestEnv ? "test-resend-api-key" : undefined),
+    RESEND_WEBHOOK_SECRET:
+      process.env.RESEND_WEBHOOK_SECRET ?? (isTestEnv ? "test-resend-webhook-secret" : undefined),
+    RESEND_FROM_ADDRESS:
+      process.env.RESEND_FROM_ADDRESS ?? (isTestEnv ? "bot@example.com" : undefined),
+    RESEND_FROM_NAME: process.env.RESEND_FROM_NAME ?? (isTestEnv ? "Hyperlocalise Bot" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
