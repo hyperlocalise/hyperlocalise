@@ -66,6 +66,7 @@ export async function translationJobWorkflow(event: TranslationJobQueuedEventDat
       return failTranslationJobStep({
         jobId: claim.job.id,
         projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
         code: execution.code,
         message: execution.message,
       });
@@ -74,12 +75,14 @@ export async function translationJobWorkflow(event: TranslationJobQueuedEventDat
     return completeTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
       result: execution.result,
     });
   } catch (error) {
     return failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
       code: "translation_execution_failed",
       message: formatExecutionError(error),
     });

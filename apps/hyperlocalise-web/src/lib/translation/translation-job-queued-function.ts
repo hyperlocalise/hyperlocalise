@@ -26,6 +26,7 @@ type ClaimedTranslationJob = {
   projectId: string;
   type: "string" | "file";
   inputPayload: unknown;
+  workflowRunId: string;
 };
 
 type ClaimTranslationJobResult =
@@ -186,7 +187,10 @@ export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInpu
 
   return {
     kind: "claimed",
-    job: claimedJob,
+    job: {
+      ...claimedJob,
+      workflowRunId: attachedJob.runId,
+    },
   } satisfies ClaimTranslationJobResult;
 }
 
@@ -299,24 +303,24 @@ export async function executeClaimedTranslationJob(
     };
   }
 
-  const [project] = await db
-    .select({
-      name: schema.translationProjects.name,
-      translationContext: schema.translationProjects.translationContext,
-    })
-    .from(schema.translationProjects)
-    .where(eq(schema.translationProjects.id, claimedJob.projectId))
-    .limit(1);
-
-  if (!project) {
-    return {
-      ok: false,
-      code: "translation_project_not_found",
-      message: `translation project ${claimedJob.projectId} was not found`,
-    };
-  }
-
   if (translateStringJobOverride) {
+    const [project] = await db
+      .select({
+        name: schema.translationProjects.name,
+        translationContext: schema.translationProjects.translationContext,
+      })
+      .from(schema.translationProjects)
+      .where(eq(schema.translationProjects.id, claimedJob.projectId))
+      .limit(1);
+
+    if (!project) {
+      return {
+        ok: false,
+        code: "translation_project_not_found",
+        message: `translation project ${claimedJob.projectId} was not found`,
+      };
+    }
+
     const result = await translateStringJobOverride({
       projectName: project.name,
       projectTranslationContext: project.translationContext,
@@ -356,6 +360,7 @@ export async function executeClaimedTranslationJob(
 export async function completeTranslationJob(input: {
   jobId: string;
   projectId: string;
+  workflowRunId: string;
   result: StringTranslationJobResult;
 }) {
   const [succeededJob] = await db
@@ -371,6 +376,7 @@ export async function completeTranslationJob(input: {
       and(
         eq(schema.translationJobs.id, input.jobId),
         eq(schema.translationJobs.projectId, input.projectId),
+        eq(schema.translationJobs.workflowRunId, input.workflowRunId),
       ),
     )
     .returning({
@@ -386,7 +392,9 @@ export async function completeTranslationJob(input: {
     });
 
   if (!succeededJob) {
-    throw new Error(`translation job ${input.jobId} disappeared before success could be recorded`);
+    throw new Error(
+      `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
+    );
   }
 
   return succeededJob;
@@ -395,6 +403,7 @@ export async function completeTranslationJob(input: {
 export async function failTranslationJob(input: {
   jobId: string;
   projectId: string;
+  workflowRunId: string;
   code: string;
   message: string;
 }) {
@@ -414,6 +423,7 @@ export async function failTranslationJob(input: {
       and(
         eq(schema.translationJobs.id, input.jobId),
         eq(schema.translationJobs.projectId, input.projectId),
+        eq(schema.translationJobs.workflowRunId, input.workflowRunId),
       ),
     )
     .returning({
@@ -429,7 +439,9 @@ export async function failTranslationJob(input: {
     });
 
   if (!failedJob) {
-    throw new Error(`translation job ${input.jobId} disappeared before failure could be recorded`);
+    throw new Error(
+      `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
+    );
   }
 
   return failedJob;
@@ -454,6 +466,7 @@ export function createTranslationJobQueuedFunction(
         return failTranslationJob({
           jobId: claim.job.id,
           projectId: claim.job.projectId,
+          workflowRunId: claim.job.workflowRunId,
           code: execution.code,
           message: execution.message,
         });
@@ -462,6 +475,7 @@ export function createTranslationJobQueuedFunction(
       return completeTranslationJob({
         jobId: claim.job.id,
         projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
         result: execution.result,
       });
     } catch (error) {
@@ -470,6 +484,7 @@ export function createTranslationJobQueuedFunction(
       return failTranslationJob({
         jobId: claim.job.id,
         projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
         code: "translation_execution_failed",
         message,
       });

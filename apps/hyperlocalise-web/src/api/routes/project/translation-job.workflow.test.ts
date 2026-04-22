@@ -7,7 +7,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
-import { createTranslationJobQueuedFunction } from "@/lib/translation/translation-job-queued-function";
+import {
+  completeTranslationJob,
+  createTranslationJobQueuedFunction,
+  failTranslationJob,
+} from "@/lib/translation/translation-job-queued-function";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -180,6 +184,67 @@ describe("executeTranslationJobQueued", () => {
     expect(storedJob?.workflowRunId).toBe("run_existing");
     expect(storedJob?.status).toBe("queued");
     expect(translateStringJob).not.toHaveBeenCalled();
+  });
+
+  it("does not complete a job owned by another workflow run", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const [job] = await db
+      .insert(schema.translationJobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        projectId: project.id,
+        createdByUserId: user.id,
+        type: "string",
+        status: "running",
+        workflowRunId: "run_existing",
+        inputPayload: {
+          sourceText: "Hello world",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      })
+      .returning();
+
+    await expect(
+      completeTranslationJob({
+        jobId: job.id,
+        projectId: project.id,
+        workflowRunId: "run_stale",
+        result: {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+        },
+      }),
+    ).rejects.toThrow("is not owned by workflow run run_stale");
+  });
+
+  it("does not fail a job owned by another workflow run", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const [job] = await db
+      .insert(schema.translationJobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        projectId: project.id,
+        createdByUserId: user.id,
+        type: "string",
+        status: "running",
+        workflowRunId: "run_existing",
+        inputPayload: {
+          sourceText: "Hello world",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      })
+      .returning();
+
+    await expect(
+      failTranslationJob({
+        jobId: job.id,
+        projectId: project.id,
+        workflowRunId: "run_stale",
+        code: "stale_run",
+        message: "stale workflow run",
+      }),
+    ).rejects.toThrow("is not owned by workflow run run_stale");
   });
 
   it("fails when the organization has no OpenAI provider credential", async () => {

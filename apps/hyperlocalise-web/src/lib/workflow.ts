@@ -81,17 +81,8 @@ export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
 
 export function createWorkflowGitHubReviewQueue(): GitHubReviewQueue {
   return {
-    async enqueue(event, eventId) {
-      return {
-        ids: [
-          eventId ??
-            getGitHubReviewRequestedEventId(
-              event.reviewKey,
-              event.trigger.type,
-              event.trigger.deliveryId,
-            ),
-        ],
-      };
+    async enqueue() {
+      throw new Error("GitHub review workflows are not implemented yet");
     },
   };
 }
