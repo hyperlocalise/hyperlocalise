@@ -6,14 +6,14 @@ import type { EmailTranslationEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 
-async function createTranslationSandbox(): Promise<{ sandboxId: string; token: string }> {
+async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
 
   const sandbox = await Sandbox.create({
     timeout: sandboxTimeoutMs,
   });
 
-  return { sandboxId: sandbox.sandboxId, token: "" };
+  return { sandboxId: sandbox.sandboxId };
 }
 
 async function stopTranslationSandbox(sandboxId: string): Promise<void> {
@@ -80,12 +80,11 @@ async function readTranslatedFile(sandboxId: string, outputFile: string): Promis
   "use step";
 
   const sandbox = await Sandbox.get({ sandboxId });
-  const result = await sandbox.runCommand("cat", [outputFile]);
-  if (result.exitCode !== 0) {
-    throw new Error(`failed to read translated file: ${await result.output("both")}`);
+  const content = await sandbox.readFileToBuffer({ path: outputFile });
+  if (!content) {
+    throw new Error(`failed to read translated file: ${outputFile}`);
   }
-  const output = await result.output("both");
-  return Buffer.from(output, "utf-8");
+  return content;
 }
 
 function shellQuote(value: string): string {

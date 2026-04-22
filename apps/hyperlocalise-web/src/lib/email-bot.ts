@@ -144,8 +144,12 @@ async function handleEmail(thread: Thread<EmailBotState>, message: Message) {
   }
 
   const imageAttachments = message.attachments.filter((att) => att.type === "image");
-  if (imageAttachments.length > 0) {
-    await handleImageAttachment(thread, message, imageAttachments[0]!, raw);
+  for (const imageAttachment of imageAttachments) {
+    await handleImageAttachment(thread, message, imageAttachment, raw);
+  }
+
+  const fileAttachments = attachments.filter((att) => !att.contentType.startsWith("image/"));
+  if (fileAttachments.length === 0) {
     return;
   }
 
@@ -162,7 +166,7 @@ async function handleEmail(thread: Thread<EmailBotState>, message: Message) {
     `Got it! Translating your file from ${sourceLocale} to ${targetLocale}. I'll email you back when it's ready.`,
   );
 
-  const attachmentUrls = await fetchAttachmentDownloadUrls(raw.emailId, attachments);
+  const attachmentUrls = await fetchAttachmentDownloadUrls(raw.emailId, fileAttachments);
   if (attachmentUrls.length === 0) {
     await thread.post("Sorry, I couldn't retrieve your attachment.");
     return;
