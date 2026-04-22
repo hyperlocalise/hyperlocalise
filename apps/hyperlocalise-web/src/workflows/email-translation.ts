@@ -145,7 +145,10 @@ export async function emailTranslationWorkflow(event: EmailTranslationEventData)
 
   const { sandboxId } = await createTranslationSandbox();
   const inputFile = `input-${sanitizeFilename(event.senderEmail)}`;
-  const outputFile = getOutputFilename(event.attachmentFilename, event.targetLocale);
+  const outputFile = getOutputFilename(
+    sanitizeFilename(event.attachmentFilename),
+    event.targetLocale,
+  );
 
   try {
     await prepareSandbox(sandboxId);

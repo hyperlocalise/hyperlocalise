@@ -163,10 +163,16 @@ async function handleEmail(thread: Thread<EmailBotState>, message: Message) {
   );
 
   const attachmentUrls = await fetchAttachmentDownloadUrls(raw.emailId, attachments);
-  const firstAttachment = attachmentUrls[0];
-  if (!firstAttachment) {
+  if (attachmentUrls.length === 0) {
     await thread.post("Sorry, I couldn't retrieve your attachment.");
     return;
+  }
+
+  const extraCount = attachmentUrls.length - 1;
+  if (extraCount > 0) {
+    await thread.post(
+      `Note: You sent ${attachmentUrls.length} attachments. I'll translate all of them and send each result back separately.`,
+    );
   }
 
   await thread.setState({
@@ -177,15 +183,17 @@ async function handleEmail(thread: Thread<EmailBotState>, message: Message) {
     },
   });
 
-  await queue.enqueue({
-    senderEmail,
-    subject: raw.subject ?? "",
-    originalMessageId: raw.messageId,
-    attachmentDownloadUrl: firstAttachment.downloadUrl,
-    attachmentFilename: firstAttachment.filename,
-    sourceLocale,
-    targetLocale,
-  });
+  for (const att of attachmentUrls) {
+    await queue.enqueue({
+      senderEmail,
+      subject: raw.subject ?? "",
+      originalMessageId: raw.messageId,
+      attachmentDownloadUrl: att.downloadUrl,
+      attachmentFilename: att.filename,
+      sourceLocale,
+      targetLocale,
+    });
+  }
 }
 
 async function handleImageAttachment(
