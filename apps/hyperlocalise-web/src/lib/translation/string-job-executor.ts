@@ -130,7 +130,7 @@ function normalizeTranslations(
     }
   }
 
-  const translations = jobInput.targetLocales.map((locale) => {
+  const translations = [...new Set(jobInput.targetLocales)].map((locale) => {
     const text = translationsByLocale.get(locale);
 
     if (!text) {
