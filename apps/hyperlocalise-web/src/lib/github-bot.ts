@@ -96,7 +96,7 @@ function buildFixEvent(input: {
       trigger: {
         event: "issue_comment",
         action: "created",
-        deliveryId: null,
+        deliveryId: String(input.raw.comment.id),
         commentId: input.raw.comment.id,
       },
       scope: { type: "pull_request" },
@@ -108,7 +108,7 @@ function buildFixEvent(input: {
     trigger: {
       event: "pull_request_review_comment",
       action: "created",
-      deliveryId: null,
+      deliveryId: String(input.raw.comment.id),
       commentId: input.raw.comment.id,
     },
     scope: {
@@ -157,10 +157,10 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
 }
 
 export async function getGitHubBot(options: GitHubBotOptions) {
-  botQueue = options.githubFixQueue;
   if (botInstance) {
     return botInstance;
   }
+  botQueue = options.githubFixQueue;
   if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY || !env.GITHUB_APP_WEBHOOK_SECRET) {
     throw new Error("missing GitHub App bot configuration");
   }

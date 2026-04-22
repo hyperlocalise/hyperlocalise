@@ -120,18 +120,19 @@ async function prepareSandbox(
     ["git", ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"]],
     ["git", ["remote", "set-url", "origin", remote]],
     ["bash", ["-lc", "mkdir -p .hyperlocalise"]],
-    [
-      "bash",
-      [
-        "-lc",
-        'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
-      ],
-    ],
   ] satisfies Array<[string, string[]]>) {
     const result = await runSandboxCommand(sandboxId, command, args);
     if (result.exitCode !== 0) {
       throw new Error(`sandbox setup failed: ${result.output}`);
     }
+  }
+
+  const installResult = await runSandboxCommand(sandboxId, "bash", [
+    "-lc",
+    'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
+  ]);
+  if (installResult.exitCode !== 0) {
+    throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);
   }
 }
 
@@ -171,8 +172,6 @@ async function resolveScopedFix(
   sandboxId: string,
   event: GitHubFixRequestedEventData,
 ): Promise<ScopedFix | null> {
-  "use step";
-
   if (event.scope.type !== "review_comment") {
     return null;
   }
@@ -194,7 +193,12 @@ async function resolveScopedFix(
     throw new Error(`read scoped report failed: ${report.output}`);
   }
 
-  const parsed = JSON.parse(report.output) as { findings?: CheckFinding[] };
+  let parsed: { findings?: CheckFinding[] };
+  try {
+    parsed = JSON.parse(report.output) as { findings?: CheckFinding[] };
+  } catch {
+    throw new Error(`failed to parse scoped check report: ${report.output}`);
+  }
   const matches = (parsed.findings ?? []).filter((finding) =>
     matchesCommentLine(
       finding,
@@ -326,7 +330,7 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
           output: fix.output,
         }),
       );
-      throw new Error(`hl fix failed: ${fix.output}`);
+      return;
     }
 
     const changed = await hasUncommittedChanges(sandboxId);
