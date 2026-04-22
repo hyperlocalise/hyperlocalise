@@ -65,7 +65,7 @@ async function getPullRequestMetadata(
 async function createFixSandbox(
   event: GitHubFixRequestedEventData,
   headBranch: string,
-): Promise<string> {
+): Promise<{ sandboxId: string; token: string }> {
   "use step";
 
   const octokit = await getInstallationOctokit(event.installationId);
@@ -82,7 +82,7 @@ async function createFixSandbox(
     timeout: sandboxTimeoutMs,
   });
 
-  return sandbox.sandboxId;
+  return { sandboxId: sandbox.sandboxId, token };
 }
 
 async function stopFixSandbox(sandboxId: string): Promise<void> {
@@ -108,11 +108,10 @@ async function runSandboxCommand(
 async function prepareSandbox(
   sandboxId: string,
   event: GitHubFixRequestedEventData,
+  token: string,
 ): Promise<void> {
   "use step";
 
-  const octokit = await getInstallationOctokit(event.installationId);
-  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
   const remote = `https://github.com/${event.repositoryFullName}.git`;
 
   for (const [command, args] of [
@@ -257,7 +256,7 @@ async function commitAndPush(sandboxId: string, headBranch: string): Promise<voi
   "use step";
 
   for (const [command, args] of [
-    ["git", ["add", "-A"]],
+    ["git", ["add", "-u"]],
     ["git", ["commit", "-m", "fix(i18n): apply hyperlocalise fixes"]],
     ["git", ["push", "origin", headBranch]],
   ] satisfies Array<[string, string[]]>) {
@@ -314,9 +313,9 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
     return;
   }
 
-  const sandboxId = await createFixSandbox(event, pr.headBranch);
+  const { sandboxId, token } = await createFixSandbox(event, pr.headBranch);
   try {
-    await prepareSandbox(sandboxId, event);
+    await prepareSandbox(sandboxId, event, token);
     const fix = await runFixCommand(sandboxId, event);
     if ("skipped" in fix) {
       await postPullRequestComment(event, `## Hyperlocalise fix skipped\n\n${fix.reason}`);

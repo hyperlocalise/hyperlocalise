@@ -33,7 +33,10 @@ export async function verifyGitHubState(
   const payload = `${slug}:${timestampStr}`;
   const expectedSignature = await signGitHubState(payload, secret);
   const enc = new TextEncoder();
-  if (!timingSafeEqual(enc.encode(providedSignature), enc.encode(expectedSignature))) return null;
+  const providedBytes = enc.encode(providedSignature);
+  const expectedBytes = enc.encode(expectedSignature);
+  if (providedBytes.byteLength !== expectedBytes.byteLength) return null;
+  if (!timingSafeEqual(providedBytes, expectedBytes)) return null;
 
   const timestamp = Number.parseInt(timestampStr, 10);
   if (!Number.isFinite(timestamp)) return null;
@@ -45,9 +48,9 @@ export async function verifyGitHubState(
 }
 
 export function getGitHubStateSecret(): string {
-  const secret = env.GITHUB_OAUTH_STATE_SECRET ?? env.GITHUB_APP_WEBHOOK_SECRET;
+  const secret = env.GITHUB_OAUTH_STATE_SECRET;
   if (!secret) {
-    throw new Error("missing GITHUB_OAUTH_STATE_SECRET or GITHUB_APP_WEBHOOK_SECRET");
+    throw new Error("missing GITHUB_OAUTH_STATE_SECRET");
   }
   return secret;
 }
