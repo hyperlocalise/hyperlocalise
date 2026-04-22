@@ -61,3 +61,17 @@ export type TranslationJobQueue = {
 export type GitHubFixQueue = {
   enqueue(event: GitHubFixRequestedEventData): Promise<{ ids: string[] }>;
 };
+
+export type EmailTranslationEventData = {
+  senderEmail: string;
+  subject: string;
+  originalMessageId: string;
+  attachmentDownloadUrl: string;
+  attachmentFilename: string;
+  sourceLocale: string;
+  targetLocale: string;
+};
+
+export type EmailTranslationQueue = {
+  enqueue(event: EmailTranslationEventData): Promise<{ ids: string[] }>;
+};
