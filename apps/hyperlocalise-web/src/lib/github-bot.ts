@@ -1,9 +1,9 @@
 import type { GitHubAdapter, GitHubRawMessage } from "@chat-adapter/github";
 import { createGitHubAdapter } from "@chat-adapter/github";
-import { createMemoryState } from "@chat-adapter/state-memory";
 import { Chat, emoji } from "chat";
 import type { Message, Thread } from "chat";
 
+import { createChatStateAdapter } from "@/lib/chat-state";
 import { env } from "@/lib/env";
 import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow/types";
 
@@ -23,26 +23,6 @@ type GitHubBotState = {
 let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHubBotState> | null =
   null;
 let botQueue: GitHubFixQueue | null = null;
-
-function createStateAdapter() {
-  if (!env.CHAT_STATE_DATABASE_URL) {
-    return createMemoryState();
-  }
-
-  try {
-    const { createPostgresState } = require("@chat-adapter/state-pg") as {
-      createPostgresState: (options: {
-        connectionString: string;
-      }) => ReturnType<typeof createMemoryState>;
-    };
-
-    return createPostgresState({ connectionString: env.CHAT_STATE_DATABASE_URL });
-  } catch {
-    throw new Error(
-      "CHAT_STATE_DATABASE_URL is set but @chat-adapter/state-pg is not installed. Add @chat-adapter/state-pg to dependencies.",
-    );
-  }
-}
 
 function parseFixCommand(text: string): HyperlocaliseFixCommand | null {
   const mentionIndex = text.toLowerCase().indexOf("@hyperlocalise");
@@ -182,7 +162,7 @@ export async function getGitHubBot(options: GitHubBotOptions) {
       }),
     },
     logger: "info",
-    state: createStateAdapter(),
+    state: createChatStateAdapter(),
     userName: "hyperlocalise",
   });
 

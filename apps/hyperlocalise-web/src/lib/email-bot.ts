@@ -1,10 +1,9 @@
-import { createMemoryState } from "@chat-adapter/state-memory";
-import { createRedisState } from "@chat-adapter/state-redis";
 import { eq, sql } from "drizzle-orm";
 import { Chat } from "chat";
 import type { Message, Thread } from "chat";
 import { Resend } from "resend";
 
+import { createChatStateAdapter } from "@/lib/chat-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { regenerateImageFromAttachment } from "@/lib/image-generation";
@@ -23,10 +22,6 @@ type EmailBotState = {
 let botInstance: Chat<{ resend: ReturnType<typeof createResendAdapter> }, EmailBotState> | null =
   null;
 let botQueue: EmailTranslationQueue | null = null;
-
-function createStateAdapter() {
-  return env.REDIS_URL ? createRedisState({ url: env.REDIS_URL }) : createMemoryState();
-}
 
 function parseLocales(text: string): { sourceLocale: string | null; targetLocale: string | null } {
   const patterns = [
@@ -264,7 +259,7 @@ export async function getEmailBot(options?: { emailTranslationQueue?: EmailTrans
       }),
     },
     logger: "info",
-    state: createStateAdapter(),
+    state: createChatStateAdapter(),
     userName: "hyperlocalise",
   });
 
