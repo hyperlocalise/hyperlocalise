@@ -172,11 +172,6 @@ export async function getGitHubBot(options: GitHubBotOptions) {
   });
 
   botInstance.onNewMention(handleMention);
-  botInstance.onSubscribedMessage(async (thread, message) => {
-    if (message.isMention) {
-      await handleMention(thread, message);
-    }
-  });
 
   return botInstance;
 }

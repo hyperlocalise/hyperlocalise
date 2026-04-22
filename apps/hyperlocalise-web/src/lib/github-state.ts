@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { env } from "@/lib/env";
 
 async function importHmacKey(secret: string): Promise<CryptoKey> {
@@ -30,7 +32,8 @@ export async function verifyGitHubState(
 
   const payload = `${slug}:${timestampStr}`;
   const expectedSignature = await signGitHubState(payload, secret);
-  if (providedSignature !== expectedSignature) return null;
+  const enc = new TextEncoder();
+  if (!timingSafeEqual(enc.encode(providedSignature), enc.encode(expectedSignature))) return null;
 
   const timestamp = Number.parseInt(timestampStr, 10);
   if (!Number.isFinite(timestamp)) return null;

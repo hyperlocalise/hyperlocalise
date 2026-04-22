@@ -56,7 +56,12 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
 
     const response = await handler(request);
 
-    if (payload.action === "deleted" && payload.installation?.id && response.ok) {
+    if (
+      c.req.header("x-github-event") === "installation" &&
+      payload.action === "deleted" &&
+      payload.installation?.id &&
+      response.ok
+    ) {
       await db
         .delete(schema.githubInstallations)
         .where(eq(schema.githubInstallations.githubInstallationId, payload.installation.id));
