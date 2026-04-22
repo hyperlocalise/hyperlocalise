@@ -1,4 +1,4 @@
-import type { GitHubRawMessage } from "@chat-adapter/github";
+import type { GitHubAdapter, GitHubRawMessage } from "@chat-adapter/github";
 import { createGitHubAdapter } from "@chat-adapter/github";
 import { createMemoryState } from "@chat-adapter/state-memory";
 import { createRedisState } from "@chat-adapter/state-redis";
@@ -24,15 +24,6 @@ type GitHubBotState = {
 let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHubBotState> | null =
   null;
 let botQueue: GitHubFixQueue | null = null;
-
-function gitHubAppInstallationId(): number | undefined {
-  if (!env.GITHUB_APP_INSTALLATION_ID) {
-    return undefined;
-  }
-
-  const installationId = Number.parseInt(env.GITHUB_APP_INSTALLATION_ID, 10);
-  return Number.isFinite(installationId) ? installationId : undefined;
-}
 
 function createStateAdapter() {
   return env.REDIS_URL ? createRedisState({ url: env.REDIS_URL }) : createMemoryState();
@@ -133,7 +124,8 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
   if (!command) {
     return;
   }
-  const installationId = gitHubAppInstallationId();
+
+  const installationId = await (thread.adapter as GitHubAdapter).getInstallationId(thread);
   if (!installationId) {
     await thread.post("GitHub App installation is not configured for `@hyperlocalise fix`.");
     return;
@@ -169,7 +161,6 @@ export async function getGitHubBot(options: GitHubBotOptions) {
     adapters: {
       github: createGitHubAdapter({
         appId: env.GITHUB_APP_ID,
-        installationId: gitHubAppInstallationId(),
         privateKey: env.GITHUB_APP_PRIVATE_KEY.replaceAll("\\n", "\n"),
         userName: "hyperlocalise",
         webhookSecret: env.GITHUB_APP_WEBHOOK_SECRET,

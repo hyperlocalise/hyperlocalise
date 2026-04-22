@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
+import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -41,9 +42,11 @@ export default async function RootLayout({
       <body>
         <Analytics />
         <AuthKitProvider>
-          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-            <TooltipProvider>{children}</TooltipProvider>
-          </ThemeProvider>
+          <QueryProvider>
+            <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+              <TooltipProvider>{children}</TooltipProvider>
+            </ThemeProvider>
+          </QueryProvider>
         </AuthKitProvider>
       </body>
     </html>

@@ -39,6 +39,9 @@ importers:
       '@t3-oss/env-nextjs':
         specifier: 0.13.11
         version: 0.13.11(typescript@6.0.3)(valibot@1.3.1(typescript@6.0.3))(zod@4.3.6)
+      '@tanstack/react-query':
+        specifier: ^5.99.2
+        version: 5.99.2(react@19.2.5)
       '@vercel/analytics':
         specifier: 2.0.1
         version: 2.0.1(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
@@ -2765,6 +2768,14 @@ packages:
 
   '@tailwindcss/postcss@4.2.3':
     resolution: {integrity: sha512-MehdHOQRVFf300r8F430s4cf2QL+nSjFUNIndX5ZMqDLyMwTnyL4RDZsoDsDU+ThzT5eCj1+erSDKBWdn462Nw==}
+
+  '@tanstack/query-core@5.99.2':
+    resolution: {integrity: sha512-1HunU0bXVsR1ZJMZbcOPE6VtaBJxsW809RE9xPe4Gz7MlB0GWwQvuTPhMoEmQ/hIzFKJ/DWAuttIe7BOaWx0tA==}
+
+  '@tanstack/react-query@5.99.2':
+    resolution: {integrity: sha512-vM91UEe45QUS9ED6OklsVL15i8qKcRqNwpWzPTVWvRPRSEgDudDgHpvyTjcdlwHcrKNa80T+xXYcchT2noPnZA==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@tokenizer/inflate@0.4.1':
     resolution: {integrity: sha512-2mAv+8pkG6GIZiF1kNg1jAjh27IDxEPKwdGul3snfztFerfPGI1LjDezZp3i7BElXompqEtPmoPx6c2wgtWsOA==}
@@ -8705,6 +8716,13 @@ snapshots:
       '@tailwindcss/oxide': 4.2.3
       postcss: 8.5.8
       tailwindcss: 4.2.3
+
+  '@tanstack/query-core@5.99.2': {}
+
+  '@tanstack/react-query@5.99.2(react@19.2.5)':
+    dependencies:
+      '@tanstack/query-core': 5.99.2
+      react: 19.2.5
 
   '@tokenizer/inflate@0.4.1':
     dependencies:

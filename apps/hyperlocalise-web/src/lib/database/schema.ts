@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   customType,
@@ -520,6 +521,31 @@ export const organizationLlmProviderCredentials = pgTable(
   (table) => [
     uniqueIndex("organization_llm_provider_credentials_org_key").on(table.organizationId),
     index("idx_organization_llm_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const githubInstallations = pgTable(
+  "github_installations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    githubInstallationId: bigint("github_installation_id", { mode: "number" }).notNull(),
+    githubAppId: bigint("github_app_id", { mode: "number" }).notNull(),
+    accountLogin: text("account_login"),
+    accountType: text("account_type"),
+    repositories: jsonb("repositories").$type<Array<{ id: number; fullName: string }>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_installations_organization_id_key").on(table.organizationId),
+    uniqueIndex("github_installations_github_installation_id_key").on(table.githubInstallationId),
+    index("idx_github_installations_created_at").on(table.createdAt),
   ],
 );
 

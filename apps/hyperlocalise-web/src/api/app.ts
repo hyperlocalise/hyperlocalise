@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import type { GitHubFixQueue, TranslationJobQueue } from "@/lib/workflow/types";
 import { authRoutes } from "./routes/auth";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
 import { createProjectRoutes } from "./routes/project/project.route";
@@ -27,6 +28,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/orgs/:organizationSlug/projects", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
+    .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route(
       "/webhooks/github",
       createGithubWebhookRoutes({

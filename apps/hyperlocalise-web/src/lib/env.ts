@@ -12,7 +12,6 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1).optional(),
     PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
     GITHUB_APP_ID: z.string().min(1).optional(),
-    GITHUB_APP_INSTALLATION_ID: z.string().min(1).optional(),
     GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
     GITHUB_APP_WEBHOOK_SECRET: z.string().min(1).optional(),
     REDIS_URL: z.url().optional(),
@@ -36,8 +35,6 @@ export const env = createEnv({
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     GITHUB_APP_ID: process.env.GITHUB_APP_ID ?? (isTestEnv ? "123" : undefined),
-    GITHUB_APP_INSTALLATION_ID:
-      process.env.GITHUB_APP_INSTALLATION_ID ?? (isTestEnv ? "123" : undefined),
     GITHUB_APP_PRIVATE_KEY:
       process.env.GITHUB_APP_PRIVATE_KEY ?? (isTestEnv ? "test-github-app-private-key" : undefined),
     GITHUB_APP_WEBHOOK_SECRET:

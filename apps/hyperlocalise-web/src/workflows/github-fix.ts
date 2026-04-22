@@ -113,11 +113,13 @@ async function prepareSandbox(
 
   const octokit = await getInstallationOctokit(event.installationId);
   const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
-  const remote = `https://x-access-token:${token}@github.com/${event.repositoryFullName}.git`;
+  const remote = `https://github.com/${event.repositoryFullName}.git`;
 
   for (const [command, args] of [
     ["git", ["config", "user.name", "hyperlocalise[bot]"]],
     ["git", ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"]],
+    ["git", ["config", "credential.helper", "store"]],
+    ["bash", ["-lc", `echo "https://x-access-token:${token}@github.com" > ~/.git-credentials`]],
     ["git", ["remote", "set-url", "origin", remote]],
     ["bash", ["-lc", "mkdir -p .hyperlocalise"]],
   ] satisfies Array<[string, string[]]>) {
@@ -346,6 +348,10 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
         output: fix.output,
       }),
     );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await postPullRequestComment(event, `## Hyperlocalise fix failed\n\n${message}`);
+    throw error;
   } finally {
     await stopFixSandbox(sandboxId);
   }

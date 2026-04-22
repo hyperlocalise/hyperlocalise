@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 
+import { db, schema } from "@/lib/database";
 import { getGitHubBot } from "@/lib/github-bot";
 import type { GitHubFixQueue } from "@/lib/workflow/types";
 import { createGitHubFixQueue } from "@/workflows/adapters";
@@ -23,6 +25,24 @@ async function defaultGithubWebhookHandler(queue: GitHubFixQueue) {
 
 export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOptions = {}) {
   return new Hono().post("/", async (c) => {
+    const bodyBuffer = await c.req.raw.arrayBuffer();
+    const payload = JSON.parse(new TextDecoder().decode(bodyBuffer)) as {
+      action?: string;
+      installation?: { id: number };
+    };
+
+    // TODO: verify the installation exists in our database before processing.
+    // This prevents unauthorized installations from consuming bot resources.
+    // We should look up githubInstallations by githubInstallationId and reject
+    // (or silently accept 200) if the row is missing.
+
+    if (payload.action === "deleted" && payload.installation?.id) {
+      await db
+        .delete(schema.githubInstallations)
+        .where(eq(schema.githubInstallations.githubInstallationId, payload.installation.id));
+      return c.json({ ok: true }, 200);
+    }
+
     const handler =
       options.githubWebhookHandler ??
       (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
@@ -31,6 +51,13 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       return c.json({ error: "github_adapter_not_configured" }, 503);
     }
 
-    return handler(c.req.raw);
+    // Reconstruct the request so the adapter can verify the webhook signature.
+    const request = new Request(c.req.raw.url, {
+      method: c.req.raw.method,
+      headers: c.req.raw.headers,
+      body: bodyBuffer,
+    });
+
+    return handler(request);
   });
 }
