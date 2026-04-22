@@ -1,145 +1,29 @@
-import "dotenv/config";
-
-import { createHmac } from "node:crypto";
-
 import { describe, expect, it } from "vite-plus/test";
 
-import { app } from "@/api/app";
-
-const secret = "test-github-app-webhook-secret";
-
-function sign(body: string) {
-  return `sha256=${createHmac("sha256", secret).update(body, "utf8").digest("hex")}`;
-}
+import { createGithubWebhookRoutes } from "./github-webhook";
 
 describe("githubWebhookRoutes", () => {
-  it("returns 401 for invalid signatures", async () => {
-    const response = await app.request("http://localhost/api/webhooks/github", {
+  it("delegates GitHub webhooks to the Chat SDK bot handler", async () => {
+    let called = false;
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async (request) => {
+        called = true;
+        expect(request.method).toBe("POST");
+        return Response.json({ ok: true });
+      },
+    });
+
+    const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-hub-signature-256": "sha256=bad",
-      },
-      body: JSON.stringify({
-        action: "created",
-      }),
-    });
-
-    expect(response.status).toBe(401);
-  });
-
-  it("accepts verified json payloads", async () => {
-    const payload = JSON.stringify({
-      action: "created",
-      installation: {
-        id: 123,
-      },
-    });
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-github-delivery": "delivery-123",
-        "x-github-event": "installation",
-        "x-hub-signature-256": sign(payload),
-      },
-      body: payload,
-    });
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: "delivery-123",
-      event: "installation",
-    });
-  });
-
-  it("accepts verified PR comment mentions without triggering review work yet", async () => {
-    const payload = JSON.stringify({
-      action: "created",
-      issue: {
-        number: 42,
-        pull_request: {
-          url: "https://api.github.com/repos/hyperlocalise/hyperlocalise/pulls/42",
-        },
-      },
-      comment: {
-        id: 7001,
-        body: "@hyperlocalise please rerun",
-      },
-      installation: {
-        id: 123,
-      },
-      repository: {
-        name: "hyperlocalise",
-        full_name: "hyperlocalise/hyperlocalise",
-        owner: {
-          login: "hyperlocalise",
-        },
-      },
-    });
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-github-delivery": "delivery-comment-123",
         "x-github-event": "issue_comment",
-        "x-hub-signature-256": sign(payload),
       },
-      body: payload,
+      body: JSON.stringify({ action: "created" }),
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: "delivery-comment-123",
-      event: "issue_comment",
-    });
-  });
-
-  it("accepts verified form-encoded payloads", async () => {
-    const encodedPayload = JSON.stringify({
-      action: "pending_change",
-      marketplace_purchase: {
-        plan: {
-          id: 456,
-        },
-      },
-    });
-    const body = new URLSearchParams({ payload: encodedPayload }).toString();
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        "x-github-event": "marketplace_purchase",
-        "x-hub-signature-256": sign(body),
-      },
-      body,
-    });
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: null,
-      event: "marketplace_purchase",
-    });
-  });
-
-  it("returns 400 for malformed form-encoded payloads", async () => {
-    const body = new URLSearchParams({ not_payload: "value" }).toString();
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        "x-hub-signature-256": sign(body),
-      },
-      body,
-    });
-
-    expect(response.status).toBe(400);
+    expect(called).toBe(true);
+    await expect(response.json()).resolves.toEqual({ ok: true });
   });
 });

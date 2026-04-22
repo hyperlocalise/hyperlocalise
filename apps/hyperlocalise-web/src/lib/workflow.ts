@@ -1,5 +1,6 @@
 import { start } from "workflow/api";
 
+import { githubFixWorkflow } from "@/workflows/github-fix";
 import { translationJobWorkflow } from "@/workflows/translation-job";
 
 export const TRANSLATION_JOB_QUEUED_EVENT = "translation/job.queued";
@@ -13,6 +14,20 @@ export type TranslationJobQueuedEventData = {
 };
 
 export type GitHubReviewTriggerType = "pull_request" | "mention";
+
+export type GitHubFixScope =
+  | {
+      type: "pull_request";
+    }
+  | {
+      type: "review_comment";
+      path: string;
+      line: number | null;
+      originalLine: number | null;
+      side: "LEFT" | "RIGHT" | null;
+      commitSha: string | null;
+      locale: string | null;
+    };
 
 export type GitHubReviewRequestedEventData = {
   checkRunName: string;
@@ -33,12 +48,30 @@ export type GitHubReviewRequestedEventData = {
   };
 };
 
+export type GitHubFixRequestedEventData = {
+  installationId: number;
+  repositoryOwner: string;
+  repositoryName: string;
+  repositoryFullName: string;
+  pullRequestNumber: number;
+  trigger: {
+    event: "issue_comment" | "pull_request_review_comment";
+    action: string;
+    deliveryId: string | null;
+    commentId: number | null;
+  };
+  scope: GitHubFixScope;
+};
+
 export type TranslationJobQueue = {
   enqueue(event: TranslationJobQueuedEventData): Promise<{ ids: string[] }>;
 };
 
 export type GitHubReviewQueue = {
-  enqueue(event: GitHubReviewRequestedEventData, eventId?: string): Promise<{ ids: string[] }>;
+  enqueue(
+    event: GitHubReviewRequestedEventData | GitHubFixRequestedEventData,
+    eventId?: string,
+  ): Promise<{ ids: string[] }>;
 };
 
 export function getTranslationJobQueuedEventId(jobId: string) {
@@ -81,7 +114,15 @@ export function createWorkflowTranslationJobQueue(): TranslationJobQueue {
 
 export function createWorkflowGitHubReviewQueue(): GitHubReviewQueue {
   return {
-    async enqueue() {
+    async enqueue(event) {
+      if ("scope" in event) {
+        const run = await start(githubFixWorkflow, [event]);
+
+        return {
+          ids: [run.runId],
+        };
+      }
+
       throw new Error("GitHub review workflows are not implemented yet");
     },
   };

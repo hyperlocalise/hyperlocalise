@@ -2,7 +2,7 @@ import { Hono } from "hono";
 
 import type { GitHubReviewQueue, TranslationJobQueue } from "@/lib/workflow";
 import { authRoutes } from "./routes/auth";
-import { githubWebhookRoutes } from "./routes/github-webhook";
+import { createGithubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createProjectRoutes } from "./routes/project/project.route";
@@ -12,6 +12,7 @@ import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
   githubReviewQueue?: GitHubReviewQueue;
+  githubWebhookHandler?: (request: Request) => Promise<Response>;
   translationJobQueue?: TranslationJobQueue;
 };
 
@@ -20,7 +21,13 @@ export function createApp(options: CreateAppOptions = {}) {
     .basePath("/api")
     .route("/health", healthRoutes)
     .route("/auth", authRoutes)
-    .route("/webhooks/github", githubWebhookRoutes)
+    .route(
+      "/webhooks/github",
+      createGithubWebhookRoutes({
+        githubReviewQueue: options.githubReviewQueue,
+        githubWebhookHandler: options.githubWebhookHandler,
+      }),
+    )
     .route("/glossary", createGlossaryRoutes())
     .route("/orgs/:organizationSlug/glossaries", createGlossaryRoutes())
     .route("/webhooks/workos", workosWebhookRoutes)

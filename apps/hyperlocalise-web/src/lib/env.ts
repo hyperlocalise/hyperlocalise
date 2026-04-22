@@ -11,7 +11,11 @@ export const env = createEnv({
     DATABASE_URL: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1).optional(),
     PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
+    GITHUB_APP_ID: z.string().min(1).optional(),
+    GITHUB_APP_INSTALLATION_ID: z.string().min(1).optional(),
+    GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
     GITHUB_APP_WEBHOOK_SECRET: z.string().min(1).optional(),
+    REDIS_URL: z.url().optional(),
     WORKOS_API_KEY: z.string().min(1).optional(),
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
     WORKOS_REDIRECT_URI: z.url().optional(),
@@ -31,9 +35,15 @@ export const env = createEnv({
     PROVIDER_CREDENTIALS_MASTER_KEY:
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
+    GITHUB_APP_ID: process.env.GITHUB_APP_ID ?? (isTestEnv ? "123" : undefined),
+    GITHUB_APP_INSTALLATION_ID:
+      process.env.GITHUB_APP_INSTALLATION_ID ?? (isTestEnv ? "123" : undefined),
+    GITHUB_APP_PRIVATE_KEY:
+      process.env.GITHUB_APP_PRIVATE_KEY ?? (isTestEnv ? "test-github-app-private-key" : undefined),
     GITHUB_APP_WEBHOOK_SECRET:
       process.env.GITHUB_APP_WEBHOOK_SECRET ??
       (isTestEnv ? "test-github-app-webhook-secret" : undefined),
+    REDIS_URL: process.env.REDIS_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
