@@ -15,7 +15,7 @@
     "@base-ui/react": "1.4.1",
     "@chat-adapter/github": "^4.15.0",
     "@chat-adapter/state-memory": "^4.15.0",
-    "@chat-adapter/state-redis": "^4.15.0",
+    "@chat-adapter/state-pg": "^4.15.0",
     "@hookform/resolvers": "5.2.2",
     "@hugeicons/core-free-icons": "4.1.1",
     "@hugeicons/react": "1.1.6",

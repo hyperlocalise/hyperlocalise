@@ -1,7 +1,6 @@
 import type { GitHubAdapter, GitHubRawMessage } from "@chat-adapter/github";
 import { createGitHubAdapter } from "@chat-adapter/github";
 import { createMemoryState } from "@chat-adapter/state-memory";
-import { createRedisState } from "@chat-adapter/state-redis";
 import { Chat, emoji } from "chat";
 import type { Message, Thread } from "chat";
 
@@ -26,7 +25,23 @@ let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHub
 let botQueue: GitHubFixQueue | null = null;
 
 function createStateAdapter() {
-  return env.REDIS_URL ? createRedisState({ url: env.REDIS_URL }) : createMemoryState();
+  if (!env.CHAT_STATE_DATABASE_URL) {
+    return createMemoryState();
+  }
+
+  try {
+    const { createPostgresState } = require("@chat-adapter/state-pg") as {
+      createPostgresState: (options: {
+        connectionString: string;
+      }) => ReturnType<typeof createMemoryState>;
+    };
+
+    return createPostgresState({ connectionString: env.CHAT_STATE_DATABASE_URL });
+  } catch {
+    throw new Error(
+      "CHAT_STATE_DATABASE_URL is set but @chat-adapter/state-pg is not installed. Add @chat-adapter/state-pg to dependencies.",
+    );
+  }
 }
 
 function parseFixCommand(text: string): HyperlocaliseFixCommand | null {
