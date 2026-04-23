@@ -646,6 +646,9 @@ func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sou
 	} else if bucket.targetLocale != "" && bucket.targetLocale != targetLocale {
 		return fmt.Errorf("output staging conflict: %s has conflicting target locales", targetPath)
 	}
+	if bucket.binaryOutput {
+		return fmt.Errorf("output staging conflict: %s mixes image and text outputs", targetPath)
+	}
 
 	if existing, exists := bucket.entries[entryKey]; exists && existing != value {
 		return fmt.Errorf("output staging conflict: %s already staged with different value", taskIdentity(targetPath, entryKey))

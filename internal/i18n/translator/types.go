@@ -37,6 +37,8 @@ type Provider interface {
 
 type ImageEditRequest struct {
 	SourceImage    []byte
+	SourceFilename string
+	SourceMIMEType string
 	TargetLanguage string
 	ModelProvider  string
 	Model          string

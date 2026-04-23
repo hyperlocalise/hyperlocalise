@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -42,7 +43,7 @@ func editImageWithOpenAICompatibleClient(ctx context.Context, providerName strin
 
 	resp, err := client.Images.Edit(ctx, openai.ImageEditParams{
 		Image: openai.ImageEditParamsImageUnion{
-			OfFile: bytes.NewReader(req.SourceImage),
+			OfFile: imageUploadReader(req.SourceImage, req.SourceFilename, req.SourceMIMEType),
 		},
 		Prompt:       req.Prompt,
 		Model:        openai.ImageModel(strings.TrimSpace(req.Model)),
@@ -72,6 +73,36 @@ func editImageWithOpenAICompatibleClient(ctx context.Context, providerName strin
 	}
 
 	return content, nil
+}
+
+type namedImageReader struct {
+	*bytes.Reader
+	filename    string
+	contentType string
+}
+
+func imageUploadReader(content []byte, filename, contentType string) io.Reader {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		filename = "source-image"
+	}
+	contentType = strings.TrimSpace(contentType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return namedImageReader{
+		Reader:      bytes.NewReader(content),
+		filename:    filename,
+		contentType: contentType,
+	}
+}
+
+func (r namedImageReader) Filename() string {
+	return r.filename
+}
+
+func (r namedImageReader) ContentType() string {
+	return r.contentType
 }
 
 func usageFromGenerateTextResponse(resp *openai.ChatCompletion) (Usage, bool) {

@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
+	"mime"
 	"path/filepath"
 	"strings"
 
@@ -67,6 +68,8 @@ func buildImageEditRequest(task Task, sourceImage []byte) translator.ImageEditRe
 		Model:          task.Model,
 		Prompt:         imageEditPrompt(task.TargetLocale),
 		OutputFormat:   task.OutputFormat,
+		SourceFilename: filepath.Base(task.SourcePath),
+		SourceMIMEType: mime.TypeByExtension(filepath.Ext(task.SourcePath)),
 	}
 }
 

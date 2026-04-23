@@ -404,6 +404,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
 						}
 						sourceFingerprint := imageLockSourceHash(sourceContent)
+						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
+							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
+						}
 						for _, target := range targets {
 							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -413,9 +416,6 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							outputFormat, err := imageOutputFormat(targetPath)
 							if err != nil {
 								return nil, nil, fmt.Errorf("planning tasks: image target %q: %w", targetPath, err)
-							}
-							if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
-								return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
 							}
 							task := Task{
 								Kind:              taskKindImage,
@@ -436,7 +436,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 								PromptVersion:     imagePromptVersion,
 								OutputFormat:      outputFormat,
 								sourceFingerprint: sourceFingerprint,
-								sourceImage:       append([]byte(nil), sourceContent...),
+								sourceImage:       sourceContent,
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
