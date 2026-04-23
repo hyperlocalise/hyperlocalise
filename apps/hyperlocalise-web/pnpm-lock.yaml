@@ -133,8 +133,8 @@ importers:
         specifier: ^4.2.4
         version: 4.2.4(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@6.0.3)
       workos:
-        specifier: 0.12.1
-        version: 0.12.1(@types/react@19.2.14)
+        specifier: 0.12.2
+        version: 0.12.2(@types/react@19.2.14)
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -6272,8 +6272,8 @@ packages:
       '@opentelemetry/api':
         optional: true
 
-  workos@0.12.1:
-    resolution: {integrity: sha512-m8+M8ZASM25sb5xrym55eJGeTXv2EOUFkSmUq+vJ2ocEkQCsAEgi+l+lzqQDeAxPhMbNVYOugbShsImdsSRZQw==}
+  workos@0.12.2:
+    resolution: {integrity: sha512-lyyuKDmDbk24C+HA7tpnvteI4dTrdqvJynU2vAb9SebhMkdjR460N3xyfWYdh6nQxZbrKNW9l49FCoK+kIbQzg==}
     engines: {node: '>=20.20'}
     hasBin: true
 
@@ -12534,7 +12534,7 @@ snapshots:
       - supports-color
       - typescript
 
-  workos@0.12.1(@types/react@19.2.14):
+  workos@0.12.2(@types/react@19.2.14):
     dependencies:
       '@anthropic-ai/claude-agent-sdk': 0.2.92(zod@4.3.6)
       '@anthropic-ai/sdk': 0.78.0(zod@4.3.6)
