@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/option"
 )
 
 type fakeProvider struct {
@@ -36,6 +37,25 @@ func (p captureProvider) Translate(_ context.Context, req Request) (string, erro
 		*p.got = req
 	}
 	return "ok", nil
+}
+
+type fakeImageProvider struct {
+	name   string
+	result []byte
+	got    *ImageEditRequest
+}
+
+func (p fakeImageProvider) Name() string { return p.name }
+
+func (p fakeImageProvider) Translate(_ context.Context, _ Request) (string, error) {
+	return "ok", nil
+}
+
+func (p fakeImageProvider) EditImage(_ context.Context, req ImageEditRequest) ([]byte, error) {
+	if p.got != nil {
+		*p.got = req
+	}
+	return p.result, nil
 }
 
 func TestRegisterRejectsDuplicateProvider(t *testing.T) {
@@ -86,6 +106,62 @@ func TestTranslateUsesRegisteredProvider(t *testing.T) {
 	}
 	if translated != "bonjour" {
 		t.Fatalf("unexpected translation: %q", translated)
+	}
+}
+
+func TestEditImageUsesRegisteredImageProvider(t *testing.T) {
+	t.Parallel()
+
+	tool := &Tool{providers: map[string]Provider{}}
+	var got ImageEditRequest
+	if err := tool.Register(fakeImageProvider{name: ProviderOpenAI, result: []byte("image"), got: &got}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	image, err := tool.EditImage(context.Background(), ImageEditRequest{
+		SourceImage:    []byte("source"),
+		TargetLanguage: "fr",
+		Model:          OpenAIImageModel,
+		Prompt:         "localize",
+		OutputFormat:   "png",
+	})
+	if err != nil {
+		t.Fatalf("edit image: %v", err)
+	}
+	if string(image) != "image" {
+		t.Fatalf("image = %q, want image", string(image))
+	}
+	if got.Model != OpenAIImageModel || got.OutputFormat != "png" {
+		t.Fatalf("request model/format = %q/%q", got.Model, got.OutputFormat)
+	}
+}
+
+func TestOpenAIProviderEditImageUsesFixedRequest(t *testing.T) {
+	t.Setenv(defaultOpenAIAPIKeyEnv, "test-key")
+	original := openAIImageEditFunc
+	defer func() { openAIImageEditFunc = original }()
+
+	var got ImageEditRequest
+	openAIImageEditFunc = func(_ context.Context, req ImageEditRequest, _ ...option.RequestOption) ([]byte, error) {
+		got = req
+		return []byte("image"), nil
+	}
+
+	image, err := NewOpenAIProvider().EditImage(context.Background(), ImageEditRequest{
+		SourceImage:    []byte("source"),
+		TargetLanguage: "fr",
+		Model:          OpenAIImageModel,
+		Prompt:         "localize",
+		OutputFormat:   "jpeg",
+	})
+	if err != nil {
+		t.Fatalf("openai edit image: %v", err)
+	}
+	if string(image) != "image" {
+		t.Fatalf("image = %q, want image", string(image))
+	}
+	if got.Model != OpenAIImageModel || got.OutputFormat != "jpeg" || got.Prompt != "localize" {
+		t.Fatalf("request = %+v", got)
 	}
 }
 

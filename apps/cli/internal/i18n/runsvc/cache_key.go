@@ -22,13 +22,19 @@ func precomputeStableTaskCacheFields(task *Task) {
 		return
 	}
 
+	if isImageTask(*task) {
+		task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
+		task.sourceContextFingerprint = sourceContextFingerprint(Task{})
+		return
+	}
+
 	task.sourceTextHash = hashSourceText(normalizeSourceForCache(task.SourceText))
 	task.sourceContextFingerprint = sourceContextFingerprint(*task)
 }
 
 func lockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	canonical := strings.Join([]string{
+	parts := []string{
 		"source_norm_hash=" + task.sourceTextHash,
 		"source_locale=" + strings.TrimSpace(task.SourceLocale),
 		"target_locale=" + strings.TrimSpace(task.TargetLocale),
@@ -41,7 +47,14 @@ func lockTaskHash(task Task) string {
 		"context_key=" + strings.TrimSpace(task.ContextKey),
 		"context_provider=" + strings.TrimSpace(task.ContextProvider),
 		"context_model=" + strings.TrimSpace(task.ContextModel),
-	}, "\n")
+	}
+	if isImageTask(task) {
+		parts = append(parts,
+			"task_kind="+strings.TrimSpace(task.Kind),
+			"output_format="+strings.TrimSpace(task.OutputFormat),
+		)
+	}
+	canonical := strings.Join(parts, "\n")
 	return lockStoredFingerprint(canonical)
 }
 
@@ -54,7 +67,7 @@ func legacyDefaultRetrievalSnapshot() string {
 
 func legacyDefaultLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	canonical := strings.Join([]string{
+	parts := []string{
 		"source_norm_hash=" + task.sourceTextHash,
 		"source_locale=" + strings.TrimSpace(task.SourceLocale),
 		"target_locale=" + strings.TrimSpace(task.TargetLocale),
@@ -69,6 +82,13 @@ func legacyDefaultLockTaskHash(task Task) string {
 		"context_key=" + strings.TrimSpace(task.ContextKey),
 		"context_provider=" + strings.TrimSpace(task.ContextProvider),
 		"context_model=" + strings.TrimSpace(task.ContextModel),
-	}, "\n")
+	}
+	if isImageTask(task) {
+		parts = append(parts,
+			"task_kind="+strings.TrimSpace(task.Kind),
+			"output_format="+strings.TrimSpace(task.OutputFormat),
+		)
+	}
+	canonical := strings.Join(parts, "\n")
 	return lockStoredFingerprint(canonical)
 }

@@ -440,7 +440,7 @@ func validateBucket(name string, bucket BucketConfig) error {
 
 		fromSuffix := getFileSuffix(file.From)
 		toSuffix := getFileSuffix(file.To)
-		if !containsPlaceholder(fromSuffix) && !containsPlaceholder(toSuffix) && fromSuffix != toSuffix {
+		if !containsPlaceholder(fromSuffix) && !containsPlaceholder(toSuffix) && fromSuffix != toSuffix && !isSupportedImageSuffixPair(fromSuffix, toSuffix) {
 			return fmt.Errorf("buckets.%s.files[%d]: file suffix mismatch: from=%q and to=%q must have the same extension", name, i, file.From, file.To)
 		}
 	}
@@ -457,6 +457,19 @@ func containsPlaceholder(s string) bool {
 		strings.Contains(s, "{{source}}") ||
 		strings.Contains(s, "{{target}}") ||
 		strings.Contains(s, "{{localeDir}}")
+}
+
+func isSupportedImageSuffixPair(fromSuffix, toSuffix string) bool {
+	return isSupportedImageSuffix(fromSuffix) && isSupportedImageSuffix(toSuffix)
+}
+
+func isSupportedImageSuffix(suffix string) bool {
+	switch strings.ToLower(strings.TrimSpace(suffix)) {
+	case ".png", ".jpg", ".jpeg", ".webp":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c I18NConfig) validateGroups(targetSet map[string]struct{}, bucketSet map[string]struct{}) (map[string]struct{}, error) {

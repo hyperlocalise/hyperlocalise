@@ -18,6 +18,8 @@ const (
 	ProviderBedrock     = "bedrock"
 )
 
+const OpenAIImageModel = "gpt-image-2-2026-04-21"
+
 type Request struct {
 	Source         string
 	TargetLanguage string
@@ -33,6 +35,20 @@ type Provider interface {
 	Translate(ctx context.Context, req Request) (string, error)
 }
 
+type ImageEditRequest struct {
+	SourceImage    []byte
+	TargetLanguage string
+	ModelProvider  string
+	Model          string
+	Prompt         string
+	OutputFormat   string
+}
+
+type ImageProvider interface {
+	Name() string
+	EditImage(ctx context.Context, req ImageEditRequest) ([]byte, error)
+}
+
 func validateRequest(req Request) error {
 	if strings.TrimSpace(req.Source) == "" {
 		return fmt.Errorf("translate request: source is required")
@@ -42,6 +58,27 @@ func validateRequest(req Request) error {
 	}
 	if strings.TrimSpace(req.Model) == "" {
 		return fmt.Errorf("translate request: model is required")
+	}
+	return nil
+}
+
+func validateImageEditRequest(req ImageEditRequest) error {
+	if len(req.SourceImage) == 0 {
+		return fmt.Errorf("image edit request: source image is required")
+	}
+	if strings.TrimSpace(req.TargetLanguage) == "" {
+		return fmt.Errorf("image edit request: target language is required")
+	}
+	if strings.TrimSpace(req.Model) == "" {
+		return fmt.Errorf("image edit request: model is required")
+	}
+	if strings.TrimSpace(req.Prompt) == "" {
+		return fmt.Errorf("image edit request: prompt is required")
+	}
+	switch strings.ToLower(strings.TrimSpace(req.OutputFormat)) {
+	case "png", "jpeg", "webp":
+	default:
+		return fmt.Errorf("image edit request: unsupported output format %q", req.OutputFormat)
 	}
 	return nil
 }

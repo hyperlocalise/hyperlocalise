@@ -144,6 +144,7 @@ type Event struct {
 }
 
 type Task struct {
+	Kind         string `json:"kind,omitempty"`
 	SourceLocale string `json:"sourceLocale"`
 	TargetLocale string `json:"targetLocale"`
 	SourcePath   string `json:"sourcePath"`
@@ -171,9 +172,12 @@ type Task struct {
 	SourceContext   string `json:"-"`
 	ParserMode      string `json:"-"`
 	PromptVersion   string `json:"-"`
+	OutputFormat    string `json:"-"`
 
 	sourceTextHash           string
 	sourceContextFingerprint string
+	sourceFingerprint        string
+	sourceImage              []byte
 }
 
 type Failure struct {
@@ -231,6 +235,7 @@ type Service struct {
 	readFile   func(path string) ([]byte, error)
 	writeFile  func(path string, content []byte) error
 	translate  func(ctx context.Context, req translator.Request) (string, error)
+	editImage  func(ctx context.Context, req translator.ImageEditRequest) ([]byte, error)
 	newParser  func() *translationfileparser.Strategy
 	now        func() time.Time
 	numCPU     func() int
@@ -249,6 +254,7 @@ func New() *Service {
 			return writeBytesAtomic(path, content)
 		},
 		translate: translator.Translate,
+		editImage: translator.EditImage,
 		newParser: translationfileparser.NewDefaultStrategy,
 		now:       func() time.Time { return time.Now().UTC() },
 		numCPU:    runtime.NumCPU,
@@ -388,6 +394,65 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					}
 					if len(filteredSourcePaths) > 0 {
 						matchedSourcePaths[sourcePath] = struct{}{}
+					}
+					if isSupportedImagePath(sourcePath) {
+						sourceContent, err := s.readFile(sourcePath)
+						if err != nil {
+							if os.IsNotExist(err) {
+								return nil, nil, fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)
+							}
+							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
+						}
+						sourceFingerprint := imageLockSourceHash(sourceContent)
+						for _, target := range targets {
+							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
+							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
+							if err != nil {
+								return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
+							}
+							outputFormat, err := imageOutputFormat(targetPath)
+							if err != nil {
+								return nil, nil, fmt.Errorf("planning tasks: image target %q: %w", targetPath, err)
+							}
+							if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
+								return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
+							}
+							task := Task{
+								Kind:              taskKindImage,
+								SourceLocale:      cfg.Locales.Source,
+								TargetLocale:      target,
+								SourcePath:        sourcePath,
+								TargetPath:        targetPath,
+								EntryKey:          imageEntryKey,
+								SourceText:        sourcePath,
+								ProfileName:       profileName,
+								Provider:          translator.ProviderOpenAI,
+								Model:             translator.OpenAIImageModel,
+								ContextProvider:   contextProvider,
+								ContextModel:      contextModel,
+								GroupName:         groupName,
+								BucketName:        bucketName,
+								ParserMode:        taskKindImage,
+								PromptVersion:     imagePromptVersion,
+								OutputFormat:      outputFormat,
+								sourceFingerprint: sourceFingerprint,
+								sourceImage:       append([]byte(nil), sourceContent...),
+							}
+							precomputeStableTaskCacheFields(&task)
+							if filterFixes {
+								if len(fixSet) == 0 {
+									continue
+								}
+								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)
+								if _, ok := fixSet[mk]; ok {
+									matchedFix[mk] = struct{}{}
+								} else {
+									continue
+								}
+							}
+							tasks = append(tasks, task)
+						}
+						continue
 					}
 					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {

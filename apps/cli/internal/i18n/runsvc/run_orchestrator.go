@@ -222,7 +222,7 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
-		sourceHash := lockStoredFingerprint(task.SourceText)
+		sourceHash := taskLockSourceHash(task)
 		taskHash := lockTaskHash(task)
 		legacyTaskHash := legacyDefaultLockTaskHash(task)
 		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash, legacyTaskHash) {
@@ -231,8 +231,18 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 				checkpoints[identity] = cp
 				lockMigrated = true
 			}
-			if err := stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil); err != nil {
-				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
+			var stageErr error
+			if isImageTask(task) {
+				content, err := decodeImageCheckpoint(cp.Value)
+				if err != nil {
+					return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
+				}
+				stageErr = stageImageOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, content, nil)
+			} else {
+				stageErr = stageTaskOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, cp.Value, nil)
+			}
+			if stageErr != nil {
+				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, stageErr)
 			}
 		}
 		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash, legacyTaskHash) {
@@ -250,6 +260,13 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 	}
 	report.ExecutableTotal = len(executable)
 	return report, executable, checkpointStaged, lockMigrated, nil
+}
+
+func taskLockSourceHash(task Task) string {
+	if isImageTask(task) {
+		return strings.TrimSpace(task.sourceFingerprint)
+	}
+	return lockStoredFingerprint(task.SourceText)
 }
 
 func ensureActiveRunID(state *lockfile.File) string {
