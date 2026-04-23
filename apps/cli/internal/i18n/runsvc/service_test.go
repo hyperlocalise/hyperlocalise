@@ -2819,6 +2819,9 @@ func newTestService() *Service {
 		translate: func(_ context.Context, req translator.Request) (string, error) {
 			return strings.ToUpper(req.Source), nil
 		},
+		editImage: func(_ context.Context, _ translator.ImageEditRequest) ([]byte, error) {
+			return []byte("localized-image"), nil
+		},
 		newParser: translationfileparser.NewDefaultStrategy,
 		now:       func() time.Time { return now },
 		numCPU:    func() int { return 2 },

@@ -10,6 +10,9 @@ import (
 func buildPlannedTargetMetadata(planned []Task) (map[string]stagedOutput, error) {
 	metadata := make(map[string]stagedOutput, len(planned))
 	for _, task := range planned {
+		if isImageTask(task) {
+			continue
+		}
 		existing, ok := metadata[task.TargetPath]
 		if !ok {
 			metadata[task.TargetPath] = stagedOutput{
@@ -36,6 +39,9 @@ func buildPlannedTargetMetadata(planned []Task) (map[string]stagedOutput, error)
 func buildPlannedTargetKeySet(planned []Task) map[string]map[string]struct{} {
 	keep := map[string]map[string]struct{}{}
 	for _, task := range planned {
+		if isImageTask(task) {
+			continue
+		}
 		bucket := keep[task.TargetPath]
 		if bucket == nil {
 			bucket = map[string]struct{}{}

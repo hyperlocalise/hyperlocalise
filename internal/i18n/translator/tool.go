@@ -37,6 +37,16 @@ func Translate(ctx context.Context, req Request) (string, error) {
 	return defaultTool.Translate(ctx, req)
 }
 
+func EditImage(ctx context.Context, req ImageEditRequest) ([]byte, error) {
+	defaultToolOnce.Do(func() {
+		defaultTool, defaultToolInitErr = New()
+	})
+	if defaultToolInitErr != nil {
+		return nil, defaultToolInitErr
+	}
+	return defaultTool.EditImage(ctx, req)
+}
+
 func New() (*Tool, error) {
 	t := &Tool{providers: map[string]Provider{}}
 	if err := RegisterBuiltins(t); err != nil {
@@ -112,4 +122,41 @@ func (t *Tool) Translate(ctx context.Context, req Request) (string, error) {
 	translated = strings.TrimSpace(translated)
 	logPromptResult(req, providerName, translated, nil, duration)
 	return translated, nil
+}
+
+func (t *Tool) EditImage(ctx context.Context, req ImageEditRequest) ([]byte, error) {
+	if err := validateImageEditRequest(req); err != nil {
+		return nil, err
+	}
+
+	providerName := normalizeProvider(req.ModelProvider)
+	if providerName == "" {
+		providerName = ProviderOpenAI
+	}
+
+	t.mu.RLock()
+	provider, ok := t.providers[providerName]
+	t.mu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("edit image: unknown model provider %q", providerName)
+	}
+	imageProvider, ok := provider.(ImageProvider)
+	if !ok {
+		return nil, fmt.Errorf("edit image: provider %q does not support image editing", providerName)
+	}
+
+	tctx, span := otel.Tracer(otelTracerName).Start(ctx, "edit_image")
+	defer span.End()
+	span.SetAttributes(attribute.String("llm.provider", providerName))
+
+	start := time.Now()
+	image, err := imageProvider.EditImage(tctx, req)
+	duration := time.Since(start)
+	if err != nil {
+		span.SetStatus(codes.Error, "edit_image_failed")
+		logPromptResult(Request{TargetLanguage: req.TargetLanguage, ModelProvider: providerName, Model: req.Model, UserPrompt: req.Prompt}, providerName, "", err, duration)
+		return nil, fmt.Errorf("edit image with provider %q: %w", providerName, err)
+	}
+	logPromptResult(Request{TargetLanguage: req.TargetLanguage, ModelProvider: providerName, Model: req.Model, UserPrompt: req.Prompt}, providerName, "<image>", nil, duration)
+	return image, nil
 }

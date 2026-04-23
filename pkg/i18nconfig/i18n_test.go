@@ -304,6 +304,15 @@ func TestLoad(t *testing.T) {
 			}`,
 		},
 		{
+			name: "valid bucket file mapping image suffix conversion",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "assets/banner.png", "to": "assets/banner.es.webp"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openai", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "valid bucket file mapping same suffix no extension",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
