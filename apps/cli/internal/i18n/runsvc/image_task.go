@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	taskKindText       = ""
-	taskKindImage      = "image"
-	imageEntryKey      = "__image__"
-	imagePromptVersion = "image-localize-v1"
+	taskKindText          = ""
+	taskKindImage         = "image"
+	imageEntryKey         = "__image__"
+	imagePromptVersion    = "image-localize-v1"
+	imageCheckpointPrefix = "sha512:"
 )
 
 func isImageTask(task Task) bool {
@@ -74,7 +75,7 @@ func buildImageEditRequest(task Task, sourceImage []byte) translator.ImageEditRe
 }
 
 func encodeImageCheckpoint(content []byte) string {
-	return base64.StdEncoding.EncodeToString(content)
+	return imageCheckpointPrefix + imageSourceFingerprint(content)
 }
 
 func decodeImageCheckpoint(value string) ([]byte, error) {
@@ -84,6 +85,31 @@ func decodeImageCheckpoint(value string) ([]byte, error) {
 	}
 	if len(content) == 0 {
 		return nil, fmt.Errorf("decode image checkpoint: empty image content")
+	}
+	return content, nil
+}
+
+func isImageCheckpointHash(value string) bool {
+	return strings.HasPrefix(strings.TrimSpace(value), imageCheckpointPrefix)
+}
+
+func readImageCheckpointContent(value, targetPath string, readFile func(string) ([]byte, error)) ([]byte, error) {
+	value = strings.TrimSpace(value)
+	if !isImageCheckpointHash(value) {
+		return decodeImageCheckpoint(value)
+	}
+	if readFile == nil {
+		return nil, fmt.Errorf("read image checkpoint %q: no file reader configured", targetPath)
+	}
+	content, err := readFile(targetPath)
+	if err != nil {
+		return nil, fmt.Errorf("read image checkpoint %q: %w", targetPath, err)
+	}
+	if len(content) == 0 {
+		return nil, fmt.Errorf("read image checkpoint %q: empty image content", targetPath)
+	}
+	if got := imageCheckpointPrefix + imageSourceFingerprint(content); got != value {
+		return nil, fmt.Errorf("read image checkpoint %q: content hash mismatch", targetPath)
 	}
 	return content, nil
 }

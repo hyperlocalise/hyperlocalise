@@ -681,6 +681,9 @@ func stageImageOutput(staged map[string]stagedOutput, targetPath, sourcePath, so
 	if len(bucket.entries) > 0 && !bucket.binaryOutput {
 		return fmt.Errorf("output staging conflict: %s mixes text and image outputs", targetPath)
 	}
+	if bucket.binaryOutput && len(bucket.binary) > 0 {
+		return fmt.Errorf("output staging conflict: %s already staged with binary content", targetPath)
+	}
 
 	bucket.binary = append(bucket.binary[:0], content...)
 	bucket.binaryOutput = true

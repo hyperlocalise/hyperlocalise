@@ -68,7 +68,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, lockMigrated, err := applyLockFilter(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force)
+	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readFile)
 	if err != nil {
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
@@ -210,6 +210,10 @@ func initializeLockState(state *lockfile.File) {
 }
 
 func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, force bool) (Report, []Task, map[string]stagedOutput, bool, error) {
+	return applyLockFilterWithReader(planned, completed, checkpoints, activeRunID, force, nil)
+}
+
+func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.RunCompletion, checkpoints map[string]lockfile.RunCheckpoint, activeRunID string, force bool, readFile func(string) ([]byte, error)) (Report, []Task, map[string]stagedOutput, bool, error) {
 	report := Report{PlannedTotal: len(planned)}
 	executable := make([]Task, 0, len(planned))
 	checkpointStaged := map[string]stagedOutput{}
@@ -233,8 +237,13 @@ func applyLockFilter(planned []Task, completed map[string]lockfile.RunCompletion
 			}
 			var stageErr error
 			if isImageTask(task) {
-				content, err := decodeImageCheckpoint(cp.Value)
+				content, err := readImageCheckpointContent(cp.Value, task.TargetPath, readFile)
 				if err != nil {
+					if isImageCheckpointHash(cp.Value) {
+						report.Executable = append(report.Executable, task)
+						executable = append(executable, task)
+						continue
+					}
 					return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, err)
 				}
 				stageErr = stageImageOutput(checkpointStaged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, content, nil)

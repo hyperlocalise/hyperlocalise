@@ -22,6 +22,44 @@ func imageTestConfig(sourcePath, targetPath string) config.I18NConfig {
 	return cfg
 }
 
+func TestImageCheckpointStoresHashAndReadsTargetFile(t *testing.T) {
+	content := []byte("localized-image")
+	checkpoint := encodeImageCheckpoint(content)
+	if !strings.HasPrefix(checkpoint, imageCheckpointPrefix) {
+		t.Fatalf("checkpoint = %q, want hash prefix", checkpoint)
+	}
+	if strings.Contains(checkpoint, "localized-image") {
+		t.Fatalf("checkpoint should not contain image bytes")
+	}
+
+	got, err := readImageCheckpointContent(checkpoint, "/tmp/out.png", func(path string) ([]byte, error) {
+		if path != "/tmp/out.png" {
+			t.Fatalf("read path = %q, want /tmp/out.png", path)
+		}
+		return content, nil
+	})
+	if err != nil {
+		t.Fatalf("read checkpoint: %v", err)
+	}
+	if !bytes.Equal(got, content) {
+		t.Fatalf("content = %q, want %q", string(got), string(content))
+	}
+}
+
+func TestStageImageOutputRejectsDuplicateBinary(t *testing.T) {
+	staged := map[string]stagedOutput{}
+	if err := stageImageOutput(staged, "/tmp/out.png", "/tmp/source.png", "en", "fr", []byte("first"), nil); err != nil {
+		t.Fatalf("stage first image: %v", err)
+	}
+	err := stageImageOutput(staged, "/tmp/out.png", "/tmp/source.png", "en", "fr", []byte("second"), nil)
+	if err == nil || !strings.Contains(err.Error(), "already staged with binary content") {
+		t.Fatalf("expected duplicate binary conflict, got %v", err)
+	}
+	if !bytes.Equal(staged["/tmp/out.png"].binary, []byte("first")) {
+		t.Fatalf("duplicate stage overwrote binary content")
+	}
+}
+
 func TestRunImageDryRunPlansOneTaskPerTargetLocale(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.png"
