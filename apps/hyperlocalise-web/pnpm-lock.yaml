@@ -49,8 +49,8 @@ importers:
         specifier: ^1.7.1
         version: 1.10.0
       '@workos-inc/authkit-nextjs':
-        specifier: 4.0.0
-        version: 4.0.0(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
+        specifier: 4.0.1
+        version: 4.0.1(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
       ai:
         specifier: 6.0.168
         version: 6.0.168(zod@4.3.6)
@@ -3213,8 +3213,8 @@ packages:
     peerDependencies:
       zod: 4.3.6
 
-  '@workos-inc/authkit-nextjs@4.0.0':
-    resolution: {integrity: sha512-9MHXsleq5NmhxQuDHkREmN4hWfpkWF+RHrRpNFfgijQ3/yawXJHKyEigH0Pvfdr2n/27OB7JHihyYNHhx30K8Q==}
+  '@workos-inc/authkit-nextjs@4.0.1':
+    resolution: {integrity: sha512-lSpvQCzazHz1iBS2gtT3o4NQRiman3CjOAvSbU50KeoSYddx/z0hc73WDL9TC+UNTIZ7R7/KBc2BrOrWJ/MiVQ==}
     engines: {node: '>=22.11.0'}
     peerDependencies:
       next: ^13.5.9 || ^14.2.26 || ^15.2.3 || ^16
@@ -9213,7 +9213,7 @@ snapshots:
       ulid: 3.0.2
       zod: 4.3.6
 
-  '@workos-inc/authkit-nextjs@4.0.0(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
+  '@workos-inc/authkit-nextjs@4.0.1(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
     dependencies:
       '@sindresorhus/fnv1a': 3.1.0
       '@workos-inc/node': 9.1.0
