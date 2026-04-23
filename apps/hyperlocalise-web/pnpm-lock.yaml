@@ -24,9 +24,9 @@ importers:
       '@chat-adapter/state-memory':
         specifier: ^4.15.0
         version: 4.26.0
-      '@chat-adapter/state-redis':
+      '@chat-adapter/state-pg':
         specifier: ^4.15.0
-        version: 4.26.0(@opentelemetry/api@1.9.1)
+        version: 4.26.0
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.73.1(react@19.2.5))
@@ -523,8 +523,8 @@ packages:
   '@chat-adapter/state-memory@4.26.0':
     resolution: {integrity: sha512-FsfyM/A9Bf1yFc1FWmOsK+a4YVwm5FogX25hZxFG6cEvyFb6Cd924SsbtvF06yItY/7J2UFetCsMmBPkdPKshQ==}
 
-  '@chat-adapter/state-redis@4.26.0':
-    resolution: {integrity: sha512-NSX2E6wkDlg0AMfKFx4LPoV6cBHolL08Ht3cT+S01jss24t9GzlDw/BUsrWOeoTElwEhxZcQw5bUkStUAA7JMg==}
+  '@chat-adapter/state-pg@4.26.0':
+    resolution: {integrity: sha512-YnLDURfimQfZx7qeqoN2IdFpOH0xk4DUQcIDvNNnsgId6z40Lh4CyJqoZpiHE+y8EHAy3kJf43plWfxJVuB50A==}
 
   '@clack/core@1.0.1':
     resolution: {integrity: sha512-WKeyK3NOBwDOzagPR5H08rFk9D/WuN705yEbuZvKqlkmoLM2woKtXb10OO2k1NoSU4SFG947i2/SCYh+2u5e4g==}
@@ -2216,42 +2216,6 @@ packages:
       '@types/react':
         optional: true
 
-  '@redis/bloom@5.12.1':
-    resolution: {integrity: sha512-PUUfv+ms7jgPSBVoo/DN4AkPHj4D5TZSd6SbJX7egzBplkYUcKmHRE8RKia7UtZ8bSQbLguLvxVO+asKtQfZWA==}
-    engines: {node: '>= 18.19.0'}
-    peerDependencies:
-      '@redis/client': ^5.12.1
-
-  '@redis/client@5.12.1':
-    resolution: {integrity: sha512-7aPGWeqA3uFm43o19umzdl16CEjK/JQGtSXVPevplTaOU3VJA/rseBC1QvYUz9lLDIMBimc4SW/zrW4S89BaCA==}
-    engines: {node: '>= 18.19.0'}
-    peerDependencies:
-      '@node-rs/xxhash': ^1.1.0
-      '@opentelemetry/api': '>=1 <2'
-    peerDependenciesMeta:
-      '@node-rs/xxhash':
-        optional: true
-      '@opentelemetry/api':
-        optional: true
-
-  '@redis/json@5.12.1':
-    resolution: {integrity: sha512-eOze75esLve4vfqDel7aMX08CNaiLLQS2fV8mpRN9NxPe1rVR4vQyYiW/OgtGUysF6QOr9ANhfxABKNOJfXdKg==}
-    engines: {node: '>= 18.19.0'}
-    peerDependencies:
-      '@redis/client': ^5.12.1
-
-  '@redis/search@5.12.1':
-    resolution: {integrity: sha512-ItlxbxC9cKI6IU1TLWoczwJCRb6TdmkEpWv05UrPawqaAnWGRu3rcIqsc5vN483T2fSociuyV1UkWIL5I4//2w==}
-    engines: {node: '>= 18.19.0'}
-    peerDependencies:
-      '@redis/client': ^5.12.1
-
-  '@redis/time-series@5.12.1':
-    resolution: {integrity: sha512-c6JL6E3EcZJuNqKFz+KM+l9l5mpcQiKvTwgA3blt5glWJ8hjDk0yeHN3beE/MpqYIQ8UEX44ItQzgkE/gCBELQ==}
-    engines: {node: '>= 18.19.0'}
-    peerDependencies:
-      '@redis/client': ^5.12.1
-
   '@reduxjs/toolkit@2.11.2':
     resolution: {integrity: sha512-Kd6kAHTA6/nUpp8mySPqj3en3dm0tdMIgbttnQ1xFMVpufoj+ADi8pXLBsd4xzTRHQa7t/Jv8W5UnCuW4kuWMQ==}
     peerDependencies:
@@ -3628,10 +3592,6 @@ packages:
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
-
-  cluster-key-slot@1.1.2:
-    resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
-    engines: {node: '>=0.10.0'}
 
   cmdk@1.1.1:
     resolution: {integrity: sha512-Vsv7kFaXm+ptHDMZ7izaRsP70GgrW9NBNGswt9OZaVBLlE0SNpDq8eu/VGXyF9r7M0azK3Wy7OlYXsuyYLFzHg==}
@@ -5573,10 +5533,6 @@ packages:
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-is: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  redis@5.12.1:
-    resolution: {integrity: sha512-LDsoVvb/CpoV9EN3FXvgvSHNJWuCIzl9MiO3ppOevuGLpSGJhwfQjpEwfFJcQvNSddHADDdZaWx0HnmMxRXG7g==}
-    engines: {node: '>= 18.19.0'}
-
   redux-thunk@3.1.0:
     resolution: {integrity: sha512-NW2r5T6ksUKXCabzhL9z+h206HQw/NJkcLm1GPImRQ8IzfXwRGqjVhKJGauHirT0DAuyy6hjdnMZaRoAcy0Klw==}
     peerDependencies:
@@ -6961,13 +6917,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@chat-adapter/state-redis@4.26.0(@opentelemetry/api@1.9.1)':
+  '@chat-adapter/state-pg@4.26.0':
     dependencies:
       chat: 4.26.0
-      redis: 5.12.1(@opentelemetry/api@1.9.1)
+      pg: 8.20.0
     transitivePeerDependencies:
-      - '@node-rs/xxhash'
-      - '@opentelemetry/api'
+      - pg-native
       - supports-color
 
   '@clack/core@1.0.1':
@@ -8215,28 +8170,6 @@ snapshots:
       react: 19.2.5
     optionalDependencies:
       '@types/react': 19.2.14
-
-  '@redis/bloom@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
-
-  '@redis/client@5.12.1(@opentelemetry/api@1.9.1)':
-    dependencies:
-      cluster-key-slot: 1.1.2
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-
-  '@redis/json@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
-
-  '@redis/search@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
-
-  '@redis/time-series@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
 
   '@reduxjs/toolkit@2.11.2(react-redux@9.2.0(@types/react@19.2.14)(react@19.2.5)(redux@5.0.1))(react@19.2.5)':
     dependencies:
@@ -9726,8 +9659,6 @@ snapshots:
     optional: true
 
   clsx@2.1.1: {}
-
-  cluster-key-slot@1.1.2: {}
 
   cmdk@1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
     dependencies:
@@ -11721,17 +11652,6 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - redux
-
-  redis@5.12.1(@opentelemetry/api@1.9.1):
-    dependencies:
-      '@redis/bloom': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
-      '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
-      '@redis/json': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
-      '@redis/search': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
-      '@redis/time-series': 5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))
-    transitivePeerDependencies:
-      - '@node-rs/xxhash'
-      - '@opentelemetry/api'
 
   redux-thunk@3.1.0(redux@5.0.1):
     dependencies:

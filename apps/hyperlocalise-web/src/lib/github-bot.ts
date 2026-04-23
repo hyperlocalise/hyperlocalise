@@ -1,10 +1,9 @@
 import type { GitHubAdapter, GitHubRawMessage } from "@chat-adapter/github";
 import { createGitHubAdapter } from "@chat-adapter/github";
-import { createMemoryState } from "@chat-adapter/state-memory";
-import { createRedisState } from "@chat-adapter/state-redis";
 import { Chat, emoji } from "chat";
 import type { Message, Thread } from "chat";
 
+import { createChatStateAdapter } from "@/lib/chat-state";
 import { env } from "@/lib/env";
 import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow/types";
 
@@ -24,10 +23,6 @@ type GitHubBotState = {
 let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHubBotState> | null =
   null;
 let botQueue: GitHubFixQueue | null = null;
-
-function createStateAdapter() {
-  return env.REDIS_URL ? createRedisState({ url: env.REDIS_URL }) : createMemoryState();
-}
 
 function parseFixCommand(text: string): HyperlocaliseFixCommand | null {
   const mentionIndex = text.toLowerCase().indexOf("@hyperlocalise");
@@ -167,7 +162,7 @@ export async function getGitHubBot(options: GitHubBotOptions) {
       }),
     },
     logger: "info",
-    state: createStateAdapter(),
+    state: createChatStateAdapter(),
     userName: "hyperlocalise",
   });
 

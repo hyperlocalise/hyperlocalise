@@ -31,8 +31,8 @@ export const env = createEnv({
     /** Server-generated secret for signing OAuth `state` parameters during GitHub App installation. */
     GITHUB_OAUTH_STATE_SECRET: z.string().min(1).optional(),
 
-    /** Redis connection URL for caching, session state, or task queuing. Optional — falls back to in-memory adapters. */
-    REDIS_URL: z.url().optional(),
+    /** Postgres URL dedicated to chat state persistence. Optional — falls back to in-memory adapters. */
+    CHAT_STATE_DATABASE_URL: z.string().min(1).optional(),
 
     /** WorkOS API key for authentication and organization management. */
     WORKOS_API_KEY: z.string().min(1).optional(),
@@ -88,7 +88,7 @@ export const env = createEnv({
     GITHUB_OAUTH_STATE_SECRET:
       process.env.GITHUB_OAUTH_STATE_SECRET ??
       (isTestEnv ? "test-github-oauth-state-secret" : undefined),
-    REDIS_URL: process.env.REDIS_URL,
+    CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
