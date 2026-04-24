@@ -38,6 +38,7 @@ export default async function RootLayout({
         domine.variable,
         opensans.variable,
       )}
+      suppressHydrationWarning
     >
       <body>
         <Analytics />

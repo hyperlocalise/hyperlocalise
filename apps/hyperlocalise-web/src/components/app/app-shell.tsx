@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import {
-  ArrowRight01Icon,
-  CheckmarkCircle02Icon,
-  InformationCircleIcon,
+  BookOpenTextIcon,
+  BotIcon,
+  DashboardSquare01Icon,
+  FolderKanbanIcon,
   LinkSquare02Icon,
   Settings01Icon,
-  SparklesIcon,
+  Task01Icon,
 } from "@hugeicons/core-free-icons";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -24,36 +25,51 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
-  const navigation = [
+  const navigationGroups = [
     {
-      label: "Weekly ops",
-      href: `/org/${activeOrganizationSlug}/dashboard`,
-      icon: SparklesIcon,
+      label: "Workspace",
+      items: [
+        {
+          label: "Overview",
+          href: `/org/${activeOrganizationSlug}/dashboard`,
+          icon: DashboardSquare01Icon,
+        },
+        {
+          label: "Projects",
+          href: `/org/${activeOrganizationSlug}/projects`,
+          icon: FolderKanbanIcon,
+        },
+        {
+          label: "Jobs",
+          href: `/org/${activeOrganizationSlug}/jobs`,
+          icon: Task01Icon,
+        },
+        {
+          label: "Glossaries",
+          href: `/org/${activeOrganizationSlug}/glossaries`,
+          icon: BookOpenTextIcon,
+        },
+      ],
     },
     {
-      label: "Translation run",
-      href: `/org/${activeOrganizationSlug}/dashboard#run`,
-      icon: ArrowRight01Icon,
-    },
-    {
-      label: "Model choice",
-      href: `/org/${activeOrganizationSlug}/dashboard#models`,
-      icon: CheckmarkCircle02Icon,
-    },
-    {
-      label: "TMS sync",
-      href: `/org/${activeOrganizationSlug}/dashboard#sync`,
-      icon: LinkSquare02Icon,
-    },
-    {
-      label: "Analytics",
-      href: `/org/${activeOrganizationSlug}/dashboard#analytics`,
-      icon: InformationCircleIcon,
-    },
-    {
-      label: "Settings",
-      href: `/org/${activeOrganizationSlug}/settings`,
-      icon: Settings01Icon,
+      label: "Manage",
+      items: [
+        {
+          label: "Agent",
+          href: `/org/${activeOrganizationSlug}/agent`,
+          icon: BotIcon,
+        },
+        {
+          label: "Integrations",
+          href: `/org/${activeOrganizationSlug}/integrations`,
+          icon: LinkSquare02Icon,
+        },
+        {
+          label: "Settings",
+          href: `/org/${activeOrganizationSlug}/settings`,
+          icon: Settings01Icon,
+        },
+      ],
     },
   ] as const;
 
@@ -66,7 +82,7 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigation={<AppShellNavigation items={navigation} />}
+      navigation={<AppShellNavigation groups={navigationGroups} />}
     >
       {children}
     </AppShellClient>
