@@ -1,6 +1,6 @@
 import { Sandbox } from "@vercel/sandbox";
 
-import { getInstallationOctokit } from "@/lib/github-app";
+import { getInstallationOctokit } from "@/lib/agents/github/app";
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
