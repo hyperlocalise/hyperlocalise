@@ -1,6 +1,6 @@
 {
-  "id": "974ba9bc-0940-45df-a468-e0962bc7d867",
-  "prevId": "946d11e2-4831-47a7-b6b4-173089267448",
+  "id": "7ddc55ee-a7de-4b62-bce4-a0610bf610e0",
+  "prevId": "974ba9bc-0940-45df-a468-e0962bc7d867",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -238,12 +238,6 @@
         "account_type": {
           "name": "account_type",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "repositories": {
-          "name": "repositories",
-          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

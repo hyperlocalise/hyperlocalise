@@ -1,0 +1,1 @@
+ALTER TABLE "github_installations" DROP COLUMN "repositories";

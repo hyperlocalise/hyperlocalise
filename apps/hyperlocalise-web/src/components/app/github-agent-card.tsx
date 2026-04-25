@@ -242,8 +242,9 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
   );
 
   const handleEnableSelected = useCallback(() => {
-    updateRepositories.mutate([...effectiveSelection]);
-    setSelectedRepositoryIds(null);
+    updateRepositories.mutate([...effectiveSelection], {
+      onSuccess: () => setSelectedRepositoryIds(null),
+    });
   }, [effectiveSelection, updateRepositories]);
 
   const handleEnableAll = useCallback(() => {

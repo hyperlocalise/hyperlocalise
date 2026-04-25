@@ -540,7 +540,6 @@ export const githubInstallations = pgTable(
     githubAppId: bigint("github_app_id", { mode: "number" }).notNull(),
     accountLogin: text("account_login"),
     accountType: text("account_type"),
-    repositories: jsonb("repositories").$type<Array<{ id: number; fullName: string }>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

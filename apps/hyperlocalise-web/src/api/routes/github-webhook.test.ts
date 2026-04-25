@@ -18,7 +18,6 @@ async function ensureGithubRepositoryTables() {
       github_app_id bigint NOT NULL,
       account_login text,
       account_type text,
-      repositories jsonb,
       created_at timestamp with time zone DEFAULT now() NOT NULL,
       updated_at timestamp with time zone DEFAULT now() NOT NULL
     );
