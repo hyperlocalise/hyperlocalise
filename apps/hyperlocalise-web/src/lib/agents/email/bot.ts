@@ -274,7 +274,7 @@ async function handlePendingClarification(input: {
 }) {
   const { thread, message, pending, dependencies } = input;
   const log = logger.child({ req: pending.requestId });
-  log.info({ text: message.text }, "handling pending clarification");
+  log.info("handling pending clarification");
 
   if (isAffirmative(message.text) && pending.sourceLocale && pending.targetLocale) {
     log.info("affirmative response, proceeding with translation");
@@ -291,7 +291,13 @@ async function handlePendingClarification(input: {
     subject: pending.subject,
     text: message.text,
   });
-  log.info({ intent }, "clarification intent interpreted");
+  log.info(
+    {
+      confidence: intent.confidence,
+      missingFields: intent.missingFields,
+    },
+    "clarification intent interpreted",
+  );
 
   const nextPending = {
     ...pending,
@@ -332,8 +338,6 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
     const log = logger.child({ thread: thread.id });
     log.info(
       {
-        senderEmail,
-        subject: raw.subject,
         messageId: raw.messageId,
         attachmentCount: raw.attachments?.length ?? 0,
       },
@@ -344,7 +348,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       const user = await dependencies.lookupUserByEmail(senderEmail);
 
       if (!user) {
-        log.warn({ senderEmail }, "unknown sender");
+        log.warn("unknown sender");
         await thread.post(
           "This inbox only accepts requests from members of the Hyperlocalise workspace that owns it. If you already have an account, send from your workspace email address or ask an admin to invite you.",
         );
@@ -367,7 +371,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       });
 
       if (!organization) {
-        log.warn({ senderEmail, recipients: raw.to }, "no organization found");
+        log.warn("no organization found");
         await thread.post(
           "This inbound email address is not active for one of your organizations. Use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
         );
@@ -381,7 +385,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       }
 
       if (!raw.emailId || !raw.messageId) {
-        log.error({ senderEmail, raw }, "missing email metadata");
+        log.error({ messageId: raw.messageId }, "missing email metadata");
         await thread.post(
           "I couldn't process this email because it was missing provider metadata. Please resend the request. If it happens again, contact support with the original message.",
         );
@@ -406,7 +410,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         subject: raw.subject ?? "",
         text: message.text,
       });
-      log.info({ intent }, "intent interpreted");
+      log.info(
+        {
+          confidence: intent.confidence,
+          missingFields: intent.missingFields,
+        },
+        "intent interpreted",
+      );
 
       const pendingRequest = createPendingRequest({
         senderEmail,
@@ -437,7 +447,10 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         pending: pendingRequest,
       });
     } catch (error) {
-      log.error(error, "unhandled error in email handler");
+      log.error(
+        { error: error instanceof Error ? error.message : String(error) },
+        "unhandled error in email handler",
+      );
       throw error;
     }
   };

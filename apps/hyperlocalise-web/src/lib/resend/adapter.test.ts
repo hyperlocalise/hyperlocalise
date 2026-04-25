@@ -100,6 +100,51 @@ describe("createResendAdapter", () => {
     );
   });
 
+  it("passes webhook waitUntil options into Chat SDK message processing", async () => {
+    const adapter = createResendAdapter({
+      apiKey: "test-key",
+      webhookSecret: "",
+      fromAddress: "agent@example.com",
+      fromName: "Hyperlocalise",
+    });
+    const state = {
+      get: vi.fn(async () => null),
+      set: vi.fn(async (_key: string, _metadata: unknown, _ttl: number) => undefined),
+    };
+    const processMessage = vi.fn();
+    const options = { waitUntil: vi.fn() };
+
+    await adapter.initialize({
+      getState: () => state,
+      processMessage,
+    } as never);
+    await adapter.handleWebhook(
+      new Request("https://example.com/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "email.received",
+          data: {
+            email_id: "email_123",
+            from: "Sender <sender@example.com>",
+            to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
+            subject: "Translate",
+            text: "Translate from en to fr",
+            message_id: "message_123",
+            attachments: [],
+          },
+        }),
+      }),
+      options,
+    );
+
+    expect(processMessage).toHaveBeenCalledWith(
+      adapter,
+      expect.any(String),
+      expect.objectContaining({ id: "email_123" }),
+      options,
+    );
+  });
+
   it("isolates thread metadata by org inbound address for the same sender and subject", async () => {
     const adapter = createResendAdapter({
       apiKey: "test-key",
