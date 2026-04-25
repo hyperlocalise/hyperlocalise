@@ -235,7 +235,11 @@ export async function emailTranslationWorkflow(event: EmailTranslationEventData)
     const translatedContent = await readTranslatedFile(sandboxId, outputFile);
     await sendReplyEmail(event, translatedContent, outputFile);
   } catch (error) {
-    await sendFailureReplyEmail(event, userFacingFailureReason(error));
+    try {
+      await sendFailureReplyEmail(event, userFacingFailureReason(error));
+    } catch {
+      // Best-effort notification; keep the original workflow error.
+    }
     throw error;
   } finally {
     await stopTranslationSandbox(sandboxId);

@@ -32,7 +32,7 @@ const intentConfirmationThreshold = 0.85;
 const maxProcessedKeys = 100;
 
 function createRequestId(input: string) {
-  return `eml_${createHash("sha256").update(input).digest("hex").slice(0, 8)}`;
+  return `eml_${createHash("sha256").update(input).digest("hex").slice(0, 16)}`;
 }
 
 function createTranslationKey(input: {

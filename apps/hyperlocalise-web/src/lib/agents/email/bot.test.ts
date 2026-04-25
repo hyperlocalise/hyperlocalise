@@ -140,7 +140,7 @@ describe("createEmailHandler", () => {
     expect(posts[0]).toContain("style instructions are captured");
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: expect.stringMatching(/^eml_[a-f0-9]{8}$/),
+        requestId: expect.stringMatching(/^eml_[a-f0-9]{16}$/),
         attachmentId: "att_123",
         attachmentFilename: "homepage.xlsx",
         sourceLocale: "en",
