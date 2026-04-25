@@ -253,15 +253,20 @@ function sanitizeFilename(email: string): string {
   return email.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+export function getSandboxInputFilename(attachmentFilename: string): string {
+  return sanitizeFilename(attachmentFilename);
+}
+
+export function getSandboxOutputFilename(attachmentFilename: string, targetLocale: string): string {
+  return getOutputFilename(sanitizeFilename(attachmentFilename), targetLocale);
+}
+
 export async function emailTranslationWorkflow(event: EmailTranslationEventData) {
   "use workflow";
 
   const { sandboxId } = await createTranslationSandbox();
-  const inputFile = `input-${sanitizeFilename(event.senderEmail)}`;
-  const outputFile = getOutputFilename(
-    sanitizeFilename(event.attachmentFilename),
-    event.targetLocale,
-  );
+  const inputFile = getSandboxInputFilename(event.attachmentFilename);
+  const outputFile = getSandboxOutputFilename(event.attachmentFilename, event.targetLocale);
 
   try {
     await prepareSandbox(sandboxId);
