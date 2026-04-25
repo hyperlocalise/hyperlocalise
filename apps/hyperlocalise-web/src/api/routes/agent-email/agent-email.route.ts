@@ -59,7 +59,6 @@ async function ensureInboundAlias(input: {
       const [organization] = await db
         .update(schema.organizations)
         .set({
-          emailAgentEnabled: true,
           inboundEmailAlias: alias,
         })
         .where(
@@ -89,6 +88,8 @@ async function ensureInboundAlias(input: {
       if (existing) {
         return existing;
       }
+
+      return null;
     } catch (error) {
       if (
         typeof error === "object" &&
@@ -148,32 +149,26 @@ export function createAgentEmailRoutes() {
       }
 
       if (payload.enabled) {
-        const organization = await ensureInboundAlias({ organizationId, organizationSlug });
+        const organizationWithAlias = await ensureInboundAlias({
+          organizationId,
+          organizationSlug,
+        });
 
-        if (!organization.emailAgentEnabled) {
-          const [enabledOrganization] = await db
-            .update(schema.organizations)
-            .set({ emailAgentEnabled: true })
-            .where(eq(schema.organizations.id, organizationId))
-            .returning({
-              emailAgentEnabled: schema.organizations.emailAgentEnabled,
-              inboundEmailAlias: schema.organizations.inboundEmailAlias,
-            });
+        if (!organizationWithAlias) {
+          return c.json({ error: "organization_not_found" as const }, 404);
+        }
 
-          if (enabledOrganization) {
-            return c.json(
-              {
-                emailAgent: {
-                  enabled: enabledOrganization.emailAgentEnabled,
-                  inboundEmailAddress: asInboundAddress(
-                    enabledOrganization.inboundEmailAlias,
-                    enabledOrganization.emailAgentEnabled,
-                  ),
-                },
-              },
-              200,
-            );
-          }
+        const [organization] = await db
+          .update(schema.organizations)
+          .set({ emailAgentEnabled: true })
+          .where(eq(schema.organizations.id, organizationId))
+          .returning({
+            emailAgentEnabled: schema.organizations.emailAgentEnabled,
+            inboundEmailAlias: schema.organizations.inboundEmailAlias,
+          });
+
+        if (!organization) {
+          return c.json({ error: "organization_not_found" as const }, 404);
         }
 
         return c.json(

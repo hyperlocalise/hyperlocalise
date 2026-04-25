@@ -65,7 +65,7 @@ describe("agentEmailRoutes", () => {
   });
 
   it("generates and stores an inbound email alias on first enable", async () => {
-    const identity = fixture.createWorkosIdentity();
+    const identity = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const headers = await fixture.authHeadersFor(identity);
 
