@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BotIcon,
   BubbleChatIcon,
@@ -10,6 +10,7 @@ import {
   MicrosoftIcon,
   SlackIcon,
   TelegramIcon,
+  Tick02Icon,
   WhatsappIcon,
   WorkIcon,
 } from "@hugeicons/core-free-icons";
@@ -126,6 +127,8 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
   const updateEmailAgentState = useUpdateEmailAgentState(organizationSlug);
 
   const emailAddress = useMemo(() => emailAgent?.inboundEmailAddress ?? "", [emailAgent]);
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const copyEmailAddress = async () => {
     if (!emailAddress) {
@@ -133,8 +136,19 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
     }
 
     await navigator.clipboard.writeText(emailAddress);
+    setCopied(true);
     toast.success("Inbound email copied");
+
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 5000);
   };
+
+  useEffect(
+    () => () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    },
+    [],
+  );
 
   const toggleEnabled = async (enabled: boolean) => {
     try {
@@ -211,7 +225,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
               ) : null}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div>
               <InputGroup className="h-11 rounded-lg border-white/10 bg-white/3 text-white">
                 {isEmailAgentLoading ? (
                   <div className="flex h-full w-full items-center px-3">
@@ -240,18 +254,10 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                     disabled={!emailAgent?.enabled || !emailAddress}
                     aria-label="Copy email address"
                   >
-                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
+                    <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
-              <Button
-                className="bg-dew-500 text-white hover:bg-dew-500/90"
-                onClick={copyEmailAddress}
-                disabled={!emailAgent?.enabled || !emailAddress}
-              >
-                <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} data-icon="inline-start" />
-                Copy
-              </Button>
             </div>
           </CardContent>
         </Card>
