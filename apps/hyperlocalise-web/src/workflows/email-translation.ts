@@ -106,6 +106,7 @@ async function sendReplyEmail(
   const result = await resend.emails.send({
     from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
     to: event.senderEmail,
+    replyTo: event.inboundEmailAddress,
     subject: `Re: ${event.subject}`,
     text: [
       `Done: ${event.attachmentFilename}`,
@@ -150,6 +151,7 @@ async function sendFailureReplyEmail(
   const result = await resend.emails.send({
     from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
     to: event.senderEmail,
+    replyTo: event.inboundEmailAddress,
     subject: `Re: ${event.subject}`,
     text: [
       `I couldn't translate ${event.attachmentFilename}.`,

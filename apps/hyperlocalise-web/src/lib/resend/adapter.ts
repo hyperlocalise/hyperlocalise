@@ -42,6 +42,7 @@ export type ResendRawMessage = {
 export interface ResendAdapterConfig {
   fromAddress: string;
   fromName?: string;
+  replyToAddress?: string;
   apiKey?: string;
   webhookSecret?: string;
   userName?: string;
@@ -61,16 +62,23 @@ function hashString(str: string): string {
   return createHash("sha256").update(str).digest("hex").slice(0, 12);
 }
 
-function getThreadHash(subject: string): string {
-  return hashString(normalizeSubject(subject));
+function getThreadHash(subject: string, replyToAddress?: string): string {
+  return hashString(`${normalizeSubject(subject)}:${replyToAddress?.toLowerCase() ?? ""}`);
 }
 
 function parseEmailAddress(address: string): { name?: string; email: string } {
-  const match = address.match(/^(?:"?([^"]*)"?\s*)?<?([^>]+)>?$/);
-  if (match) {
-    return { name: match[1]?.trim(), email: match[2]?.trim() ?? address };
+  const bracketed = address.match(/^\s*(?:"?([^"<]*)"?\s*)?<([^>]+)>\s*$/);
+  if (bracketed) {
+    return { name: bracketed[1]?.trim(), email: bracketed[2]?.trim() ?? address };
   }
   return { email: address.trim() };
+}
+
+function getReplyToAddress(addresses: string[]) {
+  const parsed = addresses.map((address) => parseEmailAddress(address).email);
+  return (
+    parsed.find((email) => email.toLowerCase().endsWith("@inbox.hyperlocalise.com")) ?? parsed[0]
+  );
 }
 
 const THREAD_METADATA_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -84,6 +92,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
   private readonly resend: Resend;
   private readonly fromAddress: string;
   private readonly fromName: string;
+  private readonly replyToAddress?: string;
   private readonly webhookSecret: string;
   private readonly logger: Logger;
   private chat?: ChatInstance;
@@ -91,6 +100,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
   constructor(config: ResendAdapterConfig) {
     this.fromAddress = config.fromAddress;
     this.fromName = config.fromName ?? "Bot";
+    this.replyToAddress = config.replyToAddress;
     this.userName = config.userName ?? "email-bot";
     this.webhookSecret = config.webhookSecret ?? process.env.RESEND_WEBHOOK_SECRET ?? "";
     this.resend = new Resend(config.apiKey ?? process.env.RESEND_API_KEY);
@@ -114,14 +124,14 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
 
   private async getThreadMetadata(
     threadId: string,
-  ): Promise<{ subject: string; messageId: string } | null> {
+  ): Promise<{ subject: string; messageId: string; replyToAddress?: string } | null> {
     const state = this.getStateAdapter();
     return state.get(this.getThreadStateKey(threadId));
   }
 
   private async setThreadMetadata(
     threadId: string,
-    metadata: { subject: string; messageId: string },
+    metadata: { subject: string; messageId: string; replyToAddress?: string },
   ): Promise<void> {
     const state = this.getStateAdapter();
     await state.set(this.getThreadStateKey(threadId), metadata, THREAD_METADATA_TTL_MS);
@@ -146,11 +156,14 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
     return `resend:${senderEmail}`;
   }
 
-  parseMessage(raw: ResendRawMessage): Message<ResendRawMessage> {
+  parseMessage(
+    raw: ResendRawMessage,
+    replyToAddress = getReplyToAddress(raw.to),
+  ): Message<ResendRawMessage> {
     const { email } = parseEmailAddress(raw.from);
     const threadId = this.encodeThreadId({
       senderEmail: email,
-      threadHash: getThreadHash(raw.subject),
+      threadHash: getThreadHash(raw.subject, replyToAddress),
     });
 
     const author: Author = {
@@ -264,11 +277,13 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
         : [],
     };
 
-    const message = this.parseMessage(rawMessage);
+    const replyToAddress = getReplyToAddress(rawMessage.to);
+    const message = this.parseMessage(rawMessage, replyToAddress);
 
     const metadata = {
       subject: rawMessage.subject,
       messageId: rawMessage.messageId,
+      replyToAddress,
     };
     await this.setThreadMetadata(message.threadId, metadata);
 
@@ -325,6 +340,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
     const result = await this.resend.emails.send({
       from: `${this.fromName} <${this.fromAddress}>`,
       to: senderEmail,
+      replyTo: metadata?.replyToAddress ?? this.replyToAddress,
       subject,
       text,
       attachments: attachments.map((a) => ({
