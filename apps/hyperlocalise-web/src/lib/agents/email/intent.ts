@@ -76,6 +76,7 @@ function buildIntentPrompt(input: { subject: string; text: string }) {
     "Extract the user's translation request from this inbound email.",
     "Return the source locale and target locale as BCP 47 locale tags when they are present.",
     "Infer common language names and regions, such as English to en, Vietnamese to vi, Brazilian Portuguese to pt-BR, and French Canada to fr-CA.",
+    'Treat phrases like "from English into Vietnamese", "from English to Vietnamese", and "English to Vietnamese" as explicit source and target locales.',
     "Only set a locale when the email clearly asks for it. Do not guess from the sender, attachment name, or signature.",
     "Put translation preferences in instructions, such as tone, formality, audience, terminology, or style constraints.",
     "Do not include attachment handling, greetings, or unrelated email text in instructions.",

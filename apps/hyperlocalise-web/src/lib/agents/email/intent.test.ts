@@ -75,4 +75,40 @@ describe("createEmailRequestInterpreter", () => {
       missingFields: ["sourceLocale"],
     });
   });
+
+  it("prompts the model to parse explicit from-into language requests", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: {
+        sourceLocale: "en",
+        targetLocale: "vi",
+        instructions: null,
+        confidence: 0.96,
+        missingFields: [],
+      },
+    });
+
+    const interpretEmailRequest = createEmailRequestInterpreter({
+      model: {} as Parameters<typeof createEmailRequestInterpreter>[0]["model"],
+    });
+
+    await expect(
+      interpretEmailRequest({
+        subject: "Translate",
+        text: "Can you translate this file from English into Vietnamese",
+      }),
+    ).resolves.toEqual({
+      sourceLocale: "en",
+      targetLocale: "vi",
+      instructions: null,
+      confidence: 0.96,
+      missingFields: [],
+    });
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          'Treat phrases like "from English into Vietnamese", "from English to Vietnamese", and "English to Vietnamese" as explicit source and target locales.',
+        ),
+      }),
+    );
+  });
 });
