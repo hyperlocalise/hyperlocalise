@@ -11,6 +11,10 @@ const ROUTE_TITLES = {
   settings: "Settings",
 } as const;
 
+function isRouteTitleKey(value: string): value is keyof typeof ROUTE_TITLES {
+  return value in ROUTE_TITLES;
+}
+
 export function getAppShellTitle(pathname: string | null): string {
   if (!pathname) {
     return ROUTE_TITLES.dashboard;
@@ -22,8 +26,8 @@ export function getAppShellTitle(pathname: string | null): string {
   const [section, subsection] = routeSegments;
 
   if (section === "settings" && subsection) {
-    return ROUTE_TITLES[subsection as keyof typeof ROUTE_TITLES] ?? ROUTE_TITLES.settings;
+    return isRouteTitleKey(subsection) ? ROUTE_TITLES[subsection] : ROUTE_TITLES.settings;
   }
 
-  return ROUTE_TITLES[section as keyof typeof ROUTE_TITLES] ?? ROUTE_TITLES.dashboard;
+  return section && isRouteTitleKey(section) ? ROUTE_TITLES[section] : ROUTE_TITLES.dashboard;
 }
