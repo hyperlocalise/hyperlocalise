@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   BotIcon,
   BubbleChatIcon,
@@ -8,13 +8,14 @@ import {
   GoogleIcon,
   MailReceive01Icon,
   MicrosoftIcon,
-  Refresh01Icon,
   SlackIcon,
   TelegramIcon,
   WhatsappIcon,
   WorkIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { GitHubAgentCard } from "@/components/app/github-agent-card";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +28,20 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { createApiClient } from "@/lib/api-client";
 
 type AgentPageContentProps = {
   organizationSlug: string;
 };
+
+type EmailAgentState = {
+  enabled: boolean;
+  inboundEmailAddress: string | null;
+};
+
+const api = createApiClient();
 
 const comingSoonAgents = [
   {
@@ -66,28 +76,73 @@ const comingSoonAgents = [
   },
 ] as const;
 
-function intakeSlug(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 24);
+function useEmailAgentState(organizationSlug: string) {
+  return useQuery({
+    queryKey: ["email-agent", organizationSlug],
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["agent-email"].$get({
+        param: { organizationSlug },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to load email agent settings");
+      }
+
+      const data = await res.json();
+      return data.emailAgent as EmailAgentState;
+    },
+  });
 }
 
-function randomSuffix() {
-  return Math.random().toString(16).slice(2, 14).padEnd(12, "0");
+function useUpdateEmailAgentState(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await api.api.orgs[":organizationSlug"]["agent-email"].$patch({
+        param: { organizationSlug },
+        json: { enabled },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update email agent settings");
+      }
+
+      const data = await res.json();
+      return data.emailAgent as EmailAgentState;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["email-agent", organizationSlug] });
+    },
+  });
 }
 
 export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
-  const [emailAgentEnabled, setEmailAgentEnabled] = useState(true);
-  const [emailSuffix, setEmailSuffix] = useState(() => randomSuffix());
-  const emailAddress = useMemo(
-    () => `${intakeSlug(organizationSlug) || "team"}-${emailSuffix}@intake.hyperlocalise.com`,
-    [emailSuffix, organizationSlug],
-  );
+  const {
+    data: emailAgent,
+    isLoading: isEmailAgentLoading,
+    isError: isEmailAgentError,
+  } = useEmailAgentState(organizationSlug);
+  const updateEmailAgentState = useUpdateEmailAgentState(organizationSlug);
+
+  const emailAddress = useMemo(() => emailAgent?.inboundEmailAddress ?? "", [emailAgent]);
 
   const copyEmailAddress = async () => {
+    if (!emailAddress) {
+      return;
+    }
+
     await navigator.clipboard.writeText(emailAddress);
+    toast.success("Inbound email copied");
+  };
+
+  const toggleEnabled = async (enabled: boolean) => {
+    try {
+      await updateEmailAgentState.mutateAsync(enabled);
+      toast.success(enabled ? "Email agent enabled" : "Email agent disabled");
+    } catch {
+      toast.error("Unable to update email agent right now");
+    }
   };
 
   return (
@@ -131,10 +186,13 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                 </div>
               </div>
               <Switch
-                checked={emailAgentEnabled}
-                onCheckedChange={setEmailAgentEnabled}
+                checked={emailAgent?.enabled ?? false}
+                onCheckedChange={toggleEnabled}
                 aria-label="Enable email agent"
                 className="mt-1 data-checked:bg-dew-500"
+                disabled={
+                  isEmailAgentLoading || isEmailAgentError || updateEmailAgentState.isPending
+                }
               />
             </div>
           </CardHeader>
@@ -146,34 +204,50 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                 Send or forward emails to this address and Hyperlocalise will automatically process
                 the request.
               </p>
+              {isEmailAgentError ? (
+                <p className="mt-2 text-sm text-red-300">
+                  Unable to load email agent settings right now.
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <InputGroup className="h-11 rounded-lg border-white/10 bg-white/3 text-white">
-                <InputGroupInput
-                  readOnly
-                  value={emailAddress}
-                  aria-label="Email agent intake address"
-                  className="truncate text-sm text-white/58"
-                  disabled={!emailAgentEnabled}
-                />
+                {isEmailAgentLoading ? (
+                  <div className="flex h-full w-full items-center px-3">
+                    <Skeleton className="h-4 w-full bg-white/10" />
+                  </div>
+                ) : (
+                  <InputGroupInput
+                    readOnly
+                    value={emailAddress}
+                    aria-label="Email agent intake address"
+                    className="truncate text-sm text-white/58"
+                    disabled={!emailAgent?.enabled}
+                    placeholder={
+                      isEmailAgentError
+                        ? "Email agent settings unavailable"
+                        : "Enable email agent to generate inbox address"
+                    }
+                  />
+                )}
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     variant="ghost"
                     size="icon-sm"
                     className="text-white/46 hover:bg-white/8 hover:text-white"
-                    onClick={() => setEmailSuffix(randomSuffix())}
-                    disabled={!emailAgentEnabled}
-                    aria-label="Regenerate email address"
+                    onClick={copyEmailAddress}
+                    disabled={!emailAgent?.enabled || !emailAddress}
+                    aria-label="Copy email address"
                   >
-                    <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} />
+                    <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} />
                   </InputGroupButton>
                 </InputGroupAddon>
               </InputGroup>
               <Button
                 className="bg-dew-500 text-white hover:bg-dew-500/90"
                 onClick={copyEmailAddress}
-                disabled={!emailAgentEnabled}
+                disabled={!emailAgent?.enabled || !emailAddress}
               >
                 <HugeiconsIcon icon={Copy01Icon} strokeWidth={1.8} data-icon="inline-start" />
                 Copy

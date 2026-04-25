@@ -29,6 +29,13 @@
       "when": 1776862727781,
       "tag": "0003_last_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777083285609,
+      "tag": "0004_gigantic_stellaris",
+      "breakpoints": true
     }
   ]
 }
