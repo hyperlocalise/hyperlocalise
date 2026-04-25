@@ -14,10 +14,13 @@ import { type EmailRequestIntent, interpretEmailRequest } from "./intent";
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailTranslationRequest, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
+import { createChatLogger, createLogger } from "@/lib/log";
 
 let botInstance: Chat<{ resend: ReturnType<typeof createResendAdapter> }, EmailBotState> | null =
   null;
 let botQueue: EmailTranslationQueue | null = null;
+
+const logger = createLogger("email-bot");
 
 export type EmailHandlerDependencies = {
   queue: EmailTranslationQueue;
@@ -148,7 +151,18 @@ async function enqueuePendingTranslation(input: {
   pending: PendingEmailTranslationRequest;
 }) {
   const { thread, queue, fetchAttachmentDownloadUrls, pending } = input;
+  const log = logger.child({ req: pending.requestId });
+  log.info(
+    {
+      attachmentCount: pending.attachments.length,
+      sourceLocale: pending.sourceLocale,
+      targetLocale: pending.targetLocale,
+    },
+    "enqueueing pending translation",
+  );
+
   if (!pending.sourceLocale || !pending.targetLocale) {
+    log.info("missing locales, requesting clarification");
     await thread.post(buildClarificationMessage(pending));
     await thread.setState({ pendingTranslationRequest: pending });
     return;
@@ -156,6 +170,7 @@ async function enqueuePendingTranslation(input: {
 
   const attachmentUrls = await fetchAttachmentDownloadUrls(pending.emailId, pending.attachments);
   if (attachmentUrls.length === 0) {
+    log.error("failed to retrieve attachment URLs");
     await thread.post(
       `I couldn't retrieve the attachments for ${pending.requestId}. Please resend the file and try again.`,
     );
@@ -177,6 +192,7 @@ async function enqueuePendingTranslation(input: {
     });
 
     if (processedKeys.has(key)) {
+      log.info({ key }, "skipping duplicate translation");
       skippedDuplicateCount += 1;
       continue;
     }
@@ -199,6 +215,7 @@ async function enqueuePendingTranslation(input: {
   }
 
   if (events.length === 0) {
+    log.info("all attachments were duplicates");
     await thread.post(
       `I already accepted this translation request, so I did not start it again.\n\nRequest ID: ${pending.requestId}`,
     );
@@ -207,6 +224,7 @@ async function enqueuePendingTranslation(input: {
   }
 
   await thread.post(buildIntakeReceipt({ pending, skippedDuplicateCount }));
+  log.info({ eventCount: events.length, skippedDuplicateCount }, "translations enqueued");
 
   await thread.setState({
     lastEmailEvent: {
@@ -255,7 +273,11 @@ async function handlePendingClarification(input: {
   dependencies: EmailHandlerDependencies;
 }) {
   const { thread, message, pending, dependencies } = input;
+  const log = logger.child({ req: pending.requestId });
+  log.info({ text: message.text }, "handling pending clarification");
+
   if (isAffirmative(message.text) && pending.sourceLocale && pending.targetLocale) {
+    log.info("affirmative response, proceeding with translation");
     await enqueuePendingTranslation({
       thread,
       queue: dependencies.queue,
@@ -269,6 +291,7 @@ async function handlePendingClarification(input: {
     subject: pending.subject,
     text: message.text,
   });
+  log.info({ intent }, "clarification intent interpreted");
 
   const nextPending = {
     ...pending,
@@ -278,12 +301,17 @@ async function handlePendingClarification(input: {
   };
 
   if (!nextPending.sourceLocale || !nextPending.targetLocale) {
+    log.info("still missing locales after clarification");
     await thread.post(buildClarificationMessage(nextPending));
     await thread.setState({ pendingTranslationRequest: nextPending });
     return;
   }
 
   if (intent.confidence < intentConfirmationThreshold && !isAffirmative(message.text)) {
+    log.info(
+      { confidence: intent.confidence },
+      "low confidence after clarification, requesting confirmation",
+    );
     await thread.post(buildConfirmationMessage(nextPending));
     await thread.setState({ pendingTranslationRequest: nextPending });
     return;
@@ -300,89 +328,118 @@ async function handlePendingClarification(input: {
 export function createEmailHandler(dependencies: EmailHandlerDependencies) {
   return async function handleEmail(thread: Thread<EmailBotState>, message: Message) {
     const senderEmail = message.author.userId;
-    const user = await dependencies.lookupUserByEmail(senderEmail);
-
-    if (!user) {
-      await thread.post(
-        "This inbox only accepts requests from members of the Hyperlocalise workspace that owns it. If you already have an account, send from your workspace email address or ask an admin to invite you.",
-      );
-      return;
-    }
-
     const raw = message.raw as RawEmailMessage;
-    const state = await thread.state;
-    const pending = state?.pendingTranslationRequest;
-    const attachments = raw.attachments ?? [];
+    const log = logger.child({ thread: thread.id });
+    log.info(
+      {
+        senderEmail,
+        subject: raw.subject,
+        messageId: raw.messageId,
+        attachmentCount: raw.attachments?.length ?? 0,
+      },
+      "handling email",
+    );
 
-    if (pending && pending.senderEmail === senderEmail && attachments.length === 0) {
-      await handlePendingClarification({ thread, message, pending, dependencies });
-      return;
+    try {
+      const user = await dependencies.lookupUserByEmail(senderEmail);
+
+      if (!user) {
+        log.warn({ senderEmail }, "unknown sender");
+        await thread.post(
+          "This inbox only accepts requests from members of the Hyperlocalise workspace that owns it. If you already have an account, send from your workspace email address or ask an admin to invite you.",
+        );
+        return;
+      }
+
+      const state = await thread.state;
+      const pending = state?.pendingTranslationRequest;
+      const attachments = raw.attachments ?? [];
+
+      if (pending && pending.senderEmail === senderEmail && attachments.length === 0) {
+        log.info("resuming pending clarification");
+        await handlePendingClarification({ thread, message, pending, dependencies });
+        return;
+      }
+
+      const organization = await dependencies.resolveInboundEmailOrganization({
+        senderUserId: user.id,
+        recipientAddresses: raw.to ?? [],
+      });
+
+      if (!organization) {
+        log.warn({ senderEmail, recipients: raw.to }, "no organization found");
+        await thread.post(
+          "This inbound email address is not active for one of your organizations. Use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+        );
+        return;
+      }
+
+      if (attachments.length === 0) {
+        log.info("no attachments, sending help");
+        await thread.post(buildSupportedRequestHelp());
+        return;
+      }
+
+      if (!raw.emailId || !raw.messageId) {
+        log.error({ senderEmail, raw }, "missing email metadata");
+        await thread.post(
+          "I couldn't process this email because it was missing provider metadata. Please resend the request. If it happens again, contact support with the original message.",
+        );
+        return;
+      }
+
+      const imageAttachments = message.attachments.filter((att) => att.type === "image");
+      if (imageAttachments.length > 0) {
+        log.info({ count: imageAttachments.length }, "handling image attachments");
+      }
+      for (const imageAttachment of imageAttachments) {
+        await dependencies.handleImageAttachment(thread, message, imageAttachment, raw);
+      }
+
+      const fileAttachments = attachments.filter((att) => !att.contentType.startsWith("image/"));
+      if (fileAttachments.length === 0) {
+        log.info("no file attachments after filtering images");
+        return;
+      }
+
+      const intent = await dependencies.interpretEmailRequest({
+        subject: raw.subject ?? "",
+        text: message.text,
+      });
+      log.info({ intent }, "intent interpreted");
+
+      const pendingRequest = createPendingRequest({
+        senderEmail,
+        raw,
+        inboundEmailAddress: organization.inboundEmailAddress,
+        attachments: fileAttachments,
+        intent,
+      });
+
+      if (!pendingRequest.sourceLocale || !pendingRequest.targetLocale) {
+        log.info("missing locales, requesting clarification");
+        await thread.post(buildClarificationMessage(pendingRequest));
+        await thread.setState({ pendingTranslationRequest: pendingRequest });
+        return;
+      }
+
+      if (intent.confidence < intentConfirmationThreshold) {
+        log.info({ confidence: intent.confidence }, "low confidence, requesting confirmation");
+        await thread.post(buildConfirmationMessage(pendingRequest));
+        await thread.setState({ pendingTranslationRequest: pendingRequest });
+        return;
+      }
+
+      await enqueuePendingTranslation({
+        thread,
+        queue: dependencies.queue,
+        fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
+        pending: pendingRequest,
+      });
+    } catch (error) {
+      log.error(error, "unhandled error in email handler");
+      throw error;
     }
-
-    const organization = await dependencies.resolveInboundEmailOrganization({
-      senderUserId: user.id,
-      recipientAddresses: raw.to ?? [],
-    });
-
-    if (!organization) {
-      await thread.post(
-        "This inbound email address is not active for one of your organizations. Use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
-      );
-      return;
-    }
-
-    if (attachments.length === 0) {
-      await thread.post(buildSupportedRequestHelp());
-      return;
-    }
-
-    if (!raw.emailId || !raw.messageId) {
-      await thread.post(
-        "I couldn't process this email because it was missing provider metadata. Please resend the request. If it happens again, contact support with the original message.",
-      );
-      return;
-    }
-
-    const imageAttachments = message.attachments.filter((att) => att.type === "image");
-    for (const imageAttachment of imageAttachments) {
-      await dependencies.handleImageAttachment(thread, message, imageAttachment, raw);
-    }
-
-    const fileAttachments = attachments.filter((att) => !att.contentType.startsWith("image/"));
-    if (fileAttachments.length === 0) {
-      return;
-    }
-
-    const intent = await dependencies.interpretEmailRequest({
-      subject: raw.subject ?? "",
-      text: message.text,
-    });
-    const pendingRequest = createPendingRequest({
-      senderEmail,
-      raw,
-      inboundEmailAddress: organization.inboundEmailAddress,
-      attachments: fileAttachments,
-      intent,
-    });
-
-    if (!pendingRequest.sourceLocale || !pendingRequest.targetLocale) {
-      await thread.post(buildClarificationMessage(pendingRequest));
-      await thread.setState({ pendingTranslationRequest: pendingRequest });
-      return;
-    }
-
-    if (intent.confidence < intentConfirmationThreshold) {
-      await thread.post(buildConfirmationMessage(pendingRequest));
-      await thread.setState({ pendingTranslationRequest: pendingRequest });
-      return;
-    }
-
-    await enqueuePendingTranslation({
-      thread,
-      queue: dependencies.queue,
-      fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
-      pending: pendingRequest,
-    });
   };
 }
 
@@ -413,9 +470,10 @@ export async function getEmailBot(options?: { emailTranslationQueue?: EmailTrans
         fromAddress: env.RESEND_FROM_ADDRESS,
         fromName: env.RESEND_FROM_NAME ?? "Hyperlocalise",
         userName: "hyperlocalise",
+        logger: createChatLogger("resend"),
       }),
     },
-    logger: "info",
+    logger: createChatLogger("chat"),
     state: createChatStateAdapter(),
     userName: "hyperlocalise",
   });
