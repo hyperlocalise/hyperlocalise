@@ -291,11 +291,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
       return new Response(JSON.stringify({ error: "not_initialized" }), { status: 503 });
     }
 
-    Promise.resolve()
-      .then(() => this.chat!.processMessage(this, message.threadId, message, options))
-      .catch((err: unknown) => {
-        this.logger.error("Failed to process message", err);
-      });
+    this.chat.processMessage(this, message.threadId, message, options);
     return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
   }
 
