@@ -211,6 +211,37 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
+  it("does not ask for source language when only target locale is missing", async () => {
+    const dependencies = createDependencies();
+    dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      sourceLocale: null,
+      targetLocale: null,
+      instructions: null,
+      confidence: 0.9,
+      missingFields: ["sourceLocale", "targetLocale"],
+    });
+    const { thread, posts } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "Please translate this file",
+        raw: {
+          subject: "Translate",
+          attachments: [{ id: "att_123", filename: "en-US.json", contentType: "application/json" }],
+        },
+      }),
+    );
+
+    expect(posts[0]).toContain(
+      "I received your file, but I need the target language before I start.",
+    );
+    expect(posts[0]).not.toContain("source language");
+    expect(posts[0]).toContain("- en-US.json");
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+  });
+
   it("continues a pending request when the user replies with missing locales", async () => {
     const dependencies = createDependencies();
     const { thread, posts } = createThread({

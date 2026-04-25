@@ -85,10 +85,7 @@ function buildSupportedRequestHelp() {
 }
 
 function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
-  const missing = [
-    pending.sourceLocale ? null : "source language (optional — I can auto-detect)",
-    pending.targetLocale ? null : "target language",
-  ].filter(Boolean);
+  const missing = [pending.targetLocale ? null : "target language"].filter(Boolean);
 
   return [
     `I received your file${pending.attachments.length === 1 ? "" : "s"}, but I need the ${missing.join(" and ")} before I start.`,
