@@ -211,7 +211,7 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
-  it("does not ask for source language when only target locale is missing", async () => {
+  it("does not ask for source language even when source locale is also missing", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
       sourceLocale: null,
