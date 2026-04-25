@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 type Tone = "safe" | "watch" | "risk" | "info";
+const JOB_LIST_LIMIT = 100;
 
 const projects = [
   {
@@ -462,11 +463,11 @@ export function ProjectsPageContent() {
   );
 }
 
-export function JobsPageContent() {
+export function JobsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const projectsQuery = useQuery({
-    queryKey: ["translation-projects"],
+    queryKey: ["translation-projects", organizationSlug],
     queryFn: async () => {
       const response = await apiClient.api.project.$get();
 
@@ -482,12 +483,12 @@ export function JobsPageContent() {
   const activeProjectId = selectedProjectId || projectsQuery.data?.[0]?.id || "";
 
   const jobsQuery = useQuery({
-    queryKey: ["translation-jobs", activeProjectId],
+    queryKey: ["translation-jobs", organizationSlug, activeProjectId],
     enabled: Boolean(activeProjectId),
     queryFn: async () => {
       const response = await apiClient.api.project[":projectId"].jobs.$get({
         param: { projectId: activeProjectId },
-        query: { limit: "100" },
+        query: { limit: `${JOB_LIST_LIMIT}` },
       });
 
       if (!response.ok) {
@@ -504,7 +505,7 @@ export function JobsPageContent() {
     selectedJobId && jobs.some((job) => job.id === selectedJobId) ? selectedJobId : (jobs[0]?.id ?? "");
 
   const jobDetailsQuery = useQuery({
-    queryKey: ["translation-job-details", activeProjectId, activeJobId],
+    queryKey: ["translation-job-details", organizationSlug, activeProjectId, activeJobId],
     enabled: Boolean(activeProjectId && activeJobId),
     queryFn: async () => {
       const response = await apiClient.api.project[":projectId"].jobs[":jobId"].$get({
@@ -520,29 +521,42 @@ export function JobsPageContent() {
     },
   });
 
-  const jobMetrics = useMemo(() => {
+  const jobStats = useMemo(() => {
     const runningCount = jobs.filter((job) => job.status === "running").length;
     const queuedCount = jobs.filter((job) => job.status === "queued").length;
     const failedCount = jobs.filter((job) => job.status === "failed").length;
 
-    return [
-      { label: "Running jobs", value: `${runningCount}`, detail: "active now", tone: "info" as const },
-      { label: "Queued jobs", value: `${queuedCount}`, detail: "waiting for execution", tone: "watch" as const },
-      { label: "Failed jobs", value: `${failedCount}`, detail: "needs attention", tone: "risk" as const },
-    ] as const;
-  }, [jobs]);
-
-  const jobPipeline = useMemo(() => {
     const steps = ["queued", "running", "succeeded", "failed"] as const;
-
-    return steps.map((status) => ({
-      step: status,
-      count: `${jobs.filter((job) => job.status === status).length}`,
-      detail: `jobs in ${status} state`,
-    }));
+    return {
+      runningCount,
+      metrics: [
+        {
+          label: "Running jobs",
+          value: `${runningCount}`,
+          detail: `latest ${JOB_LIST_LIMIT}`,
+          tone: "info" as const,
+        },
+        {
+          label: "Queued jobs",
+          value: `${queuedCount}`,
+          detail: `latest ${JOB_LIST_LIMIT}`,
+          tone: "watch" as const,
+        },
+        {
+          label: "Failed jobs",
+          value: `${failedCount}`,
+          detail: `latest ${JOB_LIST_LIMIT}`,
+          tone: "risk" as const,
+        },
+      ] as const,
+      pipeline: steps.map((status) => ({
+        step: status,
+        count: `${jobs.filter((job) => job.status === status).length}`,
+        detail: `jobs in ${status} state`,
+      })),
+    };
   }, [jobs]);
 
-  const runningCount = jobs.filter((job) => job.status === "running").length;
   const isLoadingProjects = projectsQuery.isLoading;
   const isLoadingJobs = jobsQuery.isLoading;
   const isLoadingDetails = jobDetailsQuery.isLoading;
@@ -560,9 +574,9 @@ export function JobsPageContent() {
         label="Translation queue"
         title="Jobs"
         description="Follow translation work from source import through AI drafting, eval gates, human review, and TMS sync."
-        statusLabel={isLoadingJobs ? "Loading…" : `${runningCount} running`}
+        statusLabel={isLoadingJobs ? "Loading…" : `${jobStats.runningCount} running`}
       />
-      <MetricsGrid metrics={jobMetrics} />
+      <MetricsGrid metrics={jobStats.metrics} />
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <ResourceCard
           title="Translation jobs"
@@ -608,6 +622,11 @@ export function JobsPageContent() {
               ) : null}
               {!isLoadingJobs && jobs.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-white/58">No jobs found for this project.</p>
+              ) : null}
+              {!isLoadingJobs && jobs.length >= JOB_LIST_LIMIT ? (
+                <p className="px-5 pt-3 text-xs text-white/42">
+                  Showing latest {JOB_LIST_LIMIT} jobs. Older jobs are not included in this view.
+                </p>
               ) : null}
               {jobs.map((job, index) => (
                 <div key={job.id}>
@@ -675,7 +694,7 @@ export function JobsPageContent() {
       <section className="grid gap-4">
         <ResourceCard title="Pipeline" description="Live distribution by job status." icon={FileSyncIcon}>
           <div className="px-5 pb-2">
-            {jobPipeline.map((stage, index) => (
+            {jobStats.pipeline.map((stage, index) => (
               <div key={stage.step}>
                 <div className="flex items-center justify-between gap-4 py-4">
                   <div>
@@ -684,7 +703,7 @@ export function JobsPageContent() {
                   </div>
                   <p className="font-heading text-2xl font-medium text-white">{stage.count}</p>
                 </div>
-                {index < jobPipeline.length - 1 ? <Separator className="bg-white/8" /> : null}
+                {index < jobStats.pipeline.length - 1 ? <Separator className="bg-white/8" /> : null}
               </div>
             ))}
           </div>
