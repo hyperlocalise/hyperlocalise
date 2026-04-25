@@ -4,6 +4,7 @@ import { createResendAdapter } from "./adapter";
 
 const mocks = vi.hoisted(() => ({
   send: vi.fn(async () => ({ data: { id: "email_reply" }, error: null })),
+  getReceivedEmail: vi.fn(),
 }));
 
 vi.mock("resend", () => ({
@@ -11,6 +12,9 @@ vi.mock("resend", () => ({
     return {
       emails: {
         send: mocks.send,
+        receiving: {
+          get: mocks.getReceivedEmail,
+        },
       },
     };
   }),
@@ -142,6 +146,96 @@ describe("createResendAdapter", () => {
       expect.any(String),
       expect.objectContaining({ id: "email_123" }),
       options,
+    );
+  });
+
+  it("fetches received email content before processing body-less webhooks", async () => {
+    mocks.getReceivedEmail.mockResolvedValueOnce({
+      data: {
+        object: "email",
+        id: "email_123",
+        from: "Sender <sender@example.com>",
+        to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
+        created_at: "2026-04-26T00:00:00.000Z",
+        subject: "Translate",
+        bcc: null,
+        cc: null,
+        reply_to: null,
+        html: null,
+        text: "Can you translate this file from English into Vietnamese",
+        headers: null,
+        message_id: "message_123",
+        raw: null,
+        attachments: [
+          {
+            id: "att_123",
+            filename: "en-US.json",
+            size: 123,
+            content_type: "application/json",
+            content_id: null,
+            content_disposition: "attachment",
+          },
+        ],
+      },
+      error: null,
+    });
+    const adapter = createResendAdapter({
+      apiKey: "test-key",
+      webhookSecret: "",
+      fromAddress: "agent@example.com",
+      fromName: "Hyperlocalise",
+    });
+    const state = {
+      get: vi.fn(async () => null),
+      set: vi.fn(async (_key: string, _metadata: unknown, _ttl: number) => undefined),
+    };
+    const processMessage = vi.fn();
+
+    await adapter.initialize({
+      getState: () => state,
+      processMessage,
+    } as never);
+    await adapter.handleWebhook(
+      new Request("https://example.com/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "email.received",
+          data: {
+            email_id: "email_123",
+            from: "Sender <sender@example.com>",
+            to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
+            subject: "Translate",
+            message_id: "message_123",
+            attachments: [
+              {
+                id: "att_123",
+                filename: "en-US.json",
+                content_type: "application/json",
+              },
+            ],
+          },
+        }),
+      }),
+    );
+
+    expect(mocks.getReceivedEmail).toHaveBeenCalledWith("email_123");
+    expect(processMessage).toHaveBeenCalledWith(
+      adapter,
+      expect.any(String),
+      expect.objectContaining({
+        text: "Can you translate this file from English into Vietnamese",
+        raw: expect.objectContaining({
+          text: "Can you translate this file from English into Vietnamese",
+          attachments: [
+            expect.objectContaining({
+              id: "att_123",
+              filename: "en-US.json",
+              contentType: "application/json",
+            }),
+          ],
+        }),
+      }),
+      undefined,
     );
   });
 

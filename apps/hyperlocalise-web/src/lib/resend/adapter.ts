@@ -277,6 +277,30 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
         : [],
     };
 
+    if (!rawMessage.text && rawMessage.emailId) {
+      const result = await this.resend.emails.receiving.get(rawMessage.emailId);
+      if (result.error || !result.data) {
+        this.logger.warn(
+          `Failed to fetch received email content: ${result.error?.message ?? "unknown"}`,
+        );
+      } else {
+        rawMessage.text = result.data.text ?? "";
+        rawMessage.html = result.data.html ?? rawMessage.html;
+        rawMessage.subject = result.data.subject || rawMessage.subject;
+        rawMessage.from = result.data.from || rawMessage.from;
+        rawMessage.to = result.data.to.length > 0 ? result.data.to : rawMessage.to;
+        rawMessage.messageId = result.data.message_id || rawMessage.messageId;
+        rawMessage.attachments =
+          result.data.attachments.length > 0
+            ? result.data.attachments.map((att) => ({
+                id: att.id,
+                filename: att.filename,
+                contentType: att.content_type,
+              }))
+            : rawMessage.attachments;
+      }
+    }
+
     const replyToAddress = getReplyToAddress(rawMessage.to);
     const message = this.parseMessage(rawMessage, replyToAddress);
 
