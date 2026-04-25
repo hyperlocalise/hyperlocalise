@@ -12,9 +12,10 @@ The code is split by integration boundary so the workflow stays testable.
 2. `users.ts` verifies that the sender is a registered Hyperlocalise user.
 3. `organizations.ts` resolves the addressed inbound alias to an enabled
    organization where the sender is a member.
-4. `image-attachments.ts` replies with a clear unsupported-image message.
-5. `intent.ts` asks `gpt-5.4-mini` to interpret the subject and body as a
+4. `intent.ts` asks `gpt-5.4-mini` to interpret the subject and body as a
    translation request.
+5. `image-attachments.ts` sends image attachments and the interpreted request
+   directly to the image model, then replies with the generated image.
 6. `bot.ts` stores a pending request when the agent needs missing locales or
    confirmation.
 7. `attachments.ts` resolves Resend attachment download URLs for accepted file
@@ -90,8 +91,10 @@ emails state this limitation when instructions are present.
 - Inactive or unauthorized inbound address: the bot asks the sender to use the
   active workspace address or ask an admin to enable the email agent.
 - No attachments: the bot explains the required request shape and gives examples.
-- Image-only attachments: the bot explains that image localization is not
-  available in the email translation workflow yet.
+- Image-only attachments: the bot uses the interpreted target locale and
+  instructions to generate a localized image reply.
+- Missing or low-confidence image intent: the bot asks the sender to resend the
+  image with a clearer target language and instructions.
 - Missing email metadata: the bot asks the sender to resend the request because
   it cannot fetch attachments or thread the reply reliably.
 - Missing locale intent: the bot stores the pending request and asks only for the
@@ -113,4 +116,4 @@ emails state this limitation when instructions are present.
 - replies to pending requests continue without new attachments.
 - low-confidence intent asks for confirmation before enqueueing.
 - duplicate requests do not enqueue duplicate jobs.
-- image-only emails return the unsupported-image message.
+- image-only emails generate a localized image when the target language is clear.

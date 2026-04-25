@@ -10,7 +10,13 @@ import { createEmailTranslationQueue } from "@/workflows/adapters";
 
 import { fetchAttachmentDownloadUrls } from "./attachments";
 import { handleImageAttachment } from "./image-attachments";
-import { type EmailRequestIntent, interpretEmailRequest } from "./intent";
+import {
+  type EmailRequestIntent,
+  interpretClarificationReply,
+  interpretEmailRequest,
+} from "./intent";
+
+export { interpretClarificationReply };
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailTranslationRequest, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
@@ -27,6 +33,7 @@ export type EmailHandlerDependencies = {
   lookupUserByEmail: typeof lookupUserByEmail;
   resolveInboundEmailOrganization: typeof resolveInboundEmailOrganization;
   interpretEmailRequest: typeof interpretEmailRequest;
+  interpretClarificationReply: typeof interpretClarificationReply;
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
 };
@@ -41,13 +48,13 @@ function createRequestId(input: string) {
 function createTranslationKey(input: {
   emailId: string;
   attachmentId: string;
-  sourceLocale: string;
+  sourceLocale: string | null;
   targetLocale: string;
 }) {
   return [
     input.emailId,
     input.attachmentId,
-    input.sourceLocale.toLowerCase(),
+    (input.sourceLocale ?? "auto").toLowerCase(),
     input.targetLocale.toLowerCase(),
   ].join(":");
 }
@@ -79,7 +86,7 @@ function buildSupportedRequestHelp() {
 
 function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
   const missing = [
-    pending.sourceLocale ? null : "source language",
+    pending.sourceLocale ? null : "source language (optional — I can auto-detect)",
     pending.targetLocale ? null : "target language",
   ].filter(Boolean);
 
@@ -90,8 +97,9 @@ function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
     formatFileList(pending.attachments),
     "",
     "Reply with something like:",
-    "source: en-US",
-    "target: fr-FR",
+    "Target: Vietnamese",
+    "English to Vietnamese",
+    "source: en-US, target: vi-VN",
     "",
     `Request ID: ${pending.requestId}`,
   ].join("\n");
@@ -104,7 +112,7 @@ function buildConfirmationMessage(pending: PendingEmailTranslationRequest) {
     "Files:",
     formatFileList(pending.attachments),
     "",
-    `Source: ${pending.sourceLocale}`,
+    pending.sourceLocale ? `Source: ${pending.sourceLocale}` : "Source: auto-detect",
     `Target: ${pending.targetLocale}`,
     pending.instructions ? `Instructions: ${pending.instructions}` : null,
     pending.instructions
@@ -127,7 +135,7 @@ function buildIntakeReceipt(input: {
     "Files:",
     formatFileList(input.pending.attachments),
     "",
-    `Source: ${input.pending.sourceLocale}`,
+    input.pending.sourceLocale ? `Source: ${input.pending.sourceLocale}` : "Source: auto-detect",
     `Target: ${input.pending.targetLocale}`,
     input.pending.instructions ? `Instructions: ${input.pending.instructions}` : null,
     input.pending.instructions
@@ -161,8 +169,8 @@ async function enqueuePendingTranslation(input: {
     "enqueueing pending translation",
   );
 
-  if (!pending.sourceLocale || !pending.targetLocale) {
-    log.info("missing locales, requesting clarification");
+  if (!pending.targetLocale) {
+    log.info("missing target locale, requesting clarification");
     await thread.post(buildClarificationMessage(pending));
     await thread.setState({ pendingTranslationRequest: pending });
     return;
@@ -276,7 +284,7 @@ async function handlePendingClarification(input: {
   const log = logger.child({ req: pending.requestId });
   log.info("handling pending clarification");
 
-  if (isAffirmative(message.text) && pending.sourceLocale && pending.targetLocale) {
+  if (isAffirmative(message.text) && pending.targetLocale) {
     log.info("affirmative response, proceeding with translation");
     await enqueuePendingTranslation({
       thread,
@@ -287,8 +295,7 @@ async function handlePendingClarification(input: {
     return;
   }
 
-  const intent = await dependencies.interpretEmailRequest({
-    subject: pending.subject,
+  const intent = await dependencies.interpretClarificationReply({
     text: message.text,
   });
   log.info(
@@ -306,8 +313,8 @@ async function handlePendingClarification(input: {
     instructions: intent.instructions ?? pending.instructions,
   };
 
-  if (!nextPending.sourceLocale || !nextPending.targetLocale) {
-    log.info("still missing locales after clarification");
+  if (!nextPending.targetLocale) {
+    log.info("still missing target locale after clarification");
     await thread.post(buildClarificationMessage(nextPending));
     await thread.setState({ pendingTranslationRequest: nextPending });
     return;
@@ -356,10 +363,25 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       }
 
       const state = await thread.state;
-      const pending = state?.pendingTranslationRequest;
+      let pending = state?.pendingTranslationRequest;
       const attachments = raw.attachments ?? [];
 
-      if (pending && pending.senderEmail === senderEmail && attachments.length === 0) {
+      if (pending && pending.senderEmail === senderEmail) {
+        if (attachments.length > 0) {
+          const fileAttachments = attachments.filter(
+            (att) => !att.contentType.startsWith("image/"),
+          );
+          if (fileAttachments.length > 0) {
+            log.info(
+              { newAttachmentCount: fileAttachments.length },
+              "merging new attachments into pending clarification",
+            );
+            pending = {
+              ...pending,
+              attachments: [...pending.attachments, ...fileAttachments],
+            };
+          }
+        }
         log.info("resuming pending clarification");
         await handlePendingClarification({ thread, message, pending, dependencies });
         return;
@@ -393,16 +415,9 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       }
 
       const imageAttachments = message.attachments.filter((att) => att.type === "image");
-      if (imageAttachments.length > 0) {
-        log.info({ count: imageAttachments.length }, "handling image attachments");
-      }
-      for (const imageAttachment of imageAttachments) {
-        await dependencies.handleImageAttachment(thread, message, imageAttachment, raw);
-      }
-
       const fileAttachments = attachments.filter((att) => !att.contentType.startsWith("image/"));
-      if (fileAttachments.length === 0) {
-        log.info("no file attachments after filtering images");
+      if (imageAttachments.length === 0 && fileAttachments.length === 0) {
+        log.info("no supported attachments found");
         return;
       }
 
@@ -418,6 +433,33 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         "intent interpreted",
       );
 
+      if (imageAttachments.length > 0) {
+        if (!intent.targetLocale) {
+          log.info("missing target locale for image localization");
+          await thread.post(
+            "I received your image, but I need the target language before I can localize it. Please resend the image with a target language, for example: Target: Japanese.",
+          );
+        } else if (intent.confidence < intentConfirmationThreshold) {
+          log.info(
+            { confidence: intent.confidence },
+            "low confidence for image localization, requesting resend with clearer intent",
+          );
+          await thread.post(
+            "I received your image, but I am not confident about the localization request. Please resend it with the target language and any image instructions.",
+          );
+        } else {
+          log.info({ count: imageAttachments.length }, "handling image attachments");
+          for (const imageAttachment of imageAttachments) {
+            await dependencies.handleImageAttachment(thread, message, imageAttachment, raw, intent);
+          }
+        }
+      }
+
+      if (fileAttachments.length === 0) {
+        log.info("no file attachments after filtering images");
+        return;
+      }
+
       const pendingRequest = createPendingRequest({
         senderEmail,
         raw,
@@ -426,8 +468,8 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         intent,
       });
 
-      if (!pendingRequest.sourceLocale || !pendingRequest.targetLocale) {
-        log.info("missing locales, requesting clarification");
+      if (!pendingRequest.targetLocale) {
+        log.info("missing target locale, requesting clarification");
         await thread.post(buildClarificationMessage(pendingRequest));
         await thread.setState({ pendingTranslationRequest: pendingRequest });
         return;
@@ -467,6 +509,7 @@ export async function getEmailBot(options?: { emailTranslationQueue?: EmailTrans
     lookupUserByEmail,
     resolveInboundEmailOrganization,
     interpretEmailRequest,
+    interpretClarificationReply,
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
   });

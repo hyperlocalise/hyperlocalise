@@ -27,7 +27,7 @@ function getEmailIntentModel() {
   return provider("gpt-5.4-mini");
 }
 
-function normalizeLocale(locale: string | null) {
+export function normalizeLocale(locale: string | null) {
   const value = locale?.trim().replaceAll("_", "-");
   if (!value) {
     return null;
@@ -104,11 +104,52 @@ export function createEmailRequestInterpreter({ model }: CreateEmailRequestInter
   };
 }
 
+function buildClarificationPrompt(input: { text: string }) {
+  return [
+    "The user is replying to a request for missing translation locale information.",
+    "Extract any source locale and target locale they mention.",
+    "Return the locales as BCP 47 locale tags when they are present.",
+    "Infer common language names and regions, such as English to en, Vietnamese to vi-VN, Brazilian Portuguese to pt-BR, and French Canada to fr-CA.",
+    "If the user only mentions one language, assume it is the target locale unless they explicitly label it as source.",
+    "Put translation preferences in instructions, such as tone, formality, audience, terminology, or style constraints.",
+    "",
+    "User reply:",
+    input.text || "(none)",
+  ].join("\n");
+}
+
+export function createClarificationInterpreter({ model }: CreateEmailRequestInterpreterOptions) {
+  return async (input: { text: string }) => {
+    const { output } = await generateText({
+      model,
+      output: Output.object({
+        schema: emailRequestIntentSchema,
+      }),
+      system:
+        "You are a precise email intake parser for a localization workflow. This is a clarification reply. Return only structured data.",
+      prompt: buildClarificationPrompt(input),
+      temperature: 0,
+    });
+
+    return normalizeEmailRequestIntent(output);
+  };
+}
+
 export async function interpretEmailRequest(input: {
   subject: string;
   text: string;
 }): Promise<EmailRequestIntent> {
   const interpret = createEmailRequestInterpreter({
+    model: getEmailIntentModel(),
+  });
+
+  return interpret(input);
+}
+
+export async function interpretClarificationReply(input: {
+  text: string;
+}): Promise<EmailRequestIntent> {
+  const interpret = createClarificationInterpreter({
     model: getEmailIntentModel(),
   });
 
