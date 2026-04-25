@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BotIcon,
   BubbleChatIcon,
@@ -128,6 +128,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
 
   const emailAddress = useMemo(() => emailAgent?.inboundEmailAddress ?? "", [emailAgent]);
   const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const copyEmailAddress = async () => {
     if (!emailAddress) {
@@ -137,8 +138,17 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
     await navigator.clipboard.writeText(emailAddress);
     setCopied(true);
     toast.success("Inbound email copied");
-    setTimeout(() => setCopied(false), 5000);
+
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 5000);
   };
+
+  useEffect(
+    () => () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    },
+    [],
+  );
 
   const toggleEnabled = async (enabled: boolean) => {
     try {
