@@ -185,10 +185,22 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
             emailId: raw.emailId,
             id: att.id,
           });
-          if (result.error || !result.data) {
+          let downloadUrl = result.data?.download_url;
+          if (!downloadUrl) {
+            const listResult = await this.resend.emails.receiving.attachments.list({
+              emailId: raw.emailId,
+            });
+            const fallback = listResult.data?.data.find(
+              (candidate) =>
+                candidate.id === att.id ||
+                (candidate.filename === att.filename && candidate.content_type === att.contentType),
+            );
+            downloadUrl = fallback?.download_url;
+          }
+          if (!downloadUrl) {
             throw new Error(`Failed to fetch attachment: ${result.error?.message ?? "unknown"}`);
           }
-          const response = await fetch(result.data.download_url);
+          const response = await fetch(downloadUrl);
           if (!response.ok) {
             throw new Error(`Failed to download attachment: ${response.status}`);
           }
@@ -290,14 +302,13 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
         rawMessage.from = result.data.from || rawMessage.from;
         rawMessage.to = result.data.to.length > 0 ? result.data.to : rawMessage.to;
         rawMessage.messageId = result.data.message_id || rawMessage.messageId;
-        rawMessage.attachments =
-          result.data.attachments.length > 0
-            ? result.data.attachments.map((att) => ({
-                id: att.id,
-                filename: att.filename,
-                contentType: att.content_type,
-              }))
-            : rawMessage.attachments;
+        if (rawMessage.attachments.length === 0 && result.data.attachments.length > 0) {
+          rawMessage.attachments = result.data.attachments.map((att) => ({
+            id: att.id,
+            filename: att.filename,
+            contentType: att.content_type,
+          }));
+        }
       }
     }
 

@@ -5,6 +5,8 @@ import { createResendAdapter } from "./adapter";
 const mocks = vi.hoisted(() => ({
   send: vi.fn(async () => ({ data: { id: "email_reply" }, error: null })),
   getReceivedEmail: vi.fn(),
+  getReceivingAttachment: vi.fn(),
+  listReceivingAttachments: vi.fn(),
 }));
 
 vi.mock("resend", () => ({
@@ -14,6 +16,10 @@ vi.mock("resend", () => ({
         send: mocks.send,
         receiving: {
           get: mocks.getReceivedEmail,
+          attachments: {
+            get: mocks.getReceivingAttachment,
+            list: mocks.listReceivingAttachments,
+          },
         },
       },
     };
@@ -168,7 +174,7 @@ describe("createResendAdapter", () => {
         raw: null,
         attachments: [
           {
-            id: "att_123",
+            id: "raw_db_attachment_id",
             filename: "en-US.json",
             size: 123,
             content_type: "application/json",
@@ -237,6 +243,107 @@ describe("createResendAdapter", () => {
       }),
       undefined,
     );
+  });
+
+  it("falls back to listed signed attachments when fetching attachment data", async () => {
+    mocks.getReceivedEmail.mockResolvedValueOnce({
+      data: {
+        object: "email",
+        id: "email_123",
+        from: "Sender <sender@example.com>",
+        to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
+        created_at: "2026-04-26T00:00:00.000Z",
+        subject: "Translate image",
+        bcc: null,
+        cc: null,
+        reply_to: null,
+        html: null,
+        text: "Translate this image to Vietnamese",
+        headers: null,
+        message_id: "message_123",
+        raw: null,
+        attachments: [
+          {
+            id: "raw_db_attachment_id",
+            filename: "banner.png",
+            size: 123,
+            content_type: "image/png",
+            content_id: null,
+            content_disposition: "attachment",
+          },
+        ],
+      },
+      error: null,
+    });
+    mocks.getReceivingAttachment.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Attachment not found" },
+    });
+    mocks.listReceivingAttachments.mockResolvedValueOnce({
+      data: {
+        object: "list",
+        has_more: false,
+        data: [
+          {
+            id: "signed_attachment_id",
+            filename: "banner.png",
+            size: 123,
+            content_type: "image/png",
+            content_disposition: "attachment",
+            download_url: "https://example.com/banner.png",
+            expires_at: "2026-04-26T00:00:00.000Z",
+          },
+        ],
+      },
+      error: null,
+    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("image-bytes"));
+    const processMessage = vi.fn();
+    const adapter = createResendAdapter({
+      apiKey: "test-key",
+      webhookSecret: "",
+      fromAddress: "agent@example.com",
+      fromName: "Hyperlocalise",
+    });
+
+    await adapter.initialize({
+      getState: () => ({
+        get: vi.fn(async () => null),
+        set: vi.fn(async (_key: string, _metadata: unknown, _ttl: number) => undefined),
+      }),
+      processMessage,
+    } as never);
+    await adapter.handleWebhook(
+      new Request("https://example.com/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          type: "email.received",
+          data: {
+            email_id: "email_123",
+            from: "Sender <sender@example.com>",
+            to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
+            subject: "Translate image",
+            message_id: "message_123",
+            attachments: [],
+          },
+        }),
+      }),
+    );
+
+    const message = processMessage.mock.calls[0]?.[2];
+    const data = await message.attachments[0].fetchData();
+
+    expect(data).toEqual(Buffer.from("image-bytes"));
+    expect(mocks.getReceivingAttachment).toHaveBeenCalledWith({
+      emailId: "email_123",
+      id: "raw_db_attachment_id",
+    });
+    expect(mocks.listReceivingAttachments).toHaveBeenCalledWith({ emailId: "email_123" });
+    expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png");
+
+    fetchMock.mockRestore();
   });
 
   it("isolates thread metadata by org inbound address for the same sender and subject", async () => {
