@@ -56,7 +56,7 @@ export const env = createEnv({
     RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 
     /** From address for outbound emails sent by the email bot. */
-    RESEND_FROM_ADDRESS: z.string().email().optional(),
+    RESEND_FROM_ADDRESS: z.email().optional(),
 
     /** Display name for outbound emails sent by the email bot. */
     RESEND_FROM_NAME: z.string().min(1).optional(),
