@@ -63,13 +63,17 @@ export type GitHubFixQueue = {
 };
 
 export type EmailTranslationEventData = {
+  requestId: string;
+  attachmentId: string;
   senderEmail: string;
   subject: string;
   originalMessageId: string;
+  inboundEmailAddress: string;
   attachmentDownloadUrl: string;
   attachmentFilename: string;
   sourceLocale: string;
   targetLocale: string;
+  instructions: string | null;
 };
 
 export type EmailTranslationQueue = {

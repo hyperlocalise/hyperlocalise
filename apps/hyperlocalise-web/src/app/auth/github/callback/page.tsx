@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { getGitHubApp } from "@/lib/github-app";
-import { getGitHubStateSecret, verifyGitHubState } from "@/lib/github-state";
+import { getGitHubApp } from "@/lib/agents/github/app";
+import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
 
 type GitHubCallbackPageProps = {
   searchParams: Promise<{

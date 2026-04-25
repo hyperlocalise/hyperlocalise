@@ -98,16 +98,27 @@ async function sendReplyEmail(
 ): Promise<void> {
   "use step";
 
-  if (!env.RESEND_API_KEY || !env.RESEND_FROM_ADDRESS) {
+  if (!env.RESEND_API_KEY) {
     throw new Error("Resend is not configured");
   }
 
   const resend = new Resend(env.RESEND_API_KEY);
   const result = await resend.emails.send({
-    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${env.RESEND_FROM_ADDRESS}>`,
+    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
     to: event.senderEmail,
     subject: `Re: ${event.subject}`,
-    text: `Here is your translated file (${event.sourceLocale} → ${event.targetLocale}).`,
+    text: [
+      `Done: ${event.attachmentFilename}`,
+      `Translated: ${event.sourceLocale} -> ${event.targetLocale}`,
+      `Attached: ${outputFilename}`,
+      event.instructions
+        ? "Note: style instructions were captured, but email translation does not apply them yet."
+        : null,
+      "",
+      `Request ID: ${event.requestId}`,
+    ]
+      .filter((line): line is string => line !== null)
+      .join("\n"),
     attachments: [
       {
         filename: outputFilename,
@@ -123,6 +134,62 @@ async function sendReplyEmail(
   if (result.error) {
     throw new Error(`failed to send reply email: ${result.error.message}`);
   }
+}
+
+async function sendFailureReplyEmail(
+  event: EmailTranslationEventData,
+  reason: string,
+): Promise<void> {
+  "use step";
+
+  if (!env.RESEND_API_KEY) {
+    throw new Error("Resend is not configured");
+  }
+
+  const resend = new Resend(env.RESEND_API_KEY);
+  const result = await resend.emails.send({
+    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
+    to: event.senderEmail,
+    subject: `Re: ${event.subject}`,
+    text: [
+      `I couldn't translate ${event.attachmentFilename}.`,
+      "",
+      `Reason: ${reason}`,
+      "You can reply with a corrected file or try sending the request again.",
+      "",
+      `Request ID: ${event.requestId}`,
+    ].join("\n"),
+    headers: {
+      "In-Reply-To": event.originalMessageId,
+      References: event.originalMessageId,
+    },
+  });
+
+  if (result.error) {
+    throw new Error(`failed to send failure reply email: ${result.error.message}`);
+  }
+}
+
+function userFacingFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Unknown translation failure";
+
+  if (message.includes("hyperlocalise CLI installation failed")) {
+    return "the translation runner could not be prepared.";
+  }
+
+  if (message.includes("failed to download attachment")) {
+    return "the attachment could not be downloaded.";
+  }
+
+  if (message.includes("translation failed")) {
+    return "the translation runner could not process this file.";
+  }
+
+  if (message.includes("failed to read translated file")) {
+    return "the translated output file could not be read.";
+  }
+
+  return "the translation workflow failed before it could finish.";
 }
 
 function getOutputFilename(inputFilename: string, targetLocale: string): string {
@@ -167,6 +234,13 @@ export async function emailTranslationWorkflow(event: EmailTranslationEventData)
 
     const translatedContent = await readTranslatedFile(sandboxId, outputFile);
     await sendReplyEmail(event, translatedContent, outputFile);
+  } catch (error) {
+    try {
+      await sendFailureReplyEmail(event, userFacingFailureReason(error));
+    } catch {
+      // Best-effort notification; keep the original workflow error.
+    }
+    throw error;
   } finally {
     await stopTranslationSandbox(sandboxId);
   }

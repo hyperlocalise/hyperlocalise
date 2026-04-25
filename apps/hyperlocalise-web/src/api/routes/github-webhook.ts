@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { db, schema } from "@/lib/database";
-import { getGitHubBot } from "@/lib/github-bot";
+import { getGitHubBot } from "@/lib/agents/github/bot";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import type { GitHubFixQueue } from "@/lib/workflow/types";
 import { createGitHubFixQueue } from "@/workflows/adapters";

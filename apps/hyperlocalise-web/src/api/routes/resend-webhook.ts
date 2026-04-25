@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { getEmailBot } from "@/lib/email-bot";
+import { getEmailBot } from "@/lib/agents/email/bot";
 import type { EmailTranslationQueue } from "@/lib/workflow/types";
 import { createEmailTranslationQueue } from "@/workflows/adapters";
 

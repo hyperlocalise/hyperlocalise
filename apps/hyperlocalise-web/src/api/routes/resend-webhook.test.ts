@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { createResendWebhookRoutes } from "./resend-webhook";
 
-vi.mock("@/lib/email-bot", () => {
+vi.mock("@/lib/agents/email/bot", () => {
   return {
     getEmailBot: vi.fn().mockResolvedValue({
       webhooks: {

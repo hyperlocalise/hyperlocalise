@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { getGitHubStateSecret, signGitHubState } from "@/lib/github-state";
+import { getGitHubStateSecret, signGitHubState } from "@/lib/agents/github/oauth-state";
 
 function isAdminRole(role: string): boolean {
   return role === "owner" || role === "admin";
