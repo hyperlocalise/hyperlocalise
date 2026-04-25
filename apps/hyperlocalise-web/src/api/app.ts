@@ -5,6 +5,7 @@ import type {
   GitHubFixQueue,
   TranslationJobQueue,
 } from "@/lib/workflow/types";
+import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { authRoutes } from "./routes/auth";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
@@ -33,6 +34,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/project", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/projects", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
+    .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route(

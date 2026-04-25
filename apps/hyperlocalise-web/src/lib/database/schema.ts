@@ -76,6 +76,10 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     // Optional human-readable slug for URLs and future workspace routing.
     slug: text("slug"),
+    // Whether inbound email agent intake is active for this organization.
+    emailAgentEnabled: boolean("email_agent_enabled").notNull().default(false),
+    // Generated inbound email alias for organization-level email intake routing.
+    inboundEmailAlias: text("inbound_email_alias"),
     // When the organization record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When organization metadata was last changed.
@@ -87,6 +91,7 @@ export const organizations = pgTable(
   (table) => [
     uniqueIndex("organizations_workos_organization_id_key").on(table.workosOrganizationId),
     uniqueIndex("organizations_slug_key").on(table.slug),
+    uniqueIndex("organizations_inbound_email_alias_key").on(table.inboundEmailAlias),
     index("idx_organizations_created_at").on(table.createdAt),
   ],
 );
