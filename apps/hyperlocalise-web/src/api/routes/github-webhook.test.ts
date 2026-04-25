@@ -50,8 +50,11 @@ async function ensureGithubRepositoryTables() {
     );
   `);
   await db.$client.query(`
+    DROP INDEX IF EXISTS github_installation_repositories_github_repository_id_key;
+  `);
+  await db.$client.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_github_repository_id_key
-    ON github_installation_repositories (github_repository_id);
+    ON github_installation_repositories (github_installation_id, github_repository_id);
   `);
 }
 

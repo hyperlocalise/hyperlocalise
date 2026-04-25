@@ -75,10 +75,11 @@ export async function upsertGitHubInstallationRepositories(input: {
       })),
     )
     .onConflictDoUpdate({
-      target: schema.githubInstallationRepositories.githubRepositoryId,
+      target: [
+        schema.githubInstallationRepositories.githubInstallationId,
+        schema.githubInstallationRepositories.githubRepositoryId,
+      ],
       set: {
-        organizationId: input.organizationId,
-        githubInstallationId: input.githubInstallationId,
         owner: sqlExcluded("owner"),
         name: sqlExcluded("name"),
         fullName: sqlExcluded("full_name"),
@@ -161,5 +162,5 @@ export async function syncInstallationRepositories(input: {
 }
 
 function sqlExcluded(column: string) {
-  return sql`excluded.${sql.raw(column)}`;
+  return sql`excluded.${sql.identifier(column)}`;
 }

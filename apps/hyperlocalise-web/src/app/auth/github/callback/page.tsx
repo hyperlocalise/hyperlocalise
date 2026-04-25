@@ -56,8 +56,12 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     // Ignore errors fetching details; we can still store the basic record.
   }
 
+  if (!env.GITHUB_APP_ID) {
+    redirect("/dashboard?error=github_app_not_configured");
+  }
+
   const githubInstallationId = Number.parseInt(installationId, 10);
-  const githubAppId = Number.parseInt(env.GITHUB_APP_ID ?? "0", 10);
+  const githubAppId = Number.parseInt(env.GITHUB_APP_ID, 10);
 
   const existing = await db
     .select()

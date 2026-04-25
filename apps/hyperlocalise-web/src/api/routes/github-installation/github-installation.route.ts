@@ -92,7 +92,7 @@ export function createGithubInstallationRoutes() {
         return c.json({ error: "forbidden" }, 403);
       }
 
-      if (!env.GITHUB_APP_ID) {
+      if (!env.GITHUB_APP_ID || !env.GITHUB_APP_SLUG) {
         return c.json({ error: "github_app_not_configured" }, 503);
       }
 
@@ -104,7 +104,7 @@ export function createGithubInstallationRoutes() {
       const state = `${payload}:${signature}`;
 
       // TODO: support custom GitHub App URLs (e.g. GitHub Enterprise).
-      const url = new URL("https://github.com/apps/hyperlocalise/installations/new");
+      const url = new URL(`https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`);
       url.searchParams.set("state", state);
 
       return c.json({ url: url.toString() }, 200);

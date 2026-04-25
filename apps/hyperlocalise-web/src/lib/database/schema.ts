@@ -581,6 +581,7 @@ export const githubInstallationRepositories = pgTable(
   },
   (table) => [
     uniqueIndex("github_installation_repositories_github_repository_id_key").on(
+      table.githubInstallationId,
       table.githubRepositoryId,
     ),
     index("idx_github_installation_repositories_org").on(table.organizationId),
