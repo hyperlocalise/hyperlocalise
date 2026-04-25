@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
 const inboundEmailDomain = "inbox.hyperlocalise.com";
 
@@ -140,6 +141,12 @@ export function createAgentEmailRoutes() {
       const organizationId = c.var.auth.organization.localOrganizationId;
       const organizationSlug = c.var.auth.organization.slug;
 
+      try {
+        assertProviderCredentialAdmin(c.var.auth.membership.role);
+      } catch {
+        return c.json({ error: "forbidden" as const }, 403);
+      }
+
       if (payload.enabled) {
         const organization = await ensureInboundAlias({ organizationId, organizationSlug });
 
@@ -210,5 +217,3 @@ export function createAgentEmailRoutes() {
       );
     });
 }
-
-export const agentEmailRoutes = createAgentEmailRoutes();

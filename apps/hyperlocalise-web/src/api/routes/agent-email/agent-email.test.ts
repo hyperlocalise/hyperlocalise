@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -20,6 +20,22 @@ const client = testClient(app);
 const fixture = createProjectTestFixture(client);
 
 describe("agentEmailRoutes", () => {
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+    await db.$client.query(`
+      ALTER TABLE organizations
+      ADD COLUMN IF NOT EXISTS email_agent_enabled boolean DEFAULT false NOT NULL;
+    `);
+    await db.$client.query(`
+      ALTER TABLE organizations
+      ADD COLUMN IF NOT EXISTS inbound_email_alias text;
+    `);
+    await db.$client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS organizations_inbound_email_alias_key
+      ON organizations (inbound_email_alias);
+    `);
+  });
+
   afterEach(async () => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
@@ -27,7 +43,7 @@ describe("agentEmailRoutes", () => {
   });
 
   it("returns disabled state when email agent is not enabled", async () => {
-    const identity = fixture.createWorkosIdentity();
+    const identity = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
     const response = await client.api.orgs[":organizationSlug"]["agent-email"].$get(
@@ -63,6 +79,10 @@ describe("agentEmailRoutes", () => {
 
     expect(enableResponse.status).toBe(200);
     const enableBody = await enableResponse.json();
+    if (!("emailAgent" in enableBody)) {
+      throw new Error("Expected email agent response");
+    }
+
     expect(enableBody.emailAgent.enabled).toBe(true);
     expect(enableBody.emailAgent.inboundEmailAddress).toMatch(
       /^example-org-[a-f0-9-]+-[a-f0-9]{6}@inbox\.hyperlocalise\.com$/,
@@ -100,6 +120,32 @@ describe("agentEmailRoutes", () => {
     );
 
     const reenableBody = await reenableResponse.json();
-    expect(reenableBody.emailAgent.inboundEmailAddress).toBe(enableBody.emailAgent.inboundEmailAddress);
+    if (!("emailAgent" in reenableBody)) {
+      throw new Error("Expected email agent response");
+    }
+
+    expect(reenableBody.emailAgent.inboundEmailAddress).toBe(
+      enableBody.emailAgent.inboundEmailAddress,
+    );
+  });
+
+  it("blocks org members from updating the email agent", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-email"].$patch(
+      {
+        param: { organizationSlug },
+        json: { enabled: true },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
+    });
   });
 });

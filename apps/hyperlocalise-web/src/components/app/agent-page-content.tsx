@@ -118,7 +118,11 @@ function useUpdateEmailAgentState(organizationSlug: string) {
 }
 
 export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
-  const { data: emailAgent, isLoading: isEmailAgentLoading } = useEmailAgentState(organizationSlug);
+  const {
+    data: emailAgent,
+    isLoading: isEmailAgentLoading,
+    isError: isEmailAgentError,
+  } = useEmailAgentState(organizationSlug);
   const updateEmailAgentState = useUpdateEmailAgentState(organizationSlug);
 
   const emailAddress = useMemo(() => emailAgent?.inboundEmailAddress ?? "", [emailAgent]);
@@ -186,7 +190,9 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                 onCheckedChange={toggleEnabled}
                 aria-label="Enable email agent"
                 className="mt-1 data-checked:bg-dew-500"
-                disabled={isEmailAgentLoading || updateEmailAgentState.isPending}
+                disabled={
+                  isEmailAgentLoading || isEmailAgentError || updateEmailAgentState.isPending
+                }
               />
             </div>
           </CardHeader>
@@ -198,6 +204,11 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                 Send or forward emails to this address and Hyperlocalise will automatically process
                 the request.
               </p>
+              {isEmailAgentError ? (
+                <p className="mt-2 text-sm text-red-300">
+                  Unable to load email agent settings right now.
+                </p>
+              ) : null}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -213,7 +224,11 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                     aria-label="Email agent intake address"
                     className="truncate text-sm text-white/58"
                     disabled={!emailAgent?.enabled}
-                    placeholder="Enable email agent to generate inbox address"
+                    placeholder={
+                      isEmailAgentError
+                        ? "Email agent settings unavailable"
+                        : "Enable email agent to generate inbox address"
+                    }
                   />
                 )}
                 <InputGroupAddon align="inline-end">
