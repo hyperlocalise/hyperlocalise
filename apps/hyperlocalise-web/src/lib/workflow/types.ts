@@ -71,7 +71,7 @@ export type EmailTranslationEventData = {
   inboundEmailAddress: string;
   attachmentDownloadUrl: string;
   attachmentFilename: string;
-  sourceLocale: string;
+  sourceLocale: string | null;
   targetLocale: string;
   instructions: string | null;
 };

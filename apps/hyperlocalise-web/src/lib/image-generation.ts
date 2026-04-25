@@ -1,31 +1,13 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateImage, generateText, Output } from "ai";
-import { z } from "zod";
+import { generateImage } from "ai";
 
 import { env } from "@/lib/env";
 
-const imageAnalysisOutputSchema = z.object({
-  prompt: z
-    .string()
-    .trim()
-    .min(1)
-    .describe(
-      "A detailed, high-quality prompt for image generation based on the user's image and intent",
-    ),
-});
-
 export type ImageGenerationResult = {
   image: Buffer;
+  mimeType: string;
   prompt: string;
 };
-
-function getVisionModel() {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-  const provider = createOpenAI({ apiKey: env.OPENAI_API_KEY });
-  return provider("gpt-5.4-mini");
-}
 
 function getImageModel() {
   if (!env.OPENAI_API_KEY) {
@@ -36,56 +18,20 @@ function getImageModel() {
 }
 
 /**
- * Analyzes an uploaded image using a vision model to detect intent and rewrite
- * an optimized prompt for image generation.
+ * Generates a new image from the uploaded source image and user intent.
  */
-async function analyzeImageAndRewritePrompt(
+async function generateImageFromPrompt(
   imageBuffer: Buffer,
-  mimeType: string,
-  userText?: string,
-): Promise<string> {
-  const model = getVisionModel();
-
-  const { output } = await generateText({
-    model,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: [
-              "Analyze the attached image and the user's request. Rewrite a detailed, high-quality prompt for an AI image generation model.",
-              "The prompt should capture the intent, style, composition, and key elements from the original image while incorporating any modifications the user requests.",
-              userText ? `User request: ${userText}` : "",
-              "Respond ONLY with the rewritten image generation prompt.",
-            ]
-              .filter(Boolean)
-              .join("\n\n"),
-          },
-          {
-            type: "image",
-            image: imageBuffer,
-            mediaType: mimeType,
-          },
-        ],
-      },
-    ],
-    output: Output.object({ schema: imageAnalysisOutputSchema }),
-  });
-
-  return output.prompt;
-}
-
-/**
- * Generates a new image from a text prompt using an image generation model.
- */
-async function generateImageFromPrompt(prompt: string): Promise<Buffer> {
+  prompt: string,
+): Promise<{ image: Buffer; mimeType: string }> {
   const model = getImageModel();
 
   const result = await generateImage({
     model,
-    prompt,
+    prompt: {
+      images: [imageBuffer],
+      text: prompt,
+    },
     n: 1,
   });
 
@@ -94,21 +40,28 @@ async function generateImageFromPrompt(prompt: string): Promise<Buffer> {
     throw new Error("No image was generated");
   }
 
-  return Buffer.from(generatedImage.uint8Array);
+  return {
+    image: Buffer.from(generatedImage.uint8Array),
+    mimeType: generatedImage.mediaType,
+  };
 }
 
 /**
  * End-to-end image regeneration pipeline:
- * 1. Analyze the source image and rewrite an optimized generation prompt
- * 2. Generate a new image using the rewritten prompt
- * 3. Return the generated image buffer and the prompt used
+ * 1. Send the source image and interpreted user intent to the image model
+ * 2. Return the generated image buffer and the prompt used
  */
 export async function regenerateImageFromAttachment(
   imageBuffer: Buffer,
-  mimeType: string,
-  userText?: string,
+  _mimeType: string,
+  userText: string,
 ): Promise<ImageGenerationResult> {
-  const prompt = await analyzeImageAndRewritePrompt(imageBuffer, mimeType, userText);
-  const image = await generateImageFromPrompt(prompt);
-  return { image, prompt };
+  // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
+  const prompt = userText.trim();
+  if (!prompt) {
+    throw new Error("Image generation prompt is required");
+  }
+
+  const generated = await generateImageFromPrompt(imageBuffer, prompt);
+  return { ...generated, prompt };
 }

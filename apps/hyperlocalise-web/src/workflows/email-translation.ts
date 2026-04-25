@@ -61,18 +61,61 @@ async function downloadAttachment(
   }
 }
 
+function buildTempConfig(
+  inputFile: string,
+  outputFile: string,
+  sourceLocale: string | null,
+  targetLocale: string,
+): string {
+  const yamlString = (value: string) => JSON.stringify(value);
+
+  return [
+    "locales:",
+    `  source: ${yamlString(sourceLocale ?? "auto")}`,
+    "  targets:",
+    `    - ${yamlString(targetLocale)}`,
+    "",
+    "buckets:",
+    "  email:",
+    "    files:",
+    `      - from: ${yamlString(inputFile)}`,
+    `        to: ${yamlString(outputFile)}`,
+    "",
+    "llm:",
+    "  profiles:",
+    "    default:",
+    "      provider: openai",
+    "      model: gpt-5.2",
+  ].join("\n");
+}
+
+async function writeTempConfig(
+  sandboxId: string,
+  configContent: string,
+  configPath: string,
+): Promise<void> {
+  "use step";
+
+  const sandbox = await Sandbox.get({ sandboxId });
+  await sandbox.writeFiles([{ path: configPath, content: configContent }]);
+}
+
 async function runTranslationCommand(
   sandboxId: string,
   inputFile: string,
   outputFile: string,
-  sourceLocale: string,
+  sourceLocale: string | null,
   targetLocale: string,
 ): Promise<{ exitCode: number; output: string }> {
   "use step";
 
+  const configPath = "/tmp/hyperlocalise-email.yml";
+  const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale);
+  await writeTempConfig(sandboxId, config, configPath);
+
   return runSandboxCommand(sandboxId, "bash", [
     "-lc",
-    `export PATH="$HOME/.local/bin:$PATH"; hl translate --input ${shellQuote(inputFile)} --output ${shellQuote(outputFile)} --source ${shellQuote(sourceLocale)} --target ${shellQuote(targetLocale)}`,
+    `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
   ]);
 }
 
@@ -110,7 +153,9 @@ async function sendReplyEmail(
     subject: `Re: ${event.subject}`,
     text: [
       `Done: ${event.attachmentFilename}`,
-      `Translated: ${event.sourceLocale} -> ${event.targetLocale}`,
+      event.sourceLocale
+        ? `Translated: ${event.sourceLocale} -> ${event.targetLocale}`
+        : `Translated: auto-detect -> ${event.targetLocale}`,
       `Attached: ${outputFilename}`,
       event.instructions
         ? "Note: style instructions were captured, but email translation does not apply them yet."
