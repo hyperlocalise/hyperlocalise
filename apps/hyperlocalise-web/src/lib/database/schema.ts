@@ -64,6 +64,18 @@ export const llmProviderEnum = pgEnum("llm_provider", [
   "groq",
   "mistral",
 ]);
+export const activityFeedEventCategoryEnum = pgEnum("activity_feed_event_category", [
+  "audit",
+  "agent",
+  "system",
+  "integration",
+]);
+export const activityFeedActorTypeEnum = pgEnum("activity_feed_actor_type", [
+  "user",
+  "agent",
+  "system",
+  "api_key",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -634,5 +646,76 @@ export const translationJobs = pgTable(
     index("idx_translation_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_translation_jobs_workflow_run_id").on(table.workflowRunId),
     index("idx_translation_jobs_status").on(table.status),
+  ],
+);
+
+export const activityFeedEvents = pgTable(
+  "activity_feed_events",
+  {
+    // Stable identifier for each timeline event.
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Tenant partition key used for fast feed queries.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Optional project scope for project-level feed filtering.
+    projectId: text("project_id").references(() => translationProjects.id, {
+      onDelete: "cascade",
+    }),
+    // Optional team scope for team-level feed filtering.
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
+    // Optional translation job scope for operation drill-down.
+    translationJobId: text("translation_job_id").references(() => translationJobs.id, {
+      onDelete: "set null",
+    }),
+    // High-level event category for feed grouping and filtering.
+    category: activityFeedEventCategoryEnum("category").notNull().default("audit"),
+    // Who emitted the event.
+    actorType: activityFeedActorTypeEnum("actor_type").notNull(),
+    // Internal user actor when actor_type = user.
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    // Agent identifier when actor_type = agent.
+    actorAgentId: text("actor_agent_id"),
+    // Human-friendly actor label for rendering without additional joins.
+    actorDisplayName: text("actor_display_name").notNull().default(""),
+    // Machine-stable event key, for example translation.job.failed.
+    eventName: text("event_name").notNull(),
+    // Human-readable single-line summary shown in feed rows.
+    summary: text("summary").notNull(),
+    // Optional structured payload for detail drawers and debugging.
+    details: jsonb("details").$type<unknown>().notNull().default(sql`'{}'::jsonb`),
+    // Additional event metadata used for faceted filtering.
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Upstream source identifier such as web, api, worker, or webhook.
+    source: text("source").notNull().default("app"),
+    // External correlation identifier (request id, webhook delivery id, etc.).
+    sourceRef: text("source_ref"),
+    // When the event actually happened (not necessarily insert time).
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the event was persisted.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "activity_feed_events_actor_user_required_for_user_type",
+      sql`${table.actorType} <> 'user' OR ${table.actorUserId} IS NOT NULL`,
+    ),
+    check(
+      "activity_feed_events_actor_agent_required_for_agent_type",
+      sql`${table.actorType} <> 'agent' OR ${table.actorAgentId} IS NOT NULL`,
+    ),
+    index("idx_activity_feed_events_org_occurred_at").on(table.organizationId, table.occurredAt),
+    index("idx_activity_feed_events_project_occurred_at").on(table.projectId, table.occurredAt),
+    index("idx_activity_feed_events_team_occurred_at").on(table.teamId, table.occurredAt),
+    index("idx_activity_feed_events_translation_job_occurred_at").on(
+      table.translationJobId,
+      table.occurredAt,
+    ),
+    index("idx_activity_feed_events_actor_user_occurred_at").on(table.actorUserId, table.occurredAt),
+    index("idx_activity_feed_events_category_occurred_at").on(table.category, table.occurredAt),
+    index("idx_activity_feed_events_event_name_occurred_at").on(table.eventName, table.occurredAt),
   ],
 );
