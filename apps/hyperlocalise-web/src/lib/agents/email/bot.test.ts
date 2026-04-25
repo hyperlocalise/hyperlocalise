@@ -378,6 +378,45 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
+  it("keeps mixed email files pending when image localization confidence is low", async () => {
+    const dependencies = createDependencies();
+    dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      sourceLocale: "en",
+      targetLocale: "fr",
+      instructions: null,
+      confidence: 0.7,
+      missingFields: [],
+    });
+    const { thread, posts, getState } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        raw: {
+          attachments: [
+            { id: "img_123", filename: "banner.png", contentType: "image/png" },
+            { id: "file_123", filename: "copy.csv", contentType: "text/csv" },
+          ],
+        },
+        attachments: [
+          { type: "image", name: "banner.png", mimeType: "image/png" },
+          { type: "file", name: "copy.csv", mimeType: "text/csv" },
+        ],
+      }),
+    );
+
+    expect(posts[0]).toContain('Please reply "yes" to start');
+    expect(posts[0]).toContain("- copy.csv");
+    expect(getState().pendingTranslationRequest).toMatchObject({
+      attachments: [{ id: "file_123", filename: "copy.csv" }],
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+    expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+  });
+
   it("merges new file attachments into pending clarification instead of starting a new request", async () => {
     const dependencies = createDependencies();
     dependencies.interpretClarificationReply.mockResolvedValueOnce({

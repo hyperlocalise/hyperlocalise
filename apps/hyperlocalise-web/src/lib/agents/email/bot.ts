@@ -445,10 +445,12 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
             { confidence: intent.confidence },
             "low confidence for image localization, requesting resend with clearer intent",
           );
-          await thread.post(
-            "I received your image, but I am not confident about the localization request. Please resend it with the target language and any image instructions.",
-          );
-          return;
+          if (fileAttachments.length === 0) {
+            await thread.post(
+              "I received your image, but I am not confident about the localization request. Please resend it with the target language and any image instructions.",
+            );
+            return;
+          }
         } else {
           log.info({ count: imageAttachments.length }, "handling image attachments");
           for (const imageAttachment of imageAttachments) {
