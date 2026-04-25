@@ -27,9 +27,14 @@ async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
+  options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
   const sandbox = await Sandbox.get({ sandboxId });
-  const result = await sandbox.runCommand(command, args);
+  const result = await sandbox.runCommand({
+    cmd: command,
+    args,
+    env: options?.env,
+  });
   return {
     exitCode: result.exitCode,
     output: await result.output("both"),
@@ -85,7 +90,7 @@ function buildTempConfig(
     "  profiles:",
     "    default:",
     "      provider: openai",
-    "      model: gpt-5.2",
+    "      model: gpt-5.4-mini",
   ].join("\n");
 }
 
@@ -113,10 +118,17 @@ async function runTranslationCommand(
   const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale);
   await writeTempConfig(sandboxId, config, configPath);
 
-  return runSandboxCommand(sandboxId, "bash", [
-    "-lc",
-    `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
-  ]);
+  return runSandboxCommand(
+    sandboxId,
+    "bash",
+    [
+      "-lc",
+      `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+    ],
+    {
+      env: getSandboxTranslationEnv(),
+    },
+  );
 }
 
 async function readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
@@ -132,6 +144,16 @@ async function readTranslatedFile(sandboxId: string, outputFile: string): Promis
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+export function getSandboxTranslationEnv(): Record<string, string> {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  return {
+    OPENAI_API_KEY: env.OPENAI_API_KEY,
+  };
 }
 
 async function sendReplyEmail(
