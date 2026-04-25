@@ -22,6 +22,9 @@ export const env = createEnv({
     /** GitHub App ID from the GitHub App settings page. Required for GitHub bot integration. */
     GITHUB_APP_ID: z.string().min(1).optional(),
 
+    /** GitHub App slug used in the GitHub App installation URL. Required for GitHub bot integration. */
+    GITHUB_APP_SLUG: z.string().min(1).optional(),
+
     /** GitHub App private key (PEM format). Required for GitHub bot integration. */
     GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
 
@@ -80,6 +83,7 @@ export const env = createEnv({
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     GITHUB_APP_ID: process.env.GITHUB_APP_ID ?? (isTestEnv ? "123" : undefined),
+    GITHUB_APP_SLUG: process.env.GITHUB_APP_SLUG ?? (isTestEnv ? "hyperlocalise" : undefined),
     GITHUB_APP_PRIVATE_KEY:
       process.env.GITHUB_APP_PRIVATE_KEY ?? (isTestEnv ? "test-github-app-private-key" : undefined),
     GITHUB_APP_WEBHOOK_SECRET:

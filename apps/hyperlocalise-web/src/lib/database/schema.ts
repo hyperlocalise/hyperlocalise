@@ -540,7 +540,6 @@ export const githubInstallations = pgTable(
     githubAppId: bigint("github_app_id", { mode: "number" }).notNull(),
     accountLogin: text("account_login"),
     accountType: text("account_type"),
-    repositories: jsonb("repositories").$type<Array<{ id: number; fullName: string }>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -551,6 +550,45 @@ export const githubInstallations = pgTable(
     uniqueIndex("github_installations_organization_id_key").on(table.organizationId),
     uniqueIndex("github_installations_github_installation_id_key").on(table.githubInstallationId),
     index("idx_github_installations_created_at").on(table.createdAt),
+  ],
+);
+
+export const githubInstallationRepositories = pgTable(
+  "github_installation_repositories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    githubInstallationId: bigint("github_installation_id", { mode: "number" })
+      .notNull()
+      .references(() => githubInstallations.githubInstallationId, { onDelete: "cascade" }),
+    githubRepositoryId: bigint("github_repository_id", { mode: "number" }).notNull(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    fullName: text("full_name").notNull(),
+    private: boolean("private").notNull().default(false),
+    archived: boolean("archived").notNull().default(false),
+    defaultBranch: text("default_branch"),
+    enabled: boolean("enabled").notNull().default(false),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_installation_repositories_github_repository_id_key").on(
+      table.githubInstallationId,
+      table.githubRepositoryId,
+    ),
+    index("idx_github_installation_repositories_org").on(table.organizationId),
+    index("idx_github_installation_repositories_installation").on(table.githubInstallationId),
+    index("idx_github_installation_repositories_org_enabled").on(
+      table.organizationId,
+      table.enabled,
+    ),
   ],
 );
 

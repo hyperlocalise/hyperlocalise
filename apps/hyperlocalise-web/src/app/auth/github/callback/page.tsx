@@ -5,6 +5,7 @@ import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
+import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 
 type GitHubCallbackPageProps = {
   searchParams: Promise<{
@@ -55,8 +56,12 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     // Ignore errors fetching details; we can still store the basic record.
   }
 
+  if (!env.GITHUB_APP_ID) {
+    redirect("/dashboard?error=github_app_not_configured");
+  }
+
   const githubInstallationId = Number.parseInt(installationId, 10);
-  const githubAppId = Number.parseInt(env.GITHUB_APP_ID ?? "0", 10);
+  const githubAppId = Number.parseInt(env.GITHUB_APP_ID, 10);
 
   const existing = await db
     .select()
@@ -83,6 +88,16 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
       accountLogin,
       accountType,
     });
+  }
+
+  try {
+    await syncInstallationRepositories({
+      organizationId: org.id,
+      githubInstallationId,
+    });
+  } catch {
+    // The installation is still valid if repository sync temporarily fails.
+    // Admins can refresh repositories from the GitHub agent settings card.
   }
 
   redirect(`/org/${verified.slug}/settings?github_connected=1`);
