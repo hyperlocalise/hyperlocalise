@@ -21,18 +21,42 @@ function imageAttachmentData(imageAttachment: Message["attachments"][number]) {
   throw new Error(`Image attachment ${imageAttachment.name ?? "attachment"} has no data`);
 }
 
-function outputFilename(filename: string | undefined, targetLocale: string | null) {
+function extensionFromMimeType(mimeType: string) {
+  const normalizedMimeType = mimeType.toLowerCase().split(";")[0]?.trim();
+  switch (normalizedMimeType) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    default:
+      if (normalizedMimeType?.startsWith("image/")) {
+        return normalizedMimeType.slice("image/".length).replace(/\+xml$/, "");
+      }
+      return "png";
+  }
+}
+
+function outputFilename(
+  filename: string | undefined,
+  targetLocale: string | null,
+  mimeType: string,
+) {
   const suffix = targetLocale ? `-${targetLocale.toLowerCase()}` : "-localized";
+  const extension = extensionFromMimeType(mimeType);
   if (!filename) {
-    return `image${suffix}.png`;
+    return `image${suffix}.${extension}`;
   }
 
   const extensionStart = filename.lastIndexOf(".");
   if (extensionStart <= 0) {
-    return `${filename}${suffix}.png`;
+    return `${filename}${suffix}.${extension}`;
   }
 
-  return `${filename.slice(0, extensionStart)}${suffix}.png`;
+  return `${filename.slice(0, extensionStart)}${suffix}.${extension}`;
 }
 
 function buildImagePrompt(input: {
@@ -70,6 +94,7 @@ export async function handleImageAttachment(
     imageAttachment.mimeType ?? "image/png",
     prompt,
   );
+  const outputMimeType = result.mimeType || "image/png";
 
   await thread.post({
     raw: [
@@ -80,8 +105,8 @@ export async function handleImageAttachment(
     files: [
       {
         data: result.image,
-        filename: outputFilename(imageAttachment.name, intent.targetLocale),
-        mimeType: "image/png",
+        filename: outputFilename(imageAttachment.name, intent.targetLocale, outputMimeType),
+        mimeType: outputMimeType,
       },
     ],
   });

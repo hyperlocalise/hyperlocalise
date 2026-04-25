@@ -4,6 +4,7 @@ import type { Message, Thread } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { env } from "@/lib/env";
+import { createChatLogger, createLogger } from "@/lib/log";
 import { createResendAdapter } from "@/lib/resend/adapter";
 import type { EmailTranslationEventData, EmailTranslationQueue } from "@/lib/workflow/types";
 import { createEmailTranslationQueue } from "@/workflows/adapters";
@@ -15,12 +16,11 @@ import {
   interpretClarificationReply,
   interpretEmailRequest,
 } from "./intent";
-
-export { interpretClarificationReply };
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailTranslationRequest, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
-import { createChatLogger, createLogger } from "@/lib/log";
+
+export { interpretClarificationReply };
 
 let botInstance: Chat<{ resend: ReturnType<typeof createResendAdapter> }, EmailBotState> | null =
   null;
@@ -439,6 +439,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           await thread.post(
             "I received your image, but I need the target language before I can localize it. Please resend the image with a target language, for example: Target: Japanese.",
           );
+          return;
         } else if (intent.confidence < intentConfirmationThreshold) {
           log.info(
             { confidence: intent.confidence },
@@ -447,6 +448,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           await thread.post(
             "I received your image, but I am not confident about the localization request. Please resend it with the target language and any image instructions.",
           );
+          return;
         } else {
           log.info({ count: imageAttachments.length }, "handling image attachments");
           for (const imageAttachment of imageAttachments) {

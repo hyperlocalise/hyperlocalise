@@ -344,6 +344,40 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
+  it("asks once for a target language when mixed image and file emails are missing it", async () => {
+    const dependencies = createDependencies();
+    dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      sourceLocale: null,
+      targetLocale: null,
+      instructions: null,
+      confidence: 0.9,
+      missingFields: ["targetLocale"],
+    });
+    const { thread, posts } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        raw: {
+          attachments: [
+            { id: "img_123", filename: "banner.png", contentType: "image/png" },
+            { id: "file_123", filename: "copy.csv", contentType: "text/csv" },
+          ],
+        },
+        attachments: [
+          { type: "image", name: "banner.png", mimeType: "image/png" },
+          { type: "file", name: "copy.csv", mimeType: "text/csv" },
+        ],
+      }),
+    );
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toContain("target language");
+    expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+  });
+
   it("merges new file attachments into pending clarification instead of starting a new request", async () => {
     const dependencies = createDependencies();
     dependencies.interpretClarificationReply.mockResolvedValueOnce({

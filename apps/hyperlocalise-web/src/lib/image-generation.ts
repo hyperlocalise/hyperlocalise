@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 
 export type ImageGenerationResult = {
   image: Buffer;
+  mimeType: string;
   prompt: string;
 };
 
@@ -19,7 +20,10 @@ function getImageModel() {
 /**
  * Generates a new image from the uploaded source image and user intent.
  */
-async function generateImageFromPrompt(imageBuffer: Buffer, prompt: string): Promise<Buffer> {
+async function generateImageFromPrompt(
+  imageBuffer: Buffer,
+  prompt: string,
+): Promise<{ image: Buffer; mimeType: string }> {
   const model = getImageModel();
 
   const result = await generateImage({
@@ -36,7 +40,10 @@ async function generateImageFromPrompt(imageBuffer: Buffer, prompt: string): Pro
     throw new Error("No image was generated");
   }
 
-  return Buffer.from(generatedImage.uint8Array);
+  return {
+    image: Buffer.from(generatedImage.uint8Array),
+    mimeType: generatedImage.mediaType,
+  };
 }
 
 /**
@@ -49,11 +56,12 @@ export async function regenerateImageFromAttachment(
   _mimeType: string,
   userText: string,
 ): Promise<ImageGenerationResult> {
+  // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
   const prompt = userText.trim();
   if (!prompt) {
     throw new Error("Image generation prompt is required");
   }
 
-  const image = await generateImageFromPrompt(imageBuffer, prompt);
-  return { image, prompt };
+  const generated = await generateImageFromPrompt(imageBuffer, prompt);
+  return { ...generated, prompt };
 }

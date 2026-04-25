@@ -67,17 +67,19 @@ function buildTempConfig(
   sourceLocale: string | null,
   targetLocale: string,
 ): string {
+  const yamlString = (value: string) => JSON.stringify(value);
+
   return [
     "locales:",
-    `  source: ${sourceLocale ?? "auto"}`,
+    `  source: ${yamlString(sourceLocale ?? "auto")}`,
     "  targets:",
-    `    - ${targetLocale}`,
+    `    - ${yamlString(targetLocale)}`,
     "",
     "buckets:",
     "  email:",
     "    files:",
-    `      - from: ${inputFile}`,
-    `        to: ${outputFile}`,
+    `      - from: ${yamlString(inputFile)}`,
+    `        to: ${yamlString(outputFile)}`,
     "",
     "llm:",
     "  profiles:",
