@@ -1,4 +1,4 @@
-import { JobsPageContent } from "@/components/app/workspace-resource-pages";
+import { JobsPageContent } from "@/components/app/jobs-page-content";
 
 export default async function JobsPage({
   params,
