@@ -118,12 +118,8 @@
           "name": "github_installations_organization_id_organizations_id_fk",
           "tableFrom": "github_installations",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -271,12 +267,8 @@
           "name": "organization_llm_provider_credentials_organization_id_organizations_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -284,12 +276,8 @@
           "name": "organization_llm_provider_credentials_created_by_user_id_users_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -297,12 +285,8 @@
           "name": "organization_llm_provider_credentials_updated_by_user_id_users_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -423,12 +407,8 @@
           "name": "organization_memberships_organization_id_organizations_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -436,12 +416,8 @@
           "name": "organization_memberships_user_id_users_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -667,12 +643,8 @@
           "name": "team_memberships_team_id_teams_id_fk",
           "tableFrom": "team_memberships",
           "tableTo": "teams",
-          "columnsFrom": [
-            "team_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["team_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -680,12 +652,8 @@
           "name": "team_memberships_user_id_users_id_fk",
           "tableFrom": "team_memberships",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -789,12 +757,8 @@
           "name": "teams_organization_id_organizations_id_fk",
           "tableFrom": "teams",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -946,12 +910,8 @@
           "name": "translation_glossaries_organization_id_organizations_id_fk",
           "tableFrom": "translation_glossaries",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -959,12 +919,8 @@
           "name": "translation_glossaries_created_by_user_id_users_id_fk",
           "tableFrom": "translation_glossaries",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1150,12 +1106,8 @@
           "name": "translation_glossary_terms_glossary_id_translation_glossaries_id_fk",
           "tableFrom": "translation_glossary_terms",
           "tableTo": "translation_glossaries",
-          "columnsFrom": [
-            "glossary_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["glossary_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1328,12 +1280,8 @@
           "name": "translation_jobs_project_id_translation_projects_id_fk",
           "tableFrom": "translation_jobs",
           "tableTo": "translation_projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1341,12 +1289,8 @@
           "name": "translation_jobs_created_by_user_id_users_id_fk",
           "tableFrom": "translation_jobs",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1459,12 +1403,8 @@
           "name": "translation_memories_organization_id_organizations_id_fk",
           "tableFrom": "translation_memories",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1472,12 +1412,8 @@
           "name": "translation_memories_created_by_user_id_users_id_fk",
           "tableFrom": "translation_memories",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1684,12 +1620,8 @@
           "name": "translation_memory_entries_translation_memory_id_translation_memories_id_fk",
           "tableFrom": "translation_memory_entries",
           "tableTo": "translation_memories",
-          "columnsFrom": [
-            "translation_memory_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["translation_memory_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1799,12 +1731,8 @@
           "name": "translation_project_glossaries_project_id_translation_projects_id_fk",
           "tableFrom": "translation_project_glossaries",
           "tableTo": "translation_projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1812,12 +1740,8 @@
           "name": "translation_project_glossaries_glossary_id_translation_glossaries_id_fk",
           "tableFrom": "translation_project_glossaries",
           "tableTo": "translation_glossaries",
-          "columnsFrom": [
-            "glossary_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["glossary_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1922,12 +1846,8 @@
           "name": "translation_project_memories_project_id_translation_projects_id_fk",
           "tableFrom": "translation_project_memories",
           "tableTo": "translation_projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1935,12 +1855,8 @@
           "name": "translation_project_memories_translation_memory_id_translation_memories_id_fk",
           "tableFrom": "translation_project_memories",
           "tableTo": "translation_memories",
-          "columnsFrom": [
-            "translation_memory_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["translation_memory_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2051,12 +1967,8 @@
           "name": "translation_projects_organization_id_organizations_id_fk",
           "tableFrom": "translation_projects",
           "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2064,12 +1976,8 @@
           "name": "translation_projects_created_by_user_id_users_id_fk",
           "tableFrom": "translation_projects",
           "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2195,66 +2103,37 @@
     "public.llm_provider": {
       "name": "llm_provider",
       "schema": "public",
-      "values": [
-        "openai",
-        "anthropic",
-        "gemini",
-        "groq",
-        "mistral"
-      ]
+      "values": ["openai", "anthropic", "gemini", "groq", "mistral"]
     },
     "public.organization_membership_role": {
       "name": "organization_membership_role",
       "schema": "public",
-      "values": [
-        "owner",
-        "admin",
-        "member"
-      ]
+      "values": ["owner", "admin", "member"]
     },
     "public.team_membership_role": {
       "name": "team_membership_role",
       "schema": "public",
-      "values": [
-        "manager",
-        "member"
-      ]
+      "values": ["manager", "member"]
     },
     "public.translation_asset_status": {
       "name": "translation_asset_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "active",
-        "archived"
-      ]
+      "values": ["draft", "active", "archived"]
     },
     "public.translation_job_outcome_kind": {
       "name": "translation_job_outcome_kind",
       "schema": "public",
-      "values": [
-        "string_result",
-        "file_result",
-        "error"
-      ]
+      "values": ["string_result", "file_result", "error"]
     },
     "public.translation_job_status": {
       "name": "translation_job_status",
       "schema": "public",
-      "values": [
-        "queued",
-        "running",
-        "succeeded",
-        "failed"
-      ]
+      "values": ["queued", "running", "succeeded", "failed"]
     },
     "public.translation_job_type": {
       "name": "translation_job_type",
       "schema": "public",
-      "values": [
-        "string",
-        "file"
-      ]
+      "values": ["string", "file"]
     }
   },
   "schemas": {},
