@@ -318,7 +318,7 @@ export function DashboardPageContent() {
           </CardHeader>
           <CardContent className="px-0 pb-3">
             <div className="overflow-x-auto">
-              <div className="min-w-[42rem]">
+              <div className="min-w-2xl">
                 <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
                   <p>Locale</p>
                   <p>Status</p>
@@ -497,7 +497,7 @@ export function DashboardPageContent() {
           </CardHeader>
           <CardContent className="px-0 pb-3">
             <div className="overflow-x-auto">
-              <div className="min-w-[58rem]">
+              <div className="min-w-232">
                 <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
                   <p>Job</p>
                   <p>Source</p>
