@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -24,6 +25,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { getAppShellTitle } from "./app-shell-title";
 import { NavUser } from "./nav-user";
 
 type AppShellClientProps = {
@@ -51,6 +53,9 @@ export function AppShellClient({
   organizations,
   user,
 }: AppShellClientProps) {
+  const pathname = usePathname();
+  const pageTitle = getAppShellTitle(pathname);
+
   return (
     <SidebarProvider
       defaultOpen
@@ -149,7 +154,7 @@ export function AppShellClient({
         <div className="sticky top-0 z-20 border-b border-white/8 bg-[#050505]/96 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <SidebarTrigger className="text-white hover:bg-white/8 hover:text-white md:hidden" />
-            <p className="font-heading text-base font-medium text-white">Dashboard</p>
+            <p className="font-heading text-base font-medium text-white">{pageTitle}</p>
           </div>
         </div>
 
