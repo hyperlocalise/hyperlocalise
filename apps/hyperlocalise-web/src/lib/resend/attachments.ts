@@ -1,5 +1,43 @@
-export function toBase64AttachmentContent(content: Buffer): string {
-  return content.toString("base64");
+type BufferJSON = {
+  type: "Buffer";
+  data: readonly number[];
+};
+
+export type AttachmentContent = Buffer | Uint8Array | ArrayBuffer | readonly number[] | BufferJSON;
+
+export function toAttachmentBuffer(content: AttachmentContent): Buffer {
+  if (Buffer.isBuffer(content)) {
+    return Buffer.from(content);
+  }
+
+  if (content instanceof Uint8Array) {
+    return Buffer.from(content);
+  }
+
+  if (content instanceof ArrayBuffer) {
+    return Buffer.from(content);
+  }
+
+  if (Array.isArray(content)) {
+    return Buffer.from(content);
+  }
+
+  if (
+    typeof content === "object" &&
+    content !== null &&
+    "type" in content &&
+    content.type === "Buffer" &&
+    "data" in content &&
+    Array.isArray(content.data)
+  ) {
+    return Buffer.from(content.data);
+  }
+
+  throw new TypeError("unsupported attachment content");
+}
+
+export function toBase64AttachmentContent(content: AttachmentContent): string {
+  return toAttachmentBuffer(content).toString("base64");
 }
 
 const utf8AttachmentContentTypes: Record<string, string> = {

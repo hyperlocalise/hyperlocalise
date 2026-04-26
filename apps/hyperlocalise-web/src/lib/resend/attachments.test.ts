@@ -8,6 +8,20 @@ describe("toBase64AttachmentContent", () => {
       "dHJhbnNsYXRlZCBjb250ZW50",
     );
   });
+
+  it("normalizes Uint8Array content before encoding", () => {
+    const content = new Uint8Array(Buffer.from('{"hello":"xin chao"}\n'));
+
+    expect(toBase64AttachmentContent(content)).toBe(
+      Buffer.from('{"hello":"xin chao"}\n').toString("base64"),
+    );
+  });
+
+  it("normalizes JSON-serialized Buffer content before encoding", () => {
+    const content = Buffer.from("translated content").toJSON();
+
+    expect(toBase64AttachmentContent(content)).toBe("dHJhbnNsYXRlZCBjb250ZW50");
+  });
 });
 
 describe("inferAttachmentContentType", () => {

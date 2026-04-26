@@ -6,7 +6,12 @@ import { Resend } from "resend";
 
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
-import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
+import {
+  type AttachmentContent,
+  inferAttachmentContentType,
+  toAttachmentBuffer,
+  toBase64AttachmentContent,
+} from "@/lib/resend/attachments";
 import type { EmailTranslationEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -160,12 +165,12 @@ type TranslatedFileDiagnostics = {
 };
 
 export async function getTranslatedFileDiagnostics(
-  content: Buffer,
+  content: AttachmentContent,
   filename: string,
 ): Promise<TranslatedFileDiagnostics> {
   "use step";
 
-  const fileContent = Buffer.from(content);
+  const fileContent = toAttachmentBuffer(content);
   const dotIndex = filename.lastIndexOf(".");
   const ext = dotIndex === -1 ? "" : filename.slice(dotIndex).toLowerCase();
   const isJsonLike = ext === ".json" || ext === ".jsonc";

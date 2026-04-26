@@ -75,6 +75,18 @@ describe("translated file diagnostics", () => {
     expect(diagnostics.jsonParseError).toBeNull();
   });
 
+  it("normalizes JSON-serialized Buffer content before parsing or byte diagnostics", async () => {
+    const diagnostics = await getTranslatedFileDiagnostics(
+      Buffer.from('{"hello":"Xin chao"}\n').toJSON(),
+      "vi.json",
+    );
+
+    expect(diagnostics.sha256).toBe(
+      "c84a10b6c11b42e0e94cf12a7e0fb58fbee9640e8f1ff7b440b88d45a689ab86",
+    );
+    expect(diagnostics.jsonParseOk).toBe(true);
+  });
+
   it("does not attempt JSON parsing for extensionless outputs", async () => {
     const diagnostics = await getTranslatedFileDiagnostics(Buffer.from("translated"), "README");
 
