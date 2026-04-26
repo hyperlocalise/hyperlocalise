@@ -64,6 +64,17 @@ describe("translated file diagnostics", () => {
     expect(diagnostics.jsonParseError).toBeTruthy();
   });
 
+  it("normalizes Uint8Array content before parsing or byte diagnostics", async () => {
+    const diagnostics = await getTranslatedFileDiagnostics(
+      new Uint8Array(Buffer.from('{\n  "auth.signIn": "Dang nhap"\n}\n')) as Buffer,
+      "en-US-vi.json",
+    );
+
+    expect(diagnostics.firstBytesHex).toBe("7b0a202022617574682e7369676e496e");
+    expect(diagnostics.jsonParseOk).toBe(true);
+    expect(diagnostics.jsonParseError).toBeNull();
+  });
+
   it("does not attempt JSON parsing for extensionless outputs", async () => {
     const diagnostics = await getTranslatedFileDiagnostics(Buffer.from("translated"), "README");
 

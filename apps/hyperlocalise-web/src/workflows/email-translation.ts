@@ -145,7 +145,7 @@ async function readTranslatedFile(sandboxId: string, outputFile: string): Promis
   if (!content) {
     throw new Error(`failed to read translated file: ${outputFile}`);
   }
-  return content;
+  return Buffer.from(content);
 }
 
 type TranslatedFileDiagnostics = {
@@ -165,6 +165,7 @@ export async function getTranslatedFileDiagnostics(
 ): Promise<TranslatedFileDiagnostics> {
   "use step";
 
+  const fileContent = Buffer.from(content);
   const dotIndex = filename.lastIndexOf(".");
   const ext = dotIndex === -1 ? "" : filename.slice(dotIndex).toLowerCase();
   const isJsonLike = ext === ".json" || ext === ".jsonc";
@@ -173,7 +174,7 @@ export async function getTranslatedFileDiagnostics(
 
   if (isJsonLike) {
     try {
-      JSON.parse(content.toString("utf8"));
+      JSON.parse(fileContent.toString("utf8"));
       jsonParseOk = true;
     } catch (error) {
       jsonParseOk = false;
@@ -183,11 +184,11 @@ export async function getTranslatedFileDiagnostics(
 
   return {
     filename,
-    byteLength: content.byteLength,
-    sha256: createHash("sha256").update(content).digest("hex"),
-    firstBytesHex: content.subarray(0, 16).toString("hex"),
+    byteLength: fileContent.byteLength,
+    sha256: createHash("sha256").update(fileContent).digest("hex"),
+    firstBytesHex: fileContent.subarray(0, 16).toString("hex"),
     contentType: inferAttachmentContentType(filename),
-    isUtf8: isUtf8(content),
+    isUtf8: isUtf8(fileContent),
     jsonParseOk,
     jsonParseError,
   };
