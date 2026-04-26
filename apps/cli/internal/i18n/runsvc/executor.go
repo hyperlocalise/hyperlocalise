@@ -562,18 +562,15 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		failed := state.report.Failed
 		tokenUsage := state.report.TokenUsage
 		state.reportMu.Unlock()
-		emitter.emit(Event{
-			Kind:             EventTaskDone,
-			TaskSucceeded:    true,
-			TargetPath:       task.TargetPath,
-			EntryKey:         task.EntryKey,
-			Succeeded:        succeeded,
-			Failed:           failed,
-			ExecutableTotal:  state.total,
-			PromptTokens:     tokenUsage.PromptTokens,
-			CompletionTokens: tokenUsage.CompletionTokens,
-			TotalTokens:      tokenUsage.TotalTokens,
-		})
+		emitter.emit(eventWithTokenUsage(Event{
+			Kind:            EventTaskDone,
+			TaskSucceeded:   true,
+			TargetPath:      task.TargetPath,
+			EntryKey:        task.EntryKey,
+			Succeeded:       succeeded,
+			Failed:          failed,
+			ExecutableTotal: state.total,
+		}, tokenUsage))
 		return true
 	case <-ctx.Done():
 		return false
@@ -581,17 +578,50 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 }
 
 func toRunTokenUsage(usage translator.Usage) TokenUsage {
-	return TokenUsage{
-		PromptTokens:     usage.PromptTokens,
-		CompletionTokens: usage.CompletionTokens,
-		TotalTokens:      usage.TotalTokens,
-	}
+	usage = translator.NormalizeUsage(usage, translator.UsageTotalFallbackInputOutput)
+	return NormalizeTokenUsage(TokenUsage{
+		InputTokens:              usage.InputTokens,
+		OutputTokens:             usage.OutputTokens,
+		TotalTokens:              usage.TotalTokens,
+		PromptTokens:             usage.PromptTokens,
+		CompletionTokens:         usage.CompletionTokens,
+		CachedInputTokens:        usage.CachedInputTokens,
+		CacheWriteInputTokens:    usage.CacheWriteInputTokens,
+		ReasoningTokens:          usage.ReasoningTokens,
+		TextInputTokens:          usage.TextInputTokens,
+		ImageInputTokens:         usage.ImageInputTokens,
+		AudioInputTokens:         usage.AudioInputTokens,
+		TextOutputTokens:         usage.TextOutputTokens,
+		ImageOutputTokens:        usage.ImageOutputTokens,
+		AudioOutputTokens:        usage.AudioOutputTokens,
+		ToolInputTokens:          usage.ToolInputTokens,
+		AcceptedPredictionTokens: usage.AcceptedPredictionTokens,
+		RejectedPredictionTokens: usage.RejectedPredictionTokens,
+		RawProviderUsage:         usage.RawProviderUsage,
+	})
 }
 
 func addTokenUsage(current TokenUsage, delta TokenUsage) TokenUsage {
+	current = NormalizeTokenUsage(current)
+	delta = NormalizeTokenUsage(delta)
+	current.InputTokens += delta.InputTokens
+	current.OutputTokens += delta.OutputTokens
 	current.PromptTokens += delta.PromptTokens
 	current.CompletionTokens += delta.CompletionTokens
 	current.TotalTokens += delta.TotalTokens
+	current.CachedInputTokens += delta.CachedInputTokens
+	current.CacheWriteInputTokens += delta.CacheWriteInputTokens
+	current.ReasoningTokens += delta.ReasoningTokens
+	current.TextInputTokens += delta.TextInputTokens
+	current.ImageInputTokens += delta.ImageInputTokens
+	current.AudioInputTokens += delta.AudioInputTokens
+	current.TextOutputTokens += delta.TextOutputTokens
+	current.ImageOutputTokens += delta.ImageOutputTokens
+	current.AudioOutputTokens += delta.AudioOutputTokens
+	current.ToolInputTokens += delta.ToolInputTokens
+	current.AcceptedPredictionTokens += delta.AcceptedPredictionTokens
+	current.RejectedPredictionTokens += delta.RejectedPredictionTokens
+	current.RawProviderUsage = nil
 	return current
 }
 
@@ -614,19 +644,16 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int,
 	failed := report.Failed
 	tokenUsage := report.TokenUsage
 	reportMu.Unlock()
-	emitter.emit(Event{
-		Kind:             EventTaskDone,
-		TaskSucceeded:    false,
-		TargetPath:       task.TargetPath,
-		EntryKey:         task.EntryKey,
-		FailureReason:    err.Error(),
-		Succeeded:        succeeded,
-		Failed:           failed,
-		ExecutableTotal:  total,
-		PromptTokens:     tokenUsage.PromptTokens,
-		CompletionTokens: tokenUsage.CompletionTokens,
-		TotalTokens:      tokenUsage.TotalTokens,
-	})
+	emitter.emit(eventWithTokenUsage(Event{
+		Kind:            EventTaskDone,
+		TaskSucceeded:   false,
+		TargetPath:      task.TargetPath,
+		EntryKey:        task.EntryKey,
+		FailureReason:   err.Error(),
+		Succeeded:       succeeded,
+		Failed:          failed,
+		ExecutableTotal: total,
+	}, tokenUsage))
 }
 
 func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sourceLocale, targetLocale, entryKey, value string, stageMu *sync.Mutex) error {

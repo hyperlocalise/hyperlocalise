@@ -121,9 +121,11 @@ type bedrockConverseResponse struct {
 }
 
 type bedrockTokenUsage struct {
-	InputTokens  int `json:"inputTokens"`
-	OutputTokens int `json:"outputTokens"`
-	TotalTokens  int `json:"totalTokens"`
+	InputTokens                int `json:"inputTokens"`
+	OutputTokens               int `json:"outputTokens"`
+	TotalTokens                int `json:"totalTokens"`
+	CacheReadInputTokensCount  int `json:"cacheReadInputTokensCount"`
+	CacheWriteInputTokensCount int `json:"cacheWriteInputTokensCount"`
 }
 
 func responseTextFromBedrock(body []byte) (string, Usage, error) {
@@ -141,14 +143,15 @@ func responseTextFromBedrock(body []byte) (string, Usage, error) {
 	if text == "" {
 		return "", Usage{}, fmt.Errorf("no text generated")
 	}
-	usage := Usage{
-		PromptTokens:     resp.Usage.InputTokens,
-		CompletionTokens: resp.Usage.OutputTokens,
-		TotalTokens:      resp.Usage.TotalTokens,
-	}
-	if usage.TotalTokens == 0 {
-		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
-	}
+	rawUsage, _ := json.Marshal(resp.Usage)
+	usage := NormalizeUsage(Usage{
+		InputTokens:           resp.Usage.InputTokens,
+		OutputTokens:          resp.Usage.OutputTokens,
+		TotalTokens:           resp.Usage.TotalTokens,
+		CachedInputTokens:     resp.Usage.CacheReadInputTokensCount,
+		CacheWriteInputTokens: resp.Usage.CacheWriteInputTokensCount,
+		RawProviderUsage:      json.RawMessage(rawUsage),
+	}, UsageTotalFallbackInputOutput)
 
 	return text, usage, nil
 }

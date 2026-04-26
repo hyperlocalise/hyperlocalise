@@ -30,6 +30,25 @@ func TestSummaryJSONReportFromIsAggregateOnly(t *testing.T) {
 	r := Report{
 		PlannedTotal:    1,
 		ExecutableTotal: 1,
+		TokenUsage: TokenUsage{
+			InputTokens:       10,
+			OutputTokens:      4,
+			TotalTokens:       14,
+			PromptTokens:      10,
+			CompletionTokens:  4,
+			CachedInputTokens: 2,
+			RawProviderUsage:  json.RawMessage(`{"provider":"raw"}`),
+		},
+		LocaleUsage: map[string]TokenUsage{
+			"fr": {
+				InputTokens:      10,
+				OutputTokens:     4,
+				TotalTokens:      14,
+				PromptTokens:     10,
+				CompletionTokens: 4,
+				RawProviderUsage: json.RawMessage(`{"locale":"raw"}`),
+			},
+		},
 		Executable: []Task{
 			{
 				SourceLocale: "en",
@@ -59,7 +78,7 @@ func TestSummaryJSONReportFromIsAggregateOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	js := string(raw)
-	if strings.Contains(js, "long source text") || strings.Contains(js, "systemPrompt") || strings.Contains(js, "userPrompt") || strings.Contains(js, "batches") {
+	if strings.Contains(js, "long source text") || strings.Contains(js, "systemPrompt") || strings.Contains(js, "userPrompt") || strings.Contains(js, "batches") || strings.Contains(js, "rawProviderUsage") {
 		t.Fatalf("summary json must not leak heavy payloads: %s", js)
 	}
 	var m map[string]any
@@ -69,6 +88,11 @@ func TestSummaryJSONReportFromIsAggregateOnly(t *testing.T) {
 	for _, k := range []string{"executable", "skipped", "pruneCandidates", "batches"} {
 		if _, ok := m[k]; ok {
 			t.Fatalf("summary json must not include key %q", k)
+		}
+	}
+	for _, k := range []string{"inputTokens", "outputTokens", "promptTokens", "completionTokens", "cachedInputTokens"} {
+		if _, ok := m[k]; !ok {
+			t.Fatalf("summary json must include token key %q in %s", k, js)
 		}
 	}
 }
