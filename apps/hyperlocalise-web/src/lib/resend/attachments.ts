@@ -17,6 +17,8 @@ const utf8AttachmentContentTypes: Record<string, string> = {
   ".xlf": "application/x-xliff+xml; charset=utf-8",
   ".xlif": "application/x-xliff+xml; charset=utf-8",
   ".xliff": "application/x-xliff+xml; charset=utf-8",
+  ".yaml": "text/yaml; charset=utf-8",
+  ".yml": "text/yaml; charset=utf-8",
 };
 
 export function inferAttachmentContentType(filename: string): string {

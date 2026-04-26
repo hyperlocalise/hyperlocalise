@@ -22,6 +22,8 @@ describe("inferAttachmentContentType", () => {
     expect(inferAttachmentContentType("messages.xliff")).toBe(
       "application/x-xliff+xml; charset=utf-8",
     );
+    expect(inferAttachmentContentType("rails.en.yml")).toBe("text/yaml; charset=utf-8");
+    expect(inferAttachmentContentType("messages.yaml")).toBe("text/yaml; charset=utf-8");
   });
 
   it("falls back to octet-stream for unknown or extensionless files", () => {
