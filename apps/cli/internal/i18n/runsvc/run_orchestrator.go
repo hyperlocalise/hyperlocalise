@@ -366,18 +366,37 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 
 func completedEvent(report Report) Event {
 	usage := NormalizeTokenUsage(report.TokenUsage)
-	return Event{
-		Kind:             EventCompleted,
-		PlannedTotal:     report.PlannedTotal,
-		SkippedByLock:    report.SkippedByLock,
-		ExecutableTotal:  report.ExecutableTotal,
-		Succeeded:        report.Succeeded,
-		Failed:           report.Failed,
-		PersistedToLock:  report.PersistedToLock,
-		PruneCandidates:  len(report.PruneCandidates),
-		PruneApplied:     report.PruneApplied,
-		PromptTokens:     usage.PromptTokens,
-		CompletionTokens: usage.CompletionTokens,
-		TotalTokens:      usage.TotalTokens,
-	}
+	return eventWithTokenUsage(Event{
+		Kind:            EventCompleted,
+		PlannedTotal:    report.PlannedTotal,
+		SkippedByLock:   report.SkippedByLock,
+		ExecutableTotal: report.ExecutableTotal,
+		Succeeded:       report.Succeeded,
+		Failed:          report.Failed,
+		PersistedToLock: report.PersistedToLock,
+		PruneCandidates: len(report.PruneCandidates),
+		PruneApplied:    report.PruneApplied,
+	}, usage)
+}
+
+func eventWithTokenUsage(event Event, usage TokenUsage) Event {
+	usage = NormalizeTokenUsage(usage)
+	event.PromptTokens = usage.PromptTokens
+	event.CompletionTokens = usage.CompletionTokens
+	event.TotalTokens = usage.TotalTokens
+	event.InputTokens = usage.InputTokens
+	event.OutputTokens = usage.OutputTokens
+	event.CachedInputTokens = usage.CachedInputTokens
+	event.CacheWriteInputTokens = usage.CacheWriteInputTokens
+	event.ReasoningTokens = usage.ReasoningTokens
+	event.TextInputTokens = usage.TextInputTokens
+	event.ImageInputTokens = usage.ImageInputTokens
+	event.AudioInputTokens = usage.AudioInputTokens
+	event.TextOutputTokens = usage.TextOutputTokens
+	event.ImageOutputTokens = usage.ImageOutputTokens
+	event.AudioOutputTokens = usage.AudioOutputTokens
+	event.ToolInputTokens = usage.ToolInputTokens
+	event.AcceptedPredictionTokens = usage.AcceptedPredictionTokens
+	event.RejectedPredictionTokens = usage.RejectedPredictionTokens
+	return event
 }

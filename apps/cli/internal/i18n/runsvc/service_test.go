@@ -2786,7 +2786,12 @@ func TestRunAggregatesTokenUsageByLocaleAndBatch(t *testing.T) {
 		return "Hola", nil
 	}
 
-	report, err := svc.Run(context.Background(), Input{})
+	var completed Event
+	report, err := svc.Run(context.Background(), Input{OnEvent: func(e Event) {
+		if e.Kind == EventCompleted {
+			completed = e
+		}
+	}})
 	if err != nil {
 		t.Fatalf("run execution: %v", err)
 	}
@@ -2795,6 +2800,9 @@ func TestRunAggregatesTokenUsageByLocaleAndBatch(t *testing.T) {
 	}
 	if report.InputTokens != 16 || report.OutputTokens != 7 || report.CachedInputTokens != 3 || report.ReasoningTokens != 1 {
 		t.Fatalf("unexpected rich token totals: %+v", report.TokenUsage)
+	}
+	if completed.InputTokens != 16 || completed.OutputTokens != 7 || completed.CachedInputTokens != 3 || completed.ReasoningTokens != 1 || completed.AcceptedPredictionTokens != 2 {
+		t.Fatalf("unexpected rich token totals on completed event: %+v", completed)
 	}
 	if len(report.LocaleUsage) != 2 {
 		t.Fatalf("expected 2 locale usage entries, got %+v", report.LocaleUsage)

@@ -216,14 +216,13 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 	}
 
 	report, err := runFunc(runCtx, input)
+	usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
 	if renderer != nil {
-		usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
 		renderer.TokenUsage(usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
 		renderer.Complete()
 	}
 
 	if span.IsRecording() {
-		usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
 		span.SetAttributes(
 			attribute.Int("run.planned_total", report.PlannedTotal),
 			attribute.Int("run.executable_total", report.ExecutableTotal),
@@ -421,9 +420,7 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 }
 
 func hasRichTokenUsage(usage runsvc.TokenUsage) bool {
-	return usage.InputTokens != usage.PromptTokens ||
-		usage.OutputTokens != usage.CompletionTokens ||
-		usage.CachedInputTokens != 0 ||
+	return usage.CachedInputTokens != 0 ||
 		usage.CacheWriteInputTokens != 0 ||
 		usage.ReasoningTokens != 0 ||
 		usage.TextInputTokens != 0 ||

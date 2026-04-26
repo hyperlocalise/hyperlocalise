@@ -562,18 +562,15 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		failed := state.report.Failed
 		tokenUsage := state.report.TokenUsage
 		state.reportMu.Unlock()
-		emitter.emit(Event{
-			Kind:             EventTaskDone,
-			TaskSucceeded:    true,
-			TargetPath:       task.TargetPath,
-			EntryKey:         task.EntryKey,
-			Succeeded:        succeeded,
-			Failed:           failed,
-			ExecutableTotal:  state.total,
-			PromptTokens:     tokenUsage.PromptTokens,
-			CompletionTokens: tokenUsage.CompletionTokens,
-			TotalTokens:      tokenUsage.TotalTokens,
-		})
+		emitter.emit(eventWithTokenUsage(Event{
+			Kind:            EventTaskDone,
+			TaskSucceeded:   true,
+			TargetPath:      task.TargetPath,
+			EntryKey:        task.EntryKey,
+			Succeeded:       succeeded,
+			Failed:          failed,
+			ExecutableTotal: state.total,
+		}, tokenUsage))
 		return true
 	case <-ctx.Done():
 		return false
@@ -647,19 +644,16 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int,
 	failed := report.Failed
 	tokenUsage := report.TokenUsage
 	reportMu.Unlock()
-	emitter.emit(Event{
-		Kind:             EventTaskDone,
-		TaskSucceeded:    false,
-		TargetPath:       task.TargetPath,
-		EntryKey:         task.EntryKey,
-		FailureReason:    err.Error(),
-		Succeeded:        succeeded,
-		Failed:           failed,
-		ExecutableTotal:  total,
-		PromptTokens:     tokenUsage.PromptTokens,
-		CompletionTokens: tokenUsage.CompletionTokens,
-		TotalTokens:      tokenUsage.TotalTokens,
-	})
+	emitter.emit(eventWithTokenUsage(Event{
+		Kind:            EventTaskDone,
+		TaskSucceeded:   false,
+		TargetPath:      task.TargetPath,
+		EntryKey:        task.EntryKey,
+		FailureReason:   err.Error(),
+		Succeeded:       succeeded,
+		Failed:          failed,
+		ExecutableTotal: total,
+	}, tokenUsage))
 }
 
 func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sourceLocale, targetLocale, entryKey, value string, stageMu *sync.Mutex) error {
