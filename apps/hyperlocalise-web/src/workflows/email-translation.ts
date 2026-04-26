@@ -1,11 +1,16 @@
+import { isUtf8 } from "node:buffer";
+import { createHash } from "node:crypto";
+
 import { Sandbox } from "@vercel/sandbox";
 import { Resend } from "resend";
 
 import { env } from "@/lib/env";
+import { createLogger } from "@/lib/log";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import type { EmailTranslationEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
+const logger = createLogger("email-translation-workflow");
 
 async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
@@ -141,6 +146,68 @@ async function readTranslatedFile(sandboxId: string, outputFile: string): Promis
     throw new Error(`failed to read translated file: ${outputFile}`);
   }
   return content;
+}
+
+type TranslatedFileDiagnostics = {
+  filename: string;
+  byteLength: number;
+  sha256: string;
+  firstBytesHex: string;
+  contentType: string;
+  isUtf8: boolean;
+  jsonParseOk: boolean | null;
+  jsonParseError: string | null;
+};
+
+export function getTranslatedFileDiagnostics(
+  content: Buffer,
+  filename: string,
+): TranslatedFileDiagnostics {
+  const dotIndex = filename.lastIndexOf(".");
+  const ext = dotIndex === -1 ? "" : filename.slice(dotIndex).toLowerCase();
+  const isJsonLike = ext === ".json" || ext === ".jsonc";
+  let jsonParseOk: boolean | null = null;
+  let jsonParseError: string | null = null;
+
+  if (isJsonLike) {
+    try {
+      JSON.parse(content.toString("utf8"));
+      jsonParseOk = true;
+    } catch (error) {
+      jsonParseOk = false;
+      jsonParseError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  return {
+    filename,
+    byteLength: content.byteLength,
+    sha256: createHash("sha256").update(content).digest("hex"),
+    firstBytesHex: content.subarray(0, 16).toString("hex"),
+    contentType: inferAttachmentContentType(filename),
+    isUtf8: isUtf8(content),
+    jsonParseOk,
+    jsonParseError,
+  };
+}
+
+async function logTranslatedFileDiagnostics(
+  event: EmailTranslationEventData,
+  translatedContent: Buffer,
+  outputFilename: string,
+): Promise<void> {
+  "use step";
+
+  logger.info(
+    {
+      requestId: event.requestId,
+      attachmentId: event.attachmentId,
+      sourceFilename: event.attachmentFilename,
+      targetLocale: event.targetLocale,
+      diagnostics: getTranslatedFileDiagnostics(translatedContent, outputFilename),
+    },
+    "translated email attachment diagnostics",
+  );
 }
 
 function shellQuote(value: string): string {
@@ -309,6 +376,7 @@ export async function emailTranslationWorkflow(event: EmailTranslationEventData)
     }
 
     const translatedContent = await readTranslatedFile(sandboxId, outputFile);
+    await logTranslatedFileDiagnostics(event, translatedContent, outputFile);
     await sendReplyEmail(event, translatedContent, outputFile);
   } catch (error) {
     try {

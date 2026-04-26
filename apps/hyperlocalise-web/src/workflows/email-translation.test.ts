@@ -9,6 +9,7 @@ vi.mock("@/lib/env", () => ({
 }));
 
 import {
+  getTranslatedFileDiagnostics,
   getSandboxInputFilename,
   getSandboxOutputFilename,
   getSandboxTranslationEnv,
@@ -34,5 +35,39 @@ describe("email translation workflow filenames", () => {
     expect(getSandboxTranslationEnv()).toEqual({
       OPENAI_API_KEY: "test-openai-api-key",
     });
+  });
+});
+
+describe("translated file diagnostics", () => {
+  it("captures byte-level metadata and JSON parse status without logging content", () => {
+    const diagnostics = getTranslatedFileDiagnostics(
+      Buffer.from('{"hello":"Xin chao"}\n'),
+      "vi.json",
+    );
+
+    expect(diagnostics).toEqual({
+      filename: "vi.json",
+      byteLength: 21,
+      sha256: "c84a10b6c11b42e0e94cf12a7e0fb58fbee9640e8f1ff7b440b88d45a689ab86",
+      firstBytesHex: "7b2268656c6c6f223a2258696e206368",
+      contentType: "application/json; charset=utf-8",
+      isUtf8: true,
+      jsonParseOk: true,
+      jsonParseError: null,
+    });
+  });
+
+  it("reports JSON parse failures for invalid JSON output", () => {
+    const diagnostics = getTranslatedFileDiagnostics(Buffer.from('{"hello":'), "vi.json");
+
+    expect(diagnostics.jsonParseOk).toBe(false);
+    expect(diagnostics.jsonParseError).toBeTruthy();
+  });
+
+  it("does not attempt JSON parsing for extensionless outputs", () => {
+    const diagnostics = getTranslatedFileDiagnostics(Buffer.from("translated"), "README");
+
+    expect(diagnostics.jsonParseOk).toBeNull();
+    expect(diagnostics.jsonParseError).toBeNull();
   });
 });
