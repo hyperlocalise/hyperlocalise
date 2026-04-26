@@ -39,8 +39,8 @@ describe("email translation workflow filenames", () => {
 });
 
 describe("translated file diagnostics", () => {
-  it("captures byte-level metadata and JSON parse status without logging content", () => {
-    const diagnostics = getTranslatedFileDiagnostics(
+  it("captures byte-level metadata and JSON parse status without logging content", async () => {
+    const diagnostics = await getTranslatedFileDiagnostics(
       Buffer.from('{"hello":"Xin chao"}\n'),
       "vi.json",
     );
@@ -57,15 +57,15 @@ describe("translated file diagnostics", () => {
     });
   });
 
-  it("reports JSON parse failures for invalid JSON output", () => {
-    const diagnostics = getTranslatedFileDiagnostics(Buffer.from('{"hello":'), "vi.json");
+  it("reports JSON parse failures for invalid JSON output", async () => {
+    const diagnostics = await getTranslatedFileDiagnostics(Buffer.from('{"hello":'), "vi.json");
 
     expect(diagnostics.jsonParseOk).toBe(false);
     expect(diagnostics.jsonParseError).toBeTruthy();
   });
 
-  it("does not attempt JSON parsing for extensionless outputs", () => {
-    const diagnostics = getTranslatedFileDiagnostics(Buffer.from("translated"), "README");
+  it("does not attempt JSON parsing for extensionless outputs", async () => {
+    const diagnostics = await getTranslatedFileDiagnostics(Buffer.from("translated"), "README");
 
     expect(diagnostics.jsonParseOk).toBeNull();
     expect(diagnostics.jsonParseError).toBeNull();

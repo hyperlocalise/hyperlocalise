@@ -159,10 +159,10 @@ type TranslatedFileDiagnostics = {
   jsonParseError: string | null;
 };
 
-export function getTranslatedFileDiagnostics(
+export async function getTranslatedFileDiagnostics(
   content: Buffer,
   filename: string,
-): TranslatedFileDiagnostics {
+): Promise<TranslatedFileDiagnostics> {
   "use step";
 
   const dotIndex = filename.lastIndexOf(".");
@@ -200,7 +200,7 @@ async function logTranslatedFileDiagnostics(
 ): Promise<void> {
   "use step";
 
-  const diagnostics = getTranslatedFileDiagnostics(translatedContent, outputFilename);
+  const diagnostics = await getTranslatedFileDiagnostics(translatedContent, outputFilename);
 
   logger.info(
     {
