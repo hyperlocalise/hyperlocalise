@@ -187,9 +187,53 @@ type Failure struct {
 }
 
 type TokenUsage struct {
+	InputTokens  int `json:"inputTokens"`
+	OutputTokens int `json:"outputTokens"`
+	TotalTokens  int `json:"totalTokens"`
+
+	// PromptTokens and CompletionTokens are compatibility aliases for JSON and
+	// terminal consumers that still use the OpenAI Chat Completions names.
 	PromptTokens     int `json:"promptTokens"`
 	CompletionTokens int `json:"completionTokens"`
-	TotalTokens      int `json:"totalTokens"`
+
+	CachedInputTokens        int             `json:"cachedInputTokens,omitempty"`
+	CacheWriteInputTokens    int             `json:"cacheWriteInputTokens,omitempty"`
+	ReasoningTokens          int             `json:"reasoningTokens,omitempty"`
+	TextInputTokens          int             `json:"textInputTokens,omitempty"`
+	ImageInputTokens         int             `json:"imageInputTokens,omitempty"`
+	AudioInputTokens         int             `json:"audioInputTokens,omitempty"`
+	TextOutputTokens         int             `json:"textOutputTokens,omitempty"`
+	ImageOutputTokens        int             `json:"imageOutputTokens,omitempty"`
+	AudioOutputTokens        int             `json:"audioOutputTokens,omitempty"`
+	ToolInputTokens          int             `json:"toolInputTokens,omitempty"`
+	AcceptedPredictionTokens int             `json:"acceptedPredictionTokens,omitempty"`
+	RejectedPredictionTokens int             `json:"rejectedPredictionTokens,omitempty"`
+	RawProviderUsage         json.RawMessage `json:"rawProviderUsage,omitempty"`
+}
+
+// NormalizeTokenUsage fills canonical token fields and compatibility aliases.
+func NormalizeTokenUsage(u TokenUsage) TokenUsage {
+	if u.InputTokens == 0 && u.PromptTokens != 0 {
+		u.InputTokens = u.PromptTokens
+	}
+	if u.OutputTokens == 0 && u.CompletionTokens != 0 {
+		u.OutputTokens = u.CompletionTokens
+	}
+	if u.PromptTokens == 0 && u.InputTokens != 0 {
+		u.PromptTokens = u.InputTokens
+	}
+	if u.CompletionTokens == 0 && u.OutputTokens != 0 {
+		u.CompletionTokens = u.OutputTokens
+	}
+	if u.TotalTokens == 0 {
+		u.TotalTokens = u.InputTokens + u.OutputTokens
+	}
+	return u
+}
+
+func tokenUsageWithoutRaw(u TokenUsage) TokenUsage {
+	u.RawProviderUsage = nil
+	return u
 }
 
 type BatchUsage struct {

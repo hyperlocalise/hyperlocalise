@@ -217,20 +217,26 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 
 	report, err := runFunc(runCtx, input)
 	if renderer != nil {
-		renderer.TokenUsage(report.PromptTokens, report.CompletionTokens, report.TotalTokens)
+		usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
+		renderer.TokenUsage(usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
 		renderer.Complete()
 	}
 
 	if span.IsRecording() {
+		usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
 		span.SetAttributes(
 			attribute.Int("run.planned_total", report.PlannedTotal),
 			attribute.Int("run.executable_total", report.ExecutableTotal),
 			attribute.Int("run.succeeded", report.Succeeded),
 			attribute.Int("run.failed", report.Failed),
 			attribute.Int("run.prune_applied", report.PruneApplied),
-			attribute.Int("run.prompt_tokens", report.PromptTokens),
-			attribute.Int("run.completion_tokens", report.CompletionTokens),
-			attribute.Int("run.total_tokens", report.TotalTokens),
+			attribute.Int("run.prompt_tokens", usage.PromptTokens),
+			attribute.Int("run.completion_tokens", usage.CompletionTokens),
+			attribute.Int("run.total_tokens", usage.TotalTokens),
+			attribute.Int("run.input_tokens", usage.InputTokens),
+			attribute.Int("run.output_tokens", usage.OutputTokens),
+			attribute.Int("run.cached_input_tokens", usage.CachedInputTokens),
+			attribute.Int("run.reasoning_tokens", usage.ReasoningTokens),
 		)
 	}
 
@@ -361,8 +367,14 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 	); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w, "prompt_tokens=%d completion_tokens=%d total_tokens=%d\n", report.PromptTokens, report.CompletionTokens, report.TotalTokens); err != nil {
+	usage := runsvc.NormalizeTokenUsage(report.TokenUsage)
+	if _, err := fmt.Fprintf(w, "prompt_tokens=%d completion_tokens=%d total_tokens=%d\n", usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens); err != nil {
 		return err
+	}
+	if hasRichTokenUsage(usage) {
+		if _, err := fmt.Fprintf(w, "input_tokens=%d output_tokens=%d cached_input_tokens=%d reasoning_tokens=%d\n", usage.InputTokens, usage.OutputTokens, usage.CachedInputTokens, usage.ReasoningTokens); err != nil {
+			return err
+		}
 	}
 	if report.ContextMemoryEnabled {
 		if _, err := fmt.Fprintf(
@@ -383,7 +395,7 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 		}
 		sort.Strings(locales)
 		for _, locale := range locales {
-			usage := report.LocaleUsage[locale]
+			usage := runsvc.NormalizeTokenUsage(report.LocaleUsage[locale])
 			if _, err := fmt.Fprintf(w, "locale_usage locale=%s prompt_tokens=%d completion_tokens=%d total_tokens=%d\n", locale, usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens); err != nil {
 				return err
 			}
@@ -406,4 +418,21 @@ func writeRunReport(w io.Writer, report runsvc.Report, dryRun bool) error {
 	}
 
 	return nil
+}
+
+func hasRichTokenUsage(usage runsvc.TokenUsage) bool {
+	return usage.InputTokens != usage.PromptTokens ||
+		usage.OutputTokens != usage.CompletionTokens ||
+		usage.CachedInputTokens != 0 ||
+		usage.CacheWriteInputTokens != 0 ||
+		usage.ReasoningTokens != 0 ||
+		usage.TextInputTokens != 0 ||
+		usage.ImageInputTokens != 0 ||
+		usage.AudioInputTokens != 0 ||
+		usage.TextOutputTokens != 0 ||
+		usage.ImageOutputTokens != 0 ||
+		usage.AudioOutputTokens != 0 ||
+		usage.ToolInputTokens != 0 ||
+		usage.AcceptedPredictionTokens != 0 ||
+		usage.RejectedPredictionTokens != 0
 }

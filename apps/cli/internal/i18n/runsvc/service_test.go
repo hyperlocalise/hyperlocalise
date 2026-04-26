@@ -2764,10 +2764,25 @@ func TestRunAggregatesTokenUsageByLocaleAndBatch(t *testing.T) {
 	}
 	svc.translate = func(ctx context.Context, req translator.Request) (string, error) {
 		if req.TargetLanguage == "fr" {
-			translator.SetUsage(ctx, translator.Usage{PromptTokens: 10, CompletionTokens: 4, TotalTokens: 14})
+			translator.SetUsage(ctx, translator.Usage{
+				InputTokens:       10,
+				OutputTokens:      4,
+				TotalTokens:       14,
+				CachedInputTokens: 2,
+				ReasoningTokens:   1,
+				TextInputTokens:   10,
+				TextOutputTokens:  4,
+			})
 			return "Bonjour", nil
 		}
-		translator.SetUsage(ctx, translator.Usage{PromptTokens: 6, CompletionTokens: 3, TotalTokens: 9})
+		translator.SetUsage(ctx, translator.Usage{
+			PromptTokens:             6,
+			CompletionTokens:         3,
+			TotalTokens:              9,
+			CachedInputTokens:        1,
+			ImageInputTokens:         6,
+			AcceptedPredictionTokens: 2,
+		})
 		return "Hola", nil
 	}
 
@@ -2778,17 +2793,28 @@ func TestRunAggregatesTokenUsageByLocaleAndBatch(t *testing.T) {
 	if report.PromptTokens != 16 || report.CompletionTokens != 7 || report.TotalTokens != 23 {
 		t.Fatalf("unexpected token totals: %+v", report.TokenUsage)
 	}
+	if report.InputTokens != 16 || report.OutputTokens != 7 || report.CachedInputTokens != 3 || report.ReasoningTokens != 1 {
+		t.Fatalf("unexpected rich token totals: %+v", report.TokenUsage)
+	}
 	if len(report.LocaleUsage) != 2 {
 		t.Fatalf("expected 2 locale usage entries, got %+v", report.LocaleUsage)
 	}
-	if got := report.LocaleUsage["fr"]; got.PromptTokens != 10 || got.CompletionTokens != 4 || got.TotalTokens != 14 {
+	if got := report.LocaleUsage["fr"]; got.PromptTokens != 10 || got.CompletionTokens != 4 || got.TotalTokens != 14 || got.CachedInputTokens != 2 || got.ReasoningTokens != 1 {
 		t.Fatalf("unexpected fr token usage: %+v", got)
 	}
-	if got := report.LocaleUsage["es"]; got.PromptTokens != 6 || got.CompletionTokens != 3 || got.TotalTokens != 9 {
+	if got := report.LocaleUsage["es"]; got.PromptTokens != 6 || got.CompletionTokens != 3 || got.TotalTokens != 9 || got.CachedInputTokens != 1 || got.AcceptedPredictionTokens != 2 {
 		t.Fatalf("unexpected es token usage: %+v", got)
 	}
 	if len(report.Batches) != 2 {
 		t.Fatalf("expected 2 batch usage entries, got %+v", report.Batches)
+	}
+	for _, batch := range report.Batches {
+		if batch.TargetLocale == "fr" && (batch.CachedInputTokens != 2 || batch.ReasoningTokens != 1) {
+			t.Fatalf("unexpected fr batch token usage: %+v", batch.TokenUsage)
+		}
+		if batch.TargetLocale == "es" && (batch.CachedInputTokens != 1 || batch.AcceptedPredictionTokens != 2) {
+			t.Fatalf("unexpected es batch token usage: %+v", batch.TokenUsage)
+		}
 	}
 }
 

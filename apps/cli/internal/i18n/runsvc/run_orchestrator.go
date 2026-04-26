@@ -365,6 +365,7 @@ func remainingPruneTargets(pruneTargets map[string]map[string]struct{}, pruneMet
 }
 
 func completedEvent(report Report) Event {
+	usage := NormalizeTokenUsage(report.TokenUsage)
 	return Event{
 		Kind:             EventCompleted,
 		PlannedTotal:     report.PlannedTotal,
@@ -375,8 +376,8 @@ func completedEvent(report Report) Event {
 		PersistedToLock:  report.PersistedToLock,
 		PruneCandidates:  len(report.PruneCandidates),
 		PruneApplied:     report.PruneApplied,
-		PromptTokens:     report.PromptTokens,
-		CompletionTokens: report.CompletionTokens,
-		TotalTokens:      report.TotalTokens,
+		PromptTokens:     usage.PromptTokens,
+		CompletionTokens: usage.CompletionTokens,
+		TotalTokens:      usage.TotalTokens,
 	}
 }

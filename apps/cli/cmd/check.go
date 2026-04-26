@@ -655,7 +655,8 @@ func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptio
 	rpt, err := runCheckFixSvc(runCtx, runIn)
 	if renderer != nil {
 		if err == nil {
-			renderer.TokenUsage(rpt.PromptTokens, rpt.CompletionTokens, rpt.TotalTokens)
+			usage := runsvc.NormalizeTokenUsage(rpt.TokenUsage)
+			renderer.TokenUsage(usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
 			renderer.Complete()
 		}
 	}

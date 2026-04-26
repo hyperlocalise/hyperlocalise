@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -110,31 +111,49 @@ func usageFromGenerateTextResponse(resp *openai.ChatCompletion) (Usage, bool) {
 		return Usage{}, false
 	}
 
-	prompt := int(resp.Usage.PromptTokens)
-	completion := int(resp.Usage.CompletionTokens)
-	total := int(resp.Usage.TotalTokens)
-	if total == 0 && (prompt != 0 || completion != 0) {
-		total = prompt + completion
-	}
-	if prompt == 0 && completion == 0 && total == 0 {
+	usage := NormalizeUsage(Usage{
+		InputTokens:              int(resp.Usage.PromptTokens),
+		OutputTokens:             int(resp.Usage.CompletionTokens),
+		TotalTokens:              int(resp.Usage.TotalTokens),
+		CachedInputTokens:        int(resp.Usage.PromptTokensDetails.CachedTokens),
+		AudioInputTokens:         int(resp.Usage.PromptTokensDetails.AudioTokens),
+		ReasoningTokens:          int(resp.Usage.CompletionTokensDetails.ReasoningTokens),
+		AudioOutputTokens:        int(resp.Usage.CompletionTokensDetails.AudioTokens),
+		AcceptedPredictionTokens: int(resp.Usage.CompletionTokensDetails.AcceptedPredictionTokens),
+		RejectedPredictionTokens: int(resp.Usage.CompletionTokensDetails.RejectedPredictionTokens),
+		RawProviderUsage:         rawProviderUsage(resp.Usage.RawJSON()),
+	}, UsageTotalFallbackInputOutput)
+	if !UsageHasValues(usage) {
 		return Usage{}, false
 	}
 
-	return Usage{PromptTokens: prompt, CompletionTokens: completion, TotalTokens: total}, true
+	return usage, true
 }
 
 func usageFromImagesResponse(resp *openai.ImagesResponse) (Usage, bool) {
 	if resp == nil {
 		return Usage{}, false
 	}
-	prompt := int(resp.Usage.InputTokens)
-	completion := int(resp.Usage.OutputTokens)
-	total := int(resp.Usage.TotalTokens)
-	if total == 0 && (prompt != 0 || completion != 0) {
-		total = prompt + completion
-	}
-	if prompt == 0 && completion == 0 && total == 0 {
+	usage := NormalizeUsage(Usage{
+		InputTokens:       int(resp.Usage.InputTokens),
+		OutputTokens:      int(resp.Usage.OutputTokens),
+		TotalTokens:       int(resp.Usage.TotalTokens),
+		TextInputTokens:   int(resp.Usage.InputTokensDetails.TextTokens),
+		ImageInputTokens:  int(resp.Usage.InputTokensDetails.ImageTokens),
+		TextOutputTokens:  int(resp.Usage.OutputTokensDetails.TextTokens),
+		ImageOutputTokens: int(resp.Usage.OutputTokensDetails.ImageTokens),
+		RawProviderUsage:  rawProviderUsage(resp.Usage.RawJSON()),
+	}, UsageTotalFallbackInputOutput)
+	if !UsageHasValues(usage) {
 		return Usage{}, false
 	}
-	return Usage{PromptTokens: prompt, CompletionTokens: completion, TotalTokens: total}, true
+	return usage, true
+}
+
+func rawProviderUsage(raw string) json.RawMessage {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	return json.RawMessage(raw)
 }
