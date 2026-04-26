@@ -669,13 +669,20 @@ export const activityFeedEvents = pgTable(
       onDelete: "set null",
     }),
     // High-level event category for feed grouping and filtering.
-    category: activityFeedEventCategoryEnum("category").notNull().default("audit"),
+    category: activityFeedEventCategoryEnum("category").notNull(),
     // Who emitted the event.
     actorType: activityFeedActorTypeEnum("actor_type").notNull(),
     // Internal user actor when actor_type = user.
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
     // Agent identifier when actor_type = agent.
     actorAgentId: text("actor_agent_id"),
+    // API key actor when actor_type = api_key.
+    actorApiKeyId: uuid("actor_api_key_id").references(
+      () => organizationLlmProviderCredentials.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     // Human-friendly actor label for rendering without additional joins.
     actorDisplayName: text("actor_display_name").notNull().default(""),
     // Machine-stable event key, for example translation.job.failed.
@@ -683,7 +690,10 @@ export const activityFeedEvents = pgTable(
     // Human-readable single-line summary shown in feed rows.
     summary: text("summary").notNull(),
     // Optional structured payload for detail drawers and debugging.
-    details: jsonb("details").$type<unknown>().notNull().default(sql`'{}'::jsonb`),
+    details: jsonb("details")
+      .$type<unknown>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // Additional event metadata used for faceted filtering.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -707,14 +717,23 @@ export const activityFeedEvents = pgTable(
       "activity_feed_events_actor_agent_required_for_agent_type",
       sql`${table.actorType} <> 'agent' OR ${table.actorAgentId} IS NOT NULL`,
     ),
-    index("idx_activity_feed_events_org_occurred_at").on(table.organizationId, table.occurredAt),
-    index("idx_activity_feed_events_project_occurred_at").on(table.projectId, table.occurredAt),
-    index("idx_activity_feed_events_team_occurred_at").on(table.teamId, table.occurredAt),
-    index("idx_activity_feed_events_translation_job_occurred_at").on(
-      table.translationJobId,
-      table.occurredAt,
+    check(
+      "activity_feed_events_actor_api_key_required_for_api_key_type",
+      sql`${table.actorType} <> 'api_key' OR ${table.actorApiKeyId} IS NOT NULL`,
     ),
-    index("idx_activity_feed_events_actor_user_occurred_at").on(table.actorUserId, table.occurredAt),
+    index("idx_activity_feed_events_org_occurred_at").on(table.organizationId, table.occurredAt),
+    index("idx_activity_feed_events_project_occurred_at")
+      .on(table.projectId, table.occurredAt)
+      .where(sql`${table.projectId} IS NOT NULL`),
+    index("idx_activity_feed_events_team_occurred_at")
+      .on(table.teamId, table.occurredAt)
+      .where(sql`${table.teamId} IS NOT NULL`),
+    index("idx_activity_feed_events_translation_job_occurred_at")
+      .on(table.translationJobId, table.occurredAt)
+      .where(sql`${table.translationJobId} IS NOT NULL`),
+    index("idx_activity_feed_events_actor_user_occurred_at")
+      .on(table.actorUserId, table.occurredAt)
+      .where(sql`${table.actorUserId} IS NOT NULL`),
     index("idx_activity_feed_events_category_occurred_at").on(table.category, table.occurredAt),
     index("idx_activity_feed_events_event_name_occurred_at").on(table.eventName, table.occurredAt),
   ],
