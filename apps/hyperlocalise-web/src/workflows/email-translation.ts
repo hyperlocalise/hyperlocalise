@@ -163,6 +163,8 @@ export function getTranslatedFileDiagnostics(
   content: Buffer,
   filename: string,
 ): TranslatedFileDiagnostics {
+  "use step";
+
   const dotIndex = filename.lastIndexOf(".");
   const ext = dotIndex === -1 ? "" : filename.slice(dotIndex).toLowerCase();
   const isJsonLike = ext === ".json" || ext === ".jsonc";
@@ -198,13 +200,15 @@ async function logTranslatedFileDiagnostics(
 ): Promise<void> {
   "use step";
 
+  const diagnostics = getTranslatedFileDiagnostics(translatedContent, outputFilename);
+
   logger.info(
     {
       requestId: event.requestId,
       attachmentId: event.attachmentId,
       sourceFilename: event.attachmentFilename,
       targetLocale: event.targetLocale,
-      diagnostics: getTranslatedFileDiagnostics(translatedContent, outputFilename),
+      diagnostics,
     },
     "translated email attachment diagnostics",
   );
