@@ -97,6 +97,7 @@ describe("createResendAdapter", () => {
           {
             filename: "fr.json",
             content: Buffer.from("translated content").toString("base64"),
+            contentType: "application/json; charset=utf-8",
           },
         ],
       }),
