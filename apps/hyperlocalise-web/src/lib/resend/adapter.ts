@@ -18,6 +18,8 @@ import {
 import { createHash } from "node:crypto";
 import { Resend } from "resend";
 
+import { toBase64AttachmentContent } from "@/lib/resend/attachments";
+
 export type ResendThreadId = {
   senderEmail: string;
   threadHash: string;
@@ -376,7 +378,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
       text,
       attachments: attachments.map((a) => ({
         filename: a.filename,
-        content: a.content,
+        content: toBase64AttachmentContent(a.content),
       })),
       headers,
     });

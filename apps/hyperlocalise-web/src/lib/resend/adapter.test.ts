@@ -64,6 +64,45 @@ describe("createResendAdapter", () => {
     );
   });
 
+  it("sends posted file attachments as base64 strings", async () => {
+    const adapter = createResendAdapter({
+      apiKey: "test-key",
+      webhookSecret: "test-secret",
+      fromAddress: "agent@example.com",
+      fromName: "Hyperlocalise",
+    });
+    const threadId = adapter.encodeThreadId({
+      senderEmail: "sender@example.com",
+      threadHash: "thread_123",
+    });
+    const state = {
+      get: vi.fn(async () => null),
+    };
+
+    await adapter.initialize({ getState: () => state } as never);
+    await adapter.postMessage(threadId, {
+      raw: "Done",
+      files: [
+        {
+          data: Buffer.from("translated content"),
+          filename: "fr.json",
+          mimeType: "application/json",
+        },
+      ],
+    });
+
+    expect(mocks.send).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        attachments: [
+          {
+            filename: "fr.json",
+            content: Buffer.from("translated content").toString("base64"),
+          },
+        ],
+      }),
+    );
+  });
+
   it("stores the org inbound address as Reply-To from received email recipients", async () => {
     const adapter = createResendAdapter({
       apiKey: "test-key",

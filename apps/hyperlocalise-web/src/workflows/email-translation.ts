@@ -2,6 +2,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { Resend } from "resend";
 
 import { env } from "@/lib/env";
+import { toBase64AttachmentContent } from "@/lib/resend/attachments";
 import type { EmailTranslationEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -190,7 +191,7 @@ async function sendReplyEmail(
     attachments: [
       {
         filename: outputFilename,
-        content: translatedContent,
+        content: toBase64AttachmentContent(translatedContent),
       },
     ],
     headers: {
