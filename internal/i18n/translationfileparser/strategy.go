@@ -33,6 +33,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".xliff", XLIFFParser{})
 	s.Register(".po", POFileParser{})
 	s.Register(".html", HTMLParser{})
+	s.Register(".liquid", LiquidParser{})
 	s.Register(".md", MarkdownParser{MDX: false})
 	s.Register(".mdx", MarkdownParser{MDX: true})
 	s.Register(".strings", AppleStringsParser{})

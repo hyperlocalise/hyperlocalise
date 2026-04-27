@@ -232,6 +232,33 @@ hello,bonjour
 	}
 }
 
+func TestStrategyRegistersLiquidParser(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	parser, ok := s.parsersByExt[".liquid"]
+	if !ok {
+		t.Fatal("expected .liquid parser registration")
+	}
+	if _, ok := parser.(LiquidParser); !ok {
+		t.Fatalf("unexpected parser type %T", parser)
+	}
+}
+
+func TestStrategyParsesLiquid(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("sections/header.liquid", []byte(`{{ 'header.navigation.home' | t }}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected empty map, got nil")
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected no extracted entries, got %d", len(got))
+	}
+}
+
 func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	s := NewDefaultStrategy()
 
