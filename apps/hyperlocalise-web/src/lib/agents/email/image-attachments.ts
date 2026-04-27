@@ -98,9 +98,11 @@ export async function handleImageAttachment(
 
   await thread.post({
     raw: [
-      `Done: ${imageAttachment.name ?? "image attachment"}`,
-      intent.targetLocale ? `Localized image: ${intent.targetLocale}` : "Localized image generated",
-      "Attached: generated image",
+      `Here is the localized version of ${imageAttachment.name ?? "your image"}${intent.targetLocale ? ` for the ${intent.targetLocale} market` : ""}. I kept the layout and style as close to the original as possible.`,
+      "",
+      "Let me know if you'd like any adjustments to the text placement or tone.",
+      "",
+      "—Hyperlocalise Agent",
     ].join("\n"),
     files: [
       {

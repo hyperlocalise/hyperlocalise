@@ -73,14 +73,16 @@ function isAffirmative(text: string) {
 
 function buildSupportedRequestHelp() {
   return [
-    "Send one or more supported files and include the languages in the subject or body.",
+    "I'm here to help with translations. Just send one or more supported files and let me know the languages in the subject or body.",
     "",
     "Examples:",
     "- Translate from en-US to fr-FR",
     "- Source: English, target: Japanese",
     "- en to pt-BR, keep the tone casual",
     "",
-    "Supported inputs work best as documents, spreadsheets, JSON, or text files.",
+    "Supported files include documents, spreadsheets, JSON, or text files.",
+    "",
+    "—Hyperlocalise Agent",
   ].join("\n");
 }
 
@@ -88,23 +90,24 @@ function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
   const missing = [pending.targetLocale ? null : "target language"].filter(Boolean);
 
   return [
-    `I received your file${pending.attachments.length === 1 ? "" : "s"}, but I need the ${missing.join(" and ")} before I start.`,
+    `Thanks for sending ${pending.attachments.length === 1 ? "that file" : "those files"}. Before I can start, could you let me know the ${missing.join(" and ")}?`,
     "",
     "Files:",
     formatFileList(pending.attachments),
     "",
-    "Reply with something like:",
-    "Target: Vietnamese",
-    "English to Vietnamese",
-    "source: en-US, target: vi-VN",
+    "Just reply with something like:",
+    "- Target: Vietnamese",
+    "- English to Vietnamese",
+    "- source: en-US, target: vi-VN",
     "",
+    "—Hyperlocalise Agent",
     `Request ID: ${pending.requestId}`,
   ].join("\n");
 }
 
 function buildConfirmationMessage(pending: PendingEmailTranslationRequest) {
   return [
-    'I think I understood the request. Please reply "yes" to start, or send corrected locales.',
+    'I think I understood your request. Please reply "yes" to start, or send corrected locales if anything looks off.',
     "",
     "Files:",
     formatFileList(pending.attachments),
@@ -113,9 +116,10 @@ function buildConfirmationMessage(pending: PendingEmailTranslationRequest) {
     `Target: ${pending.targetLocale}`,
     pending.instructions ? `Instructions: ${pending.instructions}` : null,
     pending.instructions
-      ? "Note: style instructions are captured, but email translation does not apply them yet."
+      ? "Note: I captured your style instructions, but email-based translations don't apply them automatically yet. Running the same file through the dashboard will respect those settings."
       : null,
     "",
+    "—Hyperlocalise Agent",
     `Request ID: ${pending.requestId}`,
   ]
     .filter((line): line is string => line !== null)
@@ -127,7 +131,7 @@ function buildIntakeReceipt(input: {
   skippedDuplicateCount: number;
 }) {
   const lines = [
-    "Got it. I am translating:",
+    `Thanks. I've queued ${input.pending.attachments.length === 1 ? "the file" : "the files"} for translation into ${input.pending.targetLocale}. You should receive the finished ${input.pending.attachments.length === 1 ? "file" : "files"} in this thread shortly — usually within a minute or two.`,
     "",
     "Files:",
     formatFileList(input.pending.attachments),
@@ -136,13 +140,13 @@ function buildIntakeReceipt(input: {
     `Target: ${input.pending.targetLocale}`,
     input.pending.instructions ? `Instructions: ${input.pending.instructions}` : null,
     input.pending.instructions
-      ? "Note: style instructions are captured, but email translation does not apply them yet."
+      ? "Note: I captured your style instructions, but email-based translations don't apply them automatically yet. Running the same file through the dashboard will respect those settings."
       : null,
     input.skippedDuplicateCount > 0
-      ? `Skipped ${input.skippedDuplicateCount} duplicate file request${input.skippedDuplicateCount === 1 ? "" : "s"}.`
+      ? `I skipped ${input.skippedDuplicateCount} duplicate file request${input.skippedDuplicateCount === 1 ? "" : "s"} that were already in progress.`
       : null,
     "",
-    "I will send each translated file back in this thread when it is ready.",
+    "—Hyperlocalise Agent",
     `Request ID: ${input.pending.requestId}`,
   ];
 
@@ -177,7 +181,14 @@ async function enqueuePendingTranslation(input: {
   if (attachmentUrls.length === 0) {
     log.error("failed to retrieve attachment URLs");
     await thread.post(
-      `I couldn't retrieve the attachments for ${pending.requestId}. Please resend the file and try again.`,
+      [
+        `Sorry — I couldn't retrieve the attachments for this request. This sometimes happens when the file is too large or the download link expired.`,
+        "",
+        "Could you resend the file and try again?",
+        "",
+        "—Hyperlocalise Agent",
+        `Request ID: ${pending.requestId}`,
+      ].join("\n"),
     );
     return;
   }
@@ -222,7 +233,14 @@ async function enqueuePendingTranslation(input: {
   if (events.length === 0) {
     log.info("all attachments were duplicates");
     await thread.post(
-      `I already accepted this translation request, so I did not start it again.\n\nRequest ID: ${pending.requestId}`,
+      [
+        "I already accepted this translation request, so I didn't start it again.",
+        "",
+        "If you meant to send a different file or change the language, just reply with the new details.",
+        "",
+        "—Hyperlocalise Agent",
+        `Request ID: ${pending.requestId}`,
+      ].join("\n"),
     );
     await thread.setState({ pendingTranslationRequest: undefined });
     return;
@@ -354,7 +372,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       if (!user) {
         log.warn("unknown sender");
         await thread.post(
-          "This inbox only accepts requests from members of the Hyperlocalise workspace that owns it. If you already have an account, send from your workspace email address or ask an admin to invite you.",
+          [
+            "This inbox only accepts requests from members of the Hyperlocalise workspace that owns it.",
+            "",
+            "If you already have an account, try sending from your workspace email address, or ask an admin to invite you.",
+            "",
+            "—Hyperlocalise Agent",
+          ].join("\n"),
         );
         return;
       }
@@ -392,7 +416,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       if (!organization) {
         log.warn("no organization found");
         await thread.post(
-          "This inbound email address is not active for one of your organizations. Use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+          [
+            "This inbound email address isn't active for one of your organizations.",
+            "",
+            "Please use the active email address shown in Hyperlocalise, or ask an admin to enable the email agent.",
+            "",
+            "—Hyperlocalise Agent",
+          ].join("\n"),
         );
         return;
       }
@@ -406,7 +436,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       if (!raw.emailId || !raw.messageId) {
         log.error({ messageId: raw.messageId }, "missing email metadata");
         await thread.post(
-          "I couldn't process this email because it was missing provider metadata. Please resend the request. If it happens again, contact support with the original message.",
+          [
+            "Sorry — I couldn't process this email because some technical metadata was missing.",
+            "",
+            "Please resend the request. If this keeps happening, contact support and include the original message.",
+            "",
+            "—Hyperlocalise Agent",
+          ].join("\n"),
         );
         return;
       }
@@ -434,7 +470,15 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         if (!intent.targetLocale) {
           log.info("missing target locale for image localization");
           await thread.post(
-            "I received your image, but I need the target language before I can localize it. Please resend the image with a target language, for example: Target: Japanese.",
+            [
+              "I received your image, but I need the target language before I can localize it.",
+              "",
+              "Please resend the image with a target language. For example:",
+              "- Target: Japanese",
+              "- English to Vietnamese",
+              "",
+              "—Hyperlocalise Agent",
+            ].join("\n"),
           );
           return;
         } else if (intent.confidence < intentConfirmationThreshold) {
@@ -444,7 +488,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           );
           if (fileAttachments.length === 0) {
             await thread.post(
-              "I received your image, but I am not confident about the localization request. Please resend it with the target language and any image instructions.",
+              [
+                "I received your image, but I'm not quite sure about the localization request.",
+                "",
+                "Please resend it with the target language and any specific instructions you have in mind.",
+                "",
+                "—Hyperlocalise Agent",
+              ].join("\n"),
             );
             return;
           }

@@ -252,15 +252,18 @@ async function sendReplyEmail(
     replyTo: event.inboundEmailAddress,
     subject: `Re: ${event.subject}`,
     text: [
-      `Done: ${event.attachmentFilename}`,
+      `Your translation is ready. I've converted ${event.attachmentFilename} into ${event.targetLocale} and attached it below.`,
+      "",
       event.sourceLocale
-        ? `Translated: ${event.sourceLocale} -> ${event.targetLocale}`
-        : `Translated: auto-detect -> ${event.targetLocale}`,
-      `Attached: ${outputFilename}`,
+        ? `Source: ${event.sourceLocale} -> ${event.targetLocale}`
+        : `Source: auto-detect -> ${event.targetLocale}`,
       event.instructions
-        ? "Note: style instructions were captured, but email translation does not apply them yet."
+        ? "A quick note: I noticed you included some style instructions. Right now, email-based translations don't pick those up automatically, but we're working on it. If the tone matters a lot for this project, running the same file through the dashboard will respect those settings."
         : null,
       "",
+      "Let me know if anything looks off or if you need another language.",
+      "",
+      "—Hyperlocalise Agent",
       `Request ID: ${event.requestId}`,
     ]
       .filter((line): line is string => line !== null)
@@ -300,11 +303,12 @@ async function sendFailureReplyEmail(
     replyTo: event.inboundEmailAddress,
     subject: `Re: ${event.subject}`,
     text: [
-      `I couldn't translate ${event.attachmentFilename}.`,
+      `Sorry — I hit a snag while translating ${event.attachmentFilename} and couldn't finish the job.`,
       "",
-      `Reason: ${reason}`,
-      "You can reply with a corrected file or try sending the request again.",
+      `What happened: ${reason}`,
+      "Could you double-check the file and send it again? If it fails a second time, just reply and I'll flag it for the team.",
       "",
+      "—Hyperlocalise Agent",
       `Request ID: ${event.requestId}`,
     ].join("\n"),
     headers: {
@@ -322,22 +326,22 @@ function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
   if (message.includes("hyperlocalise CLI installation failed")) {
-    return "the translation runner could not be prepared.";
+    return "something went wrong while setting up the translation environment on our end.";
   }
 
   if (message.includes("failed to download attachment")) {
-    return "the attachment could not be downloaded.";
+    return "the attachment couldn't be retrieved from the email. It may have been too large or the link expired.";
   }
 
   if (message.includes("translation failed")) {
-    return "the translation runner could not process this file.";
+    return "the file format may not be supported, or the content didn't match what the translator expected (for example, nested JSON keys that don't match a standard i18n structure).";
   }
 
   if (message.includes("failed to read translated file")) {
-    return "the translated output file could not be read.";
+    return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
 
-  return "the translation workflow failed before it could finish.";
+  return "the translation failed before it could finish. This is usually temporary.";
 }
 
 function getOutputFilename(inputFilename: string, targetLocale: string): string {

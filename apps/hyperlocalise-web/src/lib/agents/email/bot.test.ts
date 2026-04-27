@@ -128,7 +128,7 @@ function createDependencies() {
     ]),
     handleImageAttachment: vi.fn(async (thread: Thread<EmailBotState>) => {
       await thread.post({
-        raw: "Done: banner.png\nLocalized image: fr\nAttached: generated image",
+        raw: "Here is the localized version of banner.png for the fr market. I kept the layout and style as close to the original as possible.\n\nLet me know if you'd like any adjustments to the text placement or tone.\n\n—Hyperlocalise Agent",
         files: [{ data: Buffer.from("image"), filename: "banner-fr.png", mimeType: "image/png" }],
       });
     }),
@@ -145,11 +145,11 @@ describe("createEmailHandler", () => {
 
     await handler(thread, createMessage({}));
 
-    expect(posts[0]).toContain("Got it. I am translating:");
+    expect(posts[0]).toContain("Thanks. I've queued");
     expect(posts[0]).toContain("- homepage.xlsx");
     expect(posts[0]).toContain("Source: en");
     expect(posts[0]).toContain("Target: fr");
-    expect(posts[0]).toContain("style instructions are captured");
+    expect(posts[0]).toContain("I captured your style instructions");
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: expect.stringMatching(/^eml_[a-f0-9]{16}$/),
@@ -176,7 +176,7 @@ describe("createEmailHandler", () => {
 
     await handler(thread, createMessage({ text: "Translate to French" }));
 
-    expect(posts[0]).toContain("Got it. I am translating:");
+    expect(posts[0]).toContain("Thanks. I've queued");
     expect(posts[0]).toContain("Source: auto-detect");
     expect(posts[0]).toContain("Target: fr");
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
@@ -202,7 +202,7 @@ describe("createEmailHandler", () => {
 
     await handler(thread, createMessage({ text: "Translate from English" }));
 
-    expect(posts[0]).toContain("I received your file");
+    expect(posts[0]).toContain("Thanks for sending");
     expect(posts[0]).toContain("target language");
     expect(getState().pendingTranslationRequest).toMatchObject({
       sourceLocale: "en",
@@ -235,7 +235,7 @@ describe("createEmailHandler", () => {
     );
 
     expect(posts[0]).toContain(
-      "I received your file, but I need the target language before I start.",
+      "Thanks for sending that file. Before I can start, could you let me know the target language?",
     );
     expect(posts[0]).not.toContain("source language");
     expect(posts[0]).toContain("- en-US.json");
@@ -269,7 +269,7 @@ describe("createEmailHandler", () => {
       }),
     );
 
-    expect(posts[0]).toContain("Got it. I am translating:");
+    expect(posts[0]).toContain("Thanks. I've queued");
     expect(dependencies.resolveInboundEmailOrganization).not.toHaveBeenCalled();
     expect(dependencies.interpretClarificationReply).toHaveBeenCalledWith(
       expect.objectContaining({ text: "English to French" }),
@@ -314,7 +314,7 @@ describe("createEmailHandler", () => {
 
     await handler(thread, createMessage({}));
 
-    expect(posts[0]).toContain("already accepted this translation request");
+    expect(posts[0]).toContain("I already accepted this translation request");
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
@@ -334,7 +334,7 @@ describe("createEmailHandler", () => {
     );
 
     expect(posts[0]).toMatchObject({
-      raw: expect.stringContaining("Localized image: fr"),
+      raw: expect.stringContaining("Here is the localized version"),
       files: [expect.objectContaining({ filename: "banner-fr.png" })],
     });
     expect(dependencies.handleImageAttachment).toHaveBeenCalledWith(
@@ -500,7 +500,7 @@ describe("createEmailHandler", () => {
       }),
     );
 
-    expect(posts[0]).toContain("Got it. I am translating:");
+    expect(posts[0]).toContain("Thanks. I've queued");
     expect(posts[0]).toContain("old.xlsx");
     expect(posts[0]).toContain("new.xlsx");
     expect(getState().pendingTranslationRequest).toBeUndefined();
