@@ -142,6 +142,10 @@ importers:
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@^0.1.15
         version: '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.12.2)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+    optionalDependencies:
+      '@voidzero-dev/vite-plus-win32-x64-msvc':
+        specifier: ^0.1.19
+        version: 0.1.19
 
 packages:
 
@@ -2339,6 +2343,12 @@ packages:
 
   '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.18':
     resolution: {integrity: sha512-jBgL4ZjSJJu3FDcrqj4muzbr0WKlU6Ym1ilHQnq8R+2TRvE0AtvAMMuphICDslZGi6EK3fwJ+r2Lv7GU1AipQA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
+  '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.19':
+    resolution: {integrity: sha512-//xUNHQnd+p4Xd4rlObAvum3DW1ugbWZ+kfaqD7biHQ9HQwHF28WSpJ3+d31vLUHj4o3DXYSA67g1Bq2d4tVgg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [win32]
@@ -5967,6 +5977,9 @@ snapshots:
     optional: true
 
   '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.18':
+    optional: true
+
+  '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.19':
     optional: true
 
   '@workos-inc/authkit-nextjs@3.0.0(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
