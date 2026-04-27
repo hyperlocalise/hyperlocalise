@@ -41,7 +41,7 @@
     "pino": "^10.3.1",
     "react": "19.2.5",
     "react-dom": "19.2.5",
-    "react-hook-form": "7.73.1",
+    "react-hook-form": "7.74.0",
     "react-intersection-observer": "^10.0.3",
     "react-resizable-panels": "4.10.0",
     "react-use-measure": "^2.1.7",
