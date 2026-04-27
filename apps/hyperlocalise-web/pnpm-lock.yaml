@@ -136,8 +136,8 @@ importers:
         specifier: ^4.2.4
         version: 4.2.4(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3)(chokidar@5.0.0))(@swc/core@1.15.3)(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(typescript@6.0.3)
       workos:
-        specifier: 0.12.3
-        version: 0.12.3(@types/react@19.2.14)
+        specifier: 0.13.1
+        version: 0.13.1(@types/react@19.2.14)
       zod:
         specifier: 4.3.6
         version: 4.3.6
@@ -3238,8 +3238,8 @@ packages:
     resolution: {integrity: sha512-moaQsCqnRqJS3AYMrST70lChSt3KI8J81C+PMNg0h67u5OqbHBVGZi8tEUVxughBfoQaRGgqgV+r/iFyWFFSPg==}
     engines: {node: '>=22.11.0'}
 
-  '@workos/skills@0.2.4':
-    resolution: {integrity: sha512-Ku/8aD6zRwA7M4jREp/l1pUHOGCmDMBudlJAUfpkfZqFdDatxWJy+CQmYiIlMKt3IP4/GURe1rA72HpAcEkcaw==}
+  '@workos/skills@0.5.0':
+    resolution: {integrity: sha512-fScc+usjjvpyIOqSDq3AVmRpgpB5+yhyNfiqlSI/NsENe9C7Ynmbzx+XYwMJzGXpKIdUQQBHbvYRMOA1L+mWyw==}
 
   '@xhmikosr/archive-type@8.0.1':
     resolution: {integrity: sha512-toXuiWChyfOpEiCPsIw6HGHaNji5LVkvB6EREL548vGWr+hGaehwxG4LzN20vm9aGFXwnA/Jty8yW2/SmV+1zQ==}
@@ -6361,8 +6361,8 @@ packages:
       '@opentelemetry/api':
         optional: true
 
-  workos@0.12.3:
-    resolution: {integrity: sha512-ounGZJTeGR2to8yBW6EoRxuJuhm0mD2xl2nBGSdXSdR/GT/eYxE4VjFYxZCbZ+q9llLBRUYu/Od3syDBUU6Egw==}
+  workos@0.13.1:
+    resolution: {integrity: sha512-RLBHycKjKpN6H7SNCEJp4I8xPN4y9FIgnfk8WMIRjYe8zQWE93JiRf++JI+fAp2rKCgsfH2stEPvw0Bxse+H5Q==}
     engines: {node: '>=20.20'}
     hasBin: true
 
@@ -9326,7 +9326,7 @@ snapshots:
     dependencies:
       eventemitter3: 5.0.4
 
-  '@workos/skills@0.2.4':
+  '@workos/skills@0.5.0':
     dependencies:
       yaml: 2.8.3
 
@@ -12715,7 +12715,7 @@ snapshots:
       - supports-color
       - typescript
 
-  workos@0.12.3(@types/react@19.2.14):
+  workos@0.13.1(@types/react@19.2.14):
     dependencies:
       '@anthropic-ai/claude-agent-sdk': 0.2.92(zod@4.3.6)
       '@anthropic-ai/sdk': 0.78.0(zod@4.3.6)
@@ -12724,7 +12724,7 @@ snapshots:
       '@hono/node-server': 1.19.12(hono@4.12.15)
       '@napi-rs/keyring': 1.2.0
       '@workos-inc/node': 8.11.1
-      '@workos/skills': 0.2.4
+      '@workos/skills': 0.5.0
       chalk: 5.6.2
       diff: 8.0.4
       fast-glob: 3.3.3
