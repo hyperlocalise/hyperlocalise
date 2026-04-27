@@ -70,8 +70,5 @@
     "vite-plus": "0.1.19",
     "vitest": "catalog:"
   },
-  "optionalDependencies": {
-    "@voidzero-dev/vite-plus-win32-x64-msvc": "^0.1.19"
-  },
   "packageManager": "pnpm@10.33.0"
 }

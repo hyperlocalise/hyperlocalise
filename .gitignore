@@ -29,9 +29,6 @@ go.work.sum
 .env
 .env.local
 
-# Docker Compose local overrides
-docker-compose.override.yml
-
 # Editor/IDE
 .idea/
 .vscode/
@@ -44,14 +41,3 @@ completions
 bazel-*
 
 .hyperlocalise
-
-# Claude 
-.claude/
-CLAUDE.md
-.agents/
-
-# Windsurf
-.windsurf/
-
-# BMAD-method
-_bmad/
