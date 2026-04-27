@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 
 import { DotFlow } from "dot-anime-react";
+import { useInView } from "react-intersection-observer";
 import { motion, useReducedMotion } from "motion/react";
 
 import { TranslateIcon } from "@hugeicons/core-free-icons";
@@ -47,7 +48,6 @@ const flagshipModelsByAgent: Record<string, string> = {
 };
 
 const CONSOLE_STEP_MS = 520;
-const CONSOLE_HOLD_MS = 6000;
 const CONSOLE_EASE_OUT = [0.19, 1, 0.22, 1] as const;
 
 export type AssignmentTarget = {
@@ -105,6 +105,10 @@ export function TranslationFlowIllustration({
   const [visibleLineCount, setVisibleLineCount] = useState(
     shouldReduceMotion ? consoleLines.length : 0,
   );
+  const { ref: inViewRef, inView } = useInView({
+    triggerOnce: true,
+    threshold: 0.3,
+  });
 
   useEffect(() => {
     setActiveAgent((currentAgent) =>
@@ -120,42 +124,40 @@ export function TranslationFlowIllustration({
       return;
     }
 
-    setVisibleLineCount(0);
+    if (!inView) {
+      setVisibleLineCount(0);
+      return;
+    }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const advance = (nextVisibleCount: number, cycle: number) => {
+    const advance = (nextVisibleCount: number) => {
       timeoutId = setTimeout(
         () => {
           if (nextVisibleCount <= consoleLines.length) {
             setVisibleLineCount(nextVisibleCount);
 
-            if (nextVisibleCount === consoleLines.length) {
-              timeoutId = setTimeout(() => {
-                setVisibleLineCount(0);
-                advance(1, cycle + 1);
-              }, CONSOLE_HOLD_MS);
-              return;
-            }
-
-            advance(nextVisibleCount + 1, cycle);
+            advance(nextVisibleCount + 1);
           }
         },
-        nextVisibleCount === 1 && cycle === 0 ? 180 : CONSOLE_STEP_MS,
+        nextVisibleCount === 1 ? 180 : CONSOLE_STEP_MS,
       );
     };
 
-    advance(1, 0);
+    advance(1);
 
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
     };
-  }, [shouldReduceMotion]);
+  }, [activeAgent, shouldReduceMotion, inView]);
 
   return (
-    <div className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top">
+    <div
+      ref={inViewRef}
+      className="relative overflow-hidden rounded-[1.8rem] border border-border/70 bg-background mask-radial-from-65% mask-radial-at-top"
+    >
       <div className="relative">
         <div className="flex items-center justify-between gap-4 border-b border-border/70 px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -169,7 +171,7 @@ export function TranslationFlowIllustration({
               </TypographyMuted>
             </div>
           </div>
-          <Badge className="rounded-full bg-primary px-3 text-primary-foreground">
+          <Badge variant="secondary" className="rounded-full px-3">
             Agentic workflow
           </Badge>
         </div>

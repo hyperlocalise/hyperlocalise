@@ -1097,6 +1097,9 @@ func TestRunWritesMachineReadableArtifact(t *testing.T) {
 	if payload["totalTokens"] != float64(168) {
 		t.Fatalf("expected totalTokens in report artifact, got %+v", payload)
 	}
+	if payload["inputTokens"] != float64(123) || payload["outputTokens"] != float64(45) || payload["promptTokens"] != float64(123) || payload["completionTokens"] != float64(45) {
+		t.Fatalf("expected canonical and compatibility token fields in report artifact, got %+v", payload)
+	}
 	localeUsage, ok := payload["localeUsage"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected localeUsage object, got %+v", payload["localeUsage"])
@@ -1106,6 +1109,44 @@ func TestRunWritesMachineReadableArtifact(t *testing.T) {
 	}
 	if _, ok := payload["batches"]; ok {
 		t.Fatalf("default --output-detail is summary; artifact must not include batches, got %+v", payload["batches"])
+	}
+}
+
+func TestWriteRunReportIncludesRichTokenLineOnlyWhenRelevant(t *testing.T) {
+	t.Parallel()
+
+	legacyOnly := bytes.NewBuffer(nil)
+	if err := writeRunReport(legacyOnly, runsvc.Report{
+		TokenUsage: runsvc.TokenUsage{PromptTokens: 10, CompletionTokens: 4, TotalTokens: 14},
+	}, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(legacyOnly.String(), "prompt_tokens=10 completion_tokens=4 total_tokens=14") {
+		t.Fatalf("missing legacy token line: %q", legacyOnly.String())
+	}
+	if strings.Contains(legacyOnly.String(), "input_tokens=") {
+		t.Fatalf("legacy-only usage should not print rich line: %q", legacyOnly.String())
+	}
+
+	rich := bytes.NewBuffer(nil)
+	if err := writeRunReport(rich, runsvc.Report{
+		TokenUsage: runsvc.TokenUsage{
+			InputTokens:       10,
+			OutputTokens:      4,
+			TotalTokens:       14,
+			PromptTokens:      10,
+			CompletionTokens:  4,
+			CachedInputTokens: 2,
+			ReasoningTokens:   1,
+		},
+	}, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(rich.String(), "prompt_tokens=10 completion_tokens=4 total_tokens=14") {
+		t.Fatalf("missing legacy token line: %q", rich.String())
+	}
+	if !strings.Contains(rich.String(), "input_tokens=10 output_tokens=4 cached_input_tokens=2 reasoning_tokens=1") {
+		t.Fatalf("missing rich token line: %q", rich.String())
 	}
 }
 

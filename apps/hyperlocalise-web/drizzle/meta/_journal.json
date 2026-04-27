@@ -22,6 +22,41 @@
       "when": 1776492379761,
       "tag": "0002_flashy_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776862727781,
+      "tag": "0003_last_speed",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777083285609,
+      "tag": "0004_gigantic_stellaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777112879311,
+      "tag": "0005_natural_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777116684941,
+      "tag": "0006_remarkable_mathemanic",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777117137438,
+      "tag": "0007_bouncy_giant_man",
+      "breakpoints": true
     }
   ]
 }

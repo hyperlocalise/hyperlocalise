@@ -58,12 +58,35 @@ func ReportForJSON(r Report, detail string) (any, error) {
 		return nil, err
 	}
 	if d == ReportJSONDetailFull {
-		return r, nil
+		return NormalizeReportTokenUsage(r), nil
 	}
 	return SummaryJSONReportFrom(r), nil
 }
 
+// NormalizeReportTokenUsage fills token aliases before JSON serialization.
+func NormalizeReportTokenUsage(r Report) Report {
+	r.TokenUsage = NormalizeTokenUsage(r.TokenUsage)
+	if len(r.LocaleUsage) > 0 {
+		localeUsage := make(map[string]TokenUsage, len(r.LocaleUsage))
+		for locale, usage := range r.LocaleUsage {
+			localeUsage[locale] = NormalizeTokenUsage(usage)
+		}
+		r.LocaleUsage = localeUsage
+	}
+	for i := range r.Batches {
+		r.Batches[i].TokenUsage = NormalizeTokenUsage(r.Batches[i].TokenUsage)
+	}
+	return r
+}
+
 func SummaryJSONReportFrom(r Report) SummaryJSONReport {
+	localeUsage := map[string]TokenUsage(nil)
+	if len(r.LocaleUsage) > 0 {
+		localeUsage = make(map[string]TokenUsage, len(r.LocaleUsage))
+		for locale, usage := range r.LocaleUsage {
+			localeUsage[locale] = tokenUsageWithoutRaw(NormalizeTokenUsage(usage))
+		}
+	}
 	return SummaryJSONReport{
 		GeneratedAt:                 r.GeneratedAt,
 		ConfigPath:                  r.ConfigPath,
@@ -73,8 +96,8 @@ func SummaryJSONReportFrom(r Report) SummaryJSONReport {
 		Succeeded:                   r.Succeeded,
 		Failed:                      r.Failed,
 		PersistedToLock:             r.PersistedToLock,
-		TokenUsage:                  r.TokenUsage,
-		LocaleUsage:                 r.LocaleUsage,
+		TokenUsage:                  tokenUsageWithoutRaw(NormalizeTokenUsage(r.TokenUsage)),
+		LocaleUsage:                 localeUsage,
 		Failures:                    r.Failures,
 		PruneCandidateCount:         len(r.PruneCandidates),
 		PruneApplied:                r.PruneApplied,

@@ -163,11 +163,20 @@ func defaultCheckOptions() checkOptions {
 }
 
 func newCheckCmd() *cobra.Command {
+	return newCheckLikeCmd("check", "check localized files for integrity issues", false)
+}
+
+func newFixCmd() *cobra.Command {
+	return newCheckLikeCmd("fix", "fix localized file integrity issues", true)
+}
+
+func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	o := defaultCheckOptions()
+	o.fix = fixDefault
 
 	cmd := &cobra.Command{
-		Use:          "check",
-		Short:        "check localized files for integrity issues",
+		Use:          use,
+		Short:        short,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			baseCtx := cmd.Context()
@@ -290,7 +299,9 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.outputFile, "output-file", "", "optional report file path (same format as stdout)")
 	cmd.Flags().StringVar(&o.jsonReport, "json-report", "", "write machine-readable JSON report to this path (independent of --format)")
 	cmd.Flags().BoolVar(&o.noFail, "no-fail", false, "report findings without exiting non-zero")
-	cmd.Flags().BoolVar(&o.fix, "fix", false, "retranslate fixable findings using the same AI pipeline as run (requires API credentials)")
+	if !fixDefault {
+		cmd.Flags().BoolVar(&o.fix, "fix", false, "retranslate fixable findings using the same AI pipeline as run (requires API credentials)")
+	}
 	cmd.Flags().BoolVar(&o.fixDryRun, "fix-dry-run", false, "with --fix, plan translation tasks without writing targets or calling the API")
 	cmd.Flags().IntVar(&o.workers, "workers", 0, "with --fix, number of parallel translation workers (default: number of CPU cores)")
 	cmd.Flags().BoolVar(&o.quiet, "quiet", false, "omit warning-severity findings from output and JSON report; exit 0 when only warnings exist (errors and --fix still use the full result)")
@@ -644,7 +655,8 @@ func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptio
 	rpt, err := runCheckFixSvc(runCtx, runIn)
 	if renderer != nil {
 		if err == nil {
-			renderer.TokenUsage(rpt.PromptTokens, rpt.CompletionTokens, rpt.TotalTokens)
+			usage := runsvc.NormalizeTokenUsage(rpt.TokenUsage)
+			renderer.TokenUsage(usage.PromptTokens, usage.CompletionTokens, usage.TotalTokens)
 			renderer.Complete()
 		}
 	}

@@ -1,0 +1,2 @@
+DROP INDEX "github_installation_repositories_github_repository_id_key";--> statement-breakpoint
+CREATE UNIQUE INDEX "github_installation_repositories_github_repository_id_key" ON "github_installation_repositories" USING btree ("github_installation_id","github_repository_id");

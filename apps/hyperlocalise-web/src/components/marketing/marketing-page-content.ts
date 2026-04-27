@@ -1,6 +1,18 @@
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
 export const githubReleasesUrl = "https://github.com/hyperlocalise/hyperlocalise/releases";
+export const docsUrl = "https://hyperlocalise.dev";
+export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
+
+export type MarketingFooterLink = {
+  label: string;
+  href: string;
+};
+
+export type MarketingFooterColumn = {
+  title: string;
+  links: MarketingFooterLink[];
+};
 
 export const principles = [
   {
@@ -22,6 +34,7 @@ export const principles = [
 
 export type MarketingChapter = {
   id: string;
+  anchorId: string;
   label: string;
   title: string;
   description: string;
@@ -38,6 +51,7 @@ export type MarketingChapter = {
 export const chapters: MarketingChapter[] = [
   {
     id: "01",
+    anchorId: "sources",
     label: "Sources",
     title: "Localization begins in the tools teams already use",
     description:
@@ -54,6 +68,7 @@ export const chapters: MarketingChapter[] = [
   },
   {
     id: "02",
+    anchorId: "translate-task",
     label: "Translate Task",
     title: "Move translation work across agents, reviewers and systems",
     description:
@@ -67,6 +82,7 @@ export const chapters: MarketingChapter[] = [
   },
   {
     id: "03",
+    anchorId: "providers",
     label: "Providers",
     title: "Stay flexible across providers and platforms",
     description:
@@ -79,6 +95,7 @@ export const chapters: MarketingChapter[] = [
   },
   {
     id: "04",
+    anchorId: "evaluations",
     label: "Evaluations",
     title: "Review PRs and translation regressions before merge",
     description:
@@ -95,6 +112,7 @@ export const chapters: MarketingChapter[] = [
   },
   {
     id: "05",
+    anchorId: "monitor",
     label: "Monitor",
     title: "Understand translation quality at scale",
     description:
@@ -129,6 +147,13 @@ export const changelog = [
     href: `${githubReleasesUrl}/tag/v1.4.2`,
     ctaLabel: "Read release",
   },
+  {
+    title: "v1.4.1",
+    body: "Added check --fix, AST/ICU split, severity tuning, and --quiet mode for cleaner CI output.",
+    meta: "Apr 9, 2026",
+    href: `${githubReleasesUrl}/tag/v1.4.1`,
+    ctaLabel: "Read release",
+  },
 ];
 
 export const testimonials = [
@@ -152,17 +177,37 @@ export const testimonials = [
   },
 ];
 
-export const footerColumns = [
+export const footerColumns: MarketingFooterColumn[] = [
   {
     title: "Product",
-    links: ["Intake", "Plan", "Build", "Diffs", "Monitor", "Pricing"],
+    links: [
+      { label: "Sources", href: "#sources" },
+      { label: "Translate Task", href: "#translate-task" },
+      { label: "Providers", href: "#providers" },
+      { label: "Evaluations", href: "#evaluations" },
+      { label: "Monitor", href: "#monitor" },
+      { label: "Pricing", href: "#waitlist" },
+    ],
   },
   {
     title: "Features",
-    links: ["Agents", "TMS sync", "GitHub checks", "Evals", "Shared context", "Changelog"],
+    links: [
+      { label: "Agents", href: "#workflow" },
+      { label: "TMS sync", href: "#workflow" },
+      { label: "GitHub checks", href: "#workflow" },
+      { label: "Evals", href: "#workflow" },
+      { label: "Shared context", href: "#overview" },
+      { label: "Changelog", href: "#changelog" },
+    ],
   },
   {
     title: "Resources",
-    links: ["Documentation", "GitHub", "Status", "Contact"],
+    links: [
+      { label: "Documentation", href: docsUrl },
+      { label: "CLI docs", href: cliDocsUrl },
+      { label: "GitHub Action", href: githubActionUrl },
+      { label: "GitHub", href: githubRepoUrl },
+      { label: "Contact", href: "mailto:minh@hyperlocalise.com" },
+    ],
   },
 ];

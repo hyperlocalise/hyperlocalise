@@ -1,4 +1,5 @@
 import type {
+  githubInstallations,
   llmProviderEnum,
   organizationLlmProviderCredentials,
   translationJobs,
@@ -32,3 +33,5 @@ export type NewTeam = typeof teams.$inferInsert;
 export type TeamMembership = typeof teamMemberships.$inferSelect;
 export type NewTeamMembership = typeof teamMemberships.$inferInsert;
 export type TeamMembershipRole = (typeof teamMembershipRoleEnum.enumValues)[number];
+export type GitHubInstallation = typeof githubInstallations.$inferSelect;
+export type NewGitHubInstallation = typeof githubInstallations.$inferInsert;

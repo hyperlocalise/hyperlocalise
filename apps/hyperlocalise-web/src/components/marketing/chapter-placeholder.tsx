@@ -63,13 +63,13 @@ export function ChapterPlaceholder({ chapter }: { chapter: MarketingChapter }) {
   const icon = chapter.placeholderType === "product" ? WorkflowSquare10Icon : MessageUser01Icon;
 
   return (
-    <div className="rounded-[1.8rem] border border-white/8 bg-[#080808] p-4 shadow-[0_28px_80px_rgba(0,0,0,0.4)] sm:p-6">
-      <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-5 sm:p-6">
-        <div className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/35">
+    <div className="rounded-[1.8rem] border border-border/70 bg-muted/30 p-4 shadow-[0_28px_80px_color-mix(in_srgb,var(--foreground)_10%,transparent)] sm:p-6">
+      <div className="rounded-[1.5rem] border border-dashed border-border bg-background p-5 sm:p-6">
+        <div className="flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
           {chapter.placeholderTitle}
         </div>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {chapter.placeholderDescription}
         </p>
 
@@ -81,14 +81,16 @@ export function ChapterPlaceholder({ chapter }: { chapter: MarketingChapter }) {
               : "lg:grid-cols-[0.9fr_1.1fr]",
           )}
         >
-          <div className="rounded-[1.3rem] border border-white/8 bg-black/30 p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-white/30">Reserved canvas</div>
+          <div className="rounded-[1.3rem] border border-border bg-muted/40 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Reserved canvas
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {["Primary frame", "Secondary frame", "Context panel", "State details"].map(
                 (item) => (
                   <div
                     key={item}
-                    className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-8 text-center text-sm text-white/30"
+                    className="rounded-xl border border-border/70 bg-background px-4 py-8 text-center text-sm text-muted-foreground"
                   >
                     {item}
                   </div>
@@ -96,16 +98,18 @@ export function ChapterPlaceholder({ chapter }: { chapter: MarketingChapter }) {
               )}
             </div>
           </div>
-          <div className="rounded-[1.3rem] border border-white/8 bg-black/30 p-4">
-            <div className="text-xs uppercase tracking-[0.16em] text-white/30">Layout notes</div>
-            <div className="mt-4 space-y-3 text-sm text-white/45">
-              <div className="rounded-xl bg-white/[0.03] px-4 py-4">
+          <div className="rounded-[1.3rem] border border-border bg-muted/40 p-4">
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Layout notes
+            </div>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <div className="rounded-xl bg-background px-4 py-4">
                 Use this block for the final marketing asset.
               </div>
-              <div className="rounded-xl bg-white/[0.03] px-4 py-4">
+              <div className="rounded-xl bg-background px-4 py-4">
                 Keep the composition wide and low, similar to Linear chapter visuals.
               </div>
-              <div className="rounded-xl bg-white/[0.03] px-4 py-4">
+              <div className="rounded-xl bg-background px-4 py-4">
                 Preserve space for future polished screenshot or illustration work.
               </div>
             </div>

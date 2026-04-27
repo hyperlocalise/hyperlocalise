@@ -1,159 +1,75 @@
-import type { ReactNode } from "react";
+import Image from "next/image";
+
+import { InfiniteSlider } from "@/components/ui/infinite-slider";
 
 type Provider = {
   id: string;
   label: string;
+  src: string;
   width: number;
-  viewBox: string;
-  render: () => ReactNode;
+  height: number;
 };
 
 const providers: readonly Provider[] = [
   {
     id: "openai",
     label: "OpenAI",
+    src: "/images/openai-old-logo.webp",
     width: 132,
-    viewBox: "0 0 132 32",
-    render: () => (
-      <>
-        <g fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M19.4 8.1a5.6 5.6 0 0 1 6.1 1.2l3.9 4.1a5.6 5.6 0 0 1 .9 6.7" />
-          <path d="M26.3 22.8a5.6 5.6 0 0 1-6.1 1.2l-5.5-2a5.6 5.6 0 0 1-3.6-5.7" />
-          <path d="M10.5 21.1a5.6 5.6 0 0 1-1.4-6.1l1.6-5.6a5.6 5.6 0 0 1 5.3-4" />
-          <path d="M13 7.4a5.6 5.6 0 0 1 6.1-1.2l5.5 2a5.6 5.6 0 0 1 3.6 5.7" />
-          <path d="M28.8 9.1a5.6 5.6 0 0 1 1.4 6.1L28.6 21a5.6 5.6 0 0 1-5.3 4" />
-          <path d="M26.3 22.8a5.6 5.6 0 0 1-6.1 1.2l-3.9-4.1a5.6 5.6 0 0 1-.9-6.7" />
-        </g>
-        <circle cx="19.7" cy="15.9" r="2.9" fill="currentColor" />
-        <text
-          x="42"
-          y="21.5"
-          fill="currentColor"
-          fontFamily="ui-sans-serif, system-ui, sans-serif"
-          fontSize="13.5"
-          fontWeight="650"
-          letterSpacing="0.08em"
-        >
-          OPENAI
-        </text>
-      </>
-    ),
+    height: 32,
   },
   {
     id: "anthropic",
     label: "Anthropic",
+    src: "/images/claude.png",
     width: 156,
-    viewBox: "0 0 156 32",
-    render: () => (
-      <>
-        <path
-          d="M14 25.5 19.8 6.5h2.4L28 25.5h-3.6l-1.1-3.9h-4.7l-1.1 3.9Zm5.4-7h3.1L21 13.2z"
-          fill="currentColor"
-        />
-        <text
-          x="38"
-          y="21.5"
-          fill="currentColor"
-          fontFamily="ui-sans-serif, system-ui, sans-serif"
-          fontSize="13.5"
-          fontWeight="650"
-          letterSpacing="0.08em"
-        >
-          ANTHROPIC
-        </text>
-      </>
-    ),
+    height: 32,
   },
   {
     id: "gemini",
     label: "Gemini",
+    src: "/images/gemini.webp",
     width: 140,
-    viewBox: "0 0 140 32",
-    render: () => (
-      <>
-        <path
-          d="M18 6.5c1.2 4.3 2.4 5.6 6.7 6.8-4.3 1.2-5.5 2.5-6.7 6.8-1.2-4.3-2.4-5.6-6.7-6.8 4.3-1.2 5.5-2.5 6.7-6.8Zm7.7 9.8c.6 2.1 1.3 2.8 3.4 3.4-2.1.6-2.8 1.3-3.4 3.4-.6-2.1-1.3-2.8-3.4-3.4 2.1-.6 2.8-1.3 3.4-3.4Z"
-          fill="currentColor"
-        />
-        <text
-          x="40"
-          y="21.5"
-          fill="currentColor"
-          fontFamily="ui-sans-serif, system-ui, sans-serif"
-          fontSize="13.5"
-          fontWeight="650"
-          letterSpacing="0.08em"
-        >
-          GEMINI
-        </text>
-      </>
-    ),
+    height: 32,
   },
   {
     id: "groq",
     label: "Groq",
+    src: "/images/groq.webp",
     width: 124,
-    viewBox: "0 0 124 32",
-    render: () => (
-      <>
-        <path d="M12 8h10.5v3.2h-7.1v10h7.1v-3.5h-4.5v-3.2H26v9.9H12Z" fill="currentColor" />
-        <text
-          x="40"
-          y="21.5"
-          fill="currentColor"
-          fontFamily="ui-sans-serif, system-ui, sans-serif"
-          fontSize="13.5"
-          fontWeight="650"
-          letterSpacing="0.08em"
-        >
-          GROQ
-        </text>
-      </>
-    ),
+    height: 32,
   },
   {
     id: "mistral",
     label: "Mistral",
+    src: "/images/mistral.jpg",
     width: 136,
-    viewBox: "0 0 136 32",
-    render: () => (
-      <>
-        <g fill="currentColor">
-          <rect x="12" y="8" width="3.5" height="16" rx="1" />
-          <rect x="16.5" y="11" width="3.5" height="13" rx="1" />
-          <rect x="21" y="8" width="3.5" height="16" rx="1" />
-          <rect x="25.5" y="11" width="3.5" height="13" rx="1" />
-        </g>
-        <text
-          x="42"
-          y="21.5"
-          fill="currentColor"
-          fontFamily="ui-sans-serif, system-ui, sans-serif"
-          fontSize="13.5"
-          fontWeight="650"
-          letterSpacing="0.08em"
-        >
-          MISTRAL
-        </text>
-      </>
-    ),
+    height: 32,
   },
 ] as const;
 
 function ProviderChip({ provider }: { provider: Provider }) {
   return (
-    <div className="flex h-14 items-center rounded-full border border-white/10 bg-white/[0.03] px-5 text-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <svg
-        aria-hidden="true"
-        className="h-6 w-auto"
-        viewBox={provider.viewBox}
-        width={provider.width}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        {provider.render()}
-      </svg>
-      <span className="sr-only">{provider.label}</span>
-    </div>
+    <Image
+      alt={provider.label}
+      className="h-8 w-8 md:h-12 md:w-12 object-cover rounded-full"
+      height={32}
+      src={provider.src}
+      unoptimized
+      width={provider.width}
+    />
+  );
+}
+
+function ProviderTrack() {
+  return (
+    <>
+      {[...Array(5)].map((_, i) =>
+        providers.map((provider) => (
+          <ProviderChip key={`${provider.id}-${i}`} provider={provider} />
+        )),
+      )}
+    </>
   );
 }
 
@@ -163,31 +79,22 @@ export function LogoStripSection() {
       <div className="mb-4 flex items-center justify-between gap-4">
         <p
           id="supported-llm-providers"
-          className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white/42"
+          className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
         >
           Supported LLM providers
         </p>
-        <p className="hidden text-xs text-white/28 sm:block">Bring your own model stack</p>
+        <p className="hidden text-xs text-muted-foreground sm:block">Bring your own model stack</p>
       </div>
 
-      <div className="relative hidden overflow-hidden motion-reduce:hidden md:block">
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#050505] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#050505] to-transparent" />
-        <div
-          className="marketing-marquee flex w-max items-center [--marquee-duration:26s] [--marquee-gap:1rem]"
-          aria-hidden="true"
-        >
-          {[0, 1].map((track) => (
-            <div key={track} className="flex shrink-0 items-center gap-4 pr-4">
-              {providers.map((provider) => (
-                <ProviderChip key={`${track}-${provider.id}`} provider={provider} />
-              ))}
-            </div>
-          ))}
-        </div>
+      <div className="relative overflow-hidden motion-reduce:hidden">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-linear-to-r from-background to-transparent sm:w-20" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-linear-to-l from-background to-transparent sm:w-20" />
+        <InfiniteSlider gap={16} speed={60}>
+          <ProviderTrack />
+        </InfiniteSlider>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 md:hidden md:motion-reduce:flex">
+      <div className="hidden flex-wrap items-center gap-3 motion-reduce:flex">
         {providers.map((provider) => (
           <ProviderChip key={provider.id} provider={provider} />
         ))}

@@ -65,6 +65,19 @@ func (s *Service) flushOutputs(ctx context.Context, retry *markdownParityRetryIn
 }
 
 func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, keep map[string]struct{}) ([]string, error) {
+	if output.binaryOutput {
+		if keep != nil {
+			return nil, nil
+		}
+		if len(output.binary) == 0 {
+			return nil, fmt.Errorf("flush outputs: image target %q has empty content", targetPath)
+		}
+		if err := s.writeFile(targetPath, output.binary); err != nil {
+			return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
+		}
+		return nil, nil
+	}
+
 	values, loadWarnings, err := s.loadExistingTargetWithWarnings(targetPath, output.targetLocale)
 	if err != nil {
 		return nil, err

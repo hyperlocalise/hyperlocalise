@@ -45,6 +45,8 @@ type stagedOutput struct {
 	sourcePath   string
 	sourceLocale string
 	targetLocale string
+	binary       []byte
+	binaryOutput bool
 }
 
 type executorState struct {
@@ -82,7 +84,8 @@ func newExecutorState(tasks []Task, initialStaged map[string]stagedOutput, prune
 	for targetPath, output := range initialStaged {
 		entries := map[string]string{}
 		maps.Copy(entries, output.entries)
-		staged[targetPath] = stagedOutput{entries: entries, sourcePath: output.sourcePath, sourceLocale: output.sourceLocale, targetLocale: output.targetLocale}
+		binary := append([]byte(nil), output.binary...)
+		staged[targetPath] = stagedOutput{entries: entries, sourcePath: output.sourcePath, sourceLocale: output.sourceLocale, targetLocale: output.targetLocale, binary: binary, binaryOutput: output.binaryOutput}
 	}
 
 	state := &executorState{
@@ -504,21 +507,44 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		task.ContextMemory = s.resolveTaskContextMemory(ctx, task, state, emitter)
 	}
 	taskHash := lockTaskHash(task)
-	sourceHash := lockStoredFingerprint(task.SourceText)
-	translated, err := s.translateWithRetry(translator.WithUsageCollector(ctx, &usage), task)
-	if err != nil {
-		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
-		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
-		return false
-	}
-	if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
-		recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
-		markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
-		return false
+	sourceHash := taskLockSourceHash(task)
+	var outputValue string
+	if isImageTask(task) {
+		sourceImage := task.sourceImage
+		if len(sourceImage) == 0 {
+			recordTaskFailure(&state.report, &state.reportMu, state.total, task, fmt.Errorf("read source image %q: empty image content", task.SourcePath), emitter)
+			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+			return false
+		}
+		edited, err := s.editImage(translator.WithUsageCollector(ctx, &usage), buildImageEditRequest(task, sourceImage))
+		if err != nil {
+			recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+			return false
+		}
+		if err := stageImageOutput(state.staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, edited, &state.stageMu); err != nil {
+			recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+			return false
+		}
+		outputValue = encodeImageCheckpoint(edited)
+	} else {
+		translated, err := s.translateWithRetry(translator.WithUsageCollector(ctx, &usage), task)
+		if err != nil {
+			recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+			return false
+		}
+		if err := stageTaskOutput(state.staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, translated, &state.stageMu); err != nil {
+			recordTaskFailure(&state.report, &state.reportMu, state.total, task, err, emitter)
+			markTargetFailed(task.TargetPath, &state.pendingMu, state.failedTargets, targetFailures, ctx)
+			return false
+		}
+		outputValue = translated
 	}
 
 	select {
-	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: translated, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
+	case completions <- taskCompletion{identity: taskIdentity(task.TargetPath, task.EntryKey), entryKey: task.EntryKey, value: outputValue, sourceHash: sourceHash, taskHash: taskHash, targetPath: task.TargetPath, sourcePath: task.SourcePath, targetLocale: task.TargetLocale}:
 		state.reportMu.Lock()
 		state.report.Succeeded++
 		state.report.TokenUsage = addTokenUsage(state.report.TokenUsage, toRunTokenUsage(usage))
@@ -536,18 +562,15 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 		failed := state.report.Failed
 		tokenUsage := state.report.TokenUsage
 		state.reportMu.Unlock()
-		emitter.emit(Event{
-			Kind:             EventTaskDone,
-			TaskSucceeded:    true,
-			TargetPath:       task.TargetPath,
-			EntryKey:         task.EntryKey,
-			Succeeded:        succeeded,
-			Failed:           failed,
-			ExecutableTotal:  state.total,
-			PromptTokens:     tokenUsage.PromptTokens,
-			CompletionTokens: tokenUsage.CompletionTokens,
-			TotalTokens:      tokenUsage.TotalTokens,
-		})
+		emitter.emit(eventWithTokenUsage(Event{
+			Kind:            EventTaskDone,
+			TaskSucceeded:   true,
+			TargetPath:      task.TargetPath,
+			EntryKey:        task.EntryKey,
+			Succeeded:       succeeded,
+			Failed:          failed,
+			ExecutableTotal: state.total,
+		}, tokenUsage))
 		return true
 	case <-ctx.Done():
 		return false
@@ -555,17 +578,50 @@ func (s *Service) processTask(ctx context.Context, task Task, completions chan<-
 }
 
 func toRunTokenUsage(usage translator.Usage) TokenUsage {
-	return TokenUsage{
-		PromptTokens:     usage.PromptTokens,
-		CompletionTokens: usage.CompletionTokens,
-		TotalTokens:      usage.TotalTokens,
-	}
+	usage = translator.NormalizeUsage(usage, translator.UsageTotalFallbackInputOutput)
+	return NormalizeTokenUsage(TokenUsage{
+		InputTokens:              usage.InputTokens,
+		OutputTokens:             usage.OutputTokens,
+		TotalTokens:              usage.TotalTokens,
+		PromptTokens:             usage.PromptTokens,
+		CompletionTokens:         usage.CompletionTokens,
+		CachedInputTokens:        usage.CachedInputTokens,
+		CacheWriteInputTokens:    usage.CacheWriteInputTokens,
+		ReasoningTokens:          usage.ReasoningTokens,
+		TextInputTokens:          usage.TextInputTokens,
+		ImageInputTokens:         usage.ImageInputTokens,
+		AudioInputTokens:         usage.AudioInputTokens,
+		TextOutputTokens:         usage.TextOutputTokens,
+		ImageOutputTokens:        usage.ImageOutputTokens,
+		AudioOutputTokens:        usage.AudioOutputTokens,
+		ToolInputTokens:          usage.ToolInputTokens,
+		AcceptedPredictionTokens: usage.AcceptedPredictionTokens,
+		RejectedPredictionTokens: usage.RejectedPredictionTokens,
+		RawProviderUsage:         usage.RawProviderUsage,
+	})
 }
 
 func addTokenUsage(current TokenUsage, delta TokenUsage) TokenUsage {
+	current = NormalizeTokenUsage(current)
+	delta = NormalizeTokenUsage(delta)
+	current.InputTokens += delta.InputTokens
+	current.OutputTokens += delta.OutputTokens
 	current.PromptTokens += delta.PromptTokens
 	current.CompletionTokens += delta.CompletionTokens
 	current.TotalTokens += delta.TotalTokens
+	current.CachedInputTokens += delta.CachedInputTokens
+	current.CacheWriteInputTokens += delta.CacheWriteInputTokens
+	current.ReasoningTokens += delta.ReasoningTokens
+	current.TextInputTokens += delta.TextInputTokens
+	current.ImageInputTokens += delta.ImageInputTokens
+	current.AudioInputTokens += delta.AudioInputTokens
+	current.TextOutputTokens += delta.TextOutputTokens
+	current.ImageOutputTokens += delta.ImageOutputTokens
+	current.AudioOutputTokens += delta.AudioOutputTokens
+	current.ToolInputTokens += delta.ToolInputTokens
+	current.AcceptedPredictionTokens += delta.AcceptedPredictionTokens
+	current.RejectedPredictionTokens += delta.RejectedPredictionTokens
+	current.RawProviderUsage = nil
 	return current
 }
 
@@ -588,19 +644,16 @@ func recordTaskFailure(report *executionReport, reportMu *sync.Mutex, total int,
 	failed := report.Failed
 	tokenUsage := report.TokenUsage
 	reportMu.Unlock()
-	emitter.emit(Event{
-		Kind:             EventTaskDone,
-		TaskSucceeded:    false,
-		TargetPath:       task.TargetPath,
-		EntryKey:         task.EntryKey,
-		FailureReason:    err.Error(),
-		Succeeded:        succeeded,
-		Failed:           failed,
-		ExecutableTotal:  total,
-		PromptTokens:     tokenUsage.PromptTokens,
-		CompletionTokens: tokenUsage.CompletionTokens,
-		TotalTokens:      tokenUsage.TotalTokens,
-	})
+	emitter.emit(eventWithTokenUsage(Event{
+		Kind:            EventTaskDone,
+		TaskSucceeded:   false,
+		TargetPath:      task.TargetPath,
+		EntryKey:        task.EntryKey,
+		FailureReason:   err.Error(),
+		Succeeded:       succeeded,
+		Failed:          failed,
+		ExecutableTotal: total,
+	}, tokenUsage))
 }
 
 func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sourceLocale, targetLocale, entryKey, value string, stageMu *sync.Mutex) error {
@@ -620,11 +673,47 @@ func stageTaskOutput(staged map[string]stagedOutput, targetPath, sourcePath, sou
 	} else if bucket.targetLocale != "" && bucket.targetLocale != targetLocale {
 		return fmt.Errorf("output staging conflict: %s has conflicting target locales", targetPath)
 	}
+	if bucket.binaryOutput {
+		return fmt.Errorf("output staging conflict: %s mixes image and text outputs", targetPath)
+	}
 
 	if existing, exists := bucket.entries[entryKey]; exists && existing != value {
 		return fmt.Errorf("output staging conflict: %s already staged with different value", taskIdentity(targetPath, entryKey))
 	}
 	bucket.entries[entryKey] = value
+	staged[targetPath] = bucket
+	return nil
+}
+
+func stageImageOutput(staged map[string]stagedOutput, targetPath, sourcePath, sourceLocale, targetLocale string, content []byte, stageMu *sync.Mutex) error {
+	if stageMu != nil {
+		stageMu.Lock()
+		defer stageMu.Unlock()
+	}
+	if len(content) == 0 {
+		return fmt.Errorf("output staging conflict: %s has empty image content", targetPath)
+	}
+
+	bucket, ok := staged[targetPath]
+	if !ok {
+		bucket = stagedOutput{entries: map[string]string{}, sourcePath: sourcePath, sourceLocale: sourceLocale, targetLocale: targetLocale}
+		staged[targetPath] = bucket
+	} else if bucket.sourcePath != sourcePath {
+		return fmt.Errorf("output staging conflict: %s has conflicting source paths", targetPath)
+	} else if bucket.sourceLocale != "" && bucket.sourceLocale != sourceLocale {
+		return fmt.Errorf("output staging conflict: %s has conflicting source locales", targetPath)
+	} else if bucket.targetLocale != "" && bucket.targetLocale != targetLocale {
+		return fmt.Errorf("output staging conflict: %s has conflicting target locales", targetPath)
+	}
+	if len(bucket.entries) > 0 && !bucket.binaryOutput {
+		return fmt.Errorf("output staging conflict: %s mixes text and image outputs", targetPath)
+	}
+	if bucket.binaryOutput && len(bucket.binary) > 0 {
+		return fmt.Errorf("output staging conflict: %s already staged with binary content", targetPath)
+	}
+
+	bucket.binary = append(bucket.binary[:0], content...)
+	bucket.binaryOutput = true
 	staged[targetPath] = bucket
 	return nil
 }

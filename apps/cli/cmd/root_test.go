@@ -74,3 +74,19 @@ func TestRootHelpUsesAliasNameWhenInvokedAsHL(t *testing.T) {
 		t.Fatalf("expected hl usage output, got %q", b.String())
 	}
 }
+
+func TestRootHelpIncludesFixCommand(t *testing.T) {
+	cmd := newRootCmd("")
+	b := bytes.NewBufferString("")
+
+	cmd.SetArgs([]string{"-h"})
+	cmd.SetOut(b)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run root help: %v", err)
+	}
+
+	if !strings.Contains(b.String(), "fix") {
+		t.Fatalf("expected help to include fix command, got %q", b.String())
+	}
+}

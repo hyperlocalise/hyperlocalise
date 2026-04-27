@@ -119,31 +119,46 @@ const (
 )
 
 type Event struct {
-	Kind                   EventKind `json:"kind"`
-	Phase                  string    `json:"phase,omitempty"`
-	PlannedTotal           int       `json:"plannedTotal,omitempty"`
-	SkippedByLock          int       `json:"skippedByLock,omitempty"`
-	ExecutableTotal        int       `json:"executableTotal,omitempty"`
-	Succeeded              int       `json:"succeeded,omitempty"`
-	Failed                 int       `json:"failed,omitempty"`
-	PersistedToLock        int       `json:"persistedToLock,omitempty"`
-	PruneCandidates        int       `json:"pruneCandidates,omitempty"`
-	PruneApplied           int       `json:"pruneApplied,omitempty"`
-	PromptTokens           int       `json:"promptTokens,omitempty"`
-	CompletionTokens       int       `json:"completionTokens,omitempty"`
-	TotalTokens            int       `json:"totalTokens,omitempty"`
-	TaskSucceeded          bool      `json:"taskSucceeded,omitempty"`
-	TargetPath             string    `json:"targetPath,omitempty"`
-	EntryKey               string    `json:"entryKey,omitempty"`
-	FailureReason          string    `json:"failureReason,omitempty"`
-	Message                string    `json:"message,omitempty"`
-	ContextMemoryTotal     int       `json:"contextMemoryTotal,omitempty"`
-	ContextMemoryProcessed int       `json:"contextMemoryProcessed,omitempty"`
-	ContextMemoryFallbacks int       `json:"contextMemoryFallbacks,omitempty"`
-	ContextMemoryState     string    `json:"contextMemoryState,omitempty"`
+	Kind                     EventKind `json:"kind"`
+	Phase                    string    `json:"phase,omitempty"`
+	PlannedTotal             int       `json:"plannedTotal,omitempty"`
+	SkippedByLock            int       `json:"skippedByLock,omitempty"`
+	ExecutableTotal          int       `json:"executableTotal,omitempty"`
+	Succeeded                int       `json:"succeeded,omitempty"`
+	Failed                   int       `json:"failed,omitempty"`
+	PersistedToLock          int       `json:"persistedToLock,omitempty"`
+	PruneCandidates          int       `json:"pruneCandidates,omitempty"`
+	PruneApplied             int       `json:"pruneApplied,omitempty"`
+	PromptTokens             int       `json:"promptTokens,omitempty"`
+	CompletionTokens         int       `json:"completionTokens,omitempty"`
+	TotalTokens              int       `json:"totalTokens,omitempty"`
+	InputTokens              int       `json:"inputTokens,omitempty"`
+	OutputTokens             int       `json:"outputTokens,omitempty"`
+	CachedInputTokens        int       `json:"cachedInputTokens,omitempty"`
+	CacheWriteInputTokens    int       `json:"cacheWriteInputTokens,omitempty"`
+	ReasoningTokens          int       `json:"reasoningTokens,omitempty"`
+	TextInputTokens          int       `json:"textInputTokens,omitempty"`
+	ImageInputTokens         int       `json:"imageInputTokens,omitempty"`
+	AudioInputTokens         int       `json:"audioInputTokens,omitempty"`
+	TextOutputTokens         int       `json:"textOutputTokens,omitempty"`
+	ImageOutputTokens        int       `json:"imageOutputTokens,omitempty"`
+	AudioOutputTokens        int       `json:"audioOutputTokens,omitempty"`
+	ToolInputTokens          int       `json:"toolInputTokens,omitempty"`
+	AcceptedPredictionTokens int       `json:"acceptedPredictionTokens,omitempty"`
+	RejectedPredictionTokens int       `json:"rejectedPredictionTokens,omitempty"`
+	TaskSucceeded            bool      `json:"taskSucceeded,omitempty"`
+	TargetPath               string    `json:"targetPath,omitempty"`
+	EntryKey                 string    `json:"entryKey,omitempty"`
+	FailureReason            string    `json:"failureReason,omitempty"`
+	Message                  string    `json:"message,omitempty"`
+	ContextMemoryTotal       int       `json:"contextMemoryTotal,omitempty"`
+	ContextMemoryProcessed   int       `json:"contextMemoryProcessed,omitempty"`
+	ContextMemoryFallbacks   int       `json:"contextMemoryFallbacks,omitempty"`
+	ContextMemoryState       string    `json:"contextMemoryState,omitempty"`
 }
 
 type Task struct {
+	Kind         string `json:"kind,omitempty"`
 	SourceLocale string `json:"sourceLocale"`
 	TargetLocale string `json:"targetLocale"`
 	SourcePath   string `json:"sourcePath"`
@@ -171,9 +186,12 @@ type Task struct {
 	SourceContext   string `json:"-"`
 	ParserMode      string `json:"-"`
 	PromptVersion   string `json:"-"`
+	OutputFormat    string `json:"-"`
 
 	sourceTextHash           string
 	sourceContextFingerprint string
+	sourceFingerprint        string
+	sourceImage              []byte
 }
 
 type Failure struct {
@@ -183,9 +201,53 @@ type Failure struct {
 }
 
 type TokenUsage struct {
+	InputTokens  int `json:"inputTokens"`
+	OutputTokens int `json:"outputTokens"`
+	TotalTokens  int `json:"totalTokens"`
+
+	// PromptTokens and CompletionTokens are compatibility aliases for JSON and
+	// terminal consumers that still use the OpenAI Chat Completions names.
 	PromptTokens     int `json:"promptTokens"`
 	CompletionTokens int `json:"completionTokens"`
-	TotalTokens      int `json:"totalTokens"`
+
+	CachedInputTokens        int             `json:"cachedInputTokens,omitempty"`
+	CacheWriteInputTokens    int             `json:"cacheWriteInputTokens,omitempty"`
+	ReasoningTokens          int             `json:"reasoningTokens,omitempty"`
+	TextInputTokens          int             `json:"textInputTokens,omitempty"`
+	ImageInputTokens         int             `json:"imageInputTokens,omitempty"`
+	AudioInputTokens         int             `json:"audioInputTokens,omitempty"`
+	TextOutputTokens         int             `json:"textOutputTokens,omitempty"`
+	ImageOutputTokens        int             `json:"imageOutputTokens,omitempty"`
+	AudioOutputTokens        int             `json:"audioOutputTokens,omitempty"`
+	ToolInputTokens          int             `json:"toolInputTokens,omitempty"`
+	AcceptedPredictionTokens int             `json:"acceptedPredictionTokens,omitempty"`
+	RejectedPredictionTokens int             `json:"rejectedPredictionTokens,omitempty"`
+	RawProviderUsage         json.RawMessage `json:"rawProviderUsage,omitempty"`
+}
+
+// NormalizeTokenUsage fills canonical token fields and compatibility aliases.
+func NormalizeTokenUsage(u TokenUsage) TokenUsage {
+	if u.InputTokens == 0 && u.PromptTokens != 0 {
+		u.InputTokens = u.PromptTokens
+	}
+	if u.OutputTokens == 0 && u.CompletionTokens != 0 {
+		u.OutputTokens = u.CompletionTokens
+	}
+	if u.PromptTokens == 0 && u.InputTokens != 0 {
+		u.PromptTokens = u.InputTokens
+	}
+	if u.CompletionTokens == 0 && u.OutputTokens != 0 {
+		u.CompletionTokens = u.OutputTokens
+	}
+	if u.TotalTokens == 0 {
+		u.TotalTokens = u.InputTokens + u.OutputTokens
+	}
+	return u
+}
+
+func tokenUsageWithoutRaw(u TokenUsage) TokenUsage {
+	u.RawProviderUsage = nil
+	return u
 }
 
 type BatchUsage struct {
@@ -231,6 +293,7 @@ type Service struct {
 	readFile   func(path string) ([]byte, error)
 	writeFile  func(path string, content []byte) error
 	translate  func(ctx context.Context, req translator.Request) (string, error)
+	editImage  func(ctx context.Context, req translator.ImageEditRequest) ([]byte, error)
 	newParser  func() *translationfileparser.Strategy
 	now        func() time.Time
 	numCPU     func() int
@@ -249,6 +312,7 @@ func New() *Service {
 			return writeBytesAtomic(path, content)
 		},
 		translate: translator.Translate,
+		editImage: translator.EditImage,
 		newParser: translationfileparser.NewDefaultStrategy,
 		now:       func() time.Time { return time.Now().UTC() },
 		numCPU:    runtime.NumCPU,
@@ -388,6 +452,65 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					}
 					if len(filteredSourcePaths) > 0 {
 						matchedSourcePaths[sourcePath] = struct{}{}
+					}
+					if isSupportedImagePath(sourcePath) {
+						sourceContent, err := s.readFile(sourcePath)
+						if err != nil {
+							if os.IsNotExist(err) {
+								return nil, nil, fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)
+							}
+							return nil, nil, fmt.Errorf("planning tasks: read source image %q: %w", sourcePath, err)
+						}
+						sourceFingerprint := imageLockSourceHash(sourceContent)
+						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
+							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
+						}
+						for _, target := range targets {
+							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
+							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
+							if err != nil {
+								return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
+							}
+							outputFormat, err := imageOutputFormat(targetPath)
+							if err != nil {
+								return nil, nil, fmt.Errorf("planning tasks: image target %q: %w", targetPath, err)
+							}
+							task := Task{
+								Kind:              taskKindImage,
+								SourceLocale:      cfg.Locales.Source,
+								TargetLocale:      target,
+								SourcePath:        sourcePath,
+								TargetPath:        targetPath,
+								EntryKey:          imageEntryKey,
+								SourceText:        sourcePath,
+								ProfileName:       profileName,
+								Provider:          translator.ProviderOpenAI,
+								Model:             translator.OpenAIImageModel,
+								ContextProvider:   contextProvider,
+								ContextModel:      contextModel,
+								GroupName:         groupName,
+								BucketName:        bucketName,
+								ParserMode:        taskKindImage,
+								PromptVersion:     imagePromptVersion,
+								OutputFormat:      outputFormat,
+								sourceFingerprint: sourceFingerprint,
+								sourceImage:       sourceContent,
+							}
+							precomputeStableTaskCacheFields(&task)
+							if filterFixes {
+								if len(fixSet) == 0 {
+									continue
+								}
+								mk := fixTargetMatchKey(task.SourcePath, task.TargetPath, task.TargetLocale, task.EntryKey)
+								if _, ok := fixSet[mk]; ok {
+									matchedFix[mk] = struct{}{}
+								} else {
+									continue
+								}
+							}
+							tasks = append(tasks, task)
+						}
+						continue
 					}
 					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {

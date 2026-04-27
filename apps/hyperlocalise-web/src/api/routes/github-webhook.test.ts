@@ -1,145 +1,227 @@
 import "dotenv/config";
 
-import { createHmac } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { describe, expect, it } from "vite-plus/test";
+import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { db, schema } from "@/lib/database";
+import { createGithubWebhookRoutes } from "./github-webhook";
 
-import { app } from "@/api/app";
+const fixture = createProjectTestFixture();
 
-const secret = "test-github-app-webhook-secret";
+async function ensureGithubRepositoryTables() {
+  await db.$client.query(`
+    CREATE TABLE IF NOT EXISTS github_installations (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
+      github_installation_id bigint NOT NULL,
+      github_app_id bigint NOT NULL,
+      account_login text,
+      account_type text,
+      created_at timestamp with time zone DEFAULT now() NOT NULL,
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    );
+  `);
+  await db.$client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS github_installations_organization_id_key
+    ON github_installations (organization_id);
+  `);
+  await db.$client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS github_installations_github_installation_id_key
+    ON github_installations (github_installation_id);
+  `);
+  await db.$client.query(`
+    CREATE TABLE IF NOT EXISTS github_installation_repositories (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
+      github_installation_id bigint NOT NULL REFERENCES github_installations(github_installation_id) ON DELETE cascade,
+      github_repository_id bigint NOT NULL,
+      owner text NOT NULL,
+      name text NOT NULL,
+      full_name text NOT NULL,
+      private boolean DEFAULT false NOT NULL,
+      archived boolean DEFAULT false NOT NULL,
+      default_branch text,
+      enabled boolean DEFAULT false NOT NULL,
+      last_synced_at timestamp with time zone DEFAULT now() NOT NULL,
+      created_at timestamp with time zone DEFAULT now() NOT NULL,
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    );
+  `);
+  await db.$client.query(`
+    DROP INDEX IF EXISTS github_installation_repositories_github_repository_id_key;
+  `);
+  await db.$client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_github_repository_id_key
+    ON github_installation_repositories (github_installation_id, github_repository_id);
+  `);
+}
 
-function sign(body: string) {
-  return `sha256=${createHmac("sha256", secret).update(body, "utf8").digest("hex")}`;
+async function createStoredGithubInstallation(enabled: boolean) {
+  const identity = fixture.createWorkosIdentity();
+  await fixture.authHeadersFor(identity);
+  const auth = globalThis.__testApiAuthContext;
+  if (!auth) {
+    throw new Error("missing auth context");
+  }
+
+  await db.insert(schema.githubInstallations).values({
+    organizationId: auth.organization.localOrganizationId,
+    githubInstallationId: 54321,
+    githubAppId: 123,
+    accountLogin: "hyperlocalise",
+    accountType: "Organization",
+  });
+  await db.insert(schema.githubInstallationRepositories).values({
+    organizationId: auth.organization.localOrganizationId,
+    githubInstallationId: 54321,
+    githubRepositoryId: 9001,
+    owner: "hyperlocalise",
+    name: "hyperlocalise",
+    fullName: "hyperlocalise/hyperlocalise",
+    private: false,
+    archived: false,
+    defaultBranch: "main",
+    enabled,
+  });
+
+  return auth;
 }
 
 describe("githubWebhookRoutes", () => {
-  it("returns 401 for invalid signatures", async () => {
-    const response = await app.request("http://localhost/api/webhooks/github", {
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+    await ensureGithubRepositoryTables();
+  });
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("delegates enabled repository webhooks to the Chat SDK bot handler", async () => {
+    await createStoredGithubInstallation(true);
+    let called = false;
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async (request) => {
+        called = true;
+        expect(request.method).toBe("POST");
+        return Response.json({ ok: true });
+      },
+    });
+
+    const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-hub-signature-256": "sha256=bad",
+        "x-github-event": "issue_comment",
       },
       body: JSON.stringify({
         action: "created",
+        installation: { id: 54321 },
+        repository: { id: 9001 },
       }),
     });
 
-    expect(response.status).toBe(401);
-  });
-
-  it("accepts verified json payloads", async () => {
-    const payload = JSON.stringify({
-      action: "created",
-      installation: {
-        id: 123,
-      },
-    });
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-github-delivery": "delivery-123",
-        "x-github-event": "installation",
-        "x-hub-signature-256": sign(payload),
-      },
-      body: payload,
-    });
-
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: "delivery-123",
-      event: "installation",
-    });
+    expect(called).toBe(true);
+    await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
-  it("accepts verified PR comment mentions without triggering review work yet", async () => {
-    const payload = JSON.stringify({
-      action: "created",
-      issue: {
-        number: 42,
-        pull_request: {
-          url: "https://api.github.com/repos/hyperlocalise/hyperlocalise/pulls/42",
-        },
-      },
-      comment: {
-        id: 7001,
-        body: "@hyperlocalise please rerun",
-      },
-      installation: {
-        id: 123,
-      },
-      repository: {
-        name: "hyperlocalise",
-        full_name: "hyperlocalise/hyperlocalise",
-        owner: {
-          login: "hyperlocalise",
-        },
+  it("ignores unknown installations without delegating to the bot handler", async () => {
+    let called = false;
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async () => {
+        called = true;
+        return Response.json({ ok: true });
       },
     });
 
-    const response = await app.request("http://localhost/api/webhooks/github", {
+    const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-github-delivery": "delivery-comment-123",
         "x-github-event": "issue_comment",
-        "x-hub-signature-256": sign(payload),
       },
-      body: payload,
+      body: JSON.stringify({
+        action: "created",
+        installation: { id: 99999 },
+        repository: { id: 9001 },
+      }),
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: "delivery-comment-123",
-      event: "issue_comment",
-    });
+    expect(called).toBe(false);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: true });
   });
 
-  it("accepts verified form-encoded payloads", async () => {
-    const encodedPayload = JSON.stringify({
-      action: "pending_change",
-      marketplace_purchase: {
-        plan: {
-          id: 456,
-        },
+  it("ignores disabled repositories without delegating to the bot handler", async () => {
+    await createStoredGithubInstallation(false);
+    let called = false;
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async () => {
+        called = true;
+        return Response.json({ ok: true });
       },
     });
-    const body = new URLSearchParams({ payload: encodedPayload }).toString();
 
-    const response = await app.request("http://localhost/api/webhooks/github", {
+    const response = await app.request("http://localhost/", {
       method: "POST",
       headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        "x-github-event": "marketplace_purchase",
-        "x-hub-signature-256": sign(body),
+        "content-type": "application/json",
+        "x-github-event": "issue_comment",
       },
-      body,
+      body: JSON.stringify({
+        action: "created",
+        installation: { id: 54321 },
+        repository: { id: 9001 },
+      }),
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      ok: true,
-      deliveryId: null,
-      event: "marketplace_purchase",
-    });
+    expect(called).toBe(false);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: true });
   });
 
-  it("returns 400 for malformed form-encoded payloads", async () => {
-    const body = new URLSearchParams({ not_payload: "value" }).toString();
-
-    const response = await app.request("http://localhost/api/webhooks/github", {
-      method: "POST",
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-        "x-hub-signature-256": sign(body),
-      },
-      body,
+  it("syncs installation repository webhook additions", async () => {
+    const auth = await createStoredGithubInstallation(false);
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async () => Response.json({ ok: true }),
     });
 
-    expect(response.status).toBe(400);
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-event": "installation_repositories",
+      },
+      body: JSON.stringify({
+        action: "added",
+        installation: { id: 54321 },
+        repositories_added: [
+          {
+            id: 9002,
+            name: "demo",
+            full_name: "hyperlocalise/demo",
+            private: true,
+            archived: false,
+            default_branch: "main",
+            owner: { login: "hyperlocalise" },
+          },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const [repository] = await db
+      .select()
+      .from(schema.githubInstallationRepositories)
+      .where(eq(schema.githubInstallationRepositories.githubRepositoryId, 9002));
+    expect(repository).toMatchObject({
+      organizationId: auth.organization.localOrganizationId,
+      fullName: "hyperlocalise/demo",
+      private: true,
+      enabled: false,
+    });
   });
 });

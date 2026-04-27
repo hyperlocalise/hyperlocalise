@@ -1,8 +1,12 @@
 package translator
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/openai/openai-go/v3"
@@ -35,20 +39,121 @@ func translateWithOpenAICompatibleClient(ctx context.Context, providerName strin
 	return output, nil
 }
 
+func editImageWithOpenAICompatibleClient(ctx context.Context, providerName string, req ImageEditRequest, opts ...option.RequestOption) ([]byte, error) {
+	client := newOpenAIClient(opts...)
+
+	resp, err := client.Images.Edit(ctx, openai.ImageEditParams{
+		Image: openai.ImageEditParamsImageUnion{
+			OfFile: imageUploadReader(req.SourceImage, req.SourceFilename, req.SourceMIMEType),
+		},
+		Prompt:       req.Prompt,
+		Model:        openai.ImageModel(strings.TrimSpace(req.Model)),
+		N:            openai.Int(1),
+		OutputFormat: openai.ImageEditParamsOutputFormat(strings.ToLower(strings.TrimSpace(req.OutputFormat))),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%s edit image: %w", providerName, err)
+	}
+	if resp == nil || len(resp.Data) == 0 {
+		return nil, fmt.Errorf("%s image response: no image returned", providerName)
+	}
+	encoded := strings.TrimSpace(resp.Data[0].B64JSON)
+	if encoded == "" {
+		return nil, fmt.Errorf("%s image response: empty base64 image", providerName)
+	}
+	content, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("%s image response: decode base64 image: %w", providerName, err)
+	}
+	if len(content) == 0 {
+		return nil, fmt.Errorf("%s image response: empty decoded image", providerName)
+	}
+
+	if usage, ok := usageFromImagesResponse(resp); ok {
+		SetUsage(ctx, usage)
+	}
+
+	return content, nil
+}
+
+type namedImageReader struct {
+	*bytes.Reader
+	filename    string
+	contentType string
+}
+
+func imageUploadReader(content []byte, filename, contentType string) io.Reader {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		filename = "source-image"
+	}
+	contentType = strings.TrimSpace(contentType)
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	return namedImageReader{
+		Reader:      bytes.NewReader(content),
+		filename:    filename,
+		contentType: contentType,
+	}
+}
+
+func (r namedImageReader) Filename() string {
+	return r.filename
+}
+
+func (r namedImageReader) ContentType() string {
+	return r.contentType
+}
+
 func usageFromGenerateTextResponse(resp *openai.ChatCompletion) (Usage, bool) {
 	if resp == nil {
 		return Usage{}, false
 	}
 
-	prompt := int(resp.Usage.PromptTokens)
-	completion := int(resp.Usage.CompletionTokens)
-	total := int(resp.Usage.TotalTokens)
-	if total == 0 && (prompt != 0 || completion != 0) {
-		total = prompt + completion
-	}
-	if prompt == 0 && completion == 0 && total == 0 {
+	usage := NormalizeUsage(Usage{
+		InputTokens:              int(resp.Usage.PromptTokens),
+		OutputTokens:             int(resp.Usage.CompletionTokens),
+		TotalTokens:              int(resp.Usage.TotalTokens),
+		CachedInputTokens:        int(resp.Usage.PromptTokensDetails.CachedTokens),
+		AudioInputTokens:         int(resp.Usage.PromptTokensDetails.AudioTokens),
+		ReasoningTokens:          int(resp.Usage.CompletionTokensDetails.ReasoningTokens),
+		AudioOutputTokens:        int(resp.Usage.CompletionTokensDetails.AudioTokens),
+		AcceptedPredictionTokens: int(resp.Usage.CompletionTokensDetails.AcceptedPredictionTokens),
+		RejectedPredictionTokens: int(resp.Usage.CompletionTokensDetails.RejectedPredictionTokens),
+		RawProviderUsage:         rawProviderUsage(resp.Usage.RawJSON()),
+	}, UsageTotalFallbackInputOutput)
+	if !UsageHasValues(usage) {
 		return Usage{}, false
 	}
 
-	return Usage{PromptTokens: prompt, CompletionTokens: completion, TotalTokens: total}, true
+	return usage, true
+}
+
+func usageFromImagesResponse(resp *openai.ImagesResponse) (Usage, bool) {
+	if resp == nil {
+		return Usage{}, false
+	}
+	usage := NormalizeUsage(Usage{
+		InputTokens:       int(resp.Usage.InputTokens),
+		OutputTokens:      int(resp.Usage.OutputTokens),
+		TotalTokens:       int(resp.Usage.TotalTokens),
+		TextInputTokens:   int(resp.Usage.InputTokensDetails.TextTokens),
+		ImageInputTokens:  int(resp.Usage.InputTokensDetails.ImageTokens),
+		TextOutputTokens:  int(resp.Usage.OutputTokensDetails.TextTokens),
+		ImageOutputTokens: int(resp.Usage.OutputTokensDetails.ImageTokens),
+		RawProviderUsage:  rawProviderUsage(resp.Usage.RawJSON()),
+	}, UsageTotalFallbackInputOutput)
+	if !UsageHasValues(usage) {
+		return Usage{}, false
+	}
+	return usage, true
+}
+
+func rawProviderUsage(raw string) json.RawMessage {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	return json.RawMessage(raw)
 }

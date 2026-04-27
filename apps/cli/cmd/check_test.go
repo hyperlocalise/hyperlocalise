@@ -1537,6 +1537,73 @@ func TestCheckFixDryRunPassesFixTargets(t *testing.T) {
 	}
 }
 
+func TestFixCommandDryRunPassesScopedFixTarget(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello","bye":"Bye"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"hello":"","bye":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	orig := runCheckFixSvc
+	t.Cleanup(func() { runCheckFixSvc = orig })
+	var captured runsvc.Input
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"fix", "--config", configPath, "--file", sourcePath, "--key", "hello", "--locale", "fr", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("fix --fix-dry-run: %v", err)
+	}
+	if len(captured.FixTargets) != 1 {
+		t.Fatalf("expected 1 fix target, got %+v", captured.FixTargets)
+	}
+	if got := captured.FixTargets[0]; got.SourcePath != sourcePath || got.TargetPath != targetPath || got.TargetLocale != "fr" || got.EntryKey != "hello" {
+		t.Fatalf("unexpected fix target: %+v", got)
+	}
+	if !captured.Force || captured.Prune || !captured.DryRun {
+		t.Fatalf("unexpected run input: %+v", captured)
+	}
+}
+
+func TestFixCommandHelpOmitsFixFlag(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"fix", "--help"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("fix help: %v", err)
+	}
+	help := out.String()
+	if strings.Contains(help, "\n      --fix ") || strings.Contains(help, "\n      --fix\t") {
+		t.Fatalf("expected fix help to omit --fix flag, got %q", help)
+	}
+	if !strings.Contains(help, "--fix-dry-run") || !strings.Contains(help, "--workers") {
+		t.Fatalf("expected fix help to include fix execution flags, got %q", help)
+	}
+}
+
 func TestCheckFixWiresOnEventWhenProgressModeOn(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
