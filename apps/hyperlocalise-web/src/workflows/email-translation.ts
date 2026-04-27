@@ -252,7 +252,7 @@ async function sendReplyEmail(
     replyTo: event.inboundEmailAddress,
     subject: `Re: ${event.subject}`,
     text: [
-      `Your translation is ready. I've converted ${event.attachmentFilename} into ${event.targetLocale} and attached it below.`,
+      `Your translation is ready. I've converted ${event.attachmentFilename} into ${event.targetLocale} and attached it as ${outputFilename}.`,
       "",
       event.sourceLocale
         ? `Source: ${event.sourceLocale} -> ${event.targetLocale}`
