@@ -1,0 +1,104 @@
+# generated: 2026-04-27 19:17:19 +10:00
+# last_updated: 2026-04-27 19:26:18 +10:00
+# project: hyperlocalise
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-27 19:17:19 +10:00
+last_updated: 2026-04-27 19:26:18 +10:00
+project: hyperlocalise
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  1-1-bootstrap-liquid-parser-skeleton: ready-for-dev
+  1-2-extract-static-translation-keys: backlog
+  1-3-skip-non-translatable-regions: backlog
+  1-4-handle-chained-liquid-filters: backlog
+  1-5-handle-html-safe-and-capture-blocks: backlog
+  1-6-detect-dynamic-keys-and-emit-w001-diagnostics: backlog
+  1-7-recover-from-malformed-files: backlog
+  1-8-canonical-test-corpus-and-golden-files: backlog
+  1-9-benchmark-ci-gate: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-auto-detect-shopify-theme-directory-layout: backlog
+  2-2-generate-shopify-flavored-i18n-yml: backlog
+  2-3-honor-path-overrides-in-i18n-yml: backlog
+  2-4-monorepo-multi-parser-coexistence: backlog
+  2-5-zero-regression-for-existing-parsers: backlog
+  2-6-target-locales-via-existing-locales-mechanism: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-run-produces-locale-files-from-liquid-sources: backlog
+  3-2-multi-locale-single-invocation: backlog
+  3-3-dry-run-preview-mode: backlog
+  3-4-idempotent-re-run-after-interruption: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-check-runs-offline-no-llm: backlog
+  4-2-missing-key-reporting-per-locale: backlog
+  4-3-orphan-key-reporting-per-locale: backlog
+  4-4-w001-findings-in-unified-check-report: backlog
+  4-5-json-report-machine-consumable-output: backlog
+  4-6-coverage-array-in-json-report: backlog
+  4-7-per-file-liquid-coverage-tty-table: backlog
+  4-8-no-fail-suppresses-non-zero-exit: backlog
+  4-9-grouped-not-interleaved-diagnostic-summaries: backlog
+  4-10-extract-diagnostic-consumption-to-check-diagnostics-go: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-github-action-compatibility-with-existing-inputs: backlog
+  5-2-non-zero-exit-on-threshold-findings: backlog
+  5-3-inline-pr-annotations-from-json-report: backlog
+  5-4-scheduled-drift-detection: backlog
+  5-5-stable-json-schema-across-minor-versions: backlog
+  5-6-schema-additive-only-within-major-version: backlog
+  5-7-minor-upgrade-no-change-for-non-liquid-projects: backlog
+  5-8-pin-and-verify-upgrade-diff-workflow: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-shopify-quickstart-documentation: backlog
+  6-2-versioned-diagnostic-code-registry: backlog
+  6-3-github-action-yaml-examples-in-docs: backlog
+  6-4-credentials-from-environment-env-local-only: backlog
+  6-5-offline-check-drift-without-api-key: backlog
+  6-6-third-party-license-attribution-in-release-artifacts: backlog
+  epic-6-retrospective: optional
