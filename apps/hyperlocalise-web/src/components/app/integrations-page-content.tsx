@@ -38,6 +38,8 @@ type ProviderCredentialSummary = {
   lastValidatedAt: string;
 };
 
+type ProviderOptionId = LlmProvider | "hyperlocalise-go";
+
 const providerLogos = {
   openai: "/images/openai-old-logo.webp",
   anthropic: "/images/claude.png",
@@ -45,6 +47,21 @@ const providerLogos = {
   groq: "/images/groq.webp",
   mistral: "/images/mistral.jpg",
 } as const satisfies Record<LlmProvider, string>;
+
+const providerDetails = {
+  openai: "GPT models with your OpenAI key",
+  anthropic: "Claude models with your Anthropic key",
+  gemini: "Google Gemini via your API key",
+  groq: "Fast open models through Groq",
+  mistral: "Mistral models with your API key",
+} as const satisfies Record<LlmProvider, string>;
+
+const hyperlocaliseGoProvider = {
+  id: "hyperlocalise-go",
+  label: "Hyperlocalise Go",
+  detail: "Zero config managed translation",
+  logo: "/images/logo.png",
+} as const;
 
 const tmsIntegrations = [
   {
@@ -154,12 +171,26 @@ function useDeleteProviderCredential(organizationSlug: string) {
 
 function ProviderLogo({ provider }: { provider: LlmProvider }) {
   return (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5 p-2">
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white p-2 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
       <Image
         src={providerLogos[provider]}
         alt=""
-        width={28}
-        height={28}
+        width={30}
+        height={30}
+        className="max-h-7 w-auto object-contain"
+      />
+    </div>
+  );
+}
+
+function HyperlocaliseGoLogo() {
+  return (
+    <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white p-2 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
+      <Image
+        src={hyperlocaliseGoProvider.logo}
+        alt=""
+        width={30}
+        height={30}
         className="max-h-7 w-auto object-contain"
       />
     </div>
@@ -170,20 +201,26 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
-  const [selectedProvider, setSelectedProvider] = useState<LlmProvider>(
-    credential?.provider ?? "openai",
+  const [selectedProvider, setSelectedProvider] = useState<ProviderOptionId>(
+    credential?.provider ?? hyperlocaliseGoProvider.id,
   );
-  const [selectedModel, setSelectedModel] = useState(defaultModelByProvider[selectedProvider]);
+  const [selectedModel, setSelectedModel] = useState(defaultModelByProvider.openai);
   const [apiKey, setApiKey] = useState("");
 
   useEffect(() => {
     if (credential) {
       setSelectedProvider(credential.provider);
       setSelectedModel(credential.defaultModel);
+    } else {
+      setSelectedProvider(hyperlocaliseGoProvider.id);
     }
   }, [credential]);
 
   useEffect(() => {
+    if (selectedProvider === hyperlocaliseGoProvider.id) {
+      return;
+    }
+
     if (
       !(llmProviderCatalog[selectedProvider].models as readonly string[]).includes(selectedModel)
     ) {
@@ -191,9 +228,21 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
     }
   }, [selectedModel, selectedProvider]);
 
-  const selectedProviderConfig = llmProviderCatalog[selectedProvider];
-  const selectedProviderIsConfigured = credential?.provider === selectedProvider;
+  const selectedByokProvider =
+    selectedProvider === hyperlocaliseGoProvider.id ? null : selectedProvider;
+  const selectedProviderConfig = selectedByokProvider
+    ? llmProviderCatalog[selectedByokProvider]
+    : null;
+  const selectedProviderIsConfigured =
+    selectedByokProvider !== null && credential?.provider === selectedByokProvider;
+  const hyperlocaliseGoIsActive = selectedProvider === hyperlocaliseGoProvider.id && !credential;
   const selectedProviderStatus = useMemo(() => {
+    if (selectedProvider === hyperlocaliseGoProvider.id) {
+      return credential
+        ? "Disconnect the saved BYOK provider to use Hyperlocalise Go for this workspace."
+        : "Hyperlocalise Go does not require a workspace API key.";
+    }
+
     if (!credential) {
       return "No workspace provider configured yet.";
     }
@@ -201,7 +250,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
     return `${llmProviderCatalog[credential.provider].label} is configured with ${
       credential.defaultModel
     }. Saved key ends in ${credential.maskedApiKeySuffix}.`;
-  }, [credential]);
+  }, [credential, selectedProvider]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -242,62 +291,88 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
           <CardContent className="grid gap-3 px-5 py-5 lg:px-6">
             {isLoading ? (
               <>
-                <Skeleton className="h-20 bg-white/5" />
-                <Skeleton className="h-20 bg-white/5" />
-                <Skeleton className="h-20 bg-white/5" />
+                <Skeleton className="h-16 rounded-lg bg-white/5" />
+                <Skeleton className="h-16 rounded-lg bg-white/5" />
+                <Skeleton className="h-16 rounded-lg bg-white/5" />
               </>
             ) : (
-              Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
-                const typedProvider = provider as LlmProvider;
-                const isSelected = selectedProvider === typedProvider;
-                const isConfigured = credential?.provider === typedProvider;
-
-                return (
-                  <button
-                    key={provider}
-                    type="button"
-                    onClick={() => {
-                      setSelectedProvider(typedProvider);
-                      setSelectedModel(
-                        isConfigured
-                          ? credential.defaultModel
-                          : defaultModelByProvider[typedProvider],
-                      );
-                    }}
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedProvider(hyperlocaliseGoProvider.id)}
+                  className={cn(
+                    "flex min-h-17 items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/[0.045]",
+                    selectedProvider === hyperlocaliseGoProvider.id && "bg-white/[0.055]",
+                  )}
+                >
+                  <HyperlocaliseGoLogo />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-medium text-white">
+                      {hyperlocaliseGoProvider.label}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-white/46">
+                      {hyperlocaliseGoProvider.detail}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="outline"
                     className={cn(
-                      "flex min-h-20 items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors",
-                      isSelected
-                        ? "border-dew-500/35 bg-dew-500/10"
-                        : "border-white/8 bg-white/[0.03] hover:border-white/18 hover:bg-white/[0.055]",
+                      "shrink-0 rounded-full",
+                      hyperlocaliseGoIsActive
+                        ? "border-grove-300/25 bg-grove-300/10 text-grove-300"
+                        : "border-white/10 bg-white/[0.03] text-white/54",
                     )}
                   >
-                    <ProviderLogo provider={typedProvider} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-white">{providerConfig.label}</p>
-                        {isConfigured ? (
-                          <Badge
-                            variant="outline"
-                            className="border-grove-300/25 bg-grove-300/10 text-grove-300"
-                          >
-                            Configured
-                          </Badge>
-                        ) : null}
+                    {hyperlocaliseGoIsActive ? "Active" : "Zero config"}
+                  </Badge>
+                </button>
+
+                {Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
+                  const typedProvider = provider as LlmProvider;
+                  const isSelected = selectedProvider === typedProvider;
+                  const isConfigured = credential?.provider === typedProvider;
+
+                  return (
+                    <button
+                      key={provider}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProvider(typedProvider);
+                        setSelectedModel(
+                          isConfigured
+                            ? credential.defaultModel
+                            : defaultModelByProvider[typedProvider],
+                        );
+                      }}
+                      className={cn(
+                        "flex min-h-17 items-center gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-white/[0.045]",
+                        isSelected && "bg-white/[0.055]",
+                      )}
+                    >
+                      <ProviderLogo provider={typedProvider} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-medium text-white">
+                          {providerConfig.label}
+                        </p>
+                        <p className="mt-0.5 truncate text-sm text-white/46">
+                          {providerDetails[typedProvider]}
+                        </p>
                       </div>
-                      <p className="mt-1 line-clamp-1 text-xs text-white/46">
-                        {providerConfig.models.join(", ")}
-                      </p>
-                    </div>
-                    {isSelected ? (
-                      <HugeiconsIcon
-                        icon={CheckmarkCircle02Icon}
-                        strokeWidth={1.8}
-                        className="size-5 shrink-0 text-dew-100"
-                      />
-                    ) : null}
-                  </button>
-                );
-              })
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "shrink-0 rounded-full",
+                          isConfigured
+                            ? "border-grove-300/25 bg-grove-300/10 text-grove-300"
+                            : "border-white/10 bg-white/[0.03] text-white/54",
+                        )}
+                      >
+                        {isConfigured ? "Active" : "Connect"}
+                      </Badge>
+                    </button>
+                  );
+                })}
+              </>
             )}
           </CardContent>
         </Card>
@@ -306,10 +381,16 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
           <CardHeader className="gap-4 px-5 py-5 lg:px-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
-                <ProviderLogo provider={selectedProvider} />
+                {selectedByokProvider ? (
+                  <ProviderLogo provider={selectedByokProvider} />
+                ) : (
+                  <HyperlocaliseGoLogo />
+                )}
                 <div className="min-w-0">
                   <CardTitle className="text-lg font-medium text-white">
-                    Configure {selectedProviderConfig.label}
+                    {selectedProviderConfig
+                      ? `Configure ${selectedProviderConfig.label}`
+                      : hyperlocaliseGoProvider.label}
                   </CardTitle>
                   <CardDescription className="mt-1 text-white/52">
                     {selectedProviderStatus}
@@ -320,86 +401,126 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                 variant="outline"
                 className={cn(
                   "shrink-0 rounded-full",
-                  selectedProviderIsConfigured
+                  selectedProviderIsConfigured || hyperlocaliseGoIsActive
                     ? "border-grove-300/25 bg-grove-300/10 text-grove-300"
                     : "border-dew-500/25 bg-dew-500/10 text-dew-100",
                 )}
               >
-                {selectedProviderIsConfigured ? "Active" : "Available"}
+                {selectedProviderIsConfigured || hyperlocaliseGoIsActive ? "Active" : "Available"}
               </Badge>
             </div>
           </CardHeader>
           <Separator className="bg-white/8" />
           <CardContent className="px-5 py-5 lg:px-6">
-            <form
-              className="flex flex-col gap-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveCredential.mutate({
-                  provider: selectedProvider,
-                  defaultModel: selectedModel,
-                  apiKey,
-                });
-              }}
-            >
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-white">Default model</span>
-                <select
-                  value={selectedModel}
-                  onChange={(event) => setSelectedModel(event.target.value)}
-                  className="h-9 w-full rounded-4xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
-                >
-                  {selectedProviderConfig.models.map((model) => (
-                    <option key={model} value={model} className="bg-[#0b0b0b] text-white">
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            {selectedByokProvider && selectedProviderConfig ? (
+              <form
+                className="flex flex-col gap-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveCredential.mutate({
+                    provider: selectedByokProvider,
+                    defaultModel: selectedModel,
+                    apiKey,
+                  });
+                }}
+              >
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-white">Default model</span>
+                  <select
+                    value={selectedModel}
+                    onChange={(event) => setSelectedModel(event.target.value)}
+                    className="h-9 w-full rounded-4xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
+                  >
+                    {selectedProviderConfig.models.map((model) => (
+                      <option key={model} value={model} className="bg-[#0b0b0b] text-white">
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-white">API key</span>
-                <div className="relative">
-                  <HugeiconsIcon
-                    icon={Key01Icon}
-                    strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/38"
-                  />
-                  <Input
-                    type="password"
-                    autoComplete="off"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={`Enter ${selectedProviderConfig.label} API key`}
-                    className="border-white/10 bg-white/[0.03] ps-9 text-white placeholder:text-white/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
-                  />
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-medium text-white">API key</span>
+                  <div className="relative">
+                    <HugeiconsIcon
+                      icon={Key01Icon}
+                      strokeWidth={1.8}
+                      className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/38"
+                    />
+                    <Input
+                      type="password"
+                      autoComplete="off"
+                      value={apiKey}
+                      onChange={(event) => setApiKey(event.target.value)}
+                      placeholder={`Enter ${selectedProviderConfig.label} API key`}
+                      className="border-white/10 bg-white/[0.03] ps-9 text-white placeholder:text-white/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    />
+                  </div>
+                  <span className="text-xs leading-5 text-white/42">
+                    Saving validates the key, encrypts it at rest, and replaces any current
+                    provider.
+                  </span>
+                </label>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                    onClick={() => deleteCredential.mutate()}
+                    disabled={!credential || deleteCredential.isPending}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                    {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-white text-black hover:bg-white/90"
+                    disabled={!apiKey.trim() || saveCredential.isPending}
+                  >
+                    <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                    {saveCredential.isPending ? "Validating..." : "Save provider"}
+                  </Button>
                 </div>
-                <span className="text-xs leading-5 text-white/42">
-                  Saving validates the key, encrypts it at rest, and replaces any current provider.
-                </span>
-              </label>
+              </form>
+            ) : (
+              <div className="flex flex-col gap-5">
+                <div className="rounded-lg border border-white/8 bg-white/[0.03] px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle02Icon}
+                      strokeWidth={1.8}
+                      className="mt-0.5 size-5 shrink-0 text-grove-300"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-white">No provider setup required</p>
+                      <p className="mt-1 text-sm leading-6 text-white/48">
+                        Hyperlocalise Go uses our managed routing, so your team can keep setup light
+                        without storing a provider API key.
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                  className="w-fit border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
                   onClick={() => deleteCredential.mutate()}
                   disabled={!credential || deleteCredential.isPending}
                 >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                  {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-white text-black hover:bg-white/90"
-                  disabled={!apiKey.trim() || saveCredential.isPending}
-                >
-                  <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                  {saveCredential.isPending ? "Validating..." : "Save provider"}
+                  <HugeiconsIcon
+                    icon={credential ? Delete02Icon : CheckmarkCircle02Icon}
+                    strokeWidth={1.8}
+                  />
+                  {deleteCredential.isPending
+                    ? "Switching..."
+                    : credential
+                      ? "Use Hyperlocalise Go"
+                      : "Using Hyperlocalise Go"}
                 </Button>
               </div>
-            </form>
+            )}
           </CardContent>
         </Card>
       </section>
