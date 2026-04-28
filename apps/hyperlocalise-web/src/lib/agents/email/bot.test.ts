@@ -181,6 +181,18 @@ describe("createEmailHandler", () => {
     expect(getState().processedEmailAgentTaskKeys).toHaveLength(1);
   });
 
+  it("does not mark or acknowledge tasks as queued when enqueue fails", async () => {
+    const dependencies = createDependencies();
+    dependencies.queue.enqueue.mockRejectedValueOnce(new Error("queue unavailable"));
+    const { thread, posts, getState } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await expect(handler(thread, createMessage({}))).rejects.toThrow("queue unavailable");
+
+    expect(posts.some((post) => String(post).includes("Thanks. I've queued"))).toBe(false);
+    expect(getState().processedEmailAgentTaskKeys).toBeUndefined();
+  });
+
   it("proceeds when only target locale is present (source is optional)", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
@@ -381,6 +393,10 @@ describe("createEmailHandler", () => {
 
     expect(posts[0]).toContain("send one or more supported files");
     expect(posts[0]).toContain("Translate from en-US to fr-FR");
+    expect(dependencies.interpretEmailRequest).toHaveBeenCalledWith({
+      subject: "Translate from en to fr",
+      text: "Please translate from en to fr",
+    });
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
@@ -478,7 +494,7 @@ describe("createEmailHandler", () => {
       confidence: 0.9,
       missingFields: ["targetLocale"],
     });
-    const { thread, posts } = createThread();
+    const { thread, posts, getState } = createThread();
     const handler = createEmailHandler(dependencies);
 
     await handler(
@@ -499,6 +515,14 @@ describe("createEmailHandler", () => {
 
     expect(posts).toHaveLength(1);
     expect(posts[0]).toContain("target language");
+    expect(posts[0]).toContain("- banner.png");
+    expect(posts[0]).toContain("- copy.csv");
+    expect(getState().pendingEmailAgentTask).toMatchObject({
+      kind: "translate",
+      attachments: [{ id: "file_123", filename: "copy.csv" }],
+      imageAttachments: [expect.objectContaining({ name: "banner.png" })],
+      targetLocale: null,
+    });
     expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
@@ -672,5 +696,54 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
     expect(getState().pendingEmailAgentTask).toBeUndefined();
     expect(posts.some((post) => String(post).includes("Thanks. I've queued"))).toBe(true);
+  });
+
+  it("warns instead of silently dropping pending images when source message data is missing", async () => {
+    const dependencies = createDependencies();
+    const { thread, posts, getState } = createThread({
+      pendingEmailAgentTask: {
+        kind: "translate",
+        requestId: "eml_pending",
+        senderEmail: "sender@example.com",
+        subject: "Translate",
+        originalMessageId: "message_original",
+        emailId: "email_original",
+        inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
+        attachments: [{ id: "file_123", filename: "copy.csv", contentType: "text/csv" }],
+        imageAttachments: [{ type: "image", name: "banner.png", mimeType: "image/png" }],
+        imageRaw: {
+          emailId: "email_original",
+          messageId: "message_original",
+          subject: "Translate",
+        },
+        sourceLocale: "en",
+        targetLocale: "fr",
+        instructions: null,
+      },
+    });
+    dependencies.fetchAttachmentDownloadUrls.mockResolvedValueOnce([
+      {
+        id: "file_123",
+        filename: "copy.csv",
+        downloadUrl: "https://example.com/copy.csv",
+        contentType: "text/csv",
+      },
+    ]);
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "yes",
+        raw: { emailId: "email_reply", messageId: "message_reply", attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(posts[0]).toContain("couldn't recover the image attachment");
+    expect(posts.some((post) => String(post).includes("- banner.png"))).toBe(false);
+    expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
+    expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(getState().pendingEmailAgentTask).toBeUndefined();
   });
 });

@@ -77,7 +77,7 @@ export type EmailAgentTask = {
   originalMessageId: string;
   inboundEmailAddress: string;
   inputs: {
-    attachments: EmailAgentTaskAttachment[];
+    attachments: [EmailAgentTaskAttachment];
   };
   parameters: {
     translate: {

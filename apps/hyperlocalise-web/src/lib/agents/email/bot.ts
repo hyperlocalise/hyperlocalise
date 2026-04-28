@@ -110,6 +110,17 @@ function buildUnsupportedCapabilityMessage(intent: EmailRequestIntent) {
   ].join("\n");
 }
 
+function buildImageStateLostMessage(pending: PendingEmailAgentTask) {
+  return [
+    "I couldn't recover the image attachment after confirmation, so I can't localize that image from this reply.",
+    "",
+    "Please resend the image with the target language if you still need the image localized.",
+    "",
+    "—Hyperlocalise Agent",
+    `Request ID: ${pending.requestId}`,
+  ].join("\n");
+}
+
 function buildClarificationMessage(pending: PendingEmailAgentTask) {
   const missing = [pending.targetLocale ? null : "target language"].filter(Boolean);
 
@@ -196,6 +207,7 @@ async function enqueuePendingTranslation(input: {
     return;
   }
 
+  let pendingForReceipt = pending;
   if (pending.imageAttachments && pending.imageAttachments.length > 0) {
     log.info({ count: pending.imageAttachments.length }, "handling pending image attachments");
     const imageMessage = pending.imageMessage;
@@ -222,6 +234,13 @@ async function enqueuePendingTranslation(input: {
           imageIntent,
         );
       }
+    } else {
+      log.warn("pending image attachments are missing source message data");
+      await thread.post(buildImageStateLostMessage(pending));
+      pendingForReceipt = {
+        ...pending,
+        imageAttachments: undefined,
+      };
     }
   }
 
@@ -311,7 +330,10 @@ async function enqueuePendingTranslation(input: {
     return;
   }
 
-  await thread.post(buildIntakeReceipt({ pending, skippedDuplicateCount }));
+  for (const task of tasks) {
+    await queue.enqueue(task);
+  }
+
   log.info({ taskCount: tasks.length, skippedDuplicateCount }, "email agent tasks enqueued");
 
   await thread.setState({
@@ -324,9 +346,7 @@ async function enqueuePendingTranslation(input: {
     processedEmailAgentTaskKeys: nextProcessedKeys.slice(-maxProcessedKeys),
   });
 
-  for (const task of tasks) {
-    await queue.enqueue(task);
-  }
+  await thread.post(buildIntakeReceipt({ pending: pendingForReceipt, skippedDuplicateCount }));
 }
 
 function createPendingRequest(input: {
@@ -553,6 +573,21 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       if (imageAttachments.length > 0) {
         if (!intent.targetLocale) {
           log.info("missing target locale for image localization");
+          if (fileAttachments.length > 0) {
+            const pendingRequest = createPendingRequest({
+              senderEmail,
+              raw,
+              inboundEmailAddress: organization.inboundEmailAddress,
+              attachments: fileAttachments,
+              imageAttachments,
+              imageMessage: message,
+              intent,
+            });
+            await thread.post(buildClarificationMessage(pendingRequest));
+            await thread.setState({ pendingEmailAgentTask: pendingRequest });
+            return;
+          }
+
           await thread.post(
             [
               "I received your image, but I need the target language before I can localize it.",
@@ -601,11 +636,13 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         inboundEmailAddress: organization.inboundEmailAddress,
         attachments: fileAttachments,
         imageAttachments:
-          imageAttachments.length > 0 && intent.confidence < intentConfirmationThreshold
+          imageAttachments.length > 0 &&
+          (!intent.targetLocale || intent.confidence < intentConfirmationThreshold)
             ? imageAttachments
             : undefined,
         imageMessage:
-          imageAttachments.length > 0 && intent.confidence < intentConfirmationThreshold
+          imageAttachments.length > 0 &&
+          (!intent.targetLocale || intent.confidence < intentConfirmationThreshold)
             ? message
             : undefined,
         intent,
