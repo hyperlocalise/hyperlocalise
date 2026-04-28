@@ -22,11 +22,11 @@ func TestLiquidParserParseReturnsEmptyEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if got == nil {
-		t.Fatal("expected empty map, got nil")
+	if len(got) != 1 {
+		t.Fatalf("expected one extracted entry, got %d", len(got))
 	}
-	if len(got) != 0 {
-		t.Fatalf("expected no extracted entries, got %d", len(got))
+	if got["header.navigation.home"] != "header.navigation.home" {
+		t.Fatalf("unexpected extracted value: %q", got["header.navigation.home"])
 	}
 }
 
@@ -37,14 +37,56 @@ func TestLiquidParserParseWithContextReturnsNilContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse with context: %v", err)
 	}
-	if values == nil {
-		t.Fatal("expected empty values map, got nil")
+	if len(values) != 1 {
+		t.Fatalf("expected one extracted entry, got %d", len(values))
 	}
-	if len(values) != 0 {
-		t.Fatalf("expected no extracted entries, got %d", len(values))
+	if values["header.navigation.home"] != "header.navigation.home" {
+		t.Fatalf("unexpected extracted value: %q", values["header.navigation.home"])
 	}
 	if contextByKey != nil {
 		t.Fatalf("expected nil context map, got %#v", contextByKey)
+	}
+}
+
+func TestLiquidParserParseExtractsMultipleStaticKeys(t *testing.T) {
+	t.Helper()
+
+	got, err := (LiquidParser{}).Parse([]byte(`
+{{ 'header.navigation.home' | t }}
+{{ "footer.contact.title" | t }}
+{{ 'header.navigation.home' | t }}
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected two unique extracted entries, got %d", len(got))
+	}
+	if got["header.navigation.home"] != "header.navigation.home" {
+		t.Fatalf("unexpected first extracted value: %q", got["header.navigation.home"])
+	}
+	if got["footer.contact.title"] != "footer.contact.title" {
+		t.Fatalf("unexpected second extracted value: %q", got["footer.contact.title"])
+	}
+}
+
+func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
+	t.Helper()
+
+	got, err := (LiquidParser{}).Parse([]byte(`
+{{ variable | t }}
+{{ section.settings.label | t }}
+{{ 'header.navigation.home' | upcase | t }}
+{{ 'header.navigation.home' | t | escape }}
+{{ 'header.navigation.home' | upcase }}
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("expected no extracted entries for unsupported shapes, got %#v", got)
 	}
 }
 

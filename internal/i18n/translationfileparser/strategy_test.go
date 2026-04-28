@@ -251,11 +251,11 @@ func TestStrategyParsesLiquid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if got == nil {
-		t.Fatal("expected empty map, got nil")
+	if len(got) != 1 {
+		t.Fatalf("expected one extracted entry, got %d", len(got))
 	}
-	if len(got) != 0 {
-		t.Fatalf("expected no extracted entries, got %d", len(got))
+	if got["header.navigation.home"] != "header.navigation.home" {
+		t.Fatalf("unexpected extracted value: %q", got["header.navigation.home"])
 	}
 }
 
