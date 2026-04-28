@@ -6,8 +6,8 @@ import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
 import { createResendAdapter } from "@/lib/resend/adapter";
-import type { EmailTranslationEventData, EmailTranslationQueue } from "@/lib/workflow/types";
-import { createEmailTranslationQueue } from "@/workflows/adapters";
+import type { EmailAgentTask, EmailAgentTaskQueue } from "@/lib/workflow/types";
+import { createEmailAgentTaskQueue } from "@/workflows/adapters";
 
 import { fetchAttachmentDownloadUrls } from "./attachments";
 import { handleImageAttachment } from "./image-attachments";
@@ -17,19 +17,19 @@ import {
   interpretEmailRequest,
 } from "./intent";
 import { resolveInboundEmailOrganization } from "./organizations";
-import type { EmailBotState, PendingEmailTranslationRequest, RawEmailMessage } from "./types";
+import type { EmailBotState, PendingEmailAgentTask, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
 
 export { interpretClarificationReply };
 
 let botInstance: Chat<{ resend: ReturnType<typeof createResendAdapter> }, EmailBotState> | null =
   null;
-let botQueue: EmailTranslationQueue | null = null;
+let botQueue: EmailAgentTaskQueue | null = null;
 
 const logger = createLogger("email-bot");
 
 export type EmailHandlerDependencies = {
-  queue: EmailTranslationQueue;
+  queue: EmailAgentTaskQueue;
   lookupUserByEmail: typeof lookupUserByEmail;
   resolveInboundEmailOrganization: typeof resolveInboundEmailOrganization;
   interpretEmailRequest: typeof interpretEmailRequest;
@@ -45,17 +45,21 @@ function createRequestId(input: string) {
   return `eml_${createHash("sha256").update(input).digest("hex").slice(0, 16)}`;
 }
 
-function createTranslationKey(input: {
+function createEmailAgentTaskKey(input: {
+  kind: EmailAgentTask["kind"];
   emailId: string;
   attachmentId: string;
   sourceLocale: string | null;
   targetLocale: string;
+  instructions: string | null;
 }) {
   return [
+    input.kind,
     input.emailId,
     input.attachmentId,
     (input.sourceLocale ?? "auto").toLowerCase(),
     input.targetLocale.toLowerCase(),
+    (input.instructions?.trim() || "default").toLowerCase(),
   ].join(":");
 }
 
@@ -63,8 +67,11 @@ function attachmentName(att: { filename: string | null; id: string }) {
   return att.filename ?? `attachment-${att.id}`;
 }
 
-function formatFileList(attachments: Array<{ filename: string | null; id: string }>) {
-  return attachments.map((att) => `- ${attachmentName(att)}`).join("\n");
+function formatPendingAttachmentList(pending: PendingEmailAgentTask) {
+  const fileLines = pending.attachments.map((att) => `- ${attachmentName(att)}`);
+  const imageLines =
+    pending.imageAttachments?.map((att, index) => `- ${att.name ?? `image-${index + 1}`}`) ?? [];
+  return [...imageLines, ...fileLines].join("\n");
 }
 
 function isAffirmative(text: string) {
@@ -86,14 +93,31 @@ function buildSupportedRequestHelp() {
   ].join("\n");
 }
 
-function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
+function buildUnsupportedCapabilityMessage(intent: EmailRequestIntent) {
+  const label =
+    intent.kind === "check"
+      ? "localization checks"
+      : intent.kind === "keyword_research"
+        ? "localized keyword research"
+        : "that request";
+
+  return [
+    `I can't handle ${label} by email yet.`,
+    "",
+    "For now, this inbox can translate supported files and localize images when you include a target language.",
+    "",
+    "—Hyperlocalise Agent",
+  ].join("\n");
+}
+
+function buildClarificationMessage(pending: PendingEmailAgentTask) {
   const missing = [pending.targetLocale ? null : "target language"].filter(Boolean);
 
   return [
     `Thanks for sending ${pending.attachments.length === 1 ? "that file" : "those files"}. Before I can start, could you let me know the ${missing.join(" and ")}?`,
     "",
     "Files:",
-    formatFileList(pending.attachments),
+    formatPendingAttachmentList(pending),
     "",
     "Just reply with something like:",
     "- Target: Vietnamese",
@@ -105,19 +129,16 @@ function buildClarificationMessage(pending: PendingEmailTranslationRequest) {
   ].join("\n");
 }
 
-function buildConfirmationMessage(pending: PendingEmailTranslationRequest) {
+function buildConfirmationMessage(pending: PendingEmailAgentTask) {
   return [
     'I think I understood your request. Please reply "yes" to start, or send corrected locales if anything looks off.',
     "",
     "Files:",
-    formatFileList(pending.attachments),
+    formatPendingAttachmentList(pending),
     "",
     pending.sourceLocale ? `Source: ${pending.sourceLocale}` : "Source: auto-detect",
     `Target: ${pending.targetLocale}`,
     pending.instructions ? `Instructions: ${pending.instructions}` : null,
-    pending.instructions
-      ? "Note: I captured your style instructions, but email-based translations don't apply them automatically yet. Running the same file through the dashboard will respect those settings."
-      : null,
     "",
     "—Hyperlocalise Agent",
     `Request ID: ${pending.requestId}`,
@@ -127,21 +148,18 @@ function buildConfirmationMessage(pending: PendingEmailTranslationRequest) {
 }
 
 function buildIntakeReceipt(input: {
-  pending: PendingEmailTranslationRequest;
+  pending: PendingEmailAgentTask;
   skippedDuplicateCount: number;
 }) {
   const lines = [
     `Thanks. I've queued ${input.pending.attachments.length === 1 ? "the file" : "the files"} for translation into ${input.pending.targetLocale}. You should receive the finished ${input.pending.attachments.length === 1 ? "file" : "files"} in this thread shortly — usually within a minute or two.`,
     "",
     "Files:",
-    formatFileList(input.pending.attachments),
+    formatPendingAttachmentList(input.pending),
     "",
     input.pending.sourceLocale ? `Source: ${input.pending.sourceLocale}` : "Source: auto-detect",
     `Target: ${input.pending.targetLocale}`,
-    input.pending.instructions ? `Instructions: ${input.pending.instructions}` : null,
-    input.pending.instructions
-      ? "Note: I captured your style instructions, but email-based translations don't apply them automatically yet. Running the same file through the dashboard will respect those settings."
-      : null,
+    input.pending.instructions ? `Instructions applied: ${input.pending.instructions}` : null,
     input.skippedDuplicateCount > 0
       ? `I skipped ${input.skippedDuplicateCount} duplicate file request${input.skippedDuplicateCount === 1 ? "" : "s"} that were already in progress.`
       : null,
@@ -155,11 +173,12 @@ function buildIntakeReceipt(input: {
 
 async function enqueuePendingTranslation(input: {
   thread: Thread<EmailBotState>;
-  queue: EmailTranslationQueue;
+  queue: EmailAgentTaskQueue;
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
-  pending: PendingEmailTranslationRequest;
+  handleImageAttachment: typeof handleImageAttachment;
+  pending: PendingEmailAgentTask;
 }) {
-  const { thread, queue, fetchAttachmentDownloadUrls, pending } = input;
+  const { thread, queue, fetchAttachmentDownloadUrls, handleImageAttachment, pending } = input;
   const log = logger.child({ req: pending.requestId });
   log.info(
     {
@@ -173,8 +192,37 @@ async function enqueuePendingTranslation(input: {
   if (!pending.targetLocale) {
     log.info("missing target locale, requesting clarification");
     await thread.post(buildClarificationMessage(pending));
-    await thread.setState({ pendingTranslationRequest: pending });
+    await thread.setState({ pendingEmailAgentTask: pending });
     return;
+  }
+
+  if (pending.imageAttachments && pending.imageAttachments.length > 0) {
+    log.info({ count: pending.imageAttachments.length }, "handling pending image attachments");
+    const imageMessage = pending.imageMessage;
+    const rawForImage = pending.imageRaw ?? {
+      emailId: pending.emailId,
+      messageId: pending.originalMessageId,
+      subject: pending.subject,
+    };
+    const imageIntent: EmailRequestIntent = {
+      kind: "translate",
+      sourceLocale: pending.sourceLocale,
+      targetLocale: pending.targetLocale,
+      instructions: pending.instructions,
+      confidence: 1,
+      missingFields: [],
+    };
+    if (imageMessage) {
+      for (const imageAttachment of pending.imageAttachments) {
+        await handleImageAttachment(
+          thread,
+          imageMessage,
+          imageAttachment,
+          rawForImage,
+          imageIntent,
+        );
+      }
+    }
   }
 
   const attachmentUrls = await fetchAttachmentDownloadUrls(pending.emailId, pending.attachments);
@@ -194,17 +242,19 @@ async function enqueuePendingTranslation(input: {
   }
 
   const state = await thread.state;
-  const processedKeys = new Set(state?.processedTranslationKeys ?? []);
+  const processedKeys = new Set(state?.processedEmailAgentTaskKeys ?? []);
   const nextProcessedKeys = [...processedKeys];
-  const events: EmailTranslationEventData[] = [];
+  const tasks: EmailAgentTask[] = [];
   let skippedDuplicateCount = 0;
 
   for (const att of attachmentUrls) {
-    const key = createTranslationKey({
+    const key = createEmailAgentTaskKey({
+      kind: pending.kind,
       emailId: pending.emailId,
       attachmentId: att.id,
       sourceLocale: pending.sourceLocale,
       targetLocale: pending.targetLocale,
+      instructions: pending.instructions,
     });
 
     if (processedKeys.has(key)) {
@@ -215,22 +265,37 @@ async function enqueuePendingTranslation(input: {
 
     processedKeys.add(key);
     nextProcessedKeys.push(key);
-    events.push({
+    tasks.push({
+      kind: "translate",
       requestId: pending.requestId,
-      attachmentId: att.id,
       senderEmail: pending.senderEmail,
       subject: pending.subject,
       originalMessageId: pending.originalMessageId,
       inboundEmailAddress: pending.inboundEmailAddress,
-      attachmentDownloadUrl: att.downloadUrl,
-      attachmentFilename: att.filename,
-      sourceLocale: pending.sourceLocale,
-      targetLocale: pending.targetLocale,
-      instructions: pending.instructions,
+      inputs: {
+        attachments: [
+          {
+            id: att.id,
+            filename: att.filename,
+            contentType: att.contentType,
+            downloadUrl: att.downloadUrl,
+          },
+        ],
+      },
+      parameters: {
+        translate: {
+          sourceLocale: pending.sourceLocale,
+          targetLocale: pending.targetLocale,
+          instructions: pending.instructions,
+        },
+      },
+      replyPolicy: {
+        type: "threaded_email",
+      },
     });
   }
 
-  if (events.length === 0) {
+  if (tasks.length === 0) {
     log.info("all attachments were duplicates");
     await thread.post(
       [
@@ -242,12 +307,12 @@ async function enqueuePendingTranslation(input: {
         `Request ID: ${pending.requestId}`,
       ].join("\n"),
     );
-    await thread.setState({ pendingTranslationRequest: undefined });
+    await thread.setState({ pendingEmailAgentTask: undefined });
     return;
   }
 
   await thread.post(buildIntakeReceipt({ pending, skippedDuplicateCount }));
-  log.info({ eventCount: events.length, skippedDuplicateCount }, "translations enqueued");
+  log.info({ taskCount: tasks.length, skippedDuplicateCount }, "email agent tasks enqueued");
 
   await thread.setState({
     lastEmailEvent: {
@@ -255,12 +320,12 @@ async function enqueuePendingTranslation(input: {
       subject: pending.subject,
       originalMessageId: pending.originalMessageId,
     },
-    pendingTranslationRequest: undefined,
-    processedTranslationKeys: nextProcessedKeys.slice(-maxProcessedKeys),
+    pendingEmailAgentTask: undefined,
+    processedEmailAgentTaskKeys: nextProcessedKeys.slice(-maxProcessedKeys),
   });
 
-  for (const event of events) {
-    await queue.enqueue(event);
+  for (const task of tasks) {
+    await queue.enqueue(task);
   }
 }
 
@@ -269,6 +334,8 @@ function createPendingRequest(input: {
   raw: RawEmailMessage;
   inboundEmailAddress: string;
   attachments: Array<{ id: string; filename: string | null; contentType: string }>;
+  imageAttachments?: Message["attachments"];
+  imageMessage?: Message;
   intent: EmailRequestIntent;
 }) {
   const subject = input.raw.subject ?? "";
@@ -276,6 +343,7 @@ function createPendingRequest(input: {
   const originalMessageId = input.raw.messageId ?? "";
 
   return {
+    kind: "translate",
     requestId: createRequestId(`${emailId}:${originalMessageId}:${subject}`),
     senderEmail: input.senderEmail,
     subject,
@@ -283,16 +351,23 @@ function createPendingRequest(input: {
     emailId,
     inboundEmailAddress: input.inboundEmailAddress,
     attachments: input.attachments,
+    imageAttachments: input.imageAttachments,
+    imageMessage: input.imageMessage,
+    imageRaw: {
+      emailId,
+      messageId: originalMessageId,
+      subject,
+    },
     sourceLocale: input.intent.sourceLocale,
     targetLocale: input.intent.targetLocale,
     instructions: input.intent.instructions,
-  } satisfies PendingEmailTranslationRequest;
+  } satisfies PendingEmailAgentTask;
 }
 
 async function handlePendingClarification(input: {
   thread: Thread<EmailBotState>;
   message: Message;
-  pending: PendingEmailTranslationRequest;
+  pending: PendingEmailAgentTask;
   dependencies: EmailHandlerDependencies;
 }) {
   const { thread, message, pending, dependencies } = input;
@@ -305,6 +380,7 @@ async function handlePendingClarification(input: {
       thread,
       queue: dependencies.queue,
       fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
+      handleImageAttachment: dependencies.handleImageAttachment,
       pending,
     });
     return;
@@ -331,7 +407,7 @@ async function handlePendingClarification(input: {
   if (!nextPending.targetLocale) {
     log.info("still missing target locale after clarification");
     await thread.post(buildClarificationMessage(nextPending));
-    await thread.setState({ pendingTranslationRequest: nextPending });
+    await thread.setState({ pendingEmailAgentTask: nextPending });
     return;
   }
 
@@ -341,7 +417,7 @@ async function handlePendingClarification(input: {
       "low confidence after clarification, requesting confirmation",
     );
     await thread.post(buildConfirmationMessage(nextPending));
-    await thread.setState({ pendingTranslationRequest: nextPending });
+    await thread.setState({ pendingEmailAgentTask: nextPending });
     return;
   }
 
@@ -349,6 +425,7 @@ async function handlePendingClarification(input: {
     thread,
     queue: dependencies.queue,
     fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
+    handleImageAttachment: dependencies.handleImageAttachment,
     pending: nextPending,
   });
 }
@@ -384,7 +461,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       }
 
       const state = await thread.state;
-      let pending = state?.pendingTranslationRequest;
+      let pending = state?.pendingEmailAgentTask;
       const attachments = raw.attachments ?? [];
 
       if (pending && pending.senderEmail === senderEmail) {
@@ -427,6 +504,25 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         return;
       }
 
+      const intent = await dependencies.interpretEmailRequest({
+        subject: raw.subject ?? "",
+        text: message.text,
+      });
+      log.info(
+        {
+          kind: intent.kind,
+          confidence: intent.confidence,
+          missingFields: intent.missingFields,
+        },
+        "intent interpreted",
+      );
+
+      if (intent.kind !== "translate") {
+        log.info({ kind: intent.kind }, "unsupported email agent task kind");
+        await thread.post(buildUnsupportedCapabilityMessage(intent));
+        return;
+      }
+
       if (attachments.length === 0) {
         log.info("no attachments, sending help");
         await thread.post(buildSupportedRequestHelp());
@@ -453,18 +549,6 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         log.info("no supported attachments found");
         return;
       }
-
-      const intent = await dependencies.interpretEmailRequest({
-        subject: raw.subject ?? "",
-        text: message.text,
-      });
-      log.info(
-        {
-          confidence: intent.confidence,
-          missingFields: intent.missingFields,
-        },
-        "intent interpreted",
-      );
 
       if (imageAttachments.length > 0) {
         if (!intent.targetLocale) {
@@ -516,20 +600,28 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         raw,
         inboundEmailAddress: organization.inboundEmailAddress,
         attachments: fileAttachments,
+        imageAttachments:
+          imageAttachments.length > 0 && intent.confidence < intentConfirmationThreshold
+            ? imageAttachments
+            : undefined,
+        imageMessage:
+          imageAttachments.length > 0 && intent.confidence < intentConfirmationThreshold
+            ? message
+            : undefined,
         intent,
       });
 
       if (!pendingRequest.targetLocale) {
         log.info("missing target locale, requesting clarification");
         await thread.post(buildClarificationMessage(pendingRequest));
-        await thread.setState({ pendingTranslationRequest: pendingRequest });
+        await thread.setState({ pendingEmailAgentTask: pendingRequest });
         return;
       }
 
       if (intent.confidence < intentConfirmationThreshold) {
         log.info({ confidence: intent.confidence }, "low confidence, requesting confirmation");
         await thread.post(buildConfirmationMessage(pendingRequest));
-        await thread.setState({ pendingTranslationRequest: pendingRequest });
+        await thread.setState({ pendingEmailAgentTask: pendingRequest });
         return;
       }
 
@@ -537,6 +629,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         thread,
         queue: dependencies.queue,
         fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
+        handleImageAttachment: dependencies.handleImageAttachment,
         pending: pendingRequest,
       });
     } catch (error) {
@@ -549,12 +642,12 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
   };
 }
 
-export async function getEmailBot(options?: { emailTranslationQueue?: EmailTranslationQueue }) {
+export async function getEmailBot(options?: { emailAgentTaskQueue?: EmailAgentTaskQueue }) {
   if (botInstance) {
     return botInstance;
   }
 
-  botQueue = options?.emailTranslationQueue ?? createEmailTranslationQueue();
+  botQueue = options?.emailAgentTaskQueue ?? createEmailAgentTaskQueue();
   const handleEmail = createEmailHandler({
     queue: botQueue,
     lookupUserByEmail,

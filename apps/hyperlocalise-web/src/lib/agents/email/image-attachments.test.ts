@@ -30,6 +30,7 @@ const raw = {
 } satisfies Pick<RawEmailMessage, "emailId" | "messageId" | "subject">;
 
 const intent = {
+  kind: "translate",
   sourceLocale: "en",
   targetLocale: "fr",
   instructions: null,

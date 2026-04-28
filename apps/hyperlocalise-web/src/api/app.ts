@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 
 import type {
-  EmailTranslationQueue,
+  EmailAgentTaskQueue,
   GitHubFixQueue,
   TranslationJobQueue,
 } from "@/lib/workflow/types";
@@ -18,7 +18,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
-  emailTranslationQueue?: EmailTranslationQueue;
+  emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   translationJobQueue?: TranslationJobQueue;
@@ -48,7 +48,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route(
       "/webhooks/resend",
       createResendWebhookRoutes({
-        emailTranslationQueue: options.emailTranslationQueue,
+        emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
     );
 }

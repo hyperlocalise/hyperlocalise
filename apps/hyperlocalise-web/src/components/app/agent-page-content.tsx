@@ -194,8 +194,8 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                 <div className="min-w-0">
                   <CardTitle className="text-lg font-medium text-white">Email agent</CardTitle>
                   <CardDescription className="mt-1 text-white/52">
-                    Use a unique email address for this workspace to send or forward translation
-                    requests with file attachments.
+                    Use a unique workspace address to translate supported files and localize images
+                    from email.
                   </CardDescription>
                 </div>
               </div>
@@ -215,8 +215,9 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
             <div>
               <p className="text-sm font-medium text-white">Enable translation requests by email</p>
               <p className="mt-2 text-sm leading-6 text-white/52">
-                Send or forward emails to this address and Hyperlocalise will automatically process
-                the request.
+                Send documents, spreadsheets, JSON, text files, or images with a target language.
+                Source language is optional, and style notes like tone or terminology are applied to
+                file translations.
               </p>
               {isEmailAgentError ? (
                 <p className="mt-2 text-sm text-red-300">
