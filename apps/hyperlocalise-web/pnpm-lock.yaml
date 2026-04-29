@@ -3126,13 +3126,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@workos-inc/authkit-nextjs@3.0.0':
-    resolution: {integrity: sha512-9qER/fIlxGw0gfkBOcHh9Vi9LMBSq9zVsrJReQ6xbd08Ulz9QcrRDxOvs6CX6xitZjxrQKUwkWi0yH1vwUlhVA==}
-    peerDependencies:
-      next: ^13.5.9 || ^14.2.26 || ^15.2.3 || ^16
-      react: ^18.0 || ^19.0.0
-      react-dom: ^18.0 || ^19.0.0
-      
   '@workflow/astro@4.0.4':
     resolution: {integrity: sha512-TVx1SY4KoYSkHS/nkhXP7wz10rYBKJ0o9oQGahS+kCBkGkD5kyKdAc4QR2IpynG/u/vVg599XJj2Bsh9m2Jsrw==}
 
@@ -9056,7 +9049,10 @@ snapshots:
   '@voidzero-dev/vite-plus-win32-arm64-msvc@0.1.19':
     optional: true
 
-  '@workos-inc/authkit-nextjs@3.0.0(next@16.2.4(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
+  '@voidzero-dev/vite-plus-win32-x64-msvc@0.1.19':
+    optional: true
+
+  '@workflow/astro@4.0.4(@opentelemetry/api@1.9.1)':
     dependencies:
       '@swc/core': 1.15.3
       '@workflow/builders': 4.0.5(@opentelemetry/api@1.9.1)
