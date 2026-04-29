@@ -17,6 +17,12 @@ vi.mock("ai", async () => {
   };
 });
 
+vi.mock("@/lib/env", () => ({
+  env: {
+    OPENAI_API_KEY: "test-openai-api-key",
+  },
+}));
+
 describe("createEmailRequestInterpreter", () => {
   it("normalizes locales and instructions from structured model output", async () => {
     generateTextMock.mockResolvedValueOnce({
@@ -39,6 +45,7 @@ describe("createEmailRequestInterpreter", () => {
         text: "Can you translate this from English US to Brazilian Portuguese? Keep it casual.",
       }),
     ).resolves.toEqual({
+      kind: "translate",
       sourceLocale: "en-US",
       targetLocale: "pt-BR",
       instructions: "Use informal product marketing copy.",
@@ -68,6 +75,7 @@ describe("createEmailRequestInterpreter", () => {
         text: "Please make this formal.",
       }),
     ).resolves.toEqual({
+      kind: "translate",
       sourceLocale: null,
       targetLocale: "fr",
       instructions: null,
@@ -97,12 +105,18 @@ describe("createEmailRequestInterpreter", () => {
         text: "Can you translate this file from English into Vietnamese",
       }),
     ).resolves.toEqual({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: "vi",
       instructions: null,
       confidence: 0.96,
       missingFields: [],
     });
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining('Set kind to "translate"'),
+      }),
+    );
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining(

@@ -23,7 +23,7 @@ vi.mock("@/lib/resend/adapter", () => ({
 }));
 
 vi.mock("@/workflows/adapters", () => ({
-  createEmailTranslationQueue: vi.fn(),
+  createEmailAgentTaskQueue: vi.fn(),
 }));
 
 function createThread(initialState: EmailBotState = {}) {
@@ -102,6 +102,7 @@ function createDependencies() {
     })),
     interpretEmailRequest: vi.fn(
       async (): Promise<EmailRequestIntent> => ({
+        kind: "translate",
         sourceLocale: "en",
         targetLocale: "fr",
         instructions: "Keep it formal.",
@@ -111,6 +112,7 @@ function createDependencies() {
     ),
     interpretClarificationReply: vi.fn(
       async (): Promise<EmailRequestIntent> => ({
+        kind: "translate",
         sourceLocale: "en-US",
         targetLocale: "fr-FR",
         instructions: null,
@@ -149,22 +151,52 @@ describe("createEmailHandler", () => {
     expect(posts[0]).toContain("- homepage.xlsx");
     expect(posts[0]).toContain("Source: en");
     expect(posts[0]).toContain("Target: fr");
-    expect(posts[0]).toContain("I captured your style instructions");
+    expect(posts[0]).toContain("Instructions applied: Keep it formal.");
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
+        kind: "translate",
         requestId: expect.stringMatching(/^eml_[a-f0-9]{16}$/),
-        attachmentId: "att_123",
-        attachmentFilename: "homepage.xlsx",
-        sourceLocale: "en",
-        targetLocale: "fr",
+        inputs: {
+          attachments: [
+            expect.objectContaining({
+              id: "att_123",
+              filename: "homepage.xlsx",
+              contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              downloadUrl: "https://example.com/homepage.xlsx",
+            }),
+          ],
+        },
+        parameters: {
+          translate: {
+            sourceLocale: "en",
+            targetLocale: "fr",
+            instructions: "Keep it formal.",
+          },
+        },
+        replyPolicy: {
+          type: "threaded_email",
+        },
       }),
     );
-    expect(getState().processedTranslationKeys).toHaveLength(1);
+    expect(getState().processedEmailAgentTaskKeys).toHaveLength(1);
+  });
+
+  it("does not mark or acknowledge tasks as queued when enqueue fails", async () => {
+    const dependencies = createDependencies();
+    dependencies.queue.enqueue.mockRejectedValueOnce(new Error("queue unavailable"));
+    const { thread, posts, getState } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await expect(handler(thread, createMessage({}))).rejects.toThrow("queue unavailable");
+
+    expect(posts.some((post) => String(post).includes("Thanks. I've queued"))).toBe(false);
+    expect(getState().processedEmailAgentTaskKeys).toBeUndefined();
   });
 
   it("proceeds when only target locale is present (source is optional)", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: null,
       targetLocale: "fr",
       instructions: null,
@@ -181,16 +213,21 @@ describe("createEmailHandler", () => {
     expect(posts[0]).toContain("Target: fr");
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        sourceLocale: null,
-        targetLocale: "fr",
+        parameters: {
+          translate: expect.objectContaining({
+            sourceLocale: null,
+            targetLocale: "fr",
+          }),
+        },
       }),
     );
-    expect(getState().pendingTranslationRequest).toBeUndefined();
+    expect(getState().pendingEmailAgentTask).toBeUndefined();
   });
 
   it("stores a pending request when target locale is missing", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: null,
       instructions: null,
@@ -204,7 +241,8 @@ describe("createEmailHandler", () => {
 
     expect(posts[0]).toContain("Thanks for sending");
     expect(posts[0]).toContain("target language");
-    expect(getState().pendingTranslationRequest).toMatchObject({
+    expect(getState().pendingEmailAgentTask).toMatchObject({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: null,
     });
@@ -214,6 +252,7 @@ describe("createEmailHandler", () => {
   it("does not ask for source language even when source locale is also missing", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: null,
       targetLocale: null,
       instructions: null,
@@ -245,7 +284,8 @@ describe("createEmailHandler", () => {
   it("continues a pending request when the user replies with missing locales", async () => {
     const dependencies = createDependencies();
     const { thread, posts } = createThread({
-      pendingTranslationRequest: {
+      pendingEmailAgentTask: {
+        kind: "translate",
         requestId: "eml_pending",
         senderEmail: "sender@example.com",
         subject: "Translate",
@@ -277,8 +317,12 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: "eml_pending",
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
+        parameters: {
+          translate: expect.objectContaining({
+            sourceLocale: "en-US",
+            targetLocale: "fr-FR",
+          }),
+        },
       }),
     );
   });
@@ -286,6 +330,7 @@ describe("createEmailHandler", () => {
   it("asks for confirmation when intent confidence is low", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: "fr",
       instructions: null,
@@ -298,7 +343,8 @@ describe("createEmailHandler", () => {
     await handler(thread, createMessage({}));
 
     expect(posts[0]).toContain('Please reply "yes" to start');
-    expect(getState().pendingTranslationRequest).toMatchObject({
+    expect(getState().pendingEmailAgentTask).toMatchObject({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: "fr",
     });
@@ -308,13 +354,75 @@ describe("createEmailHandler", () => {
   it("does not enqueue duplicate attachment requests", async () => {
     const dependencies = createDependencies();
     const { thread, posts } = createThread({
-      processedTranslationKeys: ["email_123:att_123:en:fr"],
+      processedEmailAgentTaskKeys: ["translate:email_123:att_123:en:fr:keep it formal."],
     });
     const handler = createEmailHandler(dependencies);
 
     await handler(thread, createMessage({}));
 
     expect(posts[0]).toContain("I already accepted this translation request");
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("does not treat the same file with different instructions as a duplicate", async () => {
+    const dependencies = createDependencies();
+    const { thread, posts } = createThread({
+      processedEmailAgentTaskKeys: ["translate:email_123:att_123:en:fr:keep it casual."],
+    });
+    const handler = createEmailHandler(dependencies);
+
+    await handler(thread, createMessage({}));
+
+    expect(posts[0]).toContain("Thanks. I've queued");
+    expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows translation help for no-attachment translation requests", async () => {
+    const dependencies = createDependencies();
+    const { thread, posts } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "Please translate from en to fr",
+        raw: { attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(posts[0]).toContain("send one or more supported files");
+    expect(posts[0]).toContain("Translate from en-US to fr-FR");
+    expect(dependencies.interpretEmailRequest).toHaveBeenCalledWith({
+      subject: "Translate from en to fr",
+      text: "Please translate from en to fr",
+    });
+    expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("politely rejects future text-only capabilities that are not available yet", async () => {
+    const dependencies = createDependencies();
+    dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "keyword_research",
+      sourceLocale: null,
+      targetLocale: "fr",
+      instructions: "Find keywords for our pricing page.",
+      confidence: 0.94,
+      missingFields: [],
+    });
+    const { thread, posts } = createThread();
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "Can you do localized keyword research for France?",
+        raw: { attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(posts[0]).toContain("I can't handle localized keyword research by email yet.");
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
 
@@ -351,6 +459,7 @@ describe("createEmailHandler", () => {
   it("asks for a target language before localizing image-only emails", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: null,
       targetLocale: null,
       instructions: null,
@@ -378,13 +487,14 @@ describe("createEmailHandler", () => {
   it("asks once for a target language when mixed image and file emails are missing it", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: null,
       targetLocale: null,
       instructions: null,
       confidence: 0.9,
       missingFields: ["targetLocale"],
     });
-    const { thread, posts } = createThread();
+    const { thread, posts, getState } = createThread();
     const handler = createEmailHandler(dependencies);
 
     await handler(
@@ -405,6 +515,14 @@ describe("createEmailHandler", () => {
 
     expect(posts).toHaveLength(1);
     expect(posts[0]).toContain("target language");
+    expect(posts[0]).toContain("- banner.png");
+    expect(posts[0]).toContain("- copy.csv");
+    expect(getState().pendingEmailAgentTask).toMatchObject({
+      kind: "translate",
+      attachments: [{ id: "file_123", filename: "copy.csv" }],
+      imageAttachments: [expect.objectContaining({ name: "banner.png" })],
+      targetLocale: null,
+    });
     expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
     expect(dependencies.queue.enqueue).not.toHaveBeenCalled();
   });
@@ -412,6 +530,7 @@ describe("createEmailHandler", () => {
   it("keeps mixed email files pending when image localization confidence is low", async () => {
     const dependencies = createDependencies();
     dependencies.interpretEmailRequest.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: "en",
       targetLocale: "fr",
       instructions: null,
@@ -438,9 +557,12 @@ describe("createEmailHandler", () => {
     );
 
     expect(posts[0]).toContain('Please reply "yes" to start');
+    expect(posts[0]).toContain("- banner.png");
     expect(posts[0]).toContain("- copy.csv");
-    expect(getState().pendingTranslationRequest).toMatchObject({
+    expect(getState().pendingEmailAgentTask).toMatchObject({
+      kind: "translate",
       attachments: [{ id: "file_123", filename: "copy.csv" }],
+      imageAttachments: [expect.objectContaining({ name: "banner.png" })],
       sourceLocale: "en",
       targetLocale: "fr",
     });
@@ -451,6 +573,7 @@ describe("createEmailHandler", () => {
   it("merges new file attachments into pending clarification instead of starting a new request", async () => {
     const dependencies = createDependencies();
     dependencies.interpretClarificationReply.mockResolvedValueOnce({
+      kind: "translate",
       sourceLocale: "en-US",
       targetLocale: "fr",
       instructions: null,
@@ -458,7 +581,8 @@ describe("createEmailHandler", () => {
       missingFields: [],
     });
     const { thread, posts, getState } = createThread({
-      pendingTranslationRequest: {
+      pendingEmailAgentTask: {
+        kind: "translate",
         requestId: "eml_pending",
         senderEmail: "sender@example.com",
         subject: "Translate",
@@ -503,7 +627,123 @@ describe("createEmailHandler", () => {
     expect(posts[0]).toContain("Thanks. I've queued");
     expect(posts[0]).toContain("old.xlsx");
     expect(posts[0]).toContain("new.xlsx");
-    expect(getState().pendingTranslationRequest).toBeUndefined();
+    expect(getState().pendingEmailAgentTask).toBeUndefined();
     expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(2);
+  });
+
+  it("processes pending mixed images and files after confirmation", async () => {
+    const dependencies = createDependencies();
+    const imageMessage = createMessage({
+      raw: {
+        attachments: [
+          { id: "img_123", filename: "banner.png", contentType: "image/png" },
+          { id: "file_123", filename: "copy.csv", contentType: "text/csv" },
+        ],
+      },
+      attachments: [
+        { type: "image", name: "banner.png", mimeType: "image/png" },
+        { type: "file", name: "copy.csv", mimeType: "text/csv" },
+      ],
+    });
+    const { thread, posts, getState } = createThread({
+      pendingEmailAgentTask: {
+        kind: "translate",
+        requestId: "eml_pending",
+        senderEmail: "sender@example.com",
+        subject: "Translate",
+        originalMessageId: "message_original",
+        emailId: "email_original",
+        inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
+        attachments: [{ id: "file_123", filename: "copy.csv", contentType: "text/csv" }],
+        imageAttachments: [{ type: "image", name: "banner.png", mimeType: "image/png" }],
+        imageMessage,
+        imageRaw: {
+          emailId: "email_original",
+          messageId: "message_original",
+          subject: "Translate",
+        },
+        sourceLocale: "en",
+        targetLocale: "fr",
+        instructions: null,
+      },
+    });
+    dependencies.fetchAttachmentDownloadUrls.mockResolvedValueOnce([
+      {
+        id: "file_123",
+        filename: "copy.csv",
+        downloadUrl: "https://example.com/copy.csv",
+        contentType: "text/csv",
+      },
+    ]);
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "yes",
+        raw: { emailId: "email_reply", messageId: "message_reply", attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(dependencies.handleImageAttachment).toHaveBeenCalledWith(
+      thread,
+      imageMessage,
+      expect.objectContaining({ type: "image", name: "banner.png" }),
+      expect.objectContaining({ emailId: "email_original" }),
+      expect.objectContaining({ targetLocale: "fr" }),
+    );
+    expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(getState().pendingEmailAgentTask).toBeUndefined();
+    expect(posts.some((post) => String(post).includes("Thanks. I've queued"))).toBe(true);
+  });
+
+  it("warns instead of silently dropping pending images when source message data is missing", async () => {
+    const dependencies = createDependencies();
+    const { thread, posts, getState } = createThread({
+      pendingEmailAgentTask: {
+        kind: "translate",
+        requestId: "eml_pending",
+        senderEmail: "sender@example.com",
+        subject: "Translate",
+        originalMessageId: "message_original",
+        emailId: "email_original",
+        inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
+        attachments: [{ id: "file_123", filename: "copy.csv", contentType: "text/csv" }],
+        imageAttachments: [{ type: "image", name: "banner.png", mimeType: "image/png" }],
+        imageRaw: {
+          emailId: "email_original",
+          messageId: "message_original",
+          subject: "Translate",
+        },
+        sourceLocale: "en",
+        targetLocale: "fr",
+        instructions: null,
+      },
+    });
+    dependencies.fetchAttachmentDownloadUrls.mockResolvedValueOnce([
+      {
+        id: "file_123",
+        filename: "copy.csv",
+        downloadUrl: "https://example.com/copy.csv",
+        contentType: "text/csv",
+      },
+    ]);
+    const handler = createEmailHandler(dependencies);
+
+    await handler(
+      thread,
+      createMessage({
+        text: "yes",
+        raw: { emailId: "email_reply", messageId: "message_reply", attachments: [] },
+        attachments: [],
+      }),
+    );
+
+    expect(posts[0]).toContain("couldn't recover the image attachment");
+    expect(posts.some((post) => String(post).includes("- banner.png"))).toBe(false);
+    expect(dependencies.handleImageAttachment).not.toHaveBeenCalled();
+    expect(dependencies.queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(getState().pendingEmailAgentTask).toBeUndefined();
   });
 });
