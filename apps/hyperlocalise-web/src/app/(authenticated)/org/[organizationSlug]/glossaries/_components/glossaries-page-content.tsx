@@ -12,7 +12,7 @@ import {
   ProgressBar,
   ResourceCard,
   toneClass,
-} from "./workspace-resource-shared";
+} from "../../_components/workspace-resource-shared";
 
 const glossaries = [
   {

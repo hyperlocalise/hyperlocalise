@@ -2,13 +2,16 @@ const ROUTE_TITLES = {
   account: "Account",
   agent: "Agent",
   billing: "Billing",
-  dashboard: "Dashboard",
+  context: "Context",
+  dashboard: "Analytics",
   glossaries: "Glossaries",
+  inbox: "Inbox",
   integrations: "Integrations",
   jobs: "Jobs",
   notifications: "Notifications",
   projects: "Projects",
   settings: "Settings",
+  "translation-memories": "Translation Memories",
 } as const;
 
 function isRouteTitleKey(value: string): value is keyof typeof ROUTE_TITLES {

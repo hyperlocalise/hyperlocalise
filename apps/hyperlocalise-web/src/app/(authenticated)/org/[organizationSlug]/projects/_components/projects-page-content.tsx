@@ -20,7 +20,7 @@ import {
   ResourceCard,
   toneClass,
   type Icon,
-} from "./workspace-resource-shared";
+} from "../../_components/workspace-resource-shared";
 
 const projects = [
   {

@@ -22,7 +22,7 @@ type NavigationItem = {
 };
 
 type NavigationGroup = {
-  label: string;
+  label?: string;
   items: readonly NavigationItem[];
 };
 
@@ -35,11 +35,13 @@ export function AppShellNavigation({ groups }: AppShellNavigationProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {groups.map((group) => (
-        <SidebarGroup key={group.label} className="p-0">
-          <SidebarGroupLabel className="h-7 px-3 text-[0.68rem] tracking-[0.08em] text-white/34 uppercase">
-            {group.label}
-          </SidebarGroupLabel>
+      {groups.map((group, groupIndex) => (
+        <SidebarGroup key={group.label ?? `promoted-${groupIndex}`} className="p-0">
+          {group.label ? (
+            <SidebarGroupLabel className="h-7 px-3 text-[0.68rem] tracking-[0.08em] text-app-shell-foreground/34 uppercase">
+              {group.label}
+            </SidebarGroupLabel>
+          ) : null}
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {group.items.map((item) => {
@@ -56,11 +58,11 @@ export function AppShellNavigation({ groups }: AppShellNavigationProps) {
                       isActive={isActive}
                       tooltip={item.label}
                       className={cn(
-                        "h-10 rounded-lg px-3 text-sm font-normal text-white/68 hover:text-white",
-                        isActive && "bg-white/10 text-white",
+                        "h-10 rounded-lg px-3 text-sm font-normal text-app-shell-foreground/68 hover:text-app-shell-foreground group-data-[collapsible=icon]:size-9!",
+                        isActive && "bg-app-shell-foreground/10 text-app-shell-foreground",
                       )}
                     >
-                      <HugeiconsIcon icon={item.icon} strokeWidth={1.8} className="size-4" />
+                      <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-5" />
                       <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

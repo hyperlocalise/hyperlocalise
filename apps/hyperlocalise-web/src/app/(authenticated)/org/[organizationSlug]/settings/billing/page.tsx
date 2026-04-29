@@ -1,4 +1,4 @@
-import { BillingSettingsPageContent } from "@/components/app/settings-pages";
+import { BillingSettingsPageContent } from "../_components/settings-pages";
 
 export default function BillingSettingsPage() {
   return <BillingSettingsPageContent />;

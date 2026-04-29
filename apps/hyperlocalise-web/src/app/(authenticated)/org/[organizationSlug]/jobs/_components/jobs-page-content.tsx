@@ -22,7 +22,7 @@ import {
   ResourceCard,
   toneClass,
   type Tone,
-} from "./workspace-resource-shared";
+} from "../../_components/workspace-resource-shared";
 
 type ApiProject = {
   id: string;
