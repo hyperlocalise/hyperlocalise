@@ -7,12 +7,14 @@ export type ApiProject = {
   updatedAt?: string | Date | null;
 };
 
-export type ProjectPortfolioRow = {
+export type ProjectListRow = {
   id: string;
   name: string;
   key: string;
   description: string;
+  descriptionValue: string;
   translationContext: string;
+  translationContextValue: string;
   created: string;
   updated: string;
 };
@@ -53,13 +55,18 @@ function createProjectKey(project: ApiProject) {
   );
 }
 
-export function mapProjectToPortfolioRow(project: ApiProject): ProjectPortfolioRow {
+export function mapProjectToListRow(project: ApiProject): ProjectListRow {
+  const descriptionValue = project.description?.trim() ?? "";
+  const translationContextValue = project.translationContext?.trim() ?? "";
+
   return {
     id: project.id,
     name: project.name,
     key: createProjectKey(project),
-    description: project.description?.trim() || "No description",
-    translationContext: project.translationContext?.trim() || "No translation context",
+    description: descriptionValue || "No description",
+    descriptionValue,
+    translationContext: translationContextValue || "No translation context",
+    translationContextValue,
     created: formatTimestamp(project.createdAt, "Created date unavailable"),
     updated: formatTimestamp(project.updatedAt, "Updated date unavailable"),
   };
