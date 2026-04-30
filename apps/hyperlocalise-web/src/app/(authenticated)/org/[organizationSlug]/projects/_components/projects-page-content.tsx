@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { MetricsGrid, PageHeader, ResourceCard } from "../../_components/workspace-resource-shared";
-import { mapProjectToPortfolioRow, type ApiProject } from "./projects-portfolio";
+import { mapProjectToPortfolioRow } from "./projects-portfolio";
 
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const projectsQuery = useQuery({
@@ -21,7 +21,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         throw new Error(`Failed to load projects (${response.status})`);
       }
 
-      const body = (await response.json()) as { projects: ApiProject[] };
+      const body = await response.json();
       return body.projects.map(mapProjectToPortfolioRow);
     },
   });
