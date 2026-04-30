@@ -1,17 +1,45 @@
 "use client";
 
-import { FolderKanbanIcon } from "@hugeicons/core-free-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { MetricsGrid, PageHeader, ResourceCard } from "../../_components/workspace-resource-shared";
-import { mapProjectToPortfolioRow } from "./projects-portfolio";
+import { PageHeader } from "../../_components/workspace-resource-shared";
+import { ArchiveProjectDialog } from "./archive-project-dialog";
+import {
+  createEmptyProjectForm,
+  createProjectFormFromRow,
+  toProjectPayload,
+  type ProjectFormValues,
+} from "./project-form";
+import { ProjectDialog } from "./project-dialog";
+import { mapProjectToListRow, type ProjectListRow } from "./project-list";
+import { ProjectsTable } from "./projects-table";
+
+const projectQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
+
+async function readProjectError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null);
+
+  if (body && typeof body === "object" && "error" in body) {
+    return String(body.error);
+  }
+
+  return fallback;
+}
 
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const queryClient = useQueryClient();
+  const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
+  const [archiveProject, setArchiveProject] = useState<ProjectListRow | null>(null);
   const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
+    queryKey: projectQueryKey(organizationSlug),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -22,112 +50,168 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       }
 
       const body = await response.json();
-      return body.projects.map(mapProjectToPortfolioRow);
+      return body.projects.map(mapProjectToListRow);
+    },
+  });
+  const createProject = useMutation({
+    mutationFn: async (values: ProjectFormValues) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$post({
+        param: { organizationSlug },
+        json: toProjectPayload(values),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readProjectError(response, "Unable to create project"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      setProjectDialogMode(null);
+      toast.success("Project created");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  const updateProject = useMutation({
+    mutationFn: async ({ projectId, values }: { projectId: string; values: ProjectFormValues }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$patch({
+        param: { organizationSlug, projectId },
+        json: toProjectPayload(values),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readProjectError(response, "Unable to update project"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      setProjectDialogMode(null);
+      setEditingProject(null);
+      toast.success("Project updated");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  const archiveProjectMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
+        {
+          param: { organizationSlug, projectId },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(await readProjectError(response, "Unable to archive project"));
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      setArchiveProject(null);
+      toast.success("Project archived");
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
   const projects = projectsQuery.data ?? [];
-  const projectStatusLabel = projectsQuery.isLoading
-    ? "Loading"
-    : projectsQuery.isError
-      ? "Unavailable"
-      : `${projects.length} live`;
-  const projectMetrics = [
-    {
-      label: "Projects",
-      value: String(projects.length),
-      detail: projectsQuery.isLoading ? "loading from database" : "database records",
-      tone: "info",
-    },
-    {
-      label: "With description",
-      value: String(projects.filter((project) => project.description !== "No description").length),
-      detail: "project description set",
-      tone: "safe",
-    },
-    {
-      label: "With context",
-      value: String(
-        projects.filter((project) => project.translationContext !== "No translation context")
-          .length,
-      ),
-      detail: "translation context set",
-      tone: "info",
-    },
-  ] as const;
+  const isSavingProject = createProject.isPending || updateProject.isPending;
+  const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";
+  const projectDialogDescription =
+    projectDialogMode === "edit"
+      ? "Update the metadata stored with this project."
+      : "Add a project to track localization work and shared translation guidance.";
+  const initialProjectValues = useMemo(
+    () =>
+      projectDialogMode === "edit" && editingProject
+        ? createProjectFormFromRow(editingProject)
+        : createEmptyProjectForm(),
+    [editingProject, projectDialogMode],
+  );
+
+  function openCreateProjectDialog() {
+    setEditingProject(null);
+    setProjectDialogMode("create");
+  }
+
+  function openEditProjectDialog(project: ProjectListRow) {
+    setEditingProject(project);
+    setProjectDialogMode("edit");
+  }
+
+  function closeProjectDialog(open: boolean) {
+    if (open) {
+      return;
+    }
+
+    setProjectDialogMode(null);
+    setEditingProject(null);
+  }
+
+  function saveProject(values: ProjectFormValues) {
+    if (projectDialogMode === "edit" && editingProject) {
+      updateProject.mutate({ projectId: editingProject.id, values });
+      return;
+    }
+
+    createProject.mutate(values);
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <PageHeader
-        icon={FolderKanbanIcon}
-        label="Workspace projects"
-        title="Projects"
-        description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
-        statusLabel={projectStatusLabel}
-      />
-      <MetricsGrid metrics={projectMetrics} />
-      <section>
-        <ResourceCard
-          title="Project portfolio"
-          description="Live project records from the database with their stored description, translation context, and timestamps."
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <PageHeader
           icon={FolderKanbanIcon}
+          label="Workspace projects"
+          title="Projects"
+          description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
+        />
+        <Button
+          type="button"
+          onClick={openCreateProjectDialog}
+          className="w-full md:w-fit"
+          disabled={isSavingProject}
         >
-          <div className="overflow-x-auto">
-            <div className="min-w-240">
-              <div className="grid grid-cols-[minmax(12rem,0.9fr)_5rem_minmax(14rem,1.1fr)_minmax(14rem,1.1fr)_10rem_10rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
-                <p>Project</p>
-                <p>Key</p>
-                <p>Description</p>
-                <p>Translation context</p>
-                <p>Created</p>
-                <p>Updated</p>
-              </div>
-              <Separator className="bg-white/8" />
-              {projectsQuery.isLoading ? (
-                <div className="px-5 py-8 text-sm text-white/52">Loading projects…</div>
-              ) : null}
-              {projectsQuery.isError ? (
-                <div className="px-5 py-8">
-                  <p className="text-sm font-medium text-flame-100">Projects failed to load.</p>
-                  <p className="mt-1 text-xs text-white/42">
-                    {projectsQuery.error instanceof Error
-                      ? projectsQuery.error.message
-                      : "Refresh the page to try again."}
-                  </p>
-                </div>
-              ) : null}
-              {projectsQuery.isSuccess && projects.length === 0 ? (
-                <div className="px-5 py-8">
-                  <p className="text-sm font-medium text-white">No projects yet.</p>
-                  <p className="mt-1 text-xs text-white/42">
-                    Create a project to start tracking localization work here.
-                  </p>
-                </div>
-              ) : null}
-              {projectsQuery.isSuccess
-                ? projects.map((project, index) => (
-                    <div key={project.id}>
-                      <div className="grid grid-cols-[minmax(12rem,0.9fr)_5rem_minmax(14rem,1.1fr)_minmax(14rem,1.1fr)_10rem_10rem] items-center gap-3 px-5 py-4">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-white">{project.name}</p>
-                          <p className="mt-0.5 truncate text-xs text-white/42">{project.id}</p>
-                        </div>
-                        <p className="text-sm text-white/48">{project.key}</p>
-                        <p className="truncate text-sm text-white/58">{project.description}</p>
-                        <p className="truncate text-sm text-white/58">
-                          {project.translationContext}
-                        </p>
-                        <p className="text-sm text-white/42">{project.created}</p>
-                        <p className="text-sm text-white/42">{project.updated}</p>
-                      </div>
-                      {index < projects.length - 1 ? <Separator className="bg-white/8" /> : null}
-                    </div>
-                  ))
-                : null}
-            </div>
-          </div>
-        </ResourceCard>
+          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+          Create project
+        </Button>
+      </div>
+      <section>
+        <ProjectsTable
+          projects={projects}
+          projectsQuery={projectsQuery}
+          isSavingProject={isSavingProject}
+          isArchivingProject={archiveProjectMutation.isPending}
+          onCreateProject={openCreateProjectDialog}
+          onEditProject={openEditProjectDialog}
+          onArchiveProject={setArchiveProject}
+        />
       </section>
+      <ProjectDialog
+        open={projectDialogMode !== null}
+        title={projectDialogTitle}
+        description={projectDialogDescription}
+        initialValues={initialProjectValues}
+        isSaving={isSavingProject}
+        onOpenChange={closeProjectDialog}
+        onSubmit={saveProject}
+      />
+      <ArchiveProjectDialog
+        project={archiveProject}
+        isArchiving={archiveProjectMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open && !archiveProjectMutation.isPending) {
+            setArchiveProject(null);
+          }
+        }}
+        onArchive={archiveProjectMutation.mutate}
+      />
     </div>
   );
 }
