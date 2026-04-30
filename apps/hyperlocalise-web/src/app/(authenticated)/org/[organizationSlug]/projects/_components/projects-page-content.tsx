@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-shared";
+import { PageHeader } from "../../_components/workspace-resource-shared";
 import { ArchiveProjectDialog } from "./archive-project-dialog";
 import {
   createEmptyProjectForm,
@@ -122,34 +122,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
   const projects = projectsQuery.data ?? [];
   const isSavingProject = createProject.isPending || updateProject.isPending;
-  const projectStatusLabel = projectsQuery.isLoading
-    ? "Loading"
-    : projectsQuery.isError
-      ? "Unavailable"
-      : `${projects.length} live`;
-  const projectMetrics = [
-    {
-      label: "Projects",
-      value: String(projects.length),
-      detail: projectsQuery.isLoading ? "loading from database" : "database records",
-      tone: "info",
-    },
-    {
-      label: "With description",
-      value: String(projects.filter((project) => project.description !== "No description").length),
-      detail: "project description set",
-      tone: "safe",
-    },
-    {
-      label: "With context",
-      value: String(
-        projects.filter((project) => project.translationContext !== "No translation context")
-          .length,
-      ),
-      detail: "translation context set",
-      tone: "info",
-    },
-  ] as const;
   const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";
   const projectDialogDescription =
     projectDialogMode === "edit"
@@ -199,7 +171,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           label="Workspace projects"
           title="Projects"
           description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
-          statusLabel={projectStatusLabel}
         />
         <Button
           type="button"
@@ -211,13 +182,13 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           Create project
         </Button>
       </div>
-      <MetricsGrid metrics={projectMetrics} />
       <section>
         <ProjectsTable
           projects={projects}
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
           isArchivingProject={archiveProjectMutation.isPending}
+          onCreateProject={openCreateProjectDialog}
           onEditProject={openEditProjectDialog}
           onArchiveProject={setArchiveProject}
         />

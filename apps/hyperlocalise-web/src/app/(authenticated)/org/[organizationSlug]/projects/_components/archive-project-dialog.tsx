@@ -3,7 +3,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -11,6 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 import type { ProjectListRow } from "./project-list";
 
@@ -38,7 +38,7 @@ export function ArchiveProjectDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isArchiving}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
+          <Button
             variant="destructive"
             disabled={isArchiving || !project}
             onClick={() => {
@@ -49,7 +49,7 @@ export function ArchiveProjectDialog({
           >
             <HugeiconsIcon icon={Archive01Icon} strokeWidth={1.8} />
             {isArchiving ? "Archiving..." : "Archive"}
-          </AlertDialogAction>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

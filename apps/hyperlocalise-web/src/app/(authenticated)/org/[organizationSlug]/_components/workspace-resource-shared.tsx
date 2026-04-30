@@ -35,7 +35,7 @@ export function PageHeader({
   label: string;
   title: string;
   description: string;
-  statusLabel: string;
+  statusLabel?: string;
 }) {
   return (
     <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -47,12 +47,14 @@ export function PageHeader({
         <h1 className="mt-2 font-heading text-2xl font-medium text-white">{title}</h1>
         <p className="mt-2 text-sm leading-6 text-white/52">{description}</p>
       </div>
-      <Badge
-        variant="outline"
-        className="h-8 w-fit rounded-lg border-white/10 bg-white/4 text-white/64"
-      >
-        {statusLabel}
-      </Badge>
+      {statusLabel ? (
+        <Badge
+          variant="outline"
+          className="h-8 w-fit rounded-lg border-white/10 bg-white/4 text-white/64"
+        >
+          {statusLabel}
+        </Badge>
+      ) : null}
     </section>
   );
 }
