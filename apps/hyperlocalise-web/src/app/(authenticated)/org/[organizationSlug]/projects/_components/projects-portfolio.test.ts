@@ -22,30 +22,40 @@ describe("mapProjectToPortfolioRow", () => {
       id: "project_1234abcd",
       name: "Website Launch",
       key: "WL",
-      status: "Ready",
-      locales: "—",
-      jobs: "—",
-      progress: 0,
-      source: "Marketing site refresh",
-      next: "Use a concise launch voice.",
-      tone: "info",
+      description: "Marketing site refresh",
+      translationContext: "Use a concise launch voice.",
     });
+    expect(row.created).toContain("2026");
     expect(row.updated).toContain("2026");
   });
 
-  it("falls back when optional display fields are empty", () => {
+  it("falls back when optional database fields are empty or missing", () => {
     const row = mapProjectToPortfolioRow(
       createProject({
         name: "",
-        description: "",
-        translationContext: "",
+        description: null,
+        translationContext: undefined,
+        createdAt: null,
         updatedAt: "not-a-date",
       }),
     );
 
     expect(row.key).toBe("1234");
-    expect(row.source).toBe("Project API");
-    expect(row.next).toBe("Create translation jobs");
-    expect(row.updated).toBe("Updated recently");
+    expect(row.description).toBe("No description");
+    expect(row.translationContext).toBe("No translation context");
+    expect(row.created).toBe("Created date unavailable");
+    expect(row.updated).toBe("Updated date unavailable");
+  });
+
+  it("accepts date objects from database rows", () => {
+    const row = mapProjectToPortfolioRow(
+      createProject({
+        createdAt: new Date("2026-04-29T00:00:00.000Z"),
+        updatedAt: new Date("2026-04-30T03:20:00.000Z"),
+      }),
+    );
+
+    expect(row.created).toContain("2026");
+    expect(row.updated).toContain("2026");
   });
 });
