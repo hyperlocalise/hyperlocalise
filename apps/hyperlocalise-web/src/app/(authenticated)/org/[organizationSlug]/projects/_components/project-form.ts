@@ -34,11 +34,11 @@ export function validateProjectForm(values: ProjectFormValues): ProjectFormError
     errors.name = "Project name must be 200 characters or fewer.";
   }
 
-  if (values.description.length > 10_000) {
+  if (values.description.trim().length > 10_000) {
     errors.description = "Description must be 10,000 characters or fewer.";
   }
 
-  if (values.translationContext.length > 20_000) {
+  if (values.translationContext.trim().length > 20_000) {
     errors.translationContext = "Translation context must be 20,000 characters or fewer.";
   }
 

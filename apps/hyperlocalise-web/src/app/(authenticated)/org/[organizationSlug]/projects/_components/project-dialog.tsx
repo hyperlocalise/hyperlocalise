@@ -64,7 +64,16 @@ export function ProjectDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && isSaving) {
+          return;
+        }
+
+        onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="rounded-xl border border-white/10 bg-[#111] text-white sm:max-w-lg">
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>

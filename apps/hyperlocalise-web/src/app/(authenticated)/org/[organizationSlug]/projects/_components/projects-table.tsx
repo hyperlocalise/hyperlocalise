@@ -101,7 +101,7 @@ export function ProjectsTable({
                         onClick={() => {
                           onArchiveProject(project);
                         }}
-                        disabled={isArchivingProject}
+                        disabled={isArchivingProject || isSavingProject}
                       >
                         <HugeiconsIcon icon={Archive01Icon} strokeWidth={1.8} />
                       </Button>
