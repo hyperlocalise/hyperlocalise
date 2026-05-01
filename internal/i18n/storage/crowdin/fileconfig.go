@@ -39,9 +39,11 @@ type fileConfigYAML struct {
 	PreserveHierarchy bool            `yaml:"preserve_hierarchy"`
 	Files             []fileGroupYAML `yaml:"files"`
 
+	// Optional Crowdin branch used to scope API calls.
+	Branch string `yaml:"branch"`
+
 	// Optional Crowdin CLI / VCS keys (parsed for YAML compatibility; hl file mode does not use them yet).
 	ExportLanguages      []string `yaml:"export_languages"`
-	Branch               string   `yaml:"branch"`
 	PullRequestTitle     string   `yaml:"pull_request_title"`
 	PullRequestLabels    []string `yaml:"pull_request_labels"`
 	CommitMessage        string   `yaml:"commit_message"`
