@@ -536,8 +536,59 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
             };
           }
         }
+        // Conversation tracking for pending clarification
+        let conversationId: string | undefined;
+        const track = dependencies.trackConversation;
+        if (track) {
+          try {
+            const existing = await track.findBySourceThreadId(thread.id);
+            if (existing) {
+              conversationId = existing.id;
+              await track.addMessage({
+                conversationId,
+                senderType: "user",
+                text: message.text,
+                senderEmail,
+              });
+            }
+          } catch (trackError) {
+            log.error(
+              { error: trackError instanceof Error ? trackError.message : String(trackError) },
+              "conversation tracking failed",
+            );
+          }
+        }
+
+        // Wrap thread.post to also save agent messages
+        const originalPost = thread.post.bind(thread);
+        const trackedPost = async (...args: Parameters<typeof originalPost>) => {
+          const result = await originalPost(...args);
+          if (track && conversationId) {
+            try {
+              const text = typeof args[0] === "string" ? args[0] : "";
+              if (text) {
+                await track.addMessage({
+                  conversationId,
+                  senderType: "agent",
+                  text,
+                });
+              }
+            } catch {
+              // Best-effort tracking
+            }
+          }
+          return result;
+        };
+        (thread as { post: typeof trackedPost }).post = trackedPost;
+
         log.info("resuming pending clarification");
-        await handlePendingClarification({ thread, message, pending, dependencies });
+        await handlePendingClarification({
+          thread,
+          message,
+          pending,
+          dependencies,
+          conversationId,
+        });
         return;
       }
 

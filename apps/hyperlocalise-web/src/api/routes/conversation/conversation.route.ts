@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -60,6 +60,12 @@ export function createConversationRoutes() {
       if (query.status) {
         conditions.push(eq(schema.conversations.status, query.status));
       }
+      if (query.cursor) {
+        const cursorDate = new Date(query.cursor);
+        if (!Number.isNaN(cursorDate.getTime())) {
+          conditions.push(lt(schema.conversations.lastMessageAt, cursorDate));
+        }
+      }
 
       const conversations = await db
         .select({
@@ -81,7 +87,7 @@ export function createConversationRoutes() {
       const lastMessages =
         conversationIds.length > 0
           ? await db
-              .select({
+              .selectDistinctOn([schema.conversationMessages.conversationId], {
                 conversationId: schema.conversationMessages.conversationId,
                 text: schema.conversationMessages.text,
                 senderType: schema.conversationMessages.senderType,
@@ -89,7 +95,10 @@ export function createConversationRoutes() {
               })
               .from(schema.conversationMessages)
               .where(inArray(schema.conversationMessages.conversationId, conversationIds))
-              .orderBy(desc(schema.conversationMessages.createdAt))
+              .orderBy(
+                schema.conversationMessages.conversationId,
+                desc(schema.conversationMessages.createdAt),
+              )
           : [];
 
       const lastMessageMap = new Map<
