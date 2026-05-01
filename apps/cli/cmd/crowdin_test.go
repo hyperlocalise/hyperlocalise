@@ -141,6 +141,25 @@ func TestWriteCrowdinResultErrorReturnsWriteErrorWhenOperationSucceeds(t *testin
 	}
 }
 
+func TestCrowdinBranchOverrideAppliesToRequests(t *testing.T) {
+	cfg := storage.FileWorkflowConfig{Branch: "config-branch"}
+
+	sourceReq := crowdinstorageRequestSources(cfg, "flag-branch")
+	if sourceReq.Config.Branch != "flag-branch" {
+		t.Fatalf("source branch = %q, want flag-branch", sourceReq.Config.Branch)
+	}
+
+	translationsReq := crowdinstorageRequestTranslations(cfg, nil, "")
+	if translationsReq.Config.Branch != "config-branch" {
+		t.Fatalf("translation branch = %q, want config-branch", translationsReq.Config.Branch)
+	}
+
+	downloadReq := crowdinstorageRequestDownload(cfg, nil, "  flag-branch  ")
+	if downloadReq.Config.Branch != "flag-branch" {
+		t.Fatalf("download branch = %q, want trimmed flag-branch", downloadReq.Config.Branch)
+	}
+}
+
 type crowdinFailingWriter struct{}
 
 func (f *crowdinFailingWriter) Write(_ []byte) (int, error) {

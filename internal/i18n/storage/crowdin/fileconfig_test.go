@@ -202,6 +202,9 @@ files:
 	if len(cfg.Files) != 1 {
 		t.Fatalf("files len = %d, want 1", len(cfg.Files))
 	}
+	if cfg.Branch != "main" {
+		t.Fatalf("branch = %q, want main", cfg.Branch)
+	}
 	raw, err := decodeYAMLFile[fileConfigYAML](configPath)
 	if err != nil {
 		t.Fatalf("decode raw config: %v", err)

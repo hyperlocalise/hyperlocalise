@@ -8,9 +8,9 @@ description: "由 crowdin.yml 驱动的 Crowdin 兼容文件工作流命令。"
 ```bash
 hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload sources [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language <locale>]
+hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
+hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
 ```
 
 ## 此命令系列的作用
@@ -24,6 +24,7 @@ hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language
 - 从 `files[].source` 上传源文件
 - 从 `files[].translation` 上传翻译
 - 将翻译下载/导出回你的仓库
+- 使用根级 `branch:` 或 `--branch` 进行分支范围的上传和下载
 - 受支持的`crowdin.yml`字段的严格验证
 
 ## 支持的配置字段
@@ -36,6 +37,7 @@ hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -51,7 +53,6 @@ hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language
 
 此 v1 文件模式实现不支持：
 
-- 分支工作流
 - TM、词汇表、任务、截图、评论、分发或应用命令
 - 宽松的“警告并忽略”兼容模式
 - 交互式 Crowdin 项目引导程序
@@ -74,6 +75,12 @@ hyperlocalise crowdin upload sources
 
 ```bash
 hyperlocalise crowdin upload translations --language fr
+```
+
+上传源文件到 Crowdin 分支：
+
+```bash
+hyperlocalise crowdin upload sources --branch feature/login
 ```
 
 仅下载已批准的法语译文：

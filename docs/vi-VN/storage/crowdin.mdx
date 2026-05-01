@@ -81,6 +81,7 @@ Các trường `crowdin.yml` được hỗ trợ trong v1:
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -99,6 +100,8 @@ hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin download --language fr
 ```
+
+Dùng `branch:` ở gốc trong `crowdin.yml` hoặc truyền `--branch <name>` để tải lên và tải xuống tệp từ một nhánh Crowdin. Cờ này ghi đè giá trị cấu hình cho lệnh hiện tại.
 
 Xác thực sẽ thất bại an toàn khi gặp các trường hoặc lệnh Crowdin không được hỗ trợ.
 

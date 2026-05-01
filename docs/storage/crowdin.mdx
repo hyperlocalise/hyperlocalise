@@ -81,6 +81,7 @@ Supported `crowdin.yml` fields in v1:
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -99,6 +100,8 @@ hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin download --language fr
 ```
+
+Use root `branch:` in `crowdin.yml` or pass `--branch <name>` to upload and download files from a Crowdin branch. The flag overrides the config value for that command.
 
 Validation fails closed on unsupported Crowdin fields or commands.
 
