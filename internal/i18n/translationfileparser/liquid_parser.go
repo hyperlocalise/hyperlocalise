@@ -8,10 +8,7 @@ import (
 	"github.com/osteele/liquid/render"
 )
 
-// LiquidParser is the bootstrap parser for Shopify Liquid templates.
-//
-// Story 1.1 only establishes the parser shape and registration. Real key
-// extraction lands in later stories.
+// LiquidParser extracts static translation keys from Shopify Liquid templates.
 type LiquidParser struct{}
 
 func (p LiquidParser) Parse(content []byte) (map[string]string, error) {

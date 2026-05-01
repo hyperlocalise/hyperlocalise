@@ -15,7 +15,7 @@ func TestLiquidParserImplementsParserInterfaces(t *testing.T) {
 	requireLiquidContextParser(LiquidParser{})
 }
 
-func TestLiquidParserParseReturnsEmptyEntries(t *testing.T) {
+func TestLiquidParserParseExtractsStaticEntry(t *testing.T) {
 	t.Helper()
 
 	got, err := (LiquidParser{}).Parse([]byte(`{{ 'header.navigation.home' | t }}`))
@@ -87,6 +87,47 @@ func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Fatalf("expected no extracted entries for unsupported shapes, got %#v", got)
+	}
+}
+
+func TestLiquidParserParseSkipsNonTranslatableRegions(t *testing.T) {
+	t.Helper()
+
+	got, err := (LiquidParser{}).Parse([]byte(`
+{% comment %}
+{{ 'theme.comment.ignored' | t }}
+{% endcomment %}
+
+{% raw %}
+{{ 'theme.raw.ignored' | t }}
+{% endraw %}
+
+{{ "'theme.string_literal.ignored' | t" }}
+{% assign ignored = "'theme.assigned_string.ignored' | t" %}
+
+{{ 'theme.included' | t }}
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("expected one extracted entry, got %#v", got)
+	}
+	if got["theme.included"] != "theme.included" {
+		t.Fatalf("expected included key, got %#v", got)
+	}
+
+	ignoredKeys := []string{
+		"theme.comment.ignored",
+		"theme.raw.ignored",
+		"theme.string_literal.ignored",
+		"theme.assigned_string.ignored",
+	}
+	for _, key := range ignoredKeys {
+		if _, ok := got[key]; ok {
+			t.Fatalf("expected %q to be ignored, got %#v", key, got)
+		}
 	}
 }
 
