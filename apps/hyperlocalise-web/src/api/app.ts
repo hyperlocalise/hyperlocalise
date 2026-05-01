@@ -7,6 +7,8 @@ import type {
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { authRoutes } from "./routes/auth";
+import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
+import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
@@ -36,6 +38,8 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
+    .route("/orgs/:organizationSlug/conversations", createConversationRoutes())
+    .route("/orgs/:organizationSlug/chat-requests", createChatRequestRoutes())
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route(
       "/webhooks/github",
