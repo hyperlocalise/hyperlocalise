@@ -277,11 +277,7 @@ export function InboxPageContent({ organizationSlug }: { organizationSlug: strin
                           <span>{formatRelativeTime(item.lastMessageAt)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className="text-xs text-white/38">
-                          {formatRelativeTime(item.lastMessageAt)}
-                        </span>
-                      </div>
+                      <div className="flex flex-col items-end gap-2" />
                     </button>
                   );
                 })}

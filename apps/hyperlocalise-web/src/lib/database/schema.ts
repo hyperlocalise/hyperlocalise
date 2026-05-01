@@ -677,7 +677,6 @@ export const conversations = pgTable(
   (table) => [
     uniqueIndex("conversations_source_thread_id_key").on(table.sourceThreadId),
     index("idx_conversations_org_last_message").on(table.organizationId, table.lastMessageAt),
-    index("idx_conversations_source_thread").on(table.sourceThreadId),
   ],
 );
 

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -88,32 +88,23 @@ export function createConversationRoutes() {
                 createdAt: schema.conversationMessages.createdAt,
               })
               .from(schema.conversationMessages)
-              .where(
-                and(
-                  eq(
-                    schema.conversationMessages.id,
-                    db
-                      .select({ id: schema.conversationMessages.id })
-                      .from(schema.conversationMessages)
-                      .where(
-                        eq(
-                          schema.conversationMessages.conversationId,
-                          schema.conversationMessages.conversationId,
-                        ),
-                      )
-                      .orderBy(desc(schema.conversationMessages.createdAt))
-                      .limit(1),
-                  ),
-                ),
-              )
+              .where(inArray(schema.conversationMessages.conversationId, conversationIds))
+              .orderBy(desc(schema.conversationMessages.createdAt))
           : [];
 
-      const lastMessageMap = new Map(
-        lastMessages.map((m) => [
-          m.conversationId,
-          { text: m.text, senderType: m.senderType, createdAt: m.createdAt },
-        ]),
-      );
+      const lastMessageMap = new Map<
+        string,
+        { text: string; senderType: "user" | "agent"; createdAt: Date }
+      >();
+      for (const msg of lastMessages) {
+        if (!lastMessageMap.has(msg.conversationId)) {
+          lastMessageMap.set(msg.conversationId, {
+            text: msg.text,
+            senderType: msg.senderType,
+            createdAt: msg.createdAt,
+          });
+        }
+      }
 
       return c.json(
         {

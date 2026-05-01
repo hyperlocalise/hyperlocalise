@@ -31,6 +31,5 @@ ALTER TABLE "conversations" ADD CONSTRAINT "conversations_project_id_translation
 CREATE INDEX "idx_conversation_messages_conversation_created" ON "conversation_messages" USING btree ("conversation_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "conversations_source_thread_id_key" ON "conversations" USING btree ("source_thread_id");--> statement-breakpoint
 CREATE INDEX "idx_conversations_org_last_message" ON "conversations" USING btree ("organization_id","last_message_at");--> statement-breakpoint
-CREATE INDEX "idx_conversations_source_thread" ON "conversations" USING btree ("source_thread_id");--> statement-breakpoint
 ALTER TABLE "translation_jobs" ADD CONSTRAINT "translation_jobs_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_translation_jobs_conversation" ON "translation_jobs" USING btree ("conversation_id");
