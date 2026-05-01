@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
@@ -77,7 +78,14 @@ export function AppShellClient({
       >
         <SidebarHeader className="gap-3 border-b border-white/8 px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
           <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <div className="size-7 shrink-0 rounded-full border border-white/15 bg-[linear-gradient(135deg,#2a2a2a,#101010)]" />
+            <Image
+              src="/images/logo.png"
+              width={28}
+              height={28}
+              sizes="28px"
+              alt="Hyperlocalise logo"
+              className="size-7 shrink-0 rounded-full"
+            />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
               <p className="truncate text-xs text-white/45">{activeOrganization.name}</p>

@@ -64,6 +64,17 @@ export const llmProviderEnum = pgEnum("llm_provider", [
   "groq",
   "mistral",
 ]);
+export const conversationSourceEnum = pgEnum("conversation_source", [
+  "chat_ui",
+  "email_agent",
+  "github_agent",
+]);
+export const conversationStatusEnum = pgEnum("conversation_status", [
+  "active",
+  "archived",
+  "resolved",
+]);
+export const messageSenderTypeEnum = pgEnum("message_sender_type", ["user", "agent"]);
 
 export const organizations = pgTable(
   "organizations",
@@ -619,6 +630,10 @@ export const translationJobs = pgTable(
     lastError: text("last_error"),
     // External workflow execution reference for tracing across orchestration systems.
     workflowRunId: text("workflow_run_id"),
+    // Link back to the conversation that created this job, for Inbox display.
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
     // When the job record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When job state last changed.
@@ -634,5 +649,57 @@ export const translationJobs = pgTable(
     index("idx_translation_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_translation_jobs_workflow_run_id").on(table.workflowRunId),
     index("idx_translation_jobs_status").on(table.status),
+    index("idx_translation_jobs_conversation").on(table.conversationId),
+  ],
+);
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => translationProjects.id, {
+      onDelete: "set null",
+    }),
+    source: conversationSourceEnum("source").notNull(),
+    status: conversationStatusEnum("status").notNull().default("active"),
+    title: text("title").notNull(),
+    sourceThreadId: text("source_thread_id"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("conversations_source_thread_id_key").on(table.sourceThreadId),
+    index("idx_conversations_org_last_message").on(table.organizationId, table.lastMessageAt),
+  ],
+);
+
+export const conversationMessages = pgTable(
+  "conversation_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    senderType: messageSenderTypeEnum("sender_type").notNull(),
+    senderEmail: text("sender_email"),
+    text: text("text").notNull(),
+    attachments:
+      jsonb("attachments").$type<
+        Array<{ id: string; filename: string; contentType: string; url: string }>
+      >(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_conversation_messages_conversation_created").on(
+      table.conversationId,
+      table.createdAt,
+    ),
   ],
 );
