@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   BookOpenTextIcon,
   BotIcon,
+  BubbleChatTranslateIcon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
@@ -10,6 +11,7 @@ import {
   LinkSquare02Icon,
   Settings01Icon,
   Task01Icon,
+  WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -32,9 +34,19 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
     {
       items: [
         {
+          label: "New Chat",
+          href: `/org/${activeOrganizationSlug}/chat`,
+          icon: BubbleChatTranslateIcon,
+        },
+        {
           label: "Inbox",
           href: `/org/${activeOrganizationSlug}/inbox`,
           icon: InboxIcon,
+        },
+        {
+          label: "My Jobs",
+          href: `/org/${activeOrganizationSlug}/my-jobs`,
+          icon: WorkHistoryIcon,
         },
       ],
     },

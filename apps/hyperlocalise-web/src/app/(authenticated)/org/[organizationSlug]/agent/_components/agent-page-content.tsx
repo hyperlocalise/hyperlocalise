@@ -160,7 +160,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="space-y-5">
       <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 text-sm text-white/48">
@@ -317,6 +317,6 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

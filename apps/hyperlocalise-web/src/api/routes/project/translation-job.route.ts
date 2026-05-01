@@ -128,6 +128,10 @@ export function createTranslationJobRoutes(options: CreateTranslationJobRoutesOp
         filters.push(eq(schema.translationJobs.status, query.status));
       }
 
+      if (query.mine) {
+        filters.push(eq(schema.translationJobs.createdByUserId, c.var.auth.user.localUserId));
+      }
+
       const jobs = await db
         .select()
         .from(schema.translationJobs)

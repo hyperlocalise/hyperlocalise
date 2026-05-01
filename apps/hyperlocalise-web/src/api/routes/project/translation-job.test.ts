@@ -156,6 +156,10 @@ describe("translationJobRoutes", () => {
     const project = ((await projectResponse.json()) as ProjectResponse).project;
     const authHeader = await authHeadersFor(identity);
     const localUserId = await getLocalUserId(identity.user.workosUserId);
+    const teammateIdentity = createWorkosIdentityForOrganization(identity.organization, "admin");
+    await authHeadersFor(teammateIdentity);
+    const teammateLocalUserId = await getLocalUserId(teammateIdentity.user.workosUserId);
+    await authHeadersFor(identity);
 
     await insertTranslationJob({
       projectId: project.id,
@@ -189,10 +193,22 @@ describe("translationJobRoutes", () => {
       lastError: "Translation worker failed",
     });
 
+    await insertTranslationJob({
+      projectId: project.id,
+      createdByUserId: teammateLocalUserId,
+      type: "string",
+      status: "running",
+      inputPayload: {
+        sourceText: "Team job",
+        sourceLocale: "en-US",
+        targetLocales: ["it-IT"],
+      },
+    });
+
     const allResponse = await client.api.project[":projectId"].jobs.$get(
       {
         param: { projectId: project.id },
-        query: { limit: "50" },
+        query: { mine: "false", limit: "50" },
       },
       { headers: authHeader },
     );
@@ -202,13 +218,33 @@ describe("translationJobRoutes", () => {
       jobs: expect.arrayContaining([
         expect.objectContaining({ type: "string", status: "queued" }),
         expect.objectContaining({ type: "file", status: "failed" }),
+        expect.objectContaining({ type: "string", status: "running" }),
       ]),
     });
+
+    const mineResponse = await client.api.project[":projectId"].jobs.$get(
+      {
+        param: { projectId: project.id },
+        query: { mine: "true", limit: "50" },
+      },
+      { headers: authHeader },
+    );
+
+    expect(mineResponse.status).toBe(200);
+    const mineBody = (await mineResponse.json()) as { jobs: TranslationJobRecord[] };
+    expect(mineBody).toEqual({
+      jobs: expect.arrayContaining([
+        expect.objectContaining({ createdByUserId: localUserId, status: "queued" }),
+        expect.objectContaining({ createdByUserId: localUserId, status: "failed" }),
+      ]),
+    });
+    expect(mineBody.jobs).toHaveLength(2);
+    expect(mineBody.jobs.every((job) => job.createdByUserId === localUserId)).toBe(true);
 
     const filteredResponse = await client.api.project[":projectId"].jobs.$get(
       {
         param: { projectId: project.id },
-        query: { type: "file", status: "failed", limit: "50" },
+        query: { type: "file", status: "failed", mine: "false", limit: "50" },
       },
       { headers: authHeader },
     );
@@ -221,7 +257,7 @@ describe("translationJobRoutes", () => {
     const limitedResponse = await client.api.project[":projectId"].jobs.$get(
       {
         param: { projectId: project.id },
-        query: { limit: "1" },
+        query: { mine: "false", limit: "1" },
       },
       { headers: authHeader },
     );

@@ -6,8 +6,10 @@ describe("getAppShellTitle", () => {
   it.each([
     ["/org/acme/dashboard", "Analytics"],
     ["/org/acme/inbox", "Inbox"],
+    ["/org/acme/chat", "Chat"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/jobs", "Jobs"],
+    ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/context", "Context"],
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/agent", "Agent"],
