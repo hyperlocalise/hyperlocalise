@@ -195,6 +195,7 @@ func normalizeFileWorkflowConfig(raw fileConfigYAML, identity identityConfigYAML
 		APIToken:          apiToken,
 		APIBaseURL:        baseURL,
 		BasePath:          basePath,
+		Branch:            strings.TrimSpace(raw.Branch),
 		PreserveHierarchy: raw.PreserveHierarchy,
 		Files:             files,
 	}, nil

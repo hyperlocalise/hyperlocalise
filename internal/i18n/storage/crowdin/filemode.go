@@ -15,10 +15,11 @@ import (
 
 type FileClient interface {
 	ResolveLocales(ctx context.Context, projectID string, requested []string) ([]string, error)
-	EnsureDirectory(ctx context.Context, projectID, path string) (int, error)
-	FindDirectory(ctx context.Context, projectID, path string) (int, error)
-	UpsertSourceFile(ctx context.Context, projectID string, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error)
-	FindFile(ctx context.Context, projectID string, directoryID int, name string) (int, error)
+	ResolveBranch(ctx context.Context, projectID, branch string) (int, error)
+	EnsureDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error)
+	FindDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error)
+	UpsertSourceFile(ctx context.Context, projectID string, branchID, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error)
+	FindFile(ctx context.Context, projectID string, branchID, directoryID int, name string) (int, error)
 	UploadTranslationFile(ctx context.Context, projectID, languageID string, fileID int, localPath string) error
 	DownloadTranslationFile(ctx context.Context, projectID string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error)
 }
@@ -68,6 +69,10 @@ func (a *FileAdapter) FileWorkflowCapabilities() storage.FileWorkflowCapabilitie
 
 func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadSourcesRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
+	branchID, err := a.resolveBranchID(ctx, config)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
 	processed := make([]string, 0)
 	for _, group := range config.Files {
 		sourcePaths, err := resolveCrowdinSourcePaths(config.BasePath, group.Source)
@@ -79,11 +84,11 @@ func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadS
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed}, err
 			}
-			dirID, name, err := a.ensureRemoteLocation(ctx, config.ProjectID, remotePath)
+			dirID, name, err := a.ensureRemoteLocation(ctx, config.ProjectID, branchID, remotePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed}, err
 			}
-			if _, err := a.client.UpsertSourceFile(ctx, config.ProjectID, dirID, name, sourcePath, group); err != nil {
+			if _, err := a.client.UpsertSourceFile(ctx, config.ProjectID, branchID, dirID, name, sourcePath, group); err != nil {
 				return storage.FileOperationResult{Processed: processed}, err
 			}
 			processed = append(processed, remotePath)
@@ -96,6 +101,10 @@ func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadS
 func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUploadTranslationsRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
 	locales, err := a.client.ResolveLocales(ctx, config.ProjectID, req.Languages)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
+	branchID, err := a.resolveBranchID(ctx, config)
 	if err != nil {
 		return storage.FileOperationResult{}, err
 	}
@@ -114,11 +123,11 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, remotePath)
+			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, branchID, remotePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			fileID, err := a.client.FindFile(ctx, config.ProjectID, dirID, name)
+			fileID, err := a.client.FindFile(ctx, config.ProjectID, branchID, dirID, name)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
@@ -157,6 +166,10 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 	if err != nil {
 		return storage.FileOperationResult{}, err
 	}
+	branchID, err := a.resolveBranchID(ctx, config)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
 
 	processed := make([]string, 0)
 	skipped := make([]string, 0)
@@ -172,11 +185,11 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, remotePath)
+			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, branchID, remotePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
-			fileID, err := a.client.FindFile(ctx, config.ProjectID, dirID, name)
+			fileID, err := a.client.FindFile(ctx, config.ProjectID, branchID, dirID, name)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
@@ -216,24 +229,32 @@ func (a *FileAdapter) effectiveConfig(cfg storage.FileWorkflowConfig) storage.Fi
 	return a.cfg
 }
 
-func (a *FileAdapter) ensureRemoteLocation(ctx context.Context, projectID, remotePath string) (int, string, error) {
+func (a *FileAdapter) resolveBranchID(ctx context.Context, cfg storage.FileWorkflowConfig) (int, error) {
+	branch := strings.TrimSpace(cfg.Branch)
+	if branch == "" {
+		return 0, nil
+	}
+	return a.client.ResolveBranch(ctx, cfg.ProjectID, branch)
+}
+
+func (a *FileAdapter) ensureRemoteLocation(ctx context.Context, projectID string, branchID int, remotePath string) (int, string, error) {
 	dirPath := filepath.ToSlash(filepath.Dir(remotePath))
 	if dirPath == "." {
 		dirPath = ""
 	}
-	dirID, err := a.client.EnsureDirectory(ctx, projectID, dirPath)
+	dirID, err := a.client.EnsureDirectory(ctx, projectID, branchID, dirPath)
 	if err != nil {
 		return 0, "", err
 	}
 	return dirID, filepath.Base(remotePath), nil
 }
 
-func (a *FileAdapter) findRemoteLocation(ctx context.Context, projectID, remotePath string) (int, string, error) {
+func (a *FileAdapter) findRemoteLocation(ctx context.Context, projectID string, branchID int, remotePath string) (int, string, error) {
 	dirPath := filepath.ToSlash(filepath.Dir(remotePath))
 	if dirPath == "." {
 		dirPath = ""
 	}
-	dirID, err := a.client.FindDirectory(ctx, projectID, dirPath)
+	dirID, err := a.client.FindDirectory(ctx, projectID, branchID, dirPath)
 	if err != nil {
 		return 0, "", err
 	}

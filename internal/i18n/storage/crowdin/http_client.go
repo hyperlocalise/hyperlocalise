@@ -322,7 +322,41 @@ func (c *HTTPClient) ResolveLocales(ctx context.Context, projectID string, reque
 	return c.resolveLocales(ctx, projectInt, requested)
 }
 
-func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string) (int, error) {
+func (c *HTTPClient) ResolveBranch(ctx context.Context, projectID, branch string) (int, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return 0, err
+	}
+	branch = strings.TrimSpace(branch)
+	if branch == "" {
+		return 0, nil
+	}
+	offset := 0
+	for {
+		branches, _, err := c.client.Branches.List(ctx, projectInt, &model.BranchesListOptions{
+			Name: branch,
+			ListOptions: model.ListOptions{
+				Limit:  pageLimit,
+				Offset: offset,
+			},
+		})
+		if err != nil {
+			return 0, fmt.Errorf("list branches for %q: %w", branch, err)
+		}
+		for _, item := range branches {
+			if item != nil && item.Name == branch {
+				return item.ID, nil
+			}
+		}
+		if len(branches) < pageLimit {
+			break
+		}
+		offset += pageLimit
+	}
+	return 0, fmt.Errorf("crowdin branch %q not found", branch)
+}
+
+func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {
 		return 0, err
@@ -334,7 +368,7 @@ func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string
 
 	parentID := 0
 	for _, segment := range strings.Split(normalized, "/") {
-		directory, err := c.findDirectory(ctx, projectInt, parentID, segment)
+		directory, err := c.findDirectory(ctx, projectInt, branchID, parentID, segment)
 		if err != nil {
 			return 0, err
 		}
@@ -342,13 +376,15 @@ func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string
 			req := &model.DirectoryAddRequest{Name: segment}
 			if parentID > 0 {
 				req.DirectoryID = parentID
+			} else if branchID > 0 {
+				req.BranchID = branchID
 			}
 			directory, _, err = c.client.SourceFiles.AddDirectory(ctx, projectInt, req)
 			if err != nil {
 				if !isConflictError(err) {
 					return 0, fmt.Errorf("create directory %q: %w", segment, err)
 				}
-				directory, err = c.findDirectory(ctx, projectInt, parentID, segment)
+				directory, err = c.findDirectory(ctx, projectInt, branchID, parentID, segment)
 				if err != nil {
 					return 0, err
 				}
@@ -362,7 +398,7 @@ func (c *HTTPClient) EnsureDirectory(ctx context.Context, projectID, path string
 	return parentID, nil
 }
 
-func (c *HTTPClient) FindDirectory(ctx context.Context, projectID, path string) (int, error) {
+func (c *HTTPClient) FindDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {
 		return 0, err
@@ -374,7 +410,7 @@ func (c *HTTPClient) FindDirectory(ctx context.Context, projectID, path string) 
 
 	parentID := 0
 	for _, segment := range strings.Split(normalized, "/") {
-		directory, err := c.findDirectory(ctx, projectInt, parentID, segment)
+		directory, err := c.findDirectory(ctx, projectInt, branchID, parentID, segment)
 		if err != nil {
 			return 0, err
 		}
@@ -386,7 +422,7 @@ func (c *HTTPClient) FindDirectory(ctx context.Context, projectID, path string) 
 	return parentID, nil
 }
 
-func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error) {
+func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, branchID, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {
 		return 0, err
@@ -396,7 +432,7 @@ func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, dir
 		return 0, err
 	}
 
-	file, err := c.findFile(ctx, projectInt, directoryID, name)
+	file, err := c.findFile(ctx, projectInt, branchID, directoryID, name)
 	if err != nil {
 		return 0, err
 	}
@@ -408,6 +444,8 @@ func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, dir
 		}
 		if directoryID > 0 {
 			req.DirectoryID = directoryID
+		} else if branchID > 0 {
+			req.BranchID = branchID
 		}
 		file, _, err = c.client.SourceFiles.AddFile(ctx, projectInt, req)
 		if err != nil {
@@ -437,12 +475,12 @@ func (c *HTTPClient) UpsertSourceFile(ctx context.Context, projectID string, dir
 	return file.ID, nil
 }
 
-func (c *HTTPClient) FindFile(ctx context.Context, projectID string, directoryID int, name string) (int, error) {
+func (c *HTTPClient) FindFile(ctx context.Context, projectID string, branchID, directoryID int, name string) (int, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {
 		return 0, err
 	}
-	file, err := c.findFile(ctx, projectInt, directoryID, name)
+	file, err := c.findFile(ctx, projectInt, branchID, directoryID, name)
 	if err != nil {
 		return 0, err
 	}
@@ -510,10 +548,12 @@ func (c *HTTPClient) uploadStorage(ctx context.Context, localPath string) (int, 
 	return store.ID, nil
 }
 
-func (c *HTTPClient) findDirectory(ctx context.Context, projectID, parentDirectoryID int, name string) (*model.Directory, error) {
+func (c *HTTPClient) findDirectory(ctx context.Context, projectID, branchID, parentDirectoryID int, name string) (*model.Directory, error) {
 	opts := &model.DirectoryListOptions{Filter: name, ListOptions: model.ListOptions{Limit: pageLimit}}
 	if parentDirectoryID > 0 {
 		opts.DirectoryID = parentDirectoryID
+	} else if branchID > 0 {
+		opts.BranchID = branchID
 	}
 	directories, _, err := c.client.SourceFiles.ListDirectories(ctx, projectID, opts)
 	if err != nil {
@@ -527,10 +567,12 @@ func (c *HTTPClient) findDirectory(ctx context.Context, projectID, parentDirecto
 	return nil, nil
 }
 
-func (c *HTTPClient) findFile(ctx context.Context, projectID, directoryID int, name string) (*model.File, error) {
+func (c *HTTPClient) findFile(ctx context.Context, projectID, branchID, directoryID int, name string) (*model.File, error) {
 	opts := &model.FileListOptions{Filter: name, ListOptions: model.ListOptions{Limit: pageLimit}}
 	if directoryID > 0 {
 		opts.DirectoryID = directoryID
+	} else if branchID > 0 {
+		opts.BranchID = branchID
 	}
 	files, _, err := c.client.SourceFiles.ListFiles(ctx, projectID, opts)
 	if err != nil {

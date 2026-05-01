@@ -8,9 +8,9 @@ description: "Crowdin-compatible file workflow commands powered by crowdin.yml."
 ```bash
 hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload sources [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language <locale>]
+hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
+hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
 ```
 
 ## What this command family does
@@ -24,6 +24,7 @@ Use them when you want Crowdin-compatible file mode:
 - source-file upload from `files[].source`
 - translation upload from `files[].translation`
 - translation download/export back into your repo
+- branch-scoped upload and download with root `branch:` or `--branch`
 - strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
 ## Supported config fields
@@ -38,6 +39,7 @@ These drive Hyperlocalise Crowdin file mode:
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -51,7 +53,7 @@ These drive Hyperlocalise Crowdin file mode:
 
 The decoder also accepts several Crowdin-documented keys so you can reuse a standard `crowdin.yml` without stripping metadata. Hyperlocalise does **not** implement behavior for these yet; they are ignored after parse:
 
-- Root: `export_languages`, `branch`, `pull_request_title`, `pull_request_labels`, `commit_message`, `append_commit_message`, `pull_request_assignees`, `pull_request_reviewers`
+- Root: `export_languages`, `pull_request_title`, `pull_request_labels`, `commit_message`, `append_commit_message`, `pull_request_assignees`, `pull_request_reviewers`
 - Per file: `type`, `dest`, `update_option`, `export_pattern`, `translate_content`, `translate_attributes`, `content_segmentation`, `translatable_elements`, `ignore`, `translation_replace`, `first_line_contains_header`, `scheme`, `custom_segmentation`, `escape_quotes`, `escape_special_characters`, `labels`
 
 ## Unsupported features
@@ -60,7 +62,6 @@ YAML keys not listed above still cause a decode error (`KnownFields`).
 
 This v1 file-mode implementation does not support:
 
-- branch workflows (the `branch` field is accepted but not used)
 - TM, glossary, task, screenshot, comment, distribution, or app commands
 - permissive "warn and ignore" compatibility mode
 - interactive Crowdin project bootstrap
@@ -83,6 +84,12 @@ Upload only French translations:
 
 ```bash
 hyperlocalise crowdin upload translations --language fr
+```
+
+Upload sources to a Crowdin branch:
+
+```bash
+hyperlocalise crowdin upload sources --branch feature/login
 ```
 
 Download only approved French translations:

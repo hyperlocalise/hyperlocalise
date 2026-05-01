@@ -18,7 +18,7 @@
 - Run `make lint`.
 - Run `make test`.
 
-In apps/hyperlocalise-web:
+In apps/hyperlocalise-web, if we change these folder:
 
 - Run `vp test`
 - Run `vp check --fix`

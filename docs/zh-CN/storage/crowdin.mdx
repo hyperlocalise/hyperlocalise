@@ -81,6 +81,7 @@ v1 中支持的`crowdin.yml`字段：
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -99,6 +100,8 @@ hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin download --language fr
 ```
+
+使用 `crowdin.yml` 根级 `branch:` 或传递 `--branch <name>`，可以从 Crowdin 分支上传和下载文件。该标志会覆盖当前命令的配置值。
 
 对不受支持的 Crowdin 字段或命令，验证将失败并保持关闭状态。
 
