@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Add01Icon,
@@ -16,7 +17,7 @@ import {
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -82,7 +83,9 @@ type ApiProject = {
 };
 
 export function ChatPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const router = useRouter();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [text, setText] = useState("");
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],
     queryFn: async () => {
@@ -103,6 +106,25 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
     projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
   const projectTriggerLabel = selectedProject?.name ?? "Project";
 
+  const chatRequestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["chat-requests"].$post({
+        param: { organizationSlug },
+        json: {
+          text,
+          projectId: selectedProject?.id,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to send request (${response.status})`);
+      }
+      return response.json() as Promise<{ conversation: { id: string } }>;
+    },
+    onSuccess: (data) => {
+      router.push(`/org/${organizationSlug}/inbox/${data.conversation.id}`);
+    },
+  });
+
   return (
     <main className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-6xl flex-col items-center justify-center px-4 py-8 sm:px-6">
       <section className="w-full max-w-5xl">
@@ -118,6 +140,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
           </label>
           <textarea
             id="inbox-request"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
             className="min-h-36 w-full resize-none bg-transparent px-4 py-4 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:px-6 sm:py-5"
             placeholder="Paste source text or ask Hyperlocalise to translate a file, string, or inbox request..."
           />
@@ -225,6 +249,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               <Button
                 type="button"
                 size="icon-sm"
+                disabled={!text.trim() || chatRequestMutation.isPending}
+                onClick={() => chatRequestMutation.mutate()}
                 className="rounded-full bg-foreground text-app-shell-background hover:bg-foreground/90"
                 aria-label="Send translation request"
               >

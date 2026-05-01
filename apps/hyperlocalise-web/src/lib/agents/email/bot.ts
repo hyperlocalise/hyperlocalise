@@ -16,6 +16,12 @@ import {
   interpretClarificationReply,
   interpretEmailRequest,
 } from "./intent";
+import {
+  addConversationMessage,
+  createConversation,
+  findConversationBySourceThreadId,
+  linkJobToConversation,
+} from "@/lib/conversations";
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailAgentTask, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
@@ -36,6 +42,12 @@ export type EmailHandlerDependencies = {
   interpretClarificationReply: typeof interpretClarificationReply;
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
+  trackConversation?: {
+    create: typeof createConversation;
+    addMessage: typeof addConversationMessage;
+    findBySourceThreadId: typeof findConversationBySourceThreadId;
+    linkJob: typeof linkJobToConversation;
+  };
 };
 
 const intentConfirmationThreshold = 0.85;
@@ -188,8 +200,18 @@ async function enqueuePendingTranslation(input: {
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
   pending: PendingEmailAgentTask;
+  conversationId?: string;
+  linkJob?: typeof linkJobToConversation;
 }) {
-  const { thread, queue, fetchAttachmentDownloadUrls, handleImageAttachment, pending } = input;
+  const {
+    thread,
+    queue,
+    fetchAttachmentDownloadUrls,
+    handleImageAttachment,
+    pending,
+    conversationId,
+    linkJob,
+  } = input;
   const log = logger.child({ req: pending.requestId });
   log.info(
     {
@@ -331,7 +353,16 @@ async function enqueuePendingTranslation(input: {
   }
 
   for (const task of tasks) {
-    await queue.enqueue(task);
+    const result = await queue.enqueue(task);
+    if (conversationId && linkJob && result.ids.length > 0) {
+      try {
+        for (const jobId of result.ids) {
+          await linkJob(jobId, conversationId);
+        }
+      } catch {
+        // Best-effort linking; don't fail the email flow.
+      }
+    }
   }
 
   log.info({ taskCount: tasks.length, skippedDuplicateCount }, "email agent tasks enqueued");
@@ -389,8 +420,9 @@ async function handlePendingClarification(input: {
   message: Message;
   pending: PendingEmailAgentTask;
   dependencies: EmailHandlerDependencies;
+  conversationId?: string;
 }) {
-  const { thread, message, pending, dependencies } = input;
+  const { thread, message, pending, dependencies, conversationId } = input;
   const log = logger.child({ req: pending.requestId });
   log.info("handling pending clarification");
 
@@ -402,6 +434,8 @@ async function handlePendingClarification(input: {
       fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
       handleImageAttachment: dependencies.handleImageAttachment,
       pending,
+      conversationId,
+      linkJob: dependencies.trackConversation?.linkJob,
     });
     return;
   }
@@ -447,6 +481,8 @@ async function handlePendingClarification(input: {
     fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
     handleImageAttachment: dependencies.handleImageAttachment,
     pending: nextPending,
+    conversationId,
+    linkJob: dependencies.trackConversation?.linkJob,
   });
 }
 
@@ -523,6 +559,60 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         );
         return;
       }
+
+      // Conversation tracking
+      let conversationId: string | undefined;
+      const track = dependencies.trackConversation;
+      if (track) {
+        try {
+          const existing = await track.findBySourceThreadId(thread.id);
+          if (existing) {
+            conversationId = existing.id;
+          } else {
+            const created = await track.create({
+              organizationId: organization.id,
+              source: "email_agent",
+              title: raw.subject ?? "Email request",
+              sourceThreadId: thread.id,
+            });
+            conversationId = created.id;
+          }
+          await track.addMessage({
+            conversationId,
+            senderType: "user",
+            text: message.text,
+            senderEmail,
+          });
+        } catch (trackError) {
+          log.error(
+            { error: trackError instanceof Error ? trackError.message : String(trackError) },
+            "conversation tracking failed",
+          );
+        }
+      }
+
+      // Wrap thread.post to also save agent messages
+      const originalPost = thread.post.bind(thread);
+      const trackedPost = async (...args: Parameters<typeof originalPost>) => {
+        const result = await originalPost(...args);
+        if (track && conversationId) {
+          try {
+            const text = typeof args[0] === "string" ? args[0] : "";
+            if (text) {
+              await track.addMessage({
+                conversationId,
+                senderType: "agent",
+                text,
+              });
+            }
+          } catch {
+            // Best-effort tracking
+          }
+        }
+        return result;
+      };
+      // Replace thread.post temporarily for this handler invocation
+      (thread as { post: typeof trackedPost }).post = trackedPost;
 
       const intent = await dependencies.interpretEmailRequest({
         subject: raw.subject ?? "",
@@ -668,6 +758,8 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
         handleImageAttachment: dependencies.handleImageAttachment,
         pending: pendingRequest,
+        conversationId,
+        linkJob: track?.linkJob,
       });
     } catch (error) {
       log.error(
@@ -693,6 +785,12 @@ export async function getEmailBot(options?: { emailAgentTaskQueue?: EmailAgentTa
     interpretClarificationReply,
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
+    trackConversation: {
+      create: createConversation,
+      addMessage: addConversationMessage,
+      findBySourceThreadId: findConversationBySourceThreadId,
+      linkJob: linkJobToConversation,
+    },
   });
 
   if (!env.RESEND_API_KEY || !env.RESEND_WEBHOOK_SECRET || !env.RESEND_FROM_ADDRESS) {
