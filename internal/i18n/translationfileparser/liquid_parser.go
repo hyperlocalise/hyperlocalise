@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/osteele/liquid"
@@ -9,6 +10,28 @@ import (
 
 // LiquidParser extracts static translation keys from Shopify Liquid templates.
 type LiquidParser struct{}
+
+// LiquidParseError wraps malformed Liquid input or recovered parser panics.
+type LiquidParseError struct {
+	FilePath    string
+	Description string
+	PanicValue  any
+}
+
+func (e *LiquidParseError) Error() string {
+	if e == nil {
+		return ""
+	}
+	filePath := e.FilePath
+	if filePath == "" {
+		filePath = unknownDiagnosticFilePath
+	}
+	return fmt.Sprintf("liquid parse %q: %s", filePath, e.Description)
+}
+
+func (e *LiquidParseError) Unwrap() error {
+	return nil
+}
 
 func (p LiquidParser) Parse(content []byte) (map[string]string, error) {
 	values, _, err := p.ParseWithContext(content)
@@ -24,13 +47,40 @@ func (p LiquidParser) ParseWithContext(content []byte) (map[string]string, map[s
 }
 
 func (p LiquidParser) ParseWithDiagnostics(content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
+	return parseLiquidTemplateWithDiagnostics(content, diags, parseLiquidTemplateLocation)
+}
+
+type liquidTemplateLocationParser func(content []byte, filePath string, lineNumber int) (*liquid.Template, error)
+
+func parseLiquidTemplateLocation(content []byte, filePath string, lineNumber int) (*liquid.Template, error) {
 	engine := liquid.NewEngine()
-	template, err := engine.ParseTemplateLocation(content, "", 1)
+	return engine.ParseTemplateLocation(content, filePath, lineNumber)
+}
+
+func parseLiquidTemplateWithDiagnostics(content []byte, diags *[]Diagnostic, parse liquidTemplateLocationParser) (values map[string]string, contextByKey map[string]string, err error) {
+	filePath := unknownDiagnosticFilePath
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			values = nil
+			contextByKey = nil
+			err = &LiquidParseError{
+				FilePath:    filePath,
+				Description: fmt.Sprintf("recovered panic while parsing Liquid template: %v", recovered),
+				PanicValue:  recovered,
+			}
+		}
+	}()
+
+	template, err := parse(content, filePath, 1)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, &LiquidParseError{
+			FilePath:    filePath,
+			Description: fmt.Sprintf("parse Liquid template: %v", err),
+			PanicValue:  nil,
+		}
 	}
 
-	values := map[string]string{}
+	values = map[string]string{}
 
 	walkLiquidRenderNode(template.GetRoot(), values, diags)
 

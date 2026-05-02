@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -94,6 +95,64 @@ func TestLiquidParserParseWithDiagnosticsIgnoresStringLiteralPipes(t *testing.T)
 	}
 	if values["theme.included"] != "theme.included" {
 		t.Fatalf("expected included key, got %#v", values)
+	}
+}
+
+func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
+	t.Helper()
+
+	_, err := (LiquidParser{}).Parse([]byte(`{% if product.available %}{{ 'product.available' | t }}`))
+	if err == nil {
+		t.Fatal("expected malformed Liquid to return an error")
+	}
+
+	var parseErr *LiquidParseError
+	if !errors.As(err, &parseErr) {
+		t.Fatalf("expected LiquidParseError, got %T: %v", err, err)
+	}
+	if parseErr.Unwrap() != nil {
+		t.Fatalf("expected nil unwrap, got %v", parseErr.Unwrap())
+	}
+	assertLiquidParseErrorMessage(t, parseErr.Error())
+}
+
+func TestLiquidParserParseRecoversPanicAsTypedError(t *testing.T) {
+	t.Helper()
+
+	_, _, err := parseLiquidTemplateWithDiagnostics([]byte(`{{ 'static.key' | t }}`), nil, func([]byte, string, int) (*liquid.Template, error) {
+		panic("parser exploded")
+	})
+	if err == nil {
+		t.Fatal("expected recovered panic to return an error")
+	}
+
+	var parseErr *LiquidParseError
+	if !errors.As(err, &parseErr) {
+		t.Fatalf("expected LiquidParseError, got %T: %v", err, err)
+	}
+	if parseErr.Unwrap() != nil {
+		t.Fatalf("expected nil unwrap, got %v", parseErr.Unwrap())
+	}
+	if parseErr.PanicValue != "parser exploded" {
+		t.Fatalf("unexpected panic value: %#v", parseErr.PanicValue)
+	}
+	assertLiquidParseErrorMessage(t, parseErr.Error())
+}
+
+func TestLiquidParserStrategyErrorIncludesSourcePath(t *testing.T) {
+	t.Helper()
+
+	_, err := NewDefaultStrategy().Parse("sections/header.liquid", []byte(`{% if product.available %}`))
+	if err == nil {
+		t.Fatal("expected malformed Liquid to return an error")
+	}
+
+	var parseErr *LiquidParseError
+	if !errors.As(err, &parseErr) {
+		t.Fatalf("expected wrapped LiquidParseError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "sections/header.liquid") {
+		t.Fatalf("expected strategy error to include source path, got %q", err.Error())
 	}
 }
 
@@ -269,6 +328,17 @@ func TestLiquidPackageParsesChainedFilters(t *testing.T) {
 func requireLiquidParser(_ Parser) {}
 
 func requireLiquidContextParser(_ ContextParser) {}
+
+func assertLiquidParseErrorMessage(t *testing.T, message string) {
+	t.Helper()
+
+	if !strings.Contains(message, unknownDiagnosticFilePath) {
+		t.Fatalf("expected error message to include file path placeholder %q, got %q", unknownDiagnosticFilePath, message)
+	}
+	if !strings.Contains(strings.ToLower(message), "liquid") || !strings.Contains(strings.ToLower(message), "parse") {
+		t.Fatalf("expected error message to include parse failure description, got %q", message)
+	}
+}
 
 func assertLiquidDynamicKeyDiagnostic(t *testing.T, got Diagnostic, lineNumber int) {
 	t.Helper()
