@@ -48,6 +48,55 @@ func TestLiquidParserParseWithContextReturnsNilContext(t *testing.T) {
 	}
 }
 
+func TestLiquidParserParseWithDiagnosticsEmitsDynamicKeyWarning(t *testing.T) {
+	t.Helper()
+
+	var diagnostics []Diagnostic
+	values, contextByKey, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`{{ 'static.key' | t }}
+{{ product.title | t }}
+{{ section.settings.label | default: 'Label' | t }}
+`), &diagnostics)
+	if err != nil {
+		t.Fatalf("parse with diagnostics: %v", err)
+	}
+
+	if len(values) != 1 {
+		t.Fatalf("expected one static entry, got %#v", values)
+	}
+	if values["static.key"] != "static.key" {
+		t.Fatalf("expected static key to be extracted, got %#v", values)
+	}
+	if contextByKey != nil {
+		t.Fatalf("expected nil context map, got %#v", contextByKey)
+	}
+
+	if len(diagnostics) != 2 {
+		t.Fatalf("expected two diagnostics, got %#v", diagnostics)
+	}
+	assertLiquidDynamicKeyDiagnostic(t, diagnostics[0], 2)
+	assertLiquidDynamicKeyDiagnostic(t, diagnostics[1], 3)
+}
+
+func TestLiquidParserParseWithDiagnosticsIgnoresStringLiteralPipes(t *testing.T) {
+	t.Helper()
+
+	var diagnostics []Diagnostic
+	values, _, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`
+{{ "'theme.string_literal.ignored' | t" }}
+{{ 'theme.included' | t }}
+`), &diagnostics)
+	if err != nil {
+		t.Fatalf("parse with diagnostics: %v", err)
+	}
+
+	if len(diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics, got %#v", diagnostics)
+	}
+	if values["theme.included"] != "theme.included" {
+		t.Fatalf("expected included key, got %#v", values)
+	}
+}
+
 func TestLiquidParserParseExtractsMultipleStaticKeys(t *testing.T) {
 	t.Helper()
 
@@ -220,3 +269,20 @@ func TestLiquidPackageParsesChainedFilters(t *testing.T) {
 func requireLiquidParser(_ Parser) {}
 
 func requireLiquidContextParser(_ ContextParser) {}
+
+func assertLiquidDynamicKeyDiagnostic(t *testing.T, got Diagnostic, lineNumber int) {
+	t.Helper()
+
+	if got.Code != LiquidDynamicKeyDiagnosticCode {
+		t.Fatalf("unexpected diagnostic code: %#v", got)
+	}
+	if got.FilePath != unknownDiagnosticFilePath {
+		t.Fatalf("unexpected diagnostic file path: %#v", got)
+	}
+	if got.LineNumber != lineNumber {
+		t.Fatalf("unexpected diagnostic line number: got %d want %d in %#v", got.LineNumber, lineNumber, got)
+	}
+	if got.Hint != DefaultDiagnosticHint(LiquidDynamicKeyDiagnosticCode) {
+		t.Fatalf("unexpected diagnostic hint: %#v", got)
+	}
+}
