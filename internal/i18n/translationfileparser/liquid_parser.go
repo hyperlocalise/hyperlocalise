@@ -28,40 +28,57 @@ func (p LiquidParser) ParseWithContext(content []byte) (map[string]string, map[s
 	}
 
 	values := map[string]string{}
-	singleQuotedPattern := regexp.MustCompile(`^\{\{\s*'([^']+)'\s*\|\s*t\s*\}\}$`)
-	doubleQuotedPattern := regexp.MustCompile(`^\{\{\s*"([^"]+)"\s*\|\s*t\s*\}\}$`)
+	staticKeyPattern := regexp.MustCompile(`^\{\{\s*(?:'([^']+)'|"([^"]+)")\s*(\|.*?)\s*\}\}$`)
 
-	walkLiquidRenderNode(template.GetRoot(), values, singleQuotedPattern, doubleQuotedPattern)
+	walkLiquidRenderNode(template.GetRoot(), values, staticKeyPattern)
 
 	return values, nil, nil
 }
 
-func walkLiquidRenderNode(node render.Node, values map[string]string, singleQuotedPattern, doubleQuotedPattern *regexp.Regexp) {
+func walkLiquidRenderNode(node render.Node, values map[string]string, staticKeyPattern *regexp.Regexp) {
 	switch typed := node.(type) {
 	case *render.SeqNode:
 		for _, child := range typed.Children {
-			walkLiquidRenderNode(child, values, singleQuotedPattern, doubleQuotedPattern)
+			walkLiquidRenderNode(child, values, staticKeyPattern)
 		}
 	case *render.BlockNode:
 		for _, child := range typed.Body {
-			walkLiquidRenderNode(child, values, singleQuotedPattern, doubleQuotedPattern)
+			walkLiquidRenderNode(child, values, staticKeyPattern)
 		}
 		for _, clause := range typed.Clauses {
-			walkLiquidRenderNode(clause, values, singleQuotedPattern, doubleQuotedPattern)
+			walkLiquidRenderNode(clause, values, staticKeyPattern)
 		}
 	case *render.ObjectNode:
-		extractLiquidStaticKey(typed.SourceText(), values, singleQuotedPattern, doubleQuotedPattern)
+		extractLiquidStaticKey(typed.SourceText(), values, staticKeyPattern)
 	}
 }
 
-func extractLiquidStaticKey(sourceText string, values map[string]string, singleQuotedPattern, doubleQuotedPattern *regexp.Regexp) {
+func extractLiquidStaticKey(sourceText string, values map[string]string, staticKeyPattern *regexp.Regexp) {
 	trimmed := strings.TrimSpace(sourceText)
+	matches := staticKeyPattern.FindStringSubmatch(trimmed)
+	if len(matches) != 4 || !liquidFilterChainContainsT(matches[3]) {
+		return
+	}
 
-	if matches := singleQuotedPattern.FindStringSubmatch(trimmed); len(matches) == 2 {
+	if matches[1] != "" {
 		values[matches[1]] = matches[1]
 		return
 	}
-	if matches := doubleQuotedPattern.FindStringSubmatch(trimmed); len(matches) == 2 {
-		values[matches[1]] = matches[1]
+	values[matches[2]] = matches[2]
+}
+
+func liquidFilterChainContainsT(filterChain string) bool {
+	for _, rawFilter := range strings.Split(filterChain, "|") {
+		filter := strings.TrimSpace(rawFilter)
+		if filter == "" {
+			continue
+		}
+
+		name, _, _ := strings.Cut(filter, ":")
+		if strings.TrimSpace(name) == "t" {
+			return true
+		}
 	}
+
+	return false
 }

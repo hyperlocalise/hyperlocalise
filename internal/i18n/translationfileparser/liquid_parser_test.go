@@ -77,8 +77,6 @@ func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
 	got, err := (LiquidParser{}).Parse([]byte(`
 {{ variable | t }}
 {{ section.settings.label | t }}
-{{ 'header.navigation.home' | upcase | t }}
-{{ 'header.navigation.home' | t | escape }}
 {{ 'header.navigation.home' | upcase }}
 `))
 	if err != nil {
@@ -87,6 +85,67 @@ func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
 
 	if len(got) != 0 {
 		t.Fatalf("expected no extracted entries for unsupported shapes, got %#v", got)
+	}
+}
+
+func TestLiquidParserParseExtractsChainedFilterKeys(t *testing.T) {
+	t.Helper()
+
+	got, err := (LiquidParser{}).Parse([]byte(`
+{{ 'header.navigation.home' | upcase | t }}
+{{ 'footer.contact.title' | t | escape }}
+{{ "cart.checkout.label" | default: "Checkout" | t | escape }}
+{{ 'header.navigation.home' | upcase }}
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("expected three extracted entries, got %#v", got)
+	}
+	expectedKeys := []string{
+		"header.navigation.home",
+		"footer.contact.title",
+		"cart.checkout.label",
+	}
+	for _, key := range expectedKeys {
+		if got[key] != key {
+			t.Fatalf("expected %q to be extracted, got %#v", key, got)
+		}
+	}
+	if _, ok := got["header.navigation.home | upcase"]; ok {
+		t.Fatalf("expected non-t chain to be ignored, got %#v", got)
+	}
+}
+
+func TestLiquidParserParseExtractsHTMLSafeAndCaptureKeys(t *testing.T) {
+	t.Helper()
+
+	got, err := (LiquidParser{}).Parse([]byte(`
+{% capture header_title %}
+{{ 'sections.header.title' | t }}
+{% endcapture %}
+
+{{ 'sections.header.html' | html_safe | t }}
+{{ 'sections.footer.html' | t | html_safe }}
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("expected three extracted entries, got %#v", got)
+	}
+	expectedKeys := []string{
+		"sections.header.title",
+		"sections.header.html",
+		"sections.footer.html",
+	}
+	for _, key := range expectedKeys {
+		if got[key] != key {
+			t.Fatalf("expected %q to be extracted, got %#v", key, got)
+		}
 	}
 }
 
