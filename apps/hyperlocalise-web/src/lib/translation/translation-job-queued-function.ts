@@ -220,9 +220,9 @@ export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInpu
 async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
   const [project] = await db
     .select({
-      name: schema.translationProjects.name,
-      translationContext: schema.translationProjects.translationContext,
-      organizationId: schema.translationProjects.organizationId,
+      name: schema.projects.name,
+      translationContext: schema.projects.translationContext,
+      organizationId: schema.projects.organizationId,
       provider: schema.organizationLlmProviderCredentials.provider,
       defaultModel: schema.organizationLlmProviderCredentials.defaultModel,
       encryptionAlgorithm: schema.organizationLlmProviderCredentials.encryptionAlgorithm,
@@ -231,15 +231,18 @@ async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
       authTag: schema.organizationLlmProviderCredentials.authTag,
       keyVersion: schema.organizationLlmProviderCredentials.keyVersion,
     })
-    .from(schema.translationProjects)
+    .from(schema.projects)
     .leftJoin(
       schema.organizationLlmProviderCredentials,
-      eq(
-        schema.organizationLlmProviderCredentials.organizationId,
-        schema.translationProjects.organizationId,
+      and(
+        eq(
+          schema.organizationLlmProviderCredentials.organizationId,
+          schema.projects.organizationId,
+        ),
+        eq(schema.organizationLlmProviderCredentials.provider, "openai"),
       ),
     )
-    .where(eq(schema.translationProjects.id, projectId))
+    .where(eq(schema.projects.id, projectId))
     .limit(1);
 
   if (!project) {
@@ -332,11 +335,11 @@ export async function executeClaimedTranslationJob(
   if (translateStringJobOverride) {
     const [project] = await db
       .select({
-        name: schema.translationProjects.name,
-        translationContext: schema.translationProjects.translationContext,
+        name: schema.projects.name,
+        translationContext: schema.projects.translationContext,
       })
-      .from(schema.translationProjects)
-      .where(eq(schema.translationProjects.id, claimedJob.projectId))
+      .from(schema.projects)
+      .where(eq(schema.projects.id, claimedJob.projectId))
       .limit(1);
 
     if (!project) {

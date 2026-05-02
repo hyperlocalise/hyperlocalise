@@ -3,7 +3,6 @@ import {
   boolean,
   check,
   customType,
-  foreignKey,
   index,
   integer,
   jsonb,
@@ -46,8 +45,21 @@ const bigintText = customType<{ data: string; driverData: string | number }>({
 //      CREATE INDEX ... USING hnsw (embedding vector_cosine_ops);
 //   4. Query with hybrid ranking, for example lexical filtering plus cosine-distance ordering.
 
-export const jobKindEnum = pgEnum("job_kind", ["translation", "research", "brief"]);
-export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
+export const jobKindEnum = pgEnum("job_kind", [
+  "translation",
+  "research",
+  "review",
+  "sync",
+  "asset_management",
+]);
+export const jobStatusEnum = pgEnum("job_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "waiting_for_review",
+  "cancelled",
+]);
 export const translationJobTypeEnum = pgEnum("translation_job_type", ["string", "file"]);
 export const translationJobOutcomeKindEnum = pgEnum("translation_job_outcome_kind", [
   "string_result",
@@ -60,11 +72,7 @@ export const organizationMembershipRoleEnum = pgEnum("organization_membership_ro
   "member",
 ]);
 export const teamMembershipRoleEnum = pgEnum("team_membership_role", ["manager", "member"]);
-export const translationAssetStatusEnum = pgEnum("translation_asset_status", [
-  "draft",
-  "active",
-  "archived",
-]);
+export const assetStatusEnum = pgEnum("asset_status", ["draft", "active", "archived"]);
 export const llmProviderEnum = pgEnum("llm_provider", [
   "openai",
   "anthropic",
@@ -72,16 +80,12 @@ export const llmProviderEnum = pgEnum("llm_provider", [
   "groq",
   "mistral",
 ]);
-export const conversationSourceEnum = pgEnum("conversation_source", [
+export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
   "github_agent",
 ]);
-export const conversationStatusEnum = pgEnum("conversation_status", [
-  "active",
-  "archived",
-  "resolved",
-]);
+export const inboxStatusEnum = pgEnum("inbox_status", ["active", "archived"]);
 export const messageSenderTypeEnum = pgEnum("message_sender_type", ["user", "agent"]);
 
 export const organizations = pgTable(
@@ -95,10 +99,6 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     // Optional human-readable slug for URLs and future workspace routing.
     slug: text("slug"),
-    // Whether inbound email agent intake is active for this organization.
-    emailAgentEnabled: boolean("email_agent_enabled").notNull().default(false),
-    // Generated inbound email alias for organization-level email intake routing.
-    inboundEmailAlias: text("inbound_email_alias"),
     // When the organization record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When organization metadata was last changed.
@@ -110,7 +110,6 @@ export const organizations = pgTable(
   (table) => [
     uniqueIndex("organizations_workos_organization_id_key").on(table.workosOrganizationId),
     uniqueIndex("organizations_slug_key").on(table.slug),
-    uniqueIndex("organizations_inbound_email_alias_key").on(table.inboundEmailAlias),
     index("idx_organizations_created_at").on(table.createdAt),
   ],
 );
@@ -219,8 +218,8 @@ export const teamMemberships = pgTable(
   ],
 );
 
-export const translationProjects = pgTable(
-  "translation_projects",
+export const projects = pgTable(
+  "projects",
   {
     // Stable project identifier used by jobs and future translation assets.
     id: text("id").primaryKey(),
@@ -247,14 +246,14 @@ export const translationProjects = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("translation_projects_id_organization_id_key").on(table.id, table.organizationId),
-    index("idx_translation_projects_org_created_at").on(table.organizationId, table.createdAt),
-    index("idx_translation_projects_created_by_user_id").on(table.createdByUserId),
+    uniqueIndex("projects_id_organization_id_key").on(table.id, table.organizationId),
+    index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_projects_created_by_user_id").on(table.createdByUserId),
   ],
 );
 
-export const translationGlossaries = pgTable(
-  "translation_glossaries",
+export const glossaries = pgTable(
+  "glossaries",
   {
     // Stable glossary identifier for reusable terminology libraries.
     id: uuid("id").defaultRandom().primaryKey(),
@@ -274,7 +273,7 @@ export const translationGlossaries = pgTable(
     sourceLocale: text("source_locale").notNull(),
     targetLocale: text("target_locale").notNull(),
     // Lifecycle state for draft, active, and archived libraries.
-    status: translationAssetStatusEnum("status").notNull().default("active"),
+    status: assetStatusEnum("status").notNull().default("active"),
     // When the glossary was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When glossary metadata last changed.
@@ -284,26 +283,26 @@ export const translationGlossaries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("translation_glossaries_id_organization_id_key").on(table.id, table.organizationId),
-    index("idx_translation_glossaries_org_created_at").on(table.organizationId, table.createdAt),
-    index("idx_translation_glossaries_org_locale_pair").on(
+    uniqueIndex("glossaries_id_organization_id_key").on(table.id, table.organizationId),
+    index("idx_glossaries_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_glossaries_org_locale_pair").on(
       table.organizationId,
       table.sourceLocale,
       table.targetLocale,
     ),
-    index("idx_translation_glossaries_created_by_user_id").on(table.createdByUserId),
+    index("idx_glossaries_created_by_user_id").on(table.createdByUserId),
   ],
 );
 
-export const translationGlossaryTerms = pgTable(
-  "translation_glossary_terms",
+export const glossaryTerms = pgTable(
+  "glossary_terms",
   {
     // Stable glossary term identifier.
     id: uuid("id").defaultRandom().primaryKey(),
     // Parent glossary library that owns the term.
     glossaryId: uuid("glossary_id")
       .notNull()
-      .references(() => translationGlossaries.id, { onDelete: "cascade" }),
+      .references(() => glossaries.id, { onDelete: "cascade" }),
     // Source-side term to match against translation input.
     sourceTerm: text("source_term").notNull(),
     // Preferred target-side rendering for the source term.
@@ -316,6 +315,8 @@ export const translationGlossaryTerms = pgTable(
     caseSensitive: boolean("case_sensitive").notNull().default(false),
     // Whether the source term is explicitly forbidden in output.
     forbidden: boolean("forbidden").notNull().default(false),
+    // Review status for agent suggestions vs human-approved terms.
+    reviewStatus: text("review_status").notNull().default("approved"),
     // Extensible metadata for tags, domains, or import provenance.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -337,23 +338,17 @@ export const translationGlossaryTerms = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("translation_glossary_terms_glossary_source_term_key").on(
-      table.glossaryId,
-      table.sourceTerm,
-    ),
-    uniqueIndex("translation_glossary_terms_glossary_source_term_ci_key")
+    uniqueIndex("glossary_terms_glossary_source_term_key").on(table.glossaryId, table.sourceTerm),
+    uniqueIndex("glossary_terms_glossary_source_term_ci_key")
       .on(table.glossaryId, sql`lower(${table.sourceTerm})`)
       .where(sql`${table.caseSensitive} = false`),
-    index("idx_translation_glossary_terms_glossary_created_at").on(
-      table.glossaryId,
-      table.createdAt,
-    ),
-    index("idx_translation_glossary_terms_search_vector").using("gin", table.searchVector),
+    index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
+    index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],
 );
 
-export const translationMemories = pgTable(
-  "translation_memories",
+export const memories = pgTable(
+  "memories",
   {
     // Stable remote cache container identifier.
     id: uuid("id").defaultRandom().primaryKey(),
@@ -370,7 +365,7 @@ export const translationMemories = pgTable(
     // Optional description of the TM source and intended usage.
     description: text("description").notNull().default(""),
     // Lifecycle state for the TM library.
-    status: translationAssetStatusEnum("status").notNull().default("active"),
+    status: assetStatusEnum("status").notNull().default("active"),
     // When the TM was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When TM metadata last changed.
@@ -380,21 +375,21 @@ export const translationMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("translation_memories_id_organization_id_key").on(table.id, table.organizationId),
-    index("idx_translation_memories_org_created_at").on(table.organizationId, table.createdAt),
-    index("idx_translation_memories_created_by_user_id").on(table.createdByUserId),
+    uniqueIndex("memories_id_organization_id_key").on(table.id, table.organizationId),
+    index("idx_memories_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_memories_created_by_user_id").on(table.createdByUserId),
   ],
 );
 
-export const translationMemoryEntries = pgTable(
-  "translation_memory_entries",
+export const memoryEntries = pgTable(
+  "memory_entries",
   {
     // Stable TM entry identifier.
     id: uuid("id").defaultRandom().primaryKey(),
     // Parent TM container that owns the entry.
-    translationMemoryId: uuid("translation_memory_id")
+    memoryId: uuid("memory_id")
       .notNull()
-      .references(() => translationMemories.id, { onDelete: "cascade" }),
+      .references(() => memories.id, { onDelete: "cascade" }),
     // Locale pair captured by this aligned translation example.
     sourceLocale: text("source_locale").notNull(),
     targetLocale: text("target_locale").notNull(),
@@ -411,6 +406,8 @@ export const translationMemoryEntries = pgTable(
     provenance: text("provenance").notNull().default("manual"),
     // Optional external identifier retained for later sync or dedupe.
     externalKey: text("external_key"),
+    // Review status for agent suggestions vs human-approved entries.
+    reviewStatus: text("review_status").notNull().default("approved"),
     // Extensible metadata for import payloads or audit tags.
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
@@ -431,27 +428,27 @@ export const translationMemoryEntries = pgTable(
   },
   (table) => [
     check(
-      "translation_memory_entries_match_score_check",
+      "memory_entries_match_score_check",
       sql`${table.matchScore} >= 0 AND ${table.matchScore} <= 100`,
     ),
-    uniqueIndex("translation_memory_entries_memory_locale_source_key").on(
-      table.translationMemoryId,
+    uniqueIndex("memory_entries_memory_locale_source_key").on(
+      table.memoryId,
       table.sourceLocale,
       table.targetLocale,
       table.normalizedSourceText,
     ),
-    index("idx_translation_memory_entries_memory_locale_pair").on(
-      table.translationMemoryId,
+    index("idx_memory_entries_memory_locale_pair").on(
+      table.memoryId,
       table.sourceLocale,
       table.targetLocale,
     ),
-    index("idx_translation_memory_entries_external_key").on(table.externalKey),
-    index("idx_translation_memory_entries_search_vector").using("gin", table.searchVector),
+    index("idx_memory_entries_external_key").on(table.externalKey),
+    index("idx_memory_entries_search_vector").using("gin", table.searchVector),
   ],
 );
 
-export const translationProjectGlossaries = pgTable(
-  "translation_project_glossaries",
+export const projectGlossaries = pgTable(
+  "project_glossaries",
   {
     // Stable identifier for a project-to-glossary attachment.
     id: uuid("id").defaultRandom().primaryKey(),
@@ -460,7 +457,9 @@ export const translationProjectGlossaries = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Project receiving the reusable glossary library.
-    projectId: text("project_id").notNull(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     // Attached glossary library.
     glossaryId: uuid("glossary_id").notNull(),
     // Lower values can be loaded earlier during runtime assembly.
@@ -474,30 +473,14 @@ export const translationProjectGlossaries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    foreignKey({
-      columns: [table.projectId, table.organizationId],
-      foreignColumns: [translationProjects.id, translationProjects.organizationId],
-      name: "translation_project_glossaries_project_org_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.glossaryId, table.organizationId],
-      foreignColumns: [translationGlossaries.id, translationGlossaries.organizationId],
-      name: "translation_project_glossaries_glossary_org_fk",
-    }).onDelete("cascade"),
-    uniqueIndex("translation_project_glossaries_project_glossary_key").on(
-      table.projectId,
-      table.glossaryId,
-    ),
-    index("idx_translation_project_glossaries_org").on(table.organizationId),
-    index("idx_translation_project_glossaries_project_priority").on(
-      table.projectId,
-      table.priority,
-    ),
+    uniqueIndex("project_glossaries_project_glossary_key").on(table.projectId, table.glossaryId),
+    index("idx_project_glossaries_org").on(table.organizationId),
+    index("idx_project_glossaries_project_priority").on(table.projectId, table.priority),
   ],
 );
 
-export const translationProjectMemories = pgTable(
-  "translation_project_memories",
+export const projectMemories = pgTable(
+  "project_memories",
   {
     // Stable identifier for a project-to-TM attachment.
     id: uuid("id").defaultRandom().primaryKey(),
@@ -506,9 +489,11 @@ export const translationProjectMemories = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Project receiving the reusable TM library.
-    projectId: text("project_id").notNull(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     // Attached remote cache library.
-    translationMemoryId: uuid("translation_memory_id").notNull(),
+    memoryId: uuid("memory_id").notNull(),
     // Lower values can be searched earlier at runtime.
     priority: integer("priority").notNull().default(0),
     // When the attachment was first created.
@@ -520,22 +505,9 @@ export const translationProjectMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    foreignKey({
-      columns: [table.projectId, table.organizationId],
-      foreignColumns: [translationProjects.id, translationProjects.organizationId],
-      name: "translation_project_memories_project_org_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [table.translationMemoryId, table.organizationId],
-      foreignColumns: [translationMemories.id, translationMemories.organizationId],
-      name: "translation_project_memories_memory_org_fk",
-    }).onDelete("cascade"),
-    uniqueIndex("translation_project_memories_project_memory_key").on(
-      table.projectId,
-      table.translationMemoryId,
-    ),
-    index("idx_translation_project_memories_org").on(table.organizationId),
-    index("idx_translation_project_memories_project_priority").on(table.projectId, table.priority),
+    uniqueIndex("project_memories_project_memory_key").on(table.projectId, table.memoryId),
+    index("idx_project_memories_org").on(table.organizationId),
+    index("idx_project_memories_project_priority").on(table.projectId, table.priority),
   ],
 );
 
@@ -568,7 +540,10 @@ export const organizationLlmProviderCredentials = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("organization_llm_provider_credentials_org_key").on(table.organizationId),
+    uniqueIndex("organization_llm_provider_credentials_org_provider_key").on(
+      table.organizationId,
+      table.provider,
+    ),
     index("idx_organization_llm_provider_credentials_updated_at").on(table.updatedAt),
   ],
 );
@@ -604,9 +579,7 @@ export const githubInstallationRepositories = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    githubInstallationId: bigintText("github_installation_id")
-      .notNull()
-      .references(() => githubInstallations.githubInstallationId, { onDelete: "cascade" }),
+    githubInstallationId: bigintText("github_installation_id").notNull(),
     githubRepositoryId: bigintText("github_repository_id").notNull(),
     owner: text("owner").notNull(),
     name: text("name").notNull(),
@@ -636,6 +609,58 @@ export const githubInstallationRepositories = pgTable(
   ],
 );
 
+export const connectors = pgTable(
+  "connectors",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    config: jsonb("config")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("connectors_org_kind_key").on(table.organizationId, table.kind),
+    index("idx_connectors_org").on(table.organizationId),
+  ],
+);
+
+export const tmsLinks = pgTable(
+  "tms_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    provider: text("provider").notNull(),
+    externalAccountId: text("external_account_id"),
+    externalProjectId: text("external_project_id"),
+    config: jsonb("config")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_tms_links_org").on(table.organizationId),
+    index("idx_tms_links_org_provider").on(table.organizationId, table.provider),
+  ],
+);
+
 export const jobs = pgTable(
   "jobs",
   {
@@ -646,11 +671,13 @@ export const jobs = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Optional project context. Some jobs are workspace-level rather than project-level.
-    projectId: text("project_id"),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     // User who triggered the job, stored as an internal user ID.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    // Owner assigned for review or human oversight.
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
     // High-level job category used by routing, workers, and workspace job lists.
     kind: jobKindEnum("kind").notNull(),
     // App-level lifecycle state mirrored into Postgres for UI/API reads.
@@ -663,8 +690,14 @@ export const jobs = pgTable(
     lastError: text("last_error"),
     // External workflow execution reference for tracing across orchestration systems.
     workflowRunId: text("workflow_run_id"),
-    // Link back to the conversation that created this job, for Inbox display.
-    conversationId: uuid("conversation_id"),
+    // Link back to the interaction that created this job, for Inbox display.
+    interactionId: uuid("interaction_id").references(() => interactions.id, {
+      onDelete: "set null",
+    }),
+    // Explicit inspectable context packet assembled before execution.
+    contextSnapshot: jsonb("context_snapshot")
+      .$type<unknown>()
+      .default(sql`'{}'::jsonb`),
     // When the job record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When job state last changed.
@@ -676,23 +709,14 @@ export const jobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
-    foreignKey({
-      columns: [table.projectId, table.organizationId],
-      foreignColumns: [translationProjects.id, translationProjects.organizationId],
-      name: "jobs_project_org_fk",
-    }),
-    foreignKey({
-      columns: [table.conversationId, table.organizationId],
-      foreignColumns: [conversations.id, conversations.organizationId],
-      name: "jobs_conversation_org_fk",
-    }),
     index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_jobs_created_by_user_id").on(table.createdByUserId),
+    index("idx_jobs_owner_user_id").on(table.ownerUserId),
     index("idx_jobs_kind_status").on(table.kind, table.status),
     index("idx_jobs_workflow_run_id").on(table.workflowRunId),
     index("idx_jobs_status").on(table.status),
-    index("idx_jobs_conversation").on(table.conversationId),
+    index("idx_jobs_interaction").on(table.interactionId),
   ],
 );
 
@@ -714,16 +738,51 @@ export const translationJobDetails = pgTable(
   ],
 );
 
-export const conversations = pgTable(
-  "conversations",
+export const reviewJobDetails = pgTable("review_job_details", {
+  jobId: text("job_id")
+    .primaryKey()
+    .references(() => jobs.id, { onDelete: "cascade" }),
+  criteria: text("criteria").notNull().default(""),
+  targetLocale: text("target_locale"),
+  config: jsonb("config")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+});
+
+export const syncJobDetails = pgTable("sync_job_details", {
+  jobId: text("job_id")
+    .primaryKey()
+    .references(() => jobs.id, { onDelete: "cascade" }),
+  connectorKind: text("connector_kind").notNull(),
+  direction: text("direction").notNull(),
+  externalIdentifiers: jsonb("external_identifiers")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+});
+
+export const assetManagementJobDetails = pgTable("asset_management_job_details", {
+  jobId: text("job_id")
+    .primaryKey()
+    .references(() => jobs.id, { onDelete: "cascade" }),
+  assetType: text("asset_type").notNull(),
+  operation: text("operation").notNull(),
+  config: jsonb("config")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+});
+
+export const interactions = pgTable(
+  "interactions",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id"),
-    source: conversationSourceEnum("source").notNull(),
-    status: conversationStatusEnum("status").notNull().default("active"),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    source: interactionSourceEnum("source").notNull(),
     title: text("title").notNull(),
     sourceThreadId: text("source_thread_id"),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
@@ -734,26 +793,44 @@ export const conversations = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("conversations_id_organization_id_key").on(table.id, table.organizationId),
-    foreignKey({
-      columns: [table.projectId, table.organizationId],
-      foreignColumns: [translationProjects.id, translationProjects.organizationId],
-      name: "conversations_project_org_fk",
-    }),
-    uniqueIndex("conversations_org_source_thread_id_key")
+    uniqueIndex("interactions_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("interactions_org_source_thread_id_key")
       .on(table.organizationId, table.source, table.sourceThreadId)
       .where(sql`${table.sourceThreadId} IS NOT NULL`),
-    index("idx_conversations_org_last_message").on(table.organizationId, table.lastMessageAt),
+    index("idx_interactions_org_last_message").on(table.organizationId, table.lastMessageAt),
   ],
 );
 
-export const conversationMessages = pgTable(
-  "conversation_messages",
+export const inboxItems = pgTable(
+  "inbox_items",
+  {
+    interactionId: uuid("interaction_id")
+      .primaryKey()
+      .references(() => interactions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    status: inboxStatusEnum("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_inbox_items_org_status").on(table.organizationId, table.status),
+    index("idx_inbox_items_org_updated").on(table.organizationId, table.updatedAt),
+  ],
+);
+
+export const interactionMessages = pgTable(
+  "interaction_messages",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    conversationId: uuid("conversation_id")
+    interactionId: uuid("interaction_id")
       .notNull()
-      .references(() => conversations.id, { onDelete: "cascade" }),
+      .references(() => interactions.id, { onDelete: "cascade" }),
     senderType: messageSenderTypeEnum("sender_type").notNull(),
     senderEmail: text("sender_email"),
     text: text("text").notNull(),
@@ -764,9 +841,6 @@ export const conversationMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("idx_conversation_messages_conversation_created").on(
-      table.conversationId,
-      table.createdAt,
-    ),
+    index("idx_interaction_messages_interaction_created").on(table.interactionId, table.createdAt),
   ],
 );

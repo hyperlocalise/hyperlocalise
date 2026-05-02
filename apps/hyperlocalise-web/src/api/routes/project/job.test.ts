@@ -76,9 +76,9 @@ async function insertJob(params: {
   workflowRunId?: string;
 }) {
   const [project] = await db
-    .select({ organizationId: schema.translationProjects.organizationId })
-    .from(schema.translationProjects)
-    .where(eq(schema.translationProjects.id, params.projectId))
+    .select({ organizationId: schema.projects.organizationId })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, params.projectId))
     .limit(1);
 
   if (!project) {

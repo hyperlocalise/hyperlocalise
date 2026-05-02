@@ -24,7 +24,7 @@ type Conversation = {
   id: string;
   title: string;
   source: "chat_ui" | "email_agent" | "github_agent";
-  status: "active" | "archived" | "resolved";
+  status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;
   createdAt: string;
@@ -63,7 +63,6 @@ const sourceLabel: Record<string, string> = {
 const statusStyles = {
   active: "bg-beam-500/14 text-beam-100 ring-beam-500/24",
   archived: "bg-grove-300/14 text-grove-100 ring-grove-300/24",
-  resolved: "bg-grove-300/14 text-grove-100 ring-grove-300/24",
 };
 
 const jobStatusStyles = {
@@ -219,7 +218,7 @@ export function InboxPageContent({ organizationSlug }: { organizationSlug: strin
               Active
             </Badge>
             <Badge variant="ghost" className="text-white/46">
-              Resolved
+              Archived
             </Badge>
           </div>
 

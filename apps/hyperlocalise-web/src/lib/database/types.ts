@@ -10,13 +10,18 @@ import type {
   teamMembershipRoleEnum,
   teamMemberships,
   teams,
-  translationProjects,
+  projects,
   translationJobOutcomeKindEnum,
   translationJobTypeEnum,
+  interactions,
+  inboxItems,
+  interactionMessages,
+  connectors,
+  tmsLinks,
 } from "@/lib/database/schema";
 
-export type TranslationProject = typeof translationProjects.$inferSelect;
-export type NewTranslationProject = typeof translationProjects.$inferInsert;
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
 
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
@@ -51,3 +56,14 @@ export type NewTeamMembership = typeof teamMemberships.$inferInsert;
 export type TeamMembershipRole = (typeof teamMembershipRoleEnum.enumValues)[number];
 export type GitHubInstallation = typeof githubInstallations.$inferSelect;
 export type NewGitHubInstallation = typeof githubInstallations.$inferInsert;
+
+export type Interaction = typeof interactions.$inferSelect;
+export type NewInteraction = typeof interactions.$inferInsert;
+export type InboxItem = typeof inboxItems.$inferSelect;
+export type NewInboxItem = typeof inboxItems.$inferInsert;
+export type InteractionMessage = typeof interactionMessages.$inferSelect;
+export type NewInteractionMessage = typeof interactionMessages.$inferInsert;
+export type Connector = typeof connectors.$inferSelect;
+export type NewConnector = typeof connectors.$inferInsert;
+export type TmsLink = typeof tmsLinks.$inferSelect;
+export type NewTmsLink = typeof tmsLinks.$inferInsert;

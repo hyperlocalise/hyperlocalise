@@ -6,10 +6,10 @@ import type { Message, Thread } from "chat";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { env } from "@/lib/env";
 import {
-  addConversationMessage,
-  createConversation,
-  findConversationBySourceThreadId,
-} from "@/lib/conversations";
+  addInteractionMessage,
+  createInteraction,
+  findInteractionBySourceThreadId,
+} from "@/lib/interactions";
 import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow/types";
@@ -73,7 +73,7 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
   try {
     const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
     if (organizationId) {
-      const existing = await findConversationBySourceThreadId({
+      const existing = await findInteractionBySourceThreadId({
         organizationId,
         source: "github_agent",
         sourceThreadId: thread.id,
@@ -85,7 +85,7 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
         const title = raw?.repository?.full_name
           ? `${raw.repository.full_name}#${raw.prNumber ?? ""}`
           : "GitHub fix request";
-        const created = await createConversation({
+        const created = await createInteraction({
           organizationId,
           source: "github_agent",
           title,
@@ -93,8 +93,8 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
         });
         conversationId = created.id;
       }
-      await addConversationMessage({
-        conversationId,
+      await addInteractionMessage({
+        interactionId: conversationId,
         senderType: "user",
         text: message.text,
       });
@@ -108,8 +108,8 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
         try {
           const text = typeof args[0] === "string" ? args[0] : "";
           if (text) {
-            await addConversationMessage({
-              conversationId: conversationId!,
+            await addInteractionMessage({
+              interactionId: conversationId!,
               senderType: "agent",
               text,
             });

@@ -37,7 +37,7 @@ const jobSelect = {
   outcomePayload: schema.jobs.outcomePayload,
   lastError: schema.jobs.lastError,
   workflowRunId: schema.jobs.workflowRunId,
-  conversationId: schema.jobs.conversationId,
+  interactionId: schema.jobs.interactionId,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
@@ -45,7 +45,7 @@ const jobSelect = {
 
 const jobWithProjectSelect = {
   ...jobSelect,
-  projectName: schema.translationProjects.name,
+  projectName: schema.projects.name,
 };
 
 function invalidJobPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
@@ -89,7 +89,7 @@ function jobListFilters(input: {
   organizationId?: string;
   projectId?: string;
   type?: "string" | "file";
-  status?: "queued" | "running" | "succeeded" | "failed";
+  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   mine?: boolean;
   userId?: string;
 }) {
@@ -338,10 +338,10 @@ export function createWorkspaceJobRoutes() {
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
         .innerJoin(
-          schema.translationProjects,
+          schema.projects,
           and(
-            eq(schema.translationProjects.id, schema.jobs.projectId),
-            eq(schema.translationProjects.organizationId, schema.jobs.organizationId),
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
           ),
         )
         .where(and(...filters))

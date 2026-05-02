@@ -17,11 +17,11 @@ import {
   interpretEmailRequest,
 } from "./intent";
 import {
-  addConversationMessage,
-  createConversation,
-  findConversationBySourceThreadId,
-  linkJobToConversation,
-} from "@/lib/conversations";
+  addInteractionMessage,
+  createInteraction,
+  findInteractionBySourceThreadId,
+  linkJobToInteraction,
+} from "@/lib/interactions";
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailAgentTask, RawEmailMessage } from "./types";
 import { lookupUserByEmail } from "./users";
@@ -43,10 +43,10 @@ export type EmailHandlerDependencies = {
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
   trackConversation?: {
-    create: typeof createConversation;
-    addMessage: typeof addConversationMessage;
-    findBySourceThreadId: typeof findConversationBySourceThreadId;
-    linkJob: typeof linkJobToConversation;
+    create: typeof createInteraction;
+    addMessage: typeof addInteractionMessage;
+    findBySourceThreadId: typeof findInteractionBySourceThreadId;
+    linkJob: typeof linkJobToInteraction;
   };
 };
 
@@ -202,7 +202,7 @@ async function enqueuePendingTranslation(input: {
   pending: PendingEmailAgentTask;
   organizationId?: string;
   conversationId?: string;
-  linkJob?: typeof linkJobToConversation;
+  linkJob?: typeof linkJobToInteraction;
 }) {
   const {
     thread,
@@ -359,7 +359,7 @@ async function enqueuePendingTranslation(input: {
     if (organizationId && conversationId && linkJob && result.ids.length > 0) {
       try {
         for (const jobId of result.ids) {
-          await linkJob({ organizationId, jobId, conversationId });
+          await linkJob({ organizationId, jobId, interactionId: conversationId });
         }
       } catch {
         // Best-effort linking; don't fail the email flow.
@@ -561,7 +561,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
               if (existing) {
                 conversationId = existing.id;
                 await track.addMessage({
-                  conversationId,
+                  interactionId: conversationId,
                   senderType: "user",
                   text: message.text,
                   senderEmail,
@@ -585,7 +585,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
               const text = typeof args[0] === "string" ? args[0] : "";
               if (text) {
                 await track.addMessage({
-                  conversationId,
+                  interactionId: conversationId,
                   senderType: "agent",
                   text,
                 });
@@ -651,7 +651,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
             conversationId = created.id;
           }
           await track.addMessage({
-            conversationId,
+            interactionId: conversationId,
             senderType: "user",
             text: message.text,
             senderEmail,
@@ -673,7 +673,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
             const text = typeof args[0] === "string" ? args[0] : "";
             if (text) {
               await track.addMessage({
-                conversationId,
+                interactionId: conversationId,
                 senderType: "agent",
                 text,
               });
@@ -860,10 +860,10 @@ export async function getEmailBot(options?: { emailAgentTaskQueue?: EmailAgentTa
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
     trackConversation: {
-      create: createConversation,
-      addMessage: addConversationMessage,
-      findBySourceThreadId: findConversationBySourceThreadId,
-      linkJob: linkJobToConversation,
+      create: createInteraction,
+      addMessage: addInteractionMessage,
+      findBySourceThreadId: findInteractionBySourceThreadId,
+      linkJob: linkJobToInteraction,
     },
   });
 
