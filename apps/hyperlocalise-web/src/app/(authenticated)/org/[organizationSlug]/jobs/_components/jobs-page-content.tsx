@@ -231,7 +231,7 @@ export function JobsPageContent({
   const projects = projectsQuery.data ?? [];
   const projectIds = projects.map((project) => project.id).join(",");
   const jobsQuery = useQuery({
-    queryKey: ["translation-jobs", organizationSlug, scope, projectIds],
+    queryKey: ["jobs", organizationSlug, scope, projectIds],
     enabled: projectsQuery.isSuccess && projects.length > 0,
     queryFn: async () => {
       const jobGroups = await Promise.all(

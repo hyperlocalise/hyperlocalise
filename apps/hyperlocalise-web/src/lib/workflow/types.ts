@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use a generic job-queued event keyed by `kind` for new workflow handlers.
+ * This event remains for the current translation worker compatibility path.
+ */
 export type TranslationJobQueuedEventData = {
   jobId: string;
   projectId: string;
@@ -54,6 +58,10 @@ export type GitHubFixRequestedEventData = {
   scope: GitHubFixScope;
 };
 
+/**
+ * @deprecated Use a generic job queue for new job kinds. This queue is retained
+ * for the existing translation worker adapter.
+ */
 export type TranslationJobQueue = {
   enqueue(event: TranslationJobQueuedEventData): Promise<{ ids: string[] }>;
 };

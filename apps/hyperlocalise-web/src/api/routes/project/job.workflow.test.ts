@@ -49,24 +49,57 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+async function insertJob(input: {
+  organizationId: string;
+  projectId: string;
+  createdByUserId: string;
+  type: "string" | "file";
+  status: "queued" | "running" | "succeeded" | "failed";
+  workflowRunId?: string;
+  inputPayload: Record<string, unknown>;
+}) {
+  return db.transaction(async (tx) => {
+    const [job] = await tx
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        createdByUserId: input.createdByUserId,
+        kind: "translation",
+        status: input.status,
+        workflowRunId: input.workflowRunId ?? null,
+        inputPayload: input.inputPayload,
+      })
+      .returning();
+
+    const [details] = await tx
+      .insert(schema.translationJobDetails)
+      .values({
+        jobId: job.id,
+        type: input.type,
+      })
+      .returning();
+
+    return { ...job, type: details.type };
+  });
+}
+
 describe("executeTranslationJobQueued", () => {
   it("records the workflow run id and completes an existing queued string job", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "queued",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     const executeTranslationJobQueued = createTranslationJobQueuedFunction({
       async translateStringJob() {
@@ -98,19 +131,18 @@ describe("executeTranslationJobQueued", () => {
     const resultWithRunId = result as { workflowRunId: string };
     const [storedJob] = await db
       .select({
-        workflowRunId: schema.translationJobs.workflowRunId,
-        status: schema.translationJobs.status,
-        outcomeKind: schema.translationJobs.outcomeKind,
-        outcomePayload: schema.translationJobs.outcomePayload,
-        completedAt: schema.translationJobs.completedAt,
+        workflowRunId: schema.jobs.workflowRunId,
+        status: schema.jobs.status,
+        outcomeKind: schema.translationJobDetails.outcomeKind,
+        outcomePayload: schema.jobs.outcomePayload,
+        completedAt: schema.jobs.completedAt,
       })
-      .from(schema.translationJobs)
-      .where(
-        and(
-          eq(schema.translationJobs.projectId, project.id),
-          eq(schema.translationJobs.id, job.id),
-        ),
+      .from(schema.jobs)
+      .innerJoin(
+        schema.translationJobDetails,
+        eq(schema.translationJobDetails.jobId, schema.jobs.id),
       )
+      .where(and(eq(schema.jobs.projectId, project.id), eq(schema.jobs.id, job.id)))
       .limit(1);
 
     expect(storedJob?.workflowRunId).toBe(resultWithRunId.workflowRunId);
@@ -124,22 +156,19 @@ describe("executeTranslationJobQueued", () => {
 
   it("does not overwrite an existing workflow run id on replay", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "queued",
-        workflowRunId: "run_existing",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      workflowRunId: "run_existing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     const translateStringJob = vi.fn(async () => ({
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
@@ -169,16 +198,11 @@ describe("executeTranslationJobQueued", () => {
 
     const [storedJob] = await db
       .select({
-        workflowRunId: schema.translationJobs.workflowRunId,
-        status: schema.translationJobs.status,
+        workflowRunId: schema.jobs.workflowRunId,
+        status: schema.jobs.status,
       })
-      .from(schema.translationJobs)
-      .where(
-        and(
-          eq(schema.translationJobs.projectId, project.id),
-          eq(schema.translationJobs.id, job.id),
-        ),
-      )
+      .from(schema.jobs)
+      .where(and(eq(schema.jobs.projectId, project.id), eq(schema.jobs.id, job.id)))
       .limit(1);
 
     expect(storedJob?.workflowRunId).toBe("run_existing");
@@ -188,22 +212,19 @@ describe("executeTranslationJobQueued", () => {
 
   it("does not complete a job owned by another workflow run", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "running",
-        workflowRunId: "run_existing",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "running",
+      workflowRunId: "run_existing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     await expect(
       completeTranslationJob({
@@ -219,22 +240,19 @@ describe("executeTranslationJobQueued", () => {
 
   it("does not fail a job owned by another workflow run", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "running",
-        workflowRunId: "run_existing",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "running",
+      workflowRunId: "run_existing",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     await expect(
       failTranslationJob({
@@ -249,21 +267,18 @@ describe("executeTranslationJobQueued", () => {
 
   it("fails when the organization has no OpenAI provider credential", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "queued",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     const executeTranslationJobQueued = createTranslationJobQueuedFunction();
     const result = await executeTranslationJobQueued({
@@ -296,21 +311,18 @@ describe("executeTranslationJobQueued", () => {
       provider: "gemini",
       defaultModel: "gemini-2.0-flash",
     });
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "queued",
-        inputPayload: {
-          sourceText: "Hello world",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     const executeTranslationJobQueued = createTranslationJobQueuedFunction();
     const result = await executeTranslationJobQueued({
@@ -337,21 +349,18 @@ describe("executeTranslationJobQueued", () => {
 
   it("fails invalid stored input without calling the translation model", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
-    const [job] = await db
-      .insert(schema.translationJobs)
-      .values({
-        id: `job_${randomUUID()}`,
-        projectId: project.id,
-        createdByUserId: user.id,
-        type: "string",
-        status: "queued",
-        inputPayload: {
-          sourceText: "",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
-        },
-      })
-      .returning();
+    const job = await insertJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
 
     const translateStringJob = vi.fn(async () => ({
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],

@@ -24,7 +24,7 @@ import {
   ownedProjectWhere,
   projectNotFoundResponse,
 } from "./project.shared";
-import { createTranslationJobRoutes } from "./translation-job.route";
+import { createJobRoutes } from "./job.route";
 
 type ProjectStore = {
   list(auth: ApiAuthContext): Promise<TranslationProject[]>;
@@ -120,11 +120,15 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
 });
 
 type CreateProjectRoutesOptions = {
+  jobQueue?: TranslationJobQueue;
+  /**
+   * @deprecated Use `jobQueue`.
+   */
   translationJobQueue?: TranslationJobQueue;
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
-  const translationJobQueue = options.translationJobQueue ?? createTranslationJobQueue();
+  const jobQueue = options.jobQueue ?? options.translationJobQueue ?? createTranslationJobQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -141,7 +145,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await projectStore.create(c.var.auth, payload);
       return c.json({ project }, 201);
     })
-    .route("/:projectId/jobs", createTranslationJobRoutes({ translationJobQueue }))
+    .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get("/:projectId", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const project = await projectStore.getById(c.var.auth, params.projectId);

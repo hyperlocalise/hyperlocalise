@@ -34,13 +34,9 @@ const tsvector = customType<{ data: string; driverData: string }>({
 //      CREATE INDEX ... USING hnsw (embedding vector_cosine_ops);
 //   4. Query with hybrid ranking, for example lexical filtering plus cosine-distance ordering.
 
+export const jobKindEnum = pgEnum("job_kind", ["translation", "research", "brief"]);
+export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed"]);
 export const translationJobTypeEnum = pgEnum("translation_job_type", ["string", "file"]);
-export const translationJobStatusEnum = pgEnum("translation_job_status", [
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-]);
 export const translationJobOutcomeKindEnum = pgEnum("translation_job_outcome_kind", [
   "string_result",
   "file_result",
@@ -603,27 +599,29 @@ export const githubInstallationRepositories = pgTable(
   ],
 );
 
-export const translationJobs = pgTable(
-  "translation_jobs",
+export const jobs = pgTable(
+  "jobs",
   {
     // Stable job identifier returned to clients and used for status lookups.
     id: text("id").primaryKey(),
-    // Parent project that owns the translation request.
-    projectId: text("project_id")
+    // Tenant that owns this job, stored directly for workspace-level job queries.
+    organizationId: uuid("organization_id")
       .notNull()
-      .references(() => translationProjects.id, { onDelete: "cascade" }),
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Optional project context. Some jobs are workspace-level rather than project-level.
+    projectId: text("project_id").references(() => translationProjects.id, {
+      onDelete: "set null",
+    }),
     // User who triggered the job, stored as an internal user ID.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    // High-level job category; currently string and file jobs are supported.
-    type: translationJobTypeEnum("type").notNull(),
+    // High-level job category used by routing, workers, and workspace job lists.
+    kind: jobKindEnum("kind").notNull(),
     // App-level lifecycle state mirrored into Postgres for UI/API reads.
-    status: translationJobStatusEnum("status").notNull().default("queued"),
+    status: jobStatusEnum("status").notNull().default("queued"),
     // Canonical job input stored as domain data, not workflow engine state.
     inputPayload: jsonb("input_payload").$type<unknown>().notNull(),
-    // Describes the shape of a successful result or terminal error payload.
-    outcomeKind: translationJobOutcomeKindEnum("outcome_kind"),
     // Terminal job output persisted for retrieval after execution completes.
     outcomePayload: jsonb("outcome_payload").$type<unknown>(),
     // Last human-readable failure message captured for debugging and UI display.
@@ -645,11 +643,31 @@ export const translationJobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
-    index("idx_translation_jobs_project_created_at").on(table.projectId, table.createdAt),
-    index("idx_translation_jobs_created_by_user_id").on(table.createdByUserId),
-    index("idx_translation_jobs_workflow_run_id").on(table.workflowRunId),
-    index("idx_translation_jobs_status").on(table.status),
-    index("idx_translation_jobs_conversation").on(table.conversationId),
+    index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
+    index("idx_jobs_created_by_user_id").on(table.createdByUserId),
+    index("idx_jobs_kind_status").on(table.kind, table.status),
+    index("idx_jobs_workflow_run_id").on(table.workflowRunId),
+    index("idx_jobs_status").on(table.status),
+    index("idx_jobs_conversation").on(table.conversationId),
+  ],
+);
+
+export const translationJobDetails = pgTable(
+  "translation_job_details",
+  {
+    // One-to-one extension row for jobs whose kind is "translation".
+    jobId: text("job_id")
+      .primaryKey()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    // Translation subtype; string jobs are supported first, file jobs can follow.
+    type: translationJobTypeEnum("type").notNull(),
+    // Describes the shape of a successful translation result or terminal error payload.
+    outcomeKind: translationJobOutcomeKindEnum("outcome_kind"),
+  },
+  (table) => [
+    index("idx_translation_job_details_type").on(table.type),
+    index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
   ],
 );
 

@@ -2,7 +2,7 @@ import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
-import type { StringTranslationJobInput } from "@/api/routes/project/translation-job.schema";
+import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { env } from "@/lib/env";
 
 /**

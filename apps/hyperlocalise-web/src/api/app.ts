@@ -23,6 +23,10 @@ type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
+  jobQueue?: TranslationJobQueue;
+  /**
+   * @deprecated Use `jobQueue`.
+   */
   translationJobQueue?: TranslationJobQueue;
 };
 

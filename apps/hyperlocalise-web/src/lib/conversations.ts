@@ -60,10 +60,7 @@ export async function addConversationMessage(input: AddMessageInput) {
 }
 
 export async function linkJobToConversation(jobId: string, conversationId: string) {
-  await db
-    .update(schema.translationJobs)
-    .set({ conversationId })
-    .where(eq(schema.translationJobs.id, jobId));
+  await db.update(schema.jobs).set({ conversationId }).where(eq(schema.jobs.id, jobId));
 }
 
 export async function findConversationBySourceThreadId(sourceThreadId: string) {

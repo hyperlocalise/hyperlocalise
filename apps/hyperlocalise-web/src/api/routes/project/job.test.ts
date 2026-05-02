@@ -19,7 +19,7 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
 
-function createInlineTestTranslationJobQueue(): TranslationJobQueue {
+function createInlineTestJobQueue(): TranslationJobQueue {
   return {
     async enqueue(event) {
       return { ids: [event.jobId] };
@@ -29,7 +29,7 @@ function createInlineTestTranslationJobQueue(): TranslationJobQueue {
 
 const client = testClient(
   createApp({
-    translationJobQueue: createInlineTestTranslationJobQueue(),
+    jobQueue: createInlineTestJobQueue(),
   }),
 );
 const projectFixture = createProjectTestFixture(client);
@@ -48,7 +48,7 @@ type ProjectResponse = {
   };
 };
 
-type TranslationJobRecord = {
+type JobRecord = {
   id: string;
   projectId: string;
   createdByUserId: string | null;
@@ -64,7 +64,7 @@ type TranslationJobRecord = {
   completedAt: string | null;
 };
 
-async function insertTranslationJob(params: {
+async function insertJob(params: {
   projectId: string;
   createdByUserId: string | null;
   type: "string" | "file";
@@ -75,22 +75,46 @@ async function insertTranslationJob(params: {
   lastError?: string;
   workflowRunId?: string;
 }) {
-  const [job] = await db
-    .insert(schema.translationJobs)
-    .values({
-      id: `job_${randomUUID()}`,
-      projectId: params.projectId,
-      createdByUserId: params.createdByUserId,
-      type: params.type,
-      status: params.status,
-      inputPayload: params.inputPayload,
-      outcomeKind: params.outcomeKind ?? null,
-      outcomePayload: params.outcomePayload ?? null,
-      lastError: params.lastError ?? null,
-      workflowRunId: params.workflowRunId ?? null,
-      completedAt: params.status === "succeeded" || params.status === "failed" ? new Date() : null,
-    })
-    .returning();
+  const [project] = await db
+    .select({ organizationId: schema.translationProjects.organizationId })
+    .from(schema.translationProjects)
+    .where(eq(schema.translationProjects.id, params.projectId))
+    .limit(1);
+
+  if (!project) {
+    throw new Error(`project ${params.projectId} not found`);
+  }
+
+  const job = await db.transaction(async (tx) => {
+    const [createdJob] = await tx
+      .insert(schema.jobs)
+      .values({
+        id: `job_${randomUUID()}`,
+        organizationId: project.organizationId,
+        projectId: params.projectId,
+        createdByUserId: params.createdByUserId,
+        kind: "translation",
+        status: params.status,
+        inputPayload: params.inputPayload,
+        outcomePayload: params.outcomePayload ?? null,
+        lastError: params.lastError ?? null,
+        workflowRunId: params.workflowRunId ?? null,
+        completedAt:
+          params.status === "succeeded" || params.status === "failed" ? new Date() : null,
+      })
+      .returning();
+
+    const [details] = await tx
+      .insert(schema.translationJobDetails)
+      .values({
+        jobId: createdJob.id,
+        type: params.type,
+        outcomeKind: params.outcomeKind ?? null,
+      })
+      .returning();
+
+    return { ...createdJob, type: details.type, outcomeKind: details.outcomeKind };
+  });
 
   return job;
 }
@@ -104,7 +128,7 @@ afterEach(async () => {
   await cleanup();
 });
 
-describe("translationJobRoutes", () => {
+describe("jobRoutes", () => {
   it("creates a queued string job", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -133,7 +157,7 @@ describe("translationJobRoutes", () => {
 
     expect(response.status).toBe(201);
 
-    const body = (await response.json()) as { job: TranslationJobRecord };
+    const body = (await response.json()) as { job: JobRecord };
     expect(body.job.id).toMatch(/^job_/);
     expect(body.job.projectId).toBe(project.id);
     expect(body.job.type).toBe("string");
@@ -161,7 +185,7 @@ describe("translationJobRoutes", () => {
     const teammateLocalUserId = await getLocalUserId(teammateIdentity.user.workosUserId);
     await authHeadersFor(identity);
 
-    await insertTranslationJob({
+    await insertJob({
       projectId: project.id,
       createdByUserId: localUserId,
       type: "string",
@@ -173,7 +197,7 @@ describe("translationJobRoutes", () => {
       },
     });
 
-    await insertTranslationJob({
+    await insertJob({
       projectId: project.id,
       createdByUserId: localUserId,
       type: "file",
@@ -193,7 +217,7 @@ describe("translationJobRoutes", () => {
       lastError: "Translation worker failed",
     });
 
-    await insertTranslationJob({
+    await insertJob({
       projectId: project.id,
       createdByUserId: teammateLocalUserId,
       type: "string",
@@ -231,7 +255,7 @@ describe("translationJobRoutes", () => {
     );
 
     expect(mineResponse.status).toBe(200);
-    const mineBody = (await mineResponse.json()) as { jobs: TranslationJobRecord[] };
+    const mineBody = (await mineResponse.json()) as { jobs: JobRecord[] };
     expect(mineBody).toEqual({
       jobs: expect.arrayContaining([
         expect.objectContaining({ createdByUserId: localUserId, status: "queued" }),
@@ -274,7 +298,7 @@ describe("translationJobRoutes", () => {
     const project = ((await projectResponse.json()) as ProjectResponse).project;
     const localUserId = await getLocalUserId(identity.user.workosUserId);
 
-    const job = await insertTranslationJob({
+    const job = await insertJob({
       projectId: project.id,
       createdByUserId: localUserId,
       type: "string",
@@ -366,7 +390,7 @@ describe("translationJobRoutes", () => {
     const project = ((await projectResponse.json()) as ProjectResponse).project;
     const localUserId = await getLocalUserId(ownerIdentity.user.workosUserId);
 
-    const job = await insertTranslationJob({
+    const job = await insertJob({
       projectId: project.id,
       createdByUserId: localUserId,
       type: "string",
@@ -418,7 +442,7 @@ describe("translationJobRoutes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "invalid_translation_job_payload",
+      error: "invalid_job_payload",
     });
   });
 
@@ -447,14 +471,14 @@ describe("translationJobRoutes", () => {
 
     expect(response.status).toBe(501);
     await expect(response.json()).resolves.toEqual({
-      error: "file_translation_jobs_not_supported",
+      error: "file_jobs_not_supported",
     });
   });
 
   it("keeps the inserted job when queueing fails", async () => {
     const failingClient = testClient(
       createApp({
-        translationJobQueue: {
+        jobQueue: {
           async enqueue() {
             throw new Error("queue down");
           },
@@ -495,17 +519,17 @@ describe("translationJobRoutes", () => {
 
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toEqual({
-      error: "translation_job_queue_unavailable",
+      error: "job_queue_unavailable",
     });
 
     const jobs = await db
       .select({
-        id: schema.translationJobs.id,
-        status: schema.translationJobs.status,
-        lastError: schema.translationJobs.lastError,
+        id: schema.jobs.id,
+        status: schema.jobs.status,
+        lastError: schema.jobs.lastError,
       })
-      .from(schema.translationJobs)
-      .where(eq(schema.translationJobs.projectId, project.id));
+      .from(schema.jobs)
+      .where(eq(schema.jobs.projectId, project.id));
 
     expect(jobs).toEqual([
       expect.objectContaining({

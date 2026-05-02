@@ -1,6 +1,6 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 
-import { stringTranslationJobInputSchema } from "@/api/routes/project/translation-job.schema";
+import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
@@ -57,49 +57,68 @@ function formatExecutionError(error: unknown) {
 async function getStoredJob(jobId: string, projectId: string) {
   const [job] = await db
     .select({
-      id: schema.translationJobs.id,
-      projectId: schema.translationJobs.projectId,
-      type: schema.translationJobs.type,
-      status: schema.translationJobs.status,
-      inputPayload: schema.translationJobs.inputPayload,
-      outcomeKind: schema.translationJobs.outcomeKind,
-      outcomePayload: schema.translationJobs.outcomePayload,
-      lastError: schema.translationJobs.lastError,
-      workflowRunId: schema.translationJobs.workflowRunId,
-      completedAt: schema.translationJobs.completedAt,
+      id: schema.jobs.id,
+      projectId: schema.jobs.projectId,
+      type: schema.translationJobDetails.type,
+      status: schema.jobs.status,
+      inputPayload: schema.jobs.inputPayload,
+      outcomeKind: schema.translationJobDetails.outcomeKind,
+      outcomePayload: schema.jobs.outcomePayload,
+      lastError: schema.jobs.lastError,
+      workflowRunId: schema.jobs.workflowRunId,
+      completedAt: schema.jobs.completedAt,
     })
-    .from(schema.translationJobs)
+    .from(schema.jobs)
+    .innerJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
     .where(
-      and(eq(schema.translationJobs.id, jobId), eq(schema.translationJobs.projectId, projectId)),
+      and(
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, jobId),
+        eq(schema.jobs.projectId, projectId),
+      ),
     )
     .limit(1);
 
-  return job;
+  return job ? { ...job, projectId: job.projectId ?? projectId } : undefined;
 }
 
+/**
+ * @deprecated Use a generic job claim helper for new job workers. This remains
+ * scoped to translation jobs while the translation worker is migrated.
+ */
 export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInput) {
   const attachedJob = await db
-    .update(schema.translationJobs)
+    .update(schema.jobs)
     .set({
       workflowRunId: input.runId,
     })
     .where(
       and(
-        eq(schema.translationJobs.id, input.event.jobId),
-        eq(schema.translationJobs.projectId, input.event.projectId),
-        isNull(schema.translationJobs.workflowRunId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        isNull(schema.jobs.workflowRunId),
       ),
     )
     .returning({
-      id: schema.translationJobs.id,
-      projectId: schema.translationJobs.projectId,
-      type: schema.translationJobs.type,
-      runId: schema.translationJobs.workflowRunId,
+      id: schema.jobs.id,
+      projectId: schema.jobs.projectId,
+      runId: schema.jobs.workflowRunId,
     })
     .then(async ([job]) => {
       if (job) {
+        const storedJob = await getStoredJob(job.id, job.projectId ?? input.event.projectId);
+
+        if (!storedJob) {
+          throw new Error(
+            `translation job ${input.event.jobId} was not found in project ${input.event.projectId}`,
+          );
+        }
+
         return {
-          ...job,
+          id: storedJob.id,
+          projectId: storedJob.projectId,
+          type: storedJob.type,
           runId: input.runId,
           ownedByCurrentRun: true,
         };
@@ -144,30 +163,26 @@ export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInpu
   }
 
   const [claimedJob] = await db
-    .update(schema.translationJobs)
+    .update(schema.jobs)
     .set({
       status: "running",
       lastError: null,
-      outcomeKind: null,
       outcomePayload: null,
       completedAt: null,
     })
     .where(
       and(
-        eq(schema.translationJobs.id, input.event.jobId),
-        eq(schema.translationJobs.projectId, input.event.projectId),
-        or(
-          eq(schema.translationJobs.status, "queued"),
-          eq(schema.translationJobs.status, "running"),
-        ),
-        eq(schema.translationJobs.workflowRunId, attachedJob.runId),
+        eq(schema.jobs.kind, "translation"),
+        eq(schema.jobs.id, input.event.jobId),
+        eq(schema.jobs.projectId, input.event.projectId),
+        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
+        eq(schema.jobs.workflowRunId, attachedJob.runId),
       ),
     )
     .returning({
-      id: schema.translationJobs.id,
-      projectId: schema.translationJobs.projectId,
-      type: schema.translationJobs.type,
-      inputPayload: schema.translationJobs.inputPayload,
+      id: schema.jobs.id,
+      projectId: schema.jobs.projectId,
+      inputPayload: schema.jobs.inputPayload,
     });
 
   if (!claimedJob) {
@@ -185,10 +200,18 @@ export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInpu
     } satisfies ClaimTranslationJobResult;
   }
 
+  await db
+    .update(schema.translationJobDetails)
+    .set({ outcomeKind: null })
+    .where(eq(schema.translationJobDetails.jobId, input.event.jobId));
+
   return {
     kind: "claimed",
     job: {
-      ...claimedJob,
+      id: claimedJob.id,
+      projectId: claimedJob.projectId ?? input.event.projectId,
+      type: attachedJob.type,
+      inputPayload: claimedJob.inputPayload,
       workflowRunId: attachedJob.runId,
     },
   } satisfies ClaimTranslationJobResult;
@@ -279,6 +302,9 @@ async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
   } as const;
 }
 
+/**
+ * @deprecated Use generic job execution dispatch for new job kinds.
+ */
 export async function executeClaimedTranslationJob(
   claimedJob: ClaimedTranslationJob,
   translateStringJobOverride?: StringTranslationGenerator,
@@ -357,49 +383,64 @@ export async function executeClaimedTranslationJob(
   };
 }
 
+/**
+ * @deprecated Use generic job completion helpers plus type-specific detail updates.
+ */
 export async function completeTranslationJob(input: {
   jobId: string;
   projectId: string;
   workflowRunId: string;
   result: StringTranslationJobResult;
 }) {
-  const [succeededJob] = await db
-    .update(schema.translationJobs)
-    .set({
-      status: "succeeded",
-      outcomeKind: "string_result",
-      outcomePayload: input.result,
-      lastError: null,
-      completedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.translationJobs.id, input.jobId),
-        eq(schema.translationJobs.projectId, input.projectId),
-        eq(schema.translationJobs.workflowRunId, input.workflowRunId),
-      ),
-    )
-    .returning({
-      id: schema.translationJobs.id,
-      projectId: schema.translationJobs.projectId,
-      type: schema.translationJobs.type,
-      status: schema.translationJobs.status,
-      workflowRunId: schema.translationJobs.workflowRunId,
-      outcomeKind: schema.translationJobs.outcomeKind,
-      outcomePayload: schema.translationJobs.outcomePayload,
-      lastError: schema.translationJobs.lastError,
-      completedAt: schema.translationJobs.completedAt,
-    });
+  const didSucceed = await db.transaction(async (tx) => {
+    const [updatedJob] = await tx
+      .update(schema.jobs)
+      .set({
+        status: "succeeded",
+        outcomePayload: input.result,
+        lastError: null,
+        completedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+      )
+      .returning({ id: schema.jobs.id });
 
-  if (!succeededJob) {
+    if (!updatedJob) {
+      return false;
+    }
+
+    await tx
+      .update(schema.translationJobDetails)
+      .set({ outcomeKind: "string_result" })
+      .where(eq(schema.translationJobDetails.jobId, input.jobId));
+
+    return true;
+  });
+
+  if (!didSucceed) {
     throw new Error(
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
 
+  const succeededJob = await getStoredJob(input.jobId, input.projectId);
+
+  if (!succeededJob) {
+    throw new Error(`translation job ${input.jobId} was not found in project ${input.projectId}`);
+  }
+
   return succeededJob;
 }
 
+/**
+ * @deprecated Use generic job failure helpers plus type-specific detail updates.
+ */
 export async function failTranslationJob(input: {
   jobId: string;
   projectId: string;
@@ -407,46 +448,58 @@ export async function failTranslationJob(input: {
   code: string;
   message: string;
 }) {
-  const [failedJob] = await db
-    .update(schema.translationJobs)
-    .set({
-      status: "failed",
-      outcomeKind: "error",
-      outcomePayload: {
-        code: input.code,
-        message: input.message,
-      },
-      lastError: input.message,
-      completedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.translationJobs.id, input.jobId),
-        eq(schema.translationJobs.projectId, input.projectId),
-        eq(schema.translationJobs.workflowRunId, input.workflowRunId),
-      ),
-    )
-    .returning({
-      id: schema.translationJobs.id,
-      projectId: schema.translationJobs.projectId,
-      type: schema.translationJobs.type,
-      status: schema.translationJobs.status,
-      workflowRunId: schema.translationJobs.workflowRunId,
-      outcomeKind: schema.translationJobs.outcomeKind,
-      outcomePayload: schema.translationJobs.outcomePayload,
-      lastError: schema.translationJobs.lastError,
-      completedAt: schema.translationJobs.completedAt,
-    });
+  const didFail = await db.transaction(async (tx) => {
+    const [updatedJob] = await tx
+      .update(schema.jobs)
+      .set({
+        status: "failed",
+        outcomePayload: {
+          code: input.code,
+          message: input.message,
+        },
+        lastError: input.message,
+        completedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.projectId, input.projectId),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+      )
+      .returning({ id: schema.jobs.id });
 
-  if (!failedJob) {
+    if (!updatedJob) {
+      return false;
+    }
+
+    await tx
+      .update(schema.translationJobDetails)
+      .set({ outcomeKind: "error" })
+      .where(eq(schema.translationJobDetails.jobId, input.jobId));
+
+    return true;
+  });
+
+  if (!didFail) {
     throw new Error(
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
 
+  const failedJob = await getStoredJob(input.jobId, input.projectId);
+
+  if (!failedJob) {
+    throw new Error(`translation job ${input.jobId} was not found in project ${input.projectId}`);
+  }
+
   return failedJob;
 }
 
+/**
+ * @deprecated Use a generic queued-job workflow function for new job kinds.
+ */
 export function createTranslationJobQueuedFunction(
   options: CreateTranslationJobQueuedFunctionOptions = {},
 ) {
@@ -492,4 +545,7 @@ export function createTranslationJobQueuedFunction(
   };
 }
 
+/**
+ * @deprecated Use generic queued-job execution for new job kinds.
+ */
 export const executeTranslationJobQueued = createTranslationJobQueuedFunction();

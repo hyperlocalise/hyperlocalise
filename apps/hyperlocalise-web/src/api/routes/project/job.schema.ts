@@ -2,11 +2,11 @@ import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
 
-export const translationJobProjectParamsSchema = z.object({
+export const jobProjectParamsSchema = z.object({
   projectId: z.string().trim().min(1),
 });
 
-export const translationJobParamsSchema = z.object({
+export const jobParamsSchema = z.object({
   projectId: z.string().trim().min(1),
   jobId: z.string().trim().min(1),
 });
@@ -30,7 +30,7 @@ export const fileTranslationJobInputSchema = z.object({
   metadata: metadataSchema,
 });
 
-export const createTranslationJobBodySchema = z.discriminatedUnion("type", [
+export const createJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     stringInput: stringTranslationJobInputSchema,
@@ -41,9 +41,9 @@ export const createTranslationJobBodySchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const translationJobListQuerySchema = z.object({
+export const jobListQuerySchema = z.object({
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
-  status: z.enum(schema.translationJobStatusEnum.enumValues).optional(),
+  status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   mine: z
     .enum(["true", "false"])
     .optional()
@@ -52,6 +52,12 @@ export const translationJobListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
-export type CreateTranslationJobBody = z.infer<typeof createTranslationJobBodySchema>;
+export type CreateJobBody = z.infer<typeof createJobBodySchema>;
+/**
+ * @deprecated Use this only inside the translation job detail/worker path.
+ */
 export type StringTranslationJobInput = z.infer<typeof stringTranslationJobInputSchema>;
+/**
+ * @deprecated Use this only inside the translation job detail/worker path.
+ */
 export type FileTranslationJobInput = z.infer<typeof fileTranslationJobInputSchema>;

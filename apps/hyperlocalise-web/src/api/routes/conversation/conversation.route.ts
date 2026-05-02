@@ -250,17 +250,23 @@ export function createConversationRoutes() {
 
       const jobs = await db
         .select({
-          id: schema.translationJobs.id,
-          projectId: schema.translationJobs.projectId,
-          type: schema.translationJobs.type,
-          status: schema.translationJobs.status,
-          outcomeKind: schema.translationJobs.outcomeKind,
-          createdAt: schema.translationJobs.createdAt,
-          completedAt: schema.translationJobs.completedAt,
+          id: schema.jobs.id,
+          projectId: schema.jobs.projectId,
+          type: schema.translationJobDetails.type,
+          status: schema.jobs.status,
+          outcomeKind: schema.translationJobDetails.outcomeKind,
+          createdAt: schema.jobs.createdAt,
+          completedAt: schema.jobs.completedAt,
         })
-        .from(schema.translationJobs)
-        .where(eq(schema.translationJobs.conversationId, conversationId))
-        .orderBy(desc(schema.translationJobs.createdAt));
+        .from(schema.jobs)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .where(
+          and(eq(schema.jobs.kind, "translation"), eq(schema.jobs.conversationId, conversationId)),
+        )
+        .orderBy(desc(schema.jobs.createdAt));
 
       return c.json({ jobs }, 200);
     });
