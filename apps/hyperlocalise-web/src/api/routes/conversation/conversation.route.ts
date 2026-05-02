@@ -264,7 +264,11 @@ export function createConversationRoutes() {
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
         .where(
-          and(eq(schema.jobs.kind, "translation"), eq(schema.jobs.conversationId, conversationId)),
+          and(
+            eq(schema.jobs.kind, "translation"),
+            eq(schema.jobs.organizationId, orgId),
+            eq(schema.jobs.conversationId, conversationId),
+          ),
         )
         .orderBy(desc(schema.jobs.createdAt));
 

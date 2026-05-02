@@ -29,7 +29,7 @@ let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHub
   null;
 let botQueue: GitHubFixQueue | null = null;
 
-async function getOrganizationIdByInstallationId(installationId: number) {
+async function getOrganizationIdByInstallationId(installationId: string) {
   const [installation] = await db
     .select({ organizationId: schema.githubInstallations.organizationId })
     .from(schema.githubInstallations)
@@ -54,11 +54,12 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
     await thread.post("GitHub App installation is not configured for `@hyperlocalise fix`.");
     return;
   }
+  const githubInstallationId = String(installationId);
 
   const event = buildFixEvent({
     raw: message.raw as GitHubRawMessage,
     command,
-    installationId,
+    installationId: Number.parseInt(githubInstallationId, 10),
   });
   if (!event) {
     await thread.post(
@@ -70,9 +71,13 @@ async function handleMention(thread: Thread<GitHubBotState>, message: Message) {
   // Conversation tracking
   let conversationId: string | undefined;
   try {
-    const organizationId = await getOrganizationIdByInstallationId(installationId);
+    const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
     if (organizationId) {
-      const existing = await findConversationBySourceThreadId(thread.id);
+      const existing = await findConversationBySourceThreadId({
+        organizationId,
+        source: "github_agent",
+        sourceThreadId: thread.id,
+      });
       if (existing) {
         conversationId = existing.id;
       } else {

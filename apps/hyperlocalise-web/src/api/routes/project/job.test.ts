@@ -292,6 +292,53 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("lists workspace jobs across projects with one global limit", async () => {
+    const identity = createWorkosIdentity();
+    const firstProjectResponse = await createProjectViaApi(identity);
+    const firstProject = ((await firstProjectResponse.json()) as ProjectResponse).project;
+    const secondProjectResponse = await createProjectViaApi(identity);
+    const secondProject = ((await secondProjectResponse.json()) as ProjectResponse).project;
+    const authHeader = await authHeadersFor(identity);
+    const localUserId = await getLocalUserId(identity.user.workosUserId);
+
+    await insertJob({
+      projectId: firstProject.id,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "First project job",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    await insertJob({
+      projectId: secondProject.id,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "failed",
+      inputPayload: {
+        sourceText: "Second project job",
+        sourceLocale: "en-US",
+        targetLocales: ["de-DE"],
+      },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { mine: "true", limit: "1" },
+      },
+      { headers: authHeader },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { jobs: Array<JobRecord & { projectName: string }> };
+    expect(body.jobs).toHaveLength(1);
+    expect(body.jobs[0]?.createdByUserId).toBe(localUserId);
+    expect(body.jobs[0]?.projectName).toEqual(expect.any(String));
+  });
+
   it("returns a full job record and a lightweight status view", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);

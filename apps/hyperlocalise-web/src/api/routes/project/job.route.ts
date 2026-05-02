@@ -4,7 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
-import { type AuthVariables } from "@/api/auth/workos";
+import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
 
@@ -43,6 +43,11 @@ const jobSelect = {
   completedAt: schema.jobs.completedAt,
 };
 
+const jobWithProjectSelect = {
+  ...jobSelect,
+  projectName: schema.translationProjects.name,
+};
+
 function invalidJobPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
   return c.json({ error: "invalid_job_payload" }, 400);
 }
@@ -78,6 +83,39 @@ async function getOwnedJob(projectId: string, jobId: string) {
     .limit(1);
 
   return job ?? null;
+}
+
+function jobListFilters(input: {
+  organizationId?: string;
+  projectId?: string;
+  type?: "string" | "file";
+  status?: "queued" | "running" | "succeeded" | "failed";
+  mine?: boolean;
+  userId?: string;
+}) {
+  const filters = [eq(schema.jobs.kind, "translation")];
+
+  if (input.organizationId) {
+    filters.push(eq(schema.jobs.organizationId, input.organizationId));
+  }
+
+  if (input.projectId) {
+    filters.push(eq(schema.jobs.projectId, input.projectId));
+  }
+
+  if (input.type) {
+    filters.push(eq(schema.translationJobDetails.type, input.type));
+  }
+
+  if (input.status) {
+    filters.push(eq(schema.jobs.status, input.status));
+  }
+
+  if (input.mine && input.userId) {
+    filters.push(eq(schema.jobs.createdByUserId, input.userId));
+  }
+
+  return filters;
 }
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -131,22 +169,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return projectNotFoundResponse(c);
       }
 
-      const filters = [
-        eq(schema.jobs.kind, "translation"),
-        eq(schema.jobs.projectId, params.projectId),
-      ];
-
-      if (query.type) {
-        filters.push(eq(schema.translationJobDetails.type, query.type));
-      }
-
-      if (query.status) {
-        filters.push(eq(schema.jobs.status, query.status));
-      }
-
-      if (query.mine) {
-        filters.push(eq(schema.jobs.createdByUserId, c.var.auth.user.localUserId));
-      }
+      const filters = jobListFilters({
+        projectId: params.projectId,
+        type: query.type,
+        status: query.status,
+        mine: query.mine,
+        userId: c.var.auth.user.localUserId,
+      });
 
       const jobs = await db
         .select(jobSelect)
@@ -225,7 +254,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const createdJob = await getOwnedJob(params.projectId, job.id);
-      return c.json({ job: createdJob ?? job }, 201);
+      if (!createdJob) {
+        throw new Error(`created translation job ${job.id} was not found after insert`);
+      }
+
+      return c.json({ job: createdJob }, 201);
     })
     .get("/:jobId", validateJobParams, async (c) => {
       const params = c.req.valid("param");
@@ -281,5 +314,40 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job }, 200);
+    });
+}
+
+export function createWorkspaceJobRoutes() {
+  return new Hono<{ Variables: AuthVariables }>()
+    .use("*", workosAuthMiddleware)
+    .get("/", validateJobListQuery, async (c) => {
+      const query = c.req.valid("query");
+      const filters = jobListFilters({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        type: query.type,
+        status: query.status,
+        mine: query.mine,
+        userId: c.var.auth.user.localUserId,
+      });
+
+      const jobs = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .innerJoin(
+          schema.translationProjects,
+          and(
+            eq(schema.translationProjects.id, schema.jobs.projectId),
+            eq(schema.translationProjects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(...filters))
+        .orderBy(desc(schema.jobs.updatedAt))
+        .limit(query.limit);
+
+      return c.json({ jobs }, 200);
     });
 }

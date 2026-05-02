@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint,
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -18,6 +18,18 @@ import {
 const tsvector = customType<{ data: string; driverData: string }>({
   dataType() {
     return "tsvector";
+  },
+});
+
+const bigintText = customType<{ data: string; driverData: string | number }>({
+  dataType() {
+    return "bigint";
+  },
+  fromDriver(value) {
+    return String(value);
+  },
+  toDriver(value) {
+    return value;
   },
 });
 
@@ -235,6 +247,7 @@ export const translationProjects = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    uniqueIndex("translation_projects_id_organization_id_key").on(table.id, table.organizationId),
     index("idx_translation_projects_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_translation_projects_created_by_user_id").on(table.createdByUserId),
   ],
@@ -271,6 +284,7 @@ export const translationGlossaries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    uniqueIndex("translation_glossaries_id_organization_id_key").on(table.id, table.organizationId),
     index("idx_translation_glossaries_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_translation_glossaries_org_locale_pair").on(
       table.organizationId,
@@ -366,6 +380,7 @@ export const translationMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    uniqueIndex("translation_memories_id_organization_id_key").on(table.id, table.organizationId),
     index("idx_translation_memories_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_translation_memories_created_by_user_id").on(table.createdByUserId),
   ],
@@ -440,14 +455,14 @@ export const translationProjectGlossaries = pgTable(
   {
     // Stable identifier for a project-to-glossary attachment.
     id: uuid("id").defaultRandom().primaryKey(),
+    // Tenant shared by the project and attached glossary.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     // Project receiving the reusable glossary library.
-    projectId: text("project_id")
-      .notNull()
-      .references(() => translationProjects.id, { onDelete: "cascade" }),
+    projectId: text("project_id").notNull(),
     // Attached glossary library.
-    glossaryId: uuid("glossary_id")
-      .notNull()
-      .references(() => translationGlossaries.id, { onDelete: "cascade" }),
+    glossaryId: uuid("glossary_id").notNull(),
     // Lower values can be loaded earlier during runtime assembly.
     priority: integer("priority").notNull().default(0),
     // When the attachment was first created.
@@ -459,10 +474,21 @@ export const translationProjectGlossaries = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [translationProjects.id, translationProjects.organizationId],
+      name: "translation_project_glossaries_project_org_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.glossaryId, table.organizationId],
+      foreignColumns: [translationGlossaries.id, translationGlossaries.organizationId],
+      name: "translation_project_glossaries_glossary_org_fk",
+    }).onDelete("cascade"),
     uniqueIndex("translation_project_glossaries_project_glossary_key").on(
       table.projectId,
       table.glossaryId,
     ),
+    index("idx_translation_project_glossaries_org").on(table.organizationId),
     index("idx_translation_project_glossaries_project_priority").on(
       table.projectId,
       table.priority,
@@ -475,14 +501,14 @@ export const translationProjectMemories = pgTable(
   {
     // Stable identifier for a project-to-TM attachment.
     id: uuid("id").defaultRandom().primaryKey(),
+    // Tenant shared by the project and attached TM.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     // Project receiving the reusable TM library.
-    projectId: text("project_id")
-      .notNull()
-      .references(() => translationProjects.id, { onDelete: "cascade" }),
+    projectId: text("project_id").notNull(),
     // Attached remote cache library.
-    translationMemoryId: uuid("translation_memory_id")
-      .notNull()
-      .references(() => translationMemories.id, { onDelete: "cascade" }),
+    translationMemoryId: uuid("translation_memory_id").notNull(),
     // Lower values can be searched earlier at runtime.
     priority: integer("priority").notNull().default(0),
     // When the attachment was first created.
@@ -494,10 +520,21 @@ export const translationProjectMemories = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [translationProjects.id, translationProjects.organizationId],
+      name: "translation_project_memories_project_org_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.translationMemoryId, table.organizationId],
+      foreignColumns: [translationMemories.id, translationMemories.organizationId],
+      name: "translation_project_memories_memory_org_fk",
+    }).onDelete("cascade"),
     uniqueIndex("translation_project_memories_project_memory_key").on(
       table.projectId,
       table.translationMemoryId,
     ),
+    index("idx_translation_project_memories_org").on(table.organizationId),
     index("idx_translation_project_memories_project_priority").on(table.projectId, table.priority),
   ],
 );
@@ -543,8 +580,8 @@ export const githubInstallations = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    githubInstallationId: bigint("github_installation_id", { mode: "number" }).notNull(),
-    githubAppId: bigint("github_app_id", { mode: "number" }).notNull(),
+    githubInstallationId: bigintText("github_installation_id").notNull(),
+    githubAppId: bigintText("github_app_id").notNull(),
     accountLogin: text("account_login"),
     accountType: text("account_type"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -567,10 +604,10 @@ export const githubInstallationRepositories = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    githubInstallationId: bigint("github_installation_id", { mode: "number" })
+    githubInstallationId: bigintText("github_installation_id")
       .notNull()
       .references(() => githubInstallations.githubInstallationId, { onDelete: "cascade" }),
-    githubRepositoryId: bigint("github_repository_id", { mode: "number" }).notNull(),
+    githubRepositoryId: bigintText("github_repository_id").notNull(),
     owner: text("owner").notNull(),
     name: text("name").notNull(),
     fullName: text("full_name").notNull(),
@@ -609,9 +646,7 @@ export const jobs = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     // Optional project context. Some jobs are workspace-level rather than project-level.
-    projectId: text("project_id").references(() => translationProjects.id, {
-      onDelete: "set null",
-    }),
+    projectId: text("project_id"),
     // User who triggered the job, stored as an internal user ID.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -629,9 +664,7 @@ export const jobs = pgTable(
     // External workflow execution reference for tracing across orchestration systems.
     workflowRunId: text("workflow_run_id"),
     // Link back to the conversation that created this job, for Inbox display.
-    conversationId: uuid("conversation_id").references(() => conversations.id, {
-      onDelete: "set null",
-    }),
+    conversationId: uuid("conversation_id"),
     // When the job record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When job state last changed.
@@ -643,6 +676,16 @@ export const jobs = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [translationProjects.id, translationProjects.organizationId],
+      name: "jobs_project_org_fk",
+    }),
+    foreignKey({
+      columns: [table.conversationId, table.organizationId],
+      foreignColumns: [conversations.id, conversations.organizationId],
+      name: "jobs_conversation_org_fk",
+    }),
     index("idx_jobs_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_jobs_created_by_user_id").on(table.createdByUserId),
@@ -678,9 +721,7 @@ export const conversations = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id").references(() => translationProjects.id, {
-      onDelete: "set null",
-    }),
+    projectId: text("project_id"),
     source: conversationSourceEnum("source").notNull(),
     status: conversationStatusEnum("status").notNull().default("active"),
     title: text("title").notNull(),
@@ -693,7 +734,15 @@ export const conversations = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("conversations_source_thread_id_key").on(table.sourceThreadId),
+    uniqueIndex("conversations_id_organization_id_key").on(table.id, table.organizationId),
+    foreignKey({
+      columns: [table.projectId, table.organizationId],
+      foreignColumns: [translationProjects.id, translationProjects.organizationId],
+      name: "conversations_project_org_fk",
+    }),
+    uniqueIndex("conversations_org_source_thread_id_key")
+      .on(table.organizationId, table.source, table.sourceThreadId)
+      .where(sql`${table.sourceThreadId} IS NOT NULL`),
     index("idx_conversations_org_last_message").on(table.organizationId, table.lastMessageAt),
   ],
 );

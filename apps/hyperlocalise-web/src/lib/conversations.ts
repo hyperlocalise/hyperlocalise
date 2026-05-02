@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -59,15 +59,49 @@ export async function addConversationMessage(input: AddMessageInput) {
   return message;
 }
 
-export async function linkJobToConversation(jobId: string, conversationId: string) {
-  await db.update(schema.jobs).set({ conversationId }).where(eq(schema.jobs.id, jobId));
+export async function linkJobToConversation(input: {
+  organizationId: string;
+  jobId: string;
+  conversationId: string;
+}) {
+  const [conversation] = await db
+    .select({ organizationId: schema.conversations.organizationId })
+    .from(schema.conversations)
+    .where(
+      and(
+        eq(schema.conversations.id, input.conversationId),
+        eq(schema.conversations.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!conversation) {
+    return;
+  }
+
+  await db
+    .update(schema.jobs)
+    .set({ conversationId: input.conversationId })
+    .where(
+      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+    );
 }
 
-export async function findConversationBySourceThreadId(sourceThreadId: string) {
+export async function findConversationBySourceThreadId(input: {
+  organizationId: string;
+  source: "chat_ui" | "email_agent" | "github_agent";
+  sourceThreadId: string;
+}) {
   const [conversation] = await db
     .select()
     .from(schema.conversations)
-    .where(eq(schema.conversations.sourceThreadId, sourceThreadId))
+    .where(
+      and(
+        eq(schema.conversations.organizationId, input.organizationId),
+        eq(schema.conversations.source, input.source),
+        eq(schema.conversations.sourceThreadId, input.sourceThreadId),
+      ),
+    )
     .limit(1);
 
   return conversation ?? null;

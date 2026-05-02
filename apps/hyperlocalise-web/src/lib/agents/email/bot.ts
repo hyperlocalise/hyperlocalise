@@ -200,6 +200,7 @@ async function enqueuePendingTranslation(input: {
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
   pending: PendingEmailAgentTask;
+  organizationId?: string;
   conversationId?: string;
   linkJob?: typeof linkJobToConversation;
 }) {
@@ -209,6 +210,7 @@ async function enqueuePendingTranslation(input: {
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
     pending,
+    organizationId,
     conversationId,
     linkJob,
   } = input;
@@ -354,10 +356,10 @@ async function enqueuePendingTranslation(input: {
 
   for (const task of tasks) {
     const result = await queue.enqueue(task);
-    if (conversationId && linkJob && result.ids.length > 0) {
+    if (organizationId && conversationId && linkJob && result.ids.length > 0) {
       try {
         for (const jobId of result.ids) {
-          await linkJob(jobId, conversationId);
+          await linkJob({ organizationId, jobId, conversationId });
         }
       } catch {
         // Best-effort linking; don't fail the email flow.
@@ -420,9 +422,10 @@ async function handlePendingClarification(input: {
   message: Message;
   pending: PendingEmailAgentTask;
   dependencies: EmailHandlerDependencies;
+  organizationId?: string;
   conversationId?: string;
 }) {
-  const { thread, message, pending, dependencies, conversationId } = input;
+  const { thread, message, pending, dependencies, organizationId, conversationId } = input;
   const log = logger.child({ req: pending.requestId });
   log.info("handling pending clarification");
 
@@ -434,6 +437,7 @@ async function handlePendingClarification(input: {
       fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
       handleImageAttachment: dependencies.handleImageAttachment,
       pending,
+      organizationId,
       conversationId,
       linkJob: dependencies.trackConversation?.linkJob,
     });
@@ -481,6 +485,7 @@ async function handlePendingClarification(input: {
     fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
     handleImageAttachment: dependencies.handleImageAttachment,
     pending: nextPending,
+    organizationId,
     conversationId,
     linkJob: dependencies.trackConversation?.linkJob,
   });
@@ -538,18 +543,30 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         }
         // Conversation tracking for pending clarification
         let conversationId: string | undefined;
+        let conversationOrganizationId: string | undefined;
         const track = dependencies.trackConversation;
         if (track) {
           try {
-            const existing = await track.findBySourceThreadId(thread.id);
-            if (existing) {
-              conversationId = existing.id;
-              await track.addMessage({
-                conversationId,
-                senderType: "user",
-                text: message.text,
-                senderEmail,
+            const organization = await dependencies.resolveInboundEmailOrganization({
+              senderUserId: user.id,
+              recipientAddresses: raw.to ?? [],
+            });
+            if (organization) {
+              conversationOrganizationId = organization.id;
+              const existing = await track.findBySourceThreadId({
+                organizationId: organization.id,
+                source: "email_agent",
+                sourceThreadId: thread.id,
               });
+              if (existing) {
+                conversationId = existing.id;
+                await track.addMessage({
+                  conversationId,
+                  senderType: "user",
+                  text: message.text,
+                  senderEmail,
+                });
+              }
             }
           } catch (trackError) {
             log.error(
@@ -587,6 +604,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           message,
           pending,
           dependencies,
+          organizationId: conversationOrganizationId,
           conversationId,
         });
         return;
@@ -616,7 +634,11 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       const track = dependencies.trackConversation;
       if (track) {
         try {
-          const existing = await track.findBySourceThreadId(thread.id);
+          const existing = await track.findBySourceThreadId({
+            organizationId: organization.id,
+            source: "email_agent",
+            sourceThreadId: thread.id,
+          });
           if (existing) {
             conversationId = existing.id;
           } else {
@@ -809,6 +831,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         fetchAttachmentDownloadUrls: dependencies.fetchAttachmentDownloadUrls,
         handleImageAttachment: dependencies.handleImageAttachment,
         pending: pendingRequest,
+        organizationId: organization.id,
         conversationId,
         linkJob: track?.linkJob,
       });
