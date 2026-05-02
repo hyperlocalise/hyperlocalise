@@ -254,6 +254,22 @@ async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
   }
 
   if (!project.provider) {
+    const [anyCredential] = await db
+      .select({
+        provider: schema.organizationLlmProviderCredentials.provider,
+      })
+      .from(schema.organizationLlmProviderCredentials)
+      .where(eq(schema.organizationLlmProviderCredentials.organizationId, project.organizationId))
+      .limit(1);
+
+    if (anyCredential) {
+      return {
+        ok: false,
+        code: "unsupported_provider",
+        message: `translation jobs support OpenAI provider credentials only, got ${anyCredential.provider}`,
+      } as const;
+    }
+
     return {
       ok: false,
       code: "provider_credential_missing",

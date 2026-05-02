@@ -31,7 +31,7 @@ type ApiJob = {
   projectId: string;
   createdByUserId: string | null;
   type: "string" | "file";
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -46,7 +46,15 @@ type JobRow = ApiJob & {
   projectName: string;
 };
 
-const statusOptions = ["all", "queued", "running", "succeeded", "failed"] as const;
+const statusOptions = [
+  "all",
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "waiting_for_review",
+  "cancelled",
+] as const;
 
 function jobTone(status: ApiJob["status"]): Tone {
   switch (status) {
@@ -55,6 +63,7 @@ function jobTone(status: ApiJob["status"]): Tone {
     case "failed":
       return "risk";
     case "queued":
+    case "waiting_for_review":
       return "watch";
     default:
       return "info";

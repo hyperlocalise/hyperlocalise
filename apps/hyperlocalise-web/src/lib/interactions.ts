@@ -12,31 +12,33 @@ type CreateInteractionInput = {
 
 export async function createInteraction(input: CreateInteractionInput) {
   const now = new Date();
-  const [interaction] = await db
-    .insert(schema.interactions)
-    .values({
+  return db.transaction(async (tx) => {
+    const [interaction] = await tx
+      .insert(schema.interactions)
+      .values({
+        organizationId: input.organizationId,
+        source: input.source,
+        title: input.title,
+        projectId: input.projectId ?? null,
+        sourceThreadId: input.sourceThreadId ?? null,
+        lastMessageAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    // Every interaction creates exactly one inbox item.
+    await tx.insert(schema.inboxItems).values({
+      interactionId: interaction.id,
       organizationId: input.organizationId,
-      source: input.source,
-      title: input.title,
       projectId: input.projectId ?? null,
-      sourceThreadId: input.sourceThreadId ?? null,
-      lastMessageAt: now,
+      status: "active",
       createdAt: now,
       updatedAt: now,
-    })
-    .returning();
+    });
 
-  // Every interaction creates exactly one inbox item.
-  await db.insert(schema.inboxItems).values({
-    interactionId: interaction.id,
-    organizationId: input.organizationId,
-    projectId: input.projectId ?? null,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
+    return interaction;
   });
-
-  return interaction;
 }
 
 type AddMessageInput = {
