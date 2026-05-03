@@ -11,7 +11,11 @@ import {
   createTranslationJobTool,
 } from "./job-tools";
 import { createResolveInteractionTool } from "./interaction-tools";
-import { createGetProjectContextTool, createUpdateInteractionProjectTool } from "./project-tools";
+import {
+  createGetProjectContextTool,
+  createListProjectsTool,
+  createUpdateInteractionProjectTool,
+} from "./project-tools";
 import type { ToolContext } from "./types";
 
 /**
@@ -23,6 +27,7 @@ import type { ToolContext } from "./types";
  */
 export function buildTools(ctx: ToolContext): ToolSet {
   return {
+    listProjects: createListProjectsTool(ctx),
     getProjectContext: createGetProjectContextTool(ctx),
     updateInteractionProject: createUpdateInteractionProjectTool(ctx),
     queryGlossary: createQueryGlossaryTool(ctx),

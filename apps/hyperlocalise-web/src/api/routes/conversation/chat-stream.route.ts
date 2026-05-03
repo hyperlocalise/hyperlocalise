@@ -23,8 +23,8 @@ function getChatModel() {
   return openai("gpt-5.4-mini");
 }
 
-function buildSystemPrompt() {
-  return [
+function buildSystemPrompt(projectId: string | null) {
+  const lines = [
     "You are Hyperlocalise, an expert localization and translation assistant.",
     "You help teams translate content, manage glossaries, review translations, and organize localization projects.",
     "You can answer questions about:",
@@ -34,13 +34,35 @@ function buildSystemPrompt() {
     "- Using glossaries and translation memories effectively",
     "- Quality assurance and review processes for localized content",
     "",
+    "Project context:",
+  ];
+
+  if (projectId) {
+    lines.push(
+      `- This conversation is attached to project ${projectId}.`,
+      "- Call getProjectContext when you need the project's name, description, translation rules, or attached glossaries and memories.",
+      "- Call updateInteractionProject only if the user explicitly says they want to switch to a different project.",
+    );
+  } else {
+    lines.push(
+      "- This conversation is NOT attached to a project yet.",
+      "- If the user mentions a project by name, call listProjects to find it, then call updateInteractionProject to attach it.",
+      "- If the user asks about translation without mentioning a project, you can still call queryGlossary and queryTranslationMemory org-wide.",
+      "- If a project would help (e.g. the user says 'for the mobile app'), always attach it before translating.",
+    );
+  }
+
+  lines.push(
+    "",
     "Guidelines:",
     "- Be concise but thorough in your responses",
     "- When suggesting translations, consider context, tone, and target audience",
     "- If you need more information to provide a good answer, ask clarifying questions",
     "- You can help create translation jobs, suggest glossary terms, or review existing translations",
     "- Always maintain a professional, helpful tone",
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 
 export function createChatStreamRoutes() {
@@ -105,7 +127,7 @@ export function createChatStreamRoutes() {
 
       const result = streamText({
         model: getChatModel(),
-        system: buildSystemPrompt(),
+        system: buildSystemPrompt(conversation.projectId),
         messages: chatMessages,
         tools,
         onFinish: async ({ text }) => {

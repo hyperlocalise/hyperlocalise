@@ -1,10 +1,41 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
 
 import type { ToolContext } from "./types";
+
+/**
+ * List projects in the current organization so the agent can suggest
+ * or attach the right one when the conversation does not yet have a project.
+ */
+export function createListProjectsTool(ctx: ToolContext) {
+  return tool({
+    description:
+      "List projects in the current workspace. Use this when the user refers to a project by name but the conversation is not attached to one yet, or when you need to help the user pick a project.",
+    inputSchema: z.object({
+      limit: z.number().min(1).max(50).default(20).describe("Maximum projects to return."),
+    }),
+    execute: async ({ limit }) => {
+      const db = ctx.db;
+
+      const projects = await db
+        .select({
+          id: schema.projects.id,
+          name: schema.projects.name,
+          description: schema.projects.description,
+          translationContext: schema.projects.translationContext,
+        })
+        .from(schema.projects)
+        .where(eq(schema.projects.organizationId, ctx.organizationId))
+        .orderBy(desc(schema.projects.createdAt))
+        .limit(limit);
+
+      return { projects };
+    },
+  });
+}
 
 /**
  * Load lightweight project metadata + attached resource summaries.
