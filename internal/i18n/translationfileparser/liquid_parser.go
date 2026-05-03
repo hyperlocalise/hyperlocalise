@@ -11,6 +11,8 @@ import (
 // LiquidParser extracts static translation keys from Shopify Liquid templates.
 type LiquidParser struct{}
 
+var defaultLiquidEngine = liquid.NewEngine()
+
 // LiquidParseError wraps malformed Liquid input or recovered parser panics.
 type LiquidParseError struct {
 	FilePath    string
@@ -57,8 +59,7 @@ func (p LiquidParser) parseWithPath(filePath string, content []byte, diags *[]Di
 type liquidTemplateLocationParser func(content []byte, filePath string, lineNumber int) (*liquid.Template, error)
 
 func parseLiquidTemplateLocation(content []byte, filePath string, lineNumber int) (*liquid.Template, error) {
-	engine := liquid.NewEngine()
-	return engine.ParseTemplateLocation(content, filePath, lineNumber)
+	return defaultLiquidEngine.ParseTemplateLocation(content, filePath, lineNumber)
 }
 
 func parseLiquidTemplateWithDiagnostics(filePath string, content []byte, diags *[]Diagnostic, parse liquidTemplateLocationParser) (values map[string]string, contextByKey map[string]string, err error) {
