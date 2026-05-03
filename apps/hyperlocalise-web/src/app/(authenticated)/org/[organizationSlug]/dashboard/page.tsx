@@ -1,4 +1,4 @@
-import { DashboardPageContent } from "@/components/app/dashboard-page-content";
+import { DashboardPageContent } from "./_components/dashboard-page-content";
 
 export default function OrganizationDashboardPage() {
   return <DashboardPageContent />;

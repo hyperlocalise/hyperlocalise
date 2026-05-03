@@ -33,6 +33,9 @@ inputs:
   github-annotations:
     description: Emit inline GitHub workflow annotations for check findings when location data is available.
     default: "true"
+  github-diff:
+    description: "For check mode, fetch the GitHub pull request diff and pass it to hyperlocalise check --diff-stdin so only changed translation keys are checked."
+    default: "false"
   summary-format:
     description: "Control the GitHub job summary verbosity. Supported values: 'compact' and 'detailed'."
     default: compact
@@ -73,12 +76,27 @@ runs:
       shell: bash
       env:
         CHECK: ${{ inputs.check }}
+        GITHUB_DIFF: ${{ inputs.github-diff }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
         SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
         if [[ "${CHECK}" != "drift" && "${CHECK}" != "check" ]]; then
           echo "Unsupported check: ${CHECK}" >&2
           echo "Supported values are 'drift' and 'check'." >&2
+          exit 1
+        fi
+        if [[ "${GITHUB_DIFF}" != "true" && "${GITHUB_DIFF}" != "false" ]]; then
+          echo "Unsupported github-diff value: ${GITHUB_DIFF}" >&2
+          echo "Supported values are 'true' and 'false'." >&2
+          exit 1
+        fi
+        if [[ "${GITHUB_DIFF}" == "true" && "${CHECK}" != "check" ]]; then
+          echo "github-diff is only supported when check is 'check'." >&2
+          exit 1
+        fi
+        if [[ "${GITHUB_DIFF}" == "true" && -z "${PR_NUMBER}" ]]; then
+          echo "github-diff requires a pull_request event." >&2
           exit 1
         fi
         if [[ "${SEVERITY_THRESHOLD}" != "warning" && "${SEVERITY_THRESHOLD}" != "error" ]]; then
@@ -100,6 +118,7 @@ runs:
         echo "artifact-name=hyperlocalise-${CHECK}-${GITHUB_JOB}-${GITHUB_RUN_ATTEMPT}-$(date +%s)-${RANDOM}" >>"${GITHUB_OUTPUT}"
         echo "report-path=${artifact_dir}/${CHECK}-report.json" >>"${GITHUB_OUTPUT}"
         echo "summary-path=${artifact_dir}/${CHECK}-summary.txt" >>"${GITHUB_OUTPUT}"
+        echo "github-diff-path=${artifact_dir}/github-pr.diff" >>"${GITHUB_OUTPUT}"
 
     - name: Install Hyperlocalise
       shell: bash
@@ -112,12 +131,37 @@ runs:
         bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${HYPERLOCALISE_VERSION}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
 
+    - name: Fetch GitHub pull request diff
+      if: ${{ inputs.github-diff == 'true' }}
+      shell: bash
+      env:
+        GITHUB_DIFF_PATH: ${{ steps.prepare.outputs.github-diff-path }}
+        GITHUB_TOKEN: ${{ github.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        diff_url="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}"
+        curl_args=(
+          -fsSL
+          -H "Accept: application/vnd.github.v3.diff"
+          -H "Authorization: Bearer ${GITHUB_TOKEN}"
+          -H "X-GitHub-Api-Version: 2022-11-28"
+        )
+
+        curl "${curl_args[@]}" "${diff_url}" -o "${GITHUB_DIFF_PATH}"
+        if [[ ! -s "${GITHUB_DIFF_PATH}" ]]; then
+          echo "GitHub pull request diff was empty." >&2
+          exit 1
+        fi
+
     - name: Run localization check
       id: run-check
       shell: bash
       env:
         CHECK: ${{ inputs.check }}
         CONFIG_PATH: ${{ inputs.config-path }}
+        GITHUB_DIFF: ${{ inputs.github-diff }}
+        GITHUB_DIFF_PATH: ${{ steps.prepare.outputs.github-diff-path }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
       run: |
@@ -128,13 +172,20 @@ runs:
           args=(run --dry-run --output "${REPORT_PATH}")
         else
           args=(check --no-fail --json-report "${REPORT_PATH}")
+          if [[ "${GITHUB_DIFF}" == "true" ]]; then
+            args+=(--diff-stdin)
+          fi
         fi
         if [[ -n "${CONFIG_PATH}" ]]; then
           args+=(--config "${CONFIG_PATH}")
         fi
 
         pushd "${WORKING_DIRECTORY}" >/dev/null
-        hyperlocalise "${args[@]}"
+        if [[ "${GITHUB_DIFF}" == "true" ]]; then
+          hyperlocalise "${args[@]}" <"${GITHUB_DIFF_PATH}"
+        else
+          hyperlocalise "${args[@]}"
+        fi
         cli_exit=$?
         popd >/dev/null
 

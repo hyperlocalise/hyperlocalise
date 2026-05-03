@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { AppShell } from "@/components/app/app-shell";
+import { AppShell } from "@/components/app-shell/app-shell";
 
 type OrganizationLayoutProps = {
   children: ReactNode;

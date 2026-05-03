@@ -1,5 +1,5 @@
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { AccountSettingsPageContent } from "@/components/app/settings-pages";
+import { AccountSettingsPageContent } from "../_components/settings-pages";
 
 export default async function AccountSettingsPage({
   params,

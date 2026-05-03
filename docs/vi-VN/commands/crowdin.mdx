@@ -8,9 +8,9 @@ description: "Các lệnh quy trình tệp tương thích với Crowdin được
 ```bash
 hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload sources [--config <path>] [--identity <path>]
-hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--language <locale>]
+hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
+hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
 ```
 
 ## Bộ lệnh này làm gì
@@ -24,6 +24,7 @@ Sử dụng chúng khi bạn muốn chế độ tệp tương thích với Crowd
 - tải lên tệp nguồn từ `files[].source`
 - tải lên bản dịch từ `files[].translation`
 - tải xuống/xuất bản dịch trở lại vào kho lưu trữ của bạn
+- tải lên và tải xuống theo nhánh bằng `branch:` ở gốc hoặc `--branch`
 - xác thực nghiêm ngặt các trường `crowdin.yml` được hỗ trợ
 
 ## Các trường cấu hình được hỗ trợ
@@ -36,6 +37,7 @@ Sử dụng chúng khi bạn muốn chế độ tệp tương thích với Crowd
 - `base_url_env`
 - `base_path`
 - `base_path_env`
+- `branch`
 - `preserve_hierarchy`
 - `files[].source`
 - `files[].translation`
@@ -51,7 +53,6 @@ Xác thực sẽ thất bại mặc định với các tính năng Crowdin CLI k
 
 Việc triển khai chế độ tệp v1 này không hỗ trợ:
 
-- luồng công việc nhánh
 - TM, bảng thuật ngữ, nhiệm vụ, ảnh chụp màn hình, bình luận, phân phối hoặc lệnh ứng dụng
 - chế độ tương thích "cảnh báo và bỏ qua" mang tính cho phép
 - khởi động dự án Crowdin tương tác
@@ -74,6 +75,12 @@ Chỉ tải lên bản dịch tiếng Pháp:
 
 ```bash
 hyperlocalise crowdin upload translations --language fr
+```
+
+Tải tệp nguồn lên một nhánh Crowdin:
+
+```bash
+hyperlocalise crowdin upload sources --branch feature/login
 ```
 
 Tải xuống chỉ các bản dịch tiếng Pháp đã được phê duyệt:

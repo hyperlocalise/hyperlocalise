@@ -69,6 +69,7 @@ Current scope:
 - Supported checks in `v1`: `drift` and `check`
 - `drift` runs `hyperlocalise run --dry-run` and reports planned localization changes
 - `check` runs `hyperlocalise check --format json` and reports localization integrity findings
+- `check` can pass the GitHub pull request diff to `hyperlocalise check --diff-stdin` so annotations focus on changed translation keys
 
 This repository publishes a moving major ref for stable v1 releases. Use `@v1` for the latest compatible action, or pin an exact tag such as `@v1.3.1` for stricter control.
 
@@ -80,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
 
@@ -89,6 +91,7 @@ jobs:
           config-path: i18n.yml
           hyperlocalise-version: latest
           fail-on-findings: true
+          github-diff: true
           upload-artifact: true
 ```
 
@@ -124,6 +127,7 @@ Inputs from [`action.yml`](action.yml):
 - `fail-on-findings`: fail the action when `check` findings are detected. Default: `true`
 - `upload-artifact`: upload the JSON report and text summary. Default: `true`
 - `github-annotations`: emit inline GitHub workflow annotations for `check` findings. Default: `true`
+- `github-diff`: in `check` mode on pull requests, fetch the GitHub PR diff and pass it to `hyperlocalise check --diff-stdin`. Default: `false`
 
 Outputs:
 
@@ -139,7 +143,8 @@ Outputs:
 Operational notes:
 
 - In `drift` mode, the action runs `hyperlocalise run --dry-run --output <report-path>`.
-- In `check` mode, the action runs `hyperlocalise check --format json --no-fail --output-file <report-path>` and then applies `fail-on-findings` in the action.
+- In `check` mode, the action runs `hyperlocalise check --no-fail --json-report <report-path>` and then applies `fail-on-findings` in the action.
+- When `github-diff` is `true`, `check` mode runs with `--diff-stdin`; this checks changed keys only for supported `.json`, `.jsonc`, and `.arb` translation files and uses those findings for annotations.
 - If the CLI fails before completing a clean report run, the action fails.
 - If the report state cannot be determined, the action fails.
 - When `upload-artifact` is enabled, the action uploads both the JSON report and the text summary.

@@ -1,12 +1,14 @@
 import { Hono } from "hono";
 
 import type {
-  EmailTranslationQueue,
+  EmailAgentTaskQueue,
   GitHubFixQueue,
   TranslationJobQueue,
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { authRoutes } from "./routes/auth";
+import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
+import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
@@ -18,7 +20,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
 type CreateAppOptions = {
-  emailTranslationQueue?: EmailTranslationQueue;
+  emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   translationJobQueue?: TranslationJobQueue;
@@ -36,6 +38,8 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
+    .route("/orgs/:organizationSlug/conversations", createConversationRoutes())
+    .route("/orgs/:organizationSlug/chat-requests", createChatRequestRoutes())
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route(
       "/webhooks/github",
@@ -48,7 +52,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route(
       "/webhooks/resend",
       createResendWebhookRoutes({
-        emailTranslationQueue: options.emailTranslationQueue,
+        emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
     );
 }

@@ -1,4 +1,4 @@
-import { GlossariesPageContent } from "@/components/app/glossaries-page-content";
+import { GlossariesPageContent } from "./_components/glossaries-page-content";
 
 export default function GlossariesPage() {
   return <GlossariesPageContent />;

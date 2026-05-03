@@ -62,20 +62,35 @@ export type GitHubFixQueue = {
   enqueue(event: GitHubFixRequestedEventData): Promise<{ ids: string[] }>;
 };
 
-export type EmailTranslationEventData = {
+export type EmailAgentTaskAttachment = {
+  id: string;
+  filename: string;
+  contentType: string;
+  downloadUrl: string;
+};
+
+export type EmailAgentTask = {
+  kind: "translate";
   requestId: string;
-  attachmentId: string;
   senderEmail: string;
   subject: string;
   originalMessageId: string;
   inboundEmailAddress: string;
-  attachmentDownloadUrl: string;
-  attachmentFilename: string;
-  sourceLocale: string | null;
-  targetLocale: string;
-  instructions: string | null;
+  inputs: {
+    attachments: [EmailAgentTaskAttachment];
+  };
+  parameters: {
+    translate: {
+      sourceLocale: string | null;
+      targetLocale: string;
+      instructions: string | null;
+    };
+  };
+  replyPolicy: {
+    type: "threaded_email";
+  };
 };
 
-export type EmailTranslationQueue = {
-  enqueue(event: EmailTranslationEventData): Promise<{ ids: string[] }>;
+export type EmailAgentTaskQueue = {
+  enqueue(task: EmailAgentTask): Promise<{ ids: string[] }>;
 };

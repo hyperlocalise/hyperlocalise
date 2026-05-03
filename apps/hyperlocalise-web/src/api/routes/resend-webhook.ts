@@ -3,13 +3,13 @@ import { after } from "next/server";
 
 import { getEmailBot } from "@/lib/agents/email/bot";
 import { createLogger } from "@/lib/log";
-import type { EmailTranslationQueue } from "@/lib/workflow/types";
-import { createEmailTranslationQueue } from "@/workflows/adapters";
+import type { EmailAgentTaskQueue } from "@/lib/workflow/types";
+import { createEmailAgentTaskQueue } from "@/workflows/adapters";
 
 const logger = createLogger("resend-webhook");
 
 type CreateResendWebhookRoutesOptions = {
-  emailTranslationQueue?: EmailTranslationQueue;
+  emailAgentTaskQueue?: EmailAgentTaskQueue;
 };
 
 export function createResendWebhookRoutes(options: CreateResendWebhookRoutesOptions = {}) {
@@ -18,7 +18,7 @@ export function createResendWebhookRoutes(options: CreateResendWebhookRoutesOpti
 
     try {
       const bot = await getEmailBot({
-        emailTranslationQueue: options.emailTranslationQueue ?? createEmailTranslationQueue(),
+        emailAgentTaskQueue: options.emailAgentTaskQueue ?? createEmailAgentTaskQueue(),
       });
 
       const response = await bot.webhooks.resend(c.req.raw, {

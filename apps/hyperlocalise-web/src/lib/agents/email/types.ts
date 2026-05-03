@@ -1,11 +1,15 @@
+import type { Message } from "chat";
+
+export type EmailAgentIntentKind = "translate" | "check" | "keyword_research" | "unknown";
+
 export type EmailBotState = {
   lastEmailEvent?: {
     senderEmail: string;
     subject: string;
     originalMessageId: string;
   };
-  pendingTranslationRequest?: PendingEmailTranslationRequest;
-  processedTranslationKeys?: string[];
+  pendingEmailAgentTask?: PendingEmailAgentTask;
+  processedEmailAgentTaskKeys?: string[];
 };
 
 export type RawEmailMessage = {
@@ -16,7 +20,8 @@ export type RawEmailMessage = {
   attachments?: Array<{ id: string; filename: string | null; contentType: string }>;
 };
 
-export type PendingEmailTranslationRequest = {
+export type PendingEmailAgentTask = {
+  kind: "translate";
   requestId: string;
   senderEmail: string;
   subject: string;
@@ -24,6 +29,9 @@ export type PendingEmailTranslationRequest = {
   emailId: string;
   inboundEmailAddress: string;
   attachments: Array<{ id: string; filename: string | null; contentType: string }>;
+  imageAttachments?: Message["attachments"];
+  imageMessage?: Message;
+  imageRaw?: Pick<RawEmailMessage, "emailId" | "subject" | "messageId">;
   sourceLocale: string | null;
   targetLocale: string | null;
   instructions: string | null;
