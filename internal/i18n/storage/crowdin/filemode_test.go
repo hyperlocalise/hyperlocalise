@@ -13,16 +13,22 @@ import (
 )
 
 type fakeFileClient struct {
-	locales              []string
-	ensuredDirectories   []string
-	foundDirectories     []string
-	upsertedSources      []string
-	uploadedTranslations []string
-	downloaded           []string
-	downloadOptions      []storage.FileExportOptions
-	directories          map[string]int
-	files                map[string]int
-	failFindMissing      bool
+	locales                []string
+	branchByName           map[string]int
+	resolvedBranches       []string
+	ensureBranchIDs        []int
+	findDirectoryBranchIDs []int
+	upsertBranchIDs        []int
+	findFileBranchIDs      []int
+	ensuredDirectories     []string
+	foundDirectories       []string
+	upsertedSources        []string
+	uploadedTranslations   []string
+	downloaded             []string
+	downloadOptions        []storage.FileExportOptions
+	directories            map[string]int
+	files                  map[string]int
+	failFindMissing        bool
 }
 
 func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested []string) ([]string, error) {
@@ -32,12 +38,22 @@ func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested [
 	return append([]string(nil), f.locales...), nil
 }
 
-func (f *fakeFileClient) EnsureDirectory(_ context.Context, _ string, path string) (int, error) {
+func (f *fakeFileClient) ResolveBranch(_ context.Context, _ string, branch string) (int, error) {
+	f.resolvedBranches = append(f.resolvedBranches, branch)
+	if id, ok := f.branchByName[branch]; ok {
+		return id, nil
+	}
+	return 0, fmt.Errorf("crowdin branch %q not found", branch)
+}
+
+func (f *fakeFileClient) EnsureDirectory(_ context.Context, _ string, branchID int, path string) (int, error) {
+	f.ensureBranchIDs = append(f.ensureBranchIDs, branchID)
 	f.ensuredDirectories = append(f.ensuredDirectories, path)
 	return len(f.ensuredDirectories), nil
 }
 
-func (f *fakeFileClient) FindDirectory(_ context.Context, _ string, path string) (int, error) {
+func (f *fakeFileClient) FindDirectory(_ context.Context, _ string, branchID int, path string) (int, error) {
+	f.findDirectoryBranchIDs = append(f.findDirectoryBranchIDs, branchID)
 	f.foundDirectories = append(f.foundDirectories, path)
 	if strings.TrimSpace(path) == "" {
 		return 0, nil
@@ -48,7 +64,8 @@ func (f *fakeFileClient) FindDirectory(_ context.Context, _ string, path string)
 	return 0, fmt.Errorf("remote directory %q not found", path)
 }
 
-func (f *fakeFileClient) UpsertSourceFile(_ context.Context, _ string, _ int, name, localPath string, _ storage.FileGroupSpec) (int, error) {
+func (f *fakeFileClient) UpsertSourceFile(_ context.Context, _ string, branchID, _ int, name, localPath string, _ storage.FileGroupSpec) (int, error) {
+	f.upsertBranchIDs = append(f.upsertBranchIDs, branchID)
 	if f.files == nil {
 		f.files = make(map[string]int)
 	}
@@ -58,7 +75,8 @@ func (f *fakeFileClient) UpsertSourceFile(_ context.Context, _ string, _ int, na
 	return id, nil
 }
 
-func (f *fakeFileClient) FindFile(_ context.Context, _ string, _ int, name string) (int, error) {
+func (f *fakeFileClient) FindFile(_ context.Context, _ string, branchID, _ int, name string) (int, error) {
+	f.findFileBranchIDs = append(f.findFileBranchIDs, branchID)
 	if id, ok := f.files[name]; ok {
 		return id, nil
 	}
@@ -312,6 +330,48 @@ func TestFileAdapterUploadSourcesFlattensWhenHierarchyDisabled(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result.Processed, []string{"messages.json"}) {
 		t.Fatalf("processed = %#v, want flattened path", result.Processed)
+	}
+}
+
+func TestFileAdapterUsesConfiguredBranchForFileWorkflow(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "messages.json"), `{"hello":"Hello"}`)
+	writeJSONFixture(t, filepath.Join(base, "dist", "fr", "messages.json"), `{"hello":"Bonjour"}`)
+
+	client := &fakeFileClient{
+		locales:      []string{"fr"},
+		branchByName: map[string]int{"feature/login": 42},
+		files:        map[string]int{"messages.json": 7},
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID: "123",
+		APIToken:  "token",
+		BasePath:  base,
+		Branch:    "feature/login",
+		Files: []storage.FileGroupSpec{{
+			Source:      "/messages.json",
+			Translation: "/dist/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if _, err := adapter.UploadTranslations(context.Background(), storage.FileUploadTranslationsRequest{}); err != nil {
+		t.Fatalf("upload translations: %v", err)
+	}
+	if _, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{}); err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+
+	if got, want := client.resolvedBranches, []string{"feature/login", "feature/login", "feature/login"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("resolved branches = %#v, want %#v", got, want)
+	}
+	if got, want := client.upsertBranchIDs, []int{42}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("upsert branch IDs = %#v, want %#v", got, want)
+	}
+	if got, want := client.findFileBranchIDs, []int{42, 42}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("find file branch IDs = %#v, want %#v", got, want)
 	}
 }
 

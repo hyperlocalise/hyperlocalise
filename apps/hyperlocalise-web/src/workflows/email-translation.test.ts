@@ -9,6 +9,7 @@ vi.mock("@/lib/env", () => ({
 }));
 
 import {
+  buildTempConfig,
   getTranslatedFileDiagnostics,
   getSandboxInputFilename,
   getSandboxOutputFilename,
@@ -35,6 +36,24 @@ describe("email translation workflow filenames", () => {
     expect(getSandboxTranslationEnv()).toEqual({
       OPENAI_API_KEY: "test-openai-api-key",
     });
+  });
+});
+
+describe("email translation temporary config", () => {
+  it("includes user style instructions in the system prompt when present", () => {
+    const config = buildTempConfig("source.json", "target.json", "en", "fr", "Keep it formal.");
+
+    expect(config).toContain("system_prompt:");
+    expect(config).toContain("User style instructions: Keep it formal.");
+    expect(config).toContain("user_prompt:");
+    expect(config).toContain("{{input}}");
+  });
+
+  it("omits the user style instruction line when instructions are absent", () => {
+    const config = buildTempConfig("source.json", "target.json", "en", "fr", null);
+
+    expect(config).toContain("system_prompt:");
+    expect(config).not.toContain("User style instructions:");
   });
 });
 

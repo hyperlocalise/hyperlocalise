@@ -37,6 +37,31 @@ jobs:
           upload-artifact: true
 ```
 
+For pull request checks, `check` mode can fetch the GitHub pull request diff and pass it to `hyperlocalise check --diff-stdin`. This scopes findings and inline annotations to changed translation keys for supported `.json`, `.jsonc`, and `.arb` files.
+
+```yaml
+name: localization-check
+
+on:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hyperlocalise/hyperlocalise@v1
+        with:
+          check: check
+          config-path: i18n.yml
+          github-diff: true
+          fail-on-findings: true
+```
+
 External repositories can use the moving `v1` ref for the latest stable v1 release. Pin an exact tag if you want stricter change control.
 
 ```yaml
@@ -47,11 +72,13 @@ External repositories can use the moving `v1` ref for the latest stable v1 relea
 
 ## Inputs
 
-- `check`: check name. Only `drift` is supported in v1.
+- `check`: check name. Supported values are `drift` and `check`.
 - `config-path`: path to the config file. Defaults to `i18n.yml`.
 - `working-directory`: working directory for the command. Defaults to `.`.
 - `hyperlocalise-version`: release version to install. Defaults to `latest`.
 - `fail-on-drift`: fail the workflow when drift is detected. Defaults to `true`.
+- `fail-on-findings`: fail the workflow when check findings are detected. Defaults to `true`.
+- `github-diff`: in `check` mode on pull requests, fetch the GitHub PR diff and pass it to `hyperlocalise check --diff-stdin`. Defaults to `false`.
 - `upload-artifact`: upload the JSON and text artifacts. Defaults to `true`.
 
 ## Drift detection

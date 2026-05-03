@@ -1,4 +1,4 @@
-import { NotificationSettingsPageContent } from "@/components/app/settings-pages";
+import { NotificationSettingsPageContent } from "../_components/settings-pages";
 
 export default function NotificationSettingsPage() {
   return <NotificationSettingsPageContent />;

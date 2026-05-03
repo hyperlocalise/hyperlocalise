@@ -4,11 +4,16 @@ import { getAppShellTitle } from "./app-shell-title";
 
 describe("getAppShellTitle", () => {
   it.each([
-    ["/org/acme/dashboard", "Dashboard"],
+    ["/org/acme/dashboard", "Analytics"],
+    ["/org/acme/inbox", "Inbox"],
+    ["/org/acme/chat", "Chat"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/jobs", "Jobs"],
+    ["/org/acme/my-jobs", "My Jobs"],
+    ["/org/acme/context", "Context"],
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/agent", "Agent"],
+    ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/settings", "Settings"],
     ["/org/acme/settings/account", "Account"],
@@ -19,7 +24,7 @@ describe("getAppShellTitle", () => {
   });
 
   it("falls back to dashboard for unknown or empty paths", () => {
-    expect(getAppShellTitle(null)).toBe("Dashboard");
-    expect(getAppShellTitle("/org/acme/unknown")).toBe("Dashboard");
+    expect(getAppShellTitle(null)).toBe("Analytics");
+    expect(getAppShellTitle("/org/acme/unknown")).toBe("Analytics");
   });
 });

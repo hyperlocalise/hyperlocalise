@@ -12,7 +12,7 @@ import {
   toAttachmentBuffer,
   toBase64AttachmentContent,
 } from "@/lib/resend/attachments";
-import type { EmailTranslationEventData } from "@/lib/workflow/types";
+import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 const logger = createLogger("email-translation-workflow");
@@ -77,13 +77,25 @@ async function downloadAttachment(
   }
 }
 
-function buildTempConfig(
+export function buildTempConfig(
   inputFile: string,
   outputFile: string,
   sourceLocale: string | null,
   targetLocale: string,
+  instructions: string | null = null,
 ): string {
   const yamlString = (value: string) => JSON.stringify(value);
+  const normalizedInstructions = instructions?.trim();
+  const systemPrompt = [
+    "You are a translation assistant. Translate the user-provided source text into the requested target language.",
+    "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
+    "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
+    normalizedInstructions ? `User style instructions: ${normalizedInstructions}` : null,
+    "Return only the translated text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
+  ]
+    .filter((line): line is string => line !== null)
+    .join("\n");
+  const userPrompt = ["Translate from {{source}} to {{target}}.", "", "{{input}}"].join("\n");
 
   return [
     "locales:",
@@ -102,6 +114,8 @@ function buildTempConfig(
     "    default:",
     "      provider: openai",
     "      model: gpt-5.4-mini",
+    `      system_prompt: ${yamlString(systemPrompt)}`,
+    `      user_prompt: ${yamlString(userPrompt)}`,
   ].join("\n");
 }
 
@@ -122,11 +136,12 @@ async function runTranslationCommand(
   outputFile: string,
   sourceLocale: string | null,
   targetLocale: string,
+  instructions: string | null,
 ): Promise<{ exitCode: number; output: string }> {
   "use step";
 
   const configPath = "/tmp/hyperlocalise-email.yml";
-  const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale);
+  const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
   await writeTempConfig(sandboxId, config, configPath);
 
   return runSandboxCommand(
@@ -200,7 +215,8 @@ export async function getTranslatedFileDiagnostics(
 }
 
 async function logTranslatedFileDiagnostics(
-  event: EmailTranslationEventData,
+  task: EmailAgentTask,
+  attachment: EmailAgentTaskAttachment,
   translatedContent: Buffer,
   outputFilename: string,
 ): Promise<void> {
@@ -210,10 +226,10 @@ async function logTranslatedFileDiagnostics(
 
   logger.info(
     {
-      requestId: event.requestId,
-      attachmentId: event.attachmentId,
-      sourceFilename: event.attachmentFilename,
-      targetLocale: event.targetLocale,
+      requestId: task.requestId,
+      attachmentId: attachment.id,
+      sourceFilename: attachment.filename,
+      targetLocale: task.parameters.translate.targetLocale,
       diagnostics,
     },
     "translated email attachment diagnostics",
@@ -235,7 +251,8 @@ export function getSandboxTranslationEnv(): Record<string, string> {
 }
 
 async function sendReplyEmail(
-  event: EmailTranslationEventData,
+  task: EmailAgentTask,
+  attachment: EmailAgentTaskAttachment,
   translatedContent: Buffer,
   outputFilename: string,
 ): Promise<void> {
@@ -246,22 +263,24 @@ async function sendReplyEmail(
   }
 
   const resend = new Resend(env.RESEND_API_KEY);
+  const { sourceLocale, targetLocale, instructions } = task.parameters.translate;
   const result = await resend.emails.send({
-    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
-    to: event.senderEmail,
-    replyTo: event.inboundEmailAddress,
-    subject: `Re: ${event.subject}`,
+    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${task.inboundEmailAddress}>`,
+    to: task.senderEmail,
+    replyTo: task.inboundEmailAddress,
+    subject: `Re: ${task.subject}`,
     text: [
-      `Done: ${event.attachmentFilename}`,
-      event.sourceLocale
-        ? `Translated: ${event.sourceLocale} -> ${event.targetLocale}`
-        : `Translated: auto-detect -> ${event.targetLocale}`,
-      `Attached: ${outputFilename}`,
-      event.instructions
-        ? "Note: style instructions were captured, but email translation does not apply them yet."
-        : null,
+      `Your translation is ready. I've converted ${attachment.filename} into ${targetLocale} and attached it as ${outputFilename}.`,
       "",
-      `Request ID: ${event.requestId}`,
+      sourceLocale
+        ? `Source: ${sourceLocale} -> ${targetLocale}`
+        : `Source: auto-detect -> ${targetLocale}`,
+      instructions ? `Instructions applied: ${instructions}` : null,
+      "",
+      "Let me know if anything looks off or if you need another language.",
+      "",
+      "—Hyperlocalise Agent",
+      `Request ID: ${task.requestId}`,
     ]
       .filter((line): line is string => line !== null)
       .join("\n"),
@@ -273,8 +292,8 @@ async function sendReplyEmail(
       },
     ],
     headers: {
-      "In-Reply-To": event.originalMessageId,
-      References: event.originalMessageId,
+      "In-Reply-To": task.originalMessageId,
+      References: task.originalMessageId,
     },
   });
 
@@ -284,7 +303,8 @@ async function sendReplyEmail(
 }
 
 async function sendFailureReplyEmail(
-  event: EmailTranslationEventData,
+  task: EmailAgentTask,
+  attachment: EmailAgentTaskAttachment,
   reason: string,
 ): Promise<void> {
   "use step";
@@ -295,21 +315,22 @@ async function sendFailureReplyEmail(
 
   const resend = new Resend(env.RESEND_API_KEY);
   const result = await resend.emails.send({
-    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${event.inboundEmailAddress}>`,
-    to: event.senderEmail,
-    replyTo: event.inboundEmailAddress,
-    subject: `Re: ${event.subject}`,
+    from: `${env.RESEND_FROM_NAME ?? "Hyperlocalise"} <${task.inboundEmailAddress}>`,
+    to: task.senderEmail,
+    replyTo: task.inboundEmailAddress,
+    subject: `Re: ${task.subject}`,
     text: [
-      `I couldn't translate ${event.attachmentFilename}.`,
+      `Sorry — I hit a snag while processing ${attachment.filename} and couldn't finish the task.`,
       "",
-      `Reason: ${reason}`,
-      "You can reply with a corrected file or try sending the request again.",
+      `What happened: ${reason}`,
+      "Could you double-check the file and send it again? If it fails a second time, just reply and I'll flag it for the team.",
       "",
-      `Request ID: ${event.requestId}`,
+      "—Hyperlocalise Agent",
+      `Request ID: ${task.requestId}`,
     ].join("\n"),
     headers: {
-      "In-Reply-To": event.originalMessageId,
-      References: event.originalMessageId,
+      "In-Reply-To": task.originalMessageId,
+      References: task.originalMessageId,
     },
   });
 
@@ -322,22 +343,22 @@ function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
   if (message.includes("hyperlocalise CLI installation failed")) {
-    return "the translation runner could not be prepared.";
+    return "something went wrong while setting up the translation environment on our end.";
   }
 
   if (message.includes("failed to download attachment")) {
-    return "the attachment could not be downloaded.";
+    return "the attachment couldn't be retrieved from the email. It may have been too large or the link expired.";
   }
 
   if (message.includes("translation failed")) {
-    return "the translation runner could not process this file.";
+    return "the file format may not be supported, or the content didn't match what the translator expected (for example, nested JSON keys that don't match a standard i18n structure).";
   }
 
   if (message.includes("failed to read translated file")) {
-    return "the translated output file could not be read.";
+    return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
 
-  return "the translation workflow failed before it could finish.";
+  return "the translation failed before it could finish. This is usually temporary.";
 }
 
 function getOutputFilename(inputFilename: string, targetLocale: string): string {
@@ -362,23 +383,34 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
   return getOutputFilename(sanitizeFilename(attachmentFilename), targetLocale);
 }
 
-export async function emailTranslationWorkflow(event: EmailTranslationEventData) {
+function firstTaskAttachment(task: EmailAgentTask): EmailAgentTaskAttachment {
+  const attachment = task.inputs.attachments[0];
+  if (!attachment) {
+    throw new Error("email agent task has no attachments");
+  }
+  return attachment;
+}
+
+export async function emailTranslationWorkflow(task: EmailAgentTask) {
   "use workflow";
 
+  const attachment = firstTaskAttachment(task);
+  const { sourceLocale, targetLocale, instructions } = task.parameters.translate;
   const { sandboxId } = await createTranslationSandbox();
-  const inputFile = getSandboxInputFilename(event.attachmentFilename);
-  const outputFile = getSandboxOutputFilename(event.attachmentFilename, event.targetLocale);
+  const inputFile = getSandboxInputFilename(attachment.filename);
+  const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
 
   try {
     await prepareSandbox(sandboxId);
-    await downloadAttachment(sandboxId, event.attachmentDownloadUrl, inputFile);
+    await downloadAttachment(sandboxId, attachment.downloadUrl, inputFile);
 
     const translation = await runTranslationCommand(
       sandboxId,
       inputFile,
       outputFile,
-      event.sourceLocale,
-      event.targetLocale,
+      sourceLocale,
+      targetLocale,
+      instructions,
     );
 
     if (translation.exitCode !== 0) {
@@ -386,11 +418,11 @@ export async function emailTranslationWorkflow(event: EmailTranslationEventData)
     }
 
     const translatedContent = await readTranslatedFile(sandboxId, outputFile);
-    await logTranslatedFileDiagnostics(event, translatedContent, outputFile);
-    await sendReplyEmail(event, translatedContent, outputFile);
+    await logTranslatedFileDiagnostics(task, attachment, translatedContent, outputFile);
+    await sendReplyEmail(task, attachment, translatedContent, outputFile);
   } catch (error) {
     try {
-      await sendFailureReplyEmail(event, userFacingFailureReason(error));
+      await sendFailureReplyEmail(task, attachment, userFacingFailureReason(error));
     } catch {
       // Best-effort notification; keep the original workflow error.
     }

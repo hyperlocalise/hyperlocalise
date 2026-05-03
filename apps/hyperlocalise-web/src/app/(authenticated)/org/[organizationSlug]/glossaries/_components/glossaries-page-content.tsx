@@ -12,7 +12,7 @@ import {
   ProgressBar,
   ResourceCard,
   toneClass,
-} from "./workspace-resource-shared";
+} from "../../_components/workspace-resource-shared";
 
 const glossaries = [
   {
@@ -90,7 +90,7 @@ const glossaryMetrics = [
 
 export function GlossariesPageContent() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="space-y-5">
       <PageHeader
         icon={BookOpenTextIcon}
         label="Term library"
@@ -168,6 +168,6 @@ export function GlossariesPageContent() {
           </div>
         </ResourceCard>
       </section>
-    </div>
+    </main>
   );
 }

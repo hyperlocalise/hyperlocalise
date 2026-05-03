@@ -1,16 +1,23 @@
 package crowdin
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
+	sdkcrowdin "github.com/crowdin/crowdin-api-client-go/crowdin"
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 func TestParseProjectID(t *testing.T) {
@@ -244,4 +251,203 @@ func TestAPIBaseURLRoundTripperRewritesCloudHost(t *testing.T) {
 	if seenHost != parsed.Host {
 		t.Fatalf("unexpected rewritten host: %q", seenHost)
 	}
+}
+
+func TestHTTPClientResolveBranchFindsExactName(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/branches", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/branches?limit=500&name=feature%2Flogin")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":42,"projectId":123,"name":"feature/login","title":"Feature Login"}}]}`)
+	})
+
+	id, err := client.ResolveBranch(context.Background(), "123", "feature/login")
+	if err != nil {
+		t.Fatalf("resolve branch: %v", err)
+	}
+	if id != 42 {
+		t.Fatalf("branch id = %d, want 42", id)
+	}
+}
+
+func TestHTTPClientResolveBranchErrorsWhenMissing(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/branches", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/branches?limit=500&name=missing")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":7,"projectId":123,"name":"other","title":"Other"}}]}`)
+	})
+
+	_, err := client.ResolveBranch(context.Background(), "123", "missing")
+	if err == nil || !strings.Contains(err.Error(), `crowdin branch "missing" not found`) {
+		t.Fatalf("expected missing branch error, got %v", err)
+	}
+}
+
+func TestHTTPClientEnsureDirectoryScopesRootToBranchAndNestedToDirectory(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	postCount := 0
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.RequestURI {
+		case http.MethodGet + " /api/v2/projects/123/directories?branchId=42&filter=src&limit=500":
+			_, _ = io.WriteString(w, `{"data":[]}`)
+		case http.MethodPost + " /api/v2/projects/123/directories":
+			postCount++
+			if postCount == 1 {
+				assertJSONBody(t, r, map[string]any{"name": "src", "branchId": float64(42)})
+				_, _ = io.WriteString(w, `{"data":{"id":8,"projectId":123,"branchId":42,"name":"src"}}`)
+				return
+			}
+			assertJSONBody(t, r, map[string]any{"name": "nested", "directoryId": float64(8)})
+			_, _ = io.WriteString(w, `{"data":{"id":9,"projectId":123,"directoryId":8,"name":"nested"}}`)
+		case http.MethodGet + " /api/v2/projects/123/directories?directoryId=8&filter=nested&limit=500":
+			_, _ = io.WriteString(w, `{"data":[]}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.RequestURI)
+		}
+	})
+
+	id, err := client.EnsureDirectory(context.Background(), "123", 42, "src/nested")
+	if err != nil {
+		t.Fatalf("ensure directory: %v", err)
+	}
+	if id != 9 {
+		t.Fatalf("directory id = %d, want 9", id)
+	}
+}
+
+func TestHTTPClientFindDirectoryAndFileUseBranchForRootLookups(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/directories", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/directories?branchId=42&filter=src&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":8,"projectId":123,"branchId":42,"name":"src"}}]}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/files?branchId=42&filter=messages.json&limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":17,"projectId":123,"branchId":42,"name":"messages.json"}}]}`)
+	})
+
+	dirID, err := client.FindDirectory(context.Background(), "123", 42, "src")
+	if err != nil {
+		t.Fatalf("find directory: %v", err)
+	}
+	if dirID != 8 {
+		t.Fatalf("directory id = %d, want 8", dirID)
+	}
+	fileID, err := client.FindFile(context.Background(), "123", 42, 0, "messages.json")
+	if err != nil {
+		t.Fatalf("find file: %v", err)
+	}
+	if fileID != 17 {
+		t.Fatalf("file id = %d, want 17", fileID)
+	}
+}
+
+func TestHTTPClientUpsertSourceFileAddsRootFileToBranch(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	localPath := writeHTTPClientFixture(t, "messages.json", `{"hello":"Hello"}`)
+
+	mux.HandleFunc("/api/v2/storages", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("storage method = %s, want POST", r.Method)
+		}
+		_, _ = io.WriteString(w, `{"data":{"id":61,"fileName":"messages.json"}}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123/files", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.RequestURI {
+		case http.MethodGet + " /api/v2/projects/123/files?branchId=42&filter=messages.json&limit=500":
+			_, _ = io.WriteString(w, `{"data":[]}`)
+		case http.MethodPost + " /api/v2/projects/123/files":
+			assertJSONBody(t, r, map[string]any{
+				"storageId": float64(61),
+				"name":      "messages.json",
+				"branchId":  float64(42),
+			})
+			_, _ = io.WriteString(w, `{"data":{"id":17,"projectId":123,"branchId":42,"name":"messages.json"}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.RequestURI)
+		}
+	})
+
+	id, err := client.UpsertSourceFile(context.Background(), "123", 42, 0, "messages.json", localPath, storage.FileGroupSpec{})
+	if err != nil {
+		t.Fatalf("upsert source file: %v", err)
+	}
+	if id != 17 {
+		t.Fatalf("file id = %d, want 17", id)
+	}
+}
+
+func newCrowdinHTTPClientForTest(t *testing.T) (*HTTPClient, *http.ServeMux, func()) {
+	t.Helper()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+
+	overrideURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server url: %v", err)
+	}
+	httpClient := server.Client()
+	httpClient.Transport = &apiBaseURLRoundTripper{
+		base:      httpClient.Transport,
+		override:  overrideURL,
+		cloudHost: "api.crowdin.com",
+	}
+	sdkClient, err := sdkcrowdin.NewClient("token", sdkcrowdin.WithHTTPClient(httpClient))
+	if err != nil {
+		t.Fatalf("new sdk client: %v", err)
+	}
+	return &HTTPClient{client: sdkClient, httpClient: httpClient}, mux, server.Close
+}
+
+func assertRequest(t *testing.T, r *http.Request, method, requestURI string) {
+	t.Helper()
+	if r.Method != method {
+		t.Fatalf("method = %s, want %s", r.Method, method)
+	}
+	if r.RequestURI != requestURI {
+		t.Fatalf("request URI = %s, want %s", r.RequestURI, requestURI)
+	}
+}
+
+func assertJSONBody(t *testing.T, r *http.Request, want map[string]any) {
+	t.Helper()
+	var got map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+		t.Fatalf("decode request body: %v", err)
+	}
+	if !mapsEqual(got, want) {
+		gotJSON, _ := json.Marshal(got)
+		wantJSON, _ := json.Marshal(want)
+		t.Fatalf("request body = %s, want %s", gotJSON, wantJSON)
+	}
+}
+
+func mapsEqual(got, want map[string]any) bool {
+	gotJSON, err := json.Marshal(got)
+	if err != nil {
+		return false
+	}
+	wantJSON, err := json.Marshal(want)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(gotJSON, wantJSON)
+}
+
+func writeHTTPClientFixture(t *testing.T, name, content string) string {
+	t.Helper()
+	path := t.TempDir() + "/" + name
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	return path
 }

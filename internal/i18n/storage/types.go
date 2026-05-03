@@ -150,6 +150,7 @@ type FileWorkflowConfig struct {
 	APIToken          string          `json:"-"`
 	APIBaseURL        string          `json:"api_base_url,omitempty"`
 	BasePath          string          `json:"base_path,omitempty"`
+	Branch            string          `json:"branch,omitempty"`
 	PreserveHierarchy bool            `json:"preserve_hierarchy,omitempty"`
 	Files             []FileGroupSpec `json:"files"`
 }

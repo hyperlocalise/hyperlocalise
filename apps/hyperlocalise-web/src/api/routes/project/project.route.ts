@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import type { TranslationProject } from "@/lib/database/types";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
 import { createTranslationJobQueue } from "@/workflows/adapters";
 
@@ -26,10 +27,14 @@ import {
 import { createTranslationJobRoutes } from "./translation-job.route";
 
 type ProjectStore = {
-  list(auth: ApiAuthContext): Promise<unknown>;
-  create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<unknown>;
-  getById(auth: ApiAuthContext, projectId: string): Promise<unknown>;
-  update(auth: ApiAuthContext, projectId: string, payload: UpdateProjectBody): Promise<unknown>;
+  list(auth: ApiAuthContext): Promise<TranslationProject[]>;
+  create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<TranslationProject>;
+  getById(auth: ApiAuthContext, projectId: string): Promise<TranslationProject | null>;
+  update(
+    auth: ApiAuthContext,
+    projectId: string,
+    payload: UpdateProjectBody,
+  ): Promise<TranslationProject | null>;
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 

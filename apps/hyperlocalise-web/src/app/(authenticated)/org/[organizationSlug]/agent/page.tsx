@@ -1,4 +1,4 @@
-import { AgentPageContent } from "@/components/app/agent-page-content";
+import { AgentPageContent } from "./_components/agent-page-content";
 
 export default async function AgentPage({
   params,

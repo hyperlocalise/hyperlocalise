@@ -179,7 +179,7 @@ export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
   const baseHref = `/org/${organizationSlug}/settings`;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="space-y-5">
       <SettingsHeader
         eyebrow="Settings"
         icon={Settings01Icon}
@@ -216,7 +216,7 @@ export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
           </div>
         </CardContent>
       </SurfaceCard>
-    </div>
+    </main>
   );
 }
 
@@ -227,7 +227,7 @@ export function AccountSettingsPageContent({
   userName,
 }: AccountPageProps) {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <main className="space-y-5">
       <SettingsHeader
         eyebrow="Account settings"
         icon={AiUserIcon}
@@ -276,13 +276,13 @@ export function AccountSettingsPageContent({
           <ReadonlyField label="Workspace slug" value={organizationSlug} />
         </CardContent>
       </SurfaceCard>
-    </div>
+    </main>
   );
 }
 
 export function BillingSettingsPageContent() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="space-y-5">
       <SettingsHeader
         eyebrow="Billing settings"
         icon={CreditCardIcon}
@@ -372,7 +372,7 @@ export function BillingSettingsPageContent() {
           ))}
         </CardContent>
       </SurfaceCard>
-    </div>
+    </main>
   );
 }
 
@@ -387,7 +387,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 export function NotificationSettingsPageContent() {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
+    <main className="space-y-5">
       <SettingsHeader
         eyebrow="Notification settings"
         icon={Notification01Icon}
@@ -447,6 +447,6 @@ export function NotificationSettingsPageContent() {
           </div>
         </CardContent>
       </SurfaceCard>
-    </div>
+    </main>
   );
 }

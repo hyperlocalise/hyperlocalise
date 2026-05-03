@@ -23,6 +23,12 @@ vi.mock("@/lib/agents/email/bot", () => {
   };
 });
 
+vi.mock("@/workflows/adapters", () => ({
+  createEmailAgentTaskQueue: vi.fn(() => ({
+    enqueue: vi.fn(async () => ({ ids: ["run_123"] })),
+  })),
+}));
+
 describe("resendWebhookRoutes", () => {
   it("delegates Resend webhooks to the email bot adapter", async () => {
     const app = createResendWebhookRoutes();

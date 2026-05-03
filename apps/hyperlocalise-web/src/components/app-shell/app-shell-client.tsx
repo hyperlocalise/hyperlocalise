@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
@@ -27,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getAppShellTitle } from "./app-shell-title";
 import { NavUser } from "./nav-user";
+import { Separator } from "@/components/ui/separator";
 
 type AppShellClientProps = {
   children: ReactNode;
@@ -60,31 +62,38 @@ export function AppShellClient({
     <SidebarProvider
       defaultOpen
       style={{ "--sidebar-width": "15rem" } as CSSProperties}
-      className="min-h-svh bg-[#050505] text-white"
+      className="min-h-svh bg-app-shell-background text-app-shell-foreground"
     >
       <Sidebar
         variant="sidebar"
         collapsible="icon"
         className={cn(
-          "[--sidebar:#050505]",
-          "[--sidebar-foreground:oklch(0.93_0_0)]",
+          "[--sidebar:var(--app-shell-background)]",
+          "[--sidebar-foreground:var(--app-shell-foreground)]",
           "[--sidebar-border:oklch(0.28_0_0)]",
           "[--sidebar-accent:oklch(0.16_0_0)]",
           "[--sidebar-accent-foreground:oklch(0.97_0_0)]",
           "[--sidebar-ring:oklch(0.55_0_0)]",
         )}
       >
-        <SidebarHeader className="gap-3 border-b border-white/8 px-3 py-3">
-          <div className="flex items-center gap-2.5 rounded-xl px-1 py-1">
-            <div className="size-7 rounded-full border border-white/15 bg-[linear-gradient(135deg,#2a2a2a,#101010)]" />
-            <div className="min-w-0">
+        <SidebarHeader className="gap-3 border-b border-white/8 px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
+          <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <Image
+              src="/images/logo.png"
+              width={28}
+              height={28}
+              sizes="28px"
+              alt="Hyperlocalise logo"
+              className="size-7 shrink-0 rounded-full"
+            />
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
               <p className="truncate text-xs text-white/45">{activeOrganization.name}</p>
             </div>
           </div>
 
           {organizations.length > 1 ? (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 group-data-[collapsible=icon]:hidden">
               {organizations
                 .filter(
                   (organization) =>
@@ -105,7 +114,7 @@ export function AppShellClient({
             </div>
           ) : null}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
             <InputGroup className="h-9 rounded-xl border-white/10 bg-white/4 text-white">
               <InputGroupInput
                 aria-label="Find"
@@ -150,10 +159,14 @@ export function AppShellClient({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-h-svh bg-[#050505]">
-        <div className="sticky top-0 z-20 border-b border-white/8 bg-[#050505]/96 backdrop-blur">
+      <SidebarInset className="min-h-svh bg-app-shell-background">
+        <div className="sticky top-0 z-20 border-b border-white/8 bg-app-shell-background/96 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
-            <SidebarTrigger className="text-white hover:bg-white/8 hover:text-white md:hidden" />
+            <SidebarTrigger className="-ms-1" />
+            <Separator
+              orientation="vertical"
+              className="me-2 data-vertical:h-4 data-vertical:self-auto"
+            />
             <p className="font-heading text-base font-medium text-white">{pageTitle}</p>
           </div>
         </div>

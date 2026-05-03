@@ -1,4 +1,4 @@
-import { IntegrationsPageContent } from "@/components/app/integrations-page-content";
+import { IntegrationsPageContent } from "./_components/integrations-page-content";
 
 export default async function IntegrationsPage({
   params,

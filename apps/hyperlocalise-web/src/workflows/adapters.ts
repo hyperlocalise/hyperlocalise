@@ -4,7 +4,7 @@ import { emailTranslationWorkflow } from "./email-translation";
 import { githubFixWorkflow } from "./github-fix";
 import { translationJobWorkflow } from "./translation-job";
 import type {
-  EmailTranslationQueue,
+  EmailAgentTaskQueue,
   GitHubFixQueue,
   TranslationJobQueue,
 } from "@/lib/workflow/types";
@@ -33,10 +33,10 @@ export function createGitHubFixQueue(): GitHubFixQueue {
   };
 }
 
-export function createEmailTranslationQueue(): EmailTranslationQueue {
+export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
   return {
-    async enqueue(event) {
-      const run = await start(emailTranslationWorkflow, [event]);
+    async enqueue(task) {
+      const run = await start(emailTranslationWorkflow, [task]);
 
       return {
         ids: [run.runId],

@@ -2,16 +2,21 @@ import type { ReactNode } from "react";
 import {
   BookOpenTextIcon,
   BotIcon,
+  BubbleChatTranslateIcon,
   DashboardSquare01Icon,
+  DatabaseSyncIcon,
+  File01Icon,
   FolderKanbanIcon,
+  InboxIcon,
   LinkSquare02Icon,
   Settings01Icon,
   Task01Icon,
+  WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
-import { AppShellClient } from "@/components/app/app-shell-client";
-import { AppShellNavigation } from "@/components/app/app-shell-navigation";
+import { AppShellClient } from "@/components/app-shell/app-shell-client";
+import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
 
 export type AppShellProps = {
   children: ReactNode;
@@ -27,10 +32,29 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
     auth.sessionUser.email;
   const navigationGroups = [
     {
+      items: [
+        {
+          label: "New Chat",
+          href: `/org/${activeOrganizationSlug}/chat`,
+          icon: BubbleChatTranslateIcon,
+        },
+        {
+          label: "Inbox",
+          href: `/org/${activeOrganizationSlug}/inbox`,
+          icon: InboxIcon,
+        },
+        {
+          label: "My Jobs",
+          href: `/org/${activeOrganizationSlug}/my-jobs`,
+          icon: WorkHistoryIcon,
+        },
+      ],
+    },
+    {
       label: "Workspace",
       items: [
         {
-          label: "Overview",
+          label: "Analytics",
           href: `/org/${activeOrganizationSlug}/dashboard`,
           icon: DashboardSquare01Icon,
         },
@@ -45,9 +69,9 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
           icon: Task01Icon,
         },
         {
-          label: "Glossaries",
-          href: `/org/${activeOrganizationSlug}/glossaries`,
-          icon: BookOpenTextIcon,
+          label: "Context",
+          href: `/org/${activeOrganizationSlug}/context`,
+          icon: File01Icon,
         },
       ],
     },
@@ -58,6 +82,16 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
           label: "Agent",
           href: `/org/${activeOrganizationSlug}/agent`,
           icon: BotIcon,
+        },
+        {
+          label: "Glossaries",
+          href: `/org/${activeOrganizationSlug}/glossaries`,
+          icon: BookOpenTextIcon,
+        },
+        {
+          label: "Translation Memories",
+          href: `/org/${activeOrganizationSlug}/translation-memories`,
+          icon: DatabaseSyncIcon,
         },
         {
           label: "Integrations",

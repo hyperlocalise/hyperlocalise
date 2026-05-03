@@ -19,6 +19,7 @@ var crowdinTemplateFS embed.FS
 type crowdinCommonOptions struct {
 	configPath   string
 	identityPath string
+	branch       string
 	languages    []string
 	dryRun       bool
 }
@@ -90,7 +91,7 @@ func newCrowdinConfigValidateCmd() *cobra.Command {
 			return err
 		},
 	}
-	addCrowdinCommonFlags(cmd, &o, false)
+	addCrowdinCommonFlags(cmd, &o, false, false)
 	return cmd
 }
 
@@ -123,11 +124,11 @@ func newCrowdinUploadSourcesCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := adapter.UploadSources(backgroundContext(), crowdinstorageRequestSources(cfg))
+			result, err := adapter.UploadSources(backgroundContext(), crowdinstorageRequestSources(cfg, o.branch))
 			return writeCrowdinResultError(cmd, "upload-sources", result, err)
 		},
 	}
-	addCrowdinCommonFlags(cmd, &o, false)
+	addCrowdinCommonFlags(cmd, &o, false, true)
 	return cmd
 }
 
@@ -150,11 +151,11 @@ func newCrowdinUploadTranslationsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := adapter.UploadTranslations(backgroundContext(), crowdinstorageRequestTranslations(cfg, o.languages))
+			result, err := adapter.UploadTranslations(backgroundContext(), crowdinstorageRequestTranslations(cfg, o.languages, o.branch))
 			return writeCrowdinResultError(cmd, "upload-translations", result, err)
 		},
 	}
-	addCrowdinCommonFlags(cmd, &o, true)
+	addCrowdinCommonFlags(cmd, &o, true, true)
 	return cmd
 }
 
@@ -177,18 +178,21 @@ func newCrowdinDownloadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			result, err := adapter.DownloadTranslations(backgroundContext(), crowdinstorageRequestDownload(cfg, o.languages))
+			result, err := adapter.DownloadTranslations(backgroundContext(), crowdinstorageRequestDownload(cfg, o.languages, o.branch))
 			return writeCrowdinResultError(cmd, "download-translations", result, err)
 		},
 	}
-	addCrowdinCommonFlags(cmd, &o, true)
+	addCrowdinCommonFlags(cmd, &o, true, true)
 	return cmd
 }
 
-func addCrowdinCommonFlags(cmd *cobra.Command, o *crowdinCommonOptions, includeLanguages bool) {
+func addCrowdinCommonFlags(cmd *cobra.Command, o *crowdinCommonOptions, includeLanguages, includeBranch bool) {
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to crowdin.yml")
 	cmd.Flags().StringVar(&o.identityPath, "identity", "", "path to Crowdin identity file")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without applying remote or local changes")
+	if includeBranch {
+		cmd.Flags().StringVar(&o.branch, "branch", "", "Crowdin branch name to process")
+	}
 	if includeLanguages {
 		cmd.Flags().StringSliceVarP(&o.languages, "language", "l", nil, "target language(s) to process")
 	}
@@ -214,14 +218,24 @@ func writeCrowdinResultError(cmd *cobra.Command, action string, result storage.F
 	return opErr
 }
 
-func crowdinstorageRequestSources(cfg storage.FileWorkflowConfig) storage.FileUploadSourcesRequest {
+func crowdinstorageRequestSources(cfg storage.FileWorkflowConfig, branch string) storage.FileUploadSourcesRequest {
+	cfg = overrideCrowdinBranch(cfg, branch)
 	return storage.FileUploadSourcesRequest{Config: cfg}
 }
 
-func crowdinstorageRequestTranslations(cfg storage.FileWorkflowConfig, languages []string) storage.FileUploadTranslationsRequest {
+func crowdinstorageRequestTranslations(cfg storage.FileWorkflowConfig, languages []string, branch string) storage.FileUploadTranslationsRequest {
+	cfg = overrideCrowdinBranch(cfg, branch)
 	return storage.FileUploadTranslationsRequest{Config: cfg, Languages: languages}
 }
 
-func crowdinstorageRequestDownload(cfg storage.FileWorkflowConfig, languages []string) storage.FileDownloadTranslationsRequest {
+func crowdinstorageRequestDownload(cfg storage.FileWorkflowConfig, languages []string, branch string) storage.FileDownloadTranslationsRequest {
+	cfg = overrideCrowdinBranch(cfg, branch)
 	return storage.FileDownloadTranslationsRequest{Config: cfg, Languages: languages}
+}
+
+func overrideCrowdinBranch(cfg storage.FileWorkflowConfig, branch string) storage.FileWorkflowConfig {
+	if trimmed := strings.TrimSpace(branch); trimmed != "" {
+		cfg.Branch = trimmed
+	}
+	return cfg
 }
