@@ -6,6 +6,8 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser",
     visibility = ["//visibility:public"],
     deps = [
+        "@com_github_osteele_liquid//:liquid",
+        "@com_github_osteele_liquid//render",
         "@com_github_tidwall_jsonc//:jsonc",
         "@com_github_yuin_goldmark//:goldmark",
         "@com_github_yuin_goldmark//ast",
