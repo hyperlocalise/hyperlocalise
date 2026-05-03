@@ -5,7 +5,7 @@ import { db, schema } from "@/lib/database";
 import { getInstallationOctokit } from "./app";
 
 export type GitHubRepositorySyncRecord = {
-  id: number;
+  id: string;
   owner: string;
   name: string;
   fullName: string;
@@ -37,7 +37,7 @@ export function normalizeGitHubRepository(
   }
 
   return {
-    id: repository.id,
+    id: String(repository.id),
     owner,
     name,
     fullName: repository.full_name,
@@ -49,7 +49,7 @@ export function normalizeGitHubRepository(
 
 export async function upsertGitHubInstallationRepositories(input: {
   organizationId: string;
-  githubInstallationId: number;
+  githubInstallationId: string;
   repositories: GitHubRepositorySyncRecord[];
 }) {
   if (input.repositories.length === 0) {
@@ -93,8 +93,8 @@ export async function upsertGitHubInstallationRepositories(input: {
 }
 
 export async function removeGitHubInstallationRepositories(input: {
-  githubInstallationId: number;
-  githubRepositoryIds: number[];
+  githubInstallationId: string;
+  githubRepositoryIds: string[];
 }) {
   if (input.githubRepositoryIds.length === 0) {
     return;
@@ -115,7 +115,7 @@ export async function removeGitHubInstallationRepositories(input: {
 
 export async function syncInstallationRepositories(input: {
   organizationId: string;
-  githubInstallationId: number;
+  githubInstallationId: string;
 }) {
   const octokit = await getInstallationOctokit(input.githubInstallationId);
   const repositories = (

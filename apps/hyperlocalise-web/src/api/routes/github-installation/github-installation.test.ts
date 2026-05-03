@@ -71,10 +71,7 @@ async function ensureGithubRepositoryTables() {
     );
   `);
   await db.$client.query(`
-    DROP INDEX IF EXISTS github_installation_repositories_github_repository_id_key;
-  `);
-  await db.$client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_github_repository_id_key
+    CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_installation_repository_key
     ON github_installation_repositories (github_installation_id, github_repository_id);
   `);
 }
@@ -89,8 +86,8 @@ async function createInstallationFixture(role: "owner" | "admin" | "member" = "o
 
   await db.insert(schema.githubInstallations).values({
     organizationId: auth.organization.localOrganizationId,
-    githubInstallationId: 987654,
-    githubAppId: 123,
+    githubInstallationId: "987654",
+    githubAppId: "123",
     accountLogin: "hyperlocalise",
     accountType: "Organization",
   });
@@ -98,8 +95,8 @@ async function createInstallationFixture(role: "owner" | "admin" | "member" = "o
   await db.insert(schema.githubInstallationRepositories).values([
     {
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: 987654,
-      githubRepositoryId: 101,
+      githubInstallationId: "987654",
+      githubRepositoryId: "101",
       owner: "hyperlocalise",
       name: "hyperlocalise",
       fullName: "hyperlocalise/hyperlocalise",
@@ -110,8 +107,8 @@ async function createInstallationFixture(role: "owner" | "admin" | "member" = "o
     },
     {
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: 987654,
-      githubRepositoryId: 102,
+      githubInstallationId: "987654",
+      githubRepositoryId: "102",
       owner: "hyperlocalise",
       name: "demo-repository",
       fullName: "hyperlocalise/demo-repository",
@@ -185,7 +182,7 @@ describe("githubInstallationRoutes", () => {
     ].$patch(
       {
         param: { organizationSlug },
-        json: { enabledRepositoryIds: [102] },
+        json: { enabledRepositoryIds: ["102"] },
       },
       { headers },
     );
@@ -200,12 +197,12 @@ describe("githubInstallationRoutes", () => {
           auth.organization.localOrganizationId,
         ),
       );
-    expect(repositories.find((repository) => repository.githubRepositoryId === 101)?.enabled).toBe(
-      false,
-    );
-    expect(repositories.find((repository) => repository.githubRepositoryId === 102)?.enabled).toBe(
-      true,
-    );
+    expect(
+      repositories.find((repository) => repository.githubRepositoryId === "101")?.enabled,
+    ).toBe(false);
+    expect(
+      repositories.find((repository) => repository.githubRepositoryId === "102")?.enabled,
+    ).toBe(true);
   });
 
   it("blocks members from updating enabled repositories", async () => {
@@ -216,7 +213,7 @@ describe("githubInstallationRoutes", () => {
     ].$patch(
       {
         param: { organizationSlug },
-        json: { enabledRepositoryIds: [102] },
+        json: { enabledRepositoryIds: ["102"] },
       },
       { headers },
     );
@@ -246,7 +243,7 @@ describe("githubInstallationRoutes", () => {
     await expect(response.json()).resolves.toEqual({ syncedRepositoryCount: 1 });
     expect(syncInstallationRepositoriesMock).toHaveBeenCalledWith({
       organizationId: globalThis.__testApiAuthContext?.organization.localOrganizationId,
-      githubInstallationId: 987654,
+      githubInstallationId: "987654",
     });
   });
 });

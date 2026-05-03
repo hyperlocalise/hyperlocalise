@@ -6,7 +6,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import type { TranslationProject } from "@/lib/database/types";
+import type { Project } from "@/lib/database/types";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
 import { createTranslationJobQueue } from "@/workflows/adapters";
 
@@ -24,17 +24,17 @@ import {
   ownedProjectWhere,
   projectNotFoundResponse,
 } from "./project.shared";
-import { createTranslationJobRoutes } from "./translation-job.route";
+import { createJobRoutes } from "./job.route";
 
 type ProjectStore = {
-  list(auth: ApiAuthContext): Promise<TranslationProject[]>;
-  create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<TranslationProject>;
-  getById(auth: ApiAuthContext, projectId: string): Promise<TranslationProject | null>;
+  list(auth: ApiAuthContext): Promise<Project[]>;
+  create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<Project>;
+  getById(auth: ApiAuthContext, projectId: string): Promise<Project | null>;
   update(
     auth: ApiAuthContext,
     projectId: string,
     payload: UpdateProjectBody,
-  ): Promise<TranslationProject | null>;
+  ): Promise<Project | null>;
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
@@ -42,13 +42,13 @@ const projectStore: ProjectStore = {
   async list(auth) {
     return db
       .select()
-      .from(schema.translationProjects)
-      .where(eq(schema.translationProjects.organizationId, auth.organization.localOrganizationId))
-      .orderBy(desc(schema.translationProjects.createdAt));
+      .from(schema.projects)
+      .where(eq(schema.projects.organizationId, auth.organization.localOrganizationId))
+      .orderBy(desc(schema.projects.createdAt));
   },
   async create(auth, payload) {
     const [project] = await db
-      .insert(schema.translationProjects)
+      .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
         organizationId: auth.organization.localOrganizationId,
@@ -64,7 +64,7 @@ const projectStore: ProjectStore = {
   async getById(auth, projectId) {
     const [project] = await db
       .select()
-      .from(schema.translationProjects)
+      .from(schema.projects)
       .where(ownedProjectWhere(auth, projectId))
       .limit(1);
 
@@ -72,7 +72,7 @@ const projectStore: ProjectStore = {
   },
   async update(auth, projectId, payload) {
     const [project] = await db
-      .update(schema.translationProjects)
+      .update(schema.projects)
       .set(payload)
       .where(ownedProjectWhere(auth, projectId))
       .returning();
@@ -81,9 +81,9 @@ const projectStore: ProjectStore = {
   },
   async delete(auth, projectId) {
     const deletedProjects = await db
-      .delete(schema.translationProjects)
+      .delete(schema.projects)
       .where(ownedProjectWhere(auth, projectId))
-      .returning({ id: schema.translationProjects.id });
+      .returning({ id: schema.projects.id });
 
     return deletedProjects.length > 0;
   },
@@ -120,11 +120,15 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
 });
 
 type CreateProjectRoutesOptions = {
+  jobQueue?: TranslationJobQueue;
+  /**
+   * @deprecated Use `jobQueue`.
+   */
   translationJobQueue?: TranslationJobQueue;
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
-  const translationJobQueue = options.translationJobQueue ?? createTranslationJobQueue();
+  const jobQueue = options.jobQueue ?? options.translationJobQueue ?? createTranslationJobQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -141,7 +145,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await projectStore.create(c.var.auth, payload);
       return c.json({ project }, 201);
     })
-    .route("/:projectId/jobs", createTranslationJobRoutes({ translationJobQueue }))
+    .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get("/:projectId", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const project = await projectStore.getById(c.var.auth, params.projectId);

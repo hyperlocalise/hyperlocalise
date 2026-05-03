@@ -23,6 +23,8 @@ export function getGitHubApp(): App {
   return githubApp;
 }
 
-export function getInstallationOctokit(installationId: number): Promise<Octokit> {
-  return getGitHubApp().getInstallationOctokit(installationId);
+export function getInstallationOctokit(installationId: number | string): Promise<Octokit> {
+  return getGitHubApp().getInstallationOctokit(
+    typeof installationId === "number" ? installationId : Number.parseInt(installationId, 10),
+  );
 }

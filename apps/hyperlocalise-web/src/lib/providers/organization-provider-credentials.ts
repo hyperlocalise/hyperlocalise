@@ -34,11 +34,15 @@ export function assertProviderCredentialAdmin(role: OrganizationMembershipRole) 
   }
 }
 
-async function getCredentialByOrganizationId(organizationId: string) {
+async function getCredentialByOrganizationId(organizationId: string, provider?: LlmProvider) {
+  const filters = [eq(schema.organizationLlmProviderCredentials.organizationId, organizationId)];
+  if (provider) {
+    filters.push(eq(schema.organizationLlmProviderCredentials.provider, provider));
+  }
   const [credential] = await db
     .select()
     .from(schema.organizationLlmProviderCredentials)
-    .where(eq(schema.organizationLlmProviderCredentials.organizationId, organizationId))
+    .where(and(...filters))
     .limit(1);
 
   return credential ?? null;
@@ -102,7 +106,10 @@ export async function upsertOrganizationProviderCredential(input: {
       lastValidatedAt: now,
     })
     .onConflictDoUpdate({
-      target: schema.organizationLlmProviderCredentials.organizationId,
+      target: [
+        schema.organizationLlmProviderCredentials.organizationId,
+        schema.organizationLlmProviderCredentials.provider,
+      ],
       set: {
         updatedByUserId: input.userId,
         provider: input.provider,

@@ -13,6 +13,7 @@ import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
+import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
@@ -23,6 +24,10 @@ type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
+  jobQueue?: TranslationJobQueue;
+  /**
+   * @deprecated Use `jobQueue`.
+   */
   translationJobQueue?: TranslationJobQueue;
 };
 
@@ -35,6 +40,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/health", healthRoutes)
     .route("/project", createProjectRoutes(options))
     .route("/orgs/:organizationSlug/projects", createProjectRoutes(options))
+    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes())
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())

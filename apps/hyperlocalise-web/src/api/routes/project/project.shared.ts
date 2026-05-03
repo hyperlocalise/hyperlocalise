@@ -27,15 +27,15 @@ export function isProjectMutationAllowed(role: ApiAuthContext["membership"]["rol
 
 export function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
   return and(
-    eq(schema.translationProjects.id, projectId),
-    eq(schema.translationProjects.organizationId, auth.organization.localOrganizationId),
+    eq(schema.projects.id, projectId),
+    eq(schema.projects.organizationId, auth.organization.localOrganizationId),
   );
 }
 
 export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
   const [project] = await db
-    .select({ id: schema.translationProjects.id })
-    .from(schema.translationProjects)
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
     .where(ownedProjectWhere(auth, projectId))
     .limit(1);
 

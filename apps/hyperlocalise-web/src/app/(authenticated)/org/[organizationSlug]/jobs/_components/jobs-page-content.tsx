@@ -26,17 +26,12 @@ import { MetricsGrid, toneClass, type Tone } from "../../_components/workspace-r
 
 type JobsScope = "all" | "mine";
 
-type ApiProject = {
-  id: string;
-  name: string;
-};
-
 type ApiJob = {
   id: string;
   projectId: string;
   createdByUserId: string | null;
   type: "string" | "file";
-  status: "queued" | "running" | "succeeded" | "failed";
+  status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -51,7 +46,15 @@ type JobRow = ApiJob & {
   projectName: string;
 };
 
-const statusOptions = ["all", "queued", "running", "succeeded", "failed"] as const;
+const statusOptions = [
+  "all",
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "waiting_for_review",
+  "cancelled",
+] as const;
 
 function jobTone(status: ApiJob["status"]): Tone {
   switch (status) {
@@ -60,6 +63,7 @@ function jobTone(status: ApiJob["status"]): Tone {
     case "failed":
       return "risk";
     case "queued":
+    case "waiting_for_review":
       return "watch";
     default:
       return "info";
@@ -212,52 +216,24 @@ export function JobsPageContent({
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("all");
-  const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
+  const jobsQuery = useQuery({
+    queryKey: ["jobs", organizationSlug, scope, statusFilter],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
         param: { organizationSlug },
+        query: {
+          limit: "100",
+          mine: scope === "mine" ? "true" : "false",
+          ...(statusFilter === "all" ? {} : { status: statusFilter }),
+        },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load projects (${response.status})`);
+        throw new Error(`Failed to load jobs (${response.status})`);
       }
 
-      const body = (await response.json()) as { projects: ApiProject[] };
-      return body.projects;
-    },
-  });
-
-  const projects = projectsQuery.data ?? [];
-  const projectIds = projects.map((project) => project.id).join(",");
-  const jobsQuery = useQuery({
-    queryKey: ["translation-jobs", organizationSlug, scope, projectIds],
-    enabled: projectsQuery.isSuccess && projects.length > 0,
-    queryFn: async () => {
-      const jobGroups = await Promise.all(
-        projects.map(async (project) => {
-          const response = await apiClient.api.orgs[":organizationSlug"].projects[
-            ":projectId"
-          ].jobs.$get({
-            param: { organizationSlug, projectId: project.id },
-            query: {
-              limit: "100",
-              mine: scope === "mine" ? "true" : "false",
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to load jobs (${response.status})`);
-          }
-
-          const body = (await response.json()) as { jobs: ApiJob[] };
-          return body.jobs.map((job) => ({ ...job, projectName: project.name }));
-        }),
-      );
-
-      return jobGroups
-        .flat()
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      const body = (await response.json()) as { jobs: JobRow[] };
+      return body.jobs;
     },
   });
 
@@ -278,11 +254,8 @@ export function JobsPageContent({
     });
   }, [jobs, search, statusFilter]);
 
-  const isLoading = projectsQuery.isLoading || jobsQuery.isLoading;
-  const errorMessage =
-    (projectsQuery.error instanceof Error && projectsQuery.error.message) ||
-    (jobsQuery.error instanceof Error && jobsQuery.error.message) ||
-    "";
+  const isLoading = jobsQuery.isLoading;
+  const errorMessage = (jobsQuery.error instanceof Error && jobsQuery.error.message) || "";
   const title = scope === "mine" ? "My Jobs" : "Jobs";
   const emptyLabel =
     scope === "mine" ? "No jobs found for your account." : "No jobs found for this workspace.";
