@@ -1,0 +1,9 @@
+{
+  "diagnostics": [],
+  "error": "",
+  "values": {
+    "product.available": "product.available",
+    "product.coming_soon": "product.coming_soon",
+    "product.unavailable": "product.unavailable"
+  }
+}

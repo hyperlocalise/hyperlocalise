@@ -17,8 +17,10 @@ type liquidGoldenOutput struct {
 	Values      map[string]string `json:"values"`
 }
 
+var liquidUpdateGoldensFlag *bool
+
 func TestMain(m *testing.M) {
-	flag.Bool("update", false, "update golden files")
+	liquidUpdateGoldensFlag = flag.Bool("update", false, "update golden files")
 	os.Exit(m.Run())
 }
 
@@ -175,6 +177,5 @@ func liquidGoldenOutputsEqual(a, b liquidGoldenOutput) bool {
 func liquidUpdateGoldens(t *testing.T) bool {
 	t.Helper()
 
-	update := flag.Lookup("update")
-	return update != nil && update.Value.String() == "true"
+	return liquidUpdateGoldensFlag != nil && *liquidUpdateGoldensFlag
 }
