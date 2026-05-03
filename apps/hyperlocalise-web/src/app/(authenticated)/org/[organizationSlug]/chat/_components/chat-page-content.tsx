@@ -7,8 +7,8 @@ import {
   AiImageIcon,
   AiWebBrowsingIcon,
   ArrowDown01Icon,
-  ArrowUp01Icon,
   BubbleChatTranslateIcon,
+  SentIcon,
   CheckmarkCircle02Icon,
   Clock01Icon,
   FileAttachmentIcon,
@@ -32,7 +32,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  TypographyH1,
+  TypographyH2,
   TypographyH4,
   TypographyMuted,
   TypographySmall,
@@ -129,12 +129,20 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
     <main className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-6xl flex-col items-center justify-center px-4 py-8 sm:px-6">
       <section className="w-full max-w-5xl">
         <div className="mb-7 text-center">
-          <TypographyH1 className="text-balance text-foreground">
+          <TypographyH2 className="text-balance text-foreground">
             What do you want to translate?
-          </TypographyH1>
+          </TypographyH2>
         </div>
 
-        <div className="overflow-hidden rounded-[1.35rem] border border-border bg-app-shell-background text-foreground shadow-2xl shadow-black/10">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim() && !chatRequestMutation.isPending) {
+              chatRequestMutation.mutate();
+            }
+          }}
+          className="overflow-hidden rounded-[1.35rem] border border-border bg-app-shell-background text-foreground shadow-2xl shadow-black/10"
+        >
           <label htmlFor="inbox-request" className="sr-only">
             Translation request
           </label>
@@ -142,6 +150,14 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
             id="inbox-request"
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (text.trim() && !chatRequestMutation.isPending) {
+                  chatRequestMutation.mutate();
+                }
+              }
+            }}
             className="min-h-36 w-full resize-none bg-transparent px-4 py-4 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:px-6 sm:py-5"
             placeholder="Paste source text or ask Hyperlocalise to translate a file, string, or inbox request..."
           />
@@ -247,18 +263,16 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
-                type="button"
-                size="icon-sm"
+                type="submit"
                 disabled={!text.trim() || chatRequestMutation.isPending}
-                onClick={() => chatRequestMutation.mutate()}
-                className="rounded-full bg-foreground text-app-shell-background hover:bg-foreground/90"
+                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label="Send translation request"
               >
-                <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={2} className="size-4" />
+                <HugeiconsIcon icon={SentIcon} strokeWidth={2} /> Send
               </Button>
             </div>
           </div>
-        </div>
+        </form>
 
         <TypographyMuted className="mt-5 flex items-center justify-center gap-2 text-muted-foreground">
           <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.7} className="size-3.5" />

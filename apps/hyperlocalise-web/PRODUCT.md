@@ -9,7 +9,7 @@ Hyperlocalise is an agentic localisation platform. Users can work through web ch
 - **One intake model.** Chat, email, Slack, Linear, GitHub, and future connectors should all create the same product object: an inbox-backed interaction.
 - **Jobs are the unit of work.** Any meaningful agent task should become a job with clear inputs, status, ownership, output, and traceability.
 - **Projects carry context, not workflow.** A project defines the product, brand, domain, locale expectations, and attached assets. Jobs decide what work happens.
-- **Memory and terminology are reusable assets.** Translation memories and glossaries belong to the workspace and can apply to one or many projects.
+- **Memory, terminology, and assets are reusable.** Translation memories, glossaries, and localisation assets belong to the workspace and can apply to one or many projects.
 - **The TMS stays part of the workflow.** Hyperlocalise should orchestrate work with existing TMS platforms instead of forcing teams to replace them.
 - **Humans stay in control.** Agents can draft, research, review, suggest updates, and sync systems, but important output should remain inspectable and reversible.
 
@@ -21,11 +21,17 @@ Hyperlocalise is an agentic localisation platform. Users can work through web ch
 
 **An engineer works from GitHub or Linear.** They mention Hyperlocalise on a pull request or issue and ask whether changed strings are ready for release. Hyperlocalise creates an inbox item, starts a research or review job, compares changed strings against project context, TM, glossary, and TMS state, then comments back with findings, suggested fixes, or follow-up translation jobs.
 
+**A localisation operations manager triages incoming work.** Requests arrive from Slack, email, GitHub, and the TMS: a launch translation, a terminology question, a stale review, and a PR with changed strings. Hyperlocalise puts each request in the same inbox, identifies the project and required locales, attaches relevant TM, glossary, and TMS state, then creates the right translation, review, research, or sync jobs. The localisation operations manager can approve, assign, or inspect the work without manually copying context between systems.
+
+**A campaign team researches cultural references.** They upload a launch line, source image, or market brief and ask whether a cultural reference works in Japan, Brazil, and Vietnam. Hyperlocalise creates a research job, gathers locale-specific evidence, checks project voice, glossary rules, market context, and TMS history, then returns risks, suggested alternatives, and citations that a human can approve into project context or campaign guidance.
+
+**A marketer creates localised campaign image assets.** They upload a source campaign image and ask for Korean and German variants for a product launch. Hyperlocalise stores the image as a source asset, detects embedded text and product claims, retrieves project context and locale rules, then creates translation, research, review, and asset-management jobs for the localised image set. The output includes draft copy, image-edit instructions or generated asset candidates, provenance, and review actions before anything is published or synced.
+
 ## Core Domain Model
 
 ### Workspace
 
-A workspace is the tenant boundary for users, projects, inbox items, jobs, connectors, credentials, translation memories, and glossaries. Access control should be enforced at the workspace boundary first.
+A workspace is the tenant boundary for users, projects, inbox items, jobs, connectors, credentials, translation memories, glossaries, and localisation assets. Access control should be enforced at the workspace boundary first.
 
 ### Project
 
@@ -35,6 +41,7 @@ A project represents a product, app, site, documentation set, campaign, or other
 - Brand voice and writing rules
 - Source locale and target locale preferences
 - Formatting, placeholder, and accessibility rules
+- Source and localised campaign assets
 - Links to attached translation memories and glossaries
 - Links to TMS projects, repositories, or source systems
 
@@ -73,7 +80,7 @@ Every job should have:
 - Inputs, context snapshot, outputs, errors, and audit trail
 - Agent or human owner when applicable
 
-Translation jobs should support both string and file inputs. Review jobs should support human review, agent review, and TMS review loops. Research jobs should collect localisation context, market context, or terminology evidence. Asset management jobs should create, update, dedupe, import, or export TMs and glossaries.
+Translation jobs should support both string and file inputs. Review jobs should support human review, agent review, and TMS review loops. Research jobs should collect localisation context, market context, cultural-reference evidence, or terminology evidence. Asset management jobs should create, update, dedupe, import, or export TMs, glossaries, and localisation assets.
 
 ### Translation Memory
 
@@ -99,6 +106,18 @@ Glossaries should support:
 - Project attachment with priority
 - Agent suggestions and human approval before broad application
 
+### Localisation Asset
+
+A localisation asset is a reusable file, reference, or creative artifact that helps a project produce locale-specific output. Examples include source campaign images, localised image variants, market briefs, style references, screenshots, and approved campaign guidance.
+
+Localisation assets should support:
+
+- File type, locale, project attachment, and asset role
+- Source asset and derived asset relationships
+- Extracted text, claims, annotations, and constraints when applicable
+- Provenance, review state, and approval history
+- Import, export, and sync through file, repository, or TMS workflows when supported
+
 ### TMS Link
 
 A TMS link connects Hyperlocalise to an external translation management system. The TMS may be the system of record for translation tasks, review status, assets, or final approved content.
@@ -106,7 +125,7 @@ A TMS link connects Hyperlocalise to an external translation management system. 
 TMS links should support:
 
 - Mapping Hyperlocalise workspaces and projects to TMS accounts and projects
-- Pulling source strings, files, review state, TMs, and glossaries
+- Pulling source strings, files, review state, TMs, glossaries, and localisation assets
 - Creating or updating TMS jobs
 - Pushing translated output and review suggestions
 - Syncing approved translations back into Hyperlocalise assets
@@ -133,9 +152,9 @@ Recommended job kinds:
 
 - **Translation:** translate strings or files into one or more target locales.
 - **Review:** inspect translations for quality, consistency, terminology, tone, formatting, or release readiness.
-- **Research:** gather context, terminology, market guidance, competitor wording, or locale-specific constraints.
+- **Research:** gather context, terminology, market guidance, cultural-reference evidence, competitor wording, or locale-specific constraints.
 - **Sync:** pull from or push to repositories, TMS platforms, and other systems.
-- **Asset management:** create, import, export, dedupe, or update TMs and glossaries.
+- **Asset management:** create, import, export, dedupe, or update TMs, glossaries, and localisation assets.
 
 Jobs should not depend on the channel that created them. A translation job from email and a translation job from chat should use the same core execution model.
 
@@ -150,6 +169,7 @@ The context packet may include:
 - Source files, strings, or changed content
 - Relevant TM matches
 - Relevant glossary terms
+- Relevant localisation assets, reference images, and campaign guidance
 - TMS state and review history
 - Connector-specific context, such as a GitHub diff or Linear issue
 - Output constraints, such as file format, placeholders, ICU syntax, and max length
@@ -163,6 +183,14 @@ Hyperlocalise must support both file and string translation.
 String translation should handle direct text, UI strings, key-value resources, and changed strings from source control. It should preserve placeholders, variables, ICU syntax, markup, and length constraints.
 
 File translation should handle uploaded files, email attachments, repository files, and TMS files. It should preserve structure, metadata, encodings, and supported formats. File jobs should produce downloadable outputs and, when applicable, structured segment-level results for review and TM updates.
+
+## Visual And Campaign Asset Localisation
+
+Hyperlocalise should support campaign assets that combine text, visual context, market rules, and human approval.
+
+Visual asset jobs may start from uploaded images, repository artwork, campaign briefs, or TMS files. They should preserve the source asset, extract embedded text when possible, capture product claims and visual constraints, and create translation, research, review, or asset-management jobs as needed.
+
+Outputs may include translated copy, locale-specific guidance, image-edit instructions, generated or edited asset candidates, and reviewer notes. Important visual outputs should remain inspectable, traceable to the source asset, and reversible before publication or external sync.
 
 ## Agent And Connector Model
 
@@ -187,7 +215,7 @@ The TMS integration should cover three modes:
 
 - **Job mode:** create, update, or inspect TMS jobs from Hyperlocalise.
 - **Review mode:** read reviewer state, push draft translations, import comments, and surface blockers in the inbox.
-- **Asset mode:** import, export, update, and reconcile translation memories and glossaries.
+- **Asset mode:** import, export, update, and reconcile translation memories, glossaries, and localisation assets.
 
 When the TMS is connected, Hyperlocalise should respect the TMS as the source of truth for approved translations unless the user chooses another operating model for that project.
 
@@ -203,7 +231,7 @@ Users should be able to:
 - Promote approved terminology into glossaries
 - Re-run jobs with revised instructions
 
-Agent-created TM and glossary updates should be suggestions by default unless a workspace explicitly enables automatic updates.
+Agent-created TM, glossary, and localisation asset updates should be suggestions by default unless a workspace explicitly enables automatic updates.
 
 ## Product Boundaries
 

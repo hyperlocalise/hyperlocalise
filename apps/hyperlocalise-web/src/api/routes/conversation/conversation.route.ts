@@ -7,8 +7,10 @@ import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
+import { createChatStreamRoutes } from "./chat-stream.route";
+
 const conversationIdParamsSchema = z.object({
-  conversationId: z.string().uuid(),
+  conversationId: z.uuid(),
 });
 
 const postMessageBodySchema = z.object({
@@ -291,5 +293,6 @@ export function createConversationRoutes() {
         .orderBy(desc(schema.jobs.createdAt));
 
       return c.json({ jobs }, 200);
-    });
+    })
+    .route("/:conversationId/chat", createChatStreamRoutes());
 }
