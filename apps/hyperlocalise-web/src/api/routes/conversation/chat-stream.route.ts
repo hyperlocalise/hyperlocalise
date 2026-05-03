@@ -10,7 +10,7 @@ import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { addInteractionMessage } from "@/lib/interactions";
 
-import { buildTools } from "./tools/registry";
+import { buildTools } from "@/lib/tools/registry";
 
 const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),

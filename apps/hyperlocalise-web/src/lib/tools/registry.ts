@@ -2,6 +2,16 @@ import type { ToolSet } from "ai";
 
 import { createQueryGlossaryTool, createQueryTranslationMemoryTool } from "./asset-tools";
 import {
+  createCreateGlossaryTermTool,
+  createCreateGlossaryTool,
+  createDeleteGlossaryTermTool,
+  createDeleteGlossaryTool,
+  createListGlossariesTool,
+  createListGlossaryTermsTool,
+  createUpdateGlossaryTermTool,
+  createUpdateGlossaryTool,
+} from "./glossary-tools";
+import {
   createAssetManagementJobTool,
   createGetJobStatusTool,
   createListJobsTool,
@@ -11,6 +21,16 @@ import {
   createTranslationJobTool,
 } from "./job-tools";
 import { createResolveInteractionTool } from "./interaction-tools";
+import {
+  createCreateMemoryEntryTool,
+  createCreateTranslationMemoryTool,
+  createDeleteMemoryEntryTool,
+  createDeleteTranslationMemoryTool,
+  createListMemoryEntriesTool,
+  createListTranslationMemoriesTool,
+  createUpdateMemoryEntryTool,
+  createUpdateTranslationMemoryTool,
+} from "./memory-tools";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -30,8 +50,28 @@ export function buildTools(ctx: ToolContext): ToolSet {
     listProjects: createListProjectsTool(ctx),
     getProjectContext: createGetProjectContextTool(ctx),
     updateInteractionProject: createUpdateInteractionProjectTool(ctx),
+
     queryGlossary: createQueryGlossaryTool(ctx),
     queryTranslationMemory: createQueryTranslationMemoryTool(ctx),
+
+    listGlossaries: createListGlossariesTool(ctx),
+    createGlossary: createCreateGlossaryTool(ctx),
+    updateGlossary: createUpdateGlossaryTool(ctx),
+    deleteGlossary: createDeleteGlossaryTool(ctx),
+    listGlossaryTerms: createListGlossaryTermsTool(ctx),
+    createGlossaryTerm: createCreateGlossaryTermTool(ctx),
+    updateGlossaryTerm: createUpdateGlossaryTermTool(ctx),
+    deleteGlossaryTerm: createDeleteGlossaryTermTool(ctx),
+
+    listTranslationMemories: createListTranslationMemoriesTool(ctx),
+    createTranslationMemory: createCreateTranslationMemoryTool(ctx),
+    updateTranslationMemory: createUpdateTranslationMemoryTool(ctx),
+    deleteTranslationMemory: createDeleteTranslationMemoryTool(ctx),
+    listMemoryEntries: createListMemoryEntriesTool(ctx),
+    createMemoryEntry: createCreateMemoryEntryTool(ctx),
+    updateMemoryEntry: createUpdateMemoryEntryTool(ctx),
+    deleteMemoryEntry: createDeleteMemoryEntryTool(ctx),
+
     createTranslationJob: createTranslationJobTool(ctx),
     createReviewJob: createReviewJobTool(ctx),
     createResearchJob: createResearchJobTool(ctx),
