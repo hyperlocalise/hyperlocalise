@@ -76,8 +76,8 @@ importers:
         specifier: ^12.10.2
         version: 12.10.2(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       ai:
-        specifier: 6.0.168
-        version: 6.0.168(zod@4.4.1)
+        specifier: 6.0.174
+        version: 6.0.174(zod@4.4.1)
       ansi-to-react:
         specifier: ^6.2.6
         version: 6.2.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -237,12 +237,6 @@ importers:
         version: '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.12.2)(esbuild@0.25.12)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
 
 packages:
-
-  '@ai-sdk/gateway@3.0.104':
-    resolution: {integrity: sha512-ZKX5n74io8VIRlhIMSLWVlvT3sXC8Z7cZ9GHuWBWZDVi96+62AIsWuLGvMfcBA1STYuSoDrp6rIziZmvrTq0TA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   '@ai-sdk/gateway@3.0.109':
     resolution: {integrity: sha512-r6dOqThjODp1vOhGRJg2OCmyB/ZOQtGx1esZ2SDvwDX5XoX8dBqYaYjLg8MPXTzMGJSgOkJyCxWgUcZtAl16pw==}
@@ -3607,12 +3601,6 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
-
-  ai@6.0.168:
-    resolution: {integrity: sha512-2HqCJuO+1V2aV7vfYs5LFEUfxbkGX+5oa54q/gCCTL7KLTdbxcCu5D7TdLA5kwsrs3Szgjah9q6D9tpjHM3hUQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   ai@6.0.174:
     resolution: {integrity: sha512-bTrfLUWHWtkjzWyCY4bmyuk4Qvmj4S4NSNsXyNSVVqkmftQNtxRj7dzUoMeQDBBwlJO6fC7m2Q/lNOPqQQfAGA==}
@@ -7378,13 +7366,6 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@3.0.104(zod@4.4.1)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.23(zod@4.4.1)
-      '@vercel/oidc': 3.2.0
-      zod: 4.4.1
-
   '@ai-sdk/gateway@3.0.109(zod@4.4.1)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -10675,14 +10656,6 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@6.0.168(zod@4.4.1):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.104(zod@4.4.1)
-      '@ai-sdk/provider': 3.0.8
-      '@ai-sdk/provider-utils': 4.0.23(zod@4.4.1)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.4.1
-
   ai@6.0.174(zod@4.4.1):
     dependencies:
       '@ai-sdk/gateway': 3.0.109(zod@4.4.1)
@@ -11632,7 +11605,7 @@ snapshots:
 
   eventsource@3.0.7:
     dependencies:
-      eventsource-parser: 3.0.6
+      eventsource-parser: 3.0.8
 
   execa@5.1.1:
     dependencies:
