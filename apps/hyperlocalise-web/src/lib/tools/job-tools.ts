@@ -9,9 +9,8 @@ import { createTranslationJobQueue } from "@/workflows/adapters";
 
 import type { ToolContext } from "./types";
 
-type JobKind = "translation" | "research" | "review" | "sync" | "asset_management";
-
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
+type JobKind = (typeof jobKinds)[number];
 
 const baseJobSelect = {
   id: schema.jobs.id,
@@ -131,6 +130,10 @@ function queuedJobValues(
 async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queuedJobValues>[1]) {
   const [job] = await ctx.db.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
 
+  if (!job) {
+    throw new Error("Failed to create job: no row returned.");
+  }
+
   return job;
 }
 
@@ -231,6 +234,13 @@ export function createTranslationJobTool(ctx: ToolContext) {
           projectId: ctx.projectId,
           type: input.type,
         });
+
+        await ctx.db
+          .update(schema.jobs)
+          .set({ workflowRunId: result.ids[0] ?? null })
+          .where(
+            and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, ctx.organizationId)),
+          );
 
         return {
           success: true,
