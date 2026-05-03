@@ -47,7 +47,11 @@ func (p LiquidParser) ParseWithContext(content []byte) (map[string]string, map[s
 }
 
 func (p LiquidParser) ParseWithDiagnostics(content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
-	return parseLiquidTemplateWithDiagnostics(content, diags, parseLiquidTemplateLocation)
+	return p.parseWithPath(unknownDiagnosticFilePath, content, diags)
+}
+
+func (p LiquidParser) parseWithPath(filePath string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
+	return parseLiquidTemplateWithDiagnostics(filePath, content, diags, parseLiquidTemplateLocation)
 }
 
 type liquidTemplateLocationParser func(content []byte, filePath string, lineNumber int) (*liquid.Template, error)
@@ -57,8 +61,11 @@ func parseLiquidTemplateLocation(content []byte, filePath string, lineNumber int
 	return engine.ParseTemplateLocation(content, filePath, lineNumber)
 }
 
-func parseLiquidTemplateWithDiagnostics(content []byte, diags *[]Diagnostic, parse liquidTemplateLocationParser) (values map[string]string, contextByKey map[string]string, err error) {
-	filePath := unknownDiagnosticFilePath
+func parseLiquidTemplateWithDiagnostics(filePath string, content []byte, diags *[]Diagnostic, parse liquidTemplateLocationParser) (values map[string]string, contextByKey map[string]string, err error) {
+	if strings.TrimSpace(filePath) == "" {
+		filePath = unknownDiagnosticFilePath
+	}
+
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			values = nil
@@ -82,30 +89,30 @@ func parseLiquidTemplateWithDiagnostics(content []byte, diags *[]Diagnostic, par
 
 	values = map[string]string{}
 
-	walkLiquidRenderNode(template.GetRoot(), values, diags)
+	walkLiquidRenderNode(template.GetRoot(), filePath, values, diags)
 
 	return values, nil, nil
 }
 
-func walkLiquidRenderNode(node render.Node, values map[string]string, diags *[]Diagnostic) {
+func walkLiquidRenderNode(node render.Node, filePath string, values map[string]string, diags *[]Diagnostic) {
 	switch typed := node.(type) {
 	case *render.SeqNode:
 		for _, child := range typed.Children {
-			walkLiquidRenderNode(child, values, diags)
+			walkLiquidRenderNode(child, filePath, values, diags)
 		}
 	case *render.BlockNode:
 		for _, child := range typed.Body {
-			walkLiquidRenderNode(child, values, diags)
+			walkLiquidRenderNode(child, filePath, values, diags)
 		}
 		for _, clause := range typed.Clauses {
-			walkLiquidRenderNode(clause, values, diags)
+			walkLiquidRenderNode(clause, filePath, values, diags)
 		}
 	case *render.ObjectNode:
 		if key, ok := extractLiquidStaticKey(typed.SourceText()); ok {
 			values[key] = key
 			return
 		}
-		appendLiquidDynamicKeyDiagnostic(typed, diags)
+		appendLiquidDynamicKeyDiagnostic(typed, filePath, diags)
 	}
 }
 
@@ -118,7 +125,7 @@ func extractLiquidStaticKey(sourceText string) (string, bool) {
 	return liquidStringLiteralValue(parts[0])
 }
 
-func appendLiquidDynamicKeyDiagnostic(node render.Node, diags *[]Diagnostic) {
+func appendLiquidDynamicKeyDiagnostic(node render.Node, filePath string, diags *[]Diagnostic) {
 	if diags == nil {
 		return
 	}
@@ -132,9 +139,12 @@ func appendLiquidDynamicKeyDiagnostic(node render.Node, diags *[]Diagnostic) {
 	}
 
 	location := node.SourceLocation()
-	filePath := location.Pathname
-	if filePath == "" {
-		filePath = unknownDiagnosticFilePath
+	diagnosticFilePath := location.Pathname
+	if diagnosticFilePath == "" {
+		diagnosticFilePath = filePath
+	}
+	if diagnosticFilePath == "" {
+		diagnosticFilePath = unknownDiagnosticFilePath
 	}
 	lineNumber := location.LineNo
 	if lineNumber <= 0 {
@@ -143,7 +153,7 @@ func appendLiquidDynamicKeyDiagnostic(node render.Node, diags *[]Diagnostic) {
 
 	*diags = append(*diags, Diagnostic{
 		Code:       LiquidDynamicKeyDiagnosticCode,
-		FilePath:   filePath,
+		FilePath:   diagnosticFilePath,
 		LineNumber: lineNumber,
 		Hint:       DefaultDiagnosticHint(LiquidDynamicKeyDiagnosticCode),
 	})
@@ -216,7 +226,25 @@ func liquidStringLiteralValue(expression string) (string, bool) {
 		return "", false
 	}
 
-	return trimmed[1 : len(trimmed)-1], true
+	var value strings.Builder
+	escaped := false
+	for _, char := range trimmed[1 : len(trimmed)-1] {
+		if escaped {
+			value.WriteRune(char)
+			escaped = false
+			continue
+		}
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+		value.WriteRune(char)
+	}
+	if escaped {
+		value.WriteRune('\\')
+	}
+
+	return value.String(), true
 }
 
 func liquidFiltersContainT(filters []string) bool {

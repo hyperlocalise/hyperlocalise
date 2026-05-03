@@ -10,15 +10,11 @@ import (
 )
 
 func TestLiquidParserImplementsParserInterfaces(t *testing.T) {
-	t.Helper()
-
 	requireLiquidParser(LiquidParser{})
 	requireLiquidContextParser(LiquidParser{})
 }
 
 func TestLiquidParserParseExtractsStaticEntry(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`{{ 'header.navigation.home' | t }}`))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
@@ -32,8 +28,6 @@ func TestLiquidParserParseExtractsStaticEntry(t *testing.T) {
 }
 
 func TestLiquidParserParseWithContextReturnsNilContext(t *testing.T) {
-	t.Helper()
-
 	values, contextByKey, err := (LiquidParser{}).ParseWithContext([]byte(`{{ 'header.navigation.home' | t }}`))
 	if err != nil {
 		t.Fatalf("parse with context: %v", err)
@@ -50,8 +44,6 @@ func TestLiquidParserParseWithContextReturnsNilContext(t *testing.T) {
 }
 
 func TestLiquidParserParseWithDiagnosticsEmitsDynamicKeyWarning(t *testing.T) {
-	t.Helper()
-
 	var diagnostics []Diagnostic
 	values, contextByKey, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`{{ 'static.key' | t }}
 {{ product.title | t }}
@@ -74,13 +66,11 @@ func TestLiquidParserParseWithDiagnosticsEmitsDynamicKeyWarning(t *testing.T) {
 	if len(diagnostics) != 2 {
 		t.Fatalf("expected two diagnostics, got %#v", diagnostics)
 	}
-	assertLiquidDynamicKeyDiagnostic(t, diagnostics[0], 2)
-	assertLiquidDynamicKeyDiagnostic(t, diagnostics[1], 3)
+	assertLiquidDynamicKeyDiagnostic(t, diagnostics[0], unknownDiagnosticFilePath, 2)
+	assertLiquidDynamicKeyDiagnostic(t, diagnostics[1], unknownDiagnosticFilePath, 3)
 }
 
 func TestLiquidParserParseWithDiagnosticsIgnoresStringLiteralPipes(t *testing.T) {
-	t.Helper()
-
 	var diagnostics []Diagnostic
 	values, _, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`
 {{ "'theme.string_literal.ignored' | t" }}
@@ -98,9 +88,25 @@ func TestLiquidParserParseWithDiagnosticsIgnoresStringLiteralPipes(t *testing.T)
 	}
 }
 
-func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
-	t.Helper()
+func TestLiquidStringLiteralValueUnescapesBackslashSequences(t *testing.T) {
+	value, ok := liquidStringLiteralValue(`'key\'s.path'`)
+	if !ok {
+		t.Fatal("expected single-quoted literal")
+	}
+	if value != "key's.path" {
+		t.Fatalf("unexpected single-quoted value: %q", value)
+	}
 
+	value, ok = liquidStringLiteralValue(`"key\"quote.path"`)
+	if !ok {
+		t.Fatal("expected double-quoted literal")
+	}
+	if value != `key"quote.path` {
+		t.Fatalf("unexpected double-quoted value: %q", value)
+	}
+}
+
+func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
 	_, err := (LiquidParser{}).Parse([]byte(`{% if product.available %}{{ 'product.available' | t }}`))
 	if err == nil {
 		t.Fatal("expected malformed Liquid to return an error")
@@ -117,9 +123,7 @@ func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
 }
 
 func TestLiquidParserParseRecoversPanicAsTypedError(t *testing.T) {
-	t.Helper()
-
-	_, _, err := parseLiquidTemplateWithDiagnostics([]byte(`{{ 'static.key' | t }}`), nil, func([]byte, string, int) (*liquid.Template, error) {
+	_, _, err := parseLiquidTemplateWithDiagnostics(unknownDiagnosticFilePath, []byte(`{{ 'static.key' | t }}`), nil, func([]byte, string, int) (*liquid.Template, error) {
 		panic("parser exploded")
 	})
 	if err == nil {
@@ -140,8 +144,6 @@ func TestLiquidParserParseRecoversPanicAsTypedError(t *testing.T) {
 }
 
 func TestLiquidParserStrategyErrorIncludesSourcePath(t *testing.T) {
-	t.Helper()
-
 	_, err := NewDefaultStrategy().Parse("sections/header.liquid", []byte(`{% if product.available %}`))
 	if err == nil {
 		t.Fatal("expected malformed Liquid to return an error")
@@ -151,14 +153,15 @@ func TestLiquidParserStrategyErrorIncludesSourcePath(t *testing.T) {
 	if !errors.As(err, &parseErr) {
 		t.Fatalf("expected wrapped LiquidParseError, got %T: %v", err, err)
 	}
+	if parseErr.FilePath != "sections/header.liquid" {
+		t.Fatalf("expected typed source path, got %q", parseErr.FilePath)
+	}
 	if !strings.Contains(err.Error(), "sections/header.liquid") {
 		t.Fatalf("expected strategy error to include source path, got %q", err.Error())
 	}
 }
 
 func TestLiquidParserParseExtractsMultipleStaticKeys(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`
 {{ 'header.navigation.home' | t }}
 {{ "footer.contact.title" | t }}
@@ -180,8 +183,6 @@ func TestLiquidParserParseExtractsMultipleStaticKeys(t *testing.T) {
 }
 
 func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`
 {{ variable | t }}
 {{ section.settings.label | t }}
@@ -197,8 +198,6 @@ func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
 }
 
 func TestLiquidParserParseExtractsChainedFilterKeys(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`
 {{ 'header.navigation.home' | upcase | t }}
 {{ 'footer.contact.title' | t | escape }}
@@ -228,8 +227,6 @@ func TestLiquidParserParseExtractsChainedFilterKeys(t *testing.T) {
 }
 
 func TestLiquidParserParseExtractsHTMLSafeAndCaptureKeys(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`
 {% capture header_title %}
 {{ 'sections.header.title' | t }}
@@ -258,8 +255,6 @@ func TestLiquidParserParseExtractsHTMLSafeAndCaptureKeys(t *testing.T) {
 }
 
 func TestLiquidParserParseSkipsNonTranslatableRegions(t *testing.T) {
-	t.Helper()
-
 	got, err := (LiquidParser{}).Parse([]byte(`
 {% comment %}
 {{ 'theme.comment.ignored' | t }}
@@ -299,8 +294,6 @@ func TestLiquidParserParseSkipsNonTranslatableRegions(t *testing.T) {
 }
 
 func TestLiquidPackageParsesChainedFilters(t *testing.T) {
-	t.Helper()
-
 	engine := liquid.NewEngine()
 	template, err := engine.ParseTemplate([]byte(`{{ "hello" | capitalize | append: "!" }}`))
 	if err != nil {
@@ -340,13 +333,13 @@ func assertLiquidParseErrorMessage(t *testing.T, message string) {
 	}
 }
 
-func assertLiquidDynamicKeyDiagnostic(t *testing.T, got Diagnostic, lineNumber int) {
+func assertLiquidDynamicKeyDiagnostic(t *testing.T, got Diagnostic, filePath string, lineNumber int) {
 	t.Helper()
 
 	if got.Code != LiquidDynamicKeyDiagnosticCode {
 		t.Fatalf("unexpected diagnostic code: %#v", got)
 	}
-	if got.FilePath != unknownDiagnosticFilePath {
+	if got.FilePath != filePath {
 		t.Fatalf("unexpected diagnostic file path: %#v", got)
 	}
 	if got.LineNumber != lineNumber {

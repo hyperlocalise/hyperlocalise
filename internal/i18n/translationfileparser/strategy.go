@@ -17,6 +17,10 @@ type ContextParser interface {
 	ParseWithContext(content []byte) (map[string]string, map[string]string, error)
 }
 
+type pathAwareParser interface {
+	parseWithPath(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error)
+}
+
 // Strategy selects a parser based on file extension.
 type Strategy struct {
 	parsersByExt map[string]Parser
@@ -73,6 +77,16 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 // Some parser implementations may return additional per-entry context (for example,
 // FormatJS/ARB descriptions).
 func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {
+	return s.parseWithContext(path, content, nil)
+}
+
+// ParseWithDiagnostics resolves a parser from the file path extension and parses
+// content while collecting parser diagnostics when the parser supports them.
+func (s *Strategy) ParseWithDiagnostics(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
+	return s.parseWithContext(path, content, diags)
+}
+
+func (s *Strategy) parseWithContext(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {
 		return nil, nil, fmt.Errorf("translation file parser: file %q has no extension", path)
@@ -81,6 +95,14 @@ func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]str
 	parser, ok := s.parsersByExt[ext]
 	if !ok {
 		return nil, nil, fmt.Errorf("translation file parser: unsupported file extension %q", ext)
+	}
+
+	if pathParser, ok := parser.(pathAwareParser); ok {
+		values, entryContext, err := pathParser.parseWithPath(path, content, diags)
+		if err != nil {
+			return nil, nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, entryContext, nil
 	}
 
 	if contextParser, ok := parser.(ContextParser); ok {

@@ -23,8 +23,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestLiquidParserCanonicalCorpusMatchesGoldens(t *testing.T) {
-	t.Helper()
-
 	fixturePaths, err := filepath.Glob(filepath.Join("testdata", "liquid", "fixtures", "*.liquid"))
 	if err != nil {
 		t.Fatalf("glob liquid fixtures: %v", err)
@@ -38,8 +36,6 @@ func TestLiquidParserCanonicalCorpusMatchesGoldens(t *testing.T) {
 		fixturePath := fixturePath
 		name := filepath.Base(fixturePath)
 		t.Run(name, func(t *testing.T) {
-			t.Helper()
-
 			content, err := os.ReadFile(fixturePath)
 			if err != nil {
 				t.Fatalf("read fixture: %v", err)
@@ -64,8 +60,6 @@ func TestLiquidParserCanonicalCorpusMatchesGoldens(t *testing.T) {
 }
 
 func TestLiquidParserCanonicalBenchmarkCorpusShape(t *testing.T) {
-	t.Helper()
-
 	corpus := makeLiquidBenchmarkCorpus(50, 10)
 	if len(corpus) != 50 {
 		t.Fatalf("expected 50 benchmark files, got %d", len(corpus))
