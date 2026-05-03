@@ -42,7 +42,7 @@
     "dotenv": "17.4.2",
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
-    "hono": "4.12.15",
+    "hono": "4.12.16",
     "lucide-react": "^1.14.0",
     "media-chrome": "^4.19.0",
     "motion": "12.38.0",
