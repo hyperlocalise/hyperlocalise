@@ -4,9 +4,8 @@ import { z } from "zod";
 
 import { schema } from "@/lib/database";
 
+import { localePattern } from "./locale";
 import type { ToolContext } from "./types";
-
-const localePattern = /^[a-z]{2,3}(-[A-Z]{2,3})?$/;
 
 /* ------------------------------------------------------------------ */
 /* Ownership helpers                                                  */
@@ -266,7 +265,15 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
           caseSensitive: termData.caseSensitive,
           forbidden: termData.forbidden,
         })
+        .onConflictDoNothing()
         .returning();
+
+      if (!term) {
+        return {
+          success: false,
+          error: `Term "${termData.sourceTerm}" already exists in this glossary.`,
+        };
+      }
 
       return { success: true, term };
     },
@@ -343,6 +350,10 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
         .delete(schema.glossaryTerms)
         .where(eq(schema.glossaryTerms.id, termId))
         .returning({ id: schema.glossaryTerms.id });
+
+      if (deleted.length === 0) {
+        return { success: false, error: `Term ${termId} not found.` };
+      }
 
       return { success: true, deletedId: deleted[0].id };
     },

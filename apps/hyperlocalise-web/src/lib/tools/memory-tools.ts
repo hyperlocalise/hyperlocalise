@@ -5,9 +5,8 @@ import { z } from "zod";
 import { schema } from "@/lib/database";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
+import { localePattern } from "./locale";
 import type { ToolContext } from "./types";
-
-const localePattern = /^[a-z]{2,3}(-[A-Z]{2,3})?$/;
 
 /* ------------------------------------------------------------------ */
 /* Ownership helpers                                                  */
@@ -265,7 +264,15 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
           provenance: entryData.provenance,
           externalKey: entryData.externalKey ?? null,
         })
+        .onConflictDoNothing()
         .returning();
+
+      if (!entry) {
+        return {
+          success: false,
+          error: `An entry with the same source text, locales, and memory already exists.`,
+        };
+      }
 
       return { success: true, entry };
     },
@@ -364,6 +371,10 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
         .delete(schema.memoryEntries)
         .where(eq(schema.memoryEntries.id, entryId))
         .returning({ id: schema.memoryEntries.id });
+
+      if (deleted.length === 0) {
+        return { success: false, error: `Entry ${entryId} not found.` };
+      }
 
       return { success: true, deletedId: deleted[0].id };
     },
