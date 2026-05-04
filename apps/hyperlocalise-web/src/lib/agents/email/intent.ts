@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import type { EmailAgentIntentKind } from "./types";
 
 const emailRequestIntentSchema = z.object({
-  kind: z.enum(["translate", "check", "keyword_research", "unknown"]).default("translate"),
+  kind: z.enum(["translate", "check", "keyword_research", "unknown"]),
   sourceLocale: z.string().trim().nullable(),
   targetLocale: z.string().trim().nullable(),
   instructions: z.string().trim().nullable(),
