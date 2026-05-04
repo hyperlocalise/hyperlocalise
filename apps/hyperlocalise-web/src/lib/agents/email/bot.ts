@@ -45,6 +45,8 @@ export type EmailHandlerDependencies = {
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
   createTranslationJob: typeof createEmailTranslationJob;
+  setTranslationJobWorkflowRun: typeof setEmailTranslationJobWorkflowRun;
+  failTranslationJobBeforeRun: typeof failEmailTranslationJobBeforeRun;
   trackConversation?: {
     create: typeof createInteraction;
     addMessage: typeof addInteractionMessage;
@@ -298,6 +300,8 @@ async function enqueuePendingTranslation(input: {
   organizationId?: string;
   conversationId?: string;
   createTranslationJob: typeof createEmailTranslationJob;
+  setTranslationJobWorkflowRun: typeof setEmailTranslationJobWorkflowRun;
+  failTranslationJobBeforeRun: typeof failEmailTranslationJobBeforeRun;
 }) {
   const {
     thread,
@@ -308,6 +312,8 @@ async function enqueuePendingTranslation(input: {
     organizationId,
     conversationId,
     createTranslationJob,
+    setTranslationJobWorkflowRun,
+    failTranslationJobBeforeRun,
   } = input;
   const log = logger.child({ req: pending.requestId });
   log.info(
@@ -478,7 +484,7 @@ async function enqueuePendingTranslation(input: {
       result = await queue.enqueue(task);
     } catch (error) {
       if (organizationId) {
-        await failEmailTranslationJobBeforeRun({
+        await failTranslationJobBeforeRun({
           organizationId,
           jobId,
           reason: error instanceof Error ? error.message : "email translation queue unavailable",
@@ -487,7 +493,7 @@ async function enqueuePendingTranslation(input: {
       throw error;
     }
     if (organizationId && result.ids.length > 0) {
-      await setEmailTranslationJobWorkflowRun({
+      await setTranslationJobWorkflowRun({
         organizationId,
         jobId,
         workflowRunId: result.ids[0] ?? null,
@@ -568,6 +574,8 @@ async function handlePendingClarification(input: {
       organizationId,
       conversationId,
       createTranslationJob: dependencies.createTranslationJob,
+      setTranslationJobWorkflowRun: dependencies.setTranslationJobWorkflowRun,
+      failTranslationJobBeforeRun: dependencies.failTranslationJobBeforeRun,
     });
     return;
   }
@@ -616,6 +624,8 @@ async function handlePendingClarification(input: {
     organizationId,
     conversationId,
     createTranslationJob: dependencies.createTranslationJob,
+    setTranslationJobWorkflowRun: dependencies.setTranslationJobWorkflowRun,
+    failTranslationJobBeforeRun: dependencies.failTranslationJobBeforeRun,
   });
 }
 
@@ -962,6 +972,8 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         organizationId: organization.id,
         conversationId,
         createTranslationJob: dependencies.createTranslationJob,
+        setTranslationJobWorkflowRun: dependencies.setTranslationJobWorkflowRun,
+        failTranslationJobBeforeRun: dependencies.failTranslationJobBeforeRun,
       });
     } catch (error) {
       log.error(
@@ -988,6 +1000,8 @@ export async function getEmailBot(options?: { emailAgentTaskQueue?: EmailAgentTa
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
     createTranslationJob: createEmailTranslationJob,
+    setTranslationJobWorkflowRun: setEmailTranslationJobWorkflowRun,
+    failTranslationJobBeforeRun: failEmailTranslationJobBeforeRun,
     trackConversation: {
       create: createInteraction,
       addMessage: addInteractionMessage,

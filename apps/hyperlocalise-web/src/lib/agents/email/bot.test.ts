@@ -135,6 +135,8 @@ function createDependencies() {
       });
     }),
     createTranslationJob: vi.fn(async () => ({ jobId: "job_123" })),
+    setTranslationJobWorkflowRun: vi.fn(async () => {}),
+    failTranslationJobBeforeRun: vi.fn(async () => {}),
   } satisfies EmailHandlerDependencies;
 
   return dependencies;
