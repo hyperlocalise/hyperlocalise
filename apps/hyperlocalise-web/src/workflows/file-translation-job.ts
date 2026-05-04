@@ -232,10 +232,8 @@ async function getStoredFileContentStep(fileId: string, organizationId: string) 
     throw new Error(`failed to get stored file content: ${response.status}`);
   }
 
-  const data = (await response.json()) as {
-    contentBase64: string;
-  };
-  return Buffer.from(data.contentBase64, "base64");
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 async function completeFileTranslationJobStep(input: {

@@ -28,6 +28,7 @@ import {
 } from "@/components/ai-elements/tool";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 import {
@@ -152,7 +153,7 @@ function PersistedMessage({
       createdAt={message.createdAt}
     >
       {message.senderType === "user" ? (
-        <p className="whitespace-pre-wrap">{message.text}</p>
+        <TypographyP className="whitespace-pre-wrap leading-6">{message.text}</TypographyP>
       ) : (
         <MessageResponse>{message.text}</MessageResponse>
       )}
@@ -215,9 +216,9 @@ function MessageFrame({
           )}
         >
           {children}
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <TypographyMuted className="mt-1 text-xs">
             {createdAt ? formatRelativeTime(createdAt) : "now"}
-          </p>
+          </TypographyMuted>
         </MessageContent>
       </div>
     </Message>
@@ -326,7 +327,7 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
               key={part.sourceId}
               className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-xs"
             >
-              <span className="font-medium">{part.title || part.filename || "Document"}</span>
+              <TypographySmall className="text-xs">{part.title || part.filename || "Document"}</TypographySmall>
               <span className="text-muted-foreground">{part.mediaType}</span>
             </div>
           ),

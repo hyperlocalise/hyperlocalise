@@ -45,6 +45,9 @@ import { apiClient } from "@/lib/api-client-instance";
 
 function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): File {
   const arr = dataUrl.split(",");
+  if (arr.length < 2) {
+    throw new Error("Invalid data URL");
+  }
   const mime = arr[0].match(/:(.*?);/)?.[1] || mediaType || "application/octet-stream";
   const bstr = atob(arr[1]);
   let n = bstr.length;
@@ -128,6 +131,7 @@ export function ReplyComposer({
 
     void onSend(trimmedText, fileObjects);
     setReplyText("");
+    attachments.clear();
   };
 
   return (

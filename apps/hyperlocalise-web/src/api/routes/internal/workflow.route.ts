@@ -6,7 +6,7 @@ import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { bufferFromStream } from "@/lib/streams";
+
 import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
 import {
   claimTranslationJob,
@@ -230,14 +230,8 @@ export function createInternalWorkflowRoutes(options: CreateInternalWorkflowRout
         return notFoundResponse(c);
       }
 
-      const content = await bufferFromStream(storedObject.body);
-      return c.json(
-        {
-          file,
-          contentBase64: content.toString("base64"),
-        },
-        200,
-      );
+      c.header("Content-Type", storedObject.contentType ?? "application/octet-stream");
+      return c.body(storedObject.body);
     })
     .post("/stored-files", async (c) => {
       const body = (await c.req.json()) as {

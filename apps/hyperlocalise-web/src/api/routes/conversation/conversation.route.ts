@@ -283,19 +283,33 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           ),
         );
 
-        const message = await addInteractionMessage({
-          interactionId: conversationId,
-          senderType: "user",
-          text,
-          attachments: storedFiles.map((file) => ({
-            id: file.id,
-            filename: file.filename,
-            contentType: file.contentType,
-            url: organizationSlug
-              ? `/api/orgs/${organizationSlug}/files/${file.id}`
-              : (file.downloadUrl ?? file.storageUrl),
-          })),
-        });
+        let message;
+        try {
+          message = await addInteractionMessage({
+            interactionId: conversationId,
+            senderType: "user",
+            text,
+            attachments: storedFiles.map((file) => ({
+              id: file.id,
+              filename: file.filename,
+              contentType: file.contentType,
+              url: organizationSlug
+                ? `/api/orgs/${organizationSlug}/files/${file.id}`
+                : (file.downloadUrl ?? file.storageUrl),
+            })),
+          });
+        } catch (error) {
+          await db.delete(schema.storedFiles).where(
+            inArray(
+              schema.storedFiles.id,
+              storedFiles.map((f) => f.id),
+            ),
+          );
+          await Promise.allSettled(
+            storedFiles.map((file) => adapter.delete({ keyOrUrl: file.storageKey })),
+          );
+          throw error;
+        }
 
         // TODO: trigger agent response here
 
