@@ -130,6 +130,7 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
     }
   }
 
+  const [file] = await db
     .select()
     .from(schema.storedFiles)
     .where(and(...filters))
