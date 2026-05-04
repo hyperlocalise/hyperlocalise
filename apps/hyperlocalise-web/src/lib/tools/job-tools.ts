@@ -220,6 +220,10 @@ export function createTranslationJobTool(ctx: ToolContext) {
           )
           .returning();
 
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
         await tx.insert(schema.translationJobDetails).values({
           jobId: createdJob.id,
           type: input.type,
@@ -245,7 +249,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         return {
           success: true,
           jobId: job.id,
-          status: job.status,
+          status: "enqueued",
           workflowRunIds: result.ids,
         };
       } catch (error) {
@@ -312,6 +316,10 @@ export function createReviewJobTool(ctx: ToolContext) {
             }),
           )
           .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
 
         await tx.insert(schema.reviewJobDetails).values({
           jobId: createdJob.id,
@@ -407,6 +415,10 @@ export function createSyncJobTool(ctx: ToolContext) {
           )
           .returning();
 
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
         await tx.insert(schema.syncJobDetails).values({
           jobId: createdJob.id,
           connectorKind: input.connectorKind,
@@ -464,6 +476,10 @@ export function createAssetManagementJobTool(ctx: ToolContext) {
             }),
           )
           .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
 
         await tx.insert(schema.assetManagementJobDetails).values({
           jobId: createdJob.id,
