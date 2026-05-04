@@ -369,7 +369,7 @@ export function createWorkspaceJobRoutes() {
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
-        .innerJoin(
+        .leftJoin(
           schema.projects,
           and(
             eq(schema.projects.id, schema.jobs.projectId),

@@ -1,12 +1,14 @@
-import { getWorkflowMetadata } from "workflow";
+import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
 
-import { and, eq } from "drizzle-orm";
-
-import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { bufferFromStream } from "@/lib/streams";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
+import {
+  isImageTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import {
   buildTempConfig,
   createTranslationSandbox,
@@ -22,26 +24,89 @@ import {
   writeTempConfig,
 } from "@/lib/translation/sandbox-translation";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
-import {
-  isImageTranslationFileFormat,
-  type SupportedTranslationFileFormat,
-} from "@/lib/translation/file-formats";
-import {
-  claimTranslationJob,
-  failTranslationJob,
-} from "@/lib/translation/translation-job-queued-function";
+
+function getInternalApiUrl(path: string): string {
+  const { url } = getWorkflowMetadata();
+  return `${url}/api/internal/workflow${path}`;
+}
+
+function internalApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (env.WORKFLOW_INTERNAL_SECRET) {
+    headers["x-internal-secret"] = env.WORKFLOW_INTERNAL_SECRET;
+  }
+  return headers;
+}
+
+type ClaimedTranslationJob = {
+  id: string;
+  projectId: string;
+  type: "string" | "file";
+  inputPayload: unknown;
+  workflowRunId: string;
+};
+
+type ClaimTranslationJobResult =
+  | {
+      kind: "claimed";
+      job: ClaimedTranslationJob;
+    }
+  | {
+      kind: "skipped";
+      job: {
+        id: string;
+        projectId: string;
+        type: "string" | "file";
+        status: string;
+        inputPayload: unknown;
+        outcomeKind: string | null;
+        outcomePayload: unknown;
+        lastError: string | null;
+        workflowRunId: string | null;
+        completedAt: string | null;
+      };
+    };
 
 async function claimTranslationJobStep(input: {
   event: TranslationJobQueuedEventData;
   runId: string;
 }) {
   "use step";
-  return claimTranslationJob(input);
+
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/claim"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to claim translation job: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { result: ClaimTranslationJobResult };
+  return data.result;
 }
 
-async function failTranslationJobStep(input: Parameters<typeof failTranslationJob>[0]) {
+async function failTranslationJobStep(input: {
+  jobId: string;
+  projectId: string;
+  workflowRunId: string;
+  code: string;
+  message: string;
+}) {
   "use step";
-  return failTranslationJob(input);
+
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/fail"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to fail translation job: ${response.status}`);
+  }
 }
 
 async function createSandboxStep() {
@@ -135,7 +200,52 @@ async function storeOutputFileStep(input: {
   });
 }
 
-async function completeFileTranslationJob(input: {
+async function getProjectOrganizationStep(projectId: string): Promise<string> {
+  "use step";
+
+  const response = await workflowFetch(getInternalApiUrl(`/projects/${projectId}/organization`), {
+    method: "GET",
+    headers: internalApiHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to get project organization: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { organizationId: string };
+  return data.organizationId;
+}
+
+async function getStoredFileStep(fileId: string, organizationId: string) {
+  "use step";
+
+  const response = await workflowFetch(
+    getInternalApiUrl(
+      `/stored-files/${fileId}?organizationId=${encodeURIComponent(organizationId)}`,
+    ),
+    {
+      method: "GET",
+      headers: internalApiHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`failed to get stored file: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    file: {
+      id: string;
+      filename: string;
+      contentType: string;
+      storageKey: string;
+      organizationId: string;
+    };
+  };
+  return data.file;
+}
+
+async function completeFileTranslationJobStep(input: {
   jobId: string;
   projectId: string;
   workflowRunId: string;
@@ -143,46 +253,15 @@ async function completeFileTranslationJob(input: {
 }) {
   "use step";
 
-  const didSucceed = await db.transaction(async (tx) => {
-    const [updatedJob] = await tx
-      .update(schema.jobs)
-      .set({
-        status: "succeeded",
-        outcomePayload: {
-          outputFiles: input.outputFiles,
-        },
-        lastError: null,
-        completedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(schema.jobs.kind, "translation"),
-          eq(schema.jobs.id, input.jobId),
-          eq(schema.jobs.projectId, input.projectId),
-          eq(schema.jobs.workflowRunId, input.workflowRunId),
-        ),
-      )
-      .returning({ id: schema.jobs.id });
-
-    if (!updatedJob) {
-      return false;
-    }
-
-    await tx
-      .update(schema.translationJobDetails)
-      .set({ outcomeKind: "file_result" })
-      .where(eq(schema.translationJobDetails.jobId, input.jobId));
-
-    return true;
+  const response = await workflowFetch(getInternalApiUrl("/file-translation-jobs/complete"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
   });
 
-  if (!didSucceed) {
-    throw new Error(
-      `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
-    );
+  if (!response.ok) {
+    throw new Error(`failed to complete file translation job: ${response.status}`);
   }
-
-  return input.outputFiles;
 }
 
 export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEventData) {
@@ -232,13 +311,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     throw new Error(`unsupported image format: ${parsedInput.fileFormat}`);
   }
 
-  const [project] = await db
-    .select({ organizationId: schema.projects.organizationId })
-    .from(schema.projects)
-    .where(eq(schema.projects.id, claim.job.projectId))
-    .limit(1);
+  const organizationId = await getProjectOrganizationStep(claim.job.projectId);
 
-  if (!project) {
+  if (!organizationId) {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
@@ -249,17 +324,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     throw new Error("project not found");
   }
 
-  const sourceFile = await db
-    .select()
-    .from(schema.storedFiles)
-    .where(
-      and(
-        eq(schema.storedFiles.id, parsedInput.sourceFileId),
-        eq(schema.storedFiles.organizationId, project.organizationId),
-      ),
-    )
-    .limit(1)
-    .then((rows) => rows[0] ?? null);
+  const sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
 
   if (!sourceFile) {
     await failTranslationJobStep({
@@ -336,7 +401,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
       );
 
       const storedOutput = await storeOutputFileStep({
-        organizationId: project.organizationId,
+        organizationId,
         projectId: claim.job.projectId,
         jobId: claim.job.id,
         filename: outputFilename,
@@ -351,7 +416,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
       });
     }
 
-    await completeFileTranslationJob({
+    await completeFileTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,

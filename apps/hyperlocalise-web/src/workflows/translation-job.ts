@@ -1,45 +1,171 @@
-import { getWorkflowMetadata } from "workflow";
+import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
 
+import { env } from "@/lib/env";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
-import {
-  claimTranslationJob,
-  completeTranslationJob,
-  executeClaimedTranslationJob,
-  failTranslationJob,
-} from "@/lib/translation/translation-job-queued-function";
+
+function getInternalApiUrl(path: string): string {
+  const { url } = getWorkflowMetadata();
+  return `${url}/api/internal/workflow${path}`;
+}
+
+function internalApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (env.WORKFLOW_INTERNAL_SECRET) {
+    headers["x-internal-secret"] = env.WORKFLOW_INTERNAL_SECRET;
+  }
+  return headers;
+}
 
 type ClaimTranslationJobInput = {
   event: TranslationJobQueuedEventData;
   runId: string;
 };
 
-type ClaimedTranslationJob = Extract<
-  Awaited<ReturnType<typeof claimTranslationJob>>,
-  { kind: "claimed" }
->["job"];
+type ClaimedTranslationJob = {
+  id: string;
+  projectId: string;
+  type: "string" | "file";
+  inputPayload: unknown;
+  workflowRunId: string;
+};
+
+type ClaimTranslationJobResult =
+  | {
+      kind: "claimed";
+      job: ClaimedTranslationJob;
+    }
+  | {
+      kind: "skipped";
+      job: {
+        id: string;
+        projectId: string;
+        type: "string" | "file";
+        status: string;
+        inputPayload: unknown;
+        outcomeKind: string | null;
+        outcomePayload: unknown;
+        lastError: string | null;
+        workflowRunId: string | null;
+        completedAt: string | null;
+      };
+    };
+
+type TranslationJobExecutionResult =
+  | {
+      ok: true;
+      result: unknown;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+    };
 
 async function claimTranslationJobStep(input: ClaimTranslationJobInput) {
   "use step";
 
-  return claimTranslationJob(input);
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/claim"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to claim translation job: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { result: ClaimTranslationJobResult };
+  return data.result;
 }
 
 async function executeClaimedTranslationJobStep(job: ClaimedTranslationJob) {
   "use step";
 
-  return executeClaimedTranslationJob(job);
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/execute-string"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify({ job }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to execute translation job: ${response.status}`);
+  }
+
+  const data = (await response.json()) as { result: TranslationJobExecutionResult };
+  return data.result;
 }
 
-async function completeTranslationJobStep(input: Parameters<typeof completeTranslationJob>[0]) {
+async function completeTranslationJobStep(input: {
+  jobId: string;
+  projectId: string;
+  workflowRunId: string;
+  result: unknown;
+}) {
   "use step";
 
-  return completeTranslationJob(input);
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/complete"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to complete translation job: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    job: {
+      id: string;
+      projectId: string;
+      type: "string" | "file";
+      status: string;
+      inputPayload: unknown;
+      outcomeKind: string | null;
+      outcomePayload: unknown;
+      lastError: string | null;
+      workflowRunId: string | null;
+      completedAt: string | null;
+    };
+  };
+  return data.job;
 }
 
-async function failTranslationJobStep(input: Parameters<typeof failTranslationJob>[0]) {
+async function failTranslationJobStep(input: {
+  jobId: string;
+  projectId: string;
+  workflowRunId: string;
+  code: string;
+  message: string;
+}) {
   "use step";
 
-  return failTranslationJob(input);
+  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/fail"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    throw new Error(`failed to fail translation job: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    job: {
+      id: string;
+      projectId: string;
+      type: "string" | "file";
+      status: string;
+      inputPayload: unknown;
+      outcomeKind: string | null;
+      outcomePayload: unknown;
+      lastError: string | null;
+      workflowRunId: string | null;
+      completedAt: string | null;
+    };
+  };
+  return data.job;
 }
 
 function formatExecutionError(error: unknown) {

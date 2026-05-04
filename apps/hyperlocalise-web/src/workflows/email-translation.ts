@@ -1,15 +1,28 @@
 import { Sandbox } from "@vercel/sandbox";
-import { and, eq } from "drizzle-orm";
 import { Resend } from "resend";
-import { getWorkflowMetadata } from "workflow";
+import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
 
-import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
+
+function getInternalApiUrl(path: string): string {
+  const { url } = getWorkflowMetadata();
+  return `${url}/api/internal/workflow${path}`;
+}
+
+function internalApiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (env.WORKFLOW_INTERNAL_SECRET) {
+    headers["x-internal-secret"] = env.WORKFLOW_INTERNAL_SECRET;
+  }
+  return headers;
+}
 
 async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
@@ -342,16 +355,18 @@ async function markEmailTranslationJobRunning(input: {
 }): Promise<void> {
   "use step";
 
-  await db
-    .update(schema.jobs)
-    .set({
-      status: "running",
-      workflowRunId: input.workflowRunId,
-      lastError: null,
-      outcomePayload: null,
-      completedAt: null,
-    })
-    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+  const response = await workflowFetch(
+    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/mark-running`),
+    {
+      method: "POST",
+      headers: internalApiHeaders(),
+      body: JSON.stringify({ workflowRunId: input.workflowRunId }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`failed to mark email translation job running: ${response.status}`);
+  }
 }
 
 async function markEmailTranslationJobSucceeded(input: {
@@ -362,27 +377,22 @@ async function markEmailTranslationJobSucceeded(input: {
 }): Promise<void> {
   "use step";
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.jobs)
-      .set({
-        status: "succeeded",
-        outcomePayload: {
-          kind: "email_file_result",
-          sourceFilename: input.attachment.filename,
-          outputFilename: input.outputFilename,
-          targetLocale: input.targetLocale,
-        },
-        lastError: null,
-        completedAt: new Date(),
-      })
-      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+  const response = await workflowFetch(
+    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/succeed`),
+    {
+      method: "POST",
+      headers: internalApiHeaders(),
+      body: JSON.stringify({
+        attachment: input.attachment,
+        outputFilename: input.outputFilename,
+        targetLocale: input.targetLocale,
+      }),
+    },
+  );
 
-    await tx
-      .update(schema.translationJobDetails)
-      .set({ outcomeKind: "file_result" })
-      .where(eq(schema.translationJobDetails.jobId, input.jobId));
-  });
+  if (!response.ok) {
+    throw new Error(`failed to mark email translation job succeeded: ${response.status}`);
+  }
 }
 
 async function markEmailTranslationJobFailed(input: {
@@ -391,25 +401,18 @@ async function markEmailTranslationJobFailed(input: {
 }): Promise<void> {
   "use step";
 
-  await db.transaction(async (tx) => {
-    await tx
-      .update(schema.jobs)
-      .set({
-        status: "failed",
-        outcomePayload: {
-          kind: "email_file_error",
-          message: input.reason,
-        },
-        lastError: input.reason,
-        completedAt: new Date(),
-      })
-      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+  const response = await workflowFetch(
+    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/fail`),
+    {
+      method: "POST",
+      headers: internalApiHeaders(),
+      body: JSON.stringify({ reason: input.reason }),
+    },
+  );
 
-    await tx
-      .update(schema.translationJobDetails)
-      .set({ outcomeKind: "error" })
-      .where(eq(schema.translationJobDetails.jobId, input.jobId));
-  });
+  if (!response.ok) {
+    throw new Error(`failed to mark email translation job failed: ${response.status}`);
+  }
 }
 
 export async function emailTranslationWorkflow(task: EmailAgentTask) {

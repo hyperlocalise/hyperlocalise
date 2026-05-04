@@ -274,8 +274,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
                     <DropdownMenuItem
-                      onSelect={(event) => {
-                        event.preventDefault();
+                      closeOnClick={false}
+                      onClick={() => {
                         fileInputRef.current?.click();
                       }}
                     >

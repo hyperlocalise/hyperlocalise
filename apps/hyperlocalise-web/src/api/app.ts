@@ -19,6 +19,7 @@ import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
 import { createFileRoutes } from "./routes/file/file.route";
+import { createInternalWorkflowRoutes } from "./routes/internal/workflow.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
@@ -70,7 +71,8 @@ export function createApp(options: CreateAppOptions = {}) {
       createResendWebhookRoutes({
         emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
-    );
+    )
+    .route("/internal/workflow", createInternalWorkflowRoutes());
 }
 
 export const app = createApp();
