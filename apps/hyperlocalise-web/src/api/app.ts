@@ -72,7 +72,10 @@ export function createApp(options: CreateAppOptions = {}) {
         emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
     )
-    .route("/internal/workflow", createInternalWorkflowRoutes());
+    .route(
+      "/internal/workflow",
+      createInternalWorkflowRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    );
 }
 
 export const app = createApp();

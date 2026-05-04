@@ -42,7 +42,7 @@ export function ConversationPanel({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, files: File[]) => void | Promise<void>;
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {

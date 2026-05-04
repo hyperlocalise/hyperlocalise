@@ -1,5 +1,6 @@
 "use client";
 
+import type { FileUIPart } from "ai";
 import { useEffect, useState } from "react";
 import {
   Add01Icon,
@@ -21,7 +22,15 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
+  usePromptInputAttachments,
 } from "@/components/ai-elements/prompt-input";
+import {
+  Attachment,
+  AttachmentInfo,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from "@/components/ai-elements/attachments";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +42,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+
+function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): File {
+  const arr = dataUrl.split(",");
+  const mime = arr[0].match(/:(.*?);/)?.[1] || mediaType || "application/octet-stream";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
 
 const attachOptions = [
   {
@@ -64,7 +85,7 @@ export function ReplyComposer({
   conversationProjectId: string | null;
   disabled: boolean;
   isStreaming: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string, files: File[]) => void | Promise<void>;
   organizationSlug: string;
 }) {
   const [replyText, setReplyText] = useState("");
@@ -95,11 +116,17 @@ export function ReplyComposer({
     projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
   const projectTriggerLabel = selectedProject?.name ?? "Project";
 
-  const sendReply = (text: string) => {
-    const trimmedText = text.trim();
-    if (!trimmedText || disabled) return;
+  const attachments = usePromptInputAttachments();
 
-    onSend(trimmedText);
+  const sendReply = (text: string, files: FileUIPart[]) => {
+    const trimmedText = text.trim();
+    if ((!trimmedText && files.length === 0) || disabled) return;
+
+    const fileObjects = files.map((file) =>
+      dataUrlToFile(file.url, file.filename || "untitled", file.mediaType),
+    );
+
+    void onSend(trimmedText, fileObjects);
     setReplyText("");
   };
 
@@ -107,10 +134,27 @@ export function ReplyComposer({
     <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
-          onSubmit={({ text }) => sendReply(text)}
+          onSubmit={({ text, files }) => sendReply(text, files)}
           className="overflow-hidden rounded-[1.35rem] border border-border bg-app-shell-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
         >
           <PromptInputBody>
+            {attachments.files.length > 0 && (
+              <div className="px-4 pt-3 sm:px-6">
+                <Attachments variant="inline">
+                  {attachments.files.map((file) => (
+                    <Attachment
+                      key={file.id}
+                      data={file}
+                      onRemove={() => attachments.remove(file.id)}
+                    >
+                      <AttachmentPreview />
+                      <AttachmentInfo />
+                      <AttachmentRemove />
+                    </Attachment>
+                  ))}
+                </Attachments>
+              </div>
+            )}
             <PromptInputTextarea
               disabled={disabled}
               onChange={(event) => setReplyText(event.currentTarget.value)}
@@ -139,7 +183,7 @@ export function ReplyComposer({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => attachments.openFileDialog()}>
                       <HugeiconsIcon
                         icon={attachOptions[0].icon}
                         strokeWidth={1.8}
@@ -222,7 +266,7 @@ export function ReplyComposer({
               </DropdownMenu>
               <PromptInputSubmit
                 size="sm"
-                disabled={!replyText.trim() || disabled}
+                disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label="Send reply"
               >

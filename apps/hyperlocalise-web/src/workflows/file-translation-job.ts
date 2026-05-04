@@ -1,7 +1,4 @@
 import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
-import { getFileStorageAdapter } from "@/lib/file-storage";
-import { createStoredFile } from "@/lib/file-storage/records";
-import { bufferFromStream } from "@/lib/streams";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
   isImageTranslationFileFormat,
@@ -147,16 +144,30 @@ async function storeOutputFileStep(input: {
   content: Buffer;
 }) {
   "use step";
-  return createStoredFile({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    role: "output",
-    sourceKind: "job_output",
-    sourceJobId: input.jobId,
-    filename: input.filename,
-    contentType: input.contentType,
-    content: input.content,
+  const response = await workflowFetch(getInternalApiUrl("/stored-files"), {
+    method: "POST",
+    headers: internalApiHeaders(),
+    body: JSON.stringify({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      jobId: input.jobId,
+      filename: input.filename,
+      contentType: input.contentType,
+      contentBase64: input.content.toString("base64"),
+    }),
   });
+
+  if (!response.ok) {
+    throw new Error(`failed to store output file: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    file: {
+      id: string;
+      filename: string;
+    };
+  };
+  return data.file;
 }
 
 async function getProjectOrganizationStep(projectId: string): Promise<string> {
@@ -202,6 +213,29 @@ async function getStoredFileStep(fileId: string, organizationId: string) {
     };
   };
   return data.file;
+}
+
+async function getStoredFileContentStep(fileId: string, organizationId: string) {
+  "use step";
+
+  const response = await workflowFetch(
+    getInternalApiUrl(
+      `/stored-files/${fileId}/content?organizationId=${encodeURIComponent(organizationId)}`,
+    ),
+    {
+      method: "GET",
+      headers: internalApiHeaders(),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`failed to get stored file content: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    contentBase64: string;
+  };
+  return Buffer.from(data.contentBase64, "base64");
 }
 
 async function completeFileTranslationJobStep(input: {
@@ -298,30 +332,16 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     throw new Error("source file not found");
   }
 
-  const adapter = getFileStorageAdapter();
-  const storedObject = await adapter.get({ keyOrUrl: sourceFile.storageKey });
-
-  if (!storedObject) {
+  let sourceContent: Buffer;
+  try {
+    sourceContent = await getStoredFileContentStep(parsedInput.sourceFileId, organizationId);
+  } catch (error) {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
       workflowRunId: claim.job.workflowRunId,
       code: "source_file_unavailable",
       message: `source file ${parsedInput.sourceFileId} could not be retrieved from storage`,
-    });
-    throw new Error("source file unavailable");
-  }
-
-  let sourceContent: Buffer;
-  try {
-    sourceContent = await bufferFromStream(storedObject.body);
-  } catch (error) {
-    await failTranslationJobStep({
-      jobId: claim.job.id,
-      projectId: claim.job.projectId,
-      workflowRunId: claim.job.workflowRunId,
-      code: "source_file_read_failed",
-      message: "failed to read source file content",
     });
     throw error;
   }
