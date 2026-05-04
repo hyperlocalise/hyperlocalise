@@ -11,6 +11,7 @@ import {
   createUpdateGlossaryTermTool,
   createUpdateGlossaryTool,
 } from "./glossary-tools";
+import { createReadStoredFileTool } from "./file-tools";
 import { createGetJobStatusTool, createListJobsTool, createTranslationJobTool } from "./job-tools";
 import { createResolveInteractionTool } from "./interaction-tools";
 import {
@@ -65,6 +66,7 @@ export function buildTools(ctx: ToolContext): ToolSet {
     deleteMemoryEntry: createDeleteMemoryEntryTool(ctx),
 
     createTranslationJob: createTranslationJobTool(ctx),
+    readStoredFile: createReadStoredFileTool(ctx),
     // Review, research, sync, and asset-management job tools are intentionally
     // not exposed until workers exist. Registering them now would create
     // queued jobs that never execute.

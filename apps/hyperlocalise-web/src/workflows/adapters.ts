@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 
 import { emailTranslationWorkflow } from "./email-translation";
+import { fileTranslationJobWorkflow } from "./file-translation-job";
 import { githubFixWorkflow } from "./github-fix";
 import { translationJobWorkflow } from "./translation-job";
 import type {
@@ -12,7 +13,8 @@ import type {
 export function createTranslationJobQueue(): TranslationJobQueue {
   return {
     async enqueue(event) {
-      const run = await start(translationJobWorkflow, [event]);
+      const workflow = event.type === "file" ? fileTranslationJobWorkflow : translationJobWorkflow;
+      const run = await start(workflow, [event]);
 
       return {
         ids: [run.runId],

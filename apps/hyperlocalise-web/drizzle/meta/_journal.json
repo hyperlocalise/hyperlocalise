@@ -8,6 +8,13 @@
       "when": 1777728051870,
       "tag": "0000_furry_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777865982684,
+      "tag": "0001_pale_star_brand",
+      "breakpoints": true
     }
   ]
 }

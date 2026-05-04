@@ -119,8 +119,103 @@ async function insertJob(params: {
   return job;
 }
 
+async function insertStoredSourceFile(params: {
+  projectId: string;
+  filename?: string;
+  contentType?: string;
+  organizationId?: string;
+}) {
+  const [project] = await db
+    .select({ organizationId: schema.projects.organizationId })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, params.projectId))
+    .limit(1);
+
+  if (!project && !params.organizationId) {
+    throw new Error(`project ${params.projectId} not found`);
+  }
+
+  const id = `file_${randomUUID()}`;
+  const filename = params.filename ?? "source.json";
+  const [file] = await db
+    .insert(schema.storedFiles)
+    .values({
+      id,
+      organizationId: params.organizationId ?? project!.organizationId,
+      projectId: params.projectId,
+      role: "source",
+      sourceKind: "chat_upload",
+      storageProvider: "vercel_blob",
+      storageKey: `test/${id}/${filename}`,
+      storageUrl: `https://example.com/${id}/${filename}`,
+      downloadUrl: `https://example.com/${id}/${filename}?download=1`,
+      filename,
+      contentType: params.contentType ?? "application/json",
+      byteSize: 2,
+      sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      metadata: {},
+    })
+    .returning();
+
+  if (!file) {
+    throw new Error("stored file insert failed");
+  }
+
+  return file;
+}
+
+async function ensureStoredFilesTestSchema() {
+  await db.$client.query(`
+    DO $$
+    BEGIN
+      CREATE TYPE stored_file_role AS ENUM ('source', 'output', 'reference', 'asset');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  await db.$client.query(`
+    DO $$
+    BEGIN
+      CREATE TYPE stored_file_source_kind AS ENUM (
+        'chat_upload',
+        'email_attachment',
+        'job_output',
+        'repository_file',
+        'tms_file'
+      );
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  await db.$client.query(`
+    CREATE TABLE IF NOT EXISTS stored_files (
+      id text PRIMARY KEY NOT NULL,
+      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
+      project_id text REFERENCES projects(id) ON DELETE set null,
+      created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
+      role stored_file_role NOT NULL,
+      source_kind stored_file_source_kind NOT NULL,
+      source_interaction_id uuid REFERENCES interactions(id) ON DELETE set null,
+      source_job_id text REFERENCES jobs(id) ON DELETE set null,
+      storage_provider text NOT NULL,
+      storage_key text NOT NULL,
+      storage_url text NOT NULL,
+      download_url text,
+      filename text NOT NULL,
+      content_type text NOT NULL,
+      byte_size integer NOT NULL,
+      sha256 text NOT NULL,
+      etag text,
+      metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+      created_at timestamp with time zone DEFAULT now() NOT NULL,
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    )
+  `);
+}
+
 beforeAll(async () => {
   await db.$client.query("select 1");
+  await ensureStoredFilesTestSchema();
 });
 
 afterEach(async () => {
@@ -493,10 +588,15 @@ describe("jobRoutes", () => {
     });
   });
 
-  it("rejects file jobs until file execution is implemented", async () => {
+  it("creates file jobs when the source file belongs to the project", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const sourceFile = await insertStoredSourceFile({
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+    });
 
     const response = await client.api.project[":projectId"].jobs.$post(
       {
@@ -504,7 +604,7 @@ describe("jobRoutes", () => {
         json: {
           type: "file",
           fileInput: {
-            sourceFileId: "file_123",
+            sourceFileId: sourceFile.id,
             fileFormat: "xliff",
             sourceLocale: "en-US",
             targetLocales: ["fr-FR"],
@@ -516,9 +616,47 @@ describe("jobRoutes", () => {
       },
     );
 
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      job: {
+        type: "file",
+        status: "queued",
+        inputPayload: {
+          sourceFileId: sourceFile.id,
+          fileFormat: "xliff",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+    });
+  });
+
+  it("rejects file jobs when the source file is not in scope", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const response = await client.api.project[":projectId"].jobs.$post(
+      {
+        param: { projectId: project.id },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: "file_missing",
+            fileFormat: "xliff",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({
-      error: "file_jobs_not_supported",
+      error: "source_file_not_found",
     });
   });
 

@@ -6,6 +6,8 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
 
 import {
@@ -64,8 +66,21 @@ function jobQueueUnavailableResponse(c: { json(body: { error: string }, status: 
   return c.json({ error: "job_queue_unavailable" }, 503);
 }
 
-function fileJobsNotSupportedResponse(c: { json(body: { error: string }, status: 501): Response }) {
-  return c.json({ error: "file_jobs_not_supported" }, 501);
+function sourceFileNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
+  return c.json({ error: "source_file_not_found" }, 404);
+}
+
+function unsupportedSourceFileFormatResponse(c: {
+  json(body: { error: string }, status: 400): Response;
+}) {
+  return c.json({ error: "unsupported_source_file_format" }, 400);
+}
+
+function sourceFileFormatMismatchResponse(
+  c: { json(body: { error: string; expectedFileFormat: string }, status: 400): Response },
+  expectedFileFormat: string,
+) {
+  return c.json({ error: "source_file_format_mismatch", expectedFileFormat }, 400);
 }
 
 async function getOwnedJob(projectId: string, jobId: string) {
@@ -203,11 +218,28 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return projectNotFoundResponse(c);
       }
 
-      if (payload.type === "file") {
-        return fileJobsNotSupportedResponse(c);
-      }
+      const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
 
-      const inputPayload = payload.stringInput;
+      if (payload.type === "file") {
+        const sourceFile = await getStoredFileForJobScope({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          fileId: payload.fileInput.sourceFileId,
+        });
+
+        if (!sourceFile) {
+          return sourceFileNotFoundResponse(c);
+        }
+
+        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        if (!inferredFileFormat) {
+          return unsupportedSourceFileFormatResponse(c);
+        }
+
+        if (inferredFileFormat !== payload.fileInput.fileFormat) {
+          return sourceFileFormatMismatchResponse(c, inferredFileFormat);
+        }
+      }
 
       const jobId = `job_${randomUUID()}`;
       const [job] = await db.transaction(async (tx) => {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
+import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
 
 export const jobProjectParamsSchema = z.object({
   projectId: z.string().trim().min(1),
@@ -24,7 +25,7 @@ export const stringTranslationJobInputSchema = z.object({
 
 export const fileTranslationJobInputSchema = z.object({
   sourceFileId: z.string().trim().min(1),
-  fileFormat: z.enum(["xliff", "json", "po", "csv"]),
+  fileFormat: z.enum(supportedTranslationFileFormats),
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
   metadata: metadataSchema,
