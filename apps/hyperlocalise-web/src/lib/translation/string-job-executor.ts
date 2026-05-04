@@ -27,6 +27,22 @@ export type StringTranslationGeneratorInput = {
   projectName: string;
   projectTranslationContext: string;
   jobInput: StringTranslationJobInput;
+  contextSnapshot?: {
+    glossaryTerms?: Array<{
+      sourceTerm: string;
+      targetTerm: string;
+      targetLocale: string;
+      forbidden?: boolean | null;
+      description?: string | null;
+    }>;
+    translationMemoryMatches?: Array<{
+      sourceText: string;
+      targetText: string;
+      targetLocale: string;
+      provenance?: string | null;
+      rank?: number;
+    }>;
+  };
 };
 
 export type StringTranslationGenerator = (
@@ -85,12 +101,37 @@ function buildSystemPrompt(input: StringTranslationGeneratorInput) {
  * prompt changes easier to review and test.
  */
 function buildPrompt(input: StringTranslationGeneratorInput) {
+  const glossaryTerms = input.contextSnapshot?.glossaryTerms ?? [];
+  const translationMemoryMatches = input.contextSnapshot?.translationMemoryMatches ?? [];
+
   return [
     `Project: ${input.projectName}`,
     `Source locale: ${input.jobInput.sourceLocale}`,
     `Target locales: ${input.jobInput.targetLocales.join(", ")}`,
     `Project translation context: ${input.projectTranslationContext || "(none)"}`,
     `Job context: ${input.jobInput.context || "(none)"}`,
+    glossaryTerms.length > 0
+      ? [
+          "Glossary terms:",
+          ...glossaryTerms.map((term) =>
+            [
+              `- ${term.sourceTerm} -> ${term.targetTerm} (${term.targetLocale})`,
+              term.forbidden ? "forbidden" : null,
+              term.description ? `note: ${term.description}` : null,
+            ]
+              .filter(Boolean)
+              .join("; "),
+          ),
+        ].join("\n")
+      : "Glossary terms: (none)",
+    translationMemoryMatches.length > 0
+      ? [
+          "Translation memory matches:",
+          ...translationMemoryMatches.map(
+            (match) => `- ${match.sourceText} -> ${match.targetText} (${match.targetLocale})`,
+          ),
+        ].join("\n")
+      : "Translation memory matches: (none)",
     `Metadata: ${JSON.stringify(input.jobInput.metadata ?? {})}`,
     "Source text:",
     input.jobInput.sourceText,

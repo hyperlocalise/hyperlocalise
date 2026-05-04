@@ -79,6 +79,7 @@ export type EmailAgentTaskAttachment = {
 
 export type EmailAgentTask = {
   kind: "translate";
+  jobId: string;
   requestId: string;
   senderEmail: string;
   subject: string;

@@ -2,8 +2,11 @@ import { isUtf8 } from "node:buffer";
 import { createHash } from "node:crypto";
 
 import { Sandbox } from "@vercel/sandbox";
+import { and, eq } from "drizzle-orm";
 import { Resend } from "resend";
+import { getWorkflowMetadata } from "workflow";
 
+import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import {
@@ -391,9 +394,86 @@ function firstTaskAttachment(task: EmailAgentTask): EmailAgentTaskAttachment {
   return attachment;
 }
 
+async function markEmailTranslationJobRunning(input: {
+  jobId: string;
+  workflowRunId: string;
+}): Promise<void> {
+  "use step";
+
+  await db
+    .update(schema.jobs)
+    .set({
+      status: "running",
+      workflowRunId: input.workflowRunId,
+      lastError: null,
+      outcomePayload: null,
+      completedAt: null,
+    })
+    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+}
+
+async function markEmailTranslationJobSucceeded(input: {
+  jobId: string;
+  attachment: EmailAgentTaskAttachment;
+  outputFilename: string;
+  targetLocale: string;
+}): Promise<void> {
+  "use step";
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.jobs)
+      .set({
+        status: "succeeded",
+        outcomePayload: {
+          kind: "email_file_result",
+          sourceFilename: input.attachment.filename,
+          outputFilename: input.outputFilename,
+          targetLocale: input.targetLocale,
+        },
+        lastError: null,
+        completedAt: new Date(),
+      })
+      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+
+    await tx
+      .update(schema.translationJobDetails)
+      .set({ outcomeKind: "file_result" })
+      .where(eq(schema.translationJobDetails.jobId, input.jobId));
+  });
+}
+
+async function markEmailTranslationJobFailed(input: {
+  jobId: string;
+  reason: string;
+}): Promise<void> {
+  "use step";
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.jobs)
+      .set({
+        status: "failed",
+        outcomePayload: {
+          kind: "email_file_error",
+          message: input.reason,
+        },
+        lastError: input.reason,
+        completedAt: new Date(),
+      })
+      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+
+    await tx
+      .update(schema.translationJobDetails)
+      .set({ outcomeKind: "error" })
+      .where(eq(schema.translationJobDetails.jobId, input.jobId));
+  });
+}
+
 export async function emailTranslationWorkflow(task: EmailAgentTask) {
   "use workflow";
 
+  const { workflowRunId } = getWorkflowMetadata();
   const attachment = firstTaskAttachment(task);
   const { sourceLocale, targetLocale, instructions } = task.parameters.translate;
   const { sandboxId } = await createTranslationSandbox();
@@ -401,6 +481,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
   const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
 
   try {
+    await markEmailTranslationJobRunning({ jobId: task.jobId, workflowRunId });
     await prepareSandbox(sandboxId);
     await downloadAttachment(sandboxId, attachment.downloadUrl, inputFile);
 
@@ -420,12 +501,20 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     const translatedContent = await readTranslatedFile(sandboxId, outputFile);
     await logTranslatedFileDiagnostics(task, attachment, translatedContent, outputFile);
     await sendReplyEmail(task, attachment, translatedContent, outputFile);
+    await markEmailTranslationJobSucceeded({
+      jobId: task.jobId,
+      attachment,
+      outputFilename: outputFile,
+      targetLocale,
+    });
   } catch (error) {
+    const reason = userFacingFailureReason(error);
     try {
-      await sendFailureReplyEmail(task, attachment, userFacingFailureReason(error));
+      await sendFailureReplyEmail(task, attachment, reason);
     } catch {
       // Best-effort notification; keep the original workflow error.
     }
+    await markEmailTranslationJobFailed({ jobId: task.jobId, reason });
     throw error;
   } finally {
     await stopTranslationSandbox(sandboxId);

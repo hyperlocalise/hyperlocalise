@@ -1,8 +1,10 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Chat } from "chat";
 import type { Message, Thread } from "chat";
+import { and, eq } from "drizzle-orm";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
+import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
 import { createResendAdapter } from "@/lib/resend/adapter";
@@ -42,6 +44,7 @@ export type EmailHandlerDependencies = {
   interpretClarificationReply: typeof interpretClarificationReply;
   fetchAttachmentDownloadUrls: typeof fetchAttachmentDownloadUrls;
   handleImageAttachment: typeof handleImageAttachment;
+  createTranslationJob: typeof createEmailTranslationJob;
   trackConversation?: {
     create: typeof createInteraction;
     addMessage: typeof addInteractionMessage;
@@ -55,6 +58,98 @@ const maxProcessedKeys = 100;
 
 function createRequestId(input: string) {
   return `eml_${createHash("sha256").update(input).digest("hex").slice(0, 16)}`;
+}
+
+type CreateEmailTranslationJobInput = {
+  organizationId: string;
+  conversationId?: string;
+  requestId: string;
+  subject: string;
+  senderEmail: string;
+  attachment: {
+    id: string;
+    filename: string;
+    contentType: string;
+    downloadUrl: string;
+  };
+  sourceLocale: string | null;
+  targetLocale: string;
+  instructions: string | null;
+};
+
+async function createEmailTranslationJob(input: CreateEmailTranslationJobInput) {
+  const jobId = `job_${randomUUID()}`;
+  const inputPayload = {
+    source: "email_agent",
+    requestId: input.requestId,
+    subject: input.subject,
+    senderEmail: input.senderEmail,
+    sourceLocale: input.sourceLocale,
+    targetLocales: [input.targetLocale],
+    instructions: input.instructions,
+    attachment: input.attachment,
+  };
+
+  const [job] = await db.transaction(async (tx) => {
+    const [createdJob] = await tx
+      .insert(schema.jobs)
+      .values({
+        id: jobId,
+        organizationId: input.organizationId,
+        kind: "translation",
+        status: "queued",
+        inputPayload,
+        interactionId: input.conversationId ?? null,
+      })
+      .returning();
+
+    await tx.insert(schema.translationJobDetails).values({
+      jobId,
+      type: "file",
+    });
+
+    return [createdJob];
+  });
+
+  if (!job) {
+    throw new Error("failed to create email translation job");
+  }
+
+  return { jobId: job.id };
+}
+
+async function setEmailTranslationJobWorkflowRun(input: {
+  organizationId: string;
+  jobId: string;
+  workflowRunId: string | null;
+}) {
+  await db
+    .update(schema.jobs)
+    .set({ workflowRunId: input.workflowRunId })
+    .where(
+      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+    );
+}
+
+async function failEmailTranslationJobBeforeRun(input: {
+  organizationId: string;
+  jobId: string;
+  reason: string;
+}) {
+  await db
+    .update(schema.jobs)
+    .set({
+      status: "failed",
+      lastError: input.reason,
+      outcomePayload: {
+        kind: "email_file_error",
+        message: input.reason,
+      },
+      completedAt: new Date(),
+    })
+    .where(
+      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+    );
 }
 
 function createEmailAgentTaskKey(input: {
@@ -202,7 +297,7 @@ async function enqueuePendingTranslation(input: {
   pending: PendingEmailAgentTask;
   organizationId?: string;
   conversationId?: string;
-  linkJob?: typeof linkJobToInteraction;
+  createTranslationJob: typeof createEmailTranslationJob;
 }) {
   const {
     thread,
@@ -212,7 +307,7 @@ async function enqueuePendingTranslation(input: {
     pending,
     organizationId,
     conversationId,
-    linkJob,
+    createTranslationJob,
   } = input;
   const log = logger.child({ req: pending.requestId });
   log.info(
@@ -287,7 +382,7 @@ async function enqueuePendingTranslation(input: {
   const state = await thread.state;
   const processedKeys = new Set(state?.processedEmailAgentTaskKeys ?? []);
   const nextProcessedKeys = [...processedKeys];
-  const tasks: EmailAgentTask[] = [];
+  const queuedTasks: Array<{ task: EmailAgentTask; jobId: string }> = [];
   let skippedDuplicateCount = 0;
 
   for (const att of attachmentUrls) {
@@ -308,37 +403,60 @@ async function enqueuePendingTranslation(input: {
 
     processedKeys.add(key);
     nextProcessedKeys.push(key);
-    tasks.push({
-      kind: "translate",
-      requestId: pending.requestId,
-      senderEmail: pending.senderEmail,
-      subject: pending.subject,
-      originalMessageId: pending.originalMessageId,
-      inboundEmailAddress: pending.inboundEmailAddress,
-      inputs: {
-        attachments: [
-          {
+    const { jobId } = organizationId
+      ? await createTranslationJob({
+          organizationId,
+          conversationId,
+          requestId: pending.requestId,
+          subject: pending.subject,
+          senderEmail: pending.senderEmail,
+          attachment: {
             id: att.id,
             filename: att.filename,
             contentType: att.contentType,
             downloadUrl: att.downloadUrl,
           },
-        ],
-      },
-      parameters: {
-        translate: {
           sourceLocale: pending.sourceLocale,
           targetLocale: pending.targetLocale,
           instructions: pending.instructions,
+        })
+      : { jobId: `job_${randomUUID()}` };
+
+    queuedTasks.push({
+      jobId,
+      task: {
+        kind: "translate",
+        jobId,
+        requestId: pending.requestId,
+        senderEmail: pending.senderEmail,
+        subject: pending.subject,
+        originalMessageId: pending.originalMessageId,
+        inboundEmailAddress: pending.inboundEmailAddress,
+        inputs: {
+          attachments: [
+            {
+              id: att.id,
+              filename: att.filename,
+              contentType: att.contentType,
+              downloadUrl: att.downloadUrl,
+            },
+          ],
         },
-      },
-      replyPolicy: {
-        type: "threaded_email",
+        parameters: {
+          translate: {
+            sourceLocale: pending.sourceLocale,
+            targetLocale: pending.targetLocale,
+            instructions: pending.instructions,
+          },
+        },
+        replyPolicy: {
+          type: "threaded_email",
+        },
       },
     });
   }
 
-  if (tasks.length === 0) {
+  if (queuedTasks.length === 0) {
     log.info("all attachments were duplicates");
     await thread.post(
       [
@@ -354,20 +472,30 @@ async function enqueuePendingTranslation(input: {
     return;
   }
 
-  for (const task of tasks) {
-    const result = await queue.enqueue(task);
-    if (organizationId && conversationId && linkJob && result.ids.length > 0) {
-      try {
-        for (const jobId of result.ids) {
-          await linkJob({ organizationId, jobId, interactionId: conversationId });
-        }
-      } catch {
-        // Best-effort linking; don't fail the email flow.
+  for (const { task, jobId } of queuedTasks) {
+    let result: { ids: string[] };
+    try {
+      result = await queue.enqueue(task);
+    } catch (error) {
+      if (organizationId) {
+        await failEmailTranslationJobBeforeRun({
+          organizationId,
+          jobId,
+          reason: error instanceof Error ? error.message : "email translation queue unavailable",
+        });
       }
+      throw error;
+    }
+    if (organizationId && result.ids.length > 0) {
+      await setEmailTranslationJobWorkflowRun({
+        organizationId,
+        jobId,
+        workflowRunId: result.ids[0] ?? null,
+      });
     }
   }
 
-  log.info({ taskCount: tasks.length, skippedDuplicateCount }, "email agent tasks enqueued");
+  log.info({ taskCount: queuedTasks.length, skippedDuplicateCount }, "email agent tasks enqueued");
 
   await thread.setState({
     lastEmailEvent: {
@@ -439,7 +567,7 @@ async function handlePendingClarification(input: {
       pending,
       organizationId,
       conversationId,
-      linkJob: dependencies.trackConversation?.linkJob,
+      createTranslationJob: dependencies.createTranslationJob,
     });
     return;
   }
@@ -487,7 +615,7 @@ async function handlePendingClarification(input: {
     pending: nextPending,
     organizationId,
     conversationId,
-    linkJob: dependencies.trackConversation?.linkJob,
+    createTranslationJob: dependencies.createTranslationJob,
   });
 }
 
@@ -833,7 +961,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         pending: pendingRequest,
         organizationId: organization.id,
         conversationId,
-        linkJob: track?.linkJob,
+        createTranslationJob: dependencies.createTranslationJob,
       });
     } catch (error) {
       log.error(
@@ -859,6 +987,7 @@ export async function getEmailBot(options?: { emailAgentTaskQueue?: EmailAgentTa
     interpretClarificationReply,
     fetchAttachmentDownloadUrls,
     handleImageAttachment,
+    createTranslationJob: createEmailTranslationJob,
     trackConversation: {
       create: createInteraction,
       addMessage: addInteractionMessage,

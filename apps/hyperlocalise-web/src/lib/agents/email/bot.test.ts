@@ -134,6 +134,7 @@ function createDependencies() {
         files: [{ data: Buffer.from("image"), filename: "banner-fr.png", mimeType: "image/png" }],
       });
     }),
+    createTranslationJob: vi.fn(async () => ({ jobId: "job_123" })),
   } satisfies EmailHandlerDependencies;
 
   return dependencies;
@@ -155,6 +156,7 @@ describe("createEmailHandler", () => {
     expect(dependencies.queue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: "translate",
+        jobId: "job_123",
         requestId: expect.stringMatching(/^eml_[a-f0-9]{16}$/),
         inputs: {
           attachments: [

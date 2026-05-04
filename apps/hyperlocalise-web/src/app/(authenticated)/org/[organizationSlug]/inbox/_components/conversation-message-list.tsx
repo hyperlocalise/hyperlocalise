@@ -1,6 +1,13 @@
 "use client";
 
-import type { ReasoningUIPart, SourceDocumentUIPart, SourceUrlUIPart, UIMessage } from "ai";
+import type {
+  DynamicToolUIPart,
+  ReasoningUIPart,
+  SourceDocumentUIPart,
+  SourceUrlUIPart,
+  ToolUIPart,
+  UIMessage,
+} from "ai";
 import type { ReactNode } from "react";
 
 import {
@@ -12,6 +19,13 @@ import {
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -24,6 +38,7 @@ import {
 } from "./inbox-types";
 
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
+type ToolPart = ToolUIPart | DynamicToolUIPart;
 const agentAvatar = {
   alt: "Hyperlocalise",
   imageUrl: "/images/logo.png",
@@ -245,6 +260,7 @@ function AssistantMessageParts({
 }) {
   const reasoningParts = message.parts.filter(isReasoningPart);
   const sourceParts = message.parts.filter(isSourcePart);
+  const toolParts = message.parts.filter(isToolPart);
   const text = message.parts
     .filter((part) => part.type === "text")
     .map((part) => part.text)
@@ -265,8 +281,35 @@ function AssistantMessageParts({
           </Reasoning>
         ) : null,
       )}
+      {toolParts.map((part, index) => (
+        <AssistantToolPart key={`${part.type}-${index}`} part={part} />
+      ))}
       {text ? <MessageResponse>{text}</MessageResponse> : <TypingIndicator />}
     </>
+  );
+}
+
+function AssistantToolPart({ part }: { part: ToolPart }) {
+  const isDynamic = part.type === "dynamic-tool";
+  const headerProps = isDynamic
+    ? {
+        type: part.type,
+        state: part.state,
+        toolName: part.toolName,
+      }
+    : {
+        type: part.type,
+        state: part.state,
+      };
+
+  return (
+    <Tool defaultOpen={part.state !== "output-available"}>
+      <ToolHeader {...headerProps} />
+      <ToolContent>
+        <ToolInput input={part.input} />
+        <ToolOutput output={part.output} errorText={part.errorText} />
+      </ToolContent>
+    </Tool>
   );
 }
 
@@ -309,6 +352,10 @@ function isReasoningPart(part: UIMessage["parts"][number]): part is ReasoningUIP
 
 function isSourcePart(part: UIMessage["parts"][number]): part is SourcePart {
   return part.type === "source-url" || part.type === "source-document";
+}
+
+function isToolPart(part: UIMessage["parts"][number]): part is ToolPart {
+  return part.type === "dynamic-tool" || part.type.startsWith("tool-");
 }
 
 function getSourceTitle(part: SourceUrlUIPart) {
