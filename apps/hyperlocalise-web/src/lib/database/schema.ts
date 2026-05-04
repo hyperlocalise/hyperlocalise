@@ -87,6 +87,19 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
 ]);
 export const inboxStatusEnum = pgEnum("inbox_status", ["active", "archived"]);
 export const messageSenderTypeEnum = pgEnum("message_sender_type", ["user", "agent"]);
+export const storedFileRoleEnum = pgEnum("stored_file_role", [
+  "source",
+  "output",
+  "reference",
+  "asset",
+]);
+export const storedFileSourceKindEnum = pgEnum("stored_file_source_kind", [
+  "chat_upload",
+  "email_attachment",
+  "job_output",
+  "repository_file",
+  "tms_file",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -842,5 +855,72 @@ export const interactionMessages = pgTable(
   },
   (table) => [
     index("idx_interaction_messages_interaction_created").on(table.interactionId, table.createdAt),
+  ],
+);
+
+export const storedFiles = pgTable(
+  "stored_files",
+  {
+    // Stable file identifier used by jobs and interaction attachments.
+    id: text("id").primaryKey(),
+    // Tenant that owns this file.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Optional project scope. Null means the file is workspace-level.
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    // User who uploaded or generated the file, if known.
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // How this file is used in the product.
+    role: storedFileRoleEnum("role").notNull(),
+    // Where the file came from.
+    sourceKind: storedFileSourceKindEnum("source_kind").notNull(),
+    // Interaction that introduced the file, if any.
+    sourceInteractionId: uuid("source_interaction_id").references(() => interactions.id, {
+      onDelete: "set null",
+    }),
+    // Job that produced the file, if any.
+    sourceJobId: text("source_job_id").references(() => jobs.id, { onDelete: "set null" }),
+    // Object storage implementation that owns the bytes.
+    storageProvider: text("storage_provider").notNull(),
+    // Provider-specific object key or pathname.
+    storageKey: text("storage_key").notNull(),
+    // Provider URL retained for server-side retrieval and diagnostics.
+    storageUrl: text("storage_url").notNull(),
+    // Download URL when the provider returns one.
+    downloadUrl: text("download_url"),
+    // Original or generated filename shown to users.
+    filename: text("filename").notNull(),
+    // MIME type captured at storage time.
+    contentType: text("content_type").notNull(),
+    // File size in bytes.
+    byteSize: integer("byte_size").notNull(),
+    // SHA-256 of the stored bytes for dedupe and audit checks.
+    sha256: text("sha256").notNull(),
+    // Provider entity tag, when available.
+    etag: text("etag"),
+    // Extensible provenance or adapter metadata.
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // When the file metadata record was first created.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the file metadata last changed.
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("stored_files_storage_provider_key").on(table.storageProvider, table.storageKey),
+    index("idx_stored_files_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_stored_files_project_created_at").on(table.projectId, table.createdAt),
+    index("idx_stored_files_created_by_user_id").on(table.createdByUserId),
+    index("idx_stored_files_source_interaction").on(table.sourceInteractionId),
+    index("idx_stored_files_source_job").on(table.sourceJobId),
+    index("idx_stored_files_org_role").on(table.organizationId, table.role),
   ],
 );

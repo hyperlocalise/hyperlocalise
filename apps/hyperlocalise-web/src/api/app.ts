@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
@@ -17,6 +18,7 @@ import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
+import { createFileRoutes } from "./routes/file/file.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
 
@@ -25,6 +27,7 @@ type CreateAppOptions = {
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: TranslationJobQueue;
+  fileStorageAdapter?: FileStorageAdapter;
   /**
    * @deprecated Use `jobQueue`.
    */
@@ -44,8 +47,15 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
+    .route(
+      "/orgs/:organizationSlug/files",
+      createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route("/orgs/:organizationSlug/conversations", createConversationRoutes())
-    .route("/orgs/:organizationSlug/chat-requests", createChatRequestRoutes())
+    .route(
+      "/orgs/:organizationSlug/chat-requests",
+      createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route(
       "/webhooks/github",

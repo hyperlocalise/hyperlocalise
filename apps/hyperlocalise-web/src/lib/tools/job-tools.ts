@@ -5,6 +5,11 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  inferSupportedTranslationFileFormat,
+  supportedTranslationFileFormats,
+} from "@/lib/translation/file-formats";
 import { createTranslationJobQueue } from "@/workflows/adapters";
 
 import type { ToolContext } from "./types";
@@ -166,7 +171,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
       sourceText: z.string().optional().describe("Source text for string jobs."),
       sourceFileId: z.string().optional().describe("Source file ID for file jobs."),
       fileFormat: z
-        .enum(["xliff", "json", "po", "csv"])
+        .enum(supportedTranslationFileFormats)
         .optional()
         .describe("File format for file jobs."),
       sourceLocale: z.string().describe("BCP-47 source locale tag."),
@@ -191,25 +196,60 @@ export function createTranslationJobTool(ctx: ToolContext) {
         };
       }
 
-      if (input.type === "file") {
-        return {
-          success: false,
-          error: "File translation jobs are not supported yet.",
-        };
-      }
-
-      if (!input.sourceText?.trim()) {
+      if (input.type === "string" && !input.sourceText?.trim()) {
         return { success: false, error: "sourceText is required for string translation jobs." };
       }
 
-      const inputPayload = {
-        sourceText: input.sourceText,
-        sourceLocale: input.sourceLocale,
-        targetLocales: input.targetLocales,
-        metadata: input.metadata,
-        context: input.context,
-        maxLength: input.maxLength,
-      };
+      if (input.type === "file") {
+        if (!input.sourceFileId?.trim()) {
+          return { success: false, error: "sourceFileId is required for file translation jobs." };
+        }
+
+        if (!input.fileFormat) {
+          return { success: false, error: "fileFormat is required for file translation jobs." };
+        }
+
+        const sourceFile = await getStoredFileForJobScope({
+          organizationId: ctx.organizationId,
+          projectId: ctx.projectId,
+          fileId: input.sourceFileId,
+        });
+
+        if (!sourceFile) {
+          return {
+            success: false,
+            error: "Source file was not found for this organization or project.",
+          };
+        }
+
+        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        if (inferredFileFormat !== input.fileFormat) {
+          return {
+            success: false,
+            error: inferredFileFormat
+              ? `fileFormat must match source file extension: expected ${inferredFileFormat}.`
+              : "Source file extension is not supported for translation jobs.",
+          };
+        }
+      }
+
+      const inputPayload =
+        input.type === "string"
+          ? {
+              sourceText: input.sourceText,
+              sourceLocale: input.sourceLocale,
+              targetLocales: input.targetLocales,
+              metadata: input.metadata,
+              context: input.context,
+              maxLength: input.maxLength,
+            }
+          : {
+              sourceFileId: input.sourceFileId,
+              fileFormat: input.fileFormat,
+              sourceLocale: input.sourceLocale,
+              targetLocales: input.targetLocales,
+              metadata: input.metadata,
+            };
 
       const job = await ctx.db.transaction(async (tx) => {
         const [createdJob] = await tx

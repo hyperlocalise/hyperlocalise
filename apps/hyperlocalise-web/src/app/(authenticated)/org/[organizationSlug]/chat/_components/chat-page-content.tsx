@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Add01Icon,
   AiImageIcon,
   AiWebBrowsingIcon,
   ArrowDown01Icon,
   BubbleChatTranslateIcon,
+  Cancel01Icon,
   SentIcon,
   CheckmarkCircle02Icon,
   Clock01Icon,
@@ -65,7 +66,7 @@ const suggestedRequests = [
 const attachOptions = [
   {
     icon: FileAttachmentIcon,
-    label: "Add photos & files",
+    label: "Add source files",
   },
   {
     icon: AiImageIcon,
@@ -77,6 +78,27 @@ const attachOptions = [
   },
 ] as const;
 
+const translationSourceFileAccept = [
+  ".json",
+  ".jsonc",
+  ".arb",
+  ".xlf",
+  ".xlif",
+  ".xliff",
+  ".po",
+  ".html",
+  ".md",
+  ".mdx",
+  ".strings",
+  ".stringsdict",
+  ".csv",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+].join(",");
+const maxTranslationSourceFiles = 5;
+
 type ApiProject = {
   id: string;
   name: string;
@@ -84,8 +106,10 @@ type ApiProject = {
 
 export function ChatPageContent({ organizationSlug }: { organizationSlug: string }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],
     queryFn: async () => {
@@ -108,6 +132,26 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
 
   const chatRequestMutation = useMutation({
     mutationFn: async () => {
+      if (files.length > 0) {
+        const formData = new FormData();
+        formData.set("text", text.trim() || "Please translate the attached source file.");
+        if (selectedProject?.id) {
+          formData.set("projectId", selectedProject.id);
+        }
+        for (const file of files) {
+          formData.append("files", file);
+        }
+
+        const response = await fetch(`/api/orgs/${organizationSlug}/chat-requests/upload`, {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to send request (${response.status})`);
+        }
+        return response.json() as Promise<{ conversation: { id: string } }>;
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"]["chat-requests"].$post({
         param: { organizationSlug },
         json: {
@@ -124,6 +168,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
       router.push(`/org/${organizationSlug}/inbox/${data.conversation.id}`);
     },
   });
+  const canSubmit = Boolean(text.trim() || files.length > 0) && !chatRequestMutation.isPending;
 
   return (
     <main className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-6xl flex-col items-center justify-center px-4 py-8 sm:px-6">
@@ -137,7 +182,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (text.trim() && !chatRequestMutation.isPending) {
+            if (canSubmit) {
               chatRequestMutation.mutate();
             }
           }}
@@ -153,7 +198,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (text.trim() && !chatRequestMutation.isPending) {
+                if (canSubmit) {
                   chatRequestMutation.mutate();
                 }
               }
@@ -161,6 +206,55 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
             className="min-h-36 w-full resize-none bg-transparent px-4 py-4 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:px-6 sm:py-5"
             placeholder="Paste source text or ask Hyperlocalise to translate a file, string, or inbox request..."
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={translationSourceFileAccept}
+            className="sr-only"
+            onChange={(e) => {
+              const nextFiles = Array.from(e.target.files ?? []);
+              setFiles((currentFiles) => {
+                const existing = new Set(
+                  currentFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`),
+                );
+                return [
+                  ...currentFiles,
+                  ...nextFiles.filter(
+                    (file) => !existing.has(`${file.name}:${file.size}:${file.lastModified}`),
+                  ),
+                ].slice(0, maxTranslationSourceFiles);
+              });
+              e.target.value = "";
+            }}
+          />
+          {files.length > 0 ? (
+            <div className="flex flex-wrap gap-2 border-t border-border px-4 pb-4 sm:px-6">
+              {files.map((file) => (
+                <span
+                  key={`${file.name}:${file.size}:${file.lastModified}`}
+                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-sm text-foreground"
+                >
+                  <HugeiconsIcon
+                    icon={FileAttachmentIcon}
+                    strokeWidth={1.8}
+                    className="size-4 shrink-0 text-muted-foreground"
+                  />
+                  <span className="truncate">{file.name}</span>
+                  <button
+                    type="button"
+                    className="rounded-full text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() =>
+                      setFiles((currentFiles) => currentFiles.filter((item) => item !== file))
+                    }
+                  >
+                    <HugeiconsIcon icon={Cancel01Icon} strokeWidth={1.8} className="size-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <DropdownMenu>
@@ -179,7 +273,12 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        fileInputRef.current?.click();
+                      }}
+                    >
                       <HugeiconsIcon
                         icon={attachOptions[0].icon}
                         strokeWidth={1.8}
@@ -264,7 +363,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               </DropdownMenu>
               <Button
                 type="submit"
-                disabled={!text.trim() || chatRequestMutation.isPending}
+                disabled={!canSubmit}
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label="Send translation request"
               >
