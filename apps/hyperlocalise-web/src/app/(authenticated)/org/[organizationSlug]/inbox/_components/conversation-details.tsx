@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyH3, TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 import {
@@ -27,7 +28,7 @@ export function ConversationDetails({
   return (
     <aside className="border-b border-border bg-background px-4 py-4 xl:absolute xl:right-5 xl:top-5 xl:z-10 xl:w-72 xl:rounded-xl xl:border xl:bg-card/95 xl:p-4 xl:shadow-2xl xl:shadow-background/40 xl:backdrop-blur">
       <section>
-        <h3 className="text-sm font-medium text-foreground">Conversation details</h3>
+        <TypographyH3 className="text-sm">Conversation details</TypographyH3>
         <dl className="mt-4 flex flex-col gap-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Source</dt>
@@ -58,7 +59,7 @@ export function ConversationDetails({
 
       <section className="mt-4 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm font-medium text-foreground">Linked jobs</h3>
+          <TypographyH3 className="text-sm">Linked jobs</TypographyH3>
           {!jobsIsLoading ? (
             <span className="text-xs text-muted-foreground">{jobs.length}</span>
           ) : null}
@@ -70,7 +71,7 @@ export function ConversationDetails({
             ))}
           </div>
         ) : jobs.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">None linked</p>
+          <TypographyMuted className="mt-3">None linked</TypographyMuted>
         ) : (
           <div className="mt-3 flex flex-col divide-y divide-border">
             {jobs.map((job) => (
@@ -80,7 +81,7 @@ export function ConversationDetails({
                 className="block py-2.5 transition-colors first:pt-0 last:pb-0 hover:text-foreground"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">{job.id}</span>
+                  <TypographySmall className="truncate text-foreground">{job.id}</TypographySmall>
                   <Badge className={cn("text-[10px]", jobStatusStyles[job.status])}>
                     {job.status}
                   </Badge>

@@ -87,13 +87,20 @@ export function InboxPageContent({
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (text: string) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].conversations[
-        ":conversationId"
-      ].messages.$post({
-        param: { organizationSlug, conversationId: selectedConversationId },
-        json: { text },
-      });
+    mutationFn: async ({ text, files }: { text: string; files: File[] }) => {
+      const formData = new FormData();
+      formData.append("text", text);
+      for (const file of files) {
+        formData.append("files", file);
+      }
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations/${encodeURIComponent(selectedConversationId)}/messages`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) throw new Error("Failed to send message");
       return response.json();
@@ -162,7 +169,7 @@ export function InboxPageContent({
           jobsIsLoading={jobsQuery.isLoading}
           messages={messages}
           messagesIsLoading={messagesQuery.isLoading}
-          onSendMessage={(text) => sendMessageMutation.mutate(text)}
+          onSendMessage={(text, files) => sendMessageMutation.mutateAsync({ text, files })}
           organizationSlug={organizationSlug}
           streamedAssistant={streamedAssistant}
         />

@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 import { formatRelativeTime, sourceLabel, type Conversation } from "./inbox-types";
@@ -32,14 +33,14 @@ export function InboxList({
       <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
         <div className="flex items-center gap-3">
           <div>
-            <p className="text-sm font-medium text-foreground">
+            <TypographySmall className="text-foreground">
               {conversations.length === 1
                 ? "1 conversation"
                 : `${conversations.length} conversations`}
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </TypographySmall>
+            <TypographyMuted className="text-xs">
               {activeCount === 1 ? "1 active" : `${activeCount} active`}
-            </p>
+            </TypographyMuted>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -68,9 +69,9 @@ export function InboxList({
         {isLoading ? (
           <ConversationListSkeleton />
         ) : isError ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">Unable to load conversations.</p>
+          <TypographyMuted className="px-3 py-4">Unable to load conversations.</TypographyMuted>
         ) : conversations.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">No conversations yet.</p>
+          <TypographyMuted className="px-3 py-4">No conversations yet.</TypographyMuted>
         ) : (
           <div className="flex flex-col gap-1">
             {conversations.map((conversation) => (
@@ -133,11 +134,11 @@ function ConversationListItem({
       </Avatar>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <p className="truncate text-sm font-medium">{conversation.title}</p>
+          <TypographySmall className="truncate">{conversation.title}</TypographySmall>
         </div>
-        <p className="mt-1 truncate text-sm text-muted-foreground">
+        <TypographyMuted className="mt-1 truncate">
           {conversation.lastMessage?.text ?? "No messages yet"}
-        </p>
+        </TypographyMuted>
         <div className="mt-2 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">
             {sourceLabel[conversation.source] ?? conversation.source}

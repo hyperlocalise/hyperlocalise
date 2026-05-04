@@ -21,6 +21,7 @@ export type ConversationMessage = {
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
+  attachments: Array<{ id: string; filename: string; contentType: string; url: string }> | null;
   createdAt: string;
 };
 

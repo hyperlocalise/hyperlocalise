@@ -1,9 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import type { FileStorageAdapter } from "@/lib/file-storage";
+import { createStoredFile } from "@/lib/file-storage/records";
+
 import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
 import {
   claimTranslationJob,
@@ -12,6 +16,10 @@ import {
   failTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
+
+type CreateInternalWorkflowRoutesOptions = {
+  fileStorageAdapter?: FileStorageAdapter;
+};
 
 function badRequestResponse(c: { json(body: { error: string }, status: 400): Response }) {
   return c.json({ error: "bad_request" }, 400);
@@ -29,7 +37,7 @@ const internalMiddleware = createMiddleware(async (c, next) => {
   await next();
 });
 
-export function createInternalWorkflowRoutes() {
+export function createInternalWorkflowRoutes(options: CreateInternalWorkflowRoutesOptions = {}) {
   return new Hono()
     .use("*", internalMiddleware)
     .post("/translation-jobs/claim", async (c) => {
@@ -192,6 +200,81 @@ export function createInternalWorkflowRoutes() {
       }
       return c.json({ file }, 200);
     })
+    .get("/stored-files/:fileId/content", async (c) => {
+      const fileId = c.req.param("fileId");
+      const organizationId = c.req.query("organizationId");
+      if (!organizationId) {
+        return badRequestResponse(c);
+      }
+      const [file] = await db
+        .select()
+        .from(schema.storedFiles)
+        .where(
+          and(
+            eq(schema.storedFiles.id, fileId),
+            eq(schema.storedFiles.organizationId, organizationId),
+          ),
+        )
+        .limit(1);
+      if (!file) {
+        return notFoundResponse(c);
+      }
+
+      const adapter = options.fileStorageAdapter;
+      const storedObject = await (adapter
+        ? adapter.get({ keyOrUrl: file.storageKey })
+        : import("@/lib/file-storage").then(({ getFileStorageAdapter }) =>
+            getFileStorageAdapter().get({ keyOrUrl: file.storageKey }),
+          ));
+
+      if (!storedObject) {
+        return notFoundResponse(c);
+      }
+
+      c.header("Content-Type", storedObject.contentType ?? "application/octet-stream");
+      return c.body(storedObject.body);
+    })
+    .post(
+      "/stored-files",
+      bodyLimit({
+        maxSize: 100 * 1024 * 1024,
+        onError: (c) => c.json({ error: "upload_too_large" }, 413),
+      }),
+      async (c) => {
+        const body = (await c.req.json()) as {
+          organizationId: string;
+          projectId: string;
+          jobId: string;
+          filename: string;
+          contentType: string;
+          contentBase64: string;
+        };
+        if (
+          !body?.organizationId ||
+          !body?.projectId ||
+          !body?.jobId ||
+          !body?.filename ||
+          !body?.contentType ||
+          typeof body.contentBase64 !== "string"
+        ) {
+          return badRequestResponse(c);
+        }
+
+        const file = await createStoredFile({
+          organizationId: body.organizationId,
+          projectId: body.projectId,
+          role: "output",
+          sourceKind: "job_output",
+          sourceJobId: body.jobId,
+          filename: body.filename,
+          contentType: body.contentType,
+          content: Buffer.from(body.contentBase64, "base64"),
+          adapter: options.fileStorageAdapter,
+        });
+
+        return c.json({ file }, 200);
+      },
+    )
     .post("/file-translation-jobs/complete", async (c) => {
       const body = (await c.req.json()) as {
         jobId: string;
