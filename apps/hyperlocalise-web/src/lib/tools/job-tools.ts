@@ -12,6 +12,8 @@ import type { ToolContext } from "./types";
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
 
+const translationJobQueue = createTranslationJobQueue();
+
 const baseJobSelect = {
   id: schema.jobs.id,
   organizationId: schema.jobs.organizationId,
@@ -233,7 +235,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
       });
 
       try {
-        const result = await createTranslationJobQueue().enqueue({
+        const result = await translationJobQueue.enqueue({
           jobId: job.id,
           projectId: ctx.projectId,
           type: input.type,
@@ -562,17 +564,29 @@ export function createListJobsTool(ctx: ToolContext) {
         .limit(input.limit);
 
       return {
-        jobs: jobs.map((job) => ({
-          id: job.id,
-          projectId: job.projectId,
-          kind: job.kind,
-          status: job.status,
-          type: job.translationType,
-          outcomeKind: job.translationOutcomeKind,
-          createdAt: job.createdAt,
-          updatedAt: job.updatedAt,
-          completedAt: job.completedAt,
-        })),
+        jobs: jobs.map((job) => {
+          const baseJob = {
+            id: job.id,
+            projectId: job.projectId,
+            kind: job.kind,
+            status: job.status,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+            completedAt: job.completedAt,
+          };
+
+          if (job.kind !== "translation") {
+            return baseJob;
+          }
+
+          return {
+            ...baseJob,
+            details: {
+              type: job.translationType,
+              outcomeKind: job.translationOutcomeKind,
+            },
+          };
+        }),
       };
     },
   });
