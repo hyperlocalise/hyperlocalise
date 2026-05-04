@@ -55,6 +55,13 @@ export function createVercelBlobFileStorage(
       await del(input.keyOrUrl, { token: options.token });
     },
     async getSignedUrl(input) {
+      if (input.expiresInSeconds !== undefined) {
+        throw new Error(
+          "Vercel Blob SDK v2.3.3 does not support time-limited signed URLs. " +
+            "The URL returned by head() is already signed for private blobs but does not expire.",
+        );
+      }
+
       const blob = await head(input.keyOrUrl, {
         token: options.token,
       });

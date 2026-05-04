@@ -5,8 +5,10 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
+import { bufferFromStream } from "@/lib/streams";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
+  buildTempConfig,
   createTranslationSandbox,
   getSandboxInputFilename,
   getSandboxOutputFilename,
@@ -64,7 +66,6 @@ async function runTranslationStep(
   "use step";
 
   const configPath = "/tmp/hyperlocalise-file.yml";
-  const { buildTempConfig } = await import("@/lib/translation/sandbox-translation");
   const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
   await writeTempConfig(sandboxId, config, configPath);
 
@@ -157,31 +158,6 @@ async function completeFileTranslationJob(input: {
   }
 
   return input.outputFiles;
-}
-
-function bufferFromStream(stream: ReadableStream<Uint8Array>): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Uint8Array[] = [];
-    const reader = stream.getReader();
-
-    function read() {
-      reader
-        .read()
-        .then(({ done, value }) => {
-          if (done) {
-            resolve(Buffer.concat(chunks.map((c) => Buffer.from(c))));
-            return;
-          }
-          if (value) {
-            chunks.push(value);
-          }
-          read();
-        })
-        .catch(reject);
-    }
-
-    read();
-  });
 }
 
 export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEventData) {

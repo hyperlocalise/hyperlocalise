@@ -61,7 +61,10 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         "Content-Type",
         storedObject.contentType ?? file.contentType ?? "application/octet-stream",
       );
-      c.header("Content-Disposition", `inline; filename="${file.filename}"`);
+      c.header(
+        "Content-Disposition",
+        `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      );
 
       return c.body(storedObject.body);
     });

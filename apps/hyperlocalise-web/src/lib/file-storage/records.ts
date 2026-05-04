@@ -93,35 +93,40 @@ export async function createStoredFile(input: CreateStoredFileInput) {
     contentType: input.contentType,
   });
 
-  const [file] = await db
-    .insert(schema.storedFiles)
-    .values({
-      id,
-      organizationId: input.organizationId,
-      projectId: input.projectId ?? null,
-      createdByUserId: input.createdByUserId ?? null,
-      role: input.role,
-      sourceKind: input.sourceKind,
-      sourceInteractionId: input.sourceInteractionId ?? null,
-      sourceJobId: input.sourceJobId ?? null,
-      storageProvider: uploaded.provider,
-      storageKey: uploaded.key,
-      storageUrl: uploaded.url,
-      downloadUrl: uploaded.downloadUrl,
-      filename: input.filename,
-      contentType: uploaded.contentType,
-      byteSize: content.byteLength,
-      sha256: await sha256Hex(content),
-      etag: uploaded.etag,
-      metadata: input.metadata ?? {},
-    })
-    .returning();
+  try {
+    const [file] = await db
+      .insert(schema.storedFiles)
+      .values({
+        id,
+        organizationId: input.organizationId,
+        projectId: input.projectId ?? null,
+        createdByUserId: input.createdByUserId ?? null,
+        role: input.role,
+        sourceKind: input.sourceKind,
+        sourceInteractionId: input.sourceInteractionId ?? null,
+        sourceJobId: input.sourceJobId ?? null,
+        storageProvider: uploaded.provider,
+        storageKey: uploaded.key,
+        storageUrl: uploaded.url,
+        downloadUrl: uploaded.downloadUrl,
+        filename: input.filename,
+        contentType: uploaded.contentType,
+        byteSize: content.byteLength,
+        sha256: await sha256Hex(content),
+        etag: uploaded.etag,
+        metadata: input.metadata ?? {},
+      })
+      .returning();
 
-  if (!file) {
-    throw new Error("Failed to create stored file: no row returned.");
+    if (!file) {
+      throw new Error("Failed to create stored file: no row returned.");
+    }
+
+    return file;
+  } catch (error) {
+    await adapter.delete({ keyOrUrl: uploaded.key });
+    throw error;
   }
-
-  return file;
 }
 
 export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
