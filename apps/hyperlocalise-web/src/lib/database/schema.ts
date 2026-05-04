@@ -674,6 +674,49 @@ export const tmsLinks = pgTable(
   ],
 );
 
+export const organizationApiKeys = pgTable(
+  "organization_api_keys",
+  {
+    // Stable API key identifier.
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Organization that owns this key.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Human-readable name for the key.
+    name: text("name").notNull(),
+    // SHA-256 hash of the API key secret used for lookup.
+    keyHash: text("key_hash").notNull(),
+    // First 8 characters of the key shown in UI lists.
+    keyPrefix: text("key_prefix").notNull(),
+    // Permissions granted to this key, e.g. ["jobs:read", "jobs:write"].
+    permissions: jsonb("permissions")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'["jobs:read", "jobs:write"]'::jsonb`),
+    // User who created the key.
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // When the key was last used successfully.
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    // When the key was revoked. Null means active.
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    // When the key record was first created.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the key record last changed.
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("organization_api_keys_key_hash_key").on(table.keyHash),
+    index("idx_organization_api_keys_org").on(table.organizationId),
+    index("idx_organization_api_keys_created_at").on(table.createdAt),
+  ],
+);
+
 export const jobs = pgTable(
   "jobs",
   {
@@ -703,6 +746,10 @@ export const jobs = pgTable(
     lastError: text("last_error"),
     // External workflow execution reference for tracing across orchestration systems.
     workflowRunId: text("workflow_run_id"),
+    // Link back to the API key that created this job, for audit.
+    apiKeyId: uuid("api_key_id").references(() => organizationApiKeys.id, {
+      onDelete: "set null",
+    }),
     // Link back to the interaction that created this job, for Inbox display.
     interactionId: uuid("interaction_id").references(() => interactions.id, {
       onDelete: "set null",
@@ -730,6 +777,7 @@ export const jobs = pgTable(
     index("idx_jobs_workflow_run_id").on(table.workflowRunId),
     index("idx_jobs_status").on(table.status),
     index("idx_jobs_interaction").on(table.interactionId),
+    index("idx_jobs_api_key_id").on(table.apiKeyId),
   ],
 );
 

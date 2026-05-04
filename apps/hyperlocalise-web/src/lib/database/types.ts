@@ -4,6 +4,7 @@ import type {
   jobKindEnum,
   jobStatusEnum,
   llmProviderEnum,
+  organizationApiKeys,
   organizationLlmProviderCredentials,
   translationJobDetails,
   organizationMembershipRoleEnum,
@@ -45,6 +46,8 @@ export type TranslationJobStatus = JobStatus;
 export type TranslationJobOutcomeKind = (typeof translationJobOutcomeKindEnum.enumValues)[number];
 export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.enumValues)[number];
 export type LlmProvider = (typeof llmProviderEnum.enumValues)[number];
+export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;
+export type NewOrganizationApiKey = typeof organizationApiKeys.$inferInsert;
 export type OrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferSelect;
 export type NewOrganizationLlmProviderCredential =

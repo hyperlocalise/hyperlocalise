@@ -7,6 +7,7 @@ import type {
   TranslationJobQueue,
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
+import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth";
 import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
@@ -17,6 +18,7 @@ import { healthRoutes } from "./routes/health";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
+import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
 import { createFileRoutes } from "./routes/file/file.route";
 import { createInternalWorkflowRoutes } from "./routes/internal/workflow.route";
@@ -58,6 +60,8 @@ export function createApp(options: CreateAppOptions = {}) {
       createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
+    .route("/orgs/:organizationSlug/api-keys", createApiKeyRoutes())
+    .route("/v1/jobs", createPublicJobRoutes(options))
     .route(
       "/webhooks/github",
       createGithubWebhookRoutes({
