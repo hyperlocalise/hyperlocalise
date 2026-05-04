@@ -43,7 +43,7 @@ type ApiJob = {
 };
 
 type JobRow = ApiJob & {
-  projectName: string;
+  projectName: string | null;
 };
 
 const statusOptions = [

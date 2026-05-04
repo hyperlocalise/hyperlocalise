@@ -72,6 +72,9 @@ export const env = createEnv({
 
     /** Vercel Blob read/write token used by the Vercel Blob storage adapter. */
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+
+    /** Shared secret for internal workflow API routes. Optional — falls back to no auth when unset. */
+    WORKFLOW_INTERNAL_SECRET: z.string().min(1).optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -121,6 +124,7 @@ export const env = createEnv({
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:
       process.env.BLOB_READ_WRITE_TOKEN ?? (isTestEnv ? "test-blob-read-write-token" : undefined),
+    WORKFLOW_INTERNAL_SECRET: process.env.WORKFLOW_INTERNAL_SECRET,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
