@@ -1,6 +1,4 @@
 import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
-
-import { env } from "@/lib/env";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { bufferFromStream } from "@/lib/streams";
@@ -24,50 +22,11 @@ import {
   writeTempConfig,
 } from "@/lib/translation/sandbox-translation";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
-
-function getInternalApiUrl(path: string): string {
-  const { url } = getWorkflowMetadata();
-  return `${url}/api/internal/workflow${path}`;
-}
-
-function internalApiHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (env.WORKFLOW_INTERNAL_SECRET) {
-    headers["x-internal-secret"] = env.WORKFLOW_INTERNAL_SECRET;
-  }
-  return headers;
-}
-
-type ClaimedTranslationJob = {
-  id: string;
-  projectId: string;
-  type: "string" | "file";
-  inputPayload: unknown;
-  workflowRunId: string;
-};
-
-type ClaimTranslationJobResult =
-  | {
-      kind: "claimed";
-      job: ClaimedTranslationJob;
-    }
-  | {
-      kind: "skipped";
-      job: {
-        id: string;
-        projectId: string;
-        type: "string" | "file";
-        status: string;
-        inputPayload: unknown;
-        outcomeKind: string | null;
-        outcomePayload: unknown;
-        lastError: string | null;
-        workflowRunId: string | null;
-        completedAt: string | null;
-      };
-    };
+import {
+  getInternalApiUrl,
+  internalApiHeaders,
+  type ClaimTranslationJobResult,
+} from "./internal-api";
 
 async function claimTranslationJobStep(input: {
   event: TranslationJobQueuedEventData;
@@ -311,9 +270,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     throw new Error(`unsupported image format: ${parsedInput.fileFormat}`);
   }
 
-  const organizationId = await getProjectOrganizationStep(claim.job.projectId);
-
-  if (!organizationId) {
+  let organizationId: string;
+  try {
+    organizationId = await getProjectOrganizationStep(claim.job.projectId);
+  } catch {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,
@@ -324,9 +284,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     throw new Error("project not found");
   }
 
-  const sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
-
-  if (!sourceFile) {
+  let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;
+  try {
+    sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
+  } catch {
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,

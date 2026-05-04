@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -12,10 +13,6 @@ import {
 } from "@/lib/translation/translation-job-queued-function";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 
-function unauthorizedResponse(c: { json(body: { error: string }, status: 401): Response }) {
-  return c.json({ error: "unauthorized" }, 401);
-}
-
 function badRequestResponse(c: { json(body: { error: string }, status: 400): Response }) {
   return c.json({ error: "bad_request" }, 400);
 }
@@ -24,19 +21,13 @@ function notFoundResponse(c: { json(body: { error: string }, status: 404): Respo
   return c.json({ error: "not_found" }, 404);
 }
 
-async function internalMiddleware(
-  c: {
-    req: { header(name: string): string | undefined };
-    json(body: { error: string }, status: 401): Response;
-  },
-  next: () => Promise<void>,
-) {
+const internalMiddleware = createMiddleware(async (c, next) => {
   const secret = env.WORKFLOW_INTERNAL_SECRET;
-  if (secret && c.req.header("x-internal-secret") !== secret) {
-    return unauthorizedResponse(c);
+  if (!secret || c.req.header("x-internal-secret") !== secret) {
+    return c.json({ error: "unauthorized" }, 401);
   }
   await next();
-}
+});
 
 export function createInternalWorkflowRoutes() {
   return new Hono()

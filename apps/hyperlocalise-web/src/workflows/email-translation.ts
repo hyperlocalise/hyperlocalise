@@ -6,23 +6,9 @@ import { env } from "@/lib/env";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
+import { getInternalApiUrl, internalApiHeaders } from "./internal-api";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
-
-function getInternalApiUrl(path: string): string {
-  const { url } = getWorkflowMetadata();
-  return `${url}/api/internal/workflow${path}`;
-}
-
-function internalApiHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-  };
-  if (env.WORKFLOW_INTERNAL_SECRET) {
-    headers["x-internal-secret"] = env.WORKFLOW_INTERNAL_SECRET;
-  }
-  return headers;
-}
 
 async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
