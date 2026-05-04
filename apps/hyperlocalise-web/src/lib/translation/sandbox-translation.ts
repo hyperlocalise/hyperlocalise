@@ -1,17 +1,6 @@
-import { isUtf8 } from "node:buffer";
-import { createHash } from "node:crypto";
-
 import { Sandbox } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
-import { createLogger } from "@/lib/log";
-import {
-  type AttachmentContent,
-  inferAttachmentContentType,
-  toAttachmentBuffer,
-} from "@/lib/resend/attachments";
-
-const logger = createLogger("sandbox-translation");
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 
@@ -159,72 +148,6 @@ export async function readTranslatedFile(sandboxId: string, outputFile: string):
     throw new Error(`failed to read translated file: ${outputFile}`);
   }
   return Buffer.from(content);
-}
-
-export type TranslatedFileDiagnostics = {
-  filename: string;
-  byteLength: number;
-  sha256: string;
-  firstBytesHex: string;
-  contentType: string;
-  isUtf8: boolean;
-  jsonParseOk: boolean | null;
-  jsonParseError: string | null;
-};
-
-export async function getTranslatedFileDiagnostics(
-  content: AttachmentContent,
-  filename: string,
-): Promise<TranslatedFileDiagnostics> {
-  const fileContent = toAttachmentBuffer(content);
-  const dotIndex = filename.lastIndexOf(".");
-  const ext = dotIndex === -1 ? "" : filename.slice(dotIndex).toLowerCase();
-  const isJsonLike = ext === ".json" || ext === ".jsonc";
-  let jsonParseOk: boolean | null = null;
-  let jsonParseError: string | null = null;
-
-  if (isJsonLike) {
-    try {
-      JSON.parse(fileContent.toString("utf8"));
-      jsonParseOk = true;
-    } catch (error) {
-      jsonParseOk = false;
-      jsonParseError = error instanceof Error ? error.message : String(error);
-    }
-  }
-
-  return {
-    filename,
-    byteLength: fileContent.byteLength,
-    sha256: createHash("sha256").update(fileContent).digest("hex"),
-    firstBytesHex: fileContent.subarray(0, 16).toString("hex"),
-    contentType: inferAttachmentContentType(filename),
-    isUtf8: isUtf8(fileContent),
-    jsonParseOk,
-    jsonParseError,
-  };
-}
-
-export async function logTranslatedFileDiagnostics(
-  requestId: string,
-  attachmentId: string,
-  sourceFilename: string,
-  targetLocale: string,
-  translatedContent: Buffer,
-  outputFilename: string,
-): Promise<void> {
-  const diagnostics = await getTranslatedFileDiagnostics(translatedContent, outputFilename);
-
-  logger.info(
-    {
-      requestId,
-      attachmentId,
-      sourceFilename,
-      targetLocale,
-      diagnostics,
-    },
-    "translated file diagnostics",
-  );
 }
 
 function shellQuote(value: string): string {

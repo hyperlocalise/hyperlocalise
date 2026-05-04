@@ -5,13 +5,12 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { createLogger } from "@/lib/log";
+import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
   createTranslationSandbox,
   getSandboxInputFilename,
   getSandboxOutputFilename,
   getSandboxTranslationEnv,
-  logTranslatedFileDiagnostics,
   prepareSandbox,
   readTranslatedFile,
   runSandboxCommand,
@@ -25,8 +24,6 @@ import {
   claimTranslationJob,
   failTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
-
-const logger = createLogger("file-translation-workflow");
 
 async function claimTranslationJobStep(input: {
   event: TranslationJobQueuedEventData;
@@ -354,14 +351,11 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
     return outputFiles;
   } catch (error) {
     const reason = userFacingFailureReason(error);
-    logger.error(
-      {
-        jobId: claim.job.id,
-        projectId: claim.job.projectId,
-        error: reason,
-      },
-      "file translation failed",
-    );
+    console.error("[file-translation-workflow] file translation failed", {
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      error: reason,
+    });
     await failTranslationJobStep({
       jobId: claim.job.id,
       projectId: claim.job.projectId,

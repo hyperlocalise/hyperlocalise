@@ -1,5 +1,3 @@
-import { createHash, randomUUID } from "node:crypto";
-
 import { and, eq, isNull, or, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -31,7 +29,19 @@ type StoredFileScopeInput = {
 };
 
 function createStoredFileId() {
-  return `file_${randomUUID()}`;
+  return `file_${crypto.randomUUID()}`;
+}
+
+async function sha256Hex(content: Buffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    content.buffer.slice(
+      content.byteOffset,
+      content.byteOffset + content.byteLength,
+    ) as ArrayBuffer,
+  );
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function safePathPart(value: string) {
@@ -101,7 +111,7 @@ export async function createStoredFile(input: CreateStoredFileInput) {
       filename: input.filename,
       contentType: uploaded.contentType,
       byteSize: content.byteLength,
-      sha256: createHash("sha256").update(content).digest("hex"),
+      sha256: await sha256Hex(content),
       etag: uploaded.etag,
       metadata: input.metadata ?? {},
     })
