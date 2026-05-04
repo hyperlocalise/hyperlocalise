@@ -31,7 +31,7 @@ function notFoundResponse(c: { json(body: { error: string }, status: 404): Respo
 
 const internalMiddleware = createMiddleware(async (c, next) => {
   const secret = env.WORKFLOW_INTERNAL_SECRET;
-  if (!secret || c.req.header("x-internal-secret") !== secret) {
+  if (secret && c.req.header("x-internal-secret") !== secret) {
     return c.json({ error: "unauthorized" }, 401);
   }
   await next();
