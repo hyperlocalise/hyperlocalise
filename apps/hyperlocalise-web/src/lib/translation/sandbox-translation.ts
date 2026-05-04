@@ -62,7 +62,7 @@ export async function writeFileToSandbox(
   content: Buffer,
 ): Promise<void> {
   const sandbox = await Sandbox.get({ sandboxId });
-  await sandbox.writeFiles([{ path: filename, content: content.toString("utf-8") }]);
+  await sandbox.writeFiles([{ path: filename, content: content }]);
 }
 
 export function buildTempConfig(

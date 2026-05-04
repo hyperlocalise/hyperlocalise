@@ -23,6 +23,10 @@ import {
 } from "@/lib/translation/sandbox-translation";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 import {
+  isImageTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import {
   claimTranslationJob,
   failTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
@@ -110,6 +114,27 @@ async function logDiagnosticsStep(
   );
 }
 
+async function storeOutputFileStep(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+  filename: string;
+  contentType: string;
+  content: Buffer;
+}) {
+  "use step";
+  return createStoredFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    role: "output",
+    sourceKind: "job_output",
+    sourceJobId: input.jobId,
+    filename: input.filename,
+    contentType: input.contentType,
+    content: input.content,
+  });
+}
+
 async function completeFileTranslationJob(input: {
   jobId: string;
   projectId: string;
@@ -194,6 +219,17 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
       message: "missing or invalid file translation job input",
     });
     throw new Error("invalid file job input");
+  }
+
+  if (isImageTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+    await failTranslationJobStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: "unsupported_file_format",
+      message: `binary image format '${parsedInput.fileFormat}' is not supported for file translation`,
+    });
+    throw new Error(`unsupported image format: ${parsedInput.fileFormat}`);
   }
 
   const [project] = await db
@@ -299,12 +335,10 @@ export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEven
         outputFilename,
       );
 
-      const storedOutput = await createStoredFile({
+      const storedOutput = await storeOutputFileStep({
         organizationId: project.organizationId,
         projectId: claim.job.projectId,
-        role: "output",
-        sourceKind: "job_output",
-        sourceJobId: claim.job.id,
+        jobId: claim.job.id,
         filename: outputFilename,
         contentType: sourceFile.contentType,
         content: translatedContent,
