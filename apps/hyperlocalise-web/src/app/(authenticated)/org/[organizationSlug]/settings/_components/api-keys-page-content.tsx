@@ -122,7 +122,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
     },
   });
 
-  function handleCreateSubmit(e: React.FormEvent) {
+  function handleCreateSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
     if (!newKeyName.trim()) return;
     createKey.mutate(newKeyName.trim());

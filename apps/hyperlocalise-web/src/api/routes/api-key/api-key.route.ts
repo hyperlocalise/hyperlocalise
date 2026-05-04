@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -106,7 +106,15 @@ export function createApiKeyRoutes() {
       const [existing] = await db
         .select({ id: schema.organizationApiKeys.id })
         .from(schema.organizationApiKeys)
-        .where(eq(schema.organizationApiKeys.id, params.apiKeyId))
+        .where(
+          and(
+            eq(schema.organizationApiKeys.id, params.apiKeyId),
+            eq(
+              schema.organizationApiKeys.organizationId,
+              c.var.auth.organization.localOrganizationId,
+            ),
+          ),
+        )
         .limit(1);
 
       if (!existing) {
@@ -116,7 +124,15 @@ export function createApiKeyRoutes() {
       await db
         .update(schema.organizationApiKeys)
         .set({ revokedAt: new Date() })
-        .where(eq(schema.organizationApiKeys.id, params.apiKeyId));
+        .where(
+          and(
+            eq(schema.organizationApiKeys.id, params.apiKeyId),
+            eq(
+              schema.organizationApiKeys.organizationId,
+              c.var.auth.organization.localOrganizationId,
+            ),
+          ),
+        );
 
       return c.body(null, 204);
     });

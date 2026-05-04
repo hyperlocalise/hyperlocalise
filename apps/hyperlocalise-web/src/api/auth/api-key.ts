@@ -9,7 +9,6 @@ export type ApiKeyAuthVariables = {
   auth: {
     organization: {
       localOrganizationId: string;
-      name: string;
     };
     apiKey: {
       id: string;
@@ -36,7 +35,6 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       .select({
         id: schema.organizationApiKeys.id,
         organizationId: schema.organizationApiKeys.organizationId,
-        name: schema.organizationApiKeys.name,
         permissions: schema.organizationApiKeys.permissions,
         revokedAt: schema.organizationApiKeys.revokedAt,
       })
@@ -58,7 +56,6 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
     c.set("auth", {
       organization: {
         localOrganizationId: keyRecord.organizationId,
-        name: keyRecord.name,
       },
       apiKey: {
         id: keyRecord.id,
