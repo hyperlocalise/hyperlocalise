@@ -327,7 +327,9 @@ function AssistantSources({ parts }: { parts: SourcePart[] }) {
               key={part.sourceId}
               className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-xs"
             >
-              <TypographySmall className="text-xs">{part.title || part.filename || "Document"}</TypographySmall>
+              <TypographySmall className="text-xs">
+                {part.title || part.filename || "Document"}
+              </TypographySmall>
               <span className="text-muted-foreground">{part.mediaType}</span>
             </div>
           ),
