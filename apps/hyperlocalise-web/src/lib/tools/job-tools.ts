@@ -1,10 +1,146 @@
+import { randomUUID } from "node:crypto";
+
+import { and, desc, eq } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
+import { schema } from "@/lib/database";
+import { createTranslationJobQueue } from "@/workflows/adapters";
+
 import type { ToolContext } from "./types";
 
+const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
+type JobKind = (typeof jobKinds)[number];
+
+const translationJobQueue = createTranslationJobQueue();
+
+const baseJobSelect = {
+  id: schema.jobs.id,
+  organizationId: schema.jobs.organizationId,
+  projectId: schema.jobs.projectId,
+  kind: schema.jobs.kind,
+  status: schema.jobs.status,
+  inputPayload: schema.jobs.inputPayload,
+  outcomePayload: schema.jobs.outcomePayload,
+  lastError: schema.jobs.lastError,
+  workflowRunId: schema.jobs.workflowRunId,
+  interactionId: schema.jobs.interactionId,
+  contextSnapshot: schema.jobs.contextSnapshot,
+  createdAt: schema.jobs.createdAt,
+  updatedAt: schema.jobs.updatedAt,
+  completedAt: schema.jobs.completedAt,
+};
+
+function createJobId() {
+  return `job_${randomUUID()}`;
+}
+
+function getJobProjectId(ctx: ToolContext, projectId?: string | null) {
+  return projectId ?? ctx.projectId;
+}
+
+async function getJobDetails(ctx: ToolContext, jobId: string) {
+  const [job] = await ctx.db
+    .select({
+      ...baseJobSelect,
+      translationType: schema.translationJobDetails.type,
+      translationOutcomeKind: schema.translationJobDetails.outcomeKind,
+      reviewCriteria: schema.reviewJobDetails.criteria,
+      reviewTargetLocale: schema.reviewJobDetails.targetLocale,
+      reviewConfig: schema.reviewJobDetails.config,
+      syncConnectorKind: schema.syncJobDetails.connectorKind,
+      syncDirection: schema.syncJobDetails.direction,
+      syncExternalIdentifiers: schema.syncJobDetails.externalIdentifiers,
+      assetType: schema.assetManagementJobDetails.assetType,
+      assetOperation: schema.assetManagementJobDetails.operation,
+      assetConfig: schema.assetManagementJobDetails.config,
+    })
+    .from(schema.jobs)
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+    .leftJoin(
+      schema.assetManagementJobDetails,
+      eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+    )
+    .where(and(eq(schema.jobs.id, jobId), eq(schema.jobs.organizationId, ctx.organizationId)))
+    .limit(1);
+
+  if (!job) {
+    return null;
+  }
+
+  return {
+    id: job.id,
+    organizationId: job.organizationId,
+    projectId: job.projectId,
+    kind: job.kind,
+    status: job.status,
+    inputPayload: job.inputPayload,
+    outcomePayload: job.outcomePayload,
+    lastError: job.lastError,
+    workflowRunId: job.workflowRunId,
+    interactionId: job.interactionId,
+    contextSnapshot: job.contextSnapshot,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    completedAt: job.completedAt,
+    details:
+      job.kind === "translation"
+        ? { type: job.translationType, outcomeKind: job.translationOutcomeKind }
+        : job.kind === "review"
+          ? {
+              criteria: job.reviewCriteria,
+              targetLocale: job.reviewTargetLocale,
+              config: job.reviewConfig,
+            }
+          : job.kind === "sync"
+            ? {
+                connectorKind: job.syncConnectorKind,
+                direction: job.syncDirection,
+                externalIdentifiers: job.syncExternalIdentifiers,
+              }
+            : job.kind === "asset_management"
+              ? {
+                  assetType: job.assetType,
+                  operation: job.assetOperation,
+                  config: job.assetConfig,
+                }
+              : null,
+  };
+}
+
+function queuedJobValues(
+  ctx: ToolContext,
+  input: {
+    kind: JobKind;
+    projectId?: string | null;
+    inputPayload: unknown;
+  },
+) {
+  return {
+    id: createJobId(),
+    organizationId: ctx.organizationId,
+    projectId: getJobProjectId(ctx, input.projectId),
+    kind: input.kind,
+    status: "queued" as const,
+    inputPayload: input.inputPayload,
+    interactionId: ctx.conversationId,
+  };
+}
+
+async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queuedJobValues>[1]) {
+  const [job] = await ctx.db.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
+
+  if (!job) {
+    throw new Error("Failed to create job: no row returned.");
+  }
+
+  return job;
+}
+
 /**
- * TODO: Create a translation job (string or file) and link it to the interaction.
+ * Create a translation job and link it to the interaction.
  *
  * PRODUCT.md requirement: "The agent creates one or more jobs when durable work is required."
  *
@@ -22,7 +158,7 @@ import type { ToolContext } from "./types";
  *
  * Example usage: user says "Please translate these release notes into Japanese and Vietnamese."
  */
-export function createTranslationJobTool(_ctx: ToolContext) {
+export function createTranslationJobTool(ctx: ToolContext) {
   return tool({
     description: "Create a durable translation job (string or file) and enqueue it for execution.",
     inputSchema: z.object({
@@ -46,16 +182,102 @@ export function createTranslationJobTool(_ctx: ToolContext) {
         .optional()
         .describe("Optional maximum string length for string jobs."),
     }),
-    execute: async () => {
-      // TODO: implement job creation using the same logic as `job.route.ts`.
-      // Needs access to the job queue adapter. For now, return a stub.
-      return { jobId: null, status: "not_implemented" };
+    execute: async (input) => {
+      if (!ctx.projectId) {
+        return {
+          success: false,
+          error:
+            "No project is attached to this conversation. Attach a project before creating a translation job.",
+        };
+      }
+
+      if (input.type === "file") {
+        return {
+          success: false,
+          error: "File translation jobs are not supported yet.",
+        };
+      }
+
+      if (!input.sourceText?.trim()) {
+        return { success: false, error: "sourceText is required for string translation jobs." };
+      }
+
+      const inputPayload = {
+        sourceText: input.sourceText,
+        sourceLocale: input.sourceLocale,
+        targetLocales: input.targetLocales,
+        metadata: input.metadata,
+        context: input.context,
+        maxLength: input.maxLength,
+      };
+
+      const job = await ctx.db.transaction(async (tx) => {
+        const [createdJob] = await tx
+          .insert(schema.jobs)
+          .values(
+            queuedJobValues(ctx, {
+              kind: "translation",
+              inputPayload,
+            }),
+          )
+          .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
+        await tx.insert(schema.translationJobDetails).values({
+          jobId: createdJob.id,
+          type: input.type,
+        });
+
+        return createdJob;
+      });
+
+      try {
+        const result = await translationJobQueue.enqueue({
+          jobId: job.id,
+          projectId: ctx.projectId,
+          type: input.type,
+        });
+
+        await ctx.db
+          .update(schema.jobs)
+          .set({ workflowRunId: result.ids[0] ?? null })
+          .where(
+            and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, ctx.organizationId)),
+          );
+
+        return {
+          success: true,
+          jobId: job.id,
+          status: "enqueued",
+          workflowRunIds: result.ids,
+        };
+      } catch (error) {
+        await ctx.db
+          .update(schema.jobs)
+          .set({
+            status: "failed",
+            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+          })
+          .where(
+            and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, ctx.organizationId)),
+          );
+
+        return {
+          success: false,
+          jobId: job.id,
+          status: "failed",
+          error: "Translation job queue unavailable.",
+        };
+      }
     },
   });
 }
 
 /**
- * TODO: Create a review job for quality inspection.
+ * Create a review job for quality inspection.
  *
  * PRODUCT.md requirement: Review jobs should support "human review, agent review, and TMS review loops."
  *
@@ -68,7 +290,7 @@ export function createTranslationJobTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "Can you review the Japanese translations for tone and consistency?"
  */
-export function createReviewJobTool(_ctx: ToolContext) {
+export function createReviewJobTool(ctx: ToolContext) {
   return tool({
     description:
       "Create a review job to inspect translations for quality, consistency, terminology, tone, or release readiness.",
@@ -85,16 +307,41 @@ export function createReviewJobTool(_ctx: ToolContext) {
         .optional()
         .describe("Optional linked translation job ID to review."),
     }),
-    execute: async () => {
-      // TODO: implement review job creation.
-      // Schema: `jobs` (kind = "review"), `reviewJobDetails`.
-      return { jobId: null, status: "not_implemented" };
+    execute: async (input) => {
+      const job = await ctx.db.transaction(async (tx) => {
+        const [createdJob] = await tx
+          .insert(schema.jobs)
+          .values(
+            queuedJobValues(ctx, {
+              kind: "review",
+              inputPayload: input,
+            }),
+          )
+          .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
+        await tx.insert(schema.reviewJobDetails).values({
+          jobId: createdJob.id,
+          criteria: input.criteria,
+          targetLocale: input.targetLocale,
+          config: {
+            translationJobId: input.translationJobId,
+          },
+        });
+
+        return createdJob;
+      });
+
+      return { success: true, jobId: job.id, status: job.status };
     },
   });
 }
 
 /**
- * TODO: Create a research job for cultural or market evidence gathering.
+ * Create a research job for cultural or market evidence gathering.
  *
  * PRODUCT.md requirement: "Research jobs should collect localisation context, market context,
  * cultural-reference evidence, or terminology evidence."
@@ -108,7 +355,7 @@ export function createReviewJobTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "Will this campaign line work in Brazil and Japan?"
  */
-export function createResearchJobTool(_ctx: ToolContext) {
+export function createResearchJobTool(ctx: ToolContext) {
   return tool({
     description:
       "Create a research job to gather cultural context, market guidance, or terminology evidence for target locales.",
@@ -120,16 +367,19 @@ export function createResearchJobTool(_ctx: ToolContext) {
       sourceText: z.string().optional().describe("Optional source text or claim to research."),
       assetId: z.string().optional().describe("Optional localization asset ID to research."),
     }),
-    execute: async () => {
-      // TODO: implement research job creation.
-      // Schema: `jobs` (kind = "research"). Consider adding a `research_job_details` table.
-      return { jobId: null, status: "not_implemented" };
+    execute: async (input) => {
+      const job = await createQueuedJob(ctx, {
+        kind: "research",
+        inputPayload: input,
+      });
+
+      return { success: true, jobId: job.id, status: job.status };
     },
   });
 }
 
 /**
- * TODO: Create a sync job for pulling or pushing data to external systems.
+ * Create a sync job for pulling or pushing data to external systems.
  *
  * PRODUCT.md requirement: Sync jobs should "pull from or push to repositories, TMS platforms, and other systems."
  *
@@ -142,7 +392,7 @@ export function createResearchJobTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "Sync the latest strings from our TMS project."
  */
-export function createSyncJobTool(_ctx: ToolContext) {
+export function createSyncJobTool(ctx: ToolContext) {
   return tool({
     description:
       "Create a sync job to pull from or push to repositories, TMS platforms, or other connected systems.",
@@ -155,16 +405,39 @@ export function createSyncJobTool(_ctx: ToolContext) {
           "External system identifiers, e.g. { repository: 'owner/repo', branch: 'main' }.",
         ),
     }),
-    execute: async () => {
-      // TODO: implement sync job creation.
-      // Schema: `jobs` (kind = "sync"), `syncJobDetails`.
-      return { jobId: null, status: "not_implemented" };
+    execute: async (input) => {
+      const job = await ctx.db.transaction(async (tx) => {
+        const [createdJob] = await tx
+          .insert(schema.jobs)
+          .values(
+            queuedJobValues(ctx, {
+              kind: "sync",
+              inputPayload: input,
+            }),
+          )
+          .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
+        await tx.insert(schema.syncJobDetails).values({
+          jobId: createdJob.id,
+          connectorKind: input.connectorKind,
+          direction: input.direction,
+          externalIdentifiers: input.externalIdentifiers,
+        });
+
+        return createdJob;
+      });
+
+      return { success: true, jobId: job.id, status: job.status };
     },
   });
 }
 
 /**
- * TODO: Create an asset-management job for TM/glossary/asset updates.
+ * Create an asset-management job for TM/glossary/asset updates.
  *
  * PRODUCT.md requirement: Asset management jobs should "create, import, export, dedupe, or update
  * TMs, glossaries, and localisation assets."
@@ -178,7 +451,7 @@ export function createSyncJobTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "Import the approved translations into the project glossary."
  */
-export function createAssetManagementJobTool(_ctx: ToolContext) {
+export function createAssetManagementJobTool(ctx: ToolContext) {
   return tool({
     description:
       "Create an asset-management job to create, import, export, deduplicate, or update translation memories, glossaries, or localization assets.",
@@ -194,16 +467,39 @@ export function createAssetManagementJobTool(_ctx: ToolContext) {
         .optional()
         .describe("Operation-specific configuration."),
     }),
-    execute: async () => {
-      // TODO: implement asset-management job creation.
-      // Schema: `jobs` (kind = "asset_management"), `assetManagementJobDetails`.
-      return { jobId: null, status: "not_implemented" };
+    execute: async (input) => {
+      const job = await ctx.db.transaction(async (tx) => {
+        const [createdJob] = await tx
+          .insert(schema.jobs)
+          .values(
+            queuedJobValues(ctx, {
+              kind: "asset_management",
+              inputPayload: input,
+            }),
+          )
+          .returning();
+
+        if (!createdJob) {
+          throw new Error("Failed to create job: no row returned.");
+        }
+
+        await tx.insert(schema.assetManagementJobDetails).values({
+          jobId: createdJob.id,
+          assetType: input.assetType,
+          operation: input.operation,
+          config: input.config ?? {},
+        });
+
+        return createdJob;
+      });
+
+      return { success: true, jobId: job.id, status: job.status };
     },
   });
 }
 
 /**
- * TODO: List jobs linked to this interaction or a project.
+ * List jobs linked to this interaction or a project.
  *
  * PRODUCT.md requirement: "The jobs list should be the source of truth for 'what work is running or complete'."
  *
@@ -215,17 +511,14 @@ export function createAssetManagementJobTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "What jobs did we create from this conversation?"
  */
-export function createListJobsTool(_ctx: ToolContext) {
+export function createListJobsTool(ctx: ToolContext) {
   return tool({
     description:
       "List jobs associated with an interaction or project, showing their kind, status, and timestamps.",
     inputSchema: z.object({
       interactionId: z.string().optional().describe("Filter by interaction (conversation) ID."),
       projectId: z.string().optional().describe("Filter by project ID."),
-      kind: z
-        .enum(["translation", "research", "review", "sync", "asset_management"])
-        .optional()
-        .describe("Filter by job kind."),
+      kind: z.enum(jobKinds).optional().describe("Filter by job kind."),
       limit: z
         .number()
         .int()
@@ -234,16 +527,73 @@ export function createListJobsTool(_ctx: ToolContext) {
         .default(20)
         .describe("Maximum number of jobs to return."),
     }),
-    execute: async () => {
-      // TODO: implement job listing query.
-      // Schema: `jobs`, `translationJobDetails`, `reviewJobDetails`, `syncJobDetails`, `assetManagementJobDetails`.
-      return { jobs: [] };
+    execute: async (input) => {
+      const filters = [eq(schema.jobs.organizationId, ctx.organizationId)];
+
+      if (input.interactionId) {
+        filters.push(eq(schema.jobs.interactionId, input.interactionId));
+      }
+
+      if (input.projectId) {
+        filters.push(eq(schema.jobs.projectId, input.projectId));
+      }
+
+      if (input.kind) {
+        filters.push(eq(schema.jobs.kind, input.kind));
+      }
+
+      const jobs = await ctx.db
+        .select({
+          id: schema.jobs.id,
+          projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
+          status: schema.jobs.status,
+          translationType: schema.translationJobDetails.type,
+          translationOutcomeKind: schema.translationJobDetails.outcomeKind,
+          createdAt: schema.jobs.createdAt,
+          updatedAt: schema.jobs.updatedAt,
+          completedAt: schema.jobs.completedAt,
+        })
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .where(and(...filters))
+        .orderBy(desc(schema.jobs.createdAt))
+        .limit(input.limit);
+
+      return {
+        jobs: jobs.map((job) => {
+          const baseJob = {
+            id: job.id,
+            projectId: job.projectId,
+            kind: job.kind,
+            status: job.status,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+            completedAt: job.completedAt,
+          };
+
+          if (job.kind !== "translation") {
+            return baseJob;
+          }
+
+          return {
+            ...baseJob,
+            details: {
+              type: job.translationType,
+              outcomeKind: job.translationOutcomeKind,
+            },
+          };
+        }),
+      };
     },
   });
 }
 
 /**
- * TODO: Get detailed status of a specific job.
+ * Get detailed status of a specific job.
  *
  * PRODUCT.md requirement: "Users should be able to inspect job inputs, context, output, and errors."
  *
@@ -255,17 +605,21 @@ export function createListJobsTool(_ctx: ToolContext) {
  *
  * Example usage: user asks "Is the Japanese translation job done yet?"
  */
-export function createGetJobStatusTool(_ctx: ToolContext) {
+export function createGetJobStatusTool(ctx: ToolContext) {
   return tool({
     description:
       "Get detailed status and results for a specific job, including inputs, outputs, and errors.",
     inputSchema: z.object({
       jobId: z.string().describe("The job ID to look up."),
     }),
-    execute: async () => {
-      // TODO: implement job status lookup.
-      // Schema: `jobs` joined with kind-specific detail tables.
-      return { job: null };
+    execute: async ({ jobId }) => {
+      const job = await getJobDetails(ctx, jobId);
+
+      if (!job) {
+        return { job: null, error: `Job ${jobId} not found.` };
+      }
+
+      return { job };
     },
   });
 }
