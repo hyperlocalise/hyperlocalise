@@ -137,5 +137,3 @@ export function createApiKeyRoutes() {
       return c.body(null, 204);
     });
 }
-
-export const apiKeyRoutes = createApiKeyRoutes();

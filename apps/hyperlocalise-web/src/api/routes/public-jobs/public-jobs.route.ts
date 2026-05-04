@@ -270,5 +270,3 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       return c.json({ job }, 200);
     });
 }
-
-export const publicJobRoutes = createPublicJobRoutes();
