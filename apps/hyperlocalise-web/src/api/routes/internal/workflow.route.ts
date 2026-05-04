@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 
 import { db, schema } from "@/lib/database";
@@ -233,40 +234,47 @@ export function createInternalWorkflowRoutes(options: CreateInternalWorkflowRout
       c.header("Content-Type", storedObject.contentType ?? "application/octet-stream");
       return c.body(storedObject.body);
     })
-    .post("/stored-files", async (c) => {
-      const body = (await c.req.json()) as {
-        organizationId: string;
-        projectId: string;
-        jobId: string;
-        filename: string;
-        contentType: string;
-        contentBase64: string;
-      };
-      if (
-        !body?.organizationId ||
-        !body?.projectId ||
-        !body?.jobId ||
-        !body?.filename ||
-        !body?.contentType ||
-        typeof body.contentBase64 !== "string"
-      ) {
-        return badRequestResponse(c);
-      }
+    .post(
+      "/stored-files",
+      bodyLimit({
+        maxSize: 100 * 1024 * 1024,
+        onError: (c) => c.json({ error: "upload_too_large" }, 413),
+      }),
+      async (c) => {
+        const body = (await c.req.json()) as {
+          organizationId: string;
+          projectId: string;
+          jobId: string;
+          filename: string;
+          contentType: string;
+          contentBase64: string;
+        };
+        if (
+          !body?.organizationId ||
+          !body?.projectId ||
+          !body?.jobId ||
+          !body?.filename ||
+          !body?.contentType ||
+          typeof body.contentBase64 !== "string"
+        ) {
+          return badRequestResponse(c);
+        }
 
-      const file = await createStoredFile({
-        organizationId: body.organizationId,
-        projectId: body.projectId,
-        role: "output",
-        sourceKind: "job_output",
-        sourceJobId: body.jobId,
-        filename: body.filename,
-        contentType: body.contentType,
-        content: Buffer.from(body.contentBase64, "base64"),
-        adapter: options.fileStorageAdapter,
-      });
+        const file = await createStoredFile({
+          organizationId: body.organizationId,
+          projectId: body.projectId,
+          role: "output",
+          sourceKind: "job_output",
+          sourceJobId: body.jobId,
+          filename: body.filename,
+          contentType: body.contentType,
+          content: Buffer.from(body.contentBase64, "base64"),
+          adapter: options.fileStorageAdapter,
+        });
 
-      return c.json({ file }, 200);
-    })
+        return c.json({ file }, 200);
+      },
+    )
     .post("/file-translation-jobs/complete", async (c) => {
       const body = (await c.req.json()) as {
         jobId: string;

@@ -121,7 +121,7 @@ export function ReplyComposer({
 
   const attachments = usePromptInputAttachments();
 
-  const sendReply = (text: string, files: FileUIPart[]) => {
+  const sendReply = async (text: string, files: FileUIPart[]) => {
     const trimmedText = text.trim();
     if ((!trimmedText && files.length === 0) || disabled) return;
 
@@ -129,7 +129,7 @@ export function ReplyComposer({
       dataUrlToFile(file.url, file.filename || "untitled", file.mediaType),
     );
 
-    void onSend(trimmedText, fileObjects);
+    await onSend(trimmedText, fileObjects);
     setReplyText("");
     attachments.clear();
   };
