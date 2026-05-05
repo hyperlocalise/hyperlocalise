@@ -87,6 +87,11 @@ func MarshalLiquid(template []byte, values map[string]string) ([]byte, LiquidRen
 // MarshalLiquidWithTargetFallback is like MarshalLiquid but also accepts an
 // existing target file. For source keys absent from values, it recovers
 // translations by structural position from the target file.
+//
+// Positional fallback is reliable when source and target share the same Liquid
+// structure and translatable segment order. If the source template adds,
+// removes, or reorders Liquid expressions, unmatched segments may fall back to
+// source text when placeholder validation detects the drift.
 func MarshalLiquidWithTargetFallback(sourceTemplate, targetTemplate []byte, values map[string]string) ([]byte, LiquidRenderDiagnostics) {
 	sourceDoc, _, err := parseLiquidDocument(unknownLiquidFilePath, sourceTemplate)
 	if err != nil {
@@ -349,6 +354,11 @@ func liquidPartHasTranslatableText(part htmlPart, liquidPlaceholders map[string]
 		plain = strings.ReplaceAll(plain, placeholder, "")
 	}
 	for placeholder := range liquidPlaceholders {
+		// Boundary placeholders are emitted as HTML comments and stripped from
+		// text parts by the HTML parser; only inline tokens can appear here.
+		if strings.HasPrefix(placeholder, "<!--") {
+			continue
+		}
 		plain = strings.ReplaceAll(plain, placeholder, "")
 	}
 	return isTranslatableChunk(plain)
