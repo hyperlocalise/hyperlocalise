@@ -16,7 +16,6 @@ import (
 )
 
 var (
-	evalRunFunc             = evalsvc.Run
 	evalRunWithProgressFunc = evalsvc.RunWithProgress
 	evalRunDashboardFunc    = runEvalDashboard
 )
@@ -107,7 +106,9 @@ func newEvalRunCmd() *cobra.Command {
 				return err
 			}
 
-			report, err := evalRunFunc(backgroundContext(), input)
+			report, err := evalRunWithProgressFunc(backgroundContext(), input, func(event evalsvc.ProgressEvent) {
+				_ = logEvalRunProgress(cmd.ErrOrStderr(), event)
+			})
 			if err != nil {
 				return fmt.Errorf("run eval: %w", err)
 			}
@@ -415,6 +416,68 @@ func logEvalRunStart(w io.Writer, input evalsvc.Input) error {
 		}
 	}
 	return nil
+}
+
+func logEvalRunProgress(w io.Writer, event evalsvc.ProgressEvent) error {
+	switch event.Kind {
+	case evalsvc.ProgressEventPlanned:
+		experimentCount := len(event.ExperimentIDs)
+		if event.CaseCount > 0 && experimentCount == 0 && event.TotalRuns > 0 {
+			experimentCount = (event.TotalRuns + event.CaseCount - 1) / event.CaseCount
+		}
+		_, err := fmt.Fprintf(
+			w,
+			"eval: planned cases=%d experiments=%d runs=%d\n",
+			event.CaseCount,
+			experimentCount,
+			event.TotalRuns,
+		)
+		return err
+	case evalsvc.ProgressEventRunStarted:
+		if event.Run == nil {
+			_, err := fmt.Fprintf(w, "eval: started %d/%d\n", event.StartedRuns, event.TotalRuns)
+			return err
+		}
+		_, err := fmt.Fprintf(
+			w,
+			"eval: started %d/%d case=%s experiment=%s\n",
+			event.StartedRuns,
+			event.TotalRuns,
+			event.Run.CaseID,
+			event.Run.ExperimentID,
+		)
+		return err
+	case evalsvc.ProgressEventRunCompleted:
+		if event.Run == nil {
+			_, err := fmt.Fprintf(
+				w,
+				"eval: progress completed=%d/%d successful=%d failed=%d\n",
+				event.CompletedRuns,
+				event.TotalRuns,
+				event.SuccessfulRuns,
+				event.FailedRuns,
+			)
+			return err
+		}
+		status := "ok"
+		if strings.TrimSpace(event.Run.Error) != "" {
+			status = "failed"
+		}
+		_, err := fmt.Fprintf(
+			w,
+			"eval: run-completed %d/%d case=%s experiment=%s status=%s successful=%d failed=%d\n",
+			event.CompletedRuns,
+			event.TotalRuns,
+			event.Run.CaseID,
+			event.Run.ExperimentID,
+			status,
+			event.SuccessfulRuns,
+			event.FailedRuns,
+		)
+		return err
+	default:
+		return nil
+	}
 }
 
 func logEvalRunComplete(w io.Writer, report evalsvc.Report) error {
