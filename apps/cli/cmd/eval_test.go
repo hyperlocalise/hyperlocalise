@@ -378,7 +378,7 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 	if !strings.Contains(out.String(), "eval: started 1/2 case=a experiment=default|openai|gpt|prompt") {
 		t.Fatalf("expected started progress log, got %q", out.String())
 	}
-	if !strings.Contains(out.String(), "eval: completed 1/2 case=a experiment=default|openai|gpt|prompt status=ok successful=1 failed=0") {
+	if !strings.Contains(out.String(), "eval: run-completed 1/2 case=a experiment=default|openai|gpt|prompt status=ok successful=1 failed=0") {
 		t.Fatalf("expected completed progress log, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "eval: judge provider=openai model=gpt-5.2 assertions=llm-rubric") {

@@ -423,7 +423,7 @@ func logEvalRunProgress(w io.Writer, event evalsvc.ProgressEvent) error {
 	case evalsvc.ProgressEventPlanned:
 		experimentCount := len(event.ExperimentIDs)
 		if event.CaseCount > 0 && experimentCount == 0 && event.TotalRuns > 0 {
-			experimentCount = event.TotalRuns / event.CaseCount
+			experimentCount = (event.TotalRuns + event.CaseCount - 1) / event.CaseCount
 		}
 		_, err := fmt.Fprintf(
 			w,
@@ -465,7 +465,7 @@ func logEvalRunProgress(w io.Writer, event evalsvc.ProgressEvent) error {
 		}
 		_, err := fmt.Fprintf(
 			w,
-			"eval: completed %d/%d case=%s experiment=%s status=%s successful=%d failed=%d\n",
+			"eval: run-completed %d/%d case=%s experiment=%s status=%s successful=%d failed=%d\n",
 			event.CompletedRuns,
 			event.TotalRuns,
 			event.Run.CaseID,
