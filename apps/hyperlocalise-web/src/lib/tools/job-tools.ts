@@ -255,9 +255,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         if (inferredFileFormat !== input.fileFormat) {
           return {
             success: false,
-            error: inferredFileFormat
-              ? `fileFormat must match source file extension: expected ${inferredFileFormat}.`
-              : "Source file extension is not supported for translation jobs.",
+            error: `fileFormat must match source file extension: expected ${inferredFileFormat}.`,
           };
         }
       }
