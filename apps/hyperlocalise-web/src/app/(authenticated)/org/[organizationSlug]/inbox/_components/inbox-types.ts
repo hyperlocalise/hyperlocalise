@@ -27,9 +27,10 @@ export type ConversationMessage = {
 
 export type LinkedJob = {
   id: string;
-  projectId: string;
-  type: "string" | "file";
-  status: "queued" | "running" | "succeeded" | "failed";
+  projectId: string | null;
+  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  type: "string" | "file" | null;
+  status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   outcomeKind: "string_result" | "file_result" | "error" | null;
   createdAt: string;
   completedAt: string | null;
@@ -64,6 +65,8 @@ export const jobStatusStyles: Record<LinkedJob["status"], string> = {
   running: "bg-beam-500/14 text-beam-100",
   succeeded: "bg-grove-300/14 text-grove-100",
   failed: "bg-flame-500/14 text-flame-100",
+  waiting_for_review: "bg-bud-500/14 text-bud-100",
+  cancelled: "bg-muted text-muted-foreground",
 };
 
 export function formatRelativeTime(value: string | Date | null) {

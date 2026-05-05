@@ -7,7 +7,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
 
 import {
@@ -21,6 +21,7 @@ import {
   jobListQuerySchema,
   jobParamsSchema,
   jobProjectParamsSchema,
+  workspaceJobParamsSchema,
 } from "./job.schema";
 
 type CreateJobRoutesOptions = {
@@ -32,6 +33,8 @@ const jobSelect = {
   organizationId: schema.jobs.organizationId,
   projectId: schema.jobs.projectId,
   createdByUserId: schema.jobs.createdByUserId,
+  ownerUserId: schema.jobs.ownerUserId,
+  kind: schema.jobs.kind,
   type: schema.translationJobDetails.type,
   status: schema.jobs.status,
   inputPayload: schema.jobs.inputPayload,
@@ -40,6 +43,16 @@ const jobSelect = {
   lastError: schema.jobs.lastError,
   workflowRunId: schema.jobs.workflowRunId,
   interactionId: schema.jobs.interactionId,
+  contextSnapshot: schema.jobs.contextSnapshot,
+  reviewCriteria: schema.reviewJobDetails.criteria,
+  reviewTargetLocale: schema.reviewJobDetails.targetLocale,
+  reviewConfig: schema.reviewJobDetails.config,
+  syncConnectorKind: schema.syncJobDetails.connectorKind,
+  syncDirection: schema.syncJobDetails.direction,
+  syncExternalIdentifiers: schema.syncJobDetails.externalIdentifiers,
+  assetType: schema.assetManagementJobDetails.assetType,
+  assetOperation: schema.assetManagementJobDetails.operation,
+  assetConfig: schema.assetManagementJobDetails.config,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
@@ -87,14 +100,14 @@ async function getOwnedJob(projectId: string, jobId: string) {
   const [job] = await db
     .select(jobSelect)
     .from(schema.jobs)
-    .innerJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
-    .where(
-      and(
-        eq(schema.jobs.kind, "translation"),
-        eq(schema.jobs.projectId, projectId),
-        eq(schema.jobs.id, jobId),
-      ),
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+    .leftJoin(
+      schema.assetManagementJobDetails,
+      eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
     )
+    .where(and(eq(schema.jobs.projectId, projectId), eq(schema.jobs.id, jobId)))
     .limit(1);
 
   return job ?? null;
@@ -103,12 +116,13 @@ async function getOwnedJob(projectId: string, jobId: string) {
 function jobListFilters(input: {
   organizationId?: string;
   projectId?: string;
+  kind?: "translation" | "research" | "review" | "sync" | "asset_management";
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   mine?: boolean;
   userId?: string;
 }) {
-  const filters = [eq(schema.jobs.kind, "translation")];
+  const filters = [];
 
   if (input.organizationId) {
     filters.push(eq(schema.jobs.organizationId, input.organizationId));
@@ -116,6 +130,10 @@ function jobListFilters(input: {
 
   if (input.projectId) {
     filters.push(eq(schema.jobs.projectId, input.projectId));
+  }
+
+  if (input.kind) {
+    filters.push(eq(schema.jobs.kind, input.kind));
   }
 
   if (input.type) {
@@ -145,6 +163,16 @@ const validateProjectParams = validator("param", (value, c) => {
 
 const validateJobParams = validator("param", (value, c) => {
   const parsed = jobParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return jobNotFoundResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateWorkspaceJobParams = validator("param", (value, c) => {
+  const parsed = workspaceJobParamsSchema.safeParse(value);
 
   if (!parsed.success) {
     return jobNotFoundResponse(c);
@@ -186,6 +214,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
 
       const filters = jobListFilters({
         projectId: params.projectId,
+        kind: query.kind,
         type: query.type,
         status: query.status,
         mine: query.mine,
@@ -195,9 +224,15 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const jobs = await db
         .select(jobSelect)
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
         .where(and(...filters))
         .orderBy(desc(schema.jobs.createdAt))
@@ -231,7 +266,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           return sourceFileNotFoundResponse(c);
         }
 
-        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return unsupportedSourceFileFormatResponse(c);
         }
@@ -320,6 +355,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
           status: schema.jobs.status,
           createdAt: schema.jobs.createdAt,
@@ -328,17 +364,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           lastError: schema.jobs.lastError,
         })
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
-        .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.projectId, params.projectId),
-            eq(schema.jobs.id, params.jobId),
-          ),
-        )
+        .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, params.jobId)))
         .limit(1);
 
       if (!job) {
@@ -356,6 +386,7 @@ export function createWorkspaceJobRoutes() {
       const query = c.req.valid("query");
       const filters = jobListFilters({
         organizationId: c.var.auth.organization.localOrganizationId,
+        kind: query.kind,
         type: query.type,
         status: query.status,
         mine: query.mine,
@@ -365,9 +396,15 @@ export function createWorkspaceJobRoutes() {
       const jobs = await db
         .select(jobWithProjectSelect)
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
         .leftJoin(
           schema.projects,
@@ -381,5 +418,41 @@ export function createWorkspaceJobRoutes() {
         .limit(query.limit);
 
       return c.json({ jobs }, 200);
+    })
+    .get("/:jobId", validateWorkspaceJobParams, async (c) => {
+      const params = c.req.valid("param");
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(
+          and(
+            eq(schema.jobs.id, params.jobId),
+            eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
+          ),
+        )
+        .limit(1);
+
+      if (!job) {
+        return jobNotFoundResponse(c);
+      }
+
+      return c.json({ job }, 200);
     });
 }

@@ -17,6 +17,23 @@ export const supportedTranslationFileFormats = [
 
 export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFormats)[number];
 
+export const supportedFileTranslationFileFormats = [
+  "json",
+  "jsonc",
+  "arb",
+  "xliff",
+  "po",
+  "html",
+  "markdown",
+  "mdx",
+  "strings",
+  "stringsdict",
+  "csv",
+] as const;
+
+export type SupportedFileTranslationFileFormat =
+  (typeof supportedFileTranslationFileFormats)[number];
+
 const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".json": "json",
   ".jsonc": "jsonc",
@@ -50,6 +67,12 @@ export function isImageTranslationFileFormat(
   );
 }
 
+export function isSupportedFileTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedFileTranslationFileFormat {
+  return supportedFileTranslationFileFormats.includes(format as SupportedFileTranslationFileFormat);
+}
+
 export function inferSupportedTranslationFileFormat(
   filename: string,
 ): SupportedTranslationFileFormat | null {
@@ -59,4 +82,15 @@ export function inferSupportedTranslationFileFormat(
   }
 
   return formatsByExtension[filename.slice(dotIndex).toLowerCase()] ?? null;
+}
+
+export function inferSupportedFileTranslationFileFormat(
+  filename: string,
+): SupportedFileTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isSupportedFileTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
 }

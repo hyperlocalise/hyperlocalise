@@ -14,6 +14,14 @@ import {
   type LinkedJob,
 } from "./inbox-types";
 
+function formatJobKind(job: LinkedJob) {
+  if (job.kind === "translation" && job.type) {
+    return job.type;
+  }
+
+  return job.kind.replace("_", " ");
+}
+
 export function ConversationDetails({
   conversation,
   jobs,
@@ -77,7 +85,7 @@ export function ConversationDetails({
             {jobs.map((job) => (
               <a
                 key={job.id}
-                href={`/org/${organizationSlug}/jobs`}
+                href={`/org/${organizationSlug}/jobs/${job.id}`}
                 className="block py-2.5 transition-colors first:pt-0 last:pb-0 hover:text-foreground"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -87,7 +95,7 @@ export function ConversationDetails({
                   </Badge>
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="uppercase">{job.type}</span>
+                  <span className="uppercase">{formatJobKind(job)}</span>
                   <span className="size-1 rounded-full bg-muted-foreground/20" />
                   <span>{formatRelativeTime(job.createdAt)}</span>
                 </div>

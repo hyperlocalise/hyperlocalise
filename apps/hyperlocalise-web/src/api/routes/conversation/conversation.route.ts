@@ -339,6 +339,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
           status: schema.jobs.status,
           outcomeKind: schema.translationJobDetails.outcomeKind,
@@ -346,16 +347,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           completedAt: schema.jobs.completedAt,
         })
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
         .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.organizationId, orgId),
-            eq(schema.jobs.interactionId, conversationId),
-          ),
+          and(eq(schema.jobs.organizationId, orgId), eq(schema.jobs.interactionId, conversationId)),
         )
         .orderBy(desc(schema.jobs.createdAt));
 

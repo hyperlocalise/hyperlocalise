@@ -8,7 +8,7 @@ import { workosAuthMiddleware } from "@/api/auth/workos";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { addInteractionMessage, createInteraction } from "@/lib/interactions";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const chatRequestBodySchema = z.object({
   text: z.string().trim().min(1).max(10000),
@@ -93,7 +93,7 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
         }
 
         for (const file of files) {
-          if (!inferSupportedTranslationFileFormat(file.name)) {
+          if (!inferSupportedFileTranslationFileFormat(file.name)) {
             return unsupportedTranslationSourceFileResponse(c, file.name);
           }
         }

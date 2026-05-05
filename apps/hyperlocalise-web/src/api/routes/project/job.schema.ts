@@ -12,6 +12,10 @@ export const jobParamsSchema = z.object({
   jobId: z.string().trim().min(1),
 });
 
+export const workspaceJobParamsSchema = z.object({
+  jobId: z.string().trim().min(1),
+});
+
 const metadataSchema = z.record(z.string(), z.string()).optional();
 
 export const stringTranslationJobInputSchema = z.object({
@@ -43,6 +47,7 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
 ]);
 
 export const jobListQuerySchema = z.object({
+  kind: z.enum(schema.jobKindEnum.enumValues).optional(),
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   mine: z

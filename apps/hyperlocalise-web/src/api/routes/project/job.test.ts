@@ -50,10 +50,11 @@ type ProjectResponse = {
 
 type JobRecord = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   createdByUserId: string | null;
-  type: "string" | "file";
-  status: "queued" | "running" | "succeeded" | "failed";
+  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  type: "string" | "file" | null;
+  status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   inputPayload: Record<string, unknown>;
   outcomeKind: string | null;
   outcomePayload: Record<string, unknown> | null;
@@ -115,6 +116,38 @@ async function insertJob(params: {
 
     return { ...createdJob, type: details.type, outcomeKind: details.outcomeKind };
   });
+
+  return job;
+}
+
+async function insertResearchJob(params: {
+  projectId: string;
+  createdByUserId: string | null;
+  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
+  inputPayload: Record<string, unknown>;
+}) {
+  const [project] = await db
+    .select({ organizationId: schema.projects.organizationId })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, params.projectId))
+    .limit(1);
+
+  if (!project) {
+    throw new Error(`project ${params.projectId} not found`);
+  }
+
+  const [job] = await db
+    .insert(schema.jobs)
+    .values({
+      id: `job_${randomUUID()}`,
+      organizationId: project.organizationId,
+      projectId: params.projectId,
+      createdByUserId: params.createdByUserId,
+      kind: "research",
+      status: params.status ?? "queued",
+      inputPayload: params.inputPayload,
+    })
+    .returning();
 
   return job;
 }
@@ -434,6 +467,63 @@ describe("jobRoutes", () => {
     expect(body.jobs[0]?.projectName).toEqual(expect.any(String));
   });
 
+  it("lists non-translation jobs in project and workspace job feeds", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const localUserId = await getLocalUserId(identity.user.workosUserId);
+    const authHeader = await authHeadersFor(identity);
+
+    const researchJob = await insertResearchJob({
+      projectId: project.id,
+      createdByUserId: localUserId,
+      status: "waiting_for_review",
+      inputPayload: {
+        scope: "cultural reference viability",
+        targetLocales: ["ja-JP"],
+      },
+    });
+
+    const projectJobsResponse = await client.api.project[":projectId"].jobs.$get(
+      {
+        param: { projectId: project.id },
+        query: { kind: "research", mine: "false", limit: "50" },
+      },
+      { headers: authHeader },
+    );
+
+    expect(projectJobsResponse.status).toBe(200);
+    await expect(projectJobsResponse.json()).resolves.toEqual({
+      jobs: [
+        expect.objectContaining({
+          id: researchJob.id,
+          kind: "research",
+          type: null,
+          status: "waiting_for_review",
+        }),
+      ],
+    });
+
+    const workspaceJobResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: researchJob.id,
+        },
+      },
+      { headers: authHeader },
+    );
+
+    expect(workspaceJobResponse.status).toBe(200);
+    await expect(workspaceJobResponse.json()).resolves.toEqual({
+      job: expect.objectContaining({
+        id: researchJob.id,
+        kind: "research",
+        projectName: expect.any(String),
+      }),
+    });
+  });
+
   it("returns a full job record and a lightweight status view", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -584,7 +674,7 @@ describe("jobRoutes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "invalid_job_payload",
+      error: "unsupported_source_file_format",
     });
   });
 
@@ -628,6 +718,40 @@ describe("jobRoutes", () => {
           targetLocales: ["fr-FR"],
         },
       },
+    });
+  });
+
+  it("rejects image file translation jobs until visual asset workers exist", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const sourceFile = await insertStoredSourceFile({
+      projectId: project.id,
+      filename: "banner.png",
+      contentType: "image/png",
+    });
+
+    const response = await client.api.project[":projectId"].jobs.$post(
+      {
+        param: { projectId: project.id },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "png",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_job_payload",
     });
   });
 
