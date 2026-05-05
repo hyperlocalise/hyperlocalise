@@ -177,6 +177,32 @@ func TestMarshalLiquidRestoresLiquidTagsInsideHTMLAttributes(t *testing.T) {
 	}
 }
 
+func TestMarshalLiquidPreservesSingleQuotedSyntaxInsideVoidAttributes(t *testing.T) {
+	template := []byte(`<img alt="{{ product.title | replace: 'a', 'b' }} hero image">`)
+	got, err := (LiquidParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key, value := singleLiquidEntry(t, got)
+	if !strings.Contains(value, "HLLQPH_") || !strings.Contains(value, "hero image") {
+		t.Fatalf("expected Liquid placeholder plus visible alt text, got %q", value)
+	}
+
+	out, diags := MarshalLiquid(template, map[string]string{
+		key: strings.Replace(value, "hero image", "image hero", 1),
+	})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
+	}
+	rendered := string(out)
+	if strings.Contains(rendered, "&#39;") {
+		t.Fatalf("expected single-quoted Liquid syntax not HTML-escaped, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `alt="{{ product.title | replace: 'a', 'b' }} image hero"`) {
+		t.Fatalf("expected translated alt text with Liquid syntax restored, got %q", rendered)
+	}
+}
+
 func TestLiquidParserParseDoesNotExtractShopifyTranslationKeys(t *testing.T) {
 	got, err := (LiquidParser{}).Parse([]byte(`{{ 'header.navigation.home' | t }}`))
 	if err != nil {

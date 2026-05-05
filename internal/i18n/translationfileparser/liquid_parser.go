@@ -323,9 +323,19 @@ func isLiquidSkippedBlockStart(tagName string) bool {
 	}
 }
 
+var liquidSkippedBlockEndPatterns = map[string]*regexp.Regexp{
+	"raw":        regexp.MustCompile(`(?is)\{%-?\s*endraw\b.*?-?%\}`),
+	"comment":    regexp.MustCompile(`(?is)\{%-?\s*endcomment\b.*?-?%\}`),
+	"schema":     regexp.MustCompile(`(?is)\{%-?\s*endschema\b.*?-?%\}`),
+	"javascript": regexp.MustCompile(`(?is)\{%-?\s*endjavascript\b.*?-?%\}`),
+	"stylesheet": regexp.MustCompile(`(?is)\{%-?\s*endstylesheet\b.*?-?%\}`),
+}
+
 func findLiquidSkippedBlockEnd(input string, from int, tagName string) (int, bool) {
-	endTagName := "end" + tagName
-	pattern := regexp.MustCompile(`(?is)\{%-?\s*` + regexp.QuoteMeta(endTagName) + `\b.*?-?%\}`)
+	pattern, ok := liquidSkippedBlockEndPatterns[tagName]
+	if !ok {
+		return 0, false
+	}
 	loc := pattern.FindStringIndex(input[from:])
 	if loc == nil {
 		return 0, false
@@ -335,9 +345,6 @@ func findLiquidSkippedBlockEnd(input string, from int, tagName string) (int, boo
 
 func liquidPartHasTranslatableText(part htmlPart, liquidPlaceholders map[string]string) bool {
 	plain := part.source
-	if part.isVoidAttr {
-		plain = part.source
-	}
 	for placeholder := range part.placeholders {
 		plain = strings.ReplaceAll(plain, placeholder, "")
 	}
@@ -392,7 +399,6 @@ func (d liquidDocument) renderVoidAttrPart(part htmlPart, values map[string]stri
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 		rendered = part.source
 	}
-	rendered = expandLiquidPlaceholders(rendered, d.liquidPlaceholders)
 	return expandLiquidPlaceholders(part.voidTagPrefix+html.EscapeString(rendered)+part.voidTagSuffix, d.liquidPlaceholders)
 }
 
