@@ -15,7 +15,7 @@ import (
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".html":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".html", ".liquid":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -31,6 +31,9 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	}
 	if ext == ".html" {
 		return s.marshalHTMLTarget(path, sourcePath, stagedEntries)
+	}
+	if ext == ".liquid" {
+		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
 	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".arb" {
 		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
@@ -183,6 +186,25 @@ func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[s
 	return content, htmlRenderWarnings(path, diags), nil
 }
 
+func (s *Service) marshalLiquidTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
+	sourceTemplate, err := s.readFile(sourcePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
+	}
+
+	targetTemplate, err := s.readFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			content, diags := translationfileparser.MarshalLiquid(sourceTemplate, stagedEntries)
+			return content, liquidRenderWarnings(path, diags), nil
+		}
+		return nil, nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
+	}
+
+	content, diags := translationfileparser.MarshalLiquidWithTargetFallback(sourceTemplate, targetTemplate, stagedEntries)
+	return content, liquidRenderWarnings(path, diags), nil
+}
+
 func htmlRenderWarnings(path string, diags translationfileparser.HTMLRenderDiagnostics) []string {
 	if len(diags.SourceFallbackKeys) == 0 {
 		return nil
@@ -197,6 +219,19 @@ func htmlRenderWarnings(path string, diags translationfileparser.HTMLRenderDiagn
 		return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
 	}
 	return []string{fmt.Sprintf("html render fell back to source for %d segments in %q (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
+}
+
+func liquidRenderWarnings(path string, diags translationfileparser.LiquidRenderDiagnostics) []string {
+	if len(diags.SourceFallbackKeys) == 0 {
+		return nil
+	}
+	keys := slices.Clone(diags.SourceFallbackKeys)
+	slices.Sort(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > 3 {
+		return []string{fmt.Sprintf("liquid render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (first keys: %s)", len(keys), path, strings.Join(keys[:3], ", "))}
+	}
+	return []string{fmt.Sprintf("liquid render fell back to source for %d segments in %q due to unrecoverable placeholder corruption (keys: %s)", len(keys), path, strings.Join(keys, ", "))}
 }
 
 func markdownRenderWarnings(path string, diags translationfileparser.MarkdownRenderDiagnostics) []string {
