@@ -1,8 +1,6 @@
 {
-  "diagnostics": [],
   "error": "",
   "values": {
-    "sections.footer.html": "sections.footer.html",
-    "sections.header.html": "sections.header.html"
+    "liquid.e38a517e6c763240": "Use \u001eHLHTPH_2F6E95FBFB02_0\u001fsafe HTML\u001eHLHTPH_FBB464ACB33A_1\u001f around \u001eHLLQPH_D10AE849C4F6_2\u001f."
   }
 }

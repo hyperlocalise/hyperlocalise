@@ -39,7 +39,7 @@ func makeLiquidBenchmarkCorpus(fileCount, keysPerFile int) [][]byte {
 	for fileIndex := range fileCount {
 		var builder strings.Builder
 		for keyIndex := range keysPerFile {
-			_, _ = fmt.Fprintf(&builder, "{{ 'benchmark.file_%02d.key_%02d' | t }}\n", fileIndex, keyIndex)
+			_, _ = fmt.Fprintf(&builder, "<p>Benchmark copy %02d-%02d for {{ customer.first_name }}.</p>\n", fileIndex, keyIndex)
 		}
 		corpus = append(corpus, []byte(builder.String()))
 	}

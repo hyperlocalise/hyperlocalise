@@ -12,9 +12,8 @@ import (
 )
 
 type liquidGoldenOutput struct {
-	Diagnostics []Diagnostic      `json:"diagnostics"`
-	Error       string            `json:"error"`
-	Values      map[string]string `json:"values"`
+	Error  string            `json:"error"`
+	Values map[string]string `json:"values"`
 }
 
 var liquidUpdateGoldensFlag *bool
@@ -87,31 +86,14 @@ func TestLiquidParserCanonicalBenchmarkCorpusShape(t *testing.T) {
 }
 
 func parseLiquidGoldenOutput(content []byte) liquidGoldenOutput {
-	var diagnostics []Diagnostic
-	values, _, err := (LiquidParser{}).ParseWithDiagnostics(content, &diagnostics)
+	values, err := (LiquidParser{}).Parse(content)
 	if values == nil {
 		values = map[string]string{}
 	}
-	if diagnostics == nil {
-		diagnostics = []Diagnostic{}
-	}
-	slices.SortFunc(diagnostics, func(a, b Diagnostic) int {
-		if a.LineNumber != b.LineNumber {
-			return a.LineNumber - b.LineNumber
-		}
-		if a.Code < b.Code {
-			return -1
-		}
-		if a.Code > b.Code {
-			return 1
-		}
-		return 0
-	})
 
 	return liquidGoldenOutput{
-		Diagnostics: diagnostics,
-		Error:       liquidGoldenErrorName(err),
-		Values:      values,
+		Error:  liquidGoldenErrorName(err),
+		Values: values,
 	}
 }
 

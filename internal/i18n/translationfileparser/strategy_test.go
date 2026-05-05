@@ -247,45 +247,20 @@ func TestStrategyRegistersLiquidParser(t *testing.T) {
 func TestStrategyParsesLiquid(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	got, err := s.Parse("sections/header.liquid", []byte(`{{ 'header.navigation.home' | t }}`))
+	got, err := s.Parse("sections/header.liquid", []byte(`<p>Hello {{ customer.first_name }}.</p>`))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if len(got) != 1 {
 		t.Fatalf("expected one extracted entry, got %d", len(got))
 	}
-	if got["header.navigation.home"] != "header.navigation.home" {
-		t.Fatalf("unexpected extracted value: %q", got["header.navigation.home"])
-	}
-}
-
-func TestStrategyParseWithDiagnosticsCollectsLiquidWarnings(t *testing.T) {
-	s := NewDefaultStrategy()
-	var diagnostics []Diagnostic
-
-	values, contextByKey, err := s.ParseWithDiagnostics("sections/header.liquid", []byte(`{{ 'header.navigation.home' | t }}
-{{ section.settings.title | t }}
-`), &diagnostics)
-	if err != nil {
-		t.Fatalf("parse with diagnostics: %v", err)
-	}
-	if values["header.navigation.home"] != "header.navigation.home" {
-		t.Fatalf("expected static key to be extracted, got %#v", values)
-	}
-	if contextByKey != nil {
-		t.Fatalf("expected nil context map, got %#v", contextByKey)
-	}
-	if len(diagnostics) != 1 {
-		t.Fatalf("expected one diagnostic, got %#v", diagnostics)
-	}
-	if diagnostics[0].Code != LiquidDynamicKeyDiagnosticCode {
-		t.Fatalf("unexpected diagnostic code: %#v", diagnostics[0])
-	}
-	if diagnostics[0].FilePath != "sections/header.liquid" {
-		t.Fatalf("unexpected diagnostic file path: %#v", diagnostics[0])
-	}
-	if diagnostics[0].LineNumber != 2 {
-		t.Fatalf("unexpected diagnostic line: %#v", diagnostics[0])
+	for key, value := range got {
+		if !strings.HasPrefix(key, "liquid.") {
+			t.Fatalf("expected liquid key, got %q", key)
+		}
+		if !strings.Contains(value, "Hello") || !strings.Contains(value, "HLLQPH_") {
+			t.Fatalf("unexpected extracted value: %q", value)
+		}
 	}
 }
 

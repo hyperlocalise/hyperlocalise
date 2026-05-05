@@ -1,7 +1,7 @@
 {% if product.available %}
-  {{ 'product.available' | t }}
+  <span>Available today</span>
 {% elsif product.coming_soon %}
-  {{ 'product.coming_soon' | t }}
+  <span>Coming soon</span>
 {% else %}
-  {{ 'product.unavailable' | t }}
+  <span>Sold out</span>
 {% endif %}

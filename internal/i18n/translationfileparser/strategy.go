@@ -18,7 +18,7 @@ type ContextParser interface {
 }
 
 type pathAwareParser interface {
-	parseWithPath(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error)
+	parseWithPath(path string, content []byte) (map[string]string, map[string]string, error)
 }
 
 // Strategy selects a parser based on file extension.
@@ -77,16 +77,10 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 // Some parser implementations may return additional per-entry context (for example,
 // FormatJS/ARB descriptions).
 func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {
-	return s.parseWithContext(path, content, nil)
+	return s.parseWithContext(path, content)
 }
 
-// ParseWithDiagnostics resolves a parser from the file path extension and parses
-// content while collecting parser diagnostics when the parser supports them.
-func (s *Strategy) ParseWithDiagnostics(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
-	return s.parseWithContext(path, content, diags)
-}
-
-func (s *Strategy) parseWithContext(path string, content []byte, diags *[]Diagnostic) (map[string]string, map[string]string, error) {
+func (s *Strategy) parseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {
 		return nil, nil, fmt.Errorf("translation file parser: file %q has no extension", path)
@@ -98,7 +92,7 @@ func (s *Strategy) parseWithContext(path string, content []byte, diags *[]Diagno
 	}
 
 	if pathParser, ok := parser.(pathAwareParser); ok {
-		values, entryContext, err := pathParser.parseWithPath(path, content, diags)
+		values, entryContext, err := pathParser.parseWithPath(path, content)
 		if err != nil {
 			return nil, nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}

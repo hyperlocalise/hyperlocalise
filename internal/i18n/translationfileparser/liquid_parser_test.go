@@ -4,9 +4,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/osteele/liquid"
-	"github.com/osteele/liquid/render"
 )
 
 func TestLiquidParserImplementsParserInterfaces(t *testing.T) {
@@ -14,102 +11,297 @@ func TestLiquidParserImplementsParserInterfaces(t *testing.T) {
 	requireLiquidContextParser(LiquidParser{})
 }
 
-func TestLiquidParserParseExtractsStaticEntry(t *testing.T) {
+func TestLiquidParserParseExtractsHardcodedText(t *testing.T) {
+	got, err := (LiquidParser{}).Parse([]byte(`Welcome to our store.`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	key, value := singleLiquidEntry(t, got)
+	if !strings.HasPrefix(key, "liquid.") {
+		t.Fatalf("expected liquid key, got %q", key)
+	}
+	if value != "Welcome to our store." {
+		t.Fatalf("unexpected extracted value: %q", value)
+	}
+}
+
+func TestLiquidParserParseExtractsHTMLShapedLiquid(t *testing.T) {
+	got, err := (LiquidParser{}).Parse([]byte(`<section>
+  <h1>Welcome back</h1>
+  <p>Hello {{ customer.first_name }}.</p>
+</section>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected two entries, got %#v", got)
+	}
+	if !liquidValuesContain(got, "Welcome back") {
+		t.Fatalf("expected heading text, got %#v", got)
+	}
+	paragraph := liquidValueContaining(t, got, "Hello ")
+	if !strings.Contains(paragraph, "HLLQPH_") {
+		t.Fatalf("expected liquid placeholder in paragraph, got %q", paragraph)
+	}
+	if strings.Contains(paragraph, "{{ customer.first_name }}") {
+		t.Fatalf("expected source Liquid syntax to be masked before translation, got %q", paragraph)
+	}
+}
+
+func TestLiquidParserParseKeepsControlTagsOutsideTranslationSegments(t *testing.T) {
+	template := []byte(`{% if user %}
+  Hello {{ user.name }}!
+{% endif %}`)
+
+	got, err := (LiquidParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key, value := singleLiquidEntry(t, got)
+
+	tokens := liquidSyntaxPlaceholderTokens(value)
+	if len(tokens) != 1 {
+		t.Fatalf("expected only the user object placeholder, got %q tokens=%v", value, tokens)
+	}
+	if want := "Hello " + tokens[0] + "!"; strings.TrimSpace(value) != want {
+		t.Fatalf("expected clean visible text segment %q, got %q", want, value)
+	}
+
+	out, diags := MarshalLiquid(template, map[string]string{
+		key: strings.Replace(value, "Hello", "Bonjour", 1),
+	})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
+	}
+	rendered := string(out)
+	if !strings.Contains(rendered, "{% if user %}") || !strings.Contains(rendered, "{% endif %}") {
+		t.Fatalf("expected control tags preserved, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "Bonjour {{ user.name }}!") {
+		t.Fatalf("expected translated visible text with Liquid object restored, got %q", rendered)
+	}
+}
+
+func TestLiquidParserParseSplitsConditionalBranches(t *testing.T) {
+	got, err := (LiquidParser{}).Parse([]byte(`{% if product.available %}
+  <span>Available today</span>
+{% elsif product.coming_soon %}
+  <span>Coming soon</span>
+{% else %}
+  <span>Sold out</span>
+{% endif %}`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("expected three branch entries, got %#v", got)
+	}
+	for _, want := range []string{"Available today", "Coming soon", "Sold out"} {
+		if !liquidValueContainsText(got, want) {
+			t.Fatalf("expected branch text %q in %#v", want, got)
+		}
+	}
+	for _, value := range got {
+		matches := 0
+		for _, branchText := range []string{"Available today", "Coming soon", "Sold out"} {
+			if strings.Contains(value, branchText) {
+				matches++
+			}
+		}
+		if matches != 1 {
+			t.Fatalf("expected each branch to be a separate segment, got %q", value)
+		}
+	}
+}
+
+func TestLiquidParserParseCaptureTranslatesInnerVisibleText(t *testing.T) {
+	template := []byte(`{% capture header_title %}
+Featured products for {{ shop.name }}
+{% endcapture %}
+<h2>{{ header_title }}</h2>`)
+
+	got, err := (LiquidParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key, value := singleLiquidEntry(t, got)
+	if !strings.Contains(value, "Featured products for ") {
+		t.Fatalf("expected capture body text, got %q", value)
+	}
+	if tokens := liquidSyntaxPlaceholderTokens(value); len(tokens) != 1 {
+		t.Fatalf("expected shop name placeholder only, got %q tokens=%v", value, tokens)
+	}
+
+	out, diags := MarshalLiquid(template, map[string]string{
+		key: strings.Replace(value, "Featured products", "Produits vedettes", 1),
+	})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
+	}
+	rendered := string(out)
+	if !strings.Contains(rendered, "{% capture header_title %}") || !strings.Contains(rendered, "{% endcapture %}") {
+		t.Fatalf("expected capture tags preserved, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "Produits vedettes for {{ shop.name }}") {
+		t.Fatalf("expected translated capture body with Liquid object restored, got %q", rendered)
+	}
+}
+
+func TestMarshalLiquidRestoresLiquidTagsInsideHTMLAttributes(t *testing.T) {
+	template := []byte(`<img {% if selected %}loading="lazy"{% endif %} alt="Hero image">`)
+	got, err := (LiquidParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key, value := singleLiquidEntry(t, got)
+	if value != "Hero image" {
+		t.Fatalf("unexpected alt entry: %q", value)
+	}
+
+	out, diags := MarshalLiquid(template, map[string]string{key: "Image hero"})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
+	}
+	rendered := string(out)
+	if strings.ContainsAny(rendered, "\x1e\x1f") {
+		t.Fatalf("rendered output leaked internal placeholders: %q", rendered)
+	}
+	if !strings.Contains(rendered, `{% if selected %}loading="lazy"{% endif %}`) {
+		t.Fatalf("expected Liquid attribute tags preserved, got %q", rendered)
+	}
+	if !strings.Contains(rendered, `alt="Image hero"`) {
+		t.Fatalf("expected translated alt text, got %q", rendered)
+	}
+}
+
+func TestLiquidParserParseDoesNotExtractShopifyTranslationKeys(t *testing.T) {
 	got, err := (LiquidParser{}).Parse([]byte(`{{ 'header.navigation.home' | t }}`))
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("expected one extracted entry, got %d", len(got))
-	}
-	if got["header.navigation.home"] != "header.navigation.home" {
-		t.Fatalf("unexpected extracted value: %q", got["header.navigation.home"])
+	if len(got) != 0 {
+		t.Fatalf("expected no entry for locale-key call, got %#v", got)
 	}
 }
 
-func TestLiquidParserParseWithContextReturnsNilContext(t *testing.T) {
-	values, contextByKey, err := (LiquidParser{}).ParseWithContext([]byte(`{{ 'header.navigation.home' | t }}`))
+func TestLiquidParserParseSkipsUnsafeBlocks(t *testing.T) {
+	got, err := (LiquidParser{}).Parse([]byte(`Intro text.
+{% raw %}
+Raw text should not translate.
+{% endraw %}
+{% schema %}
+{ "name": "Schema name should not translate" }
+{% endschema %}
+Outro text.`))
 	if err != nil {
-		t.Fatalf("parse with context: %v", err)
+		t.Fatalf("parse: %v", err)
 	}
-	if len(values) != 1 {
-		t.Fatalf("expected one extracted entry, got %d", len(values))
+
+	if len(got) != 2 {
+		t.Fatalf("expected visible text on either side of skipped blocks, got %#v", got)
 	}
-	if values["header.navigation.home"] != "header.navigation.home" {
-		t.Fatalf("unexpected extracted value: %q", values["header.navigation.home"])
+	if !liquidValuesContain(got, "Intro text.\n") {
+		t.Fatalf("expected intro text, got %#v", got)
 	}
-	if contextByKey != nil {
-		t.Fatalf("expected nil context map, got %#v", contextByKey)
+	if !liquidValuesContain(got, "\nOutro text.") {
+		t.Fatalf("expected outro text, got %#v", got)
+	}
+	for _, value := range got {
+		if strings.Contains(value, "Raw text") || strings.Contains(value, "Schema name") || strings.Contains(value, "HLLQPH_") {
+			t.Fatalf("expected skipped block bodies and placeholders outside extracted text, got %q", value)
+		}
 	}
 }
 
-func TestLiquidParserParseWithDiagnosticsEmitsDynamicKeyWarning(t *testing.T) {
-	var diagnostics []Diagnostic
-	values, contextByKey, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`{{ 'static.key' | t }}
-{{ product.title | t }}
-{{ section.settings.label | default: 'Label' | t }}
-`), &diagnostics)
-	if err != nil {
-		t.Fatalf("parse with diagnostics: %v", err)
+func TestLiquidParserShopifyExampleShapes(t *testing.T) {
+	tests := []struct {
+		name      string
+		source    string
+		wantTexts []string
+	}{
+		{
+			name: "price range",
+			source: `{% if available %}
+  {% if product.price_varies and template == 'collection' %}
+    <p>From {{ product.price_min | money }} to {{ product.price_max | money }}</p>
+  {% else %}
+    <p>{{ product.price | money }}</p>
+  {% endif %}
+{% else %}
+  <p>Sold out</p>
+{% endif %}`,
+			wantTexts: []string{"From ", "Sold out"},
+		},
+		{
+			name: "announcement bar",
+			source: `{%- if section.settings.show_announcement -%}
+  <p>{{ section.settings.text | escape }}</p>
+{%- endif -%}
+{% schema %}
+{ "name": "Announcement bar", "settings": [{ "label": "Announcement text", "default": "Announce something here" }] }
+{% endschema %}`,
+			wantTexts: nil,
+		},
+		{
+			name: "product recommendations",
+			source: `{%- if section.settings.show_product_recommendations -%}
+  <div class="product-recommendations" data-product-id="{{ product.id }}" data-limit="4">
+    {%- if recommendations.products_count > 0 -%}
+      <h2>You may also like</h2>
+      <ul>
+        {%- for product in recommendations.products -%}
+          <li><a href="{{ product.url }}">{{ product.title }}</a></li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+{%- endif -%}
+{% schema %}{ "name": "Product recommendations" }{% endschema %}
+{% javascript %}console.log("Do not translate this");{% endjavascript %}`,
+			wantTexts: []string{"You may also like"},
+		},
+		{
+			name: "product variant selector",
+			source: `{%- unless product.has_only_default_variant -%}
+  {%- for option in product.options_with_values -%}
+    <input type="radio"
+      {% if option.selected_value == value %} checked="checked"{% endif %}
+      value="{{ value | escape }}"
+      id="ProductSelect-option-{{ option.name | handleize }}-{{ value | escape }}">
+    <label for="ProductSelect-option-{{ option.name | handleize }}-{{ value | escape }}">
+      {{ value | escape }}
+    </label>
+  {%- endfor -%}
+{%- endunless -%}`,
+			wantTexts: nil,
+		},
 	}
 
-	if len(values) != 1 {
-		t.Fatalf("expected one static entry, got %#v", values)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := (LiquidParser{}).Parse([]byte(tc.source))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if len(got) != len(tc.wantTexts) {
+				t.Fatalf("expected %d entries, got %#v", len(tc.wantTexts), got)
+			}
+			for _, want := range tc.wantTexts {
+				if !liquidValueContainsText(got, want) {
+					t.Fatalf("expected text %q in %#v", want, got)
+				}
+			}
+		})
 	}
-	if values["static.key"] != "static.key" {
-		t.Fatalf("expected static key to be extracted, got %#v", values)
-	}
-	if contextByKey != nil {
-		t.Fatalf("expected nil context map, got %#v", contextByKey)
-	}
-
-	if len(diagnostics) != 2 {
-		t.Fatalf("expected two diagnostics, got %#v", diagnostics)
-	}
-	assertLiquidDynamicKeyDiagnostic(t, diagnostics[0], unknownDiagnosticFilePath, 2)
-	assertLiquidDynamicKeyDiagnostic(t, diagnostics[1], unknownDiagnosticFilePath, 3)
 }
 
-func TestLiquidParserParseWithDiagnosticsIgnoresStringLiteralPipes(t *testing.T) {
-	var diagnostics []Diagnostic
-	values, _, err := (LiquidParser{}).ParseWithDiagnostics([]byte(`
-{{ "'theme.string_literal.ignored' | t" }}
-{{ 'theme.included' | t }}
-`), &diagnostics)
-	if err != nil {
-		t.Fatalf("parse with diagnostics: %v", err)
-	}
-
-	if len(diagnostics) != 0 {
-		t.Fatalf("expected no diagnostics, got %#v", diagnostics)
-	}
-	if values["theme.included"] != "theme.included" {
-		t.Fatalf("expected included key, got %#v", values)
-	}
-}
-
-func TestLiquidStringLiteralValueUnescapesBackslashSequences(t *testing.T) {
-	value, ok := liquidStringLiteralValue(`'key\'s.path'`)
-	if !ok {
-		t.Fatal("expected single-quoted literal")
-	}
-	if value != "key's.path" {
-		t.Fatalf("unexpected single-quoted value: %q", value)
-	}
-
-	value, ok = liquidStringLiteralValue(`"key\"quote.path"`)
-	if !ok {
-		t.Fatal("expected double-quoted literal")
-	}
-	if value != `key"quote.path` {
-		t.Fatalf("unexpected double-quoted value: %q", value)
-	}
-}
-
-func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
-	_, err := (LiquidParser{}).Parse([]byte(`{% if product.available %}{{ 'product.available' | t }}`))
+func TestLiquidParserParseReturnsTypedErrorForUnclosedDelimiter(t *testing.T) {
+	_, err := (LiquidParser{}).Parse([]byte(`Hello {{ customer.name`))
 	if err == nil {
-		t.Fatal("expected malformed Liquid to return an error")
+		t.Fatal("expected malformed Liquid delimiter to return an error")
 	}
 
 	var parseErr *LiquidParseError
@@ -119,32 +311,28 @@ func TestLiquidParserParseReturnsTypedErrorForMalformedInput(t *testing.T) {
 	if parseErr.Unwrap() != nil {
 		t.Fatalf("expected nil unwrap, got %v", parseErr.Unwrap())
 	}
-	assertLiquidParseErrorMessage(t, parseErr.Error())
+	if !strings.Contains(parseErr.Error(), "unclosed liquid output delimiter") {
+		t.Fatalf("unexpected parse error: %v", parseErr)
+	}
 }
 
-func TestLiquidParserParseRecoversPanicAsTypedError(t *testing.T) {
-	_, _, err := parseLiquidTemplateWithDiagnostics(unknownDiagnosticFilePath, []byte(`{{ 'static.key' | t }}`), nil, func([]byte, string, int) (*liquid.Template, error) {
-		panic("parser exploded")
-	})
+func TestLiquidParserParseReturnsTypedErrorForUnclosedSkippedBlock(t *testing.T) {
+	_, err := (LiquidParser{}).Parse([]byte(`{% raw %} nope`))
 	if err == nil {
-		t.Fatal("expected recovered panic to return an error")
+		t.Fatal("expected malformed Liquid block to return an error")
 	}
 
 	var parseErr *LiquidParseError
 	if !errors.As(err, &parseErr) {
 		t.Fatalf("expected LiquidParseError, got %T: %v", err, err)
 	}
-	if parseErr.Unwrap() != nil {
-		t.Fatalf("expected nil unwrap, got %v", parseErr.Unwrap())
+	if !strings.Contains(parseErr.Error(), "unclosed liquid raw block") {
+		t.Fatalf("unexpected parse error: %v", parseErr)
 	}
-	if parseErr.PanicValue != "parser exploded" {
-		t.Fatalf("unexpected panic value: %#v", parseErr.PanicValue)
-	}
-	assertLiquidParseErrorMessage(t, parseErr.Error())
 }
 
 func TestLiquidParserStrategyErrorIncludesSourcePath(t *testing.T) {
-	_, err := NewDefaultStrategy().Parse("sections/header.liquid", []byte(`{% if product.available %}`))
+	_, err := NewDefaultStrategy().Parse("sections/header.liquid", []byte(`Hello {{ customer.name`))
 	if err == nil {
 		t.Fatal("expected malformed Liquid to return an error")
 	}
@@ -161,160 +349,90 @@ func TestLiquidParserStrategyErrorIncludesSourcePath(t *testing.T) {
 	}
 }
 
-func TestLiquidParserParseExtractsMultipleStaticKeys(t *testing.T) {
-	got, err := (LiquidParser{}).Parse([]byte(`
+func TestMarshalLiquidReplacesTextAndPreservesLiquidSyntax(t *testing.T) {
+	template := []byte(`<p>Hello {{ customer.first_name }}.</p>
 {{ 'header.navigation.home' | t }}
-{{ "footer.contact.title" | t }}
-{{ 'header.navigation.home' | t }}
-`))
+`)
+	values, err := (LiquidParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
+	key, source := singleLiquidEntry(t, values)
 
-	if len(got) != 2 {
-		t.Fatalf("expected two unique extracted entries, got %d", len(got))
+	out, diags := MarshalLiquid(template, map[string]string{
+		key: strings.Replace(source, "Hello", "Bonjour", 1),
+	})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
 	}
-	if got["header.navigation.home"] != "header.navigation.home" {
-		t.Fatalf("unexpected first extracted value: %q", got["header.navigation.home"])
+
+	rendered := string(out)
+	if !strings.Contains(rendered, `<p>Bonjour {{ customer.first_name }}.</p>`) {
+		t.Fatalf("expected translated paragraph with Liquid syntax restored, got %q", rendered)
 	}
-	if got["footer.contact.title"] != "footer.contact.title" {
-		t.Fatalf("unexpected second extracted value: %q", got["footer.contact.title"])
+	if !strings.Contains(rendered, `{{ 'header.navigation.home' | t }}`) {
+		t.Fatalf("expected Shopify translation call preserved, got %q", rendered)
 	}
 }
 
-func TestLiquidParserParseIgnoresUnsupportedShapes(t *testing.T) {
-	got, err := (LiquidParser{}).Parse([]byte(`
-{{ variable | t }}
-{{ section.settings.label | t }}
-{{ 'header.navigation.home' | upcase }}
-`))
+func TestMarshalLiquidFallsBackWhenLiquidPlaceholderMissing(t *testing.T) {
+	template := []byte(`<p>Hello {{ customer.first_name }}.</p>`)
+	values, err := (LiquidParser{}).Parse(template)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
+	key, _ := singleLiquidEntry(t, values)
 
-	if len(got) != 0 {
-		t.Fatalf("expected no extracted entries for unsupported shapes, got %#v", got)
+	out, diags := MarshalLiquid(template, map[string]string{key: "Bonjour."})
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected source fallback diagnostic for %q, got %#v", key, diags)
+	}
+	if string(out) != string(template) {
+		t.Fatalf("expected source fallback, got %q", string(out))
 	}
 }
 
-func TestLiquidParserParseExtractsChainedFilterKeys(t *testing.T) {
-	got, err := (LiquidParser{}).Parse([]byte(`
-{{ 'header.navigation.home' | upcase | t }}
-{{ 'footer.contact.title' | t | escape }}
-{{ "cart.checkout.label" | default: "Checkout" | t | escape }}
-{{ 'header.navigation.home' | upcase }}
-`))
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+func TestMarshalLiquidWithTargetFallbackUsesExistingTargetByPosition(t *testing.T) {
+	source := []byte("<h1>Welcome</h1>\n<p>Checkout now.</p>\n")
+	target := []byte("<h1>Bienvenue</h1>\n<p>Achetez maintenant.</p>\n")
 
-	if len(got) != 3 {
-		t.Fatalf("expected three extracted entries, got %#v", got)
+	sourceEntries, err := (LiquidParser{}).Parse(source)
+	if err != nil {
+		t.Fatalf("parse source: %v", err)
 	}
-	expectedKeys := []string{
-		"header.navigation.home",
-		"footer.contact.title",
-		"cart.checkout.label",
-	}
-	for _, key := range expectedKeys {
-		if got[key] != key {
-			t.Fatalf("expected %q to be extracted, got %#v", key, got)
+	var checkoutKey string
+	for key, value := range sourceEntries {
+		if value == "Checkout now." {
+			checkoutKey = key
 		}
 	}
-	if _, ok := got["header.navigation.home | upcase"]; ok {
-		t.Fatalf("expected non-t chain to be ignored, got %#v", got)
+	if checkoutKey == "" {
+		t.Fatalf("expected checkout key in %#v", sourceEntries)
+	}
+
+	out, diags := MarshalLiquidWithTargetFallback(source, target, map[string]string{
+		checkoutKey: "Paiement maintenant.",
+	})
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallback keys: %#v", diags.SourceFallbackKeys)
+	}
+
+	rendered := string(out)
+	if !strings.Contains(rendered, "<h1>Bienvenue</h1>") {
+		t.Fatalf("expected existing target heading preserved, got %q", rendered)
+	}
+	if !strings.Contains(rendered, "<p>Paiement maintenant.</p>") {
+		t.Fatalf("expected staged paragraph translation, got %q", rendered)
 	}
 }
 
-func TestLiquidParserParseExtractsHTMLSafeAndCaptureKeys(t *testing.T) {
-	got, err := (LiquidParser{}).Parse([]byte(`
-{% capture header_title %}
-{{ 'sections.header.title' | t }}
-{% endcapture %}
-
-{{ 'sections.header.html' | html_safe | t }}
-{{ 'sections.footer.html' | t | html_safe }}
-`))
-	if err != nil {
-		t.Fatalf("parse: %v", err)
+func TestValidateLiquidInternalPlaceholders(t *testing.T) {
+	source := "Hello \x1eHLLQPH_ABCDEF123456_0\x1f."
+	if err := ValidateLiquidInternalPlaceholders(source, "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f."); err != nil {
+		t.Fatalf("unexpected placeholder validation error: %v", err)
 	}
-
-	if len(got) != 3 {
-		t.Fatalf("expected three extracted entries, got %#v", got)
-	}
-	expectedKeys := []string{
-		"sections.header.title",
-		"sections.header.html",
-		"sections.footer.html",
-	}
-	for _, key := range expectedKeys {
-		if got[key] != key {
-			t.Fatalf("expected %q to be extracted, got %#v", key, got)
-		}
-	}
-}
-
-func TestLiquidParserParseSkipsNonTranslatableRegions(t *testing.T) {
-	got, err := (LiquidParser{}).Parse([]byte(`
-{% comment %}
-{{ 'theme.comment.ignored' | t }}
-{% endcomment %}
-
-{% raw %}
-{{ 'theme.raw.ignored' | t }}
-{% endraw %}
-
-{{ "'theme.string_literal.ignored' | t" }}
-{% assign ignored = "'theme.assigned_string.ignored' | t" %}
-
-{{ 'theme.included' | t }}
-`))
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-
-	if len(got) != 1 {
-		t.Fatalf("expected one extracted entry, got %#v", got)
-	}
-	if got["theme.included"] != "theme.included" {
-		t.Fatalf("expected included key, got %#v", got)
-	}
-
-	ignoredKeys := []string{
-		"theme.comment.ignored",
-		"theme.raw.ignored",
-		"theme.string_literal.ignored",
-		"theme.assigned_string.ignored",
-	}
-	for _, key := range ignoredKeys {
-		if _, ok := got[key]; ok {
-			t.Fatalf("expected %q to be ignored, got %#v", key, got)
-		}
-	}
-}
-
-func TestLiquidPackageParsesChainedFilters(t *testing.T) {
-	engine := liquid.NewEngine()
-	template, err := engine.ParseTemplate([]byte(`{{ "hello" | capitalize | append: "!" }}`))
-	if err != nil {
-		t.Fatalf("parse template: %v", err)
-	}
-	root := template.GetRoot()
-
-	seq, ok := root.(*render.SeqNode)
-	if !ok {
-		t.Fatalf("unexpected root type %T", root)
-	}
-	if len(seq.Children) != 1 {
-		t.Fatalf("unexpected child count: got %d want 1", len(seq.Children))
-	}
-
-	objectNode, ok := seq.Children[0].(*render.ObjectNode)
-	if !ok {
-		t.Fatalf("unexpected child type %T", seq.Children[0])
-	}
-	if sourceText := objectNode.SourceText(); !strings.Contains(sourceText, "capitalize") || !strings.Contains(sourceText, "append") {
-		t.Fatalf("expected chained filter source text, got %q", sourceText)
+	if err := ValidateLiquidInternalPlaceholders(source, "Bonjour."); err == nil {
+		t.Fatal("expected placeholder validation error")
 	}
 }
 
@@ -322,30 +440,44 @@ func requireLiquidParser(_ Parser) {}
 
 func requireLiquidContextParser(_ ContextParser) {}
 
-func assertLiquidParseErrorMessage(t *testing.T, message string) {
+func singleLiquidEntry(t *testing.T, entries map[string]string) (string, string) {
 	t.Helper()
 
-	if !strings.Contains(message, unknownDiagnosticFilePath) {
-		t.Fatalf("expected error message to include file path placeholder %q, got %q", unknownDiagnosticFilePath, message)
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %#v", entries)
 	}
-	if !strings.Contains(strings.ToLower(message), "liquid") || !strings.Contains(strings.ToLower(message), "parse") {
-		t.Fatalf("expected error message to include parse failure description, got %q", message)
+	for key, value := range entries {
+		return key, value
 	}
+	panic("unreachable")
 }
 
-func assertLiquidDynamicKeyDiagnostic(t *testing.T, got Diagnostic, filePath string, lineNumber int) {
+func liquidValuesContain(values map[string]string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func liquidValueContainsText(values map[string]string, want string) bool {
+	for _, value := range values {
+		if strings.Contains(value, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func liquidValueContaining(t *testing.T, values map[string]string, want string) string {
 	t.Helper()
 
-	if got.Code != LiquidDynamicKeyDiagnosticCode {
-		t.Fatalf("unexpected diagnostic code: %#v", got)
+	for _, value := range values {
+		if strings.Contains(value, want) {
+			return value
+		}
 	}
-	if got.FilePath != filePath {
-		t.Fatalf("unexpected diagnostic file path: %#v", got)
-	}
-	if got.LineNumber != lineNumber {
-		t.Fatalf("unexpected diagnostic line number: got %d want %d in %#v", got.LineNumber, lineNumber, got)
-	}
-	if got.Hint != DefaultDiagnosticHint(LiquidDynamicKeyDiagnosticCode) {
-		t.Fatalf("unexpected diagnostic hint: %#v", got)
-	}
+	t.Fatalf("expected value containing %q in %#v", want, values)
+	return ""
 }

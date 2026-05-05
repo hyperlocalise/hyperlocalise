@@ -1,20 +1,6 @@
 {
-  "diagnostics": [
-    {
-      "code": "W001-liquid-dynamic-key",
-      "file_path": "\u003cunknown\u003e",
-      "line_number": 2,
-      "hint": "Use a string literal before the t filter so Hyperlocalise can extract the key, or add the translation key manually."
-    },
-    {
-      "code": "W001-liquid-dynamic-key",
-      "file_path": "\u003cunknown\u003e",
-      "line_number": 3,
-      "hint": "Use a string literal before the t filter so Hyperlocalise can extract the key, or add the translation key manually."
-    }
-  ],
   "error": "",
   "values": {
-    "static.key": "static.key"
+    "liquid.8aebf76dc29bd239": "Dynamic key calls above are preserved, but this hardcoded sentence is translated."
   }
 }
