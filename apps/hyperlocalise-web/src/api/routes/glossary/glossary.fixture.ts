@@ -164,7 +164,7 @@ export function createGlossaryTestFixture(client?: any) {
       .returning();
 
     const [glossary] = await db
-      .insert(schema.translationGlossaries)
+      .insert(schema.glossaries)
       .values({
         organizationId: organization.id,
         createdByUserId: user.id,

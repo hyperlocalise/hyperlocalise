@@ -20,7 +20,7 @@ type GitHubAgentCardProps = {
 };
 
 type GitHubInstallation = {
-  githubInstallationId: number;
+  githubInstallationId: string;
   accountLogin: string | null;
   accountType: string | null;
   repositoryCount?: number;
@@ -28,7 +28,7 @@ type GitHubInstallation = {
 };
 
 type GitHubRepository = {
-  githubRepositoryId: number;
+  githubRepositoryId: string;
   fullName: string;
   private: boolean;
   archived: boolean;
@@ -126,7 +126,7 @@ function useUpdateRepositories(organizationSlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (enabledRepositoryIds: number[]) => {
+    mutationFn: async (enabledRepositoryIds: string[]) => {
       const res = await api.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
       ].$patch({
@@ -194,7 +194,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
   const updateRepositories = useUpdateRepositories(organizationSlug);
   const disconnect = useDisconnectInstallation(organizationSlug);
   const [query, setQuery] = useState("");
-  const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<Set<number> | null>(null);
+  const [selectedRepositoryIds, setSelectedRepositoryIds] = useState<Set<string> | null>(null);
 
   const effectiveSelection = useMemo(() => {
     if (selectedRepositoryIds) {
@@ -229,7 +229,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
   }, [getInstallUrl]);
 
   const toggleRepository = useCallback(
-    (repositoryId: number) => {
+    (repositoryId: string) => {
       const next = new Set(effectiveSelection);
       if (next.has(repositoryId)) {
         next.delete(repositoryId);

@@ -69,7 +69,7 @@ async function verifyGitHubWebhookSignature(bodyText: string, signature: string 
   }
 }
 
-async function findStoredInstallation(githubInstallationId: number) {
+async function findStoredInstallation(githubInstallationId: string) {
   const [installation] = await db
     .select()
     .from(schema.githubInstallations)
@@ -80,8 +80,8 @@ async function findStoredInstallation(githubInstallationId: number) {
 }
 
 async function isRepositoryEnabled(input: {
-  githubInstallationId: number;
-  githubRepositoryId: number;
+  githubInstallationId: string;
+  githubRepositoryId: string;
 }) {
   const [repository] = await db
     .select({ id: schema.githubInstallationRepositories.id })
@@ -103,7 +103,7 @@ async function applyRepositoryWebhook(payload: GitHubWebhookPayload) {
     return;
   }
 
-  const installation = await findStoredInstallation(payload.installation.id);
+  const installation = await findStoredInstallation(String(payload.installation.id));
   if (!installation) {
     return;
   }
@@ -122,7 +122,7 @@ async function applyRepositoryWebhook(payload: GitHubWebhookPayload) {
   if (payload.repository && payload.action === "deleted") {
     await removeGitHubInstallationRepositories({
       githubInstallationId: installation.githubInstallationId,
-      githubRepositoryIds: [payload.repository.id],
+      githubRepositoryIds: [String(payload.repository.id)],
     });
   }
 
@@ -139,7 +139,9 @@ async function applyRepositoryWebhook(payload: GitHubWebhookPayload) {
 
   await removeGitHubInstallationRepositories({
     githubInstallationId: installation.githubInstallationId,
-    githubRepositoryIds: (payload.repositories_removed ?? []).map((repository) => repository.id),
+    githubRepositoryIds: (payload.repositories_removed ?? []).map((repository) =>
+      String(repository.id),
+    ),
   });
 }
 
@@ -184,7 +186,9 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       logger.info({ installationId: payload.installation.id }, "deleting github installation");
       await db
         .delete(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.githubInstallationId, payload.installation.id));
+        .where(
+          eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
+        );
 
       return c.json({ ok: true, ignored: false }, 200);
     }
@@ -209,7 +213,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       return c.json({ ok: true, ignored: true }, 200);
     }
 
-    const installation = await findStoredInstallation(payload.installation.id);
+    const installation = await findStoredInstallation(String(payload.installation.id));
     if (!installation) {
       logger.info(
         { installationId: payload.installation.id },
@@ -228,7 +232,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
 
     const enabled = await isRepositoryEnabled({
       githubInstallationId: installation.githubInstallationId,
-      githubRepositoryId: payload.repository.id,
+      githubRepositoryId: String(payload.repository.id),
     });
     if (!enabled) {
       logger.info(

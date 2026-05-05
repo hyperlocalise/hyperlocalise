@@ -33,29 +33,34 @@ export async function resolveInboundEmailOrganization(input: {
     .filter((alias): alias is string => Boolean(alias));
 
   for (const alias of aliases) {
-    const [organization] = await db
+    const [connector] = await db
       .select({
-        id: schema.organizations.id,
-        inboundEmailAlias: schema.organizations.inboundEmailAlias,
+        organizationId: schema.connectors.organizationId,
+        config: schema.connectors.config,
       })
-      .from(schema.organizations)
+      .from(schema.connectors)
       .innerJoin(
         schema.organizationMemberships,
-        eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+        eq(schema.organizationMemberships.organizationId, schema.connectors.organizationId),
       )
       .where(
         and(
-          eq(schema.organizations.inboundEmailAlias, alias),
-          eq(schema.organizations.emailAgentEnabled, true),
+          eq(schema.connectors.kind, "email"),
+          eq(schema.connectors.enabled, true),
           eq(schema.organizationMemberships.userId, input.senderUserId),
         ),
       )
       .limit(1);
 
-    if (organization?.inboundEmailAlias) {
+    if (!connector) {
+      continue;
+    }
+
+    const config = connector.config as { inboundEmailAlias?: string };
+    if (config.inboundEmailAlias === alias) {
       return {
-        id: organization.id,
-        inboundEmailAddress: asInboundEmailAddress(organization.inboundEmailAlias),
+        id: connector.organizationId,
+        inboundEmailAddress: asInboundEmailAddress(alias),
       };
     }
   }

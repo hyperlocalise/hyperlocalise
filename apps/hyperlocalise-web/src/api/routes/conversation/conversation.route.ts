@@ -1,42 +1,50 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import type { FileStorageAdapter } from "@/lib/file-storage";
+import { getFileStorageAdapter } from "@/lib/file-storage";
+import { createStoredFile } from "@/lib/file-storage/records";
+import { addInteractionMessage } from "@/lib/interactions";
+
+import { createChatStreamRoutes } from "./chat-stream.route";
 
 const conversationIdParamsSchema = z.object({
-  conversationId: z.string().uuid(),
-});
-
-const postMessageBodySchema = z.object({
-  text: z.string().trim().min(1).max(10000),
+  conversationId: z.uuid(),
 });
 
 const listConversationsQuerySchema = z.object({
-  status: z.enum(["active", "archived", "resolved"]).optional(),
+  status: z.enum(["active", "archived"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   cursor: z.string().optional(),
 });
 
+const maxMessageUploadBytes = 25 * 1024 * 1024;
+const maxMessageUploadFiles = 5;
+
 function notFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
   return c.json({ error: "not_found" }, 404);
+}
+
+function badRequestResponse(c: { json(body: { error: string }, status: 400): Response }) {
+  return c.json({ error: "invalid_message_payload" }, 400);
+}
+
+function tooManyFilesResponse(c: {
+  json(body: { error: string; maxFiles: number }, status: 400): Response;
+}) {
+  return c.json({ error: "too_many_files", maxFiles: maxMessageUploadFiles }, 400);
 }
 
 const validateConversationParams = validator("param", (value, c) => {
   const parsed = conversationIdParamsSchema.safeParse(value);
   if (!parsed.success) {
     return notFoundResponse(c);
-  }
-  return parsed.data;
-});
-
-const validatePostMessageBody = validator("json", (value, c) => {
-  const parsed = postMessageBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return c.json({ error: "invalid_message_payload" }, 400);
   }
   return parsed.data;
 });
@@ -49,37 +57,51 @@ const validateListQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-export function createConversationRoutes() {
+function asString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asFiles(value: unknown) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return values.filter((item): item is File => item instanceof File && item.size > 0);
+}
+
+type CreateConversationRoutesOptions = {
+  fileStorageAdapter?: FileStorageAdapter;
+};
+
+export function createConversationRoutes(options: CreateConversationRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const conditions = [eq(schema.conversations.organizationId, orgId)];
+      const conditions = [eq(schema.inboxItems.organizationId, orgId)];
       if (query.status) {
-        conditions.push(eq(schema.conversations.status, query.status));
+        conditions.push(eq(schema.inboxItems.status, query.status));
       }
       if (query.cursor) {
         const cursorDate = new Date(query.cursor);
         if (!Number.isNaN(cursorDate.getTime())) {
-          conditions.push(lt(schema.conversations.lastMessageAt, cursorDate));
+          conditions.push(lt(schema.interactions.lastMessageAt, cursorDate));
         }
       }
 
       const conversations = await db
         .select({
-          id: schema.conversations.id,
-          title: schema.conversations.title,
-          source: schema.conversations.source,
-          status: schema.conversations.status,
-          projectId: schema.conversations.projectId,
-          lastMessageAt: schema.conversations.lastMessageAt,
-          createdAt: schema.conversations.createdAt,
+          id: schema.interactions.id,
+          title: schema.interactions.title,
+          source: schema.interactions.source,
+          status: schema.inboxItems.status,
+          projectId: schema.interactions.projectId,
+          lastMessageAt: schema.interactions.lastMessageAt,
+          createdAt: schema.interactions.createdAt,
         })
-        .from(schema.conversations)
+        .from(schema.inboxItems)
+        .innerJoin(schema.interactions, eq(schema.inboxItems.interactionId, schema.interactions.id))
         .where(and(...conditions))
-        .orderBy(desc(schema.conversations.lastMessageAt))
+        .orderBy(desc(schema.interactions.lastMessageAt))
         .limit(query.limit);
 
       // Fetch last message preview for each conversation
@@ -87,17 +109,17 @@ export function createConversationRoutes() {
       const lastMessages =
         conversationIds.length > 0
           ? await db
-              .selectDistinctOn([schema.conversationMessages.conversationId], {
-                conversationId: schema.conversationMessages.conversationId,
-                text: schema.conversationMessages.text,
-                senderType: schema.conversationMessages.senderType,
-                createdAt: schema.conversationMessages.createdAt,
+              .selectDistinctOn([schema.interactionMessages.interactionId], {
+                interactionId: schema.interactionMessages.interactionId,
+                text: schema.interactionMessages.text,
+                senderType: schema.interactionMessages.senderType,
+                createdAt: schema.interactionMessages.createdAt,
               })
-              .from(schema.conversationMessages)
-              .where(inArray(schema.conversationMessages.conversationId, conversationIds))
+              .from(schema.interactionMessages)
+              .where(inArray(schema.interactionMessages.interactionId, conversationIds))
               .orderBy(
-                schema.conversationMessages.conversationId,
-                desc(schema.conversationMessages.createdAt),
+                schema.interactionMessages.interactionId,
+                desc(schema.interactionMessages.createdAt),
               )
           : [];
 
@@ -106,8 +128,8 @@ export function createConversationRoutes() {
         { text: string; senderType: "user" | "agent"; createdAt: Date }
       >();
       for (const msg of lastMessages) {
-        if (!lastMessageMap.has(msg.conversationId)) {
-          lastMessageMap.set(msg.conversationId, {
+        if (!lastMessageMap.has(msg.interactionId)) {
+          lastMessageMap.set(msg.interactionId, {
             text: msg.text,
             senderType: msg.senderType,
             createdAt: msg.createdAt,
@@ -130,12 +152,24 @@ export function createConversationRoutes() {
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
       const [conversation] = await db
-        .select()
-        .from(schema.conversations)
+        .select({
+          id: schema.interactions.id,
+          organizationId: schema.interactions.organizationId,
+          projectId: schema.interactions.projectId,
+          source: schema.interactions.source,
+          title: schema.interactions.title,
+          sourceThreadId: schema.interactions.sourceThreadId,
+          lastMessageAt: schema.interactions.lastMessageAt,
+          createdAt: schema.interactions.createdAt,
+          updatedAt: schema.interactions.updatedAt,
+          status: schema.inboxItems.status,
+        })
+        .from(schema.interactions)
+        .innerJoin(schema.inboxItems, eq(schema.inboxItems.interactionId, schema.interactions.id))
         .where(
           and(
-            eq(schema.conversations.id, conversationId),
-            eq(schema.conversations.organizationId, orgId),
+            eq(schema.interactions.id, conversationId),
+            eq(schema.interactions.organizationId, orgId),
           ),
         )
         .limit(1);
@@ -146,9 +180,9 @@ export function createConversationRoutes() {
 
       const messages = await db
         .select()
-        .from(schema.conversationMessages)
-        .where(eq(schema.conversationMessages.conversationId, conversationId))
-        .orderBy(schema.conversationMessages.createdAt);
+        .from(schema.interactionMessages)
+        .where(eq(schema.interactionMessages.interactionId, conversationId))
+        .orderBy(schema.interactionMessages.createdAt);
 
       return c.json({ conversation, messages }, 200);
     })
@@ -157,12 +191,12 @@ export function createConversationRoutes() {
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
       const [conversation] = await db
-        .select({ id: schema.conversations.id })
-        .from(schema.conversations)
+        .select({ id: schema.interactions.id })
+        .from(schema.interactions)
         .where(
           and(
-            eq(schema.conversations.id, conversationId),
-            eq(schema.conversations.organizationId, orgId),
+            eq(schema.interactions.id, conversationId),
+            eq(schema.interactions.organizationId, orgId),
           ),
         )
         .limit(1);
@@ -173,9 +207,9 @@ export function createConversationRoutes() {
 
       const messages = await db
         .select()
-        .from(schema.conversationMessages)
-        .where(eq(schema.conversationMessages.conversationId, conversationId))
-        .orderBy(desc(schema.conversationMessages.createdAt))
+        .from(schema.interactionMessages)
+        .where(eq(schema.interactionMessages.interactionId, conversationId))
+        .orderBy(desc(schema.interactionMessages.createdAt))
         .limit(50);
 
       return c.json({ messages: messages.reverse() }, 200);
@@ -183,19 +217,37 @@ export function createConversationRoutes() {
     .post(
       "/:conversationId/messages",
       validateConversationParams,
-      validatePostMessageBody,
+      bodyLimit({
+        maxSize: maxMessageUploadBytes,
+        onError: (c) => c.json({ error: "upload_too_large" }, 413),
+      }),
       async (c) => {
         const { conversationId } = c.req.valid("param");
-        const body = c.req.valid("json");
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
+        const body = await c.req.parseBody({ all: true });
+        const text = asString(body.text) ?? "";
+        const files = asFiles(body.files);
+
+        if (!text.trim() && files.length === 0) {
+          return badRequestResponse(c);
+        }
+
+        if (files.length > maxMessageUploadFiles) {
+          return tooManyFilesResponse(c);
+        }
+
         const [conversation] = await db
-          .select({ id: schema.conversations.id, source: schema.conversations.source })
-          .from(schema.conversations)
+          .select({
+            id: schema.interactions.id,
+            source: schema.interactions.source,
+            projectId: schema.interactions.projectId,
+          })
+          .from(schema.interactions)
           .where(
             and(
-              eq(schema.conversations.id, conversationId),
-              eq(schema.conversations.organizationId, orgId),
+              eq(schema.interactions.id, conversationId),
+              eq(schema.interactions.organizationId, orgId),
             ),
           )
           .limit(1);
@@ -208,21 +260,56 @@ export function createConversationRoutes() {
           return c.json({ error: "conversation_not_replyable" }, 400);
         }
 
-        const now = new Date();
-        const [message] = await db
-          .insert(schema.conversationMessages)
-          .values({
-            conversationId,
-            senderType: "user",
-            text: body.text,
-            createdAt: now,
-          })
-          .returning();
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
-        await db
-          .update(schema.conversations)
-          .set({ lastMessageAt: now, updatedAt: now })
-          .where(eq(schema.conversations.id, conversationId));
+        const storedFiles = await Promise.all(
+          files.map(async (file) =>
+            createStoredFile({
+              organizationId: orgId,
+              projectId: conversation.projectId,
+              createdByUserId: c.var.auth.user.localUserId,
+              role: "source",
+              sourceKind: "chat_upload",
+              sourceInteractionId: conversationId,
+              filename: file.name,
+              contentType: file.type || "application/octet-stream",
+              content: await file.arrayBuffer(),
+              metadata: {
+                uploadSurface: "inbox_reply",
+              },
+              adapter,
+            }),
+          ),
+        );
+
+        let message;
+        try {
+          message = await addInteractionMessage({
+            interactionId: conversationId,
+            senderType: "user",
+            text,
+            attachments: storedFiles.map((file) => ({
+              id: file.id,
+              filename: file.filename,
+              contentType: file.contentType,
+              url: organizationSlug
+                ? `/api/orgs/${organizationSlug}/files/${file.id}`
+                : (file.downloadUrl ?? file.storageUrl),
+            })),
+          });
+        } catch (error) {
+          await db.delete(schema.storedFiles).where(
+            inArray(
+              schema.storedFiles.id,
+              storedFiles.map((f) => f.id),
+            ),
+          );
+          await Promise.allSettled(
+            storedFiles.map((file) => adapter.delete({ keyOrUrl: file.storageKey })),
+          );
+          throw error;
+        }
 
         // TODO: trigger agent response here
 
@@ -234,12 +321,12 @@ export function createConversationRoutes() {
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
       const [conversation] = await db
-        .select({ id: schema.conversations.id })
-        .from(schema.conversations)
+        .select({ id: schema.interactions.id })
+        .from(schema.interactions)
         .where(
           and(
-            eq(schema.conversations.id, conversationId),
-            eq(schema.conversations.organizationId, orgId),
+            eq(schema.interactions.id, conversationId),
+            eq(schema.interactions.organizationId, orgId),
           ),
         )
         .limit(1);
@@ -250,18 +337,29 @@ export function createConversationRoutes() {
 
       const jobs = await db
         .select({
-          id: schema.translationJobs.id,
-          projectId: schema.translationJobs.projectId,
-          type: schema.translationJobs.type,
-          status: schema.translationJobs.status,
-          outcomeKind: schema.translationJobs.outcomeKind,
-          createdAt: schema.translationJobs.createdAt,
-          completedAt: schema.translationJobs.completedAt,
+          id: schema.jobs.id,
+          projectId: schema.jobs.projectId,
+          type: schema.translationJobDetails.type,
+          status: schema.jobs.status,
+          outcomeKind: schema.translationJobDetails.outcomeKind,
+          createdAt: schema.jobs.createdAt,
+          completedAt: schema.jobs.completedAt,
         })
-        .from(schema.translationJobs)
-        .where(eq(schema.translationJobs.conversationId, conversationId))
-        .orderBy(desc(schema.translationJobs.createdAt));
+        .from(schema.jobs)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .where(
+          and(
+            eq(schema.jobs.kind, "translation"),
+            eq(schema.jobs.organizationId, orgId),
+            eq(schema.jobs.interactionId, conversationId),
+          ),
+        )
+        .orderBy(desc(schema.jobs.createdAt));
 
       return c.json({ jobs }, 200);
-    });
+    })
+    .route("/:conversationId/chat", createChatStreamRoutes());
 }

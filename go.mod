@@ -7,12 +7,12 @@ require (
 	charm.land/bubbletea/v2 v2.0.6
 	charm.land/lipgloss/v2 v2.0.3
 	charm.land/log/v2 v2.0.0
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/crowdin/crowdin-api-client-go v0.18.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/lokalise/go-lokalise-api/v5 v5.0.0
 	github.com/mattn/go-isatty v0.0.22
-	github.com/openai/openai-go/v3 v3.32.0
+	github.com/openai/openai-go/v3 v3.33.0
 	github.com/spf13/cobra v1.10.2
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3

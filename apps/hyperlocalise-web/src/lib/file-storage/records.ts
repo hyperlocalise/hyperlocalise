@@ -1,0 +1,155 @@
+import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database";
+
+import { getFileStorageAdapter, type FileStorageAdapter } from ".";
+
+type StoredFileRole = (typeof schema.storedFileRoleEnum.enumValues)[number];
+type StoredFileSourceKind = (typeof schema.storedFileSourceKindEnum.enumValues)[number];
+
+type CreateStoredFileInput = {
+  organizationId: string;
+  projectId?: string | null;
+  createdByUserId?: string | null;
+  role: StoredFileRole;
+  sourceKind: StoredFileSourceKind;
+  sourceInteractionId?: string | null;
+  sourceJobId?: string | null;
+  filename: string;
+  contentType: string;
+  content: Buffer | Uint8Array | ArrayBuffer;
+  metadata?: Record<string, unknown>;
+  adapter?: FileStorageAdapter;
+};
+
+type StoredFileScopeInput = {
+  organizationId: string;
+  projectId?: string | null;
+  fileId: string;
+};
+
+function createStoredFileId() {
+  return `file_${crypto.randomUUID()}`;
+}
+
+async function sha256Hex(content: Buffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest(
+    "SHA-256",
+    content.buffer.slice(
+      content.byteOffset,
+      content.byteOffset + content.byteLength,
+    ) as ArrayBuffer,
+  );
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safePathPart(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function bytesFromContent(content: Buffer | Uint8Array | ArrayBuffer) {
+  if (Buffer.isBuffer(content)) {
+    return content;
+  }
+
+  if (content instanceof ArrayBuffer) {
+    return Buffer.from(content);
+  }
+
+  return Buffer.from(content.buffer, content.byteOffset, content.byteLength);
+}
+
+function storageKey(input: {
+  organizationId: string;
+  projectId?: string | null;
+  id: string;
+  filename: string;
+}) {
+  const scope = input.projectId ? `projects/${safePathPart(input.projectId)}` : "workspace";
+  return [
+    "organizations",
+    safePathPart(input.organizationId),
+    scope,
+    "files",
+    input.id,
+    safePathPart(input.filename),
+  ].join("/");
+}
+
+export async function createStoredFile(input: CreateStoredFileInput) {
+  const adapter = input.adapter ?? getFileStorageAdapter();
+  const id = createStoredFileId();
+  const content = bytesFromContent(input.content);
+  const key = storageKey({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    id,
+    filename: input.filename,
+  });
+  const uploaded = await adapter.put({
+    key,
+    body: content,
+    contentType: input.contentType,
+  });
+
+  try {
+    const [file] = await db
+      .insert(schema.storedFiles)
+      .values({
+        id,
+        organizationId: input.organizationId,
+        projectId: input.projectId ?? null,
+        createdByUserId: input.createdByUserId ?? null,
+        role: input.role,
+        sourceKind: input.sourceKind,
+        sourceInteractionId: input.sourceInteractionId ?? null,
+        sourceJobId: input.sourceJobId ?? null,
+        storageProvider: uploaded.provider,
+        storageKey: uploaded.key,
+        storageUrl: uploaded.url,
+        downloadUrl: uploaded.downloadUrl,
+        filename: input.filename,
+        contentType: uploaded.contentType,
+        byteSize: content.byteLength,
+        sha256: await sha256Hex(content),
+        etag: uploaded.etag,
+        metadata: input.metadata ?? {},
+      })
+      .returning();
+
+    if (!file) {
+      throw new Error("Failed to create stored file: no row returned.");
+    }
+
+    return file;
+  } catch (error) {
+    await adapter.delete({ keyOrUrl: uploaded.key });
+    throw error;
+  }
+}
+
+export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
+  const filters: SQL[] = [
+    eq(schema.storedFiles.id, input.fileId),
+    eq(schema.storedFiles.organizationId, input.organizationId),
+  ];
+
+  if (input.projectId) {
+    const projectScope = or(
+      eq(schema.storedFiles.projectId, input.projectId),
+      isNull(schema.storedFiles.projectId),
+    );
+    if (projectScope) {
+      filters.push(projectScope);
+    }
+  }
+
+  const [file] = await db
+    .select()
+    .from(schema.storedFiles)
+    .where(and(...filters))
+    .limit(1);
+
+  return file ?? null;
+}

@@ -162,7 +162,7 @@ export function createProjectTestFixture(client?: any) {
       .returning();
 
     const [project] = await db
-      .insert(schema.translationProjects)
+      .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
         organizationId: organization.id,

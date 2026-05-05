@@ -14,7 +14,7 @@ function isAdminRole(role: string): boolean {
 }
 
 const updateRepositoriesSchema = z.object({
-  enabledRepositoryIds: z.array(z.number().int().positive()).default([]),
+  enabledRepositoryIds: z.array(z.string().regex(/^\d+$/)).default([]),
 });
 
 const searchRepositoriesSchema = z.object({

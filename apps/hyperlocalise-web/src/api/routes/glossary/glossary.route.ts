@@ -36,15 +36,15 @@ const glossaryStore: GlossaryStore = {
     const offset = query?.offset ?? 0;
     return db
       .select()
-      .from(schema.translationGlossaries)
-      .where(eq(schema.translationGlossaries.organizationId, auth.organization.localOrganizationId))
-      .orderBy(desc(schema.translationGlossaries.createdAt))
+      .from(schema.glossaries)
+      .where(eq(schema.glossaries.organizationId, auth.organization.localOrganizationId))
+      .orderBy(desc(schema.glossaries.createdAt))
       .limit(limit)
       .offset(offset);
   },
   async create(auth, payload) {
     const [glossary] = await db
-      .insert(schema.translationGlossaries)
+      .insert(schema.glossaries)
       .values({
         organizationId: auth.organization.localOrganizationId,
         createdByUserId: auth.user.localUserId,
@@ -60,7 +60,7 @@ const glossaryStore: GlossaryStore = {
   async getById(auth, glossaryId) {
     const [glossary] = await db
       .select()
-      .from(schema.translationGlossaries)
+      .from(schema.glossaries)
       .where(ownedGlossaryWhere(auth, glossaryId))
       .limit(1);
 
@@ -68,7 +68,7 @@ const glossaryStore: GlossaryStore = {
   },
   async update(auth, glossaryId, payload) {
     const [glossary] = await db
-      .update(schema.translationGlossaries)
+      .update(schema.glossaries)
       .set(payload)
       .where(ownedGlossaryWhere(auth, glossaryId))
       .returning();
@@ -77,9 +77,9 @@ const glossaryStore: GlossaryStore = {
   },
   async delete(auth, glossaryId) {
     const deletedGlossaries = await db
-      .delete(schema.translationGlossaries)
+      .delete(schema.glossaries)
       .where(ownedGlossaryWhere(auth, glossaryId))
-      .returning({ id: schema.translationGlossaries.id });
+      .returning({ id: schema.glossaries.id });
 
     return deletedGlossaries.length > 0;
   },
