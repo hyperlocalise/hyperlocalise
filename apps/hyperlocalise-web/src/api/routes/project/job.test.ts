@@ -674,7 +674,7 @@ describe("jobRoutes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "unsupported_source_file_format",
+      error: "invalid_job_payload",
     });
   });
 
