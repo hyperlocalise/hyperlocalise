@@ -14,6 +14,7 @@ func TestTranslationOutputKindForSourcePath(t *testing.T) {
 		{`/docs\Page.mdx`, translationOutputMarkdown},
 		{"C:\\docs\\en\\x.MDX", translationOutputMarkdown},
 		{"/srv/page.html", translationOutputHTML},
+		{"/srv/sections/header.liquid", translationOutputLiquid},
 		{"/pkg/messages.json", translationOutputICUInvariant},
 		{"/pkg/strings.arb", translationOutputICUInvariant},
 		{"noext", translationOutputICUInvariant},
@@ -96,6 +97,29 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			errContains: "placeholder parity",
 		},
 		{
+			name:       "liquid_placeholders_ok_then_icu_ok",
+			path:       "/en/a.liquid",
+			source:     "Hello \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
+			translated: "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
+			wantErr:    false,
+		},
+		{
+			name:        "liquid_placeholder_mismatch",
+			path:        "/en/a.liquid",
+			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f",
+			translated:  "Bonjour",
+			wantErr:     true,
+			errContains: "liquid internal placeholder",
+		},
+		{
+			name:        "liquid_placeholders_ok_icu_fails",
+			path:        "/en/a.liquid",
+			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f {name}",
+			translated:  "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f {wrong}",
+			wantErr:     true,
+			errContains: "placeholder parity",
+		},
+		{
 			name:       "json_icu_ok",
 			path:       "/pkg/en.json",
 			source:     "Hello {name}",
@@ -145,6 +169,9 @@ func TestValidateTranslatedOutputForKindDispatches(t *testing.T) {
 		t.Fatalf("unexpected %v", err)
 	}
 	if err := validateTranslatedOutputForKind(translationOutputHTML, "<p>a</p>", "<p>b</p>"); err != nil {
+		t.Fatalf("unexpected %v", err)
+	}
+	if err := validateTranslatedOutputForKind(translationOutputLiquid, "a \x1eHLLQPH_ABCDEF123456_0\x1f", "b \x1eHLLQPH_ABCDEF123456_0\x1f"); err != nil {
 		t.Fatalf("unexpected %v", err)
 	}
 	if err := validateTranslatedOutputForKind(translationOutputICUInvariant, "x {n}", "y {n}"); err != nil {
