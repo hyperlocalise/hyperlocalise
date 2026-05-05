@@ -74,14 +74,14 @@ func TestEvalRunAllowsIncompleteEvaluatorFlagsForDefaults(t *testing.T) {
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--eval-provider", "openai"})
 
-	prev := evalRunFunc
-	evalRunFunc = func(_ context.Context, in evalsvc.Input) (evalsvc.Report, error) {
+	prev := evalRunWithProgressFunc
+	evalRunWithProgressFunc = func(_ context.Context, in evalsvc.Input, _ func(evalsvc.ProgressEvent)) (evalsvc.Report, error) {
 		if in.EvalProvider != "openai" || in.EvalModel != "" {
 			t.Fatalf("unexpected eval input: %+v", in)
 		}
 		return evalsvc.Report{}, nil
 	}
-	t.Cleanup(func() { evalRunFunc = prev })
+	t.Cleanup(func() { evalRunWithProgressFunc = prev })
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("expected incomplete evaluator flags to be allowed, got %v", err)
@@ -95,13 +95,13 @@ func TestEvalRunPassesEvalPromptFromFile(t *testing.T) {
 		t.Fatalf("write prompt file: %v", err)
 	}
 
-	prev := evalRunFunc
+	prev := evalRunWithProgressFunc
 	var got evalsvc.Input
-	evalRunFunc = func(_ context.Context, in evalsvc.Input) (evalsvc.Report, error) {
+	evalRunWithProgressFunc = func(_ context.Context, in evalsvc.Input, _ func(evalsvc.ProgressEvent)) (evalsvc.Report, error) {
 		got = in
 		return evalsvc.Report{}, nil
 	}
-	t.Cleanup(func() { evalRunFunc = prev })
+	t.Cleanup(func() { evalRunWithProgressFunc = prev })
 
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"eval", "run", "--eval-set", "set.json", "--eval-provider", "openai", "--eval-model", "gpt-4.1-mini", "--eval-prompt-file", promptPath})
@@ -282,8 +282,34 @@ func TestEvalDashboardFinalSummaryIncludesBaselineDelta(t *testing.T) {
 }
 
 func TestEvalRunPrintsSummary(t *testing.T) {
-	prev := evalRunFunc
-	evalRunFunc = func(_ context.Context, _ evalsvc.Input) (evalsvc.Report, error) {
+	prev := evalRunWithProgressFunc
+	evalRunWithProgressFunc = func(_ context.Context, _ evalsvc.Input, progress func(evalsvc.ProgressEvent)) (evalsvc.Report, error) {
+		progress(evalsvc.ProgressEvent{
+			Kind:          evalsvc.ProgressEventPlanned,
+			CaseCount:     1,
+			TotalRuns:     2,
+			ExperimentIDs: []string{"default|openai|gpt|prompt", "other"},
+		})
+		progress(evalsvc.ProgressEvent{
+			Kind:        evalsvc.ProgressEventRunStarted,
+			TotalRuns:   2,
+			StartedRuns: 1,
+			Run: &evalsvc.RunResult{
+				CaseID:       "a",
+				ExperimentID: "default|openai|gpt|prompt",
+			},
+		})
+		progress(evalsvc.ProgressEvent{
+			Kind:           evalsvc.ProgressEventRunCompleted,
+			TotalRuns:      2,
+			StartedRuns:    1,
+			CompletedRuns:  1,
+			SuccessfulRuns: 1,
+			Run: &evalsvc.RunResult{
+				CaseID:       "a",
+				ExperimentID: "default|openai|gpt|prompt",
+			},
+		})
 		return evalsvc.Report{
 			Input: evalsvc.Input{
 				EvalSetPath:  "set.json",
@@ -323,7 +349,7 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 			},
 		}, nil
 	}
-	t.Cleanup(func() { evalRunFunc = prev })
+	t.Cleanup(func() { evalRunWithProgressFunc = prev })
 
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)
@@ -345,6 +371,15 @@ func TestEvalRunPrintsSummary(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "eval: starting dataset=set.json") {
 		t.Fatalf("expected start log, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "eval: planned cases=1 experiments=2 runs=2") {
+		t.Fatalf("expected planned progress log, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "eval: started 1/2 case=a experiment=default|openai|gpt|prompt") {
+		t.Fatalf("expected started progress log, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "eval: completed 1/2 case=a experiment=default|openai|gpt|prompt status=ok successful=1 failed=0") {
+		t.Fatalf("expected completed progress log, got %q", out.String())
 	}
 	if !strings.Contains(out.String(), "eval: judge provider=openai model=gpt-5.2 assertions=llm-rubric") {
 		t.Fatalf("expected judge log, got %q", out.String())
