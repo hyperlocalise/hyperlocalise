@@ -19,6 +19,7 @@ import {
   PromptInputBody,
   PromptInputButton,
   PromptInputFooter,
+  PromptInputProvider,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
@@ -78,19 +79,29 @@ type ApiProject = {
   name: string;
 };
 
-export function ReplyComposer({
-  conversationProjectId,
-  disabled,
-  isStreaming,
-  onSend,
-  organizationSlug,
-}: {
+type ReplyComposerProps = {
   conversationProjectId: string | null;
   disabled: boolean;
   isStreaming: boolean;
   onSend: (text: string, files: File[]) => void | Promise<void>;
   organizationSlug: string;
-}) {
+};
+
+export function ReplyComposer(props: ReplyComposerProps) {
+  return (
+    <PromptInputProvider>
+      <ReplyComposerContent {...props} />
+    </PromptInputProvider>
+  );
+}
+
+function ReplyComposerContent({
+  conversationProjectId,
+  disabled,
+  isStreaming,
+  onSend,
+  organizationSlug,
+}: ReplyComposerProps) {
   const [replyText, setReplyText] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState(conversationProjectId ?? "");
 
