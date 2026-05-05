@@ -10,6 +10,7 @@ import {
   CheckmarkCircle01Icon,
   CreditCardIcon,
   Invoice03Icon,
+  Key01Icon,
   Mail01Icon,
   Notification01Icon,
   Settings01Icon,
@@ -50,6 +51,13 @@ const settingsCards = [
     href: "account",
     icon: AiUserIcon,
     status: "Configured",
+  },
+  {
+    label: "API Keys",
+    description: "Manage API keys for programmatic access to translation jobs and workspace data.",
+    href: "api-keys",
+    icon: Key01Icon,
+    status: "Manage",
   },
   {
     label: "Billing",

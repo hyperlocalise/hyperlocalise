@@ -49,10 +49,7 @@ async function ensureGithubRepositoryTables() {
     );
   `);
   await db.$client.query(`
-    DROP INDEX IF EXISTS github_installation_repositories_github_repository_id_key;
-  `);
-  await db.$client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_github_repository_id_key
+    CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_installation_repository_key
     ON github_installation_repositories (github_installation_id, github_repository_id);
   `);
 }
@@ -67,15 +64,15 @@ async function createStoredGithubInstallation(enabled: boolean) {
 
   await db.insert(schema.githubInstallations).values({
     organizationId: auth.organization.localOrganizationId,
-    githubInstallationId: 54321,
-    githubAppId: 123,
+    githubInstallationId: "54321",
+    githubAppId: "123",
     accountLogin: "hyperlocalise",
     accountType: "Organization",
   });
   await db.insert(schema.githubInstallationRepositories).values({
     organizationId: auth.organization.localOrganizationId,
-    githubInstallationId: 54321,
-    githubRepositoryId: 9001,
+    githubInstallationId: "54321",
+    githubRepositoryId: "9001",
     owner: "hyperlocalise",
     name: "hyperlocalise",
     fullName: "hyperlocalise/hyperlocalise",
@@ -216,7 +213,7 @@ describe("githubWebhookRoutes", () => {
     const [repository] = await db
       .select()
       .from(schema.githubInstallationRepositories)
-      .where(eq(schema.githubInstallationRepositories.githubRepositoryId, 9002));
+      .where(eq(schema.githubInstallationRepositories.githubRepositoryId, "9002"));
     expect(repository).toMatchObject({
       organizationId: auth.organization.localOrganizationId,
       fullName: "hyperlocalise/demo",

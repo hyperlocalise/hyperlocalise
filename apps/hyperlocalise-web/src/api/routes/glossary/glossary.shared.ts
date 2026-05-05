@@ -27,7 +27,7 @@ export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["ro
 
 export function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
   return and(
-    eq(schema.translationGlossaries.id, glossaryId),
-    eq(schema.translationGlossaries.organizationId, auth.organization.localOrganizationId),
+    eq(schema.glossaries.id, glossaryId),
+    eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
   );
 }

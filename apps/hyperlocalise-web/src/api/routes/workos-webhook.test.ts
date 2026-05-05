@@ -23,9 +23,14 @@ vi.mock("@/api/auth/workos-sync", () => ({
   removeWorkosMembership: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@/lib/database", () => ({
-  db: {},
-}));
+vi.mock("@/lib/database", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/database")>();
+
+  return {
+    ...actual,
+    db: {},
+  };
+});
 
 describe("workosWebhookRoutes", () => {
   beforeEach(() => {

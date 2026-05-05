@@ -60,8 +60,8 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     redirect("/dashboard?error=github_app_not_configured");
   }
 
-  const githubInstallationId = Number.parseInt(installationId, 10);
-  const githubAppId = Number.parseInt(env.GITHUB_APP_ID, 10);
+  const githubInstallationId = installationId;
+  const githubAppId = env.GITHUB_APP_ID;
 
   const existing = await db
     .select()

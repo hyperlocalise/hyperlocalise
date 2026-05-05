@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
@@ -46,50 +46,59 @@ const validateUpdateEmailAgentBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+async function getEmailConnector(organizationId: string) {
+  const [connector] = await db
+    .select()
+    .from(schema.connectors)
+    .where(
+      and(
+        eq(schema.connectors.organizationId, organizationId),
+        eq(schema.connectors.kind, "email"),
+      ),
+    )
+    .limit(1);
+
+  return connector ?? null;
+}
+
 async function ensureInboundAlias(input: {
   organizationId: string;
   organizationSlug: string | null | undefined;
 }) {
   const aliasBase = normalizeSlug(input.organizationSlug);
 
+  const existing = await getEmailConnector(input.organizationId);
+  if (existing) {
+    const config = existing.config as { inboundEmailAlias?: string };
+    if (config.inboundEmailAlias) {
+      return existing;
+    }
+  }
+
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const alias = generateInboundAlias(aliasBase);
 
     try {
-      const [organization] = await db
-        .update(schema.organizations)
-        .set({
-          inboundEmailAlias: alias,
+      const [connector] = await db
+        .insert(schema.connectors)
+        .values({
+          organizationId: input.organizationId,
+          kind: "email",
+          enabled: false,
+          config: { inboundEmailAlias: alias },
         })
-        .where(
-          and(
-            eq(schema.organizations.id, input.organizationId),
-            isNull(schema.organizations.inboundEmailAlias),
-          ),
-        )
-        .returning({
-          emailAgentEnabled: schema.organizations.emailAgentEnabled,
-          inboundEmailAlias: schema.organizations.inboundEmailAlias,
-        });
-
-      if (organization) {
-        return organization;
-      }
-
-      const [existing] = await db
-        .select({
-          emailAgentEnabled: schema.organizations.emailAgentEnabled,
-          inboundEmailAlias: schema.organizations.inboundEmailAlias,
+        .onConflictDoUpdate({
+          target: [schema.connectors.organizationId, schema.connectors.kind],
+          set: {
+            config: { inboundEmailAlias: alias },
+            updatedAt: new Date(),
+          },
         })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.id, input.organizationId))
-        .limit(1);
+        .returning();
 
-      if (existing) {
-        return existing;
+      if (connector) {
+        return connector;
       }
-
-      return null;
     } catch (error) {
       if (
         typeof error === "object" &&
@@ -111,27 +120,16 @@ export function createAgentEmailRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      const [organization] = await db
-        .select({
-          emailAgentEnabled: schema.organizations.emailAgentEnabled,
-          inboundEmailAlias: schema.organizations.inboundEmailAlias,
-        })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.id, c.var.auth.organization.localOrganizationId))
-        .limit(1);
+      const connector = await getEmailConnector(c.var.auth.organization.localOrganizationId);
 
-      if (!organization) {
-        return c.json({ error: "organization_not_found" as const }, 404);
-      }
+      const enabled = connector?.enabled ?? false;
+      const config = (connector?.config ?? {}) as { inboundEmailAlias?: string };
 
       return c.json(
         {
           emailAgent: {
-            enabled: organization.emailAgentEnabled,
-            inboundEmailAddress: asInboundAddress(
-              organization.inboundEmailAlias,
-              organization.emailAgentEnabled,
-            ),
+            enabled,
+            inboundEmailAddress: asInboundAddress(config.inboundEmailAlias ?? null, enabled),
           },
         },
         200,
@@ -149,35 +147,39 @@ export function createAgentEmailRoutes() {
       }
 
       if (payload.enabled) {
-        const organizationWithAlias = await ensureInboundAlias({
+        const connectorWithAlias = await ensureInboundAlias({
           organizationId,
           organizationSlug,
         });
 
-        if (!organizationWithAlias) {
+        if (!connectorWithAlias) {
           return c.json({ error: "organization_not_found" as const }, 404);
         }
 
-        const [organization] = await db
-          .update(schema.organizations)
-          .set({ emailAgentEnabled: true })
-          .where(eq(schema.organizations.id, organizationId))
-          .returning({
-            emailAgentEnabled: schema.organizations.emailAgentEnabled,
-            inboundEmailAlias: schema.organizations.inboundEmailAlias,
-          });
+        const [connector] = await db
+          .update(schema.connectors)
+          .set({ enabled: true, updatedAt: new Date() })
+          .where(
+            and(
+              eq(schema.connectors.organizationId, organizationId),
+              eq(schema.connectors.kind, "email"),
+            ),
+          )
+          .returning();
 
-        if (!organization) {
+        if (!connector) {
           return c.json({ error: "organization_not_found" as const }, 404);
         }
+
+        const config = (connector.config ?? {}) as { inboundEmailAlias?: string };
 
         return c.json(
           {
             emailAgent: {
-              enabled: organization.emailAgentEnabled,
+              enabled: connector.enabled,
               inboundEmailAddress: asInboundAddress(
-                organization.inboundEmailAlias,
-                organization.emailAgentEnabled,
+                config.inboundEmailAlias ?? null,
+                connector.enabled,
               ),
             },
           },
@@ -185,26 +187,30 @@ export function createAgentEmailRoutes() {
         );
       }
 
-      const [organization] = await db
-        .update(schema.organizations)
-        .set({ emailAgentEnabled: false })
-        .where(eq(schema.organizations.id, organizationId))
-        .returning({
-          emailAgentEnabled: schema.organizations.emailAgentEnabled,
-          inboundEmailAlias: schema.organizations.inboundEmailAlias,
-        });
+      const [connector] = await db
+        .update(schema.connectors)
+        .set({ enabled: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.connectors.organizationId, organizationId),
+            eq(schema.connectors.kind, "email"),
+          ),
+        )
+        .returning();
 
-      if (!organization) {
+      if (!connector) {
         return c.json({ error: "organization_not_found" as const }, 404);
       }
+
+      const config = (connector.config ?? {}) as { inboundEmailAlias?: string };
 
       return c.json(
         {
           emailAgent: {
-            enabled: organization.emailAgentEnabled,
+            enabled: connector.enabled,
             inboundEmailAddress: asInboundAddress(
-              organization.inboundEmailAlias,
-              organization.emailAgentEnabled,
+              config.inboundEmailAlias ?? null,
+              connector.enabled,
             ),
           },
         },

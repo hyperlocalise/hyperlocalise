@@ -8,9 +8,10 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
+import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
+
 import {
   buildTempConfig,
-  getTranslatedFileDiagnostics,
   getSandboxInputFilename,
   getSandboxOutputFilename,
   getSandboxTranslationEnv,

@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -22,18 +22,6 @@ const fixture = createProjectTestFixture(client);
 describe("agentEmailRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await db.$client.query(`
-      ALTER TABLE organizations
-      ADD COLUMN IF NOT EXISTS email_agent_enabled boolean DEFAULT false NOT NULL;
-    `);
-    await db.$client.query(`
-      ALTER TABLE organizations
-      ADD COLUMN IF NOT EXISTS inbound_email_alias text;
-    `);
-    await db.$client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS organizations_inbound_email_alias_key
-      ON organizations (inbound_email_alias);
-    `);
   });
 
   afterEach(async () => {
@@ -89,17 +77,24 @@ describe("agentEmailRoutes", () => {
     );
 
     const authContext = globalThis.__testApiAuthContext;
-    const [organization] = await db
+    const [connector] = await db
       .select({
-        emailAgentEnabled: schema.organizations.emailAgentEnabled,
-        inboundEmailAlias: schema.organizations.inboundEmailAlias,
+        enabled: schema.connectors.enabled,
+        config: schema.connectors.config,
       })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, authContext?.organization.localOrganizationId ?? ""))
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, authContext?.organization.localOrganizationId ?? ""),
+          eq(schema.connectors.kind, "email"),
+        ),
+      )
       .limit(1);
 
-    expect(organization?.emailAgentEnabled).toBe(true);
-    expect(organization?.inboundEmailAlias).toMatch(/^example-org-[a-f0-9-]+-[a-f0-9]{6}$/);
+    expect(connector?.enabled).toBe(true);
+    expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
+      /^example-org-[a-f0-9-]+-[a-f0-9]{6}$/,
+    );
 
     const disableResponse = await client.api.orgs[":organizationSlug"]["agent-email"].$patch(
       {
