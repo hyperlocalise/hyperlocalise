@@ -1728,6 +1728,140 @@ func TestRunWritesMDXUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 }
 
+func TestRunWritesLiquidUsingSourceTemplateWhenTargetMissing(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.liquid"
+	targetPath := "/tmp/out.liquid"
+	source := `<section>
+  <h1>Welcome back</h1>
+  <p>Hello {{ customer.first_name }}.</p>
+  {{ 'header.navigation.home' | t }}
+</section>
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "FR(" + req.Source + ")", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	if !strings.Contains(out, "<h1>FR(Welcome back)</h1>") {
+		t.Fatalf("expected heading translated, got %q", out)
+	}
+	if !strings.Contains(out, "{{ customer.first_name }}") {
+		t.Fatalf("expected Liquid variable preserved, got %q", out)
+	}
+	if !strings.Contains(out, "{{ 'header.navigation.home' | t }}") {
+		t.Fatalf("expected Shopify translation call preserved, got %q", out)
+	}
+	if strings.Contains(out, "FR({{ 'header.navigation.home' | t }})") {
+		t.Fatalf("did not expect Shopify translation key call translated, got %q", out)
+	}
+}
+
+func TestRunDryRunPlansLiquidSourceCopyNotTranslationKeys(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.liquid"
+	targetPath := "/tmp/out.liquid"
+	source := `<p>Hello {{ customer.first_name }}.</p>
+{{ 'header.navigation.home' | t }}
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	report, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err != nil {
+		t.Fatalf("run dry-run: %v", err)
+	}
+	if report.ExecutableTotal != 1 || len(report.Executable) != 1 {
+		t.Fatalf("expected one Liquid task, got %+v", report)
+	}
+	task := report.Executable[0]
+	if !strings.HasPrefix(task.EntryKey, "liquid.") {
+		t.Fatalf("expected liquid entry key, got %q", task.EntryKey)
+	}
+	if !strings.Contains(task.SourceText, "Hello") || !strings.Contains(task.SourceText, "HLLQPH_") {
+		t.Fatalf("expected visible source copy with protected Liquid placeholder, got %q", task.SourceText)
+	}
+	if strings.Contains(task.SourceText, "header.navigation.home") {
+		t.Fatalf("did not expect Shopify locale key call to become source text, got %q", task.SourceText)
+	}
+}
+
+func TestRunLiquidValidationRejectsMissingPlaceholder(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.liquid"
+	targetPath := "/tmp/out.liquid"
+	source := `<p>Hello {{ customer.first_name }}.</p>`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "Bonjour.", nil
+	}
+	svc.writeFile = func(_ string, _ []byte) error {
+		t.Fatal("write should not be called when Liquid placeholder validation fails")
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Failed != 1 {
+		t.Fatalf("expected failed task from Liquid placeholder validation, got failed=%d report=%+v", report.Failed, report)
+	}
+	if len(report.Failures) != 1 || !strings.Contains(strings.ToLower(report.Failures[0].Reason), "liquid internal placeholder") {
+		t.Fatalf("expected Liquid placeholder failure, got %+v", report.Failures)
+	}
+}
+
 func TestRunWritesXLIFFWithInsertedUnitWhenExistingTargetPresent(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.xlf"
@@ -3250,6 +3384,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.csv":         []byte("key,source,target\nhello,Hello,Hello\n"),
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
+		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -3273,10 +3408,22 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.csv", source: "/tmp/source.csv"},
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
+		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
 	}
 
 	for _, tc := range cases {
-		content, warnings, err := svc.marshalTargetFile(tc.target, tc.source, "en", "fr", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"}, nil)
+		values := map[string]string{"hello": "Bonjour"}
+		if strings.EqualFold(filepath.Ext(tc.target), ".liquid") {
+			entries, err := translationfileparser.LiquidParser{}.Parse(sourceTemplate[tc.source])
+			if err != nil {
+				t.Fatalf("parse liquid source: %v", err)
+			}
+			values = map[string]string{}
+			for key := range entries {
+				values[key] = "Bonjour"
+			}
+		}
+		content, warnings, err := svc.marshalTargetFile(tc.target, tc.source, "en", "fr", values, values, nil)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", tc.target, err)
 		}
@@ -3286,6 +3433,54 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		if len(warnings) != 0 {
 			t.Fatalf("marshal %s returned unexpected warnings: %+v", tc.target, warnings)
 		}
+	}
+}
+
+func TestMarshalLiquidTargetPreservesExistingTargetByPosition(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.liquid"
+	targetPath := "/tmp/out.liquid"
+	source := []byte("<h1>Welcome</h1>\n<p>Checkout now.</p>\n")
+	target := []byte("<h1>Bienvenue</h1>\n<p>Ancien paiement.</p>\n")
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	entries, err := translationfileparser.LiquidParser{}.Parse(source)
+	if err != nil {
+		t.Fatalf("parse liquid source: %v", err)
+	}
+	var checkoutKey string
+	for key, value := range entries {
+		if value == "Checkout now." {
+			checkoutKey = key
+		}
+	}
+	if checkoutKey == "" {
+		t.Fatalf("expected checkout key in %#v", entries)
+	}
+
+	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "en", "fr", map[string]string{checkoutKey: "Paiement maintenant."}, map[string]string{checkoutKey: "Paiement maintenant."}, nil)
+	if err != nil {
+		t.Fatalf("marshal liquid target: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %+v", warnings)
+	}
+
+	out := string(content)
+	if !strings.Contains(out, "<h1>Bienvenue</h1>") {
+		t.Fatalf("expected existing target heading preserved, got %q", out)
+	}
+	if !strings.Contains(out, "<p>Paiement maintenant.</p>") {
+		t.Fatalf("expected staged paragraph translation, got %q", out)
 	}
 }
 

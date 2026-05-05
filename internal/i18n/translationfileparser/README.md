@@ -10,6 +10,7 @@
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
 - `.html` via `HTMLParser`
+- `.liquid` via `LiquidParser`
 - `.md` / `.mdx` via `MarkdownParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
@@ -66,6 +67,15 @@
 - HTML comments and whitespace-only text nodes are emitted verbatim.
 - HTML entities (`&amp;`, `&lt;`, `&#39;`, etc.) are preserved as-is through the translation round-trip.
 - `MarshalHTML(template, values)` reconstructs the file using the source template as the structural scaffold, substituting translated values and restoring all inline-tag placeholders.
+
+### Liquid
+
+- Extracts hardcoded visible template text from `.liquid` files using stable `liquid.*` segment keys.
+- Protects Liquid output delimiters (`{{ ... }}`) as internal placeholders while translating surrounding text.
+- Treats standalone Liquid tags (`{% ... %}`) as template boundaries; tags inside HTML attributes are protected inline and restored verbatim.
+- Preserves Shopify locale-key calls such as `{{ 'header.title' | t }}` as template structure; keys are not translated as source text.
+- Skips `{% raw %}`, `{% comment %}`, `{% schema %}`, `{% javascript %}`, and `{% stylesheet %}` blocks verbatim.
+- `MarshalLiquid(template, values)` reconstructs the file using the source template as the structural scaffold, substituting translated values and restoring Liquid syntax placeholders.
 
 ### Markdown
 

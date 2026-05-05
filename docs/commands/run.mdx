@@ -28,6 +28,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.xlf` and `.xliff`
 - `.po`
 - `.html`
+- `.liquid`
 - `.md`
 - `.mdx`
 - `.strings`
@@ -60,6 +61,14 @@ For HTML (`.html`), `run` translates text content inside block-level elements:
 - `<img alt="...">` — the `alt` attribute value is extracted as its own translation unit; the rest of the tag (src, class, etc.) is preserved verbatim
 - HTML entities (`&amp;`, `&lt;`, etc.) are preserved as-is through the translation round-trip
 - HTML comments are preserved verbatim
+
+For Liquid (`.liquid`), `run` translates hardcoded visible template text and preserves Liquid syntax:
+
+- Liquid output delimiters (`{{ ... }}`) are protected as placeholders and restored verbatim
+- Standalone Liquid tags (`{% ... %}`) act as template boundaries; tags inside HTML attributes are protected inline and restored verbatim
+- Shopify locale-key calls such as `{{ 'header.title' | t }}` are preserved as template structure, not translated as source text
+- `{% raw %}`, `{% comment %}`, `{% schema %}`, `{% javascript %}`, and `{% stylesheet %}` blocks are preserved verbatim
+- HTML-shaped Liquid templates use the same visible-text extraction behavior as HTML
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 

@@ -33,6 +33,12 @@ go.work.sum
 .idea/
 .vscode/
 
+# BMAD Method
+.claude/skills/bmad*
+.agents/skills/bmad*
+_bmad/
+_bmad-output/
+
 # Release related
 manpages
 completions

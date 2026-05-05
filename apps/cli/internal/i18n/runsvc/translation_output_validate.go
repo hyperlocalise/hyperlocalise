@@ -15,6 +15,7 @@ type translationOutputKind int
 const (
 	translationOutputMarkdown translationOutputKind = iota
 	translationOutputHTML
+	translationOutputLiquid
 	translationOutputICUInvariant
 )
 
@@ -25,6 +26,8 @@ func translationOutputKindForSourcePath(path string) translationOutputKind {
 		return translationOutputMarkdown
 	case ".html":
 		return translationOutputHTML
+	case ".liquid":
+		return translationOutputLiquid
 	default:
 		return translationOutputICUInvariant
 	}
@@ -34,6 +37,7 @@ func translationOutputKindForSourcePath(path string) translationOutputKind {
 //
 //   - Markdown / MDX: cheap single-line-segment block-structure heuristic, then internal HLMDPH sentinel multiset (ICU rules are not applied; see check command). Full composed files still use AST parity at flush.
 //   - HTML: normalized HTML tag-name sequence must match source, then ICU invariant on the segment text.
+//   - Liquid: internal Liquid/HTML sentinel multiset, then ICU invariant on the segment text.
 //   - Everything else: ICU MessageFormat / placeholder parity via validateTranslatedInvariant.
 func validateTranslatedOutput(task Task, translated string) error {
 	return validateTranslatedOutputForKind(translationOutputKindForSourcePath(task.SourcePath), task.SourceText, translated)
@@ -54,6 +58,11 @@ func validateTranslatedOutputForKind(kind translationOutputKind, source, transla
 			return &postTranslateValidationError{
 				msg: fmt.Sprintf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated)),
 			}
+		}
+		return validateTranslatedInvariant(source, translated)
+	case translationOutputLiquid:
+		if err := translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
+			return &postTranslateValidationError{msg: err.Error()}
 		}
 		return validateTranslatedInvariant(source, translated)
 	default:

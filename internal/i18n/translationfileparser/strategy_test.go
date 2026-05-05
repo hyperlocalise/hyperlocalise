@@ -232,6 +232,38 @@ hello,bonjour
 	}
 }
 
+func TestStrategyRegistersLiquidParser(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	parser, ok := s.parsersByExt[".liquid"]
+	if !ok {
+		t.Fatal("expected .liquid parser registration")
+	}
+	if _, ok := parser.(LiquidParser); !ok {
+		t.Fatalf("unexpected parser type %T", parser)
+	}
+}
+
+func TestStrategyParsesLiquid(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("sections/header.liquid", []byte(`<p>Hello {{ customer.first_name }}.</p>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected one extracted entry, got %d", len(got))
+	}
+	for key, value := range got {
+		if !strings.HasPrefix(key, "liquid.") {
+			t.Fatalf("expected liquid key, got %q", key)
+		}
+		if !strings.Contains(value, "Hello") || !strings.Contains(value, "HLLQPH_") {
+			t.Fatalf("unexpected extracted value: %q", value)
+		}
+	}
+}
+
 func TestStrategyParseWithContextIncludesFormatJSDescriptions(t *testing.T) {
 	s := NewDefaultStrategy()
 

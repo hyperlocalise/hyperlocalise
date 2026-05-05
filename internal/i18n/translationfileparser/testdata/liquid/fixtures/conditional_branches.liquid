@@ -1,0 +1,7 @@
+{% if product.available %}
+  <span>Available today</span>
+{% elsif product.coming_soon %}
+  <span>Coming soon</span>
+{% else %}
+  <span>Sold out</span>
+{% endif %}
