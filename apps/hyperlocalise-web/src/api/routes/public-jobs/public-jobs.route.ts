@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
+import { z } from "zod";
 
 import {
   apiKeyAuthMiddleware,
@@ -11,10 +12,11 @@ import {
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
-import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedFileTranslationFileFormat,
+  supportedTranslationFileFormats,
+} from "@/lib/translation/file-formats";
 import type { TranslationJobQueue } from "@/lib/workflow/types";
-import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
-import { z } from "zod";
 
 const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
@@ -135,7 +137,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           return sourceFileNotFoundResponse(c);
         }
 
-        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return unsupportedSourceFileFormatResponse(c);
         }
@@ -203,6 +205,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           id: schema.jobs.id,
           organizationId: schema.jobs.organizationId,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           status: schema.jobs.status,
           type: schema.translationJobDetails.type,
           inputPayload: schema.jobs.inputPayload,
@@ -215,16 +218,12 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           completedAt: schema.jobs.completedAt,
         })
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
         .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, params.jobId),
-            eq(schema.jobs.organizationId, organizationId),
-          ),
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
         )
         .limit(1);
 
@@ -242,6 +241,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         .select({
           id: schema.jobs.id,
           projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
           type: schema.translationJobDetails.type,
           status: schema.jobs.status,
           createdAt: schema.jobs.createdAt,
@@ -250,16 +250,12 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           lastError: schema.jobs.lastError,
         })
         .from(schema.jobs)
-        .innerJoin(
+        .leftJoin(
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
         .where(
-          and(
-            eq(schema.jobs.kind, "translation"),
-            eq(schema.jobs.id, params.jobId),
-            eq(schema.jobs.organizationId, organizationId),
-          ),
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
         )
         .limit(1);
 

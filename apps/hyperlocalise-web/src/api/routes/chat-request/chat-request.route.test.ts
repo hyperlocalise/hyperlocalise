@@ -177,4 +177,27 @@ describe("chat request uploads", () => {
       filename: "source.txt",
     });
   });
+
+  it("rejects image uploads until visual asset jobs are available", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Localize this campaign image");
+    formData.append("files", new File(["image"], "banner.png", { type: "image/png" }));
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/chat-requests/upload`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "unsupported_translation_source_file",
+      filename: "banner.png",
+    });
+  });
 });

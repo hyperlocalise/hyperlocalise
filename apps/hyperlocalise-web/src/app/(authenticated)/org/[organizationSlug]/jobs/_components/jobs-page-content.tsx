@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   FilterHorizontalIcon,
   MoreHorizontalCircle01Icon,
@@ -28,9 +29,10 @@ type JobsScope = "all" | "mine";
 
 type ApiJob = {
   id: string;
-  projectId: string;
+  projectId: string | null;
   createdByUserId: string | null;
-  type: "string" | "file";
+  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   createdAt: string;
   updatedAt: string;
@@ -40,6 +42,12 @@ type ApiJob = {
   inputPayload: unknown;
   outcomeKind: string | null;
   outcomePayload: unknown;
+  reviewCriteria: string | null;
+  reviewTargetLocale: string | null;
+  syncConnectorKind: string | null;
+  syncDirection: string | null;
+  assetType: string | null;
+  assetOperation: string | null;
 };
 
 type JobRow = ApiJob & {
@@ -91,6 +99,28 @@ function formatRelativeTime(value: string | null) {
 }
 
 function getJobName(job: ApiJob) {
+  if (job.kind === "review" && job.reviewCriteria) {
+    return `Review: ${job.reviewCriteria}`.slice(0, 72);
+  }
+
+  if (job.kind === "sync" && job.syncConnectorKind) {
+    return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`.slice(0, 72);
+  }
+
+  if (job.kind === "asset_management" && job.assetType) {
+    return `${job.assetOperation ?? "manage"} ${job.assetType}`.slice(0, 72);
+  }
+
+  if (
+    job.kind === "research" &&
+    typeof job.inputPayload === "object" &&
+    job.inputPayload &&
+    "scope" in job.inputPayload &&
+    typeof job.inputPayload.scope === "string"
+  ) {
+    return `Research: ${job.inputPayload.scope}`.slice(0, 72);
+  }
+
   if (
     typeof job.inputPayload === "object" &&
     job.inputPayload &&
@@ -110,6 +140,14 @@ function getJobName(job: ApiJob) {
   }
 
   return job.id;
+}
+
+function formatJobKind(job: ApiJob) {
+  if (job.kind === "translation" && job.type) {
+    return `${job.kind.replace("_", " ")} · ${job.type}`;
+  }
+
+  return job.kind.replace("_", " ");
 }
 
 function JobsStats({ jobs }: { jobs: JobRow[] }) {
@@ -147,10 +185,12 @@ function JobsList({
   emptyLabel,
   isLoading,
   jobs,
+  organizationSlug,
 }: {
   emptyLabel: string;
   isLoading: boolean;
   jobs: JobRow[];
+  organizationSlug: string;
 }) {
   if (isLoading) {
     return <p className="px-3 py-8 text-sm text-white/58">Loading jobs…</p>;
@@ -175,9 +215,11 @@ function JobsList({
             <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] items-center gap-4 px-3 py-4">
               <div className="min-w-0">
                 <p className="truncate text-base font-medium text-white">{getJobName(job)}</p>
-                <p className="mt-1 truncate text-xs text-white/38">{job.id}</p>
+                <p className="mt-1 truncate text-xs text-white/38">
+                  {formatJobKind(job)} · {job.id}
+                </p>
               </div>
-              <p className="truncate text-base text-white/58">{job.projectName}</p>
+              <p className="truncate text-base text-white/58">{job.projectName ?? "Workspace"}</p>
               <Badge
                 variant="outline"
                 className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
@@ -187,9 +229,9 @@ function JobsList({
               <p className="text-right text-base text-white/58">
                 {formatRelativeTime(job.updatedAt)}
               </p>
-              <button
-                type="button"
-                aria-label={`Open actions for ${getJobName(job)}`}
+              <Link
+                href={`/org/${organizationSlug}/jobs/${job.id}`}
+                aria-label={`Open ${getJobName(job)}`}
                 className="flex size-9 items-center justify-center rounded-lg text-white/58 transition-colors hover:bg-white/6 hover:text-white"
               >
                 <HugeiconsIcon
@@ -197,7 +239,7 @@ function JobsList({
                   strokeWidth={2}
                   className="size-5"
                 />
-              </button>
+              </Link>
             </div>
             {index < jobs.length - 1 ? <Separator className="bg-white/8" /> : null}
           </div>
@@ -245,7 +287,7 @@ export function JobsPageContent({
       const matchesStatus = statusFilter === "all" || job.status === statusFilter;
       const matchesSearch =
         !normalizedSearch ||
-        [getJobName(job), job.projectName, job.id, job.type, job.status]
+        [getJobName(job), job.projectName, job.id, job.kind, job.type, job.status]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
@@ -303,7 +345,12 @@ export function JobsPageContent({
 
         {errorMessage ? <p className="text-sm text-flame-100">{errorMessage}</p> : null}
 
-        <JobsList emptyLabel={emptyLabel} isLoading={isLoading} jobs={visibleJobs} />
+        <JobsList
+          emptyLabel={emptyLabel}
+          isLoading={isLoading}
+          jobs={visibleJobs}
+          organizationSlug={organizationSlug}
+        />
       </section>
     </div>
   );

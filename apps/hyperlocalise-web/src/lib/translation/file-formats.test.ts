@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { inferSupportedTranslationFileFormat, isImageTranslationFileFormat } from "./file-formats";
+import {
+  inferSupportedFileTranslationFileFormat,
+  inferSupportedTranslationFileFormat,
+  isImageTranslationFileFormat,
+} from "./file-formats";
 
 describe("translation file formats", () => {
   it("infers structured translation formats from supported extensions", () => {
@@ -24,6 +28,7 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("banner.jpg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.jpeg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.webp")).toBe("webp");
+    expect(inferSupportedFileTranslationFileFormat("banner.png")).toBeNull();
     expect(isImageTranslationFileFormat("png")).toBe(true);
     expect(isImageTranslationFileFormat("json")).toBe(false);
   });

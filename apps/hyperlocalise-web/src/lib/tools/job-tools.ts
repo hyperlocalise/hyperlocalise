@@ -8,6 +8,7 @@ import { schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import {
   inferSupportedTranslationFileFormat,
+  isImageTranslationFileFormat,
   supportedTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import { createTranslationJobQueue } from "@/workflows/adapters";
@@ -18,6 +19,20 @@ const jobKinds = ["translation", "research", "review", "sync", "asset_management
 type JobKind = (typeof jobKinds)[number];
 
 const translationJobQueue = createTranslationJobQueue();
+
+export function createUnavailableJobKindTool(capability: string) {
+  return tool({
+    description: `Explain that ${capability} jobs are not available yet. Use this when the user asks Hyperlocalise to create or run that kind of durable job.`,
+    inputSchema: z.object({
+      request: z.string().optional().describe("The user's request, if useful for the response."),
+    }),
+    execute: async () => ({
+      success: false,
+      code: "job_kind_unavailable",
+      error: `${capability} jobs are not available yet. Hyperlocalise can create and run translation jobs today; this request needs a future worker before it can be queued safely.`,
+    }),
+  });
+}
 
 const baseJobSelect = {
   id: schema.jobs.id,
@@ -223,12 +238,24 @@ export function createTranslationJobTool(ctx: ToolContext) {
         }
 
         const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        if (!inferredFileFormat) {
+          return {
+            success: false,
+            error: "Source file extension is not supported for translation jobs.",
+          };
+        }
+
+        if (isImageTranslationFileFormat(inferredFileFormat)) {
+          return {
+            success: false,
+            error: "Image files are not supported for file translation jobs yet.",
+          };
+        }
+
         if (inferredFileFormat !== input.fileFormat) {
           return {
             success: false,
-            error: inferredFileFormat
-              ? `fileFormat must match source file extension: expected ${inferredFileFormat}.`
-              : "Source file extension is not supported for translation jobs.",
+            error: `fileFormat must match source file extension: expected ${inferredFileFormat}.`,
           };
         }
       }

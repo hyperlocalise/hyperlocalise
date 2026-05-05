@@ -58,7 +58,8 @@ function buildSystemPrompt(projectId: string | null) {
     "- Be concise but thorough in your responses",
     "- When suggesting translations, consider context, tone, and target audience",
     "- If you need more information to provide a good answer, ask clarifying questions",
-    "- You can help create translation jobs, suggest glossary terms, or review existing translations",
+    "- You can create translation jobs, suggest glossary terms, and inspect existing jobs",
+    "- Review, research, sync, and asset-management jobs are not runnable yet; use the matching unavailable-job tool if a user asks to queue one",
     "- Always maintain a professional, helpful tone",
   );
 

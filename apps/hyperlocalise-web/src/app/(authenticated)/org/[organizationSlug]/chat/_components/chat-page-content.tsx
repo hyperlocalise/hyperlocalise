@@ -92,10 +92,6 @@ const translationSourceFileAccept = [
   ".strings",
   ".stringsdict",
   ".csv",
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
 ].join(",");
 const maxTranslationSourceFiles = 5;
 
@@ -290,9 +286,9 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     {attachOptions.slice(1).map((option) => (
-                      <DropdownMenuItem key={option.label}>
+                      <DropdownMenuItem key={option.label} disabled>
                         <HugeiconsIcon icon={option.icon} strokeWidth={1.8} className="size-4" />
-                        {option.label}
+                        {option.label} (soon)
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>
