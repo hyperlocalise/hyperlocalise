@@ -1,4 +1,4 @@
-import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
+import { getWorkflowMetadata } from "workflow";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
   isImageTranslationFileFormat,
@@ -20,50 +20,14 @@ import {
 } from "@/lib/translation/sandbox-translation";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
 import {
-  getInternalApiUrl,
-  internalApiHeaders,
-  type ClaimTranslationJobResult,
-} from "./internal-api";
-
-async function claimTranslationJobStep(input: {
-  event: TranslationJobQueuedEventData;
-  runId: string;
-}) {
-  "use step";
-
-  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/claim"), {
-    method: "POST",
-    headers: internalApiHeaders(),
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw new Error(`failed to claim translation job: ${response.status}`);
-  }
-
-  const data = (await response.json()) as { result: ClaimTranslationJobResult };
-  return data.result;
-}
-
-async function failTranslationJobStep(input: {
-  jobId: string;
-  projectId: string;
-  workflowRunId: string;
-  code: string;
-  message: string;
-}) {
-  "use step";
-
-  const response = await workflowFetch(getInternalApiUrl("/translation-jobs/fail"), {
-    method: "POST",
-    headers: internalApiHeaders(),
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw new Error(`failed to fail translation job: ${response.status}`);
-  }
-}
+  claimTranslationJobStep,
+  completeFileTranslationJobStep,
+  failTranslationJobStep,
+  getProjectOrganizationStep,
+  getStoredFileContentStep,
+  getStoredFileStep,
+  storeOutputFileStep,
+} from "./steps/translation-job";
 
 async function createSandboxStep() {
   "use step";
@@ -133,126 +97,6 @@ async function logDiagnosticsStep(
     content,
     outputFilename,
   );
-}
-
-async function storeOutputFileStep(input: {
-  organizationId: string;
-  projectId: string;
-  jobId: string;
-  filename: string;
-  contentType: string;
-  content: Buffer;
-}) {
-  "use step";
-  const response = await workflowFetch(getInternalApiUrl("/stored-files"), {
-    method: "POST",
-    headers: internalApiHeaders(),
-    body: JSON.stringify({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      jobId: input.jobId,
-      filename: input.filename,
-      contentType: input.contentType,
-      contentBase64: input.content.toString("base64"),
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`failed to store output file: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    file: {
-      id: string;
-      filename: string;
-    };
-  };
-  return data.file;
-}
-
-async function getProjectOrganizationStep(projectId: string): Promise<string> {
-  "use step";
-
-  const response = await workflowFetch(getInternalApiUrl(`/projects/${projectId}/organization`), {
-    method: "GET",
-    headers: internalApiHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`failed to get project organization: ${response.status}`);
-  }
-
-  const data = (await response.json()) as { organizationId: string };
-  return data.organizationId;
-}
-
-async function getStoredFileStep(fileId: string, organizationId: string) {
-  "use step";
-
-  const response = await workflowFetch(
-    getInternalApiUrl(
-      `/stored-files/${fileId}?organizationId=${encodeURIComponent(organizationId)}`,
-    ),
-    {
-      method: "GET",
-      headers: internalApiHeaders(),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`failed to get stored file: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    file: {
-      id: string;
-      filename: string;
-      contentType: string;
-      storageKey: string;
-      organizationId: string;
-    };
-  };
-  return data.file;
-}
-
-async function getStoredFileContentStep(fileId: string, organizationId: string) {
-  "use step";
-
-  const response = await workflowFetch(
-    getInternalApiUrl(
-      `/stored-files/${fileId}/content?organizationId=${encodeURIComponent(organizationId)}`,
-    ),
-    {
-      method: "GET",
-      headers: internalApiHeaders(),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`failed to get stored file content: ${response.status}`);
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
-}
-
-async function completeFileTranslationJobStep(input: {
-  jobId: string;
-  projectId: string;
-  workflowRunId: string;
-  outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
-}) {
-  "use step";
-
-  const response = await workflowFetch(getInternalApiUrl("/file-translation-jobs/complete"), {
-    method: "POST",
-    headers: internalApiHeaders(),
-    body: JSON.stringify(input),
-  });
-
-  if (!response.ok) {
-    throw new Error(`failed to complete file translation job: ${response.status}`);
-  }
 }
 
 export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEventData) {

@@ -28,11 +28,11 @@ type StoredFileScopeInput = {
   fileId: string;
 };
 
-function createStoredFileId() {
+export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
 }
 
-async function sha256Hex(content: Buffer): Promise<string> {
+export async function sha256Hex(content: Buffer): Promise<string> {
   const hashBuffer = await crypto.subtle.digest(
     "SHA-256",
     content.buffer.slice(
@@ -44,7 +44,7 @@ async function sha256Hex(content: Buffer): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function safePathPart(value: string) {
+export function safePathPart(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
@@ -60,7 +60,7 @@ function bytesFromContent(content: Buffer | Uint8Array | ArrayBuffer) {
   return Buffer.from(content.buffer, content.byteOffset, content.byteLength);
 }
 
-function storageKey(input: {
+export function storageKey(input: {
   organizationId: string;
   projectId?: string | null;
   id: string;
