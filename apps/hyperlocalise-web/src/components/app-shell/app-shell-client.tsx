@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { getAppShellTitle } from "./app-shell-title";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
+import { TypographyP } from "@/components/ui/typography";
 
 type AppShellClientProps = {
   children: ReactNode;
@@ -76,7 +77,7 @@ export function AppShellClient({
           "[--sidebar-ring:oklch(0.55_0_0)]",
         )}
       >
-        <SidebarHeader className="gap-3 border-b border-white/8 px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
+        <SidebarHeader className="gap-3 border-b border-app-shell-foreground/8 px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
           <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <Image
               src="/images/logo.png"
@@ -87,8 +88,12 @@ export function AppShellClient({
               className="size-7 shrink-0 rounded-full"
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
-              <p className="truncate text-xs text-white/45">{activeOrganization.name}</p>
+              <TypographyP className="truncate text-sm font-medium text-app-shell-foreground">
+                Hyperlocalise
+              </TypographyP>
+              <TypographyP className="truncate text-xs text-app-shell-foreground/45">
+                {activeOrganization.name}
+              </TypographyP>
             </div>
           </div>
 
@@ -105,7 +110,7 @@ export function AppShellClient({
                     size="sm"
                     variant="ghost"
                     nativeButton={false}
-                    className="h-8 rounded-lg border border-white/8 px-2 text-xs text-white/58 hover:bg-white/8 hover:text-white"
+                    className="h-8 rounded-lg border border-app-shell-foreground/8 px-2 text-xs text-app-shell-foreground/58 hover:bg-app-shell-foreground/8 hover:text-app-shell-foreground"
                     render={<Link href={`/auth/select-organization/${organization.slug}`} />}
                   >
                     {organization.name}
@@ -115,14 +120,14 @@ export function AppShellClient({
           ) : null}
 
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <InputGroup className="h-9 rounded-xl border-white/10 bg-white/4 text-white">
+            <InputGroup className="h-9 rounded-xl border-app-shell-foreground/10 bg-app-shell-foreground/4 text-app-shell-foreground">
               <InputGroupInput
                 aria-label="Find"
                 placeholder="Find…"
-                className="text-sm text-white placeholder:text-white/28"
+                className="text-sm text-app-shell-foreground placeholder:text-app-shell-foreground/28"
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupText className="text-xs text-white/50">F</InputGroupText>
+                <InputGroupText className="text-xs text-app-shell-foreground/50">F</InputGroupText>
               </InputGroupAddon>
             </InputGroup>
           </div>
@@ -132,15 +137,23 @@ export function AppShellClient({
           {navigation}
 
           <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
-            <div className="rounded-lg border border-white/8 bg-white/3 px-3 py-3">
-              <p className="text-xs font-medium text-white/84">Plan usage</p>
-              <p className="mt-3 text-xs text-white/46">Enterprise</p>
-              <p className="mt-1 text-xs text-white/38">Renews on Aug 24, 2025</p>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div className="rounded-lg border border-app-shell-foreground/8 bg-app-shell-foreground/3 px-3 py-3">
+              <TypographyP className="text-xs font-medium text-app-shell-foreground/84">
+                Plan usage
+              </TypographyP>
+              <TypographyP className="mt-3 text-xs text-app-shell-foreground/46">
+                Enterprise
+              </TypographyP>
+              <TypographyP className="mt-1 text-xs text-app-shell-foreground/38">
+                Renews on Aug 24, 2025
+              </TypographyP>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-app-shell-foreground/10">
                 <div className="h-full w-[60%] rounded-full bg-bud-500" />
               </div>
-              <p className="mt-3 text-xs text-white/68">1.2M / 2M words used</p>
-              <div className="mt-3 flex items-center gap-2 text-xs text-white/58">
+              <TypographyP className="mt-3 text-xs text-app-shell-foreground/68">
+                1.2M / 2M words used
+              </TypographyP>
+              <div className="mt-3 flex items-center gap-2 text-xs text-app-shell-foreground/58">
                 <span>View usage</span>
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
               </div>
@@ -148,7 +161,7 @@ export function AppShellClient({
           </div>
         </SidebarContent>
 
-        <SidebarSeparator className="bg-white/8" />
+        <SidebarSeparator className="bg-app-shell-foreground/8" />
 
         <SidebarFooter className="gap-3 px-3 py-3">
           <NavUser
@@ -160,14 +173,16 @@ export function AppShellClient({
       </Sidebar>
 
       <SidebarInset className="min-h-svh bg-app-shell-background">
-        <div className="sticky top-0 z-20 border-b border-white/8 bg-app-shell-background/96 backdrop-blur">
+        <div className="sticky top-0 z-20 border-b border-app-shell-foreground/8 bg-app-shell-background/96 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <SidebarTrigger className="-ms-1" />
             <Separator
               orientation="vertical"
               className="me-2 data-vertical:h-4 data-vertical:self-auto"
             />
-            <p className="font-heading text-base font-medium text-white">{pageTitle}</p>
+            <TypographyP className="font-heading text-base font-medium text-app-shell-foreground">
+              {pageTitle}
+            </TypographyP>
           </div>
         </div>
 

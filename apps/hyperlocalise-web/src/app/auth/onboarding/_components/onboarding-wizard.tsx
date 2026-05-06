@@ -35,6 +35,7 @@ import {
   saveProviderCredentialAction,
   skipProviderCredentialAction,
 } from "../actions";
+import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 
 type OnboardingStep = "create" | "provider" | "ready";
 
@@ -121,13 +122,13 @@ function CreateWorkspaceStep({ organizationName }: { organizationName?: string |
     return (
       <div className="space-y-6">
         <div className="space-y-3">
-          <h2 className="font-heading text-3xl font-semibold text-balance text-foreground">
+          <TypographyH2 className="font-heading text-3xl font-semibold text-balance text-foreground md:text-3xl">
             Workspace created
-          </h2>
-          <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+          </TypographyH2>
+          <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
             Your workspace is ready. Continue to add the shared AI provider that this workspace will
             use by default.
-          </p>
+          </TypographyP>
         </div>
 
         <Card className="border-border/70 bg-background/90">
@@ -152,13 +153,13 @@ function CreateWorkspaceStep({ organizationName }: { organizationName?: string |
   return (
     <form action={formAction} className="space-y-6">
       <div className="space-y-3">
-        <h2 className="font-heading text-3xl font-semibold text-balance text-foreground">
+        <TypographyH2 className="font-heading text-3xl font-semibold text-balance text-foreground md:text-3xl">
           Create your workspace
-        </h2>
-        <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+        </TypographyH2>
+        <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
           Start with the workspace name. You can configure the AI provider that powers it on the
           next step.
-        </p>
+        </TypographyP>
       </div>
 
       {state.error ? (
@@ -221,13 +222,13 @@ function ProviderCredentialStep({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h2 className="font-heading text-3xl font-semibold text-balance text-foreground">
+        <TypographyH2 className="font-heading text-3xl font-semibold text-balance text-foreground md:text-3xl">
           Add an AI provider
-        </h2>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        </TypographyH2>
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Save one shared provider for this workspace. We will validate the credential before
           finishing setup.
-        </p>
+        </TypographyP>
       </div>
 
       {providerSummary ? (
@@ -374,12 +375,12 @@ function ReadyStep({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <h2 className="font-heading text-3xl font-semibold text-balance text-foreground">
+        <TypographyH2 className="font-heading text-3xl font-semibold text-balance text-foreground md:text-3xl">
           Your workspace is ready
-        </h2>
-        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+        </TypographyH2>
+        <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
           Enter the dashboard and start creating projects. Team invites can come after this.
-        </p>
+        </TypographyP>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -450,13 +451,13 @@ export function OnboardingWizard(props: OnboardingWizardProps) {
                 <div className="text-xs font-medium tracking-[0.28em] text-muted-foreground uppercase">
                   Hyperlocalise cloud setup
                 </div>
-                <h1 className="font-heading text-4xl leading-tight font-semibold text-balance text-foreground">
+                <TypographyH1 className="font-heading text-4xl leading-tight font-semibold text-balance text-foreground md:text-4xl">
                   Stand up the workspace before the first translation run.
-                </h1>
-                <p className="text-sm leading-6 text-muted-foreground">
+                </TypographyH1>
+                <TypographyP className="text-sm leading-6 text-muted-foreground">
                   The onboarding flow stays linear on purpose: create the workspace, set its
                   provider defaults, then land in the product without detours.
-                </p>
+                </TypographyP>
               </div>
 
               <StepProgress step={props.step} />

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { TypographyH4, TypographyP } from "@/components/ui/typography";
 
 export type InlineCitationProps = ComponentProps<"span">;
 
@@ -225,10 +226,16 @@ export const InlineCitationSource = ({
   ...props
 }: InlineCitationSourceProps) => (
   <div className={cn("space-y-1", className)} {...props}>
-    {title && <h4 className="truncate font-medium text-sm leading-tight">{title}</h4>}
-    {url && <p className="truncate break-all text-muted-foreground text-xs">{url}</p>}
+    {title && (
+      <TypographyH4 className="truncate font-medium text-sm leading-tight">{title}</TypographyH4>
+    )}
+    {url && (
+      <TypographyP className="truncate break-all text-muted-foreground text-xs">{url}</TypographyP>
+    )}
     {description && (
-      <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">{description}</p>
+      <TypographyP className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
+        {description}
+      </TypographyP>
     )}
     {children}
   </div>

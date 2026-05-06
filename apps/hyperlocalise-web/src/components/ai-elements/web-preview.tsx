@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 export interface WebPreviewContextValue {
   url: string;
@@ -111,7 +112,7 @@ export const WebPreviewNavigationButton = ({
         {children}
       </TooltipTrigger>
       <TooltipContent>
-        <p>{tooltip}</p>
+        <TypographyP>{tooltip}</TypographyP>
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
@@ -224,7 +225,7 @@ export const WebPreviewConsole = ({
       >
         <div className="max-h-48 space-y-1 overflow-y-auto">
           {logs.length === 0 ? (
-            <p className="text-muted-foreground">No console output</p>
+            <TypographyP className="text-muted-foreground">No console output</TypographyP>
           ) : (
             logs.map((log) => (
               <div

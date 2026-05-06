@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 type ChangeType = "major" | "minor" | "patch" | "added" | "removed";
 
@@ -154,9 +155,9 @@ export const PackageInfoDescription = ({
   children,
   ...props
 }: PackageInfoDescriptionProps) => (
-  <p className={cn("mt-2 text-muted-foreground text-sm", className)} {...props}>
+  <TypographyP className={cn("mt-2 text-muted-foreground text-sm", className)} {...props}>
     {children}
-  </p>
+  </TypographyP>
 );
 
 export type PackageInfoContentProps = HTMLAttributes<HTMLDivElement>;

@@ -74,17 +74,15 @@ export function ProjectDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="rounded-xl border border-app-shell-foreground/10 bg-app-shell-background text-app-shell-foreground sm:max-w-lg">
+      <DialogContent className="rounded-xl border border-foreground/10 bg-background text-foreground sm:max-w-lg">
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>
-            <DialogTitle className="text-app-shell-foreground">{title}</DialogTitle>
-            <DialogDescription className="text-app-shell-foreground/52">
-              {description}
-            </DialogDescription>
+            <DialogTitle className="text-foreground">{title}</DialogTitle>
+            <DialogDescription className="text-foreground/52">{description}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-app-shell-foreground">Name</span>
+              <span className="text-sm font-medium text-foreground">Name</span>
               <Input
                 value={values.name}
                 onChange={(event) => {
@@ -93,12 +91,12 @@ export function ProjectDialog({
                 aria-invalid={Boolean(errors.name)}
                 disabled={isSaving}
                 placeholder="Marketing site launch"
-                className="border-app-shell-foreground/10 bg-app-shell-foreground/6 text-app-shell-foreground placeholder:text-app-shell-foreground/32"
+                className="border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
               />
               {errors.name ? <span className="text-xs text-flame-100">{errors.name}</span> : null}
             </label>
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-app-shell-foreground">Description</span>
+              <span className="text-sm font-medium text-foreground">Description</span>
               <Textarea
                 value={values.description}
                 onChange={(event) => {
@@ -107,16 +105,14 @@ export function ProjectDialog({
                 aria-invalid={Boolean(errors.description)}
                 disabled={isSaving}
                 placeholder="Project scope, release, or ownership notes"
-                className="min-h-24 border-app-shell-foreground/10 bg-app-shell-foreground/6 text-app-shell-foreground placeholder:text-app-shell-foreground/32"
+                className="min-h-24 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
               />
               {errors.description ? (
                 <span className="text-xs text-flame-100">{errors.description}</span>
               ) : null}
             </label>
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-app-shell-foreground">
-                Translation context
-              </span>
+              <span className="text-sm font-medium text-foreground">Translation context</span>
               <Textarea
                 value={values.translationContext}
                 onChange={(event) => {
@@ -128,7 +124,7 @@ export function ProjectDialog({
                 aria-invalid={Boolean(errors.translationContext)}
                 disabled={isSaving}
                 placeholder="Tone, terminology, product rules, or locale guidance"
-                className="min-h-28 border-app-shell-foreground/10 bg-app-shell-foreground/6 text-app-shell-foreground placeholder:text-app-shell-foreground/32"
+                className="min-h-28 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
               />
               {errors.translationContext ? (
                 <span className="text-xs text-flame-100">{errors.translationContext}</span>

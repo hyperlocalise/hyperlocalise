@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 
 type LegalPageProps = {
   eyebrow: string;
@@ -36,15 +37,15 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
               Back to home
             </Link>
             <div className="space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+              <TypographyP className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">
                 {eyebrow}
-              </p>
-              <h1 className="font-heading text-4xl leading-tight font-semibold tracking-[-0.04em] text-balance sm:text-5xl">
+              </TypographyP>
+              <TypographyH1 className="font-heading text-4xl leading-tight font-semibold tracking-[-0.04em] text-balance sm:text-5xl md:text-5xl">
                 {title}
-              </h1>
-              <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+              </TypographyH1>
+              <TypographyP className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
                 {description}
-              </p>
+              </TypographyP>
             </div>
           </div>
           <div className="mt-10 rounded-3xl border border-border/70 bg-background/95 p-6 shadow-sm sm:p-8">
@@ -59,9 +60,9 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
 export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="font-heading text-2xl font-semibold tracking-[-0.03em] text-foreground">
+      <TypographyH2 className="font-heading text-2xl font-semibold tracking-[-0.03em] text-foreground md:text-2xl">
         {title}
-      </h2>
+      </TypographyH2>
       <div className="space-y-4">{children}</div>
     </section>
   );

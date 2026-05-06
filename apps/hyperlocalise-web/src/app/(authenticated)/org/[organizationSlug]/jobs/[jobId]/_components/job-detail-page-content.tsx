@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
+import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 
 type JobDetail = {
   id: string;
@@ -74,7 +75,7 @@ function formatDate(value: string | null) {
 
 function JsonBlock({ value }: { value: unknown }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-lg border border-white/8 bg-white/[0.035] p-4 text-xs leading-6 text-white/72">
+    <pre className="max-h-96 overflow-auto rounded-lg border border-foreground/8 bg-foreground/[0.035] p-4 text-xs leading-6 text-foreground/72">
       {JSON.stringify(value ?? null, null, 2)}
     </pre>
   );
@@ -83,8 +84,8 @@ function JsonBlock({ value }: { value: unknown }) {
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-white/42">{label}</dt>
-      <dd className="min-w-0 break-words text-sm text-white/74">{value || "—"}</dd>
+      <dt className="text-sm text-foreground/42">{label}</dt>
+      <dd className="min-w-0 break-words text-sm text-foreground/74">{value || "—"}</dd>
     </div>
   );
 }
@@ -121,14 +122,14 @@ export function JobDetailPageContent({
           <Button
             render={<Link href={`/org/${organizationSlug}/jobs`} />}
             variant="ghost"
-            className="-ml-2 mb-2 text-white/54 hover:bg-white/6 hover:text-white"
+            className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"
           >
             <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.8} />
             Jobs
           </Button>
-          <h1 className="break-words font-heading text-3xl font-semibold text-white md:text-4xl">
+          <TypographyH1 className="break-words font-heading text-3xl font-semibold text-foreground md:text-4xl">
             {job?.id ?? jobId}
-          </h1>
+          </TypographyH1>
         </div>
         {job ? (
           <Badge
@@ -141,9 +142,9 @@ export function JobDetailPageContent({
       </div>
 
       {jobQuery.isLoading ? (
-        <div className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-          <Skeleton className="h-5 w-48 bg-white/8" />
-          <Skeleton className="mt-4 h-40 w-full bg-white/8" />
+        <div className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+          <Skeleton className="h-5 w-48 bg-foreground/8" />
+          <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
         </div>
       ) : null}
 
@@ -155,9 +156,11 @@ export function JobDetailPageContent({
 
       {job ? (
         <>
-          <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-            <h2 className="font-heading text-lg font-medium text-white">Overview</h2>
-            <dl className="mt-3 divide-y divide-white/8">
+          <section className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+              Overview
+            </TypographyH2>
+            <dl className="mt-3 divide-y divide-foreground/8">
               <DetailRow label="Kind" value={formatKind(job)} />
               <DetailRow label="Project" value={job.projectName ?? job.projectId ?? "Workspace"} />
               <DetailRow label="Interaction" value={job.interactionId} />
@@ -170,9 +173,11 @@ export function JobDetailPageContent({
           </section>
 
           {job.kind === "review" || job.kind === "sync" || job.kind === "asset_management" ? (
-            <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Kind Details</h2>
-              <dl className="mt-3 divide-y divide-white/8">
+            <section className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+              <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+                Kind Details
+              </TypographyH2>
+              <dl className="mt-3 divide-y divide-foreground/8">
                 {job.kind === "review" ? (
                   <>
                     <DetailRow label="Criteria" value={job.reviewCriteria} />
@@ -196,22 +201,28 @@ export function JobDetailPageContent({
           ) : null}
 
           <section className="grid gap-4 xl:grid-cols-2">
-            <div className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Input</h2>
+            <div className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+              <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+                Input
+              </TypographyH2>
               <div className="mt-4">
                 <JsonBlock value={job.inputPayload} />
               </div>
             </div>
-            <div className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Output</h2>
+            <div className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+              <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+                Output
+              </TypographyH2>
               <div className="mt-4">
                 <JsonBlock value={job.outcomePayload} />
               </div>
             </div>
           </section>
 
-          <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-            <h2 className="font-heading text-lg font-medium text-white">Context Snapshot</h2>
+          <section className="rounded-lg border border-foreground/8 bg-foreground/[0.025] p-5">
+            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+              Context Snapshot
+            </TypographyH2>
             <div className="mt-4">
               <JsonBlock value={job.contextSnapshot} />
             </div>

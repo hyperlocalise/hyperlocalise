@@ -295,7 +295,7 @@ export const SpeechInput = ({
         className={cn(
           "relative z-10 rounded-full transition-all duration-300",
           isListening
-            ? "bg-destructive text-white hover:bg-destructive/80 hover:text-white"
+            ? "bg-destructive text-background hover:bg-destructive/80 hover:text-background"
             : "bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground",
           className,
         )}

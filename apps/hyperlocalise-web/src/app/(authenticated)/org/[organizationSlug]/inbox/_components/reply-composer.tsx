@@ -150,7 +150,7 @@ function ReplyComposerContent({
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
-          className="overflow-hidden rounded-[1.35rem] border border-border bg-app-shell-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
+          className="overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
         >
           <PromptInputBody>
             {attachments.files.length > 0 && (

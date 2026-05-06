@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
+import { TypographyP } from "@/components/ui/typography";
 
 type Provider = {
   id: string;
@@ -77,13 +78,15 @@ export function LogoStripSection() {
   return (
     <section aria-labelledby="supported-llm-providers" className="relative">
       <div className="mb-4 flex items-center justify-between gap-4">
-        <p
+        <TypographyP
           id="supported-llm-providers"
           className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground"
         >
           Supported LLM providers
-        </p>
-        <p className="hidden text-xs text-muted-foreground sm:block">Bring your own model stack</p>
+        </TypographyP>
+        <TypographyP className="hidden text-xs text-muted-foreground sm:block">
+          Bring your own model stack
+        </TypographyP>
       </div>
 
       <div className="relative overflow-hidden motion-reduce:hidden">

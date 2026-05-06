@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
 
@@ -206,15 +207,17 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
     <main className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-medium text-white">Integrations</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+            Integrations
+          </TypographyH1>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
             Configure the model provider Hyperlocalise uses for translation runs and prepare TMS
             handoffs for approved copy.
-          </p>
+          </TypographyP>
         </div>
         <Badge
           variant="outline"
-          className="rounded-full border-white/10 bg-white/5 text-white/68 lg:self-start"
+          className="rounded-full border-foreground/10 bg-foreground/5 text-foreground/68 lg:self-start"
         >
           Workspace level
         </Badge>
@@ -222,50 +225,52 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="font-heading text-xl font-medium text-white">Model Provider</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
+            Model Provider
+          </TypographyH2>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
             Choose how Hyperlocalise runs translations: use our managed provider or bring your own
             API keys.
-          </p>
+          </TypographyP>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-white/8 bg-[#0b0b0b]">
+        <div className="overflow-x-auto rounded-lg border border-foreground/8 bg-foreground/[0.025]">
           {isLoading ? (
             <div className="flex flex-col px-5 py-4 lg:px-6">
-              <Skeleton className="my-3 h-12 rounded-lg bg-white/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-white/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-white/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-white/5" />
+              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
+              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
+              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
+              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
             </div>
           ) : (
             <div className="min-w-[640px]">
-              <div className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] border-b border-white/8 px-4 py-4 text-xs font-medium tracking-[0.08em] text-white/46 uppercase">
+              <div className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] border-b border-foreground/8 px-4 py-4 text-xs font-medium tracking-[0.08em] text-foreground/46 uppercase">
                 <div>Provider</div>
                 <div>API key</div>
                 <div className="text-right">
                   <span className="sr-only">Actions</span>
                 </div>
               </div>
-              <div className="divide-y divide-white/8">
+              <div className="divide-y divide-foreground/8">
                 <div className="grid min-h-16 grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] items-center px-4 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="text-base font-medium text-white">
+                    <div className="text-base font-medium text-foreground">
                       {hyperlocaliseGoProvider.label}
                     </div>
                     <Badge
                       variant="outline"
-                      className="border-white/10 bg-white/5 text-white/52 text-[10px]"
+                      className="border-foreground/10 bg-foreground/5 text-foreground/52 text-[10px]"
                     >
                       Managed
                     </Badge>
                   </div>
-                  <div className="text-sm text-white/52">{hyperlocaliseGoProvider.apiKey}</div>
+                  <div className="text-sm text-foreground/52">{hyperlocaliseGoProvider.apiKey}</div>
                   <div className="flex justify-end">
                     {credential ? (
                       <Button
                         type="button"
                         variant="ghost"
-                        className="text-white/62 hover:bg-white/8 hover:text-white"
+                        className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
                         onClick={() => deleteCredential.mutate()}
                         disabled={deleteCredential.isPending}
                       >
@@ -292,15 +297,15 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                       key={provider.id}
                       className="grid min-h-16 grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] items-center px-4 py-4"
                     >
-                      <div className="text-base font-medium text-white">{provider.label}</div>
-                      <div className="text-sm text-white/52">
+                      <div className="text-base font-medium text-foreground">{provider.label}</div>
+                      <div className="text-sm text-foreground/52">
                         {isConfigured ? `**** ${credential.maskedApiKeySuffix}` : "-"}
                       </div>
                       <div className="flex justify-end">
                         <Button
                           type="button"
                           variant="ghost"
-                          className="text-white/62 hover:bg-white/8 hover:text-white"
+                          className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
                           onClick={() => {
                             setSelectedProvider(provider.id);
                             setSelectedModel(
@@ -325,10 +330,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
       </section>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="border border-white/8 bg-[#0b0b0b] text-white">
+        <DialogContent className="border border-foreground/8 bg-foreground/[0.025] text-foreground">
           <DialogHeader>
             <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
-            <DialogDescription className="text-white/52">
+            <DialogDescription className="text-foreground/52">
               Save one shared provider key for this workspace. Saving validates the key, encrypts it
               at rest, and replaces the current provider.
             </DialogDescription>
@@ -355,14 +360,14 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
               }}
             >
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-white">Default model</span>
+                <span className="text-sm font-medium text-foreground">Default model</span>
                 <select
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
-                  className="h-9 w-full rounded-4xl border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
+                  className="h-9 w-full rounded-4xl border border-foreground/10 bg-foreground/[0.03] px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
                 >
                   {selectedProviderConfig.models.map((model) => (
-                    <option key={model} value={model} className="bg-[#0b0b0b] text-white">
+                    <option key={model} value={model} className="bg-[#0b0b0b] text-foreground">
                       {model}
                     </option>
                   ))}
@@ -370,12 +375,12 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
               </label>
 
               <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-white">API key</span>
+                <span className="text-sm font-medium text-foreground">API key</span>
                 <div className="relative">
                   <HugeiconsIcon
                     icon={Key01Icon}
                     strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/38"
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
                   />
                   <Input
                     type="password"
@@ -383,7 +388,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     placeholder={`Enter ${selectedProviderLabel} API key`}
-                    className="border-white/10 bg-white/[0.03] ps-9 text-white placeholder:text-white/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    className="border-foreground/10 bg-foreground/[0.03] ps-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                   />
                 </div>
               </label>
@@ -392,7 +397,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                   onClick={() => deleteCredential.mutate()}
                   disabled={!credential || deleteCredential.isPending}
                 >
@@ -401,7 +406,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-white text-black hover:bg-white/90"
+                  className="bg-foreground text-background hover:bg-foreground/90"
                   disabled={!apiKey.trim() || saveCredential.isPending}
                 >
                   <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
@@ -415,23 +420,25 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="font-heading text-xl font-medium text-white">TMS</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
+            TMS
+          </TypographyH2>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
             Translation management system sync is staged for a later release. These connectors are
             visible now so teams can plan the handoff path.
-          </p>
+          </TypographyP>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {tmsIntegrations.map((integration) => (
             <Card
               key={integration.name}
-              className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white opacity-78 ring-0"
+              className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground opacity-78 ring-0"
             >
               <CardHeader className="gap-4 px-5 py-5">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white p-2">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
                       <Image
                         src={integration.logo}
                         alt=""
@@ -441,10 +448,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                       />
                     </div>
                     <div className="min-w-0">
-                      <CardTitle className="text-base font-medium text-white">
+                      <CardTitle className="text-base font-medium text-foreground">
                         {integration.name}
                       </CardTitle>
-                      <CardDescription className="mt-1 text-white/46">
+                      <CardDescription className="mt-1 text-foreground/46">
                         {integration.detail}
                       </CardDescription>
                     </div>

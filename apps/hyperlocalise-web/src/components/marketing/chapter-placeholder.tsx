@@ -12,6 +12,7 @@ import {
   type AssignmentTarget,
   TranslationFlowIllustration,
 } from "./translation-flow-illustration";
+import { TypographyP } from "@/components/ui/typography";
 
 const translationFlowAssignmentTargets: readonly AssignmentTarget[] = [
   {
@@ -69,9 +70,9 @@ export function ChapterPlaceholder({ chapter }: { chapter: MarketingChapter }) {
           <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
           {chapter.placeholderTitle}
         </div>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+        <TypographyP className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
           {chapter.placeholderDescription}
-        </p>
+        </TypographyP>
 
         <div
           className={cn(

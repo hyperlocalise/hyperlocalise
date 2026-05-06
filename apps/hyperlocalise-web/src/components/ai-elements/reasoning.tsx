@@ -22,6 +22,7 @@ import {
 import { Streamdown } from "streamdown";
 
 import { Shimmer } from "./shimmer";
+import { TypographyP } from "@/components/ui/typography";
 
 interface ReasoningContextValue {
   isStreaming: boolean;
@@ -148,9 +149,9 @@ const defaultGetThinkingMessage = (isStreaming: boolean, duration?: number) => {
     return <Shimmer duration={1}>Thinking...</Shimmer>;
   }
   if (duration === undefined) {
-    return <p>Thought for a few seconds</p>;
+    return <TypographyP>Thought for a few seconds</TypographyP>;
   }
-  return <p>Thought for {duration} seconds</p>;
+  return <TypographyP>Thought for {duration} seconds</TypographyP>;
 };
 
 export const ReasoningTrigger = memo(

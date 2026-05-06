@@ -182,7 +182,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               chatRequestMutation.mutate();
             }
           }}
-          className="overflow-hidden rounded-[1.35rem] border border-border bg-app-shell-background text-foreground shadow-2xl shadow-black/10"
+          className="overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10"
         >
           <label htmlFor="inbox-request" className="sr-only">
             Translation request

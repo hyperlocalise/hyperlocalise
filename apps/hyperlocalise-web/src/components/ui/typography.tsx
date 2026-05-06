@@ -153,7 +153,7 @@ export function TypographyH4({
 }
 
 export function TypographyP({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn("font-sans leading-7 not-first:mt-2", className)} {...props} />;
+  return <p className={cn("font-sans leading-7", className)} {...props} />;
 }
 
 export function TypographyBlockquote({

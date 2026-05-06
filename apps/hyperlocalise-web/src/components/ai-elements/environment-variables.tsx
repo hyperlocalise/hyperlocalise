@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { TypographyH3 } from "@/components/ui/typography";
 
 interface EnvironmentVariablesContextType {
   showValues: boolean;
@@ -85,9 +86,9 @@ export const EnvironmentVariablesTitle = ({
   children,
   ...props
 }: EnvironmentVariablesTitleProps) => (
-  <h3 className={cn("font-medium text-sm", className)} {...props}>
+  <TypographyH3 className={cn("font-medium text-sm", className)} {...props}>
     {children ?? "Environment Variables"}
-  </h3>
+  </TypographyH3>
 );
 
 export type EnvironmentVariablesToggleProps = ComponentProps<typeof Switch>;
