@@ -59,11 +59,5 @@ export const jobListQuerySchema = z.object({
 });
 
 export type CreateJobBody = z.infer<typeof createJobBodySchema>;
-/**
- * @deprecated Use this only inside the translation job detail/worker path.
- */
 export type StringTranslationJobInput = z.infer<typeof stringTranslationJobInputSchema>;
-/**
- * @deprecated Use this only inside the translation job detail/worker path.
- */
 export type FileTranslationJobInput = z.infer<typeof fileTranslationJobInputSchema>;

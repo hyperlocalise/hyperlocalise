@@ -8,10 +8,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { db, schema } from "@/lib/database";
 import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
+  claimTranslationJob,
   completeTranslationJob,
-  createTranslationJobQueuedFunction,
+  executeClaimedTranslationJob,
   failTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
+import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -85,7 +88,38 @@ async function insertJob(input: {
   });
 }
 
-describe("executeTranslationJobQueued", () => {
+async function executeTranslationJob(input: {
+  event: TranslationJobEventData;
+  runId: string;
+  translateStringJob?: StringTranslationGenerator;
+}) {
+  const claim = await claimTranslationJob({ event: input.event, runId: input.runId });
+
+  if (claim.kind === "skipped") {
+    return claim.job;
+  }
+
+  const execution = await executeClaimedTranslationJob(claim.job, input.translateStringJob);
+
+  if (!execution.ok) {
+    return failTranslationJob({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: execution.code,
+      message: execution.message,
+    });
+  }
+
+  return completeTranslationJob({
+    jobId: claim.job.id,
+    projectId: claim.job.projectId,
+    workflowRunId: claim.job.workflowRunId,
+    result: execution.result,
+  });
+}
+
+describe("translation job workflow helpers", () => {
   it("records the workflow run id and completes an existing queued string job", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
@@ -101,20 +135,18 @@ describe("executeTranslationJobQueued", () => {
       },
     });
 
-    const executeTranslationJobQueued = createTranslationJobQueuedFunction({
+    const result = await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
       async translateStringJob() {
         return {
           translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
         };
-      },
-    });
-
-    const result = await executeTranslationJobQueued({
-      runId: `run_${randomUUID()}`,
-      event: {
-        jobId: job.id,
-        projectId: project.id,
-        type: "string",
       },
     });
 
@@ -173,17 +205,15 @@ describe("executeTranslationJobQueued", () => {
     const translateStringJob = vi.fn(async () => ({
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
     }));
-    const executeTranslationJobQueued = createTranslationJobQueuedFunction({
-      translateStringJob,
-    });
-
-    const result = await executeTranslationJobQueued({
+    const result = await executeTranslationJob({
       runId: `run_${randomUUID()}`,
       event: {
+        kind: "translation",
         jobId: job.id,
         projectId: project.id,
         type: "string",
       },
+      translateStringJob,
     });
 
     expect(result).toEqual(
@@ -280,10 +310,10 @@ describe("executeTranslationJobQueued", () => {
       },
     });
 
-    const executeTranslationJobQueued = createTranslationJobQueuedFunction();
-    const result = await executeTranslationJobQueued({
+    const result = await executeTranslationJob({
       runId: `run_${randomUUID()}`,
       event: {
+        kind: "translation",
         jobId: job.id,
         projectId: project.id,
         type: "string",
@@ -324,10 +354,10 @@ describe("executeTranslationJobQueued", () => {
       },
     });
 
-    const executeTranslationJobQueued = createTranslationJobQueuedFunction();
-    const result = await executeTranslationJobQueued({
+    const result = await executeTranslationJob({
       runId: `run_${randomUUID()}`,
       event: {
+        kind: "translation",
         jobId: job.id,
         projectId: project.id,
         type: "string",
@@ -365,16 +395,15 @@ describe("executeTranslationJobQueued", () => {
     const translateStringJob = vi.fn(async () => ({
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
     }));
-    const executeTranslationJobQueued = createTranslationJobQueuedFunction({
-      translateStringJob,
-    });
-    const result = await executeTranslationJobQueued({
+    const result = await executeTranslationJob({
       runId: `run_${randomUUID()}`,
       event: {
+        kind: "translation",
         jobId: job.id,
         projectId: project.id,
         type: "string",
       },
+      translateStringJob,
     });
 
     expect(result).toEqual(

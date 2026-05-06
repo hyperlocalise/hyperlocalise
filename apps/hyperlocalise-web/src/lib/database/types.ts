@@ -12,8 +12,6 @@ import type {
   teamMemberships,
   teams,
   projects,
-  translationJobOutcomeKindEnum,
-  translationJobTypeEnum,
   interactions,
   inboxItems,
   interactionMessages,
@@ -30,20 +28,6 @@ export type JobKind = (typeof jobKindEnum.enumValues)[number];
 export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
 export type TranslationJobDetails = typeof translationJobDetails.$inferSelect;
 export type NewTranslationJobDetails = typeof translationJobDetails.$inferInsert;
-
-/**
- * @deprecated Prefer `JobKind`, `JobStatus`, and `TranslationJobDetails`.
- * Translation-specific job fields now live in `translation_job_details`.
- */
-export type TranslationJobType = (typeof translationJobTypeEnum.enumValues)[number];
-/**
- * @deprecated Use `JobStatus` for all job lifecycle state.
- */
-export type TranslationJobStatus = JobStatus;
-/**
- * @deprecated Prefer reading `TranslationJobDetails["outcomeKind"]` for translation jobs.
- */
-export type TranslationJobOutcomeKind = (typeof translationJobOutcomeKindEnum.enumValues)[number];
 export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.enumValues)[number];
 export type LlmProvider = (typeof llmProviderEnum.enumValues)[number];
 export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;

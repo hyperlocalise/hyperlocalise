@@ -1,12 +1,11 @@
-/**
- * @deprecated Use a generic job-queued event keyed by `kind` for new workflow handlers.
- * This event remains for the current translation worker compatibility path.
- */
-export type TranslationJobQueuedEventData = {
+export type JobEventData<Kind extends string, Type extends string = string> = {
+  kind: Kind;
   jobId: string;
   projectId: string;
-  type: "string" | "file";
+  type: Type;
 };
+
+export type TranslationJobEventData = JobEventData<"translation", "string" | "file">;
 
 export type GitHubReviewTriggerType = "pull_request" | "mention";
 
@@ -58,17 +57,11 @@ export type GitHubFixRequestedEventData = {
   scope: GitHubFixScope;
 };
 
-/**
- * @deprecated Use a generic job queue for new job kinds. This queue is retained
- * for the existing translation worker adapter.
- */
-export type TranslationJobQueue = {
-  enqueue(event: TranslationJobQueuedEventData): Promise<{ ids: string[] }>;
+export type JobQueue<Event> = {
+  enqueue(event: Event): Promise<{ ids: string[] }>;
 };
 
-export type GitHubFixQueue = {
-  enqueue(event: GitHubFixRequestedEventData): Promise<{ ids: string[] }>;
-};
+export type GitHubFixQueue = JobQueue<GitHubFixRequestedEventData>;
 
 export type EmailAgentTaskAttachment = {
   id: string;
@@ -100,6 +93,4 @@ export type EmailAgentTask = {
   };
 };
 
-export type EmailAgentTaskQueue = {
-  enqueue(task: EmailAgentTask): Promise<{ ids: string[] }>;
-};
+export type EmailAgentTaskQueue = JobQueue<EmailAgentTask>;

@@ -15,10 +15,10 @@ vi.mock("@/api/auth/workos-session", () => ({
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { generateApiKey, hashApiKey, getApiKeyPrefix } from "@/lib/api-keys";
-import type { TranslationJobQueue } from "@/lib/workflow/types";
+import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "../project/project.fixture";
 
-function createInlineTestJobQueue(): TranslationJobQueue {
+function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   return {
     async enqueue(event) {
       return { ids: [event.jobId] };

@@ -8,7 +8,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import type { TranslationJobQueue } from "@/lib/workflow/types";
+import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
   forbiddenResponse,
@@ -25,7 +25,7 @@ import {
 } from "./job.schema";
 
 type CreateJobRoutesOptions = {
-  jobQueue: TranslationJobQueue;
+  jobQueue: JobQueue<TranslationJobEventData>;
 };
 
 const jobSelect = {
@@ -304,6 +304,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
 
       try {
         await options.jobQueue.enqueue({
+          kind: "translation",
           jobId: job.id,
           projectId: job.projectId ?? params.projectId,
           type: job.type,

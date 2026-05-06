@@ -12,10 +12,10 @@ import {
   failTranslationJob,
   type ClaimedTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
-import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
-  event: TranslationJobQueuedEventData;
+  event: TranslationJobEventData;
   runId: string;
 }) {
   "use step";

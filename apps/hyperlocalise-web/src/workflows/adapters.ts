@@ -7,10 +7,11 @@ import { translationJobWorkflow } from "./translation-job";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
-  TranslationJobQueue,
+  JobQueue,
+  TranslationJobEventData,
 } from "@/lib/workflow/types";
 
-export function createTranslationJobQueue(): TranslationJobQueue {
+export function createTranslationJobEventQueue(): JobQueue<TranslationJobEventData> {
   return {
     async enqueue(event) {
       const workflow = event.type === "file" ? fileTranslationJobWorkflow : translationJobWorkflow;

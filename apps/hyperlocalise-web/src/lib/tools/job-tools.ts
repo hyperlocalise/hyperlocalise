@@ -11,14 +11,14 @@ import {
   isImageTranslationFileFormat,
   supportedTranslationFileFormats,
 } from "@/lib/translation/file-formats";
-import { createTranslationJobQueue } from "@/workflows/adapters";
+import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
 import type { ToolContext } from "./types";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
 
-const translationJobQueue = createTranslationJobQueue();
+const jobQueue = createTranslationJobEventQueue();
 
 export function createUnavailableJobKindTool(capability: string) {
   return tool({
@@ -173,7 +173,7 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
  * 3. Insert into `jobs` table with `kind = "translation"`, `status = "queued"`,
  *    `interactionId` set to the current conversation, `projectId` if available.
  * 4. Insert into `translationJobDetails` with the appropriate `type`.
- * 5. Enqueue the job via the `TranslationJobQueue` adapter (see `job.route.ts`).
+ * 5. Enqueue the job via the translation job queue adapter (see `job.route.ts`).
  * 6. Return the created job ID and status.
  *
  * Example usage: user says "Please translate these release notes into Japanese and Vietnamese."
@@ -302,7 +302,8 @@ export function createTranslationJobTool(ctx: ToolContext) {
       });
 
       try {
-        const result = await translationJobQueue.enqueue({
+        const result = await jobQueue.enqueue({
+          kind: "translation",
           jobId: job.id,
           projectId: ctx.projectId,
           type: input.type,

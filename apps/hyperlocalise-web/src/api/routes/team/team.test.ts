@@ -11,10 +11,6 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
 }));
 
-vi.mock("@/lib/translation/translation-job-queued-function", () => ({
-  translationJobQueuedFunction: {},
-}));
-
 vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
