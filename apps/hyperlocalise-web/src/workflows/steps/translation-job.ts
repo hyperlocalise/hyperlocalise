@@ -1,8 +1,9 @@
-import { get, put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { createStoredFileId, sha256Hex, storageKey } from "@/lib/file-storage/records";
 import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
 import {
   claimTranslationJob,
@@ -12,43 +13,6 @@ import {
   type ClaimedTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
 import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
-
-function createStoredFileId() {
-  return `file_${crypto.randomUUID()}`;
-}
-
-async function sha256Hex(content: Buffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    content.buffer.slice(
-      content.byteOffset,
-      content.byteOffset + content.byteLength,
-    ) as ArrayBuffer,
-  );
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function safePathPart(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "_");
-}
-
-function storageKey(input: {
-  organizationId: string;
-  projectId?: string | null;
-  id: string;
-  filename: string;
-}) {
-  const scope = input.projectId ? `projects/${safePathPart(input.projectId)}` : "workspace";
-  return [
-    "organizations",
-    safePathPart(input.organizationId),
-    scope,
-    "files",
-    input.id,
-    safePathPart(input.filename),
-  ].join("/");
-}
 
 export async function claimTranslationJobStep(input: {
   event: TranslationJobQueuedEventData;
@@ -243,35 +207,40 @@ export async function storeOutputFileStep(input: {
     token: env.BLOB_READ_WRITE_TOKEN,
   });
 
-  const [file] = await db
-    .insert(schema.storedFiles)
-    .values({
-      id,
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      createdByUserId: null,
-      role: "output",
-      sourceKind: "job_output",
-      sourceInteractionId: null,
-      sourceJobId: input.jobId,
-      storageProvider: "vercel_blob",
-      storageKey: uploaded.pathname,
-      storageUrl: uploaded.url,
-      downloadUrl: uploaded.downloadUrl ?? null,
-      filename: input.filename,
-      contentType: uploaded.contentType,
-      byteSize: input.content.byteLength,
-      sha256: await sha256Hex(input.content),
-      etag: uploaded.etag ?? null,
-      metadata: {},
-    })
-    .returning();
+  try {
+    const [file] = await db
+      .insert(schema.storedFiles)
+      .values({
+        id,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        createdByUserId: null,
+        role: "output",
+        sourceKind: "job_output",
+        sourceInteractionId: null,
+        sourceJobId: input.jobId,
+        storageProvider: "vercel_blob",
+        storageKey: uploaded.pathname,
+        storageUrl: uploaded.url,
+        downloadUrl: uploaded.downloadUrl ?? null,
+        filename: input.filename,
+        contentType: uploaded.contentType,
+        byteSize: input.content.byteLength,
+        sha256: await sha256Hex(input.content),
+        etag: uploaded.etag ?? null,
+        metadata: {},
+      })
+      .returning();
 
-  if (!file) {
-    throw new Error(`failed to create stored file record for ${input.filename}`);
+    if (!file) {
+      throw new Error(`failed to create stored file record for ${input.filename}`);
+    }
+
+    return file;
+  } catch (error) {
+    await del(uploaded.pathname, { token: env.BLOB_READ_WRITE_TOKEN });
+    throw error;
   }
-
-  return file;
 }
 
 export async function completeFileTranslationJobStep(input: {
