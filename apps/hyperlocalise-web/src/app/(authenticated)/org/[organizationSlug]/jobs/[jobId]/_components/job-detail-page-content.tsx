@@ -1,18 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft02Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft02Icon, RefreshIcon, StopCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
-import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 
 type JobDetail = {
   id: string;
@@ -81,6 +92,27 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
+function canRetryJob(job: JobDetail) {
+  return job.kind === "translation" && (job.status === "queued" || job.status === "failed");
+}
+
+function canMarkJobFailed(job: JobDetail) {
+  return job.status === "queued" || job.status === "running";
+}
+
+async function parseActionError(response: Response, fallback: string) {
+  let error: string | undefined;
+
+  try {
+    const body = (await response.json()) as { error?: string };
+    error = body.error;
+  } catch {
+    error = undefined;
+  }
+
+  return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
+}
+
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
@@ -97,8 +129,11 @@ export function JobDetailPageContent({
   jobId: string;
   organizationSlug: string;
 }) {
+  const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const jobQueryKey = ["job", organizationSlug, jobId] as const;
   const jobQuery = useQuery({
-    queryKey: ["job", organizationSlug, jobId],
+    queryKey: jobQueryKey,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
@@ -113,7 +148,57 @@ export function JobDetailPageContent({
     },
   });
 
+  const retryJob = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseActionError(response, "Failed to retry job"));
+      }
+
+      const body = (await response.json()) as { job: JobDetail };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      toast.success("Job queued for retry");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to retry job");
+    },
+  });
+
+  const markJobFailed = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+        "mark-failed"
+      ].$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseActionError(response, "Failed to mark job as failed"));
+      }
+
+      const body = (await response.json()) as { job: JobDetail };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      setMarkFailedDialogOpen(false);
+      toast.success("Job marked as failed");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to mark job as failed");
+    },
+  });
+
   const job = jobQuery.data;
+  const showActions = job ? canRetryJob(job) || canMarkJobFailed(job) : false;
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -132,12 +217,39 @@ export function JobDetailPageContent({
           </TypographyH1>
         </div>
         {job ? (
-          <Badge
-            variant="outline"
-            className={cn("w-fit rounded-full capitalize", toneClass(statusTone(job.status)))}
-          >
-            {job.status}
-          </Badge>
+          <div className="flex flex-col items-start gap-3 sm:items-end">
+            <Badge
+              variant="outline"
+              className={cn("w-fit rounded-full capitalize", toneClass(statusTone(job.status)))}
+            >
+              {job.status}
+            </Badge>
+            {showActions ? (
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                {canRetryJob(job) ? (
+                  <Button
+                    size="sm"
+                    disabled={retryJob.isPending || markJobFailed.isPending}
+                    onClick={() => retryJob.mutate()}
+                  >
+                    <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} />
+                    {retryJob.isPending ? "Retrying..." : "Retry job"}
+                  </Button>
+                ) : null}
+                {canMarkJobFailed(job) ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={retryJob.isPending || markJobFailed.isPending}
+                    onClick={() => setMarkFailedDialogOpen(true)}
+                  >
+                    <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+                    Mark as failed
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -229,6 +341,29 @@ export function JobDetailPageContent({
           </section>
         </>
       ) : null}
+
+      <AlertDialog open={markFailedDialogOpen} onOpenChange={setMarkFailedDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark job as failed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop the job from appearing queued or running and prevent the current
+              workflow run from updating it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markJobFailed.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={markJobFailed.isPending}
+              onClick={() => markJobFailed.mutate()}
+            >
+              <HugeiconsIcon icon={StopCircleIcon} strokeWidth={1.8} />
+              {markJobFailed.isPending ? "Marking..." : "Mark failed"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
