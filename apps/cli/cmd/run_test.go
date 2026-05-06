@@ -68,6 +68,74 @@ func TestRunDryRunDoesNotWriteTargets(t *testing.T) {
 	}
 }
 
+func TestRunDryRunLiquidReportUsesGeneratedLiquidKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	reportPath := filepath.Join(dir, "report.json")
+	sourcePath := filepath.Join(dir, "sections", "header.liquid")
+	targetPath := filepath.Join(dir, "dist", "fr", "sections", "header.liquid")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	source := `{% if customer %}
+  <p>Hello {{ customer.first_name }}.</p>
+{% endif %}
+{{ 'header.navigation.home' | t }}
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--output", reportPath, "--output-detail", "full"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command liquid dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry_run=true") {
+		t.Fatalf("expected dry-run output, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+
+	reportContent, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read run report: %v", err)
+	}
+	var report runsvc.Report
+	if err := json.Unmarshal(reportContent, &report); err != nil {
+		t.Fatalf("decode run report: %v\n%s", err, reportContent)
+	}
+	if report.ExecutableTotal != 1 || len(report.Executable) != 1 {
+		t.Fatalf("expected one liquid task, got %+v", report)
+	}
+	task := report.Executable[0]
+	if !strings.HasPrefix(task.EntryKey, "liquid.") {
+		t.Fatalf("expected generated liquid key, got %q", task.EntryKey)
+	}
+	if !strings.Contains(task.SourceText, "Hello") || !strings.Contains(task.SourceText, "HLLQPH_") {
+		t.Fatalf("expected visible text with protected Liquid placeholder, got %q", task.SourceText)
+	}
+	if strings.Contains(task.SourceText, "header.navigation.home") || strings.Contains(task.SourceText, "{% if") || strings.Contains(task.SourceText, "{% endif") {
+		t.Fatalf("did not expect Shopify locale keys or standalone Liquid tags in source text, got %q", task.SourceText)
+	}
+}
+
 func TestRunDryRunWarnsWhenLegacyPromptIsConfigured(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
