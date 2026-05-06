@@ -16,7 +16,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   supportedTranslationFileFormats,
 } from "@/lib/translation/file-formats";
-import type { TranslationJobQueue } from "@/lib/workflow/types";
+import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
@@ -98,7 +98,7 @@ const validateJobIdParams = validator("param", (value, c) => {
 });
 
 type CreatePublicJobRoutesOptions = {
-  jobQueue?: TranslationJobQueue;
+  jobQueue?: JobQueue<TranslationJobEventData>;
 };
 
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
@@ -176,6 +176,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       if (options.jobQueue) {
         try {
           await options.jobQueue.enqueue({
+            kind: "translation",
             jobId: job.id,
             projectId: payload.projectId,
             type: payload.type,

@@ -1,5 +1,5 @@
 import { getWorkflowMetadata } from "workflow";
-import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
   completeTranslationJobStep,
@@ -11,7 +11,7 @@ function formatExecutionError(error: unknown) {
   return error instanceof Error ? error.message : "translation job execution failed";
 }
 
-export async function translationJobWorkflow(event: TranslationJobQueuedEventData) {
+export async function translationJobWorkflow(event: TranslationJobEventData) {
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();

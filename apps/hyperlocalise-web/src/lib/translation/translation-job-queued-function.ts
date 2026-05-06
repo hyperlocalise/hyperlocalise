@@ -5,7 +5,7 @@ import {
   type StringTranslationJobInput,
 } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
   createOpenAIStringTranslationGenerator,
@@ -14,12 +14,8 @@ import {
 } from "@/lib/translation/string-job-executor";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-type CreateTranslationJobQueuedFunctionOptions = {
-  translateStringJob?: StringTranslationGenerator;
-};
-
-type ExecuteTranslationJobQueuedInput = {
-  event: TranslationJobQueuedEventData;
+type ClaimTranslationJobInput = {
+  event: TranslationJobEventData;
   runId: string;
 };
 
@@ -91,10 +87,6 @@ export type TranslationJobExecutionResult =
       code: string;
       message: string;
     };
-
-function formatExecutionError(error: unknown) {
-  return error instanceof Error ? error.message : "translation job execution failed";
-}
 
 function buildTsQuery(input: string): string {
   return input
@@ -312,11 +304,7 @@ async function getStoredJob(jobId: string, projectId: string) {
   return job ? { ...job, projectId: job.projectId ?? projectId } : undefined;
 }
 
-/**
- * @deprecated Use a generic job claim helper for new job workers. This remains
- * scoped to translation jobs while the translation worker is migrated.
- */
-export async function claimTranslationJob(input: ExecuteTranslationJobQueuedInput) {
+export async function claimTranslationJob(input: ClaimTranslationJobInput) {
   const attachedJob = await db
     .update(schema.jobs)
     .set({
@@ -551,9 +539,6 @@ async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
   } as const;
 }
 
-/**
- * @deprecated Use generic job execution dispatch for new job kinds.
- */
 export async function executeClaimedTranslationJob(
   claimedJob: ClaimedTranslationJob,
   translateStringJobOverride?: StringTranslationGenerator,
@@ -634,9 +619,6 @@ export async function executeClaimedTranslationJob(
   };
 }
 
-/**
- * @deprecated Use generic job completion helpers plus type-specific detail updates.
- */
 export async function completeTranslationJob(input: {
   jobId: string;
   projectId: string;
@@ -689,9 +671,6 @@ export async function completeTranslationJob(input: {
   return succeededJob;
 }
 
-/**
- * @deprecated Use generic job failure helpers plus type-specific detail updates.
- */
 export async function failTranslationJob(input: {
   jobId: string;
   projectId: string;
@@ -747,56 +726,3 @@ export async function failTranslationJob(input: {
 
   return failedJob;
 }
-
-/**
- * @deprecated Use a generic queued-job workflow function for new job kinds.
- */
-export function createTranslationJobQueuedFunction(
-  options: CreateTranslationJobQueuedFunctionOptions = {},
-) {
-  const translateStringJob = options.translateStringJob;
-
-  return async ({ event, runId }: ExecuteTranslationJobQueuedInput) => {
-    const claim = await claimTranslationJob({ event, runId });
-
-    if (claim.kind === "skipped") {
-      return claim.job;
-    }
-
-    try {
-      const execution = await executeClaimedTranslationJob(claim.job, translateStringJob);
-
-      if (!execution.ok) {
-        return failTranslationJob({
-          jobId: claim.job.id,
-          projectId: claim.job.projectId,
-          workflowRunId: claim.job.workflowRunId,
-          code: execution.code,
-          message: execution.message,
-        });
-      }
-
-      return completeTranslationJob({
-        jobId: claim.job.id,
-        projectId: claim.job.projectId,
-        workflowRunId: claim.job.workflowRunId,
-        result: execution.result,
-      });
-    } catch (error) {
-      const message = formatExecutionError(error);
-
-      return failTranslationJob({
-        jobId: claim.job.id,
-        projectId: claim.job.projectId,
-        workflowRunId: claim.job.workflowRunId,
-        code: "translation_execution_failed",
-        message,
-      });
-    }
-  };
-}
-
-/**
- * @deprecated Use generic queued-job execution for new job kinds.
- */
-export const executeTranslationJobQueued = createTranslationJobQueuedFunction();

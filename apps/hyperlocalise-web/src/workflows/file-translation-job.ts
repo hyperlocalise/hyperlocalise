@@ -18,7 +18,7 @@ import {
   writeFileToSandbox,
   writeTempConfig,
 } from "@/lib/translation/sandbox-translation";
-import type { TranslationJobQueuedEventData } from "@/lib/workflow/types";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
   completeFileTranslationJobStep,
@@ -99,7 +99,7 @@ async function logDiagnosticsStep(
   );
 }
 
-export async function fileTranslationJobWorkflow(event: TranslationJobQueuedEventData) {
+export async function fileTranslationJobWorkflow(event: TranslationJobEventData) {
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();

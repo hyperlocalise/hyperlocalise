@@ -4,7 +4,8 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
-  TranslationJobQueue,
+  JobQueue,
+  TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
@@ -28,12 +29,8 @@ type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
-  jobQueue?: TranslationJobQueue;
+  jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
-  /**
-   * @deprecated Use `jobQueue`.
-   */
-  translationJobQueue?: TranslationJobQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}) {

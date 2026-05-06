@@ -1,9 +1,5 @@
 import type { GitHubReviewTriggerType } from "./types";
 
-export function getTranslationJobQueuedEventId(jobId: string) {
-  return `translation-job-queued:${jobId}`;
-}
-
 export function getGitHubReviewKey(input: {
   repositoryOwner: string;
   repositoryName: string;

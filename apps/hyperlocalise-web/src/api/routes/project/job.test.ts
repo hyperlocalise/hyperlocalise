@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { TranslationJobQueue } from "@/lib/workflow/types";
+import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -19,7 +19,7 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
 
-function createInlineTestJobQueue(): TranslationJobQueue {
+function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   return {
     async enqueue(event) {
       return { ids: [event.jobId] };
