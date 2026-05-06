@@ -4,6 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { BookIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 export type SourcesProps = ComponentProps<"div">;
 
@@ -19,7 +20,7 @@ export const SourcesTrigger = ({ className, count, children, ...props }: Sources
   <CollapsibleTrigger className={cn("flex items-center gap-2", className)} {...props}>
     {children ?? (
       <>
-        <p className="font-medium">Used {count} sources</p>
+        <TypographyP className="font-medium">Used {count} sources</TypographyP>
         <ChevronDownIcon className="h-4 w-4" />
       </>
     )}

@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { TypographyP } from "@/components/ui/typography";
 
 function ItemGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -137,7 +138,7 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
 
 function ItemDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
-    <p
+    <TypographyP
       data-slot="item-description"
       className={cn(
         "line-clamp-2 text-start text-sm font-normal text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",

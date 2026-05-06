@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { XIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 export type ArtifactProps = HTMLAttributes<HTMLDivElement>;
 
@@ -52,13 +53,13 @@ export const ArtifactClose = ({
 export type ArtifactTitleProps = HTMLAttributes<HTMLParagraphElement>;
 
 export const ArtifactTitle = ({ className, ...props }: ArtifactTitleProps) => (
-  <p className={cn("font-medium text-foreground text-sm", className)} {...props} />
+  <TypographyP className={cn("font-medium text-foreground text-sm", className)} {...props} />
 );
 
 export type ArtifactDescriptionProps = HTMLAttributes<HTMLParagraphElement>;
 
 export const ArtifactDescription = ({ className, ...props }: ArtifactDescriptionProps) => (
-  <p className={cn("text-muted-foreground text-sm", className)} {...props} />
+  <TypographyP className={cn("text-muted-foreground text-sm", className)} {...props} />
 );
 
 export type ArtifactActionsProps = HTMLAttributes<HTMLDivElement>;
@@ -102,7 +103,7 @@ export const ArtifactAction = ({
         <Tooltip>
           <TooltipTrigger>{button}</TooltipTrigger>
           <TooltipContent>
-            <p>{tooltip}</p>
+            <TypographyP>{tooltip}</TypographyP>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

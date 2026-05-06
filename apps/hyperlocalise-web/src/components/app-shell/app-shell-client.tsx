@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { getAppShellTitle } from "./app-shell-title";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
+import { TypographyP } from "@/components/ui/typography";
 
 type AppShellClientProps = {
   children: ReactNode;
@@ -87,8 +88,12 @@ export function AppShellClient({
               className="size-7 shrink-0 rounded-full"
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="truncate text-sm font-medium text-white">Hyperlocalise</p>
-              <p className="truncate text-xs text-white/45">{activeOrganization.name}</p>
+              <TypographyP className="truncate text-sm font-medium text-white">
+                Hyperlocalise
+              </TypographyP>
+              <TypographyP className="truncate text-xs text-white/45">
+                {activeOrganization.name}
+              </TypographyP>
             </div>
           </div>
 
@@ -133,13 +138,15 @@ export function AppShellClient({
 
           <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
             <div className="rounded-lg border border-white/8 bg-white/3 px-3 py-3">
-              <p className="text-xs font-medium text-white/84">Plan usage</p>
-              <p className="mt-3 text-xs text-white/46">Enterprise</p>
-              <p className="mt-1 text-xs text-white/38">Renews on Aug 24, 2025</p>
+              <TypographyP className="text-xs font-medium text-white/84">Plan usage</TypographyP>
+              <TypographyP className="mt-3 text-xs text-white/46">Enterprise</TypographyP>
+              <TypographyP className="mt-1 text-xs text-white/38">
+                Renews on Aug 24, 2025
+              </TypographyP>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                 <div className="h-full w-[60%] rounded-full bg-bud-500" />
               </div>
-              <p className="mt-3 text-xs text-white/68">1.2M / 2M words used</p>
+              <TypographyP className="mt-3 text-xs text-white/68">1.2M / 2M words used</TypographyP>
               <div className="mt-3 flex items-center gap-2 text-xs text-white/58">
                 <span>View usage</span>
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
@@ -167,7 +174,9 @@ export function AppShellClient({
               orientation="vertical"
               className="me-2 data-vertical:h-4 data-vertical:self-auto"
             />
-            <p className="font-heading text-base font-medium text-white">{pageTitle}</p>
+            <TypographyP className="font-heading text-base font-medium text-white">
+              {pageTitle}
+            </TypographyP>
           </div>
         </div>
 

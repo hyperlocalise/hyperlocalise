@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { TypographyP } from "@/components/ui/typography";
 
 const overviewMetrics = [
   {
@@ -293,13 +294,13 @@ export function DashboardPageContent() {
             <CardContent className="px-4 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-white/52">{metric.label}</p>
-                  <p className="mt-2 font-heading text-3xl font-medium text-white">
+                  <TypographyP className="text-sm text-white/52">{metric.label}</TypographyP>
+                  <TypographyP className="mt-2 font-heading text-3xl font-medium text-white">
                     {metric.value}
-                  </p>
-                  <p className="mt-2 text-xs text-white/44">
+                  </TypographyP>
+                  <TypographyP className="mt-2 text-xs text-white/44">
                     <span className={metric.accent}>{metric.delta}</span> {metric.detail}
-                  </p>
+                  </TypographyP>
                 </div>
                 <MiniTrend bars={metric.bars} className={metric.accent} />
               </div>
@@ -320,19 +321,23 @@ export function DashboardPageContent() {
             <div className="overflow-x-auto">
               <div className="min-w-2xl">
                 <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
-                  <p>Locale</p>
-                  <p>Status</p>
-                  <p>Reviews</p>
-                  <p>Last sync</p>
-                  <p>Next action</p>
+                  <TypographyP>Locale</TypographyP>
+                  <TypographyP>Status</TypographyP>
+                  <TypographyP>Reviews</TypographyP>
+                  <TypographyP>Last sync</TypographyP>
+                  <TypographyP>Next action</TypographyP>
                 </div>
                 <Separator className="bg-white/8" />
                 {localeReadiness.map((row, index) => (
                   <div key={row.locale}>
                     <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] items-center gap-3 px-5 py-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-white">{row.locale}</p>
-                        <p className="mt-0.5 text-xs text-white/42">{row.market}</p>
+                        <TypographyP className="text-sm font-medium text-white">
+                          {row.locale}
+                        </TypographyP>
+                        <TypographyP className="mt-0.5 text-xs text-white/42">
+                          {row.market}
+                        </TypographyP>
                       </div>
                       <Badge
                         variant="outline"
@@ -343,9 +348,11 @@ export function DashboardPageContent() {
                       >
                         {row.status}
                       </Badge>
-                      <p className="text-sm text-white/58">{row.reviews}</p>
-                      <p className="text-sm text-white/48">{row.lastSync}</p>
-                      <p className="truncate text-sm text-white/72">{row.next}</p>
+                      <TypographyP className="text-sm text-white/58">{row.reviews}</TypographyP>
+                      <TypographyP className="text-sm text-white/48">{row.lastSync}</TypographyP>
+                      <TypographyP className="truncate text-sm text-white/72">
+                        {row.next}
+                      </TypographyP>
                     </div>
                     {index < localeReadiness.length - 1 ? (
                       <Separator className="bg-white/8" />
@@ -380,13 +387,21 @@ export function DashboardPageContent() {
                         >
                           {item.locale}
                         </Badge>
-                        <p className="truncate text-sm font-medium text-white">{item.title}</p>
+                        <TypographyP className="truncate text-sm font-medium text-white">
+                          {item.title}
+                        </TypographyP>
                       </div>
-                      <p className="mt-2 text-xs text-white/42">{item.detail}</p>
+                      <TypographyP className="mt-2 text-xs text-white/42">
+                        {item.detail}
+                      </TypographyP>
                     </div>
-                    <p className="shrink-0 text-xs text-white/38">Due {item.due}</p>
+                    <TypographyP className="shrink-0 text-xs text-white/38">
+                      Due {item.due}
+                    </TypographyP>
                   </div>
-                  <p className="mt-3 text-xs text-white/48">Owner: {item.owner}</p>
+                  <TypographyP className="mt-3 text-xs text-white/48">
+                    Owner: {item.owner}
+                  </TypographyP>
                 </div>
                 {index < reviewQueue.length - 1 ? <Separator className="bg-white/8" /> : null}
               </div>
@@ -499,28 +514,36 @@ export function DashboardPageContent() {
             <div className="overflow-x-auto">
               <div className="min-w-232">
                 <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
-                  <p>Job</p>
-                  <p>Source</p>
-                  <p>Step</p>
-                  <p>Locales</p>
-                  <p>Review</p>
-                  <p>Eval</p>
-                  <p>Sync</p>
-                  <p>Next action</p>
-                  <p>Status</p>
+                  <TypographyP>Job</TypographyP>
+                  <TypographyP>Source</TypographyP>
+                  <TypographyP>Step</TypographyP>
+                  <TypographyP>Locales</TypographyP>
+                  <TypographyP>Review</TypographyP>
+                  <TypographyP>Eval</TypographyP>
+                  <TypographyP>Sync</TypographyP>
+                  <TypographyP>Next action</TypographyP>
+                  <TypographyP>Status</TypographyP>
                 </div>
                 <Separator className="bg-white/8" />
                 {activeWorkflows.map((workflow, index) => (
                   <div key={workflow.job}>
                     <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] items-center gap-3 px-5 py-3">
-                      <p className="truncate text-sm text-white">{workflow.job}</p>
-                      <p className="truncate text-sm text-white/48">{workflow.source}</p>
-                      <p className="text-sm text-white/58">{workflow.step}</p>
-                      <p className="text-sm text-white/58">{workflow.locales}</p>
-                      <p className="text-sm text-white/58">{workflow.review}</p>
-                      <p className="text-sm text-white/58">{workflow.eval}</p>
-                      <p className="text-sm text-white/48">{workflow.sync}</p>
-                      <p className="truncate text-sm text-white/72">{workflow.next}</p>
+                      <TypographyP className="truncate text-sm text-white">
+                        {workflow.job}
+                      </TypographyP>
+                      <TypographyP className="truncate text-sm text-white/48">
+                        {workflow.source}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-white/58">{workflow.step}</TypographyP>
+                      <TypographyP className="text-sm text-white/58">
+                        {workflow.locales}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-white/58">{workflow.review}</TypographyP>
+                      <TypographyP className="text-sm text-white/58">{workflow.eval}</TypographyP>
+                      <TypographyP className="text-sm text-white/48">{workflow.sync}</TypographyP>
+                      <TypographyP className="truncate text-sm text-white/72">
+                        {workflow.next}
+                      </TypographyP>
                       <Badge className={cn("rounded-full border", statusClass(workflow.status))}>
                         {workflow.status}
                       </Badge>
@@ -559,10 +582,12 @@ export function DashboardPageContent() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm text-white">{item.title}</p>
-                      <p className="shrink-0 text-xs text-white/38">{item.time}</p>
+                      <TypographyP className="text-sm text-white">{item.title}</TypographyP>
+                      <TypographyP className="shrink-0 text-xs text-white/38">
+                        {item.time}
+                      </TypographyP>
                     </div>
-                    <p className="mt-1 text-xs text-white/42">{item.detail}</p>
+                    <TypographyP className="mt-1 text-xs text-white/42">{item.detail}</TypographyP>
                   </div>
                 </div>
                 {index < activityFeed.length - 1 ? <Separator className="bg-white/8" /> : null}

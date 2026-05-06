@@ -24,6 +24,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import { MetricsGrid, toneClass, type Tone } from "../../_components/workspace-resource-shared";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 type JobsScope = "all" | "mine";
 
@@ -193,42 +194,46 @@ function JobsList({
   organizationSlug: string;
 }) {
   if (isLoading) {
-    return <p className="px-3 py-8 text-sm text-white/58">Loading jobs…</p>;
+    return <TypographyP className="px-3 py-8 text-sm text-white/58">Loading jobs…</TypographyP>;
   }
 
   if (jobs.length === 0) {
-    return <p className="px-3 py-8 text-sm text-white/58">{emptyLabel}</p>;
+    return <TypographyP className="px-3 py-8 text-sm text-white/58">{emptyLabel}</TypographyP>;
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[55rem]">
         <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-white/42">
-          <p>Name</p>
-          <p>Project</p>
-          <p>Status</p>
-          <p className="text-right">Updated</p>
+          <TypographyP>Name</TypographyP>
+          <TypographyP>Project</TypographyP>
+          <TypographyP>Status</TypographyP>
+          <TypographyP className="text-right">Updated</TypographyP>
           <span aria-hidden />
         </div>
         {jobs.map((job, index) => (
           <div key={job.id}>
             <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] items-center gap-4 px-3 py-4">
               <div className="min-w-0">
-                <p className="truncate text-base font-medium text-white">{getJobName(job)}</p>
-                <p className="mt-1 truncate text-xs text-white/38">
+                <TypographyP className="truncate text-base font-medium text-white">
+                  {getJobName(job)}
+                </TypographyP>
+                <TypographyP className="mt-1 truncate text-xs text-white/38">
                   {formatJobKind(job)} · {job.id}
-                </p>
+                </TypographyP>
               </div>
-              <p className="truncate text-base text-white/58">{job.projectName ?? "Workspace"}</p>
+              <TypographyP className="truncate text-base text-white/58">
+                {job.projectName ?? "Workspace"}
+              </TypographyP>
               <Badge
                 variant="outline"
                 className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
               >
                 {job.status}
               </Badge>
-              <p className="text-right text-base text-white/58">
+              <TypographyP className="text-right text-base text-white/58">
                 {formatRelativeTime(job.updatedAt)}
-              </p>
+              </TypographyP>
               <Link
                 href={`/org/${organizationSlug}/jobs/${job.id}`}
                 aria-label={`Open ${getJobName(job)}`}
@@ -305,7 +310,9 @@ export function JobsPageContent({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <div>
-        <h1 className="font-heading text-4xl font-semibold text-white md:text-5xl">{title}</h1>
+        <TypographyH1 className="font-heading text-4xl font-semibold text-white md:text-5xl">
+          {title}
+        </TypographyH1>
       </div>
 
       {scope === "all" ? <JobsStats jobs={jobs} /> : null}
@@ -343,7 +350,9 @@ export function JobsPageContent({
           </Select>
         </div>
 
-        {errorMessage ? <p className="text-sm text-flame-100">{errorMessage}</p> : null}
+        {errorMessage ? (
+          <TypographyP className="text-sm text-flame-100">{errorMessage}</TypographyP>
+        ) : null}
 
         <JobsList
           emptyLabel={emptyLabel}

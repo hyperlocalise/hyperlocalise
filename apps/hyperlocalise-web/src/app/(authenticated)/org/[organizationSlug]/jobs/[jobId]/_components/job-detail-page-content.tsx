@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
+import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 
 type JobDetail = {
   id: string;
@@ -126,9 +127,9 @@ export function JobDetailPageContent({
             <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.8} />
             Jobs
           </Button>
-          <h1 className="break-words font-heading text-3xl font-semibold text-white md:text-4xl">
+          <TypographyH1 className="break-words font-heading text-3xl font-semibold text-white md:text-4xl">
             {job?.id ?? jobId}
-          </h1>
+          </TypographyH1>
         </div>
         {job ? (
           <Badge
@@ -156,7 +157,9 @@ export function JobDetailPageContent({
       {job ? (
         <>
           <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-            <h2 className="font-heading text-lg font-medium text-white">Overview</h2>
+            <TypographyH2 className="font-heading text-lg font-medium text-white md:text-lg">
+              Overview
+            </TypographyH2>
             <dl className="mt-3 divide-y divide-white/8">
               <DetailRow label="Kind" value={formatKind(job)} />
               <DetailRow label="Project" value={job.projectName ?? job.projectId ?? "Workspace"} />
@@ -171,7 +174,9 @@ export function JobDetailPageContent({
 
           {job.kind === "review" || job.kind === "sync" || job.kind === "asset_management" ? (
             <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Kind Details</h2>
+              <TypographyH2 className="font-heading text-lg font-medium text-white md:text-lg">
+                Kind Details
+              </TypographyH2>
               <dl className="mt-3 divide-y divide-white/8">
                 {job.kind === "review" ? (
                   <>
@@ -197,13 +202,17 @@ export function JobDetailPageContent({
 
           <section className="grid gap-4 xl:grid-cols-2">
             <div className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Input</h2>
+              <TypographyH2 className="font-heading text-lg font-medium text-white md:text-lg">
+                Input
+              </TypographyH2>
               <div className="mt-4">
                 <JsonBlock value={job.inputPayload} />
               </div>
             </div>
             <div className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-              <h2 className="font-heading text-lg font-medium text-white">Output</h2>
+              <TypographyH2 className="font-heading text-lg font-medium text-white md:text-lg">
+                Output
+              </TypographyH2>
               <div className="mt-4">
                 <JsonBlock value={job.outcomePayload} />
               </div>
@@ -211,7 +220,9 @@ export function JobDetailPageContent({
           </section>
 
           <section className="rounded-lg border border-white/8 bg-[#0b0b0b] p-5">
-            <h2 className="font-heading text-lg font-medium text-white">Context Snapshot</h2>
+            <TypographyH2 className="font-heading text-lg font-medium text-white md:text-lg">
+              Context Snapshot
+            </TypographyH2>
             <div className="mt-4">
               <JsonBlock value={job.contextSnapshot} />
             </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TypographyP } from "@/components/ui/typography";
 
 export default function AccessDeniedPage() {
   return (
@@ -15,10 +16,10 @@ export default function AccessDeniedPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <p className="text-sm leading-6 text-muted-foreground">
+          <TypographyP className="text-sm leading-6 text-muted-foreground">
             Ask your organization admin to confirm your WorkOS membership, choose another
             organization, or sign out and retry with another account.
-          </p>
+          </TypographyP>
           <div className="flex flex-wrap gap-3">
             <Button
               variant="outline"

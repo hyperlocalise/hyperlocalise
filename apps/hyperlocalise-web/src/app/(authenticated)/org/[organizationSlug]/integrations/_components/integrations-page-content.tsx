@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
 
@@ -206,11 +207,13 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
     <main className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-medium text-white">Integrations</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH1 className="font-heading text-2xl font-medium text-white md:text-2xl">
+            Integrations
+          </TypographyH1>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
             Configure the model provider Hyperlocalise uses for translation runs and prepare TMS
             handoffs for approved copy.
-          </p>
+          </TypographyP>
         </div>
         <Badge
           variant="outline"
@@ -222,11 +225,13 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="font-heading text-xl font-medium text-white">Model Provider</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH2 className="font-heading text-xl font-medium text-white md:text-xl">
+            Model Provider
+          </TypographyH2>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
             Choose how Hyperlocalise runs translations: use our managed provider or bring your own
             API keys.
-          </p>
+          </TypographyP>
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-white/8 bg-[#0b0b0b]">
@@ -415,11 +420,13 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="font-heading text-xl font-medium text-white">TMS</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
+          <TypographyH2 className="font-heading text-xl font-medium text-white md:text-xl">
+            TMS
+          </TypographyH2>
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-white/52">
             Translation management system sync is staged for a later release. These connectors are
             visible now so teams can plan the handoff path.
-          </p>
+          </TypographyP>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

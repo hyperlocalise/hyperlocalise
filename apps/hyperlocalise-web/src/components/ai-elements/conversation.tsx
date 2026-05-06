@@ -7,6 +7,7 @@ import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+import { TypographyH3, TypographyP } from "@/components/ui/typography";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
@@ -51,8 +52,10 @@ export const ConversationEmptyState = ({
       <>
         {icon && <div className="text-muted-foreground">{icon}</div>}
         <div className="space-y-1">
-          <h3 className="font-medium text-sm">{title}</h3>
-          {description && <p className="text-muted-foreground text-sm">{description}</p>}
+          <TypographyH3 className="font-medium text-sm md:text-sm">{title}</TypographyH3>
+          {description && (
+            <TypographyP className="text-muted-foreground text-sm">{description}</TypographyP>
+          )}
         </div>
       </>
     )}

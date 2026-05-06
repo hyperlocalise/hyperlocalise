@@ -19,6 +19,7 @@ import {
   ResourceCard,
   toneClass,
 } from "../../_components/workspace-resource-shared";
+import { TypographyP } from "@/components/ui/typography";
 
 const contextMetrics = [
   { label: "Context files", value: "6", detail: "4 active", tone: "info" },
@@ -134,14 +135,16 @@ export function ContextPageContent() {
                       strokeWidth={1.7}
                       className="size-4 text-white/42"
                     />
-                    <p className="text-sm font-medium text-white">{entry.title}</p>
+                    <TypographyP className="text-sm font-medium text-white">
+                      {entry.title}
+                    </TypographyP>
                     <Badge variant="outline" className={cn("rounded-full", toneClass(entry.tone))}>
                       {entry.status}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-xs text-white/42">
+                  <TypographyP className="mt-1 text-xs text-white/42">
                     {entry.source} - Updated {entry.updated}
-                  </p>
+                  </TypographyP>
                 </div>
                 <HugeiconsIcon
                   icon={ArrowDown01Icon}

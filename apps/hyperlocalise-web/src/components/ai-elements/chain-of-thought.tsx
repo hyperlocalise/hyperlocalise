@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean;
@@ -183,7 +184,7 @@ export const ChainOfThoughtImage = memo(
       <div className="relative flex max-h-[22rem] items-center justify-center overflow-hidden rounded-lg bg-muted p-3">
         {children}
       </div>
-      {caption && <p className="text-muted-foreground text-xs">{caption}</p>}
+      {caption && <TypographyP className="text-muted-foreground text-xs">{caption}</TypographyP>}
     </div>
   ),
 );

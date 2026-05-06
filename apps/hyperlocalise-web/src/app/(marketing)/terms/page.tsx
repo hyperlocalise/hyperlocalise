@@ -1,4 +1,5 @@
 import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+import { TypographyP } from "@/components/ui/typography";
 
 export const metadata = createLegalMetadata({
   title: "Terms of service",
@@ -12,24 +13,24 @@ export default function TermsPage() {
       title="Terms of service"
       description="The baseline terms that govern use of Hyperlocalise websites, docs, and services."
     >
-      <p>This page is a starting point for Hyperlocalise terms of service.</p>
+      <TypographyP>This page is a starting point for Hyperlocalise terms of service.</TypographyP>
 
       <LegalSection title="Acceptance of terms">
-        <p>
+        <TypographyP>
           By accessing or using Hyperlocalise websites, documentation, APIs, CLI tools, and hosted
           services, you agree to these Terms of Service.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           If you use Hyperlocalise on behalf of an organization, you represent that you have
           authority to bind that organization to these terms.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Eligibility and accounts">
-        <p>
+        <TypographyP>
           You must be legally able to enter into a binding agreement to use the service. You are
           responsible for:
-        </p>
+        </TypographyP>
         <LegalList>
           <li>providing accurate account information,</li>
           <li>maintaining the security of your credentials,</li>
@@ -38,10 +39,10 @@ export default function TermsPage() {
       </LegalSection>
 
       <LegalSection title="Use of the service">
-        <p>
+        <TypographyP>
           You may use Hyperlocalise only in compliance with applicable laws and these terms. You may
           not:
-        </p>
+        </TypographyP>
         <LegalList>
           <li>use the service to violate law or third-party rights,</li>
           <li>interfere with the security, stability, or availability of the service,</li>
@@ -55,38 +56,38 @@ export default function TermsPage() {
       </LegalSection>
 
       <LegalSection title="Customer content">
-        <p>
+        <TypographyP>
           You retain ownership of the content, configuration, and materials you submit to
           Hyperlocalise.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           You grant us a limited license to host, process, transmit, and display that content only
           as needed to operate, secure, support, and improve the service.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           You are responsible for ensuring that you have all necessary rights, consents, and
           permissions for the content you submit and for any third-party services you connect.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Third-party services">
-        <p>
+        <TypographyP>
           Hyperlocalise may interoperate with third-party model providers, translation platforms,
           storage systems, billing processors, and other external services.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           Your use of those services is governed by their own terms, pricing, and policies. We are
           not responsible for third-party services or for outages, changes, or data handling
           performed by them.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Fees and payment">
-        <p>
+        <TypographyP>
           If you purchase a paid plan, you agree to pay applicable fees, taxes, and charges
           associated with your subscription or usage.
-        </p>
-        <p>Unless otherwise stated:</p>
+        </TypographyP>
+        <TypographyP>Unless otherwise stated:</TypographyP>
         <LegalList>
           <li>fees are non-refundable,</li>
           <li>subscriptions renew automatically until canceled,</li>
@@ -95,80 +96,80 @@ export default function TermsPage() {
       </LegalSection>
 
       <LegalSection title="Availability and changes">
-        <p>
+        <TypographyP>
           We may modify, suspend, or discontinue part of the service from time to time. We may also
           update features, limits, and technical requirements as the product evolves.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Termination">
-        <p>
+        <TypographyP>
           You may stop using the service at any time. We may suspend or terminate access if you
           violate these terms, create risk for the service or other users, or if we are required to
           do so by law.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           Sections that by their nature should survive termination will survive, including
           ownership, payment obligations, disclaimers, limitations of liability, and dispute
           provisions.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Disclaimers">
-        <p>
+        <TypographyP>
           Hyperlocalise is provided on an "as is" and "as available" basis to the maximum extent
           permitted by law. We disclaim all warranties, express or implied, including warranties of
           merchantability, fitness for a particular purpose, and non-infringement.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           AI-generated output and synced content may contain errors, omissions, bias, or unsupported
           translations. You are responsible for review and approval before production use.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Limitation of liability">
-        <p>
+        <TypographyP>
           To the maximum extent permitted by law, Hyperlocalise and its affiliates, officers,
           employees, and suppliers will not be liable for indirect, incidental, special,
           consequential, exemplary, or punitive damages, or for lost profits, revenues, goodwill,
           data, or business opportunities.
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           Our aggregate liability for claims arising out of or related to the service will not
           exceed the greater of the amount you paid us in the 12 months before the claim arose or{" "}
           <strong>USD 100</strong>.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Indemnification">
-        <p>
+        <TypographyP>
           You agree to indemnify and hold harmless Hyperlocalise from claims, liabilities, damages,
           losses, and expenses arising from your content, your use of the service, or your violation
           of these terms or applicable law.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Governing law">
-        <p>
+        <TypographyP>
           These terms are governed by the laws of the jurisdiction where the service operator is
           established, excluding conflict of law rules.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Changes to these terms">
-        <p>
+        <TypographyP>
           We may update these terms from time to time. If we make material changes, we will update
           the effective date and take reasonable steps to notify you when required.
-        </p>
+        </TypographyP>
       </LegalSection>
 
       <LegalSection title="Contact">
-        <p>
+        <TypographyP>
           For legal questions about these terms, contact: <code>legal@hyperlocalise.com</code>
-        </p>
-        <p>
+        </TypographyP>
+        <TypographyP>
           Effective date: <code>2026-04-17</code>
-        </p>
+        </TypographyP>
       </LegalSection>
     </LegalPage>
   );

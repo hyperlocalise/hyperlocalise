@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
+import { TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
 
@@ -292,18 +293,18 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-medium text-white">Connected</p>
-                <p className="mt-1 text-sm text-white/52">
+                <TypographyP className="text-sm font-medium text-white">Connected</TypographyP>
+                <TypographyP className="mt-1 text-sm text-white/52">
                   {installation.accountLogin
                     ? `Installed on ${
                         installation.accountType === "Organization" ? "organization" : "account"
                       } "${installation.accountLogin}"`
                     : `Installation ID: ${installation.githubInstallationId}`}
-                </p>
-                <p className="mt-1 text-xs text-white/38">
+                </TypographyP>
+                <TypographyP className="mt-1 text-xs text-white/38">
                   {installation.enabledRepositoryCount ?? 0} of{" "}
                   {installation.repositoryCount ?? repositories.length} repositories enabled
-                </p>
+                </TypographyP>
               </div>
               <div className="flex flex-wrap gap-2">
                 {installationSettingsUrl ? (
@@ -443,9 +444,9 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-sm text-white/52">
+            <TypographyP className="text-sm text-white/52">
               No GitHub App installation is linked to this organization yet.
-            </p>
+            </TypographyP>
             <div>
               <Button className="bg-white text-black hover:bg-white/90" onClick={handleConnect}>
                 Connect GitHub

@@ -1,7 +1,7 @@
 import { ArrowRightIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { TypographyH2 } from "@/components/ui/typography";
+import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 
 import { principles } from "./marketing-page-content";
 
@@ -31,15 +31,17 @@ export function PrinciplesSection() {
                 className="flex flex-col gap-8 px-6 py-7 text-white sm:px-7 sm:py-8 lg:min-h-112 lg:justify-between lg:gap-16 lg:px-8 lg:py-9"
               >
                 <div className="space-y-8 sm:space-y-12 lg:space-y-16">
-                  <p className="text-[0.95rem] tracking-[-0.02em] text-white/40">{chapterNumber}</p>
+                  <TypographyP className="text-[0.95rem] tracking-[-0.02em] text-white/40">
+                    {chapterNumber}
+                  </TypographyP>
 
                   <div className="max-w-none space-y-4 sm:max-w-[21ch]">
-                    <h3 className="max-w-none text-balance text-[1.55rem] font-medium leading-[0.98] tracking-[-0.045em] text-white sm:max-w-[11ch] sm:text-[2.05rem] sm:tracking-[-0.05em] lg:max-w-[10ch] lg:text-[2.15rem] lg:leading-[1.02]">
+                    <TypographyH3 className="max-w-none text-balance text-[1.55rem] font-medium leading-[0.98] tracking-[-0.045em] text-white sm:max-w-[11ch] sm:text-[2.05rem] sm:tracking-[-0.05em] md:text-[2.05rem] lg:max-w-[10ch] lg:text-[2.15rem] lg:leading-[1.02]">
                       {item.title}
-                    </h3>
-                    <p className="max-w-none text-pretty text-[0.95rem] leading-[1.75] text-white/50 sm:max-w-[30ch] sm:text-[1rem] sm:leading-7">
+                    </TypographyH3>
+                    <TypographyP className="max-w-none text-pretty text-[0.95rem] leading-[1.75] text-white/50 sm:max-w-[30ch] sm:text-[1rem] sm:leading-7">
                       {item.description}
-                    </p>
+                    </TypographyP>
                   </div>
                 </div>
 

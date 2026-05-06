@@ -32,6 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { createApiClient } from "@/lib/api-client";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 type AgentPageContentProps = {
   organizationSlug: string;
@@ -167,11 +168,13 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
             <HugeiconsIcon icon={BotIcon} strokeWidth={1.8} className="size-4" />
             <span>Agent setup</span>
           </div>
-          <h1 className="mt-2 font-heading text-2xl font-medium text-white">Agent</h1>
-          <p className="mt-2 text-sm leading-6 text-white/52">
+          <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-white md:text-2xl">
+            Agent
+          </TypographyH1>
+          <TypographyP className="mt-2 text-sm leading-6 text-white/52">
             Connect the places your team already works so Hyperlocalise can review source changes,
             open fixes, and keep translation workflows moving.
-          </p>
+          </TypographyP>
         </div>
         <Badge
           variant="outline"
@@ -213,16 +216,18 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
           <Separator className="bg-white/8" />
           <CardContent className="flex flex-col gap-4 px-5 py-5 lg:px-6">
             <div>
-              <p className="text-sm font-medium text-white">Enable translation requests by email</p>
-              <p className="mt-2 text-sm leading-6 text-white/52">
+              <TypographyP className="text-sm font-medium text-white">
+                Enable translation requests by email
+              </TypographyP>
+              <TypographyP className="mt-2 text-sm leading-6 text-white/52">
                 Send documents, spreadsheets, JSON, text files, or images with a target language.
                 Source language is optional, and style notes like tone or terminology are applied to
                 file translations.
-              </p>
+              </TypographyP>
               {isEmailAgentError ? (
-                <p className="mt-2 text-sm text-red-300">
+                <TypographyP className="mt-2 text-sm text-red-300">
                   Unable to load email agent settings right now.
-                </p>
+                </TypographyP>
               ) : null}
             </div>
 
@@ -309,11 +314,13 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
             <HugeiconsIcon icon={BubbleChatIcon} strokeWidth={1.8} className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">More agent channels are planned.</p>
-            <p className="mt-1 text-sm leading-6 text-white/48">
+            <TypographyP className="text-sm font-medium text-white">
+              More agent channels are planned.
+            </TypographyP>
+            <TypographyP className="mt-1 text-sm leading-6 text-white/48">
               Each channel will get its own permissions and setup flow before it can act on behalf
               of the organization.
-            </p>
+            </TypographyP>
           </div>
         </CardContent>
       </Card>

@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
+import { TypographyP } from "@/components/ui/typography";
 
 type ApiKey = {
   id: string;
@@ -191,7 +192,9 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                 <div key={key.id} className="flex items-start justify-between gap-4 py-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-white">{key.name}</p>
+                      <TypographyP className="text-sm font-medium text-white">
+                        {key.name}
+                      </TypographyP>
                       <span className="rounded-full border border-white/10 bg-white/4 px-2 py-0.5 text-xs text-white/52">
                         {key.keyPrefix}••••••••
                       </span>

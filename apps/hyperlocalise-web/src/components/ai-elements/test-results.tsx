@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 type TestStatus = "passed" | "failed" | "skipped" | "running";
 
@@ -360,9 +361,12 @@ export const TestError = ({ className, children, ...props }: TestErrorProps) => 
 export type TestErrorMessageProps = HTMLAttributes<HTMLParagraphElement>;
 
 export const TestErrorMessage = ({ className, children, ...props }: TestErrorMessageProps) => (
-  <p className={cn("font-medium text-red-700 text-sm dark:text-red-400", className)} {...props}>
+  <TypographyP
+    className={cn("font-medium text-red-700 text-sm dark:text-red-400", className)}
+    {...props}
+  >
     {children}
-  </p>
+  </TypographyP>
 );
 
 export type TestErrorStackProps = HTMLAttributes<HTMLPreElement>;

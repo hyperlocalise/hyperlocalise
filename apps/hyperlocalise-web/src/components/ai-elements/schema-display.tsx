@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { TypographyP } from "@/components/ui/typography";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -111,9 +112,12 @@ export const SchemaDisplayDescription = ({
   const { description } = useContext(SchemaDisplayContext);
 
   return (
-    <p className={cn("border-b px-4 py-3 text-muted-foreground text-sm", className)} {...props}>
+    <TypographyP
+      className={cn("border-b px-4 py-3 text-muted-foreground text-sm", className)}
+      {...props}
+    >
       {children ?? description}
-    </p>
+    </TypographyP>
   );
 };
 
@@ -160,7 +164,9 @@ export const SchemaDisplayParameter = ({
         </Badge>
       )}
     </div>
-    {description && <p className="mt-1 text-muted-foreground text-sm">{description}</p>}
+    {description && (
+      <TypographyP className="mt-1 text-muted-foreground text-sm">{description}</TypographyP>
+    )}
   </div>
 );
 
@@ -236,12 +242,12 @@ export const SchemaDisplayProperty = ({
           )}
         </CollapsibleTrigger>
         {description && (
-          <p
+          <TypographyP
             className="pb-2 text-muted-foreground text-sm"
             style={{ paddingLeft: paddingLeft + 24 }}
           >
             {description}
-          </p>
+          </TypographyP>
         )}
         <CollapsibleContent>
           <div className="divide-y border-t">
@@ -273,7 +279,9 @@ export const SchemaDisplayProperty = ({
           </Badge>
         )}
       </div>
-      {description && <p className="mt-1 ps-6 text-muted-foreground text-sm">{description}</p>}
+      {description && (
+        <TypographyP className="mt-1 ps-6 text-muted-foreground text-sm">{description}</TypographyP>
+      )}
     </div>
   );
 };

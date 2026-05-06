@@ -14,6 +14,7 @@ import type { ComponentProps } from "react";
 import { memo } from "react";
 
 import { CodeBlock } from "./code-block";
+import { TypographyP } from "@/components/ui/typography";
 
 export type AgentProps = ComponentProps<"div">;
 
@@ -55,7 +56,7 @@ export const AgentInstructions = memo(
     <div className={cn("space-y-2", className)} {...props}>
       <span className="font-medium text-muted-foreground text-sm">Instructions</span>
       <div className="rounded-md bg-muted/50 p-3 text-muted-foreground text-sm">
-        <p>{children}</p>
+        <TypographyP>{children}</TypographyP>
       </div>
     </div>
   ),

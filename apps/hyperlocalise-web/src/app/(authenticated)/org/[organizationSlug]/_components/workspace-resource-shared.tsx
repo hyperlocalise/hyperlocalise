@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 export type Tone = "safe" | "watch" | "risk" | "info";
@@ -44,8 +45,10 @@ export function PageHeader({
           <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
           <span>{label}</span>
         </div>
-        <h1 className="mt-2 font-heading text-2xl font-medium text-white">{title}</h1>
-        <p className="mt-2 text-sm leading-6 text-white/52">{description}</p>
+        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-white md:text-2xl">
+          {title}
+        </TypographyH1>
+        <TypographyP className="mt-2 text-sm leading-6 text-white/52">{description}</TypographyP>
       </div>
       {statusLabel ? (
         <Badge
@@ -72,9 +75,11 @@ export function MetricsGrid({
           className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0"
         >
           <CardContent className="px-4 py-4">
-            <p className="text-sm text-white/52">{metric.label}</p>
+            <TypographyP className="text-sm text-white/52">{metric.label}</TypographyP>
             <div className="mt-3 flex items-end justify-between gap-4">
-              <p className="font-heading text-3xl font-medium text-white">{metric.value}</p>
+              <TypographyP className="font-heading text-3xl font-medium text-white">
+                {metric.value}
+              </TypographyP>
               <Badge variant="outline" className={cn("rounded-full", toneClass(metric.tone))}>
                 {metric.detail}
               </Badge>

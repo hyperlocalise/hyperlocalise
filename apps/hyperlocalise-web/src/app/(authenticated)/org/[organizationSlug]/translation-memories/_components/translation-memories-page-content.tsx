@@ -11,6 +11,7 @@ import {
   ResourceCard,
   toneClass,
 } from "../../_components/workspace-resource-shared";
+import { TypographyP } from "@/components/ui/typography";
 
 const memoryMetrics = [
   { label: "Segments", value: "284k", detail: "92% reusable", tone: "safe" },
@@ -73,14 +74,16 @@ export function TranslationMemoriesPageContent() {
                     strokeWidth={1.7}
                     className="size-4 text-white/42"
                   />
-                  <p className="truncate text-sm font-medium text-white">{memory.name}</p>
+                  <TypographyP className="truncate text-sm font-medium text-white">
+                    {memory.name}
+                  </TypographyP>
                 </div>
-                <p className="mt-1 text-xs text-white/42">
+                <TypographyP className="mt-1 text-xs text-white/42">
                   {memory.source} · Updated {memory.updated}
-                </p>
+                </TypographyP>
               </div>
-              <p className="text-sm text-white/58">{memory.locales}</p>
-              <p className="text-sm text-white/58">{memory.match}</p>
+              <TypographyP className="text-sm text-white/58">{memory.locales}</TypographyP>
+              <TypographyP className="text-sm text-white/58">{memory.match}</TypographyP>
               <Badge variant="outline" className={toneClass(memory.tone)}>
                 Synced
               </Badge>

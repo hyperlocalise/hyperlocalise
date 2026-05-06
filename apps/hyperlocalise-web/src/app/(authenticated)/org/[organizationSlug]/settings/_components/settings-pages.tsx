@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 type SettingsPageProps = {
   organizationSlug: string;
@@ -116,8 +117,10 @@ function SettingsHeader({
           <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
           <span>{eyebrow}</span>
         </div>
-        <h1 className="mt-2 font-heading text-2xl font-medium text-white">{title}</h1>
-        <p className="mt-2 text-sm leading-6 text-white/52">{description}</p>
+        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-white md:text-2xl">
+          {title}
+        </TypographyH1>
+        <TypographyP className="mt-2 text-sm leading-6 text-white/52">{description}</TypographyP>
       </div>
     </section>
   );
@@ -204,11 +207,13 @@ export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
       <SurfaceCard>
         <CardContent className="grid gap-4 px-5 py-5 md:grid-cols-[1fr_16rem] md:items-center">
           <div>
-            <p className="text-sm font-medium text-white">Workspace readiness</p>
-            <p className="mt-1 text-sm leading-6 text-white/48">
+            <TypographyP className="text-sm font-medium text-white">
+              Workspace readiness
+            </TypographyP>
+            <TypographyP className="mt-1 text-sm leading-6 text-white/48">
               Account identity, billing ownership, and notification routing are ready for release
               operations.
-            </p>
+            </TypographyP>
           </div>
           <div className="grid gap-2">
             {["Account profile", "Plan usage", "Release alerts"].map((item) => (
@@ -366,8 +371,10 @@ export function BillingSettingsPageContent() {
                   <HugeiconsIcon icon={Invoice03Icon} strokeWidth={1.8} className="size-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-white">{invoice}</p>
-                  <p className="text-xs text-white/42">Enterprise workspace subscription</p>
+                  <TypographyP className="text-sm font-medium text-white">{invoice}</TypographyP>
+                  <TypographyP className="text-xs text-white/42">
+                    Enterprise workspace subscription
+                  </TypographyP>
                 </div>
               </div>
               <Badge
@@ -387,8 +394,8 @@ export function BillingSettingsPageContent() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-white/8 bg-white/4 px-4 py-3">
-      <p className="text-xs text-white/42">{label}</p>
-      <p className="mt-1 text-sm font-medium text-white">{value}</p>
+      <TypographyP className="text-xs text-white/42">{label}</TypographyP>
+      <TypographyP className="mt-1 text-sm font-medium text-white">{value}</TypographyP>
     </div>
   );
 }
@@ -433,8 +440,10 @@ export function NotificationSettingsPageContent() {
           {notificationRows.map((row) => (
             <div key={row.label} className="flex items-start justify-between gap-4 py-4">
               <div>
-                <p className="text-sm font-medium text-white">{row.label}</p>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-white/48">{row.description}</p>
+                <TypographyP className="text-sm font-medium text-white">{row.label}</TypographyP>
+                <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-white/48">
+                  {row.description}
+                </TypographyP>
               </div>
               <Switch checked={row.checked} disabled className="mt-1 data-checked:bg-bud-500" />
             </div>
@@ -448,10 +457,12 @@ export function NotificationSettingsPageContent() {
             <HugeiconsIcon icon={BellDotIcon} strokeWidth={1.8} className="size-4" />
           </div>
           <div>
-            <p className="text-sm font-medium text-white">Notification delivery is scoped.</p>
-            <p className="mt-1 text-sm leading-6 text-white/48">
+            <TypographyP className="text-sm font-medium text-white">
+              Notification delivery is scoped.
+            </TypographyP>
+            <TypographyP className="mt-1 text-sm leading-6 text-white/48">
               Release alerts are intended for workspace owners and configured delivery channels.
-            </p>
+            </TypographyP>
           </div>
         </CardContent>
       </SurfaceCard>

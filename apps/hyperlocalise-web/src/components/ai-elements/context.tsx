@@ -8,6 +8,7 @@ import type { LanguageModelUsage } from "ai";
 import type { ComponentProps } from "react";
 import { createContext, useContext, useMemo } from "react";
 import { getUsage } from "tokenlens";
+import { TypographyP } from "@/components/ui/typography";
 
 const PERCENT_MAX = 100;
 const ICON_RADIUS = 10;
@@ -145,10 +146,10 @@ export const ContextContentHeader = ({
       {children ?? (
         <>
           <div className="flex items-center justify-between gap-3 text-xs">
-            <p>{displayPct}</p>
-            <p className="font-mono text-muted-foreground">
+            <TypographyP>{displayPct}</TypographyP>
+            <TypographyP className="font-mono text-muted-foreground">
               {used} / {total}
-            </p>
+            </TypographyP>
           </div>
           <div className="space-y-2">
             <Progress className="bg-muted" value={usedPercent * PERCENT_MAX} />
