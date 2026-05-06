@@ -113,14 +113,16 @@ function SettingsHeader({
   return (
     <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <div className="flex items-center gap-2 text-sm text-white/48">
+        <div className="flex items-center gap-2 text-sm text-foreground/48">
           <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
           <span>{eyebrow}</span>
         </div>
-        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-white md:text-2xl">
+        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
           {title}
         </TypographyH1>
-        <TypographyP className="mt-2 text-sm leading-6 text-white/52">{description}</TypographyP>
+        <TypographyP className="mt-2 text-sm leading-6 text-foreground/52">
+          {description}
+        </TypographyP>
       </div>
     </section>
   );
@@ -129,7 +131,7 @@ function SettingsHeader({
 function SurfaceCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <Card
-      className={`rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0 ${className}`}
+      className={`rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0 ${className}`}
     >
       {children}
     </Card>
@@ -141,28 +143,28 @@ function SettingsCard({ description, href, icon, label, status }: SettingsCardPr
     <SurfaceCard>
       <CardHeader className="gap-4 px-5 py-5">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
             <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5" />
           </div>
           <Badge
             variant="outline"
-            className="rounded-full border-white/10 bg-white/4 text-white/52"
+            className="rounded-full border-foreground/10 bg-foreground/4 text-foreground/52"
           >
             {status}
           </Badge>
         </div>
         <div>
-          <CardTitle className="text-base font-medium text-white">{label}</CardTitle>
-          <CardDescription className="mt-2 text-sm leading-6 text-white/52">
+          <CardTitle className="text-base font-medium text-foreground">{label}</CardTitle>
+          <CardDescription className="mt-2 text-sm leading-6 text-foreground/52">
             {description}
           </CardDescription>
         </div>
       </CardHeader>
-      <Separator className="bg-white/8" />
+      <Separator className="bg-foreground/8" />
       <CardContent className="px-5 py-4">
         <Button
           variant="outline"
-          className="border-white/10 bg-transparent text-white/72 hover:bg-white/8 hover:text-white"
+          className="border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 hover:text-foreground"
           render={<Link href={href} />}
         >
           Open
@@ -176,11 +178,11 @@ function SettingsCard({ description, href, icon, label, status }: SettingsCardPr
 function ReadonlyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-2">
-      <Label className="text-xs font-medium text-white/48">{label}</Label>
+      <Label className="text-xs font-medium text-foreground/48">{label}</Label>
       <Input
         readOnly
         value={value}
-        className="h-10 rounded-lg border-white/10 bg-white/4 text-white"
+        className="h-10 rounded-lg border-foreground/10 bg-foreground/4 text-foreground"
       />
     </div>
   );
@@ -207,17 +209,17 @@ export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
       <SurfaceCard>
         <CardContent className="grid gap-4 px-5 py-5 md:grid-cols-[1fr_16rem] md:items-center">
           <div>
-            <TypographyP className="text-sm font-medium text-white">
+            <TypographyP className="text-sm font-medium text-foreground">
               Workspace readiness
             </TypographyP>
-            <TypographyP className="mt-1 text-sm leading-6 text-white/48">
+            <TypographyP className="mt-1 text-sm leading-6 text-foreground/48">
               Account identity, billing ownership, and notification routing are ready for release
               operations.
             </TypographyP>
           </div>
           <div className="grid gap-2">
             {["Account profile", "Plan usage", "Release alerts"].map((item) => (
-              <div key={item} className="flex items-center gap-2 text-sm text-white/62">
+              <div key={item} className="flex items-center gap-2 text-sm text-foreground/62">
                 <HugeiconsIcon
                   icon={CheckmarkCircle01Icon}
                   strokeWidth={1.8}
@@ -251,12 +253,12 @@ export function AccountSettingsPageContent({
       <section className="grid gap-3 lg:grid-cols-[1fr_20rem]">
         <SurfaceCard>
           <CardHeader className="px-5 py-5">
-            <CardTitle className="text-lg font-medium text-white">Profile</CardTitle>
-            <CardDescription className="text-white/52">
+            <CardTitle className="text-lg font-medium text-foreground">Profile</CardTitle>
+            <CardDescription className="text-foreground/52">
               These details come from your WorkOS session.
             </CardDescription>
           </CardHeader>
-          <Separator className="bg-white/8" />
+          <Separator className="bg-foreground/8" />
           <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
             <ReadonlyField label="Name" value={userName} />
             <ReadonlyField label="Email" value={userEmail} />
@@ -265,11 +267,11 @@ export function AccountSettingsPageContent({
 
         <SurfaceCard>
           <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+            <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
               <HugeiconsIcon icon={AiSecurity01Icon} strokeWidth={1.8} className="size-5" />
             </div>
-            <CardTitle className="text-base font-medium text-white">Access posture</CardTitle>
-            <CardDescription className="leading-6 text-white/52">
+            <CardTitle className="text-base font-medium text-foreground">Access posture</CardTitle>
+            <CardDescription className="leading-6 text-foreground/52">
               Authentication and organization access are enforced before every workspace page.
             </CardDescription>
           </CardHeader>
@@ -278,12 +280,12 @@ export function AccountSettingsPageContent({
 
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-white">Workspace</CardTitle>
-          <CardDescription className="text-white/52">
+          <CardTitle className="text-lg font-medium text-foreground">Workspace</CardTitle>
+          <CardDescription className="text-foreground/52">
             Public workspace identifiers used in app navigation.
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-white/8" />
+        <Separator className="bg-foreground/8" />
         <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
           <ReadonlyField label="Organization name" value={organizationName} />
           <ReadonlyField label="Workspace slug" value={organizationSlug} />
@@ -308,8 +310,10 @@ export function BillingSettingsPageContent() {
           <CardHeader className="px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle className="text-lg font-medium text-white">Enterprise plan</CardTitle>
-                <CardDescription className="mt-1 text-white/52">
+                <CardTitle className="text-lg font-medium text-foreground">
+                  Enterprise plan
+                </CardTitle>
+                <CardDescription className="mt-1 text-foreground/52">
                   1.2M of 2M translated words used this cycle.
                 </CardDescription>
               </div>
@@ -321,9 +325,9 @@ export function BillingSettingsPageContent() {
               </Badge>
             </div>
           </CardHeader>
-          <Separator className="bg-white/8" />
+          <Separator className="bg-foreground/8" />
           <CardContent className="px-5 py-5">
-            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
               <div className="h-full w-[60%] rounded-full bg-bud-500" />
             </div>
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
@@ -336,19 +340,19 @@ export function BillingSettingsPageContent() {
 
         <SurfaceCard>
           <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+            <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
               <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
             </div>
-            <CardTitle className="text-base font-medium text-white">Payment method</CardTitle>
-            <CardDescription className="leading-6 text-white/52">
+            <CardTitle className="text-base font-medium text-foreground">Payment method</CardTitle>
+            <CardDescription className="leading-6 text-foreground/52">
               Card and invoice collection will be managed through the billing provider.
             </CardDescription>
           </CardHeader>
-          <Separator className="bg-white/8" />
+          <Separator className="bg-foreground/8" />
           <CardContent className="px-5 py-4">
             <Button
               variant="outline"
-              className="border-white/10 bg-transparent text-white/40"
+              className="border-foreground/10 bg-transparent text-foreground/40"
               disabled
             >
               Manage billing
@@ -359,27 +363,31 @@ export function BillingSettingsPageContent() {
 
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-white">Invoices</CardTitle>
-          <CardDescription className="text-white/52">Recent billing documents.</CardDescription>
+          <CardTitle className="text-lg font-medium text-foreground">Invoices</CardTitle>
+          <CardDescription className="text-foreground/52">
+            Recent billing documents.
+          </CardDescription>
         </CardHeader>
-        <Separator className="bg-white/8" />
-        <CardContent className="divide-y divide-white/8 px-5 py-0">
+        <Separator className="bg-foreground/8" />
+        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
           {["Aug 2025", "Jul 2025", "Jun 2025"].map((invoice) => (
             <div key={invoice} className="flex items-center justify-between gap-4 py-4">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-white/5">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-foreground/5">
                   <HugeiconsIcon icon={Invoice03Icon} strokeWidth={1.8} className="size-4" />
                 </div>
                 <div>
-                  <TypographyP className="text-sm font-medium text-white">{invoice}</TypographyP>
-                  <TypographyP className="text-xs text-white/42">
+                  <TypographyP className="text-sm font-medium text-foreground">
+                    {invoice}
+                  </TypographyP>
+                  <TypographyP className="text-xs text-foreground/42">
                     Enterprise workspace subscription
                   </TypographyP>
                 </div>
               </div>
               <Badge
                 variant="outline"
-                className="rounded-full border-white/10 bg-white/4 text-white/52"
+                className="rounded-full border-foreground/10 bg-foreground/4 text-foreground/52"
               >
                 Paid
               </Badge>
@@ -393,9 +401,9 @@ export function BillingSettingsPageContent() {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-white/8 bg-white/4 px-4 py-3">
-      <TypographyP className="text-xs text-white/42">{label}</TypographyP>
-      <TypographyP className="mt-1 text-sm font-medium text-white">{value}</TypographyP>
+    <div className="rounded-lg border border-foreground/8 bg-foreground/4 px-4 py-3">
+      <TypographyP className="text-xs text-foreground/42">{label}</TypographyP>
+      <TypographyP className="mt-1 text-sm font-medium text-foreground">{value}</TypographyP>
     </div>
   );
 }
@@ -418,11 +426,13 @@ export function NotificationSettingsPageContent() {
         ].map((channel) => (
           <SurfaceCard key={channel.label}>
             <CardHeader className="px-5 py-5">
-              <div className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+              <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
                 <HugeiconsIcon icon={channel.icon} strokeWidth={1.8} className="size-5" />
               </div>
-              <CardTitle className="text-base font-medium text-white">{channel.label}</CardTitle>
-              <CardDescription className="text-white/52">{channel.value}</CardDescription>
+              <CardTitle className="text-base font-medium text-foreground">
+                {channel.label}
+              </CardTitle>
+              <CardDescription className="text-foreground/52">{channel.value}</CardDescription>
             </CardHeader>
           </SurfaceCard>
         ))}
@@ -430,18 +440,20 @@ export function NotificationSettingsPageContent() {
 
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-white">Alert preferences</CardTitle>
-          <CardDescription className="text-white/52">
+          <CardTitle className="text-lg font-medium text-foreground">Alert preferences</CardTitle>
+          <CardDescription className="text-foreground/52">
             Defaults are shown until notification persistence is connected.
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-white/8" />
-        <CardContent className="divide-y divide-white/8 px-5 py-0">
+        <Separator className="bg-foreground/8" />
+        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
           {notificationRows.map((row) => (
             <div key={row.label} className="flex items-start justify-between gap-4 py-4">
               <div>
-                <TypographyP className="text-sm font-medium text-white">{row.label}</TypographyP>
-                <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-white/48">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  {row.label}
+                </TypographyP>
+                <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/48">
                   {row.description}
                 </TypographyP>
               </div>
@@ -457,10 +469,10 @@ export function NotificationSettingsPageContent() {
             <HugeiconsIcon icon={BellDotIcon} strokeWidth={1.8} className="size-4" />
           </div>
           <div>
-            <TypographyP className="text-sm font-medium text-white">
+            <TypographyP className="text-sm font-medium text-foreground">
               Notification delivery is scoped.
             </TypographyP>
-            <TypographyP className="mt-1 text-sm leading-6 text-white/48">
+            <TypographyP className="mt-1 text-sm leading-6 text-foreground/48">
               Release alerts are intended for workspace owners and configured delivery channels.
             </TypographyP>
           </div>

@@ -112,7 +112,7 @@ export function GlossariesPageContent() {
                 <div className="grid gap-4 py-4 md:grid-cols-[minmax(0,1fr)_7rem_8rem_8rem] md:items-center">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <TypographyP className="truncate text-sm font-medium text-white">
+                      <TypographyP className="truncate text-sm font-medium text-foreground">
                         {glossary.name}
                       </TypographyP>
                       <Badge
@@ -122,24 +122,24 @@ export function GlossariesPageContent() {
                         {glossary.status}
                       </Badge>
                     </div>
-                    <TypographyP className="mt-1 text-xs text-white/42">
+                    <TypographyP className="mt-1 text-xs text-foreground/42">
                       Owner: {glossary.owner} · Updated {glossary.updated}
                     </TypographyP>
                   </div>
-                  <TypographyP className="text-sm text-white/58">
+                  <TypographyP className="text-sm text-foreground/58">
                     {glossary.terms} terms
                   </TypographyP>
-                  <TypographyP className="text-sm text-white/58">
+                  <TypographyP className="text-sm text-foreground/58">
                     {glossary.locales} locales
                   </TypographyP>
                   <div className="flex flex-col gap-2">
                     <ProgressBar value={glossary.coverage} tone={glossary.tone} />
-                    <TypographyP className="text-xs text-white/42">
+                    <TypographyP className="text-xs text-foreground/42">
                       {glossary.coverage}% coverage
                     </TypographyP>
                   </div>
                 </div>
-                {index < glossaries.length - 1 ? <Separator className="bg-white/8" /> : null}
+                {index < glossaries.length - 1 ? <Separator className="bg-foreground/8" /> : null}
               </div>
             ))}
           </div>
@@ -151,30 +151,34 @@ export function GlossariesPageContent() {
         >
           <div className="overflow-x-auto">
             <div className="min-w-176">
-              <div className="grid grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_6rem_minmax(8rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
+              <div className="grid grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_6rem_minmax(8rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
                 <TypographyP>Source</TypographyP>
                 <TypographyP>Approved term</TypographyP>
                 <TypographyP>Locale</TypographyP>
                 <TypographyP>Usage</TypographyP>
                 <TypographyP>Status</TypographyP>
               </div>
-              <Separator className="bg-white/8" />
+              <Separator className="bg-foreground/8" />
               {glossaryTerms.map((term, index) => (
                 <div key={`${term.locale}-${term.source}`}>
                   <div className="grid grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_6rem_minmax(8rem,1fr)_7rem] items-center gap-3 px-5 py-4">
-                    <TypographyP className="truncate text-sm text-white">{term.source}</TypographyP>
-                    <TypographyP className="truncate text-sm text-white/72">
+                    <TypographyP className="truncate text-sm text-foreground">
+                      {term.source}
+                    </TypographyP>
+                    <TypographyP className="truncate text-sm text-foreground/72">
                       {term.approved}
                     </TypographyP>
-                    <TypographyP className="text-sm text-white/48">{term.locale}</TypographyP>
-                    <TypographyP className="truncate text-sm text-white/58">
+                    <TypographyP className="text-sm text-foreground/48">{term.locale}</TypographyP>
+                    <TypographyP className="truncate text-sm text-foreground/58">
                       {term.usage}
                     </TypographyP>
                     <Badge variant="outline" className={cn("rounded-full", toneClass(term.tone))}>
                       {term.status}
                     </Badge>
                   </div>
-                  {index < glossaryTerms.length - 1 ? <Separator className="bg-white/8" /> : null}
+                  {index < glossaryTerms.length - 1 ? (
+                    <Separator className="bg-foreground/8" />
+                  ) : null}
                 </div>
               ))}
             </div>

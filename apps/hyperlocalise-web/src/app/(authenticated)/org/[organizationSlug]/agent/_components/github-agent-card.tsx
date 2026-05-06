@@ -262,16 +262,16 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
         : null;
 
   return (
-    <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
       <CardHeader className="gap-4 px-5 py-5 lg:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
               <HugeiconsIcon icon={GithubIcon} strokeWidth={1.8} className="size-5" />
             </div>
             <div className="min-w-0">
-              <CardTitle className="text-lg font-medium text-white">GitHub agent</CardTitle>
-              <CardDescription className="mt-1 text-white/52">
+              <CardTitle className="text-lg font-medium text-foreground">GitHub agent</CardTitle>
+              <CardDescription className="mt-1 text-foreground/52">
                 Let Hyperlocalise watch pull request activity, review changed copy, and open
                 localization fix PRs.
               </CardDescription>
@@ -285,23 +285,23 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
           </Badge>
         </div>
       </CardHeader>
-      <Separator className="bg-white/8" />
+      <Separator className="bg-foreground/8" />
       <CardContent className="px-5 py-5 lg:px-6">
         {isLoading ? (
-          <Skeleton className="h-10 bg-white/5" />
+          <Skeleton className="h-10 bg-foreground/5" />
         ) : installation ? (
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <TypographyP className="text-sm font-medium text-white">Connected</TypographyP>
-                <TypographyP className="mt-1 text-sm text-white/52">
+                <TypographyP className="text-sm font-medium text-foreground">Connected</TypographyP>
+                <TypographyP className="mt-1 text-sm text-foreground/52">
                   {installation.accountLogin
                     ? `Installed on ${
                         installation.accountType === "Organization" ? "organization" : "account"
                       } "${installation.accountLogin}"`
                     : `Installation ID: ${installation.githubInstallationId}`}
                 </TypographyP>
-                <TypographyP className="mt-1 text-xs text-white/38">
+                <TypographyP className="mt-1 text-xs text-foreground/38">
                   {installation.enabledRepositoryCount ?? 0} of{" "}
                   {installation.repositoryCount ?? repositories.length} repositories enabled
                 </TypographyP>
@@ -310,7 +310,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 {installationSettingsUrl ? (
                   <Button
                     variant="outline"
-                    className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                     render={<a href={installationSettingsUrl} target="_blank" rel="noreferrer" />}
                   >
                     Manage access
@@ -318,7 +318,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 ) : null}
                 <Button
                   variant="outline"
-                  className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                   onClick={() => syncRepositories.mutate()}
                   disabled={syncRepositories.isPending}
                 >
@@ -327,7 +327,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                   onClick={() => disconnect.mutate()}
                   disabled={disconnect.isPending}
                 >
@@ -341,17 +341,17 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                   <HugeiconsIcon
                     icon={Search01Icon}
                     strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-white/38"
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
                   />
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search repositories"
-                    className="h-10 w-full rounded-lg border border-white/10 bg-white/[0.03] px-9 text-sm text-white outline-none placeholder:text-white/32 focus:border-white/20"
+                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/[0.03] px-9 text-sm text-foreground outline-none placeholder:text-foreground/32 focus:border-foreground/20"
                   />
                 </div>
                 <Button
-                  className="bg-white text-black hover:bg-white/90"
+                  className="bg-foreground text-background hover:bg-foreground/90"
                   onClick={handleEnableSelected}
                   disabled={updateRepositories.isPending || repositories.length === 0}
                 >
@@ -359,15 +359,15 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-white/10 bg-transparent text-white hover:bg-white/8 hover:text-white"
+                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                   onClick={handleEnableAll}
                   disabled={updateRepositories.isPending || repositories.length === 0}
                 >
                   Enable all
                 </Button>
               </div>
-              <div className="overflow-hidden rounded-lg border border-white/10">
-                <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-white/10 bg-white/[0.03] text-xs font-medium tracking-wide text-white/42 uppercase">
+              <div className="overflow-hidden rounded-lg border border-foreground/10">
+                <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-foreground/10 bg-foreground/[0.03] text-xs font-medium tracking-wide text-foreground/42 uppercase">
                   <div className="px-4 py-3">
                     <span className="sr-only">Enabled</span>
                   </div>
@@ -376,7 +376,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 </div>
                 {isLoadingRepositories ? (
                   <div className="p-4">
-                    <Skeleton className="h-10 bg-white/5" />
+                    <Skeleton className="h-10 bg-foreground/5" />
                   </div>
                 ) : filteredRepositories.length > 0 ? (
                   filteredRepositories.map((repository) => {
@@ -384,7 +384,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                     return (
                       <label
                         key={repository.githubRepositoryId}
-                        className="grid min-h-14 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-white/8 text-sm last:border-b-0 hover:bg-white/[0.03]"
+                        className="grid min-h-14 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-foreground/8 text-sm last:border-b-0 hover:bg-foreground/[0.03]"
                       >
                         <div className="px-4">
                           <input
@@ -400,13 +400,15 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                             <HugeiconsIcon
                               icon={GithubIcon}
                               strokeWidth={1.8}
-                              className="size-4 shrink-0 text-white/60"
+                              className="size-4 shrink-0 text-foreground/60"
                             />
-                            <span className="truncate text-white/82">{repository.fullName}</span>
+                            <span className="truncate text-foreground/82">
+                              {repository.fullName}
+                            </span>
                             {repository.private ? (
                               <Badge
                                 variant="outline"
-                                className="border-white/10 bg-white/5 text-white/52"
+                                className="border-foreground/10 bg-foreground/5 text-foreground/52"
                               >
                                 Private
                               </Badge>
@@ -421,7 +423,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                             ) : null}
                           </div>
                         </div>
-                        <div className="flex min-w-0 items-center gap-2 px-4 text-white/52">
+                        <div className="flex min-w-0 items-center gap-2 px-4 text-foreground/52">
                           <HugeiconsIcon
                             icon={GitBranchIcon}
                             strokeWidth={1.8}
@@ -433,7 +435,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                     );
                   })
                 ) : (
-                  <div className="px-4 py-8 text-sm text-white/52">
+                  <div className="px-4 py-8 text-sm text-foreground/52">
                     {repositories.length === 0
                       ? "No repositories are available to this GitHub App installation."
                       : "No repositories match this search."}
@@ -444,11 +446,14 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <TypographyP className="text-sm text-white/52">
+            <TypographyP className="text-sm text-foreground/52">
               No GitHub App installation is linked to this organization yet.
             </TypographyP>
             <div>
-              <Button className="bg-white text-black hover:bg-white/90" onClick={handleConnect}>
+              <Button
+                className="bg-foreground text-background hover:bg-foreground/90"
+                onClick={handleConnect}
+              >
                 Connect GitHub
               </Button>
             </div>

@@ -19,7 +19,7 @@ function DetailPill({
         tone === "light"
           ? "inline-flex items-center rounded-full border border-background/16 bg-background/12 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-background/78"
           : tone === "slack"
-            ? "inline-flex items-center rounded-full border border-slate-300/80 bg-white/72 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-slate-500"
+            ? "inline-flex items-center rounded-full border border-slate-300/80 bg-background/72 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-slate-500"
             : "inline-flex items-center rounded-full border border-foreground/8 bg-foreground/5 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-foreground/55"
       }
     >
@@ -74,7 +74,7 @@ function SlackSourceCard() {
         <TypographyH2 className="pb-0 text-[2.4rem] leading-none tracking-[-0.07em] text-slate-950 sm:text-[2.7rem] lg:text-[3rem]">
           Slack
         </TypographyH2>
-        <TypographySmall className="inline-flex w-fit items-center rounded-full border border-slate-400/70 bg-slate-900/78 px-3 py-1 text-[0.68rem] tracking-[0.18em] uppercase text-white/72">
+        <TypographySmall className="inline-flex w-fit items-center rounded-full border border-slate-400/70 bg-slate-900/78 px-3 py-1 text-[0.68rem] tracking-[0.18em] uppercase text-foreground/72">
           Request
         </TypographySmall>
       </div>

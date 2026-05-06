@@ -272,13 +272,13 @@ export function DashboardPageContent() {
         <div className="flex flex-wrap gap-2">
           <Badge
             variant="outline"
-            className="h-8 rounded-lg border-white/10 bg-white/4 text-white/64"
+            className="h-8 rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
           >
             Last 7 days
           </Badge>
           <Badge
             variant="outline"
-            className="h-8 rounded-lg border-white/10 bg-white/4 text-white/64"
+            className="h-8 rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
           >
             Updated 2m ago
           </Badge>
@@ -289,16 +289,16 @@ export function DashboardPageContent() {
         {overviewMetrics.map((metric) => (
           <Card
             key={metric.label}
-            className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0"
+            className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
           >
             <CardContent className="px-4 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <TypographyP className="text-sm text-white/52">{metric.label}</TypographyP>
-                  <TypographyP className="mt-2 font-heading text-3xl font-medium text-white">
+                  <TypographyP className="text-sm text-foreground/52">{metric.label}</TypographyP>
+                  <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
                     {metric.value}
                   </TypographyP>
-                  <TypographyP className="mt-2 text-xs text-white/44">
+                  <TypographyP className="mt-2 text-xs text-foreground/44">
                     <span className={metric.accent}>{metric.delta}</span> {metric.detail}
                   </TypographyP>
                 </div>
@@ -310,32 +310,32 @@ export function DashboardPageContent() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)]">
-        <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
-            <CardTitle className="text-xl text-white">Locales at a glance</CardTitle>
-            <CardDescription className="text-white/48">
+            <CardTitle className="text-xl text-foreground">Locales at a glance</CardTitle>
+            <CardDescription className="text-foreground/48">
               Plain-language release status by market, with blockers and next actions visible.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-3">
             <div className="overflow-x-auto">
               <div className="min-w-2xl">
-                <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
+                <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
                   <TypographyP>Locale</TypographyP>
                   <TypographyP>Status</TypographyP>
                   <TypographyP>Reviews</TypographyP>
                   <TypographyP>Last sync</TypographyP>
                   <TypographyP>Next action</TypographyP>
                 </div>
-                <Separator className="bg-white/8" />
+                <Separator className="bg-foreground/8" />
                 {localeReadiness.map((row, index) => (
                   <div key={row.locale}>
                     <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] items-center gap-3 px-5 py-3">
                       <div className="min-w-0">
-                        <TypographyP className="text-sm font-medium text-white">
+                        <TypographyP className="text-sm font-medium text-foreground">
                           {row.locale}
                         </TypographyP>
-                        <TypographyP className="mt-0.5 text-xs text-white/42">
+                        <TypographyP className="mt-0.5 text-xs text-foreground/42">
                           {row.market}
                         </TypographyP>
                       </div>
@@ -348,14 +348,18 @@ export function DashboardPageContent() {
                       >
                         {row.status}
                       </Badge>
-                      <TypographyP className="text-sm text-white/58">{row.reviews}</TypographyP>
-                      <TypographyP className="text-sm text-white/48">{row.lastSync}</TypographyP>
-                      <TypographyP className="truncate text-sm text-white/72">
+                      <TypographyP className="text-sm text-foreground/58">
+                        {row.reviews}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-foreground/48">
+                        {row.lastSync}
+                      </TypographyP>
+                      <TypographyP className="truncate text-sm text-foreground/72">
                         {row.next}
                       </TypographyP>
                     </div>
                     {index < localeReadiness.length - 1 ? (
-                      <Separator className="bg-white/8" />
+                      <Separator className="bg-foreground/8" />
                     ) : null}
                   </div>
                 ))}
@@ -364,10 +368,10 @@ export function DashboardPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
-            <CardTitle className="text-xl text-white">Review queue</CardTitle>
-            <CardDescription className="text-white/48">
+            <CardTitle className="text-xl text-foreground">Review queue</CardTitle>
+            <CardDescription className="text-foreground/48">
               Human approvals and blocked locales that need attention before release.
             </CardDescription>
           </CardHeader>
@@ -387,23 +391,23 @@ export function DashboardPageContent() {
                         >
                           {item.locale}
                         </Badge>
-                        <TypographyP className="truncate text-sm font-medium text-white">
+                        <TypographyP className="truncate text-sm font-medium text-foreground">
                           {item.title}
                         </TypographyP>
                       </div>
-                      <TypographyP className="mt-2 text-xs text-white/42">
+                      <TypographyP className="mt-2 text-xs text-foreground/42">
                         {item.detail}
                       </TypographyP>
                     </div>
-                    <TypographyP className="shrink-0 text-xs text-white/38">
+                    <TypographyP className="shrink-0 text-xs text-foreground/38">
                       Due {item.due}
                     </TypographyP>
                   </div>
-                  <TypographyP className="mt-3 text-xs text-white/48">
+                  <TypographyP className="mt-3 text-xs text-foreground/48">
                     Owner: {item.owner}
                   </TypographyP>
                 </div>
-                {index < reviewQueue.length - 1 ? <Separator className="bg-white/8" /> : null}
+                {index < reviewQueue.length - 1 ? <Separator className="bg-foreground/8" /> : null}
               </div>
             ))}
             <div className="px-5">
@@ -502,18 +506,18 @@ export function DashboardPageContent() {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <Card
           id="projects"
-          className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0"
+          className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
         >
           <CardHeader className="px-5 pt-5">
-            <CardTitle className="text-xl text-white">Active localization workflows</CardTitle>
-            <CardDescription className="text-white/48">
+            <CardTitle className="text-xl text-foreground">Active localization workflows</CardTitle>
+            <CardDescription className="text-foreground/48">
               Agent runs, review gates, eval status, and sync targets for current release work.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0 pb-3">
             <div className="overflow-x-auto">
               <div className="min-w-232">
-                <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-white/38 uppercase">
+                <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
                   <TypographyP>Job</TypographyP>
                   <TypographyP>Source</TypographyP>
                   <TypographyP>Step</TypographyP>
@@ -524,24 +528,32 @@ export function DashboardPageContent() {
                   <TypographyP>Next action</TypographyP>
                   <TypographyP>Status</TypographyP>
                 </div>
-                <Separator className="bg-white/8" />
+                <Separator className="bg-foreground/8" />
                 {activeWorkflows.map((workflow, index) => (
                   <div key={workflow.job}>
                     <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] items-center gap-3 px-5 py-3">
-                      <TypographyP className="truncate text-sm text-white">
+                      <TypographyP className="truncate text-sm text-foreground">
                         {workflow.job}
                       </TypographyP>
-                      <TypographyP className="truncate text-sm text-white/48">
+                      <TypographyP className="truncate text-sm text-foreground/48">
                         {workflow.source}
                       </TypographyP>
-                      <TypographyP className="text-sm text-white/58">{workflow.step}</TypographyP>
-                      <TypographyP className="text-sm text-white/58">
+                      <TypographyP className="text-sm text-foreground/58">
+                        {workflow.step}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-foreground/58">
                         {workflow.locales}
                       </TypographyP>
-                      <TypographyP className="text-sm text-white/58">{workflow.review}</TypographyP>
-                      <TypographyP className="text-sm text-white/58">{workflow.eval}</TypographyP>
-                      <TypographyP className="text-sm text-white/48">{workflow.sync}</TypographyP>
-                      <TypographyP className="truncate text-sm text-white/72">
+                      <TypographyP className="text-sm text-foreground/58">
+                        {workflow.review}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-foreground/58">
+                        {workflow.eval}
+                      </TypographyP>
+                      <TypographyP className="text-sm text-foreground/48">
+                        {workflow.sync}
+                      </TypographyP>
+                      <TypographyP className="truncate text-sm text-foreground/72">
                         {workflow.next}
                       </TypographyP>
                       <Badge className={cn("rounded-full border", statusClass(workflow.status))}>
@@ -549,7 +561,7 @@ export function DashboardPageContent() {
                       </Badge>
                     </div>
                     {index < activeWorkflows.length - 1 ? (
-                      <Separator className="bg-white/8" />
+                      <Separator className="bg-foreground/8" />
                     ) : null}
                   </div>
                 ))}
@@ -561,10 +573,10 @@ export function DashboardPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
-            <CardTitle className="text-xl text-white">Agent activity</CardTitle>
-            <CardDescription className="text-white/48">
+            <CardTitle className="text-xl text-foreground">Agent activity</CardTitle>
+            <CardDescription className="text-foreground/48">
               Recent automation events with context, evals, and sync outcomes attached.
             </CardDescription>
           </CardHeader>
@@ -582,15 +594,17 @@ export function DashboardPageContent() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
-                      <TypographyP className="text-sm text-white">{item.title}</TypographyP>
-                      <TypographyP className="shrink-0 text-xs text-white/38">
+                      <TypographyP className="text-sm text-foreground">{item.title}</TypographyP>
+                      <TypographyP className="shrink-0 text-xs text-foreground/38">
                         {item.time}
                       </TypographyP>
                     </div>
-                    <TypographyP className="mt-1 text-xs text-white/42">{item.detail}</TypographyP>
+                    <TypographyP className="mt-1 text-xs text-foreground/42">
+                      {item.detail}
+                    </TypographyP>
                   </div>
                 </div>
-                {index < activityFeed.length - 1 ? <Separator className="bg-white/8" /> : null}
+                {index < activityFeed.length - 1 ? <Separator className="bg-foreground/8" /> : null}
               </div>
             ))}
             <div className="px-5">
@@ -613,10 +627,10 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
       <CardHeader className="px-5 pt-5">
-        <CardTitle className="text-xl text-white">{title}</CardTitle>
-        <CardDescription className="text-white/48">{description}</CardDescription>
+        <CardTitle className="text-xl text-foreground">{title}</CardTitle>
+        <CardDescription className="text-foreground/48">{description}</CardDescription>
       </CardHeader>
       <CardContent className="h-56 px-3 pb-5">{children}</CardContent>
     </Card>
@@ -639,7 +653,7 @@ function MiniTrend({ bars, className }: { bars: readonly number[]; className: st
 
 function InlineLink({ label }: { label: string }) {
   return (
-    <button type="button" className="mt-5 flex items-center gap-2 text-sm text-white/54">
+    <button type="button" className="mt-5 flex items-center gap-2 text-sm text-foreground/54">
       <span>{label}</span>
       <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
     </button>

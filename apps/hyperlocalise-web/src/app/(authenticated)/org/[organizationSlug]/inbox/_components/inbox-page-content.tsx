@@ -140,7 +140,7 @@ export function InboxPageContent({
   return (
     <main
       data-organization={organizationSlug}
-      className="-mx-4 -my-5 min-h-[calc(100svh-3.5rem)] overflow-hidden bg-app-shell-background text-foreground sm:-mx-6 lg:-mx-8"
+      className="-mx-4 -my-5 min-h-[calc(100svh-3.5rem)] overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
     >
       <div
         className={cn(

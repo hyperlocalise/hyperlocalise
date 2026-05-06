@@ -194,17 +194,19 @@ function JobsList({
   organizationSlug: string;
 }) {
   if (isLoading) {
-    return <TypographyP className="px-3 py-8 text-sm text-white/58">Loading jobs…</TypographyP>;
+    return (
+      <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
+    );
   }
 
   if (jobs.length === 0) {
-    return <TypographyP className="px-3 py-8 text-sm text-white/58">{emptyLabel}</TypographyP>;
+    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[55rem]">
-        <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-white/42">
+        <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
           <TypographyP>Name</TypographyP>
           <TypographyP>Project</TypographyP>
           <TypographyP>Status</TypographyP>
@@ -215,14 +217,14 @@ function JobsList({
           <div key={job.id}>
             <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] items-center gap-4 px-3 py-4">
               <div className="min-w-0">
-                <TypographyP className="truncate text-base font-medium text-white">
+                <TypographyP className="truncate text-base font-medium text-foreground">
                   {getJobName(job)}
                 </TypographyP>
-                <TypographyP className="mt-1 truncate text-xs text-white/38">
+                <TypographyP className="mt-1 truncate text-xs text-foreground/38">
                   {formatJobKind(job)} · {job.id}
                 </TypographyP>
               </div>
-              <TypographyP className="truncate text-base text-white/58">
+              <TypographyP className="truncate text-base text-foreground/58">
                 {job.projectName ?? "Workspace"}
               </TypographyP>
               <Badge
@@ -231,13 +233,13 @@ function JobsList({
               >
                 {job.status}
               </Badge>
-              <TypographyP className="text-right text-base text-white/58">
+              <TypographyP className="text-right text-base text-foreground/58">
                 {formatRelativeTime(job.updatedAt)}
               </TypographyP>
               <Link
                 href={`/org/${organizationSlug}/jobs/${job.id}`}
                 aria-label={`Open ${getJobName(job)}`}
-                className="flex size-9 items-center justify-center rounded-lg text-white/58 transition-colors hover:bg-white/6 hover:text-white"
+                className="flex size-9 items-center justify-center rounded-lg text-foreground/58 transition-colors hover:bg-foreground/6 hover:text-foreground"
               >
                 <HugeiconsIcon
                   icon={MoreHorizontalCircle01Icon}
@@ -246,7 +248,7 @@ function JobsList({
                 />
               </Link>
             </div>
-            {index < jobs.length - 1 ? <Separator className="bg-white/8" /> : null}
+            {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
           </div>
         ))}
       </div>
@@ -310,7 +312,7 @@ export function JobsPageContent({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <div>
-        <TypographyH1 className="font-heading text-4xl font-semibold text-white md:text-5xl">
+        <TypographyH1 className="font-heading text-4xl font-semibold text-foreground md:text-5xl">
           {title}
         </TypographyH1>
       </div>
@@ -323,20 +325,20 @@ export function JobsPageContent({
             <HugeiconsIcon
               icon={SearchIcon}
               strokeWidth={2}
-              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-white/42"
+              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-foreground/42"
             />
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search jobs..."
-              className="h-12 rounded-lg border-white/14 bg-transparent pl-12 text-base text-white placeholder:text-white/42"
+              className="h-12 rounded-lg border-foreground/14 bg-transparent pl-12 text-base text-foreground placeholder:text-foreground/42"
             />
           </div>
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
           >
-            <SelectTrigger className="h-12 w-full rounded-lg border-white/14 bg-transparent px-4 text-base text-white lg:w-44">
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
               <HugeiconsIcon icon={FilterHorizontalIcon} strokeWidth={2} className="size-5" />
               <SelectValue placeholder="Filter" />
             </SelectTrigger>

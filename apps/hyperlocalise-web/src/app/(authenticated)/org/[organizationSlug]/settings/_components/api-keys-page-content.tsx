@@ -171,35 +171,35 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         </Button>
       </div>
 
-      <Card className="rounded-lg border border-white/8 bg-[#0b0b0b] py-0 text-white ring-0">
+      <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-white">Active keys</CardTitle>
-          <CardDescription className="text-white/52">
+          <CardTitle className="text-lg font-medium text-foreground">Active keys</CardTitle>
+          <CardDescription className="text-foreground/52">
             Keys with access to the workspace API. Keep them secure and rotate them regularly.
           </CardDescription>
         </CardHeader>
-        <Separator className="bg-white/8" />
+        <Separator className="bg-foreground/8" />
         <CardContent className="px-5 py-0">
           {apiKeysQuery.isLoading ? (
-            <div className="py-8 text-center text-sm text-white/48">Loading API keys...</div>
+            <div className="py-8 text-center text-sm text-foreground/48">Loading API keys...</div>
           ) : activeKeys.length === 0 ? (
-            <div className="py-8 text-center text-sm text-white/48">
+            <div className="py-8 text-center text-sm text-foreground/48">
               No API keys yet. Create one to get started.
             </div>
           ) : (
-            <div className="divide-y divide-white/8">
+            <div className="divide-y divide-foreground/8">
               {activeKeys.map((key) => (
                 <div key={key.id} className="flex items-start justify-between gap-4 py-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <TypographyP className="text-sm font-medium text-white">
+                      <TypographyP className="text-sm font-medium text-foreground">
                         {key.name}
                       </TypographyP>
-                      <span className="rounded-full border border-white/10 bg-white/4 px-2 py-0.5 text-xs text-white/52">
+                      <span className="rounded-full border border-foreground/10 bg-foreground/4 px-2 py-0.5 text-xs text-foreground/52">
                         {key.keyPrefix}••••••••
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/42">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/42">
                       <span>Permissions: {key.permissions.join(", ")}</span>
                       <span>Created {formatDate(key.createdAt)}</span>
                       <span>Last used {formatDate(key.lastUsedAt)}</span>
@@ -208,7 +208,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   <Button
                     variant="outline"
                     size="sm"
-                    className="shrink-0 border-white/10 bg-transparent text-white/72 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/25"
+                    className="shrink-0 border-foreground/10 bg-transparent text-foreground/72 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/25"
                     onClick={() => setRevokingKeyId(key.id)}
                     disabled={revokeKey.isPending}
                   >
@@ -230,12 +230,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           else setIsCreateOpen(true);
         }}
       >
-        <DialogContent className="border-white/8 bg-[#0b0b0b] text-white sm:max-w-lg">
+        <DialogContent className="border-foreground/8 bg-foreground/[0.025] text-foreground sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium text-white">
+            <DialogTitle className="text-lg font-medium text-foreground">
               {createdKey ? "API key created" : "Create API key"}
             </DialogTitle>
-            <DialogDescription className="text-white/52">
+            <DialogDescription className="text-foreground/52">
               {createdKey
                 ? "Copy this key now. You will not be able to see it again."
                 : "Give your key a name so you can identify it later."}
@@ -248,13 +248,13 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                 <Input
                   readOnly
                   value={createdKey}
-                  className="h-11 rounded-lg border-white/10 bg-white/4 pr-24 font-mono text-sm text-white"
+                  className="h-11 rounded-lg border-foreground/10 bg-foreground/4 pr-24 font-mono text-sm text-foreground"
                 />
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border-white/10 bg-white/8 text-white/72 hover:bg-white/12"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 border-foreground/10 bg-foreground/8 text-foreground/72 hover:bg-foreground/12"
                   onClick={() => handleCopyKey(createdKey)}
                 >
                   {copied ? (
@@ -274,7 +274,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           ) : (
             <form onSubmit={handleCreateSubmit} className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="key-name" className="text-sm text-white/72">
+                <Label htmlFor="key-name" className="text-sm text-foreground/72">
                   Key name
                 </Label>
                 <Input
@@ -282,7 +282,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g. Production CI"
-                  className="h-10 rounded-lg border-white/10 bg-white/4 text-white"
+                  className="h-10 rounded-lg border-foreground/10 bg-foreground/4 text-foreground"
                 />
               </div>
             </form>
@@ -299,7 +299,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   type="button"
                   variant="outline"
                   onClick={handleCloseCreateDialog}
-                  className="w-full border-white/10 bg-transparent text-white/72 hover:bg-white/8 md:w-fit"
+                  className="w-full border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 md:w-fit"
                 >
                   Cancel
                 </Button>
@@ -322,10 +322,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         open={revokingKeyId !== null}
         onOpenChange={(open) => !open && setRevokingKeyId(null)}
       >
-        <DialogContent className="border-white/8 bg-[#0b0b0b] text-white sm:max-w-md">
+        <DialogContent className="border-foreground/8 bg-foreground/[0.025] text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium text-white">Revoke API key</DialogTitle>
-            <DialogDescription className="text-white/52">
+            <DialogTitle className="text-lg font-medium text-foreground">
+              Revoke API key
+            </DialogTitle>
+            <DialogDescription className="text-foreground/52">
               This key will immediately lose access to the workspace API. Any integrations using it
               will stop working.
             </DialogDescription>
@@ -335,7 +337,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
               type="button"
               variant="outline"
               onClick={() => setRevokingKeyId(null)}
-              className="w-full border-white/10 bg-transparent text-white/72 hover:bg-white/8 md:w-fit"
+              className="w-full border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 md:w-fit"
             >
               Cancel
             </Button>

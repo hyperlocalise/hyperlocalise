@@ -100,7 +100,7 @@ function MarkdownBlock({ markdown }: { markdown: string }) {
     "code",
     {
       className:
-        "block max-h-96 overflow-auto rounded-lg border border-white/8 bg-white/[0.035] px-4 py-4 font-mono text-xs leading-6 whitespace-pre-wrap text-white/72",
+        "block max-h-96 overflow-auto rounded-lg border border-foreground/8 bg-foreground/[0.035] px-4 py-4 font-mono text-xs leading-6 whitespace-pre-wrap text-foreground/72",
     },
     markdown,
   );
@@ -127,29 +127,29 @@ export function ContextPageContent() {
         {contextEntries.map((entry, index) => (
           <div key={entry.title}>
             <Collapsible defaultOpen={index === 0}>
-              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left outline-hidden hover:bg-white/[0.035] focus-visible:bg-white/[0.055]">
+              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left outline-hidden hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.055]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <HugeiconsIcon
                       icon={NoteIcon}
                       strokeWidth={1.7}
-                      className="size-4 text-white/42"
+                      className="size-4 text-foreground/42"
                     />
-                    <TypographyP className="text-sm font-medium text-white">
+                    <TypographyP className="text-sm font-medium text-foreground">
                       {entry.title}
                     </TypographyP>
                     <Badge variant="outline" className={cn("rounded-full", toneClass(entry.tone))}>
                       {entry.status}
                     </Badge>
                   </div>
-                  <TypographyP className="mt-1 text-xs text-white/42">
+                  <TypographyP className="mt-1 text-xs text-foreground/42">
                     {entry.source} - Updated {entry.updated}
                   </TypographyP>
                 </div>
                 <HugeiconsIcon
                   icon={ArrowDown01Icon}
                   strokeWidth={1.8}
-                  className="size-4 shrink-0 text-white/42 transition-transform group-data-[panel-open]:rotate-180"
+                  className="size-4 shrink-0 text-foreground/42 transition-transform group-data-[panel-open]:rotate-180"
                 />
               </CollapsibleTrigger>
               <CollapsibleContent hiddenUntilFound>
@@ -158,7 +158,7 @@ export function ContextPageContent() {
                 </div>
               </CollapsibleContent>
             </Collapsible>
-            {index < contextEntries.length - 1 ? <Separator className="bg-white/8" /> : null}
+            {index < contextEntries.length - 1 ? <Separator className="bg-foreground/8" /> : null}
           </div>
         ))}
       </ResourceCard>
