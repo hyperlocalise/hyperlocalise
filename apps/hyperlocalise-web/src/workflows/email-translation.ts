@@ -1,12 +1,16 @@
 import { Sandbox } from "@vercel/sandbox";
 import { Resend } from "resend";
-import { fetch as workflowFetch, getWorkflowMetadata } from "workflow";
+import { getWorkflowMetadata } from "workflow";
 
 import { env } from "@/lib/env";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
-import { getInternalApiUrl, internalApiHeaders } from "./internal-api";
+import {
+  markEmailTranslationJobFailed,
+  markEmailTranslationJobRunning,
+  markEmailTranslationJobSucceeded,
+} from "./steps/translation-job";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 
@@ -335,72 +339,6 @@ function firstTaskAttachment(task: EmailAgentTask): EmailAgentTaskAttachment {
   return attachment;
 }
 
-async function markEmailTranslationJobRunning(input: {
-  jobId: string;
-  workflowRunId: string;
-}): Promise<void> {
-  "use step";
-
-  const response = await workflowFetch(
-    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/mark-running`),
-    {
-      method: "POST",
-      headers: internalApiHeaders(),
-      body: JSON.stringify({ workflowRunId: input.workflowRunId }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`failed to mark email translation job running: ${response.status}`);
-  }
-}
-
-async function markEmailTranslationJobSucceeded(input: {
-  jobId: string;
-  attachment: EmailAgentTaskAttachment;
-  outputFilename: string;
-  targetLocale: string;
-}): Promise<void> {
-  "use step";
-
-  const response = await workflowFetch(
-    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/succeed`),
-    {
-      method: "POST",
-      headers: internalApiHeaders(),
-      body: JSON.stringify({
-        attachment: input.attachment,
-        outputFilename: input.outputFilename,
-        targetLocale: input.targetLocale,
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`failed to mark email translation job succeeded: ${response.status}`);
-  }
-}
-
-async function markEmailTranslationJobFailed(input: {
-  jobId: string;
-  reason: string;
-}): Promise<void> {
-  "use step";
-
-  const response = await workflowFetch(
-    getInternalApiUrl(`/email-translation-jobs/${input.jobId}/fail`),
-    {
-      method: "POST",
-      headers: internalApiHeaders(),
-      body: JSON.stringify({ reason: input.reason }),
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`failed to mark email translation job failed: ${response.status}`);
-  }
-}
-
 export async function emailTranslationWorkflow(task: EmailAgentTask) {
   "use workflow";
 
@@ -434,7 +372,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     await sendReplyEmail(task, attachment, translatedContent, outputFile);
     await markEmailTranslationJobSucceeded({
       jobId: task.jobId,
-      attachment,
+      sourceFilename: attachment.filename,
       outputFilename: outputFile,
       targetLocale,
     });

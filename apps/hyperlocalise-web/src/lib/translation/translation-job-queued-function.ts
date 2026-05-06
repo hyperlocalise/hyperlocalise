@@ -25,7 +25,7 @@ type ExecuteTranslationJobQueuedInput = {
 
 type StoredTranslationJob = NonNullable<Awaited<ReturnType<typeof getStoredJob>>>;
 
-type ClaimedTranslationJob = {
+export type ClaimedTranslationJob = {
   id: string;
   projectId: string;
   type: "string" | "file";
@@ -71,7 +71,7 @@ type StringTranslationContextSnapshot = {
   }>;
 };
 
-type ClaimTranslationJobResult =
+export type ClaimTranslationJobResult =
   | {
       kind: "claimed";
       job: ClaimedTranslationJob;
@@ -81,7 +81,7 @@ type ClaimTranslationJobResult =
       job: StoredTranslationJob;
     };
 
-type TranslationJobExecutionResult =
+export type TranslationJobExecutionResult =
   | {
       ok: true;
       result: StringTranslationJobResult;
