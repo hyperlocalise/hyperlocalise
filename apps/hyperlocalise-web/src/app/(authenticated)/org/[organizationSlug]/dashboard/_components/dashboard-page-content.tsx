@@ -321,11 +321,11 @@ export function DashboardPageContent() {
             <div className="overflow-x-auto">
               <div className="min-w-2xl">
                 <div className="grid grid-cols-[minmax(10rem,1fr)_7rem_minmax(8rem,1fr)_6rem_6rem_minmax(10rem,1fr)] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
-                  <TypographyP>Locale</TypographyP>
-                  <TypographyP>Status</TypographyP>
-                  <TypographyP>Reviews</TypographyP>
-                  <TypographyP>Last sync</TypographyP>
-                  <TypographyP>Next action</TypographyP>
+                  <span>Locale</span>
+                  <span>Status</span>
+                  <span>Reviews</span>
+                  <span>Last sync</span>
+                  <span>Next action</span>
                 </div>
                 <Separator className="bg-foreground/8" />
                 {localeReadiness.map((row, index) => (
@@ -518,15 +518,15 @@ export function DashboardPageContent() {
             <div className="overflow-x-auto">
               <div className="min-w-232">
                 <div className="grid grid-cols-[minmax(11rem,1.1fr)_8rem_8rem_5rem_7rem_7rem_7rem_minmax(11rem,1fr)_7rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
-                  <TypographyP>Job</TypographyP>
-                  <TypographyP>Source</TypographyP>
-                  <TypographyP>Step</TypographyP>
-                  <TypographyP>Locales</TypographyP>
-                  <TypographyP>Review</TypographyP>
-                  <TypographyP>Eval</TypographyP>
-                  <TypographyP>Sync</TypographyP>
-                  <TypographyP>Next action</TypographyP>
-                  <TypographyP>Status</TypographyP>
+                  <span>Job</span>
+                  <span>Source</span>
+                  <span>Step</span>
+                  <span>Locales</span>
+                  <span>Review</span>
+                  <span>Eval</span>
+                  <span>Sync</span>
+                  <span>Next action</span>
+                  <span>Status</span>
                 </div>
                 <Separator className="bg-foreground/8" />
                 {activeWorkflows.map((workflow, index) => (

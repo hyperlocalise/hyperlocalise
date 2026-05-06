@@ -6,7 +6,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { TypographyP } from "@/components/ui/typography";
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (
@@ -122,7 +121,7 @@ function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
 
 function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
   return (
-    <TypographyP
+    <p
       data-slot="field-description"
       className={cn(
         "text-start text-sm leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",

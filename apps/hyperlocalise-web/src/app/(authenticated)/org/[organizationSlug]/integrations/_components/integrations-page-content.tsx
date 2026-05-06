@@ -367,11 +367,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                   className="h-9 w-full rounded-4xl border border-foreground/10 bg-foreground/[0.03] px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
                 >
                   {selectedProviderConfig.models.map((model) => (
-                    <option
-                      key={model}
-                      value={model}
-                      className="bg-foreground/[0.025] text-foreground"
-                    >
+                    <option key={model} value={model} className="bg-[#0b0b0b] text-foreground">
                       {model}
                     </option>
                   ))}
