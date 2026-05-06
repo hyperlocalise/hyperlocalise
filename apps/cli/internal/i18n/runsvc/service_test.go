@@ -1821,7 +1821,8 @@ func TestRunWritesRealisticLiquidTemplateForMultipleLocales(t *testing.T) {
 	if err != nil {
 		t.Fatalf("run liquid e2e: %v", err)
 	}
-	if report.Failed != 0 || report.Succeeded == 0 {
+	expectedSucceeded := 4 * 2
+	if report.Failed != 0 || report.ExecutableTotal != expectedSucceeded || report.Succeeded != expectedSucceeded {
 		t.Fatalf("unexpected liquid run report: %+v", report)
 	}
 	if len(written) != 2 {
