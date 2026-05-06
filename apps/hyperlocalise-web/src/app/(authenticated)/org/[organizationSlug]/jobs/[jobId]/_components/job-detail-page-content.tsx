@@ -342,7 +342,14 @@ export function JobDetailPageContent({
         </>
       ) : null}
 
-      <AlertDialog open={markFailedDialogOpen} onOpenChange={setMarkFailedDialogOpen}>
+      <AlertDialog
+        open={markFailedDialogOpen}
+        onOpenChange={(open) => {
+          if (!markJobFailed.isPending) {
+            setMarkFailedDialogOpen(open);
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mark job as failed?</AlertDialogTitle>

@@ -655,6 +655,85 @@ describe("jobRoutes", () => {
     await retryFixture.cleanup();
   });
 
+  it("does not clear details or enqueue when a retryable job is claimed concurrently", async () => {
+    const queuedEvents: TranslationJobEventData[] = [];
+    const retryClient = testClient(
+      createApp({
+        jobQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [`run_${event.jobId}`] };
+          },
+        },
+      }),
+    );
+    const retryFixture = createProjectTestFixture(retryClient);
+    const identity = retryFixture.createWorkosIdentity();
+    const projectResponse = await retryFixture.createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const localUserId = await retryFixture.getLocalUserId(identity.user.workosUserId);
+    const job = await insertJob({
+      projectId: project.id,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello world",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+      outcomeKind: "error",
+      outcomePayload: {
+        code: "workflow_failed",
+        message: "workflow failed before claiming",
+      },
+      lastError: "workflow failed before claiming",
+      workflowRunId: "run_stale",
+    });
+    const originalTransaction = db.transaction.bind(db);
+    const transactionSpy = vi.spyOn(db, "transaction").mockImplementation(async (callback) => {
+      await db.update(schema.jobs).set({ status: "running" }).where(eq(schema.jobs.id, job.id));
+
+      return originalTransaction(callback);
+    });
+
+    try {
+      const response = await retryClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post(
+        {
+          param: {
+            organizationSlug: identity.organization.slug!,
+            jobId: job.id,
+          },
+        },
+        {
+          headers: await retryFixture.authHeadersFor(identity),
+        },
+      );
+
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toEqual({ error: "job_action_unavailable" });
+      expect(queuedEvents).toEqual([]);
+
+      const [details] = await db
+        .select({
+          status: schema.jobs.status,
+          outcomeKind: schema.translationJobDetails.outcomeKind,
+        })
+        .from(schema.jobs)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .where(eq(schema.jobs.id, job.id))
+        .limit(1);
+
+      expect(details).toEqual({ status: "running", outcomeKind: "error" });
+    } finally {
+      transactionSpy.mockRestore();
+      await retryFixture.cleanup();
+    }
+  });
+
   it("marks an active workspace job as failed", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);

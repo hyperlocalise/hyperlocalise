@@ -525,8 +525,11 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return jobActionUnavailableResponse(c);
       }
 
-      await db.transaction(async (tx) => {
-        await tx
+      const projectId = job.projectId;
+      const type = job.type;
+
+      const retriedJob = await db.transaction(async (tx) => {
+        const [updatedJob] = await tx
           .update(schema.jobs)
           .set({
             status: "queued",
@@ -540,20 +543,31 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               organizationId: c.var.auth.organization.localOrganizationId,
               jobId: params.jobId,
             }),
-          );
+          )
+          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+
+        if (!updatedJob) {
+          return null;
+        }
 
         await tx
           .update(schema.translationJobDetails)
           .set({ outcomeKind: null })
           .where(eq(schema.translationJobDetails.jobId, params.jobId));
+
+        return { id: updatedJob.id, projectId, type };
       });
+
+      if (!retriedJob) {
+        return jobActionUnavailableResponse(c);
+      }
 
       try {
         await options.jobQueue.enqueue({
           kind: "translation",
-          jobId: job.id,
-          projectId: job.projectId,
-          type: job.type,
+          jobId: retriedJob.id,
+          projectId: retriedJob.projectId,
+          type: retriedJob.type,
         });
       } catch (error) {
         await db
