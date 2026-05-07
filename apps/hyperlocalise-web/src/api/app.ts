@@ -24,6 +24,7 @@ import { createResendWebhookRoutes } from "./routes/resend-webhook";
 import { createFileRoutes } from "./routes/file/file.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
+import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
@@ -34,15 +35,17 @@ type CreateAppOptions = {
 };
 
 export function createApp(options: CreateAppOptions = {}) {
+  const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
+
   return new Hono()
     .basePath("/api")
     .route("/auth", authRoutes)
     .route("/glossary", createGlossaryRoutes())
     .route("/orgs/:organizationSlug/glossaries", createGlossaryRoutes())
     .route("/health", healthRoutes)
-    .route("/project", createProjectRoutes(options))
-    .route("/orgs/:organizationSlug/projects", createProjectRoutes(options))
-    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes())
+    .route("/project", createProjectRoutes({ ...options, jobQueue }))
+    .route("/orgs/:organizationSlug/projects", createProjectRoutes({ ...options, jobQueue }))
+    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes({ jobQueue }))
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
