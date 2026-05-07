@@ -2,6 +2,7 @@ package crowdin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -198,7 +199,14 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 					skipped = append(skipped, remotePath+"@"+locale)
 					continue
 				}
-				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale, group.Export)
+				exportOptions := effectiveFileExportOptions(group.Export, req.ExportOverrides)
+				if req.MergeApproved {
+					exportOnlyApproved := true
+					skipUntranslatedStrings := true
+					exportOptions.ExportOnlyApproved = &exportOnlyApproved
+					exportOptions.SkipUntranslatedStrings = &skipUntranslatedStrings
+				}
+				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale, exportOptions)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
@@ -208,6 +216,12 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				}
 				if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir translation output: %w", err)
+				}
+				if req.MergeApproved {
+					payload, err = mergeApprovedJSONFile(targetPath, payload)
+					if err != nil {
+						return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+					}
 				}
 				if err := os.WriteFile(targetPath, payload, 0o644); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write translation output: %w", err)
@@ -220,6 +234,54 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 	slices.Sort(processed)
 	slices.Sort(skipped)
 	return storage.FileOperationResult{Processed: processed, Skipped: skipped}, nil
+}
+
+func effectiveFileExportOptions(base storage.FileExportOptions, overrides *storage.FileExportOptions) storage.FileExportOptions {
+	if overrides == nil {
+		return base
+	}
+	if overrides.SkipUntranslatedStrings != nil {
+		base.SkipUntranslatedStrings = overrides.SkipUntranslatedStrings
+	}
+	if overrides.SkipUntranslatedFiles != nil {
+		base.SkipUntranslatedFiles = overrides.SkipUntranslatedFiles
+	}
+	if overrides.ExportOnlyApproved != nil {
+		base.ExportOnlyApproved = overrides.ExportOnlyApproved
+	}
+	return base
+}
+
+func mergeApprovedJSONFile(targetPath string, approvedPayload []byte) ([]byte, error) {
+	approved := make(map[string]any)
+	if err := json.Unmarshal(approvedPayload, &approved); err != nil {
+		return nil, fmt.Errorf("merge approved translations: downloaded payload for %s must be a JSON object: %w", targetPath, err)
+	}
+	if len(approved) == 0 {
+		if existing, err := os.ReadFile(targetPath); err == nil {
+			return existing, nil
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("merge approved translations: read existing translation file: %w", err)
+		}
+	}
+
+	merged := make(map[string]any)
+	if existing, err := os.ReadFile(targetPath); err == nil {
+		if err := json.Unmarshal(existing, &merged); err != nil {
+			return nil, fmt.Errorf("merge approved translations: existing file %s must be a JSON object: %w", targetPath, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("merge approved translations: read existing translation file: %w", err)
+	}
+
+	for key, value := range approved {
+		merged[key] = value
+	}
+	payload, err := json.MarshalIndent(merged, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("merge approved translations: encode merged JSON: %w", err)
+	}
+	return append(payload, '\n'), nil
 }
 
 func (a *FileAdapter) effectiveConfig(cfg storage.FileWorkflowConfig) storage.FileWorkflowConfig {
