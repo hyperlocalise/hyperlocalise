@@ -1714,7 +1714,8 @@ func writeCheckStylish(w io.Writer, report checkReport) error {
 			if msg == "" {
 				msg = "(no message)"
 			}
-			line := fmt.Sprintf("  %s  %s  %s  %s",
+			line := fmt.Sprintf(
+				"  %s  %s  %s  %s",
 				styles.renderLineNo(stylishLine(f)),
 				styles.renderSeverity(f.Severity),
 				styles.renderRule(f.Type),

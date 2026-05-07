@@ -55,7 +55,8 @@ func Init(ctx context.Context, serviceVersion string) (shutdown func(context.Con
 		return nil, fmt.Errorf("cliotel: OTLP HTTP exporter: %w", err)
 	}
 
-	res, err := resource.New(ctx,
+	res, err := resource.New(
+		ctx,
 		resource.WithAttributes(
 			semconv.ServiceName("hyperlocalise-cli"),
 			semconv.ServiceVersion(strings.TrimSpace(serviceVersion)),

@@ -1300,14 +1300,16 @@ func (m runInteractiveModel) renderTableStep() string {
 	if m.currentStep() == runInteractiveStepFile {
 		switch m.filePane {
 		case "picker":
-			parts = append(parts,
+			parts = append(
+				parts,
 				m.metaStyle.Render("pick a directory to narrow the file list, then return to the table"),
 				"",
 				m.sectionStyle.Render("Directory Picker"),
 				m.filepicker.View(),
 			)
 		default:
-			parts = append(parts,
+			parts = append(
+				parts,
 				m.table.View(),
 				m.metaStyle.Render(m.table.HelpView()+"  "+m.pagerSummary()),
 			)

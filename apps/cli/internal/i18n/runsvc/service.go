@@ -609,7 +609,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			seen[mk] = struct{}{}
 			planWarnings = append(planWarnings, fmt.Sprintf(
 				"fix target matched no planned task (source=%s target=%s locale=%s key=%s)",
-				ft.SourcePath, ft.TargetPath, ft.TargetLocale, ft.EntryKey))
+				ft.SourcePath, ft.TargetPath, ft.TargetLocale, ft.EntryKey,
+			))
 		}
 	}
 	if len(markdownScopeSet) > 0 {
@@ -625,7 +626,8 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 			seen[sk] = struct{}{}
 			planWarnings = append(planWarnings, fmt.Sprintf(
 				"fix markdown scope matched no planned task (source=%s target=%s locale=%s)",
-				ms.SourcePath, ms.TargetPath, ms.TargetLocale))
+				ms.SourcePath, ms.TargetPath, ms.TargetLocale,
+			))
 		}
 	}
 	slices.Sort(planWarnings)
