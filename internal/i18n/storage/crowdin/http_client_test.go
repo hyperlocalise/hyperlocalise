@@ -529,7 +529,28 @@ func TestHTTPClientDownloadSourceFileUsesDownloadLink(t *testing.T) {
 	}
 }
 
-func TestHTTPClientResolveLocalesUsesSupportedLanguageLocale(t *testing.T) {
+func TestHTTPClientResolveLocalesWithExplicitLocalesDoesNotFetchProject(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected project lookup for explicit locales")
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected language lookup for explicit locales")
+	})
+
+	locales, err := client.ResolveLocales(context.Background(), "123", []string{" fr ", "fr", "de"})
+	if err != nil {
+		t.Fatalf("resolve locales: %v", err)
+	}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}, {LanguageID: "de", Locale: "de"}}
+	if !reflect.DeepEqual(locales, want) {
+		t.Fatalf("locales = %#v, want %#v", locales, want)
+	}
+}
+
+func TestHTTPClientResolveLocalesAllUsesSupportedLanguageLocale(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()
 
@@ -542,7 +563,7 @@ func TestHTTPClientResolveLocalesUsesSupportedLanguageLocale(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"data":{"id":"fr","name":"French","locale":"fr-FR","twoLettersCode":"fr","threeLettersCode":"fra"}}],"pagination":{"offset":0,"limit":500}}`)
 	})
 
-	locales, err := client.ResolveLocales(context.Background(), "123", []string{"fr-FR"})
+	locales, err := client.ResolveLocales(context.Background(), "123", nil)
 	if err != nil {
 		t.Fatalf("resolve locales: %v", err)
 	}
