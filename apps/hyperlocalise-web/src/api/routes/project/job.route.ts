@@ -570,19 +570,27 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           type: retriedJob.type,
         });
       } catch (error) {
-        await db
-          .update(schema.jobs)
-          .set({
-            status: "failed",
-            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-            completedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-            ),
-          );
+        await db.transaction(async (tx) => {
+          await tx
+            .update(schema.jobs)
+            .set({
+              status: "failed",
+              lastError:
+                error instanceof Error ? error.message : "translation job queue unavailable",
+              completedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(schema.jobs.id, params.jobId),
+                eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
+              ),
+            );
+
+          await tx
+            .update(schema.translationJobDetails)
+            .set({ outcomeKind: "error" })
+            .where(eq(schema.translationJobDetails.jobId, params.jobId));
+        });
 
         return jobQueueUnavailableResponse(c);
       }
