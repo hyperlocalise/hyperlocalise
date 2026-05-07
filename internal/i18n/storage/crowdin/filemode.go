@@ -18,7 +18,7 @@ import (
 )
 
 type FileClient interface {
-	ResolveLocales(ctx context.Context, projectID string, requested []string) ([]string, error)
+	ResolveLocales(ctx context.Context, projectID string, requested []string) ([]ResolvedLocale, error)
 	ResolveBranch(ctx context.Context, projectID, branch string) (int, error)
 	EnsureDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error)
 	FindDirectory(ctx context.Context, projectID string, branchID int, path string) (int, error)
@@ -27,6 +27,11 @@ type FileClient interface {
 	UploadTranslationFile(ctx context.Context, projectID, languageID string, fileID int, localPath string) error
 	DownloadSourceFile(ctx context.Context, projectID string, fileID int) ([]byte, error)
 	DownloadTranslationFile(ctx context.Context, projectID string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error)
+}
+
+type ResolvedLocale struct {
+	LanguageID string
+	Locale     string
 }
 
 type FileAdapter struct {
@@ -138,11 +143,11 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 			}
 			for _, locale := range locales {
-				if _, isExcluded := excluded[locale]; isExcluded {
-					skipped = append(skipped, remotePath+"@"+locale)
+				if _, isExcluded := excluded[locale.Locale]; isExcluded {
+					skipped = append(skipped, remotePath+"@"+locale.Locale)
 					continue
 				}
-				translationPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale, sourcePath, group.LanguagesMapping)
+				translationPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
@@ -153,7 +158,7 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 					}
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("stat translation file: %w", statErr)
 				}
-				if err := a.client.UploadTranslationFile(ctx, config.ProjectID, locale, fileID, translationPath); err != nil {
+				if err := a.client.UploadTranslationFile(ctx, config.ProjectID, locale.LanguageID, fileID, translationPath); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
 				processed = append(processed, translationPath)
@@ -213,8 +218,8 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				processed = append(processed, sourcePath)
 			}
 			for _, locale := range locales {
-				if _, isExcluded := excluded[locale]; isExcluded {
-					skipped = append(skipped, remotePath+"@"+locale)
+				if _, isExcluded := excluded[locale.Locale]; isExcluded {
+					skipped = append(skipped, remotePath+"@"+locale.Locale)
 					continue
 				}
 				exportOptions := effectiveFileExportOptions(group.Export, req.ExportOverrides)
@@ -224,11 +229,11 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 					exportOptions.ExportOnlyApproved = &exportOnlyApproved
 					exportOptions.SkipUntranslatedStrings = &skipUntranslatedStrings
 				}
-				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale, exportOptions)
+				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale.LanguageID, exportOptions)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
-				targetPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale, sourcePath, group.LanguagesMapping)
+				targetPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}

@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +114,126 @@ func TestRetryDelayPrefersRetryAfterHeader(t *testing.T) {
 
 	if got := retryDelay(0, err); got != 2*time.Second {
 		t.Fatalf("retryDelay() = %s, want 2s", got)
+	}
+}
+
+func TestHTTPClientDebugEnabledAcceptsGenericDebug(t *testing.T) {
+	t.Setenv(envCrowdinDebug, "")
+	t.Setenv(envGenericDebug, "1")
+
+	client, err := NewHTTPClient(Config{
+		ProjectID: "123",
+		APIToken:  "token",
+	})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+	if client.debugWriter == nil {
+		t.Fatalf("debug writer = nil, want enabled by DEBUG=1")
+	}
+	if _, ok := client.httpClient.Transport.(*debugRoundTripper); !ok {
+		t.Fatalf("transport = %T, want *debugRoundTripper", client.httpClient.Transport)
+	}
+}
+
+func TestDebugRoundTripperLogsSanitizedHTTPCall(t *testing.T) {
+	var logs bytes.Buffer
+	rt := &debugRoundTripper{
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Status:     "200 OK",
+				Body:       io.NopCloser(strings.NewReader("{}")),
+				Header:     make(http.Header),
+				Request:    req,
+			}, nil
+		}),
+		writer: &logs,
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "https://api.crowdin.com/api/v2/projects/123/translations/builds/files/456?token=secret", nil)
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	got := logs.String()
+	for _, want := range []string{
+		"crowdin http:",
+		"POST",
+		"/api/v2/projects/:id/translations/builds/files/:id",
+		"status=200 OK",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("debug log missing %q: %s", want, got)
+		}
+	}
+	for _, leaked := range []string{"123", "456", "token", "secret"} {
+		if strings.Contains(got, leaked) {
+			t.Fatalf("debug log leaked %q: %s", leaked, got)
+		}
+	}
+}
+
+func TestDebugRoundTripperRedactsArtifactURL(t *testing.T) {
+	var logs bytes.Buffer
+	rt := &debugRoundTripper{
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Status:     "200 OK",
+				Body:       io.NopCloser(strings.NewReader("{}")),
+				Header:     make(http.Header),
+				Request:    req,
+			}, nil
+		}),
+		writer: &logs,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://downloads.crowdin.com/project/private-file-name.json?response-content-disposition=attachment&token=secret", nil)
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	got := logs.String()
+	if !strings.Contains(got, "crowdin-artifact") {
+		t.Fatalf("debug log missing artifact label: %s", got)
+	}
+	for _, leaked := range []string{"private-file-name", "token", "secret", "response-content-disposition"} {
+		if strings.Contains(got, leaked) {
+			t.Fatalf("debug log leaked %q: %s", leaked, got)
+		}
+	}
+}
+
+func TestDebugRoundTripperColorIsOptIn(t *testing.T) {
+	var logs bytes.Buffer
+	rt := &debugRoundTripper{
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Status:     "200 OK",
+				Body:       io.NopCloser(strings.NewReader("{}")),
+				Header:     make(http.Header),
+				Request:    req,
+			}, nil
+		}),
+		writer: &logs,
+		color:  true,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://api.crowdin.com/api/v2/projects/123", nil)
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if !strings.Contains(logs.String(), "\x1b[") {
+		t.Fatalf("debug log did not include ANSI color: %q", logs.String())
 	}
 }
 
@@ -408,6 +529,81 @@ func TestHTTPClientDownloadSourceFileUsesDownloadLink(t *testing.T) {
 	}
 }
 
+func TestHTTPClientResolveLocalesUsesSupportedLanguageLocale(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		_, _ = io.WriteString(w, `{"data":{"id":123,"targetLanguageIds":["fr"],"targetLanguages":[]}}`)
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":"fr","name":"French","locale":"fr-FR","twoLettersCode":"fr","threeLettersCode":"fra"}}],"pagination":{"offset":0,"limit":500}}`)
+	})
+
+	locales, err := client.ResolveLocales(context.Background(), "123", []string{"fr-FR"})
+	if err != nil {
+		t.Fatalf("resolve locales: %v", err)
+	}
+	want := []ResolvedLocale{{LanguageID: "fr", Locale: "fr-FR"}}
+	if !reflect.DeepEqual(locales, want) {
+		t.Fatalf("locales = %#v, want %#v", locales, want)
+	}
+}
+
+func TestHTTPClientDownloadLogsOmitArtifactURL(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	var debug bytes.Buffer
+	client.debugWriter = &debug
+
+	mux.HandleFunc("/api/v2/projects/123/translations/builds/files/17", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodPost, "/api/v2/projects/123/translations/builds/files/17")
+		assertJSONBody(t, r, map[string]any{
+			"targetLanguageId":        "fr",
+			"exportApprovedOnly":      true,
+			"skipUntranslatedStrings": true,
+		})
+		_, _ = io.WriteString(w, `{"data":{"url":"https://api.crowdin.com/downloads/secret-token.json"}}`)
+	})
+	mux.HandleFunc("/downloads/secret-token.json", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/downloads/secret-token.json")
+		_, _ = io.WriteString(w, `{"hello":"Bonjour"}`)
+	})
+
+	exportApprovedOnly := true
+	skipUntranslatedStrings := true
+	payload, err := client.DownloadTranslationFile(context.Background(), "123", 17, "fr", storage.FileExportOptions{
+		ExportOnlyApproved:      &exportApprovedOnly,
+		SkipUntranslatedStrings: &skipUntranslatedStrings,
+	})
+	if err != nil {
+		t.Fatalf("download translation file: %v", err)
+	}
+	if string(payload) != `{"hello":"Bonjour"}` {
+		t.Fatalf("payload = %q", string(payload))
+	}
+	logs := debug.String()
+	for _, want := range []string{
+		"action=download-translation",
+		"project_id=123",
+		"file_id=17",
+		"language_id=fr",
+		"export_approved_only=true",
+		"phase=build-link",
+		"phase=download-artifact",
+	} {
+		if !strings.Contains(logs, want) {
+			t.Fatalf("debug logs missing %q: %s", want, logs)
+		}
+	}
+	if strings.Contains(logs, "secret-token") {
+		t.Fatalf("debug logs leaked artifact URL: %s", logs)
+	}
+}
+
 func newCrowdinHTTPClientForTest(t *testing.T) (*HTTPClient, *http.ServeMux, func()) {
 	t.Helper()
 	mux := http.NewServeMux()
@@ -472,4 +668,10 @@ func writeHTTPClientFixture(t *testing.T, name, content string) string {
 		t.Fatalf("write fixture: %v", err)
 	}
 	return path
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }

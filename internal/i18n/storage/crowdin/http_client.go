@@ -21,14 +21,19 @@ import (
 )
 
 type HTTPClient struct {
-	client     *sdkcrowdin.Client
-	httpClient *http.Client
+	client      *sdkcrowdin.Client
+	httpClient  *http.Client
+	debugWriter io.Writer
 }
 
 const (
 	maxUpsertRetries = 3
 	retryBaseDelay   = 250 * time.Millisecond
 	pageLimit        = 500
+
+	envCrowdinDebug      = "HYPERLOCALISE_CROWDIN_DEBUG"
+	envCrowdinDebugColor = "HYPERLOCALISE_CROWDIN_DEBUG_COLOR"
+	envGenericDebug      = "DEBUG"
 )
 
 type partialUpsertError struct {
@@ -100,6 +105,14 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 			cloudHost: "api.crowdin.com",
 		}
 	}
+	debug := debugEnabled(os.Getenv(envCrowdinDebug)) || debugEnabled(os.Getenv(envGenericDebug))
+	if debug {
+		httpClient.Transport = &debugRoundTripper{
+			base:   httpClient.Transport,
+			writer: os.Stdout,
+			color:  debugEnabled(os.Getenv(envCrowdinDebugColor)),
+		}
+	}
 
 	client, err := sdkcrowdin.NewClient(
 		cfg.APIToken,
@@ -109,7 +122,145 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		return nil, fmt.Errorf("crowdin client init: %w", err)
 	}
 
-	return &HTTPClient{client: client, httpClient: httpClient}, nil
+	httpCrowdinClient := &HTTPClient{client: client, httpClient: httpClient}
+	if debug {
+		httpCrowdinClient.debugWriter = os.Stdout
+	}
+	return httpCrowdinClient, nil
+}
+
+func debugEnabled(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *HTTPClient) debugf(format string, args ...any) {
+	if c == nil || c.debugWriter == nil {
+		return
+	}
+	_, _ = fmt.Fprintf(c.debugWriter, "crowdin debug: "+format+"\n", args...)
+}
+
+type debugRoundTripper struct {
+	base   http.RoundTripper
+	writer io.Writer
+	color  bool
+}
+
+func (rt *debugRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := rt.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+
+	start := time.Now()
+	resp, err := base.RoundTrip(req)
+	duration := time.Since(start)
+	rt.write(req, resp, duration, err)
+	return resp, err
+}
+
+func (rt *debugRoundTripper) write(req *http.Request, resp *http.Response, duration time.Duration, err error) {
+	if rt == nil || rt.writer == nil || req == nil {
+		return
+	}
+
+	status := "error"
+	statusCode := 0
+	if resp != nil {
+		status = resp.Status
+		statusCode = resp.StatusCode
+	}
+
+	method := req.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+	endpoint := sanitizeHTTPDebugEndpoint(req.URL)
+	line := fmt.Sprintf("crowdin http: %s %s status=%s duration=%s", method, endpoint, status, duration.Round(time.Millisecond))
+	if err != nil {
+		line += " error=" + sanitizeHTTPDebugError(err)
+	}
+	if rt.color {
+		line = colorHTTPDebugLine(line, statusCode, err)
+	}
+	_, _ = fmt.Fprintln(rt.writer, line)
+}
+
+func sanitizeHTTPDebugEndpoint(u *url.URL) string {
+	if u == nil {
+		return "<unknown>"
+	}
+	if !strings.HasPrefix(u.Path, "/api/v2/") {
+		return "crowdin-artifact"
+	}
+
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	for i, part := range parts {
+		if isSensitiveHTTPDebugPathSegment(part) {
+			parts[i] = ":id"
+		}
+	}
+	return "/" + strings.Join(parts, "/")
+}
+
+func isSensitiveHTTPDebugPathSegment(part string) bool {
+	if part == "" {
+		return false
+	}
+	allDigits := true
+	for _, r := range part {
+		if r < '0' || r > '9' {
+			allDigits = false
+			break
+		}
+	}
+	if allDigits {
+		return true
+	}
+	if len(part) < 24 {
+		return false
+	}
+	for _, r := range part {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func sanitizeHTTPDebugError(err error) string {
+	if err == nil {
+		return ""
+	}
+	message := err.Error()
+	if parsed, parseErr := url.Parse(message); parseErr == nil && parsed.Scheme != "" && parsed.Host != "" {
+		return parsed.Scheme + "://" + parsed.Host + "/..."
+	}
+	return strings.ReplaceAll(message, "\n", " ")
+}
+
+func colorHTTPDebugLine(line string, statusCode int, err error) string {
+	const (
+		reset  = "\x1b[0m"
+		dim    = "\x1b[2m"
+		green  = "\x1b[32m"
+		yellow = "\x1b[33m"
+		red    = "\x1b[31m"
+	)
+
+	color := green
+	if err != nil || statusCode >= 500 {
+		color = red
+	} else if statusCode >= 400 {
+		color = yellow
+	}
+	return dim + "crowdin http:" + reset + color + strings.TrimPrefix(line, "crowdin http:") + reset
 }
 
 type apiBaseURLRoundTripper struct {
@@ -274,22 +425,19 @@ func (c *HTTPClient) listTranslationTexts(
 	return texts, nil
 }
 
-func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocales []string) ([]string, error) {
-	out := make([]string, 0, len(inLocales))
-	seen := make(map[string]struct{}, len(inLocales))
+func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocales []string) ([]ResolvedLocale, error) {
+	requested := make([]string, 0, len(inLocales))
+	requestedSeen := make(map[string]struct{}, len(inLocales))
 	for _, locale := range inLocales {
 		trimmed := strings.TrimSpace(locale)
 		if trimmed == "" {
 			continue
 		}
-		if _, exists := seen[trimmed]; exists {
+		if _, exists := requestedSeen[trimmed]; exists {
 			continue
 		}
-		seen[trimmed] = struct{}{}
-		out = append(out, trimmed)
-	}
-	if len(out) > 0 {
-		return out, nil
+		requestedSeen[trimmed] = struct{}{}
+		requested = append(requested, trimmed)
 	}
 
 	project, _, err := c.client.Projects.Get(ctx, projectID)
@@ -300,21 +448,178 @@ func (c *HTTPClient) resolveLocales(ctx context.Context, projectID int, inLocale
 		return nil, fmt.Errorf("get project: empty response")
 	}
 
+	targetIDs := make(map[string]struct{}, len(project.TargetLanguageIDs))
 	for _, locale := range project.TargetLanguageIDs {
 		trimmed := strings.TrimSpace(locale)
 		if trimmed == "" {
 			continue
 		}
-		if _, exists := seen[trimmed]; exists {
+		targetIDs[trimmed] = struct{}{}
+	}
+
+	if len(requested) > 0 {
+		languages, err := c.supportedLanguageLookup(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]ResolvedLocale, 0, len(requested))
+		seen := make(map[string]struct{}, len(requested))
+		for _, locale := range requested {
+			resolved := resolveRequestedLanguageID(locale, targetIDs, project.TargetLanguages, languages.idByCode)
+			if _, exists := seen[resolved]; exists {
+				continue
+			}
+			seen[resolved] = struct{}{}
+			out = append(out, ResolvedLocale{LanguageID: resolved, Locale: locale})
+		}
+		c.debugf("action=resolve-locales project_id=%d requested=%s resolved=%s", projectID, strings.Join(requested, ","), strings.Join(resolvedLocaleIDs(out), ","))
+		return out, nil
+	}
+
+	languages, err := c.supportedLanguageLookup(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ResolvedLocale, 0, len(project.TargetLanguageIDs))
+	seen := make(map[string]struct{}, len(project.TargetLanguageIDs))
+	for _, languageID := range project.TargetLanguageIDs {
+		trimmedID := strings.TrimSpace(languageID)
+		if trimmedID == "" {
 			continue
 		}
-		seen[trimmed] = struct{}{}
-		out = append(out, trimmed)
+		if _, exists := seen[trimmedID]; exists {
+			continue
+		}
+		seen[trimmedID] = struct{}{}
+		out = append(out, ResolvedLocale{LanguageID: trimmedID, Locale: resolveFolderLocale(trimmedID, project.TargetLanguages, languages.localeByID)})
+	}
+	c.debugf("action=resolve-locales project_id=%d requested=all resolved=%s", projectID, strings.Join(resolvedLocaleIDs(out), ","))
+	return out, nil
+}
+
+type supportedLanguageLookup struct {
+	idByCode   map[string]string
+	localeByID map[string]string
+}
+
+func (c *HTTPClient) supportedLanguageLookup(ctx context.Context) (supportedLanguageLookup, error) {
+	out := supportedLanguageLookup{
+		idByCode:   make(map[string]string),
+		localeByID: make(map[string]string),
+	}
+	offset := 0
+	for {
+		languages, _, err := c.client.Languages.List(ctx, &model.ListOptions{
+			Limit:  pageLimit,
+			Offset: offset,
+		})
+		if err != nil {
+			return supportedLanguageLookup{}, fmt.Errorf("list supported languages: %w", err)
+		}
+		for _, language := range languages {
+			addLanguageLookup(out.idByCode, out.localeByID, language)
+		}
+		if len(languages) < pageLimit {
+			break
+		}
+		offset += pageLimit
 	}
 	return out, nil
 }
 
-func (c *HTTPClient) ResolveLocales(ctx context.Context, projectID string, requested []string) ([]string, error) {
+func addLanguageLookup(idByCode map[string]string, localeByID map[string]string, language *model.Language) {
+	if language == nil || strings.TrimSpace(language.ID) == "" {
+		return
+	}
+	id := strings.TrimSpace(language.ID)
+	if locale := strings.TrimSpace(language.Locale); locale != "" {
+		localeByID[id] = locale
+	}
+	for _, candidate := range []string{
+		language.ID,
+		language.Locale,
+		strings.ReplaceAll(language.Locale, "-", "_"),
+		language.EditorCode,
+		language.TwoLettersCode,
+		language.ThreeLettersCode,
+		language.AndroidCode,
+		language.OSXCode,
+		language.OSXLocale,
+	} {
+		key := strings.TrimSpace(candidate)
+		if key == "" {
+			continue
+		}
+		if _, exists := idByCode[key]; !exists {
+			idByCode[key] = id
+		}
+	}
+}
+
+func resolveFolderLocale(languageID string, projectLanguages []*model.Language, supportedLocaleByID map[string]string) string {
+	for _, language := range projectLanguages {
+		if language == nil || strings.TrimSpace(language.ID) != languageID {
+			continue
+		}
+		if locale := strings.TrimSpace(language.Locale); locale != "" {
+			return locale
+		}
+	}
+	if locale := supportedLocaleByID[languageID]; locale != "" {
+		return locale
+	}
+	return languageID
+}
+
+func resolvedLocaleIDs(locales []ResolvedLocale) []string {
+	out := make([]string, 0, len(locales))
+	for _, locale := range locales {
+		out = append(out, locale.LanguageID)
+	}
+	return out
+}
+
+func resolveRequestedLanguageID(requested string, targetIDs map[string]struct{}, projectLanguages []*model.Language, supported map[string]string) string {
+	if _, ok := targetIDs[requested]; ok {
+		return requested
+	}
+	for _, language := range projectLanguages {
+		if language == nil {
+			continue
+		}
+		if strings.TrimSpace(language.ID) == "" {
+			continue
+		}
+		if languageMatchesRequestedLocale(language, requested) {
+			return strings.TrimSpace(language.ID)
+		}
+	}
+	if id := supported[requested]; id != "" {
+		return id
+	}
+	return requested
+}
+
+func languageMatchesRequestedLocale(language *model.Language, requested string) bool {
+	for _, candidate := range []string{
+		language.ID,
+		language.Locale,
+		strings.ReplaceAll(language.Locale, "-", "_"),
+		language.EditorCode,
+		language.TwoLettersCode,
+		language.ThreeLettersCode,
+		language.AndroidCode,
+		language.OSXCode,
+		language.OSXLocale,
+	} {
+		if strings.TrimSpace(candidate) == requested {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *HTTPClient) ResolveLocales(ctx context.Context, projectID string, requested []string) ([]ResolvedLocale, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {
 		return nil, err
@@ -514,6 +819,7 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, projectID string, f
 	if err != nil {
 		return nil, err
 	}
+	c.debugf("action=download-source project_id=%d file_id=%d phase=request-link", projectInt, fileID)
 	link, _, err := c.client.SourceFiles.DownloadFile(ctx, projectInt, fileID)
 	if err != nil {
 		return nil, fmt.Errorf("download source file %d: %w", fileID, err)
@@ -521,6 +827,7 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, projectID string, f
 	if link == nil || strings.TrimSpace(link.URL) == "" {
 		return nil, fmt.Errorf("download source file %d: empty download link", fileID)
 	}
+	c.debugf("action=download-source project_id=%d file_id=%d phase=download-artifact", projectInt, fileID)
 	return c.downloadURL(ctx, link.URL)
 }
 
@@ -529,19 +836,32 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, projectID stri
 	if err != nil {
 		return nil, err
 	}
-	link, _, err := c.client.Translations.BuildProjectFileTranslation(ctx, projectInt, fileID, &model.BuildProjectFileTranslationRequest{
+	req := &model.BuildProjectFileTranslationRequest{
 		TargetLanguageID:        languageID,
 		SkipUntranslatedStrings: opts.SkipUntranslatedStrings,
 		SkipUntranslatedFiles:   opts.SkipUntranslatedFiles,
 		ExportApprovedOnly:      opts.ExportOnlyApproved,
-	}, "")
+	}
+	c.debugf("action=download-translation project_id=%d file_id=%d language_id=%s skip_untranslated_strings=%s skip_untranslated_files=%s export_approved_only=%s phase=build-link", projectInt, fileID, languageID, debugBoolPtr(opts.SkipUntranslatedStrings), debugBoolPtr(opts.SkipUntranslatedFiles), debugBoolPtr(opts.ExportOnlyApproved))
+	link, _, err := c.client.Translations.BuildProjectFileTranslation(ctx, projectInt, fileID, req, "")
 	if err != nil {
 		return nil, fmt.Errorf("build translation for file %d locale %s: %w", fileID, languageID, err)
 	}
 	if link == nil || strings.TrimSpace(link.URL) == "" {
 		return nil, fmt.Errorf("build translation for file %d locale %s: empty download link", fileID, languageID)
 	}
+	c.debugf("action=download-translation project_id=%d file_id=%d language_id=%s phase=download-artifact", projectInt, fileID, languageID)
 	return c.downloadURL(ctx, link.URL)
+}
+
+func debugBoolPtr(value *bool) string {
+	if value == nil {
+		return "unset"
+	}
+	if *value {
+		return "true"
+	}
+	return "false"
 }
 
 func (c *HTTPClient) uploadStorage(ctx context.Context, localPath string) (int, error) {
@@ -650,7 +970,7 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 			translations, _, listErr := c.client.StringTranslations.ListLanguageTranslations(
 				ctx,
 				projectID,
-				locale,
+				locale.LanguageID,
 				&model.LanguageTranslationsListOptions{
 					ListOptions: model.ListOptions{
 						Limit:  pageLimit,
@@ -659,7 +979,7 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 				},
 			)
 			if listErr != nil {
-				return nil, "", fmt.Errorf("list language translations (%s): %w", locale, listErr)
+				return nil, "", fmt.Errorf("list language translations (%s): %w", locale.LanguageID, listErr)
 			}
 
 			for _, tr := range translations {
@@ -674,13 +994,13 @@ func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]St
 				if !exists {
 					continue
 				}
-				if !entryFilter.matches(source.key, source.context, locale) {
+				if !entryFilter.matches(source.key, source.context, locale.Locale) {
 					continue
 				}
 				entries = append(entries, StringTranslation{
 					Key:     source.key,
 					Context: source.context,
-					Locale:  locale,
+					Locale:  locale.Locale,
 					Value:   value,
 				})
 			}
