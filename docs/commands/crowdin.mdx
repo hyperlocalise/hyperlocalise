@@ -10,7 +10,7 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved]
 ```
 
 ## What this command family does
@@ -94,13 +94,24 @@ hyperlocalise crowdin upload sources --branch feature/login
 
 Download only approved French translations:
 
+```bash
+hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
+```
+
+Or configure the export behavior in `crowdin.yml`:
+
 ```yaml
 files:
   - source: /src/messages.json
     translation: /locales/%locale%/%original_file_name%
     export_only_approved: true
+    skip_untranslated_strings: true
 ```
 
+Merge approved JSON strings into the existing local translation file without deleting local keys that are absent from the approved export:
+
 ```bash
-hyperlocalise crowdin download --language fr
+hyperlocalise crowdin download --language fr --merge-approved
 ```
+
+`--merge-approved` currently supports JSON object translation files. It forces an approved-only sparse export for the request, then overwrites only keys present in the approved Crowdin payload.

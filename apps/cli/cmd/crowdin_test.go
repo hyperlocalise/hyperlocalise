@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -154,9 +155,41 @@ func TestCrowdinBranchOverrideAppliesToRequests(t *testing.T) {
 		t.Fatalf("translation branch = %q, want config-branch", translationsReq.Config.Branch)
 	}
 
-	downloadReq := crowdinstorageRequestDownload(cfg, nil, "  flag-branch  ")
+	downloadReq := crowdinstorageRequestDownload(cfg, nil, "  flag-branch  ", false, false, false)
 	if downloadReq.Config.Branch != "flag-branch" {
 		t.Fatalf("download branch = %q, want trimmed flag-branch", downloadReq.Config.Branch)
+	}
+}
+
+func TestCrowdinDownloadFlagsApplyRequestOptions(t *testing.T) {
+	cfg := storage.FileWorkflowConfig{}
+
+	req := crowdinstorageRequestDownload(cfg, []string{"fr"}, "", true, true, true)
+
+	if got, want := req.Languages, []string{"fr"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("languages = %#v, want %#v", got, want)
+	}
+	if req.ExportOverrides.ExportOnlyApproved == nil || !*req.ExportOverrides.ExportOnlyApproved {
+		t.Fatalf("export only approved = %#v, want true", req.ExportOverrides.ExportOnlyApproved)
+	}
+	if req.ExportOverrides.SkipUntranslatedStrings == nil || !*req.ExportOverrides.SkipUntranslatedStrings {
+		t.Fatalf("skip untranslated strings = %#v, want true", req.ExportOverrides.SkipUntranslatedStrings)
+	}
+	if !req.MergeApproved {
+		t.Fatalf("merge approved = false, want true")
+	}
+}
+
+func TestCrowdinDownloadFlagsOmitRequestOptionsWhenUnset(t *testing.T) {
+	cfg := storage.FileWorkflowConfig{}
+
+	req := crowdinstorageRequestDownload(cfg, nil, "", false, false, false)
+
+	if req.ExportOverrides != nil {
+		t.Fatalf("export overrides = %#v, want nil", req.ExportOverrides)
+	}
+	if req.MergeApproved {
+		t.Fatalf("merge approved = true, want false")
 	}
 }
 

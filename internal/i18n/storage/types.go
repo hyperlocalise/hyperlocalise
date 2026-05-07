@@ -168,8 +168,10 @@ type FileUploadTranslationsRequest struct {
 
 // FileDownloadTranslationsRequest downloads translated files into the workspace.
 type FileDownloadTranslationsRequest struct {
-	Config    FileWorkflowConfig `json:"config"`
-	Languages []string           `json:"languages,omitempty"`
+	Config          FileWorkflowConfig `json:"config"`
+	Languages       []string           `json:"languages,omitempty"`
+	ExportOverrides *FileExportOptions `json:"export_overrides,omitempty"`
+	MergeApproved   bool               `json:"merge_approved,omitempty"`
 }
 
 // FileOperationResult returns normalized file-mode execution details.

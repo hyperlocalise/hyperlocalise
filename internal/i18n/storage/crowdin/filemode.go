@@ -1,13 +1,17 @@
 package crowdin
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
@@ -198,7 +202,14 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 					skipped = append(skipped, remotePath+"@"+locale)
 					continue
 				}
-				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale, group.Export)
+				exportOptions := effectiveFileExportOptions(group.Export, req.ExportOverrides)
+				if req.MergeApproved {
+					exportOnlyApproved := true
+					skipUntranslatedStrings := true
+					exportOptions.ExportOnlyApproved = &exportOnlyApproved
+					exportOptions.SkipUntranslatedStrings = &skipUntranslatedStrings
+				}
+				payload, err := a.client.DownloadTranslationFile(ctx, config.ProjectID, fileID, locale, exportOptions)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
@@ -208,6 +219,12 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				}
 				if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir translation output: %w", err)
+				}
+				if req.MergeApproved {
+					payload, err = mergeApprovedJSONFile(targetPath, payload)
+					if err != nil {
+						return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+					}
 				}
 				if err := os.WriteFile(targetPath, payload, 0o644); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write translation output: %w", err)
@@ -220,6 +237,190 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 	slices.Sort(processed)
 	slices.Sort(skipped)
 	return storage.FileOperationResult{Processed: processed, Skipped: skipped}, nil
+}
+
+func effectiveFileExportOptions(base storage.FileExportOptions, overrides *storage.FileExportOptions) storage.FileExportOptions {
+	if overrides == nil {
+		return base
+	}
+	if overrides.SkipUntranslatedStrings != nil {
+		base.SkipUntranslatedStrings = overrides.SkipUntranslatedStrings
+	}
+	if overrides.SkipUntranslatedFiles != nil {
+		base.SkipUntranslatedFiles = overrides.SkipUntranslatedFiles
+	}
+	if overrides.ExportOnlyApproved != nil {
+		base.ExportOnlyApproved = overrides.ExportOnlyApproved
+	}
+	return base
+}
+
+func mergeApprovedJSONFile(targetPath string, approvedPayload []byte) ([]byte, error) {
+	approved, err := decodeOrderedJSONObject(approvedPayload)
+	if err != nil {
+		return nil, fmt.Errorf("merge approved translations: downloaded payload for %s must be a JSON object: %w", targetPath, err)
+	}
+	if len(approved) == 0 {
+		if existing, err := os.ReadFile(targetPath); err == nil {
+			return existing, nil
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("merge approved translations: read existing translation file: %w", err)
+		}
+	}
+
+	var merged orderedJSONObject
+	if existing, err := os.ReadFile(targetPath); err == nil {
+		merged, err = decodeOrderedJSONObject(existing)
+		if err != nil {
+			return nil, fmt.Errorf("merge approved translations: existing file %s must be a JSON object: %w", targetPath, err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("merge approved translations: read existing translation file: %w", err)
+	}
+
+	merged, err = mergeOrderedJSONObjects(merged, approved)
+	if err != nil {
+		return nil, fmt.Errorf("merge approved translations: merge nested JSON objects: %w", err)
+	}
+	payload := formatOrderedJSONObject(merged, 0)
+	return append(payload, '\n'), nil
+}
+
+type orderedJSONMember struct {
+	key   string
+	value json.RawMessage
+}
+
+type orderedJSONObject []orderedJSONMember
+
+func decodeOrderedJSONObject(payload []byte) (orderedJSONObject, error) {
+	dec := json.NewDecoder(bytes.NewReader(payload))
+
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	delim, ok := tok.(json.Delim)
+	if !ok || delim != '{' {
+		return nil, fmt.Errorf("root value is %T, not object", tok)
+	}
+
+	var obj orderedJSONObject
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := tok.(string)
+		if !ok {
+			return nil, fmt.Errorf("object key is %T, not string", tok)
+		}
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, err
+		}
+		obj = append(obj, orderedJSONMember{key: key, value: value})
+	}
+
+	tok, err = dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	delim, ok = tok.(json.Delim)
+	if !ok || delim != '}' {
+		return nil, fmt.Errorf("object is not closed")
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		if err == nil {
+			return nil, fmt.Errorf("payload contains trailing JSON tokens")
+		}
+		return nil, err
+	}
+	return obj, nil
+}
+
+func mergeOrderedJSONObjects(existing, approved orderedJSONObject) (orderedJSONObject, error) {
+	merged := append(orderedJSONObject(nil), existing...)
+	for _, approvedMember := range approved {
+		existingIndex := orderedJSONObjectIndex(merged, approvedMember.key)
+		if existingIndex == -1 {
+			merged = append(merged, orderedJSONMember{key: approvedMember.key, value: append(json.RawMessage(nil), approvedMember.value...)})
+			continue
+		}
+		existingMember := merged[existingIndex]
+		if !isJSONObject(existingMember.value) || !isJSONObject(approvedMember.value) {
+			merged[existingIndex].value = append(json.RawMessage(nil), approvedMember.value...)
+			continue
+		}
+		existingObject, err := decodeOrderedJSONObject(existingMember.value)
+		if err != nil {
+			return nil, err
+		}
+		approvedObject, err := decodeOrderedJSONObject(approvedMember.value)
+		if err != nil {
+			return nil, err
+		}
+		nested, err := mergeOrderedJSONObjects(existingObject, approvedObject)
+		if err != nil {
+			return nil, err
+		}
+		merged[existingIndex].value = formatOrderedJSONObject(nested, 0)
+	}
+	return merged, nil
+}
+
+func orderedJSONObjectIndex(obj orderedJSONObject, key string) int {
+	for i, member := range obj {
+		if member.key == key {
+			return i
+		}
+	}
+	return -1
+}
+
+func isJSONObject(payload []byte) bool {
+	trimmed := bytes.TrimSpace(payload)
+	return len(trimmed) > 0 && trimmed[0] == '{'
+}
+
+func formatOrderedJSONObject(obj orderedJSONObject, level int) []byte {
+	if len(obj) == 0 {
+		return []byte("{}")
+	}
+
+	indent := strings.Repeat("  ", level)
+	childIndent := strings.Repeat("  ", level+1)
+	var buf bytes.Buffer
+	buf.WriteString("{\n")
+	for i, member := range obj {
+		if i > 0 {
+			buf.WriteString(",\n")
+		}
+		buf.WriteString(childIndent)
+		buf.WriteString(strconv.Quote(member.key))
+		buf.WriteString(": ")
+		buf.Write(formatOrderedJSONValue(member.value, level+1))
+	}
+	buf.WriteByte('\n')
+	buf.WriteString(indent)
+	buf.WriteByte('}')
+	return buf.Bytes()
+}
+
+func formatOrderedJSONValue(payload []byte, level int) []byte {
+	if isJSONObject(payload) {
+		obj, err := decodeOrderedJSONObject(payload)
+		if err == nil {
+			return formatOrderedJSONObject(obj, level)
+		}
+	}
+
+	var buf bytes.Buffer
+	indent := strings.Repeat("  ", level)
+	if err := json.Indent(&buf, payload, indent, "  "); err == nil {
+		return buf.Bytes()
+	}
+	return bytes.TrimSpace(payload)
 }
 
 func (a *FileAdapter) effectiveConfig(cfg storage.FileWorkflowConfig) storage.FileWorkflowConfig {

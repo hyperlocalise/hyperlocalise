@@ -17,11 +17,14 @@ const crowdinTemplateFilename = "crowdin.yml"
 var crowdinTemplateFS embed.FS
 
 type crowdinCommonOptions struct {
-	configPath   string
-	identityPath string
-	branch       string
-	languages    []string
-	dryRun       bool
+	configPath              string
+	identityPath            string
+	branch                  string
+	languages               []string
+	exportOnlyApproved      bool
+	skipUntranslatedStrings bool
+	mergeApproved           bool
+	dryRun                  bool
 }
 
 func newCrowdinCmd() *cobra.Command {
@@ -171,18 +174,21 @@ func newCrowdinDownloadCmd() *cobra.Command {
 				return err
 			}
 			if o.dryRun {
-				_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=download-translations files=%d languages=%s\n", len(cfg.Files), strings.Join(o.languages, ","))
+				_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=download-translations files=%d languages=%s export_only_approved=%t skip_untranslated_strings=%t merge_approved=%t\n", len(cfg.Files), strings.Join(o.languages, ","), o.exportOnlyApproved, o.skipUntranslatedStrings, o.mergeApproved)
 				return err
 			}
 			adapter, err := crowdinstorage.NewFileAdapter(cfg)
 			if err != nil {
 				return err
 			}
-			result, err := adapter.DownloadTranslations(backgroundContext(), crowdinstorageRequestDownload(cfg, o.languages, o.branch))
+			result, err := adapter.DownloadTranslations(backgroundContext(), crowdinstorageRequestDownload(cfg, o.languages, o.branch, o.exportOnlyApproved, o.skipUntranslatedStrings, o.mergeApproved))
 			return writeCrowdinResultError(cmd, "download-translations", result, err)
 		},
 	}
 	addCrowdinCommonFlags(cmd, &o, true, true)
+	cmd.Flags().BoolVar(&o.exportOnlyApproved, "export-only-approved", false, "download approved translations only")
+	cmd.Flags().BoolVar(&o.skipUntranslatedStrings, "skip-untranslated-strings", false, "omit untranslated strings from downloaded files")
+	cmd.Flags().BoolVar(&o.mergeApproved, "merge-approved", false, "merge approved downloaded JSON strings into existing translation files")
 	return cmd
 }
 
@@ -228,9 +234,20 @@ func crowdinstorageRequestTranslations(cfg storage.FileWorkflowConfig, languages
 	return storage.FileUploadTranslationsRequest{Config: cfg, Languages: languages}
 }
 
-func crowdinstorageRequestDownload(cfg storage.FileWorkflowConfig, languages []string, branch string) storage.FileDownloadTranslationsRequest {
+func crowdinstorageRequestDownload(cfg storage.FileWorkflowConfig, languages []string, branch string, exportOnlyApproved, skipUntranslatedStrings, mergeApproved bool) storage.FileDownloadTranslationsRequest {
 	cfg = overrideCrowdinBranch(cfg, branch)
-	return storage.FileDownloadTranslationsRequest{Config: cfg, Languages: languages}
+	overrides := storage.FileExportOptions{}
+	if exportOnlyApproved {
+		overrides.ExportOnlyApproved = &exportOnlyApproved
+	}
+	if skipUntranslatedStrings {
+		overrides.SkipUntranslatedStrings = &skipUntranslatedStrings
+	}
+	req := storage.FileDownloadTranslationsRequest{Config: cfg, Languages: languages, MergeApproved: mergeApproved}
+	if overrides.ExportOnlyApproved != nil || overrides.SkipUntranslatedStrings != nil {
+		req.ExportOverrides = &overrides
+	}
+	return req
 }
 
 func overrideCrowdinBranch(cfg storage.FileWorkflowConfig, branch string) storage.FileWorkflowConfig {
