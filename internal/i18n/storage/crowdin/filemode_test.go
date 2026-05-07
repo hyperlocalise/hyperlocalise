@@ -24,8 +24,10 @@ type fakeFileClient struct {
 	foundDirectories       []string
 	upsertedSources        []string
 	uploadedTranslations   []string
+	downloadedSources      []int
 	downloaded             []string
 	downloadOptions        []storage.FileExportOptions
+	sourceDownloadPayload  []byte
 	downloadPayload        []byte
 	directories            map[string]int
 	files                  map[string]int
@@ -92,6 +94,14 @@ func (f *fakeFileClient) FindFile(_ context.Context, _ string, branchID, _ int, 
 func (f *fakeFileClient) UploadTranslationFile(_ context.Context, _ string, languageID string, fileID int, localPath string) error {
 	f.uploadedTranslations = append(f.uploadedTranslations, fmt.Sprintf("%s:%d:%s", languageID, fileID, filepath.Base(localPath)))
 	return nil
+}
+
+func (f *fakeFileClient) DownloadSourceFile(_ context.Context, _ string, fileID int) ([]byte, error) {
+	f.downloadedSources = append(f.downloadedSources, fileID)
+	if f.sourceDownloadPayload != nil {
+		return f.sourceDownloadPayload, nil
+	}
+	return []byte(fmt.Sprintf("source-%d", fileID)), nil
 }
 
 func (f *fakeFileClient) DownloadTranslationFile(_ context.Context, _ string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error) {
@@ -277,6 +287,56 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 	}
 	if !reflect.DeepEqual(client.foundDirectories, []string{"src"}) {
 		t.Fatalf("found directories = %#v, want translation lookup only", client.foundDirectories)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsCanIncludeSources(t *testing.T) {
+	base := t.TempDir()
+	sourcePath := writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Local"}`)
+
+	client := &fakeFileClient{
+		locales:               []string{"fr"},
+		directories:           map[string]int{"src": 1},
+		files:                 map[string]int{"messages.json": 9},
+		failFindMissing:       true,
+		sourceDownloadPayload: []byte(`{"hello":"Remote"}`),
+		downloadPayload:       []byte(`{"hello":"Bonjour"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/messages.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{IncludeSources: true})
+	if err != nil {
+		t.Fatalf("download translations with sources: %v", err)
+	}
+	translationPath := filepath.Join(base, "download", "fr", "messages.json")
+	if got, want := result.Processed, []string{translationPath, sourcePath}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("processed = %#v, want %#v", got, want)
+	}
+	if got, want := client.downloadedSources, []int{9}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("downloaded sources = %#v, want %#v", got, want)
+	}
+	sourcePayload, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+	if string(sourcePayload) != `{"hello":"Remote"}` {
+		t.Fatalf("source payload = %q", string(sourcePayload))
+	}
+	translationPayload, err := os.ReadFile(translationPath)
+	if err != nil {
+		t.Fatalf("read translation: %v", err)
+	}
+	if string(translationPayload) != `{"hello":"Bonjour"}` {
+		t.Fatalf("translation payload = %q", string(translationPayload))
 	}
 }
 

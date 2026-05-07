@@ -509,6 +509,21 @@ func (c *HTTPClient) UploadTranslationFile(ctx context.Context, projectID, langu
 	return nil
 }
 
+func (c *HTTPClient) DownloadSourceFile(ctx context.Context, projectID string, fileID int) ([]byte, error) {
+	projectInt, err := parseProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+	link, _, err := c.client.SourceFiles.DownloadFile(ctx, projectInt, fileID)
+	if err != nil {
+		return nil, fmt.Errorf("download source file %d: %w", fileID, err)
+	}
+	if link == nil || strings.TrimSpace(link.URL) == "" {
+		return nil, fmt.Errorf("download source file %d: empty download link", fileID)
+	}
+	return c.downloadURL(ctx, link.URL)
+}
+
 func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, projectID string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error) {
 	projectInt, err := parseProjectID(projectID)
 	if err != nil {

@@ -124,6 +124,7 @@ type Capabilities struct {
 // FileWorkflowCapabilities describe provider file-mode support.
 type FileWorkflowCapabilities struct {
 	SupportsSourceUpload      bool `json:"supports_source_upload"`
+	SupportsSourceDownload    bool `json:"supports_source_download"`
 	SupportsTranslationUpload bool `json:"supports_translation_upload"`
 	SupportsTranslationExport bool `json:"supports_translation_export"`
 }
@@ -172,6 +173,7 @@ type FileDownloadTranslationsRequest struct {
 	Languages       []string           `json:"languages,omitempty"`
 	ExportOverrides *FileExportOptions `json:"export_overrides,omitempty"`
 	MergeApproved   bool               `json:"merge_approved,omitempty"`
+	IncludeSources  bool               `json:"include_sources,omitempty"`
 }
 
 // FileOperationResult returns normalized file-mode execution details.

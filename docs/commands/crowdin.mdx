@@ -10,7 +10,7 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
 ```
 
 ## What this command family does
@@ -24,6 +24,7 @@ Use them when you want Crowdin-compatible file mode:
 - source-file upload from `files[].source`
 - translation upload from `files[].translation`
 - translation download/export back into your repo
+- optional source download back into `files[].source` with `--include-sources`
 - branch-scoped upload and download with root `branch:` or `--branch`
 - strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
@@ -97,6 +98,14 @@ Download only approved French translations:
 ```bash
 hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
 ```
+
+Download French translations and refresh the matching local source files:
+
+```bash
+hyperlocalise crowdin download --language fr --include-sources
+```
+
+For exact `files[].source` paths, Hyperlocalise can write the source file even when it is missing locally. For globbed source paths, local glob expansion still determines which configured files are processed.
 
 Or configure the export behavior in `crowdin.yml`:
 

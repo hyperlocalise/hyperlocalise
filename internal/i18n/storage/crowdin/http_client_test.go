@@ -386,6 +386,28 @@ func TestHTTPClientUpsertSourceFileAddsRootFileToBranch(t *testing.T) {
 	}
 }
 
+func TestHTTPClientDownloadSourceFileUsesDownloadLink(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/files/17/download", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/files/17/download")
+		_, _ = io.WriteString(w, `{"data":{"url":"https://api.crowdin.com/downloads/source-17.json"}}`)
+	})
+	mux.HandleFunc("/downloads/source-17.json", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/downloads/source-17.json")
+		_, _ = io.WriteString(w, `{"hello":"Hello"}`)
+	})
+
+	payload, err := client.DownloadSourceFile(context.Background(), "123", 17)
+	if err != nil {
+		t.Fatalf("download source file: %v", err)
+	}
+	if string(payload) != `{"hello":"Hello"}` {
+		t.Fatalf("payload = %q", string(payload))
+	}
+}
+
 func newCrowdinHTTPClientForTest(t *testing.T) (*HTTPClient, *http.ServeMux, func()) {
 	t.Helper()
 	mux := http.NewServeMux()

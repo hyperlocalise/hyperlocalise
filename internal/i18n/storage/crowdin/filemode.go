@@ -25,6 +25,7 @@ type FileClient interface {
 	UpsertSourceFile(ctx context.Context, projectID string, branchID, directoryID int, name, localPath string, group storage.FileGroupSpec) (int, error)
 	FindFile(ctx context.Context, projectID string, branchID, directoryID int, name string) (int, error)
 	UploadTranslationFile(ctx context.Context, projectID, languageID string, fileID int, localPath string) error
+	DownloadSourceFile(ctx context.Context, projectID string, fileID int) ([]byte, error)
 	DownloadTranslationFile(ctx context.Context, projectID string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error)
 }
 
@@ -66,6 +67,7 @@ func (a *FileAdapter) Name() string { return AdapterName }
 func (a *FileAdapter) FileWorkflowCapabilities() storage.FileWorkflowCapabilities {
 	return storage.FileWorkflowCapabilities{
 		SupportsSourceUpload:      true,
+		SupportsSourceDownload:    true,
 		SupportsTranslationUpload: true,
 		SupportsTranslationExport: true,
 	}
@@ -196,6 +198,19 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 			fileID, err := a.client.FindFile(ctx, config.ProjectID, branchID, dirID, name)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+			}
+			if req.IncludeSources {
+				payload, err := a.client.DownloadSourceFile(ctx, config.ProjectID, fileID)
+				if err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+				}
+				if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir source output: %w", err)
+				}
+				if err := os.WriteFile(sourcePath, payload, 0o644); err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write source output: %w", err)
+				}
+				processed = append(processed, sourcePath)
 			}
 			for _, locale := range locales {
 				if _, isExcluded := excluded[locale]; isExcluded {
