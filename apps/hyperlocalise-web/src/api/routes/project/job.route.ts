@@ -623,25 +623,36 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
 
       const params = c.req.valid("param");
-      const [updatedJob] = await db
-        .update(schema.jobs)
-        .set({
-          status: "failed",
-          workflowRunId: null,
-          lastError: "Marked failed by user",
-          outcomePayload: {
-            code: "manual_failure",
-            message: "Marked failed by user",
-          },
-          completedAt: new Date(),
-        })
-        .where(
-          activeJobWhere({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            jobId: params.jobId,
-          }),
-        )
-        .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+      const updatedJob = await db.transaction(async (tx) => {
+        const [job] = await tx
+          .update(schema.jobs)
+          .set({
+            status: "failed",
+            workflowRunId: null,
+            lastError: "Marked failed by user",
+            outcomePayload: {
+              code: "manual_failure",
+              message: "Marked failed by user",
+            },
+            completedAt: new Date(),
+          })
+          .where(
+            activeJobWhere({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              jobId: params.jobId,
+            }),
+          )
+          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
+
+        if (job?.kind === "translation") {
+          await tx
+            .update(schema.translationJobDetails)
+            .set({ outcomeKind: "error" })
+            .where(eq(schema.translationJobDetails.jobId, params.jobId));
+        }
+
+        return job;
+      });
 
       if (!updatedJob) {
         const [existingJob] = await db
@@ -656,13 +667,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           .limit(1);
 
         return existingJob ? jobActionUnavailableResponse(c) : jobNotFoundResponse(c);
-      }
-
-      if (updatedJob.kind === "translation") {
-        await db
-          .update(schema.translationJobDetails)
-          .set({ outcomeKind: "error" })
-          .where(eq(schema.translationJobDetails.jobId, params.jobId));
       }
 
       const [job] = await db
