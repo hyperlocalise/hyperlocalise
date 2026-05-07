@@ -11,7 +11,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@ai-sdk/openai": "3.0.55",
+    "@ai-sdk/openai": "3.0.60",
     "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "1.4.1",
     "@chat-adapter/github": "4.27.0",
@@ -27,13 +27,13 @@
     "@streamdown/math": "^1.0.2",
     "@streamdown/mermaid": "^1.0.2",
     "@t3-oss/env-nextjs": "0.13.11",
-    "@tanstack/react-query": "5.100.6",
+    "@tanstack/react-query": "5.100.9",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.3.3",
     "@vercel/sandbox": "1.10.0",
     "@workos-inc/authkit-nextjs": "4.0.1",
     "@xyflow/react": "^12.10.2",
-    "ai": "6.0.172",
+    "ai": "6.0.175",
     "ansi-to-react": "^6.2.6",
     "chat": "4.27.0",
     "class-variance-authority": "0.7.1",
@@ -55,10 +55,10 @@
     "pino": "10.3.1",
     "react": "19.2.5",
     "react-dom": "19.2.5",
-    "react-hook-form": "7.74.0",
+    "react-hook-form": "7.75.0",
     "react-intersection-observer": "10.0.3",
     "react-jsx-parser": "^2.4.1",
-    "react-resizable-panels": "4.10.0",
+    "react-resizable-panels": "4.11.0",
     "react-use-measure": "2.1.7",
     "recharts": "3.8.1",
     "resend": "6.12.2",
@@ -72,7 +72,7 @@
     "use-stick-to-bottom": "^1.1.4",
     "workflow": "4.2.4",
     "workos": "0.13.3",
-    "zod": "4.4.1"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.4",
@@ -89,5 +89,5 @@
     "vite-plus": "0.1.20",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@10.33.2"
+  "packageManager": "pnpm@10.33.3"
 }
