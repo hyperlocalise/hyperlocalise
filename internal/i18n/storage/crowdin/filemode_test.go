@@ -358,7 +358,45 @@ func TestFileAdapterDownloadTranslationsMergesApprovedJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read target: %v", err)
 	}
-	want := "{\n  \"bye\": \"Au revoir\",\n  \"draft\": \"Brouillon\",\n  \"hello\": \"Bonjour approved\"\n}\n"
+	want := "{\n  \"hello\": \"Bonjour approved\",\n  \"bye\": \"Au revoir\",\n  \"draft\": \"Brouillon\"\n}\n"
+	if string(payload) != want {
+		t.Fatalf("payload = %q, want %q", string(payload), want)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsMergeApprovedPreservesNestedJSON(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"nav":{"home":"Home","about":"About"},"footer":{"legal":"Legal"}}`)
+	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"nav":{"home":"Accueil old","about":"A propos"},"footer":{"legal":"Mentions"},"draft":"Brouillon"}`)
+
+	client := &fakeFileClient{
+		locales:         []string{"fr"},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+		downloadPayload: []byte(`{"nav":{"home":"Accueil approved"},"cta":"Commencer"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if _, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{MergeApproved: true}); err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+	payload, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	want := "{\n  \"nav\": {\n    \"home\": \"Accueil approved\",\n    \"about\": \"A propos\"\n  },\n  \"footer\": {\n    \"legal\": \"Mentions\"\n  },\n  \"draft\": \"Brouillon\",\n  \"cta\": \"Commencer\"\n}\n"
 	if string(payload) != want {
 		t.Fatalf("payload = %q, want %q", string(payload), want)
 	}

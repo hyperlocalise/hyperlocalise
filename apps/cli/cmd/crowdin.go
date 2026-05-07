@@ -244,7 +244,7 @@ func crowdinstorageRequestDownload(cfg storage.FileWorkflowConfig, languages []s
 		overrides.SkipUntranslatedStrings = &skipUntranslatedStrings
 	}
 	req := storage.FileDownloadTranslationsRequest{Config: cfg, Languages: languages, MergeApproved: mergeApproved}
-	if overrides.ExportOnlyApproved != nil || overrides.SkipUntranslatedStrings != nil || overrides.SkipUntranslatedFiles != nil {
+	if overrides.ExportOnlyApproved != nil || overrides.SkipUntranslatedStrings != nil {
 		req.ExportOverrides = &overrides
 	}
 	return req
