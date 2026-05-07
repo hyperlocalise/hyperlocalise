@@ -49,7 +49,8 @@ func lockTaskHash(task Task) string {
 		"context_model=" + strings.TrimSpace(task.ContextModel),
 	}
 	if isImageTask(task) {
-		parts = append(parts,
+		parts = append(
+			parts,
 			"task_kind="+strings.TrimSpace(task.Kind),
 			"output_format="+strings.TrimSpace(task.OutputFormat),
 		)
@@ -84,7 +85,8 @@ func legacyDefaultLockTaskHash(task Task) string {
 		"context_model=" + strings.TrimSpace(task.ContextModel),
 	}
 	if isImageTask(task) {
-		parts = append(parts,
+		parts = append(
+			parts,
 			"task_kind="+strings.TrimSpace(task.Kind),
 			"output_format="+strings.TrimSpace(task.OutputFormat),
 		)
