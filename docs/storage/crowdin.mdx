@@ -100,9 +100,12 @@ hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
 hyperlocalise crowdin download --language fr --merge-approved
+hyperlocalise crowdin download --language fr --include-sources
 ```
 
 `--merge-approved` merges approved JSON object keys into existing local translation files and preserves local keys omitted from Crowdin's approved export.
+
+`--include-sources` also downloads matching Crowdin source files into the configured `files[].source` paths before writing translations. Exact source paths can be created locally if missing; globbed source paths are limited to files matched by local glob expansion.
 
 Use root `branch:` in `crowdin.yml` or pass `--branch <name>` to upload and download files from a Crowdin branch. The flag overrides the config value for that command.
 

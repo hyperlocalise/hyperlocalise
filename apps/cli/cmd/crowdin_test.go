@@ -155,7 +155,7 @@ func TestCrowdinBranchOverrideAppliesToRequests(t *testing.T) {
 		t.Fatalf("translation branch = %q, want config-branch", translationsReq.Config.Branch)
 	}
 
-	downloadReq := crowdinstorageRequestDownload(cfg, nil, "  flag-branch  ", false, false, false)
+	downloadReq := crowdinstorageRequestDownload(cfg, nil, "  flag-branch  ", false, false, false, false)
 	if downloadReq.Config.Branch != "flag-branch" {
 		t.Fatalf("download branch = %q, want trimmed flag-branch", downloadReq.Config.Branch)
 	}
@@ -164,7 +164,7 @@ func TestCrowdinBranchOverrideAppliesToRequests(t *testing.T) {
 func TestCrowdinDownloadFlagsApplyRequestOptions(t *testing.T) {
 	cfg := storage.FileWorkflowConfig{}
 
-	req := crowdinstorageRequestDownload(cfg, []string{"fr"}, "", true, true, true)
+	req := crowdinstorageRequestDownload(cfg, []string{"fr"}, "", true, true, true, true)
 
 	if got, want := req.Languages, []string{"fr"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("languages = %#v, want %#v", got, want)
@@ -178,18 +178,24 @@ func TestCrowdinDownloadFlagsApplyRequestOptions(t *testing.T) {
 	if !req.MergeApproved {
 		t.Fatalf("merge approved = false, want true")
 	}
+	if !req.IncludeSources {
+		t.Fatalf("include sources = false, want true")
+	}
 }
 
 func TestCrowdinDownloadFlagsOmitRequestOptionsWhenUnset(t *testing.T) {
 	cfg := storage.FileWorkflowConfig{}
 
-	req := crowdinstorageRequestDownload(cfg, nil, "", false, false, false)
+	req := crowdinstorageRequestDownload(cfg, nil, "", false, false, false, false)
 
 	if req.ExportOverrides != nil {
 		t.Fatalf("export overrides = %#v, want nil", req.ExportOverrides)
 	}
 	if req.MergeApproved {
 		t.Fatalf("merge approved = true, want false")
+	}
+	if req.IncludeSources {
+		t.Fatalf("include sources = true, want false")
 	}
 }
 

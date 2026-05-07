@@ -13,7 +13,8 @@ import (
 )
 
 type fakeFileClient struct {
-	locales                []string
+	locales                []ResolvedLocale
+	resolvedRequested      map[string]ResolvedLocale
 	branchByName           map[string]int
 	resolvedBranches       []string
 	ensureBranchIDs        []int
@@ -24,19 +25,29 @@ type fakeFileClient struct {
 	foundDirectories       []string
 	upsertedSources        []string
 	uploadedTranslations   []string
+	downloadedSources      []int
 	downloaded             []string
 	downloadOptions        []storage.FileExportOptions
+	sourceDownloadPayload  []byte
 	downloadPayload        []byte
 	directories            map[string]int
 	files                  map[string]int
 	failFindMissing        bool
 }
 
-func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested []string) ([]string, error) {
+func (f *fakeFileClient) ResolveLocales(_ context.Context, _ string, requested []string) ([]ResolvedLocale, error) {
 	if len(requested) > 0 {
-		return requested, nil
+		locales := make([]ResolvedLocale, 0, len(requested))
+		for _, locale := range requested {
+			if resolved, ok := f.resolvedRequested[locale]; ok {
+				locales = append(locales, resolved)
+				continue
+			}
+			locales = append(locales, ResolvedLocale{LanguageID: locale, Locale: locale})
+		}
+		return locales, nil
 	}
-	return append([]string(nil), f.locales...), nil
+	return append([]ResolvedLocale(nil), f.locales...), nil
 }
 
 func (f *fakeFileClient) ResolveBranch(_ context.Context, _ string, branch string) (int, error) {
@@ -94,6 +105,14 @@ func (f *fakeFileClient) UploadTranslationFile(_ context.Context, _ string, lang
 	return nil
 }
 
+func (f *fakeFileClient) DownloadSourceFile(_ context.Context, _ string, fileID int) ([]byte, error) {
+	f.downloadedSources = append(f.downloadedSources, fileID)
+	if f.sourceDownloadPayload != nil {
+		return f.sourceDownloadPayload, nil
+	}
+	return []byte(fmt.Sprintf("source-%d", fileID)), nil
+}
+
 func (f *fakeFileClient) DownloadTranslationFile(_ context.Context, _ string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error) {
 	f.downloaded = append(f.downloaded, fmt.Sprintf("%s:%d", languageID, fileID))
 	f.downloadOptions = append(f.downloadOptions, opts)
@@ -137,7 +156,7 @@ func TestFileAdapterUploadTranslationsFailsWhenRemoteFileMissing(t *testing.T) {
 	writeJSONFixture(t, filepath.Join(base, "dist", "fr", "messages.json"), `{"hello":"Bonjour"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		files:           map[string]int{},
@@ -172,7 +191,7 @@ func TestFileAdapterUploadTranslationsRespectsLanguagesMappingAndExclusions(t *t
 	writeJSONFixture(t, filepath.Join(base, "dist", "de", "messages.json"), `{"hello":"Hallo"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr-FR", "de"},
+		locales:         []ResolvedLocale{{LanguageID: "fr-FR", Locale: "fr-FR"}, {LanguageID: "de", Locale: "de"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 	}
@@ -223,7 +242,7 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 	}
@@ -280,12 +299,108 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 	}
 }
 
+func TestFileAdapterDownloadTranslationsUsesLanguageIDForRequestAndLocaleForPath(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
+
+	client := &fakeFileClient{
+		resolvedRequested: map[string]ResolvedLocale{
+			"fr-FR": {LanguageID: "fr", Locale: "fr-FR"},
+		},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{Languages: []string{"fr-FR"}})
+	if err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+
+	wantPath := filepath.Join(base, "download", "fr-FR", "messages.json")
+	if !reflect.DeepEqual(result.Processed, []string{wantPath}) {
+		t.Fatalf("processed = %#v, want %#v", result.Processed, []string{wantPath})
+	}
+	if got, want := client.downloaded, []string{"fr:1"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("downloaded = %#v, want %#v", got, want)
+	}
+	payload, err := os.ReadFile(wantPath)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if string(payload) != "translated-fr" {
+		t.Fatalf("payload = %q, want translated-fr", string(payload))
+	}
+}
+
+func TestFileAdapterDownloadTranslationsCanIncludeSources(t *testing.T) {
+	base := t.TempDir()
+	sourcePath := writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Local"}`)
+
+	client := &fakeFileClient{
+		locales:               []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:           map[string]int{"src": 1},
+		files:                 map[string]int{"messages.json": 9},
+		failFindMissing:       true,
+		sourceDownloadPayload: []byte(`{"hello":"Remote"}`),
+		downloadPayload:       []byte(`{"hello":"Bonjour"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/messages.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{IncludeSources: true})
+	if err != nil {
+		t.Fatalf("download translations with sources: %v", err)
+	}
+	translationPath := filepath.Join(base, "download", "fr", "messages.json")
+	if got, want := result.Processed, []string{translationPath, sourcePath}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("processed = %#v, want %#v", got, want)
+	}
+	if got, want := client.downloadedSources, []int{9}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("downloaded sources = %#v, want %#v", got, want)
+	}
+	sourcePayload, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+	if string(sourcePayload) != `{"hello":"Remote"}` {
+		t.Fatalf("source payload = %q", string(sourcePayload))
+	}
+	translationPayload, err := os.ReadFile(translationPath)
+	if err != nil {
+		t.Fatalf("read translation: %v", err)
+	}
+	if string(translationPayload) != `{"hello":"Bonjour"}` {
+		t.Fatalf("translation payload = %q", string(translationPayload))
+	}
+}
+
 func TestFileAdapterDownloadTranslationsAppliesExportOverrides(t *testing.T) {
 	base := t.TempDir()
 	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 	}
@@ -326,7 +441,7 @@ func TestFileAdapterDownloadTranslationsMergesApprovedJSON(t *testing.T) {
 	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"hello":"Bonjour old","bye":"Au revoir","draft":"Brouillon"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{"hello":"Bonjour approved"}`),
@@ -370,7 +485,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedPreservesNestedJSON(t *test
 	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"nav":{"home":"Accueil old","about":"A propos"},"footer":{"legal":"Mentions"},"draft":"Brouillon"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{"nav":{"home":"Accueil approved"},"cta":"Commencer"}`),
@@ -408,7 +523,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedCreatesMissingJSON(t *testi
 	targetPath := filepath.Join(base, "download", "fr", "messages.json")
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{"hello":"Bonjour"}`),
@@ -450,7 +565,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedEmptyPayloadPreservesExisti
 	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), "{\n  \"hello\": \"Bonjour local\"\n}\n")
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{}`),
@@ -488,7 +603,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedRejectsDownloadedJSONArray(
 	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"hello":"Bonjour local"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`["not","an","object"]`),
@@ -526,7 +641,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedRejectsExistingJSONArray(t 
 	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `["not","an","object"]`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{"hello":"Bonjour approved"}`),
@@ -564,7 +679,7 @@ func TestFileAdapterDownloadTranslationsMergeApprovedOverridesFalseConfigExportO
 	writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"hello":"Bonjour local"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
 		downloadPayload: []byte(`{"hello":"Bonjour approved"}`),
@@ -603,7 +718,7 @@ func TestFileAdapterDownloadTranslationsFailsWhenRemoteDirectoryMissing(t *testi
 	writeJSONFixture(t, filepath.Join(base, "src", "nested", "messages.json"), `{"hello":"Hello"}`)
 
 	client := &fakeFileClient{
-		locales:         []string{"fr"},
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		failFindMissing: true,
 		files:           map[string]int{"messages.json": 1},
 	}
@@ -661,7 +776,7 @@ func TestFileAdapterUsesConfiguredBranchForFileWorkflow(t *testing.T) {
 	writeJSONFixture(t, filepath.Join(base, "dist", "fr", "messages.json"), `{"hello":"Bonjour"}`)
 
 	client := &fakeFileClient{
-		locales:      []string{"fr"},
+		locales:      []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		branchByName: map[string]int{"feature/login": 42},
 		files:        map[string]int{"messages.json": 7},
 	}
