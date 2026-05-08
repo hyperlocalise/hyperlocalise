@@ -260,7 +260,9 @@ func newCrowdinGlossaryDownloadCmd() *cobra.Command {
 			}
 			if err != nil {
 				if strings.TrimSpace(o.outputPath) != "" {
-					_ = os.Remove(o.outputPath)
+					if removeErr := os.Remove(o.outputPath); removeErr != nil && !os.IsNotExist(removeErr) {
+						return fmt.Errorf("%w; also failed to remove partial output: %v", err, removeErr)
+					}
 				}
 				return err
 			}

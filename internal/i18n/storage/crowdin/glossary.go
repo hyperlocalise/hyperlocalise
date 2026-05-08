@@ -1,6 +1,7 @@
 package crowdin
 
 import (
+	"cmp"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -190,7 +191,7 @@ func glossaryCSVRows(
 			return -1
 		}
 		if left.ConceptID != right.ConceptID {
-			return left.ConceptID - right.ConceptID
+			return cmp.Compare(left.ConceptID, right.ConceptID)
 		}
 		if left.LanguageID != right.LanguageID {
 			if left.LanguageID < right.LanguageID {
@@ -198,7 +199,7 @@ func glossaryCSVRows(
 			}
 			return 1
 		}
-		return left.ID - right.ID
+		return cmp.Compare(left.ID, right.ID)
 	})
 
 	rows := make([][]string, 0, len(sortedTerms))
