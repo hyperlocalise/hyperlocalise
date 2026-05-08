@@ -486,6 +486,53 @@ func TestPhraseDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testing.
 	}
 }
 
+func TestPhraseDownloadTranslationsForceKeepsOverwrittenFileOnLaterFailure(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/projects/project-1/locales/fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		case "/projects/project-1/locales/de/download":
+			http.Error(w, `{"message":"Locale not found"}`, http.StatusNotFound)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	frPath := filepath.Join(dir, "fr.json")
+	dePath := filepath.Join(dir, "de.json")
+	if err := os.WriteFile(frPath, []byte(`{"old":"Fr"}`), 0o644); err != nil {
+		t.Fatalf("write existing fr output: %v", err)
+	}
+	if err := os.WriteFile(dePath, []byte(`{"old":"De"}`), 0o644); err != nil {
+		t.Fatalf("write existing de output: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--target-locale", "de", "--format", "json", "--output", filepath.Join(dir, "%locale%.json"), "--force", "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected later locale failure")
+	}
+	fr, readErr := os.ReadFile(frPath)
+	if readErr != nil {
+		t.Fatalf("fr output should still exist after later failure: %v", readErr)
+	}
+	if string(fr) != `{"hello":"Bonjour"}` {
+		t.Fatalf("expected overwritten fr output to be kept, got %q", string(fr))
+	}
+	de, readErr := os.ReadFile(dePath)
+	if readErr != nil {
+		t.Fatalf("de output should still exist after failure: %v", readErr)
+	}
+	if string(de) != `{"old":"De"}` {
+		t.Fatalf("expected de output to remain unchanged, got %q", string(de))
+	}
+}
+
 func TestPhraseDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "fr.json")
 	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {

@@ -265,11 +265,17 @@ func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTrans
 			_, err := cmd.OutOrStdout().Write(result.Content)
 			return err
 		}
+		outputExisted := false
+		if _, err := os.Stat(output); err == nil {
+			outputExisted = true
+		}
 		if err := writePhraseDownloadedTranslation(output, result.Content, o.force); err != nil {
 			removePhraseDownloadedTranslationOutputs(writtenOutputs)
 			return err
 		}
-		writtenOutputs = append(writtenOutputs, output)
+		if !outputExisted {
+			writtenOutputs = append(writtenOutputs, output)
+		}
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", output, len(result.Content), result.LocaleID, result.Format); err != nil {
 			removePhraseDownloadedTranslationOutputs(writtenOutputs)
 			return err
