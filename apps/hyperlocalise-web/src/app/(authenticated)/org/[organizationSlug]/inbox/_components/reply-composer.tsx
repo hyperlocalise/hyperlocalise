@@ -1,7 +1,7 @@
 "use client";
 
 import type { FileUIPart } from "ai";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   Add01Icon,
   AiImageIcon,
@@ -87,13 +87,13 @@ type ReplyComposerProps = {
   organizationSlug: string;
 };
 
-export function ReplyComposer(props: ReplyComposerProps) {
+export const ReplyComposer = memo(function ReplyComposer(props: ReplyComposerProps) {
   return (
     <PromptInputProvider>
       <ReplyComposerContent {...props} />
     </PromptInputProvider>
   );
-}
+});
 
 function ReplyComposerContent({
   conversationProjectId,

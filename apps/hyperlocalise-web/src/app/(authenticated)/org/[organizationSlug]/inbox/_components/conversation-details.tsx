@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH3, TypographyMuted, TypographySmall } from "@/components/ui/typography";
@@ -22,7 +23,7 @@ function formatJobKind(job: LinkedJob) {
   return job.kind.replace("_", " ");
 }
 
-export function ConversationDetails({
+export const ConversationDetails = memo(function ConversationDetails({
   conversation,
   jobs,
   jobsIsLoading,
@@ -106,4 +107,4 @@ export function ConversationDetails({
       </section>
     </aside>
   );
-}
+});

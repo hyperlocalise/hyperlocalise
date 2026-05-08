@@ -8,7 +8,7 @@ import type {
   ToolUIPart,
   UIMessage,
 } from "ai";
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 
 import {
   Conversation,
@@ -134,7 +134,8 @@ function MessageListSkeleton() {
   );
 }
 
-function PersistedMessage({
+// Memoized to prevent re-rendering historical messages while a new message is streaming
+const PersistedMessage = memo(function PersistedMessage({
   currentUser,
   message,
 }: {
@@ -159,7 +160,7 @@ function PersistedMessage({
       )}
     </MessageFrame>
   );
-}
+});
 
 function AssistantStreamMessage({
   createdAt,
