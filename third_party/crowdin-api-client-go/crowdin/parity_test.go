@@ -41,6 +41,7 @@ func TestProjectsService_Get_Parity(t *testing.T) {
 	// This should PASS now
 	assert.True(t, project.DelayedWorkflowStart, "DelayedWorkflowStart should be true")
 	assert.NotNil(t, project.AiPreTranslate, "AiPreTranslate should not be nil")
+	assert.Equal(t, true, *project.AiPreTranslate.Enabled, "AiPreTranslate.Enabled should be true")
 	assert.Equal(t, 123, project.AiPreTranslate.AiPrompts[0].AiPromptID)
 }
 
