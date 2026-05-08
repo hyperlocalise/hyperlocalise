@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +104,65 @@ func TestHTTPClientRetriesRateLimit(t *testing.T) {
 	}
 	if attempts < 2 {
 		t.Fatalf("expected retries, attempts=%d", attempts)
+	}
+}
+
+func TestHTTPClientUploadSourceFileMultipart(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := dir + "/en.json"
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/p/uploads", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if r.Header.Get("Authorization") != "token x" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse form: %v", err)
+		}
+		if got := r.FormValue("locale_id"); got != "en" {
+			t.Fatalf("locale_id = %q, want en", got)
+		}
+		if got := r.FormValue("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.FormValue("update_translations"); got != "true" {
+			t.Fatalf("update_translations = %q, want true", got)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":    "upload-1",
+			"state": "success",
+			"summary": map[string]int{
+				"translation_keys_created": 1,
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.UploadSourceFile(context.Background(), SourceUploadInput{
+		ProjectID:          "p",
+		APIToken:           "x",
+		LocaleID:           "en",
+		FilePath:           sourcePath,
+		FileFormat:         "json",
+		UpdateTranslations: true,
+	})
+	if err != nil {
+		t.Fatalf("upload source file: %v", err)
+	}
+	if result.ID != "upload-1" || result.Summary.TranslationKeysCreated != 1 {
+		t.Fatalf("unexpected result: %+v", result)
 	}
 }
 
