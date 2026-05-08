@@ -130,6 +130,43 @@ func LoadFileWorkflowConfig(path, identityPath string) (storage.FileWorkflowConf
 	return cfg, resolvedPath, nil
 }
 
+// LoadClientConfig loads Crowdin credentials and API settings without requiring file workflow entries.
+func LoadClientConfig(path, identityPath string) (Config, string, error) {
+	resolvedPath, err := ResolveFileConfigPath(path)
+	if err != nil {
+		return Config{}, "", err
+	}
+
+	projectCfg, err := decodeYAMLFile[fileConfigYAML](resolvedPath)
+	if err != nil {
+		return Config{}, "", err
+	}
+
+	identityCfg, err := loadIdentityConfig(identityPath)
+	if err != nil {
+		return Config{}, "", err
+	}
+
+	projectID, err := resolveProjectID(projectCfg, identityCfg)
+	if err != nil {
+		return Config{}, "", err
+	}
+	apiToken, err := resolveAPIToken(projectCfg, identityCfg)
+	if err != nil {
+		return Config{}, "", err
+	}
+	baseURL, err := resolveBaseURL(projectCfg, identityCfg)
+	if err != nil {
+		return Config{}, "", err
+	}
+
+	return Config{
+		ProjectID:  projectID,
+		APIToken:   apiToken,
+		APIBaseURL: baseURL,
+	}, resolvedPath, nil
+}
+
 func loadIdentityConfig(path string) (identityConfigYAML, error) {
 	if strings.TrimSpace(path) != "" {
 		return decodeYAMLFile[identityConfigYAML](path)
