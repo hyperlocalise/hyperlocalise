@@ -86,11 +86,7 @@ func (c *HTTPClient) uploadSourceFile(ctx context.Context, token, projectID, fil
 	authCtx := context.WithValue(ctx, phraseapi.ContextAPIKey, phraseapi.APIKey{Key: token, Prefix: "token"})
 	attempt := 0
 	for {
-		file, err := os.Open(filePath)
-		if err != nil {
-			return phraseapi.Upload{}, fmt.Errorf("open source file %q: %w", filePath, err)
-		}
-		upload, resp, err := c.phraseClient.UploadsApi.UploadCreate(authCtx, projectID, file, fileFormat, localeID, opts)
+		upload, resp, err := c.uploadSourceFileAttempt(authCtx, projectID, filePath, fileFormat, localeID, opts)
 		if err == nil {
 			return upload, nil
 		}
@@ -106,6 +102,18 @@ func (c *HTTPClient) uploadSourceFile(ctx context.Context, token, projectID, fil
 			return phraseapi.Upload{}, err
 		}
 	}
+}
+
+func (c *HTTPClient) uploadSourceFileAttempt(ctx context.Context, projectID, filePath, fileFormat, localeID string, opts *phraseapi.UploadCreateOpts) (phraseapi.Upload, *phraseapi.APIResponse, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return phraseapi.Upload{}, nil, fmt.Errorf("open source file %q: %w", filePath, err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	return c.phraseClient.UploadsApi.UploadCreate(ctx, projectID, file, fileFormat, localeID, opts)
 }
 
 func successfulUploadFromError(resp *phraseapi.APIResponse, err error) (phraseapi.Upload, bool) {
