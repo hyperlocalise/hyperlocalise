@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { FilterMailIcon, PreferenceHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -11,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 import { formatRelativeTime, sourceLabel, type Conversation } from "./inbox-types";
 
-export function InboxList({
+// Memoized to prevent re-rendering the entire list during chat streaming
+export const InboxList = memo(function InboxList({
   conversations,
   isError,
   isLoading,
@@ -79,7 +81,7 @@ export function InboxList({
                 key={conversation.id}
                 conversation={conversation}
                 isSelected={conversation.id === selectedConversationId}
-                onSelect={() => onSelectConversation(conversation.id)}
+                onSelect={onSelectConversation}
               />
             ))}
           </div>
@@ -87,7 +89,7 @@ export function InboxList({
       </div>
     </section>
   );
-}
+});
 
 function ConversationListSkeleton() {
   return (
@@ -105,20 +107,21 @@ function ConversationListSkeleton() {
   );
 }
 
-function ConversationListItem({
+// Memoized to prevent re-rendering every item in the list during chat streaming
+const ConversationListItem = memo(function ConversationListItem({
   conversation,
   isSelected,
   onSelect,
 }: {
   conversation: Conversation;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (conversationId: string) => void;
 }) {
   return (
     <button
       type="button"
       aria-pressed={isSelected}
-      onClick={onSelect}
+      onClick={() => onSelect(conversation.id)}
       className={cn(
         "grid w-full text-left transition-colors",
         "grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md px-2 py-2.5",
@@ -149,4 +152,4 @@ function ConversationListItem({
       </div>
     </button>
   );
-}
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
@@ -38,8 +38,10 @@ export function InboxPageContent({
 
   const conversations = conversationsQuery.data?.conversations ?? [];
   const selectedConversationId = urlConversationId ?? conversations[0]?.id ?? "";
-  const selectedConversation = conversations.find(
-    (conversation) => conversation.id === selectedConversationId,
+  // Memoize selected conversation to prevent re-calculating on every stream chunk
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedConversationId),
+    [conversations, selectedConversationId],
   );
 
   const messagesQuery = useQuery({
@@ -111,6 +113,20 @@ export function InboxPageContent({
     },
   });
 
+  const mutateAsync = sendMessageMutation.mutateAsync;
+  // Stabilize callbacks to prevent unnecessary re-renders of memoized child components
+  const onSendMessage = useCallback(
+    (text: string, files: File[]) => mutateAsync({ text, files }),
+    [mutateAsync],
+  );
+
+  const onSelectConversation = useCallback(
+    (conversationId: string) => {
+      router.push(`/org/${organizationSlug}/inbox/${conversationId}`);
+    },
+    [router, organizationSlug],
+  );
+
   const messages = messagesQuery.data?.messages ?? [];
   const jobs = jobsQuery.data?.jobs ?? [];
   const lastMessage = messages.at(-1);
@@ -154,9 +170,7 @@ export function InboxPageContent({
           conversations={conversations}
           isError={conversationsQuery.isError}
           isLoading={conversationsQuery.isLoading}
-          onSelectConversation={(conversationId) =>
-            router.push(`/org/${organizationSlug}/inbox/${conversationId}`)
-          }
+          onSelectConversation={onSelectConversation}
           selectedConversationId={selectedConversationId}
         />
 
@@ -169,7 +183,7 @@ export function InboxPageContent({
           jobsIsLoading={jobsQuery.isLoading}
           messages={messages}
           messagesIsLoading={messagesQuery.isLoading}
-          onSendMessage={(text, files) => sendMessageMutation.mutateAsync({ text, files })}
+          onSendMessage={onSendMessage}
           organizationSlug={organizationSlug}
           streamedAssistant={streamedAssistant}
         />
