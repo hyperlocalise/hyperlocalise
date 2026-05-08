@@ -166,6 +166,75 @@ func TestHTTPClientUploadSourceFileMultipart(t *testing.T) {
 	}
 }
 
+func TestHTTPClientDownloadSourceFile(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/p/locales/en/download", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if r.Header.Get("Authorization") != "token x" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if got := r.URL.Query().Get("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.URL.Query().Get("branch"); got != "main" {
+			t.Fatalf("branch = %q, want main", got)
+		}
+		if got := r.URL.Query().Get("tags"); got != "app,source" {
+			t.Fatalf("tags = %q, want app,source", got)
+		}
+		_, _ = w.Write([]byte(`{"hello":"Hello"}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.DownloadSourceFile(context.Background(), SourceDownloadInput{
+		ProjectID:  "p",
+		APIToken:   "x",
+		LocaleID:   "en",
+		FileFormat: "json",
+		Branch:     "main",
+		Tags:       []string{"app", "source"},
+	})
+	if err != nil {
+		t.Fatalf("download source file: %v", err)
+	}
+	if string(result.Content) != `{"hello":"Hello"}` || result.LocaleID != "en" || result.Format != "json" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestHTTPClientDownloadSourceFileAPIError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/p/locales/missing/download", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Locale not found"}`, http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.DownloadSourceFile(context.Background(), SourceDownloadInput{
+		ProjectID:  "p",
+		APIToken:   "x",
+		LocaleID:   "missing",
+		FileFormat: "json",
+	})
+	if err == nil {
+		t.Fatalf("expected API error")
+	}
+	if !strings.Contains(err.Error(), "status=404") || !strings.Contains(err.Error(), "Locale not found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestEncodeDecodeEntriesJSON(t *testing.T) {
 	in := []storage.Entry{{Key: "a", Locale: "fr", Value: "A"}, {Key: "b", Locale: "fr", Value: ""}, {Key: "a", Locale: "de", Value: "AA"}}
 	data, err := encodeEntriesJSON(in)
