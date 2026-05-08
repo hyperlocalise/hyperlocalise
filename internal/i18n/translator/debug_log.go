@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +36,10 @@ type promptDebugEvent struct {
 	DurationMS     int64  `json:"duration_ms,omitempty"`
 }
 
-var translatorPromptDebugLogger promptDebugLogger
+var (
+	translatorPromptDebugLogger promptDebugLogger
+	secretRegex                 = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,})\b`)
+)
 
 func logPromptCall(req Request, providerName, systemPrompt, userPrompt string) {
 	translatorPromptDebugLogger.write(promptDebugEvent{
@@ -45,8 +49,8 @@ func logPromptCall(req Request, providerName, systemPrompt, userPrompt string) {
 		Model:          strings.TrimSpace(req.Model),
 		Source:         strings.TrimSpace(req.Source),
 		TargetLanguage: strings.TrimSpace(req.TargetLanguage),
-		SystemPrompt:   systemPrompt,
-		UserPrompt:     userPrompt,
+		SystemPrompt:   maskSecrets(systemPrompt),
+		UserPrompt:     maskSecrets(userPrompt),
 	})
 }
 
@@ -58,11 +62,11 @@ func logPromptResult(req Request, providerName, output string, err error, durati
 		Model:          strings.TrimSpace(req.Model),
 		Source:         strings.TrimSpace(req.Source),
 		TargetLanguage: strings.TrimSpace(req.TargetLanguage),
-		Output:         output,
+		Output:         maskSecrets(output),
 		DurationMS:     duration.Milliseconds(),
 	}
 	if err != nil {
-		event.Error = err.Error()
+		event.Error = maskSecrets(err.Error())
 	}
 	translatorPromptDebugLogger.write(event)
 }
@@ -125,4 +129,16 @@ func parsePromptDebugBool(raw string) bool {
 	default:
 		return false
 	}
+}
+
+func maskSecrets(text string) string {
+	if text == "" {
+		return ""
+	}
+	return secretRegex.ReplaceAllStringFunc(text, func(match string) string {
+		if len(match) < 12 {
+			return "****"
+		}
+		return match[:8] + "..." + match[len(match)-4:]
+	})
 }

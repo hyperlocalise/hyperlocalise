@@ -3,6 +3,7 @@ package translator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -116,4 +117,137 @@ func splitNonEmptyLines(s string) []string {
 		lines = append(lines, s[start:])
 	}
 	return lines
+}
+
+func TestMaskSecrets(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "openai secret",
+			in:   "my key is sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef",
+			want: "my key is sk-proj-...cdef",
+		},
+		{
+			name: "hyperlocalise secret",
+			in:   "secret hl_abc1234567890abcdef1234567890abcdef",
+			want: "secret hl_abc12...cdef",
+		},
+		{
+			name: "google secret",
+			in:   "google AIzaSyA1234567890abcdef1234567890abcdefGH",
+			want: "google AIzaSyA1...efGH",
+		},
+		{
+			name: "multiple secrets",
+			in:   "keys: sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef and hl_abc1234567890abcdef1234567890abcdef",
+			want: "keys: sk-proj-...cdef and hl_abc12...cdef",
+		},
+		{
+			name: "no secrets",
+			in:   "Translate to fr: hello world",
+			want: "Translate to fr: hello world",
+		},
+		{
+			name: "empty",
+			in:   "",
+			want: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := maskSecrets(tc.in)
+			if got != tc.want {
+				t.Errorf("maskSecrets(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTranslateSanitizesPromptDebugLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "prompt.log")
+	t.Setenv(envPromptDebugEnabled, "1")
+	t.Setenv(envPromptDebugPath, logPath)
+
+	tool := &Tool{providers: map[string]Provider{}}
+	if err := tool.Register(fakeProvider{
+		name:   ProviderOpenAI,
+		result: "output with hl_abc1234567890abcdef1234567890abcdef",
+	}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	_, _ = tool.Translate(context.Background(), Request{
+		Source:         "hello",
+		TargetLanguage: "fr",
+		ModelProvider:  ProviderOpenAI,
+		Model:          "gpt-5-mini",
+		SystemPrompt:   "system sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef",
+		UserPrompt:     "user sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef",
+	})
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+
+	lines := splitNonEmptyLines(string(data))
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 log lines, got %d", len(lines))
+	}
+
+	var callEvent promptDebugEvent
+	_ = json.Unmarshal([]byte(lines[0]), &callEvent)
+	if callEvent.SystemPrompt != "system sk-proj-...cdef" {
+		t.Errorf("system prompt not sanitized: %q", callEvent.SystemPrompt)
+	}
+	if callEvent.UserPrompt != "user sk-proj-...cdef" {
+		t.Errorf("user prompt not sanitized: %q", callEvent.UserPrompt)
+	}
+
+	var resultEvent promptDebugEvent
+	_ = json.Unmarshal([]byte(lines[1]), &resultEvent)
+	if resultEvent.Output != "output with hl_abc12...cdef" {
+		t.Errorf("output not sanitized: %q", resultEvent.Output)
+	}
+}
+
+func TestTranslateSanitizesErrorInPromptDebugLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "prompt.log")
+	t.Setenv(envPromptDebugEnabled, "1")
+	t.Setenv(envPromptDebugPath, logPath)
+
+	tool := &Tool{providers: map[string]Provider{}}
+	if err := tool.Register(fakeProvider{
+		name: ProviderOpenAI,
+		err:  errors.New("failed with secret hl_abc1234567890abcdef1234567890abcdef"),
+	}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	_, _ = tool.Translate(context.Background(), Request{
+		Source:         "hello",
+		TargetLanguage: "fr",
+		ModelProvider:  ProviderOpenAI,
+		Model:          "gpt-5-mini",
+	})
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+
+	lines := splitNonEmptyLines(string(data))
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 log lines, got %d", len(lines))
+	}
+
+	var resultEvent promptDebugEvent
+	_ = json.Unmarshal([]byte(lines[1]), &resultEvent)
+	if resultEvent.Error != "failed with secret hl_abc12...cdef" {
+		t.Errorf("error not sanitized: %q", resultEvent.Error)
+	}
 }
