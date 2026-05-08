@@ -3,6 +3,7 @@ package translator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -211,5 +212,42 @@ func TestTranslateSanitizesPromptDebugLog(t *testing.T) {
 	_ = json.Unmarshal([]byte(lines[1]), &resultEvent)
 	if resultEvent.Output != "output with hl_abc12...cdef" {
 		t.Errorf("output not sanitized: %q", resultEvent.Output)
+	}
+}
+
+func TestTranslateSanitizesErrorInPromptDebugLog(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "prompt.log")
+	t.Setenv(envPromptDebugEnabled, "1")
+	t.Setenv(envPromptDebugPath, logPath)
+
+	tool := &Tool{providers: map[string]Provider{}}
+	if err := tool.Register(fakeProvider{
+		name: ProviderOpenAI,
+		err:  errors.New("failed with secret hl_abc1234567890abcdef1234567890abcdef"),
+	}); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+
+	_, _ = tool.Translate(context.Background(), Request{
+		Source:         "hello",
+		TargetLanguage: "fr",
+		ModelProvider:  ProviderOpenAI,
+		Model:          "gpt-5-mini",
+	})
+
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+
+	lines := splitNonEmptyLines(string(data))
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 log lines, got %d", len(lines))
+	}
+
+	var resultEvent promptDebugEvent
+	_ = json.Unmarshal([]byte(lines[1]), &resultEvent)
+	if resultEvent.Error != "failed with secret hl_abc12...cdef" {
+		t.Errorf("error not sanitized: %q", resultEvent.Error)
 	}
 }

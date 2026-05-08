@@ -66,7 +66,7 @@ func logPromptResult(req Request, providerName, output string, err error, durati
 		DurationMS:     duration.Milliseconds(),
 	}
 	if err != nil {
-		event.Error = err.Error()
+		event.Error = maskSecrets(err.Error())
 	}
 	translatorPromptDebugLogger.write(event)
 }
