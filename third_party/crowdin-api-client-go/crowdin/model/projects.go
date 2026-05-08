@@ -60,7 +60,7 @@ type (
 		QAChecksIgnorableCategories     map[string]bool            `json:"qaChecksIgnorableCategories,omitempty"`
 		CustomQACheckIDs                []int                      `json:"customQACheckIds,omitempty"`
 		LanguageMapping                 map[string]LanguageMapping `json:"languageMapping,omitempty"`
-		DelayedWorkflowStart            bool                       `json:"delayedTranslations,omitempty"`
+		DelayedWorkflowStart            bool                       `json:"delayedWorkflowStart,omitempty"`
 		NotificationSettings            *NotificationSettings      `json:"notificationSettings,omitempty"`
 		DefaultTMID                     int                        `json:"defaultTmId,omitempty"`
 		DefaultGlossaryID               int                        `json:"defaultGlossaryId,omitempty"`
@@ -70,6 +70,7 @@ type (
 		NormalizePlaceholder            bool                       `json:"normalizePlaceholder,omitempty"`
 		TMPreTranslate                  *ProjectTMPreTranslate     `json:"tmPreTranslate,omitempty"`
 		MTPreTranslate                  *ProjectMTPreTranslate     `json:"mtPreTranslate,omitempty"`
+		AiPreTranslate                  *ProjectAiPreTranslate     `json:"aiPreTranslate,omitempty"`
 		SaveMetaInfoInSource            bool                       `json:"saveMetaInfoInSource,omitempty"`
 		SkipUntranslatedFiles           bool                       `json:"skipUntranslatedFiles,omitempty"`
 		InContext                       bool                       `json:"inContext,omitempty"`
@@ -311,7 +312,7 @@ type ProjectsAddRequest struct {
 	//      between versions branches
 	TranslateDuplicates *int `json:"translateDuplicates,omitempty"`
 	// Delay workflow start after project creation. Default: false.
-	DelayedWorkflowStart *bool `json:"delayedTranslations,omitempty"`
+	DelayedWorkflowStart *bool `json:"delayedWorkflowStart,omitempty"`
 	// Defines whether to export only approved strings.
 	// Note: value greater than 0 can't be used with `exportStringsThatPassedWorkflow=true`
 	//       in same request.
