@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
@@ -180,22 +179,26 @@ func glossaryCSVRows(
 	}
 
 	sortedTerms := slices.Clone(terms)
-	sort.SliceStable(sortedTerms, func(i, j int) bool {
-		left := sortedTerms[i]
-		right := sortedTerms[j]
+	slices.SortStableFunc(sortedTerms, func(left, right *model.Term) int {
+		if left == nil && right == nil {
+			return 0
+		}
 		if left == nil {
-			return false
+			return 1
 		}
 		if right == nil {
-			return true
+			return -1
 		}
 		if left.ConceptID != right.ConceptID {
-			return left.ConceptID < right.ConceptID
+			return left.ConceptID - right.ConceptID
 		}
 		if left.LanguageID != right.LanguageID {
-			return left.LanguageID < right.LanguageID
+			if left.LanguageID < right.LanguageID {
+				return -1
+			}
+			return 1
 		}
-		return left.ID < right.ID
+		return left.ID - right.ID
 	})
 
 	rows := make([][]string, 0, len(sortedTerms))
@@ -238,11 +241,18 @@ func glossaryCSVRow(glossaryID int, sourceLanguage string, term *model.Term, con
 		"",
 	}
 	if concept != nil {
-		row[15] = concept.Subject
-		row[16] = concept.Definition
-		row[17] = concept.Note
-		row[18] = concept.URL
-		row[19] = concept.Figure
+		const (
+			idxConceptSubject    = 15
+			idxConceptDefinition = 16
+			idxConceptNote       = 17
+			idxConceptURL        = 18
+			idxConceptFigure     = 19
+		)
+		row[idxConceptSubject] = concept.Subject
+		row[idxConceptDefinition] = concept.Definition
+		row[idxConceptNote] = concept.Note
+		row[idxConceptURL] = concept.URL
+		row[idxConceptFigure] = concept.Figure
 	}
 	return row
 }

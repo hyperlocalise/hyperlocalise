@@ -259,6 +259,9 @@ func newCrowdinGlossaryDownloadCmd() *cobra.Command {
 				}
 			}
 			if err != nil {
+				if strings.TrimSpace(o.outputPath) != "" {
+					_ = os.Remove(o.outputPath)
+				}
 				return err
 			}
 			if strings.TrimSpace(o.outputPath) != "" {
