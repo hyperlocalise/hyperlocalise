@@ -127,22 +127,22 @@ func TestMaskSecrets(t *testing.T) {
 		{
 			name: "openai secret",
 			in:   "my key is sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef",
-			want: "my key is sk-p...cdef",
+			want: "my key is sk-proj-...cdef",
 		},
 		{
 			name: "hyperlocalise secret",
 			in:   "secret hl_abc1234567890abcdef1234567890abcdef",
-			want: "secret hl_a...cdef",
+			want: "secret hl_abc12...cdef",
 		},
 		{
 			name: "google secret",
 			in:   "google AIzaSyA1234567890abcdef1234567890abcdefGH",
-			want: "google AIza...cdefGH",
+			want: "google AIzaSyA1...efGH",
 		},
 		{
 			name: "multiple secrets",
 			in:   "keys: sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef and hl_abc1234567890abcdef1234567890abcdef",
-			want: "keys: sk-p...cdef and hl_a...cdef",
+			want: "keys: sk-proj-...cdef and hl_abc12...cdef",
 		},
 		{
 			name: "no secrets",
@@ -200,16 +200,16 @@ func TestTranslateSanitizesPromptDebugLog(t *testing.T) {
 
 	var callEvent promptDebugEvent
 	_ = json.Unmarshal([]byte(lines[0]), &callEvent)
-	if callEvent.SystemPrompt != "system sk-p...cdef" {
+	if callEvent.SystemPrompt != "system sk-proj-...cdef" {
 		t.Errorf("system prompt not sanitized: %q", callEvent.SystemPrompt)
 	}
-	if callEvent.UserPrompt != "user sk-p...cdef" {
+	if callEvent.UserPrompt != "user sk-proj-...cdef" {
 		t.Errorf("user prompt not sanitized: %q", callEvent.UserPrompt)
 	}
 
 	var resultEvent promptDebugEvent
 	_ = json.Unmarshal([]byte(lines[1]), &resultEvent)
-	if resultEvent.Output != "output with hl_a...cdef" {
+	if resultEvent.Output != "output with hl_abc12...cdef" {
 		t.Errorf("output not sanitized: %q", resultEvent.Output)
 	}
 }

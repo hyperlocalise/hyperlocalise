@@ -38,7 +38,7 @@ type promptDebugEvent struct {
 
 var (
 	translatorPromptDebugLogger promptDebugLogger
-	secretRegex                 = regexp.MustCompile(`(?i)(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|AIza[a-z0-9_-]{35})`)
+	secretRegex                 = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,})\b`)
 )
 
 func logPromptCall(req Request, providerName, systemPrompt, userPrompt string) {
@@ -136,9 +136,9 @@ func maskSecrets(text string) string {
 		return ""
 	}
 	return secretRegex.ReplaceAllStringFunc(text, func(match string) string {
-		if len(match) < 8 {
+		if len(match) < 12 {
 			return "****"
 		}
-		return match[:4] + "..." + match[len(match)-4:]
+		return match[:8] + "..." + match[len(match)-4:]
 	})
 }
