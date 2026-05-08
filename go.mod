@@ -2,6 +2,8 @@ module github.com/hyperlocalise/hyperlocalise
 
 go 1.26
 
+replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-client-go
+
 require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
