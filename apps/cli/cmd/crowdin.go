@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"embed"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -28,6 +30,22 @@ type crowdinCommonOptions struct {
 	dryRun                  bool
 }
 
+type crowdinGlossaryDownloadOptions struct {
+	configPath   string
+	identityPath string
+	glossaryID   int
+	languages    []string
+	outputPath   string
+}
+
+type crowdinGlossaryCSVWriter interface {
+	WriteGlossaryCSV(context.Context, crowdinstorage.GlossaryDownloadRequest, io.Writer) (crowdinstorage.GlossaryDownloadResult, error)
+}
+
+var newCrowdinGlossaryCSVWriter = func(cfg crowdinstorage.Config) (crowdinGlossaryCSVWriter, error) {
+	return crowdinstorage.NewHTTPClient(cfg)
+}
+
 func newCrowdinCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "crowdin",
@@ -38,6 +56,7 @@ func newCrowdinCmd() *cobra.Command {
 	cmd.AddCommand(newCrowdinConfigCmd())
 	cmd.AddCommand(newCrowdinUploadCmd())
 	cmd.AddCommand(newCrowdinDownloadCmd())
+	cmd.AddCommand(newCrowdinGlossaryCmd())
 
 	return cmd
 }
@@ -191,6 +210,70 @@ func newCrowdinDownloadCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.skipUntranslatedStrings, "skip-untranslated-strings", false, "omit untranslated strings from downloaded files")
 	cmd.Flags().BoolVar(&o.mergeApproved, "merge-approved", false, "merge approved downloaded JSON strings into existing translation files")
 	cmd.Flags().BoolVar(&o.includeSources, "include-sources", false, "also download source files into files[].source paths")
+	return cmd
+}
+
+func newCrowdinGlossaryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "glossary",
+		Short: "Crowdin glossary commands",
+	}
+	cmd.AddCommand(newCrowdinGlossaryDownloadCmd())
+	return cmd
+}
+
+func newCrowdinGlossaryDownloadCmd() *cobra.Command {
+	o := crowdinGlossaryDownloadOptions{}
+	cmd := &cobra.Command{
+		Use:          "download",
+		Short:        "download Crowdin glossary terms as CSV",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, _, err := crowdinstorage.LoadClientConfig(o.configPath, o.identityPath)
+			if err != nil {
+				return err
+			}
+			client, err := newCrowdinGlossaryCSVWriter(cfg)
+			if err != nil {
+				return err
+			}
+
+			out := cmd.OutOrStdout()
+			var closeOut func() error
+			if strings.TrimSpace(o.outputPath) != "" {
+				file, err := os.Create(o.outputPath)
+				if err != nil {
+					return fmt.Errorf("create glossary csv: %w", err)
+				}
+				out = file
+				closeOut = file.Close
+			}
+
+			result, err := client.WriteGlossaryCSV(backgroundContext(), crowdinstorage.GlossaryDownloadRequest{
+				GlossaryID: o.glossaryID,
+				Languages:  o.languages,
+			}, out)
+			if closeOut != nil {
+				if closeErr := closeOut(); closeErr != nil && err == nil {
+					err = fmt.Errorf("close glossary csv: %w", closeErr)
+				}
+			}
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(o.outputPath) != "" {
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s terms=%d\n", o.outputPath, result.Terms)
+				return err
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to crowdin.yml")
+	cmd.Flags().StringVar(&o.identityPath, "identity", "", "path to Crowdin identity file")
+	cmd.Flags().IntVar(&o.glossaryID, "glossary-id", 0, "Crowdin glossary identifier")
+	cmd.Flags().StringSliceVarP(&o.languages, "language", "l", nil, "term language(s) to include")
+	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write CSV to file instead of stdout")
+	_ = cmd.MarkFlagRequired("glossary-id")
 	return cmd
 }
 

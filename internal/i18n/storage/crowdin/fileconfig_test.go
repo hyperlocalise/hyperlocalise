@@ -44,6 +44,36 @@ files:
 	}
 }
 
+func TestLoadClientConfigDoesNotRequireFileWorkflowEntries(t *testing.T) {
+	t.Setenv(defaultProjectIDEnvName, "123")
+	t.Setenv(defaultAPITokenEnvName, "secret")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	if err := os.WriteFile(configPath, []byte(`
+base_url: https://api.crowdin.test
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, resolvedPath, err := LoadClientConfig(configPath, "")
+	if err != nil {
+		t.Fatalf("load client config: %v", err)
+	}
+	if resolvedPath != configPath {
+		t.Fatalf("resolved path = %q, want %q", resolvedPath, configPath)
+	}
+	if cfg.ProjectID != "123" {
+		t.Fatalf("project id = %q, want 123", cfg.ProjectID)
+	}
+	if cfg.APIToken != "secret" {
+		t.Fatalf("api token = %q, want secret", cfg.APIToken)
+	}
+	if cfg.APIBaseURL != "https://api.crowdin.test" {
+		t.Fatalf("api base url = %q, want https://api.crowdin.test", cfg.APIBaseURL)
+	}
+}
+
 func TestLoadFileWorkflowConfigRejectsUnsupportedPlaceholder(t *testing.T) {
 	t.Setenv(defaultProjectIDEnvName, "123")
 	t.Setenv(defaultAPITokenEnvName, "secret")

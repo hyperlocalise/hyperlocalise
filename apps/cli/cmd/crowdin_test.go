@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	crowdinstorage "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/crowdin"
 	"github.com/spf13/cobra"
 )
 
@@ -199,8 +202,120 @@ func TestCrowdinDownloadFlagsOmitRequestOptionsWhenUnset(t *testing.T) {
 	}
 }
 
+func TestCrowdinGlossaryDownloadWritesCSVToStdout(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id: 123
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldFactory := newCrowdinGlossaryCSVWriter
+	defer func() {
+		newCrowdinGlossaryCSVWriter = oldFactory
+	}()
+	fake := &fakeCrowdinGlossaryCSVWriter{}
+	newCrowdinGlossaryCSVWriter = func(cfg crowdinstorage.Config) (crowdinGlossaryCSVWriter, error) {
+		if cfg.ProjectID != "123" || cfg.APIToken != "secret" {
+			t.Fatalf("config = %#v, want project/token from crowdin config", cfg)
+		}
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "glossary", "download", "--glossary-id", "77", "--language", "fr"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin glossary download: %v", err)
+	}
+	if got, want := out.String(), "term\nCheckout\n"; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+	if fake.req.GlossaryID != 77 {
+		t.Fatalf("glossary id = %d, want 77", fake.req.GlossaryID)
+	}
+	if got, want := fake.req.Languages, []string{"fr"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("languages = %#v, want %#v", got, want)
+	}
+}
+
+func TestCrowdinGlossaryDownloadWritesCSVToFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id: 123
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldFactory := newCrowdinGlossaryCSVWriter
+	defer func() {
+		newCrowdinGlossaryCSVWriter = oldFactory
+	}()
+	newCrowdinGlossaryCSVWriter = func(crowdinstorage.Config) (crowdinGlossaryCSVWriter, error) {
+		return &fakeCrowdinGlossaryCSVWriter{}, nil
+	}
+
+	outputPath := filepath.Join(dir, "glossary.csv")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "glossary", "download", "--glossary-id", "77", "--output", outputPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin glossary download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if got, want := string(content), "term\nCheckout\n"; got != want {
+		t.Fatalf("file = %q, want %q", got, want)
+	}
+	if !strings.Contains(out.String(), "wrote "+outputPath+" terms=1") {
+		t.Fatalf("summary output = %q", out.String())
+	}
+}
+
+func TestCrowdinGlossaryDownloadRequiresGlossaryID(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"crowdin", "glossary", "download"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing glossary id error")
+	}
+	if !strings.Contains(err.Error(), `required flag(s) "glossary-id" not set`) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 type crowdinFailingWriter struct{}
 
 func (f *crowdinFailingWriter) Write(_ []byte) (int, error) {
 	return 0, errors.New("write failed")
+}
+
+type fakeCrowdinGlossaryCSVWriter struct {
+	req crowdinstorage.GlossaryDownloadRequest
+}
+
+func (f *fakeCrowdinGlossaryCSVWriter) WriteGlossaryCSV(_ context.Context, req crowdinstorage.GlossaryDownloadRequest, w io.Writer) (crowdinstorage.GlossaryDownloadResult, error) {
+	f.req = req
+	if _, err := io.WriteString(w, "term\nCheckout\n"); err != nil {
+		return crowdinstorage.GlossaryDownloadResult{}, err
+	}
+	return crowdinstorage.GlossaryDownloadResult{Terms: 1}, nil
 }
