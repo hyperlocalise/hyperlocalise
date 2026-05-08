@@ -39,6 +39,19 @@ type phraseDownloadSourcesOptions struct {
 	dryRun       bool
 }
 
+type phraseDownloadTranslationsOptions struct {
+	projectID     string
+	targetLocales []string
+	format        string
+	output        string
+	branch        string
+	tags          []string
+	tokenEnv      string
+	apiBaseURL    string
+	force         bool
+	dryRun        bool
+}
+
 func newPhraseCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "phrase",
@@ -64,6 +77,7 @@ func newPhraseDownloadCmd() *cobra.Command {
 		Short: "download files from Phrase",
 	}
 	cmd.AddCommand(newPhraseDownloadSourcesCmd())
+	cmd.AddCommand(newPhraseDownloadTranslationsCmd())
 	return cmd
 }
 
@@ -81,6 +95,29 @@ func newPhraseDownloadSourcesCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "Phrase source locale ID or name")
 	cmd.Flags().StringVar(&o.format, "format", "", "Phrase file format, for example json, yml, or strings")
 	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout")
+	cmd.Flags().StringVar(&o.branch, "branch", "", "Phrase branch name")
+	cmd.Flags().StringSliceVar(&o.tags, "tag", nil, "tag(s) to limit downloaded keys")
+	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Phrase API token")
+	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Phrase API base URL")
+	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
+	return cmd
+}
+
+func newPhraseDownloadTranslationsCmd() *cobra.Command {
+	o := phraseDownloadTranslationsOptions{tokenEnv: "PHRASE_API_TOKEN"}
+	cmd := &cobra.Command{
+		Use:          "translations",
+		Short:        "download translated content from Phrase",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executePhraseDownloadTranslations(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Phrase project ID")
+	cmd.Flags().StringSliceVarP(&o.targetLocales, "target-locale", "l", nil, "Phrase target locale ID(s) or name(s)")
+	cmd.Flags().StringVar(&o.format, "format", "", "Phrase file format, for example json, yml, or strings")
+	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout when downloading one locale; use %locale% for multiple locales")
 	cmd.Flags().StringVar(&o.branch, "branch", "", "Phrase branch name")
 	cmd.Flags().StringSliceVar(&o.tags, "tag", nil, "tag(s) to limit downloaded keys")
 	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Phrase API token")
@@ -168,6 +205,85 @@ func executePhraseUploadSources(cmd *cobra.Command, o phraseUploadSourcesOptions
 	return err
 }
 
+func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTranslationsOptions) error {
+	if strings.TrimSpace(o.projectID) == "" {
+		return fmt.Errorf("phrase download translations: --project-id is required")
+	}
+	locales := normalizePhraseLocales(o.targetLocales)
+	if len(locales) == 0 {
+		return fmt.Errorf("phrase download translations: at least one --target-locale is required")
+	}
+	if strings.TrimSpace(o.format) == "" {
+		return fmt.Errorf("phrase download translations: --format is required")
+	}
+
+	outputPath := strings.TrimSpace(o.output)
+	outputs, err := phraseTranslationOutputPaths(outputPath, locales)
+	if err != nil {
+		return err
+	}
+	if o.dryRun {
+		destination := outputPath
+		if destination == "" {
+			destination = "-"
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=phrase-download-translations project_id=%s target_locales=%s format=%s output=%s\n", strings.TrimSpace(o.projectID), strings.Join(locales, ","), strings.TrimSpace(o.format), destination)
+		return err
+	}
+	for _, output := range outputs {
+		if err := validatePhraseDownloadTranslationsOutputPath(output, o.force); err != nil {
+			return err
+		}
+	}
+
+	token, err := phraseAPIToken("phrase download translations", o.tokenEnv)
+	if err != nil {
+		return err
+	}
+
+	client, err := phrase.NewHTTPClientWithBaseURL(phrase.Config{}, o.apiBaseURL, &http.Client{Timeout: 30 * time.Second})
+	if err != nil {
+		return err
+	}
+	writtenOutputs := make([]string, 0, len(outputs))
+	for idx, locale := range locales {
+		result, err := client.DownloadTranslationFile(backgroundContext(), phrase.TranslationDownloadInput{
+			ProjectID:  strings.TrimSpace(o.projectID),
+			APIToken:   token,
+			LocaleID:   locale,
+			FileFormat: strings.TrimSpace(o.format),
+			Branch:     strings.TrimSpace(o.branch),
+			Tags:       o.tags,
+		})
+		if err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return fmt.Errorf("phrase download translations: %w", err)
+		}
+
+		output := outputs[idx]
+		if output == "" || output == "-" {
+			_, err := cmd.OutOrStdout().Write(result.Content)
+			return err
+		}
+		outputExisted := false
+		if _, err := os.Stat(output); err == nil {
+			outputExisted = true
+		}
+		if err := writePhraseDownloadedTranslation(output, result.Content, o.force); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return err
+		}
+		if !outputExisted {
+			writtenOutputs = append(writtenOutputs, output)
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", output, len(result.Content), result.LocaleID, result.Format); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return err
+		}
+	}
+	return nil
+}
+
 func executePhraseDownloadSources(cmd *cobra.Command, o phraseDownloadSourcesOptions) error {
 	if strings.TrimSpace(o.projectID) == "" {
 		return fmt.Errorf("phrase download sources: --project-id is required")
@@ -242,6 +358,46 @@ func phraseAPIToken(action, tokenEnv string) (string, error) {
 	return token, nil
 }
 
+func writePhraseDownloadedTranslation(path string, content []byte, force bool) error {
+	if err := validatePhraseDownloadTranslationsOutputPath(path, force); err != nil {
+		return err
+	}
+	if path == "" || path == "-" {
+		return fmt.Errorf("phrase download translations: output file path is required")
+	}
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("phrase download translations: mkdir output directory: %w", err)
+		}
+	}
+	if force {
+		return writePhraseDownloadedFileAtomic("phrase download translations", path, content, 0o644)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("phrase download translations: output file %q already exists; use --force to overwrite", path)
+		}
+		return fmt.Errorf("phrase download translations: open output file %q: %w", path, err)
+	}
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return fmt.Errorf("phrase download translations: write output file %q: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("phrase download translations: close output file %q: %w", path, err)
+	}
+	return nil
+}
+
+func removePhraseDownloadedTranslationOutputs(paths []string) {
+	for i := len(paths) - 1; i >= 0; i-- {
+		_ = os.Remove(paths[i])
+	}
+}
+
 func writePhraseDownloadedSource(path string, content []byte, force bool) error {
 	if err := validatePhraseDownloadOutputPath(path, force); err != nil {
 		return err
@@ -255,7 +411,7 @@ func writePhraseDownloadedSource(path string, content []byte, force bool) error 
 		}
 	}
 	if force {
-		return writePhraseDownloadedSourceAtomic(path, content, 0o644)
+		return writePhraseDownloadedFileAtomic("phrase download sources", path, content, 0o644)
 	}
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
@@ -274,11 +430,11 @@ func writePhraseDownloadedSource(path string, content []byte, force bool) error 
 	return nil
 }
 
-func writePhraseDownloadedSourceAtomic(path string, content []byte, perm os.FileMode) error {
+func writePhraseDownloadedFileAtomic(action, path string, content []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	file, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
-		return fmt.Errorf("phrase download sources: create temp output file %q: %w", path, err)
+		return fmt.Errorf("%s: create temp output file %q: %w", action, path, err)
 	}
 	tempPath := file.Name()
 	renamed := false
@@ -289,23 +445,40 @@ func writePhraseDownloadedSourceAtomic(path string, content []byte, perm os.File
 	}()
 	if _, err := file.Write(content); err != nil {
 		_ = file.Close()
-		return fmt.Errorf("phrase download sources: write temp output file %q: %w", path, err)
+		return fmt.Errorf("%s: write temp output file %q: %w", action, path, err)
 	}
 	if err := file.Chmod(perm); err != nil {
 		_ = file.Close()
-		return fmt.Errorf("phrase download sources: chmod temp output file %q: %w", path, err)
+		return fmt.Errorf("%s: chmod temp output file %q: %w", action, path, err)
 	}
 	if err := file.Sync(); err != nil {
 		_ = file.Close()
-		return fmt.Errorf("phrase download sources: sync temp output file %q: %w", path, err)
+		return fmt.Errorf("%s: sync temp output file %q: %w", action, path, err)
 	}
 	if err := file.Close(); err != nil {
-		return fmt.Errorf("phrase download sources: close temp output file %q: %w", path, err)
+		return fmt.Errorf("%s: close temp output file %q: %w", action, path, err)
 	}
 	if err := os.Rename(tempPath, path); err != nil {
-		return fmt.Errorf("phrase download sources: replace output file %q: %w", path, err)
+		return fmt.Errorf("%s: replace output file %q: %w", action, path, err)
 	}
 	renamed = true
+	return nil
+}
+
+func validatePhraseDownloadTranslationsOutputPath(path string, force bool) error {
+	if path == "" || path == "-" {
+		return nil
+	}
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("phrase download translations: output file %q is a directory", path)
+		}
+		if !force {
+			return fmt.Errorf("phrase download translations: output file %q already exists; use --force to overwrite", path)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("phrase download translations: stat output file %q: %w", path, err)
+	}
 	return nil
 }
 
@@ -324,6 +497,48 @@ func validatePhraseDownloadOutputPath(path string, force bool) error {
 		return fmt.Errorf("phrase download sources: stat output file %q: %w", path, err)
 	}
 	return nil
+}
+
+func normalizePhraseLocales(values []string) []string {
+	locales := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			locale := strings.TrimSpace(part)
+			if locale == "" {
+				continue
+			}
+			if _, ok := seen[locale]; ok {
+				continue
+			}
+			seen[locale] = struct{}{}
+			locales = append(locales, locale)
+		}
+	}
+	return locales
+}
+
+func phraseTranslationOutputPaths(output string, locales []string) ([]string, error) {
+	if len(locales) == 0 {
+		return nil, nil
+	}
+	if len(locales) == 1 {
+		if strings.Contains(output, "%locale%") {
+			return []string{strings.ReplaceAll(output, "%locale%", locales[0])}, nil
+		}
+		return []string{output}, nil
+	}
+	if output == "" || output == "-" {
+		return nil, fmt.Errorf("phrase download translations: --output with %%locale%% is required when downloading multiple target locales")
+	}
+	if !strings.Contains(output, "%locale%") {
+		return nil, fmt.Errorf("phrase download translations: --output must include %%locale%% when downloading multiple target locales")
+	}
+	paths := make([]string, 0, len(locales))
+	for _, locale := range locales {
+		paths = append(paths, strings.ReplaceAll(output, "%locale%", locale))
+	}
+	return paths, nil
 }
 
 func validatePhraseSourceFiles(paths []string) ([]string, error) {

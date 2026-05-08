@@ -235,6 +235,49 @@ func TestHTTPClientDownloadSourceFileAPIError(t *testing.T) {
 	}
 }
 
+func TestHTTPClientDownloadTranslationFile(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/p/locales/fr/download", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if r.Header.Get("Authorization") != "token x" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if got := r.URL.Query().Get("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.URL.Query().Get("branch"); got != "main" {
+			t.Fatalf("branch = %q, want main", got)
+		}
+		if got := r.URL.Query().Get("tags"); got != "app,reviewed" {
+			t.Fatalf("tags = %q, want app,reviewed", got)
+		}
+		_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.DownloadTranslationFile(context.Background(), TranslationDownloadInput{
+		ProjectID:  "p",
+		APIToken:   "x",
+		LocaleID:   "fr",
+		FileFormat: "json",
+		Branch:     "main",
+		Tags:       []string{"app", "reviewed"},
+	})
+	if err != nil {
+		t.Fatalf("download translation file: %v", err)
+	}
+	if string(result.Content) != `{"hello":"Bonjour"}` || result.LocaleID != "fr" || result.Format != "json" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
 func TestEncodeDecodeEntriesJSON(t *testing.T) {
 	in := []storage.Entry{{Key: "a", Locale: "fr", Value: "A"}, {Key: "b", Locale: "fr", Value: ""}, {Key: "a", Locale: "de", Value: "AA"}}
 	data, err := encodeEntriesJSON(in)

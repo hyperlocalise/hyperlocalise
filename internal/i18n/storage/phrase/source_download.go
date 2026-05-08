@@ -28,6 +28,23 @@ type SourceDownloadResult struct {
 	Content  []byte
 }
 
+// TranslationDownloadInput describes one Phrase target locale download.
+type TranslationDownloadInput struct {
+	ProjectID  string
+	APIToken   string
+	LocaleID   string
+	FileFormat string
+	Branch     string
+	Tags       []string
+}
+
+// TranslationDownloadResult is the normalized content returned by a Phrase target locale download.
+type TranslationDownloadResult struct {
+	LocaleID string
+	Format   string
+	Content  []byte
+}
+
 // DownloadSourceFile downloads source locale content from Phrase Strings.
 func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadInput) (SourceDownloadResult, error) {
 	if strings.TrimSpace(in.ProjectID) == "" {
@@ -58,6 +75,42 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 		return SourceDownloadResult{}, fmt.Errorf("phrase source download %q: %w", in.LocaleID, err)
 	}
 	return SourceDownloadResult{
+		LocaleID: strings.TrimSpace(in.LocaleID),
+		Format:   strings.TrimSpace(in.FileFormat),
+		Content:  content,
+	}, nil
+}
+
+// DownloadTranslationFile downloads target locale content from Phrase Strings.
+func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in TranslationDownloadInput) (TranslationDownloadResult, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("phrase translation download: project id is required")
+	}
+	if strings.TrimSpace(in.APIToken) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("phrase translation download: api token is required")
+	}
+	if strings.TrimSpace(in.LocaleID) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("phrase translation download: target locale is required")
+	}
+	if strings.TrimSpace(in.FileFormat) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("phrase translation download: file format is required")
+	}
+
+	opts := phraseapi.LocaleDownloadOpts{
+		FileFormat: optional.NewString(strings.TrimSpace(in.FileFormat)),
+	}
+	if branch := strings.TrimSpace(in.Branch); branch != "" {
+		opts.Branch = optional.NewString(branch)
+	}
+	if tags := joinTrimmed(in.Tags); tags != "" {
+		opts.Tags = optional.NewString(tags)
+	}
+
+	content, err := c.downloadSourceFile(ctx, strings.TrimSpace(in.APIToken), strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.LocaleID), &opts)
+	if err != nil {
+		return TranslationDownloadResult{}, fmt.Errorf("phrase translation download %q: %w", in.LocaleID, err)
+	}
+	return TranslationDownloadResult{
 		LocaleID: strings.TrimSpace(in.LocaleID),
 		Format:   strings.TrimSpace(in.FileFormat),
 		Content:  content,
