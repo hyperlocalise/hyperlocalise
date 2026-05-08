@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 
-var (
-	// ErrNilRequest is returned when a request for a validation is nil.
-	ErrNilRequest = errors.New("request cannot be nil")
-)
+// ErrNilRequest is returned when a request for a validation is nil.
+var ErrNilRequest = errors.New("request cannot be nil")
 
 // Error represents the schema for the error response.
 type Error struct {

@@ -35,20 +35,26 @@ func TestWebhookAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "requestType is required",
-			req: &WebhookAddRequest{Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
-				Events: []Event{FileApproved}},
+			req: &WebhookAddRequest{
+				Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
+				Events: []Event{FileApproved},
+			},
 			err: "requestType is required",
 		},
 		{
 			name: "requestType is invalid",
-			req: &WebhookAddRequest{Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
-				Events: []Event{FileApproved}, RequestType: "PUT"},
+			req: &WebhookAddRequest{
+				Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
+				Events: []Event{FileApproved}, RequestType: "PUT",
+			},
 			err: "requestType must be GET or POST",
 		},
 		{
 			name: "valid request",
-			req: &WebhookAddRequest{Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
-				Events: []Event{FileApproved}, RequestType: "POST"},
+			req: &WebhookAddRequest{
+				Name: "Proofread", URL: "https://example.com/webhook/9da7ea7595c9",
+				Events: []Event{FileApproved}, RequestType: "POST",
+			},
 			valid: true,
 		},
 	}

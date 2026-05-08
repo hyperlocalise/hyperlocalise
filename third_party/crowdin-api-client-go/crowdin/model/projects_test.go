@@ -32,8 +32,10 @@ func TestProjectsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &ProjectsListOptions{OrderBy: "createdAt desc,name,id", UserID: 1, HasManagerAccess: toPtr(1),
-				Type: toPtr(1), ListOptions: ListOptions{Offset: 1, Limit: 10}},
+			opts: &ProjectsListOptions{
+				OrderBy: "createdAt desc,name,id", UserID: 1, HasManagerAccess: toPtr(1),
+				Type: toPtr(1), ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "hasManagerAccess=1&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cid&type=1&userId=1",
 		},
 	}
@@ -136,51 +138,69 @@ func TestProjectsAddFileFormatSettingsRequestValidate(t *testing.T) {
 		},
 		{
 			name: "Valid request (common file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &CommonFileFormatSettings{ContentSegmentation: toPtr(false),
-					SRXStorageID: toPtr(1), ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format: "android",
+				Settings: &CommonFileFormatSettings{
+					ContentSegmentation: toPtr(false),
+					SRXStorageID:        toPtr(1), ExportPattern: toPtr("pattern"),
+				},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (property file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &PropertyFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &PropertyFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (xml file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &XMLFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &XMLFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (media wiki file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &MediaWikiFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &MediaWikiFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (txt file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &TXTFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &TXTFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (javascript file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &JavaScriptFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &JavaScriptFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (string catalog file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &StringCatalogFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &StringCatalogFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 		{
 			name: "Valid request (other file format settings)",
-			req: &ProjectsAddFileFormatSettingsRequest{Format: "android",
-				Settings: &OtherFileFormatSettings{ExportPattern: toPtr("pattern")}},
+			req: &ProjectsAddFileFormatSettingsRequest{
+				Format:   "android",
+				Settings: &OtherFileFormatSettings{ExportPattern: toPtr("pattern")},
+			},
 			valid: true,
 		},
 	}
@@ -230,14 +250,18 @@ func TestProjectsStringsExporterSettingsRequestValidate(t *testing.T) {
 		},
 		{
 			name: "empty language pair mapping",
-			req: &ProjectsStringsExporterSettingsRequest{Format: "xliff",
-				Settings: StringsExporterSettings{LanguagePairMapping: map[string]string{}}},
+			req: &ProjectsStringsExporterSettingsRequest{
+				Format:   "xliff",
+				Settings: StringsExporterSettings{LanguagePairMapping: map[string]string{}},
+			},
 			err: "settings is required",
 		},
 		{
 			name: "valid request",
-			req: &ProjectsStringsExporterSettingsRequest{Format: "xliff",
-				Settings: StringsExporterSettings{ConvertPlaceholders: toPtr(false), LanguagePairMapping: map[string]string{"en": "fr"}}},
+			req: &ProjectsStringsExporterSettingsRequest{
+				Format:   "xliff",
+				Settings: StringsExporterSettings{ConvertPlaceholders: toPtr(false), LanguagePairMapping: map[string]string{"en": "fr"}},
+			},
 			valid: true,
 		},
 	}

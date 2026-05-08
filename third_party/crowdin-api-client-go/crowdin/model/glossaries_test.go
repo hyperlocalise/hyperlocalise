@@ -72,8 +72,10 @@ func TestGlossariesListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &GlossariesListOptions{OrderBy: "name", GroupID: toPtr(1),
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &GlossariesListOptions{
+				OrderBy: "name", GroupID: toPtr(1),
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "groupId=1&limit=10&offset=5&orderBy=name",
 		},
 	}
@@ -91,6 +93,7 @@ func TestGlossariesListOptionsValues(t *testing.T) {
 		})
 	}
 }
+
 func TestTermsListOptionsValues(t *testing.T) {
 	tests := []struct {
 		name string

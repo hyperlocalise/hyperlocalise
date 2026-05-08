@@ -27,8 +27,10 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &SourceStringsListOptions{DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3},
-				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier"},
+			opts: &SourceStringsListOptions{
+				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3},
+				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier",
+			},
 			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&fileId=1&filter=text&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
 		},
 	}
@@ -192,26 +194,38 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
+			req: &SourceStringsUploadRequest{
+				StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
 				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(false), CleanupMode: toPtr(false),
-				ImportOptions: &SourceStringsImportOptions{FirstLineContainsHeader: toPtr(true),
-					ImportTranslations: toPtr(true), Scheme: map[string]int{"key": 0}}, UpdateOption: "clear_translations_and_approvals"},
+				ImportOptions: &SourceStringsImportOptions{
+					FirstLineContainsHeader: toPtr(true),
+					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
+				}, UpdateOption: "clear_translations_and_approvals",
+			},
 			err: "updateStrings must be set to true to use updateOption",
 		},
 		{
 			name: "valid request",
-			req: &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
+			req: &SourceStringsUploadRequest{
+				StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
 				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(false), CleanupMode: toPtr(false),
-				ImportOptions: &SourceStringsImportOptions{FirstLineContainsHeader: toPtr(true),
-					ImportTranslations: toPtr(true), Scheme: map[string]int{"key": 0}}},
+				ImportOptions: &SourceStringsImportOptions{
+					FirstLineContainsHeader: toPtr(true),
+					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
+				},
+			},
 			valid: true,
 		},
 		{
 			name: "valid request 2",
-			req: &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
+			req: &SourceStringsUploadRequest{
+				StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
 				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(true), CleanupMode: toPtr(false),
-				ImportOptions: &SourceStringsImportOptions{FirstLineContainsHeader: toPtr(true),
-					ImportTranslations: toPtr(true), Scheme: map[string]int{"key": 0}}, UpdateOption: "clear_translations_and_approvals"},
+				ImportOptions: &SourceStringsImportOptions{
+					FirstLineContainsHeader: toPtr(true),
+					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
+				}, UpdateOption: "clear_translations_and_approvals",
+			},
 			valid: true,
 		},
 	}

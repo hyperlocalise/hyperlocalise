@@ -22,8 +22,10 @@ func TestReportArchivesListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &ReportArchivesListOptions{ScopeType: "project", ScopeID: 1,
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &ReportArchivesListOptions{
+				ScopeType: "project", ScopeID: 1,
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "limit=10&offset=5&scopeId=1&scopeType=project",
 		},
 	}
@@ -71,8 +73,10 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid schema (ContributionRawDataSchema)",
-			req: &ReportGenerateRequest{Name: ReportContributionRawData,
-				Schema: &ContributionRawDataSchema{Mode: ReportModeApprovals}},
+			req: &ReportGenerateRequest{
+				Name:   ReportContributionRawData,
+				Schema: &ContributionRawDataSchema{Mode: ReportModeApprovals},
+			},
 			valid: true,
 		},
 		{
@@ -151,7 +155,8 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 			name: "valid schema (TranslatorAccuracySchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportTranslatorAccuracy,
-				Schema: &TranslatorAccuracySchema{Unit: ReportUnitStrings, Format: ReportFormatXLSX, PostEditingCategories: []string{"0-10"}}},
+				Schema: &TranslatorAccuracySchema{Unit: ReportUnitStrings, Format: ReportFormatXLSX, PostEditingCategories: []string{"0-10"}},
+			},
 			valid: true,
 		},
 		{
@@ -207,13 +212,16 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "required schema.baseRates",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationCostsPostEditing,
-				Schema: &GroupTransactionCostsPostEditingSchema{}},
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupTranslationCostsPostEditing,
+				Schema: &GroupTransactionCostsPostEditingSchema{},
+			},
 			err: "baseRates is required",
 		},
 		{
 			name: "required schema.individualRates",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationCostsPostEditing,
+			req: &GroupReportGenerateRequest{
+				Name: ReportGroupTranslationCostsPostEditing,
 				Schema: &GroupTransactionCostsPostEditingSchema{
 					BaseRates: &ReportBaseRates{},
 				},
@@ -222,15 +230,19 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "required schema.netRateSchemes",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationCostsPostEditing,
-				Schema: &GroupTransactionCostsPostEditingSchema{BaseRates: &ReportBaseRates{},
-					IndividualRates: []*ReportIndividualRates{}},
+			req: &GroupReportGenerateRequest{
+				Name: ReportGroupTranslationCostsPostEditing,
+				Schema: &GroupTransactionCostsPostEditingSchema{
+					BaseRates:       &ReportBaseRates{},
+					IndividualRates: []*ReportIndividualRates{},
+				},
 			},
 			err: "netRateSchemes is required",
 		},
 		{
 			name: "valid request (GroupTransactionCostsPostEditingSchema)",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationCostsPostEditing,
+			req: &GroupReportGenerateRequest{
+				Name: ReportGroupTranslationCostsPostEditing,
 				Schema: &GroupTransactionCostsPostEditingSchema{
 					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
 					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},
@@ -245,26 +257,34 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request (GroupTopMembersSchema)",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationCostsPostEditing,
-				Schema: &GroupTopMembersSchema{ProjectIDs: []int{1, 2}, Unit: ReportUnitWords, LanguageID: "uk"}},
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupTranslationCostsPostEditing,
+				Schema: &GroupTopMembersSchema{ProjectIDs: []int{1, 2}, Unit: ReportUnitWords, LanguageID: "uk"},
+			},
 			valid: true,
 		},
 		{
 			name: "valid request (GroupTaskUsageSchema)",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTaskUsage,
-				Schema: &GroupTaskUsageSchema{ProjectIDs: []int{1}, Type: "workload"}},
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupTaskUsage,
+				Schema: &GroupTaskUsageSchema{ProjectIDs: []int{1}, Type: "workload"},
+			},
 			valid: true,
 		},
 		{
 			name: "valid request (GroupQACheckIssuesSchema)",
-			req: &GroupReportGenerateRequest{Name: ReportGroupQACheckIssues,
-				Schema: &GroupQACheckIssuesSchema{ProjectIDs: []int{1, 2}, Format: ReportFormatXLSX}},
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupQACheckIssues,
+				Schema: &GroupQACheckIssuesSchema{ProjectIDs: []int{1, 2}, Format: ReportFormatXLSX},
+			},
 			valid: true,
 		},
 		{
 			name: "valid request (GroupTranslationActivitySchema)",
-			req: &GroupReportGenerateRequest{Name: ReportGroupTranslationActivity,
-				Schema: &GroupTranslationActivitySchema{ProjectIDs: []int{1}, Unit: ReportUnitWords}},
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupTranslationActivity,
+				Schema: &GroupTranslationActivitySchema{ProjectIDs: []int{1}, Unit: ReportUnitWords},
+			},
 			valid: true,
 		},
 	}
@@ -296,8 +316,10 @@ func TestReportSettingsTemplatesListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &ReportSettingsTemplatesListOptions{ProjectID: 1, GroupID: 2,
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &ReportSettingsTemplatesListOptions{
+				ProjectID: 1, GroupID: 2,
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "groupId=2&limit=10&offset=5&projectId=1",
 		},
 	}
@@ -345,19 +367,24 @@ func TestReportSettingsTemplateAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "required config",
-			req: &ReportSettingsTemplateAddRequest{Name: "Default template", Currency: "USD",
-				Unit: ReportUnitWords},
+			req: &ReportSettingsTemplateAddRequest{
+				Name: "Default template", Currency: "USD",
+				Unit: ReportUnitWords,
+			},
 			err: "config is required",
 		},
 		{
 			name: "required config fields",
-			req: &ReportSettingsTemplateAddRequest{Name: "Default template", Currency: "USD",
-				Unit: ReportUnitWords, Config: &ReportSettingsTemplateConfig{}},
+			req: &ReportSettingsTemplateAddRequest{
+				Name: "Default template", Currency: "USD",
+				Unit: ReportUnitWords, Config: &ReportSettingsTemplateConfig{},
+			},
 			err: "config fields are required",
 		},
 		{
 			name: "valid request",
-			req: &ReportSettingsTemplateAddRequest{Name: "Default template", Currency: "USD", Unit: ReportUnitWords,
+			req: &ReportSettingsTemplateAddRequest{
+				Name: "Default template", Currency: "USD", Unit: ReportUnitWords,
 				Config: &ReportSettingsTemplateConfig{
 					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
 					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},

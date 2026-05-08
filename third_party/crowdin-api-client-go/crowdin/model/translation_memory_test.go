@@ -22,8 +22,10 @@ func TestTranslationMemoriesListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &TranslationMemoriesListOptions{OrderBy: "createdAt desc,name", UserID: 1,
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &TranslationMemoriesListOptions{
+				OrderBy: "createdAt desc,name", UserID: 1,
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "limit=10&offset=5&orderBy=createdAt+desc%2Cname&userId=1",
 		},
 	}
@@ -141,8 +143,10 @@ func TestTranslationMemoryImportRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &TranslationMemoryImportRequest{StorageID: 1, FirstLineContainsHeader: toPtr(true),
-				Scheme: map[string]int{"en": 0, "fr": 1}},
+			req: &TranslationMemoryImportRequest{
+				StorageID: 1, FirstLineContainsHeader: toPtr(true),
+				Scheme: map[string]int{"en": 0, "fr": 1},
+			},
 			valid: true,
 		},
 	}
@@ -187,32 +191,42 @@ func TestTMConcordanceSearchRequestValidate(t *testing.T) {
 		},
 		{
 			name: "missing minRelevant",
-			req: &TMConcordanceSearchRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				AutoSubstitution: toPtr(true)},
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true),
+			},
 			err: "minRelevant is required",
 		},
 		{
 			name: "minRelevant is required",
-			req: &TMConcordanceSearchRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				AutoSubstitution: toPtr(true), MinRelevant: 0},
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true), MinRelevant: 0,
+			},
 			err: "minRelevant is required",
 		},
 		{
 			name: "missing expressions",
-			req: &TMConcordanceSearchRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				AutoSubstitution: toPtr(true), MinRelevant: 60},
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true), MinRelevant: 60,
+			},
 			err: "expressions cannot be empty",
 		},
 		{
 			name: "empty expressions",
-			req: &TMConcordanceSearchRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				AutoSubstitution: toPtr(true), MinRelevant: 60, Expressions: []string{}},
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true), MinRelevant: 60, Expressions: []string{},
+			},
 			err: "expressions cannot be empty",
 		},
 		{
 			name: "valid request",
-			req: &TMConcordanceSearchRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				AutoSubstitution: toPtr(true), MinRelevant: 60, Expressions: []string{"expression"}},
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true), MinRelevant: 60, Expressions: []string{"expression"},
+			},
 			valid: true,
 		},
 	}
@@ -244,8 +258,10 @@ func TestTMSegmentsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &TMSegmentsListOptions{OrderBy: "createdAt desc,name", CroQL: "croql",
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &TMSegmentsListOptions{
+				OrderBy: "createdAt desc,name", CroQL: "croql",
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "croql=croql&limit=10&offset=5&orderBy=createdAt+desc%2Cname",
 		},
 	}

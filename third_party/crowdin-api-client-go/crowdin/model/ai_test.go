@@ -81,8 +81,10 @@ func TestFineTuningJobsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opt: &FineTuningJobsListOptions{Statuses: []string{"in_progress"}, OrderBy: "createdAt",
-				ListOptions: ListOptions{Limit: 10, Offset: 20}},
+			opt: &FineTuningJobsListOptions{
+				Statuses: []string{"in_progress"}, OrderBy: "createdAt",
+				ListOptions: ListOptions{Limit: 10, Offset: 20},
+			},
 			out: "limit=10&offset=20&orderBy=createdAt&statuses=in_progress",
 		},
 	}
@@ -217,15 +219,18 @@ func TestPromptAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "empty config mode",
-			req: &PromptAddRequest{Name: "Pre-translate prompt", Action: "pre_translate", AIProviderID: 1,
+			req: &PromptAddRequest{
+				Name: "Pre-translate prompt", Action: "pre_translate", AIProviderID: 1,
 				AIModelID: "gpt-3.5-turbo-instruct", Config: PromptConfig{},
 			},
 			err: "config.mode is required",
 		},
 		{
 			name: "valid request",
-			req: &PromptAddRequest{Name: "Pre-translate prompt", Action: "pre_translate", AIProviderID: 1,
-				AIModelID: "gpt-3.5-turbo-instruct", Config: PromptConfig{Mode: "turbo"}},
+			req: &PromptAddRequest{
+				Name: "Pre-translate prompt", Action: "pre_translate", AIProviderID: 1,
+				AIModelID: "gpt-3.5-turbo-instruct", Config: PromptConfig{Mode: "turbo"},
+			},
 			valid: true,
 		},
 	}

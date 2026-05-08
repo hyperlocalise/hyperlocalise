@@ -179,7 +179,7 @@ func openFile(name, content string) (*os.File, string, error) {
 		return nil, dir, err
 	}
 
-	file, err := os.OpenFile(path.Join(dir, name), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	file, err := os.OpenFile(path.Join(dir, name), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return nil, dir, err
 	}

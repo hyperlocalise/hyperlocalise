@@ -138,8 +138,10 @@ func TestProjectTeamAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &ProjectTeamAddRequest{TeamID: 1, ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true),
-				Roles: []*TranslatorRole{{Name: RoleTranslator, Permissions: &RolePermissions{AllLanguages: toPtr(true)}}}},
+			req: &ProjectTeamAddRequest{
+				TeamID: 1, ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true),
+				Roles: []*TranslatorRole{{Name: RoleTranslator, Permissions: &RolePermissions{AllLanguages: toPtr(true)}}},
+			},
 			valid: true,
 		},
 	}

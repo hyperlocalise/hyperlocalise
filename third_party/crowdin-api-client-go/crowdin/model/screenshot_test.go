@@ -22,16 +22,20 @@ func TestScreenshotListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &ScreenshotListOptions{OrderBy: "createdAt desc,name,tagsCount", StringID: 1, // TODO: StringID is deprecated
+			opts: &ScreenshotListOptions{
+				OrderBy: "createdAt desc,name,tagsCount", StringID: 1, // TODO: StringID is deprecated
 				LabelIDs: []string{"1", "2", "3"}, ExcludeLabelIDs: []string{"4", "5", "6"},
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "excludeLabelIds=4%2C5%2C6&labelIds=1%2C2%2C3&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2CtagsCount&stringId=1",
 		},
 		{
 			name: "with all options",
-			opts: &ScreenshotListOptions{OrderBy: "createdAt desc,name,tagsCount", StringIDs: []string{"1", "2", "3"},
+			opts: &ScreenshotListOptions{
+				OrderBy: "createdAt desc,name,tagsCount", StringIDs: []string{"1", "2", "3"},
 				LabelIDs: []string{"1", "2", "3"}, ExcludeLabelIDs: []string{"4", "5", "6"},
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "excludeLabelIds=4%2C5%2C6&labelIds=1%2C2%2C3&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2CtagsCount&stringIds=1%2C2%2C3",
 		},
 	}
@@ -59,9 +63,11 @@ func TestScreenshotListOptionsValidate(t *testing.T) {
 	}{
 		{
 			name: "invalid case - using both stringId and stringIds in the same request",
-			req: &ScreenshotListOptions{OrderBy: "createdAt desc,name,tagsCount", StringID: 1, StringIDs: []string{"1", "2", "3"}, // TODO: StringID is deprecated
+			req: &ScreenshotListOptions{
+				OrderBy: "createdAt desc,name,tagsCount", StringID: 1, StringIDs: []string{"1", "2", "3"}, // TODO: StringID is deprecated
 				LabelIDs: []string{"1", "2", "3"}, ExcludeLabelIDs: []string{"4", "5", "6"},
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			err: "stringId and stringIds cannot be used in the same request",
 		},
 	}
@@ -101,32 +107,42 @@ func TestScreenshotAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "one of fileId or branchId is required",
-			req: &ScreenshotAddRequest{StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
-				FileID: 1, BranchID: 2},
+			req: &ScreenshotAddRequest{
+				StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
+				FileID: 1, BranchID: 2,
+			},
 			err: "must use either branchId, fileId, or directoryId",
 		},
 		{
 			name: "one of branchId or directoryId is required",
-			req: &ScreenshotAddRequest{StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
-				BranchID: 1, DirectoryID: 2},
+			req: &ScreenshotAddRequest{
+				StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
+				BranchID: 1, DirectoryID: 2,
+			},
 			err: "must use either branchId, fileId, or directoryId",
 		},
 		{
 			name: "one of directoryId or branchId is required",
-			req: &ScreenshotAddRequest{StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
-				DirectoryID: 1, BranchID: 2},
+			req: &ScreenshotAddRequest{
+				StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
+				DirectoryID: 1, BranchID: 2,
+			},
 			err: "must use either branchId, fileId, or directoryId",
 		},
 		{
 			name: "one of branchId, fileId, or directoryId is required",
-			req: &ScreenshotAddRequest{StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
-				DirectoryID: 1, BranchID: 2, FileID: 3},
+			req: &ScreenshotAddRequest{
+				StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
+				DirectoryID: 1, BranchID: 2, FileID: 3,
+			},
 			err: "must use either branchId, fileId, or directoryId",
 		},
 		{
 			name: "valid request",
-			req: &ScreenshotAddRequest{StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
-				FileID: 1, LabelIDs: []int{1, 2, 3}},
+			req: &ScreenshotAddRequest{
+				StorageID: 1, Name: "translate_with_siri.jpg", AutoTag: toPtr(true),
+				FileID: 1, LabelIDs: []int{1, 2, 3},
+			},
 			valid: true,
 		},
 	}
@@ -201,8 +217,10 @@ func TestTagAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &TagAddRequest{StringID: 1,
-				Position: &TagPosition{X: toPtr(0), Y: toPtr(10), Width: toPtr(100), Height: toPtr(200)}},
+			req: &TagAddRequest{
+				StringID: 1,
+				Position: &TagPosition{X: toPtr(0), Y: toPtr(10), Width: toPtr(100), Height: toPtr(200)},
+			},
 			valid: true,
 		},
 	}

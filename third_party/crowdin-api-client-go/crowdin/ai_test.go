@@ -822,7 +822,7 @@ func TestAIService_DeletePrompt(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
-	var userID = 1
+	userID := 1
 	t.Run("path with user id", func(t *testing.T) {
 		const path = "/api/v2/users/1/ai/prompts/2"
 		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {

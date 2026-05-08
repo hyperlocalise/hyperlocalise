@@ -22,8 +22,10 @@ func TestTasksListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &TasksListOptions{OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
-				AssigneeID: 1, ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &TasksListOptions{
+				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
+				AssigneeID: 1, ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "assigneeId=1&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
 		},
 	}
@@ -63,8 +65,10 @@ func TestUserTasksListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "all options",
-			opts: &UserTasksListOptions{OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
-				IsArchived: toPtr(1), ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &UserTasksListOptions{
+				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
+				IsArchived: toPtr(1), ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "isArchived=1&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
 		},
 	}
@@ -173,8 +177,10 @@ func TestTaskCreateFormValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &TaskCreateForm{Title: "Test task", LanguageID: "uk", Type: toPtr(TaskTypeProofread),
-				FileIDs: []int{1, 2}},
+			req: &TaskCreateForm{
+				Title: "Test task", LanguageID: "uk", Type: toPtr(TaskTypeProofread),
+				FileIDs: []int{1, 2},
+			},
 			valid: true,
 		},
 	}
@@ -229,20 +235,26 @@ func TestLanguageServiceTaskCreateFormValidate(t *testing.T) {
 		},
 		{
 			name: "invalid vendor",
-			req: &LanguageServiceTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: "invalid"},
+			req: &LanguageServiceTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: "invalid",
+			},
 			err: "vendor is required and must be \"crowdin_language_service\"",
 		},
 		{
 			name: "required fileIds/branchIds/stringIds",
-			req: &LanguageServiceTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: TaskVendorCrowdinLanguageService},
+			req: &LanguageServiceTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: TaskVendorCrowdinLanguageService,
+			},
 			err: "one of stringIds, fileIds or branchIds is required",
 		},
 		{
 			name: "valid validation",
-			req: &LanguageServiceTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: TaskVendorCrowdinLanguageService, BranchIDs: []int{1, 2, 3}},
+			req: &LanguageServiceTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: TaskVendorCrowdinLanguageService, BranchIDs: []int{1, 2, 3},
+			},
 			valid: true,
 		},
 	}
@@ -307,8 +319,10 @@ func TestVendorOhtTaskCreateFormValidate(t *testing.T) {
 		},
 		{
 			name: "valid validation",
-			req: &VendorOhtTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: TaskVendorOht, StringIDs: []int{1, 2, 3}},
+			req: &VendorOhtTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: TaskVendorOht, StringIDs: []int{1, 2, 3},
+			},
 			valid: true,
 		},
 	}
@@ -373,8 +387,10 @@ func TestVendorGengoTaskCreateFormValidate(t *testing.T) {
 		},
 		{
 			name: "valid validation",
-			req: &VendorGengoTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: TaskVendorGengo, FileIDs: []int{1, 2, 3}},
+			req: &VendorGengoTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: TaskVendorGengo, FileIDs: []int{1, 2, 3},
+			},
 			valid: true,
 		},
 	}
@@ -435,8 +451,10 @@ func TestVendorManualTaskCreateFormValidate(t *testing.T) {
 
 		{
 			name: "valid validation",
-			req: &VendorManualTaskCreateForm{Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
-				Vendor: TaskVendorAlconost, BranchIDs: []int{1, 2, 3}},
+			req: &VendorManualTaskCreateForm{
+				Title: "French", LanguageID: "en", Type: TaskTypeTranslateByVendor,
+				Vendor: TaskVendorAlconost, BranchIDs: []int{1, 2, 3},
+			},
 			valid: true,
 		},
 	}
@@ -571,14 +589,18 @@ func TestVendorManualPendingTaskCreateFormValidate(t *testing.T) {
 		},
 		{
 			name: "required title",
-			req: &VendorManualPendingTaskCreateForm{PrecedingTaskID: 1, Type: TaskTypeProofreadByVendor,
-				Vendor: TaskVendorAlconost},
+			req: &VendorManualPendingTaskCreateForm{
+				PrecedingTaskID: 1, Type: TaskTypeProofreadByVendor,
+				Vendor: TaskVendorAlconost,
+			},
 			err: "title is required",
 		},
 		{
 			name: "valid validation",
-			req: &VendorManualPendingTaskCreateForm{PrecedingTaskID: 1, Type: TaskTypeProofreadByVendor,
-				Vendor: TaskVendorAlconost, Title: "French"},
+			req: &VendorManualPendingTaskCreateForm{
+				PrecedingTaskID: 1, Type: TaskTypeProofreadByVendor,
+				Vendor: TaskVendorAlconost, Title: "French",
+			},
 			valid: true,
 		},
 	}

@@ -251,7 +251,8 @@ func TestWebhooksService_List(t *testing.T) {
 				{
 					ID:      6,
 					Headers: map[string]string{},
-				}}
+				},
+			}
 			assert.Equal(t, expected, webhooks)
 
 			assert.Equal(t, 1, resp.Pagination.Offset)

@@ -16,7 +16,7 @@ func TestProjectsService_Get(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
-	var jsonResp = `{
+	jsonResp := `{
 		"data": {
 			"id": 8,
 			"type": 0,
@@ -410,7 +410,7 @@ func TestProjectsService_Get_Enterprise(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
-	var jsonResp = `{
+	jsonResp := `{
 		"data": {
 			"id": 9,
 			"groupId": 4,

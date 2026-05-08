@@ -30,32 +30,42 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &PreTranslationRequest{LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "tm", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false)},
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
+				Method: "tm", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
 			valid: true,
 		},
 		{
 			name: "missing aiPromptId",
-			req: &PreTranslationRequest{LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "ai", AutoApproveOption: "all", DuplicateTranslations: toPtr(false)},
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
+				Method: "ai", AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
 			err: "aiPromptId is required",
 		},
 		{
 			name: "valid request with ai method",
-			req: &PreTranslationRequest{LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "ai", AIPromptID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false)},
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
+				Method: "ai", AIPromptID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
 			valid: true,
 		},
 		{
 			name: "missing engineId with mt method",
-			req: &PreTranslationRequest{LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "mt", AutoApproveOption: "all", DuplicateTranslations: toPtr(false)},
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
+				Method: "mt", AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
 			err: "engineId is required",
 		},
 		{
 			name: "valid request with mt method",
-			req: &PreTranslationRequest{LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "mt", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false)},
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
+				Method: "mt", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
 			valid: true,
 		},
 	}
@@ -90,8 +100,10 @@ func TestBuildProjectDirectoryTranslationRequestValidate(t *testing.T) {
 		},
 		{
 			name: "must not skip both",
-			req: &BuildProjectDirectoryTranslationRequest{SkipUntranslatedStrings: toPtr(true),
-				SkipUntranslatedFiles: toPtr(true)},
+			req: &BuildProjectDirectoryTranslationRequest{
+				SkipUntranslatedStrings: toPtr(true),
+				SkipUntranslatedFiles:   toPtr(true),
+			},
 			err: "skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request",
 		},
 		{
@@ -104,8 +116,10 @@ func TestBuildProjectDirectoryTranslationRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &BuildProjectDirectoryTranslationRequest{TargetLanguageIDs: []string{"en"},
-				SkipUntranslatedStrings: toPtr(true), ExportApprovedOnly: toPtr(true)},
+			req: &BuildProjectDirectoryTranslationRequest{
+				TargetLanguageIDs:       []string{"en"},
+				SkipUntranslatedStrings: toPtr(true), ExportApprovedOnly: toPtr(true),
+			},
 			valid: true,
 		},
 	}
@@ -140,20 +154,26 @@ func TestBuildProjectFileTranslationRequestValidate(t *testing.T) {
 		},
 		{
 			name: "must not skip both",
-			req: &BuildProjectFileTranslationRequest{TargetLanguageID: "uk", SkipUntranslatedStrings: toPtr(true),
-				SkipUntranslatedFiles: toPtr(true)},
+			req: &BuildProjectFileTranslationRequest{
+				TargetLanguageID: "uk", SkipUntranslatedStrings: toPtr(true),
+				SkipUntranslatedFiles: toPtr(true),
+			},
 			err: "skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request",
 		},
 		{
 			name: "must not export both",
-			req: &BuildProjectFileTranslationRequest{TargetLanguageID: "uk", ExportWithMinApprovalsCount: toPtr(1),
-				ExportStringsThatPassedWorkflow: toPtr(true)},
+			req: &BuildProjectFileTranslationRequest{
+				TargetLanguageID: "uk", ExportWithMinApprovalsCount: toPtr(1),
+				ExportStringsThatPassedWorkflow: toPtr(true),
+			},
 			err: "exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request",
 		},
 		{
 			name: "valid request",
-			req: &BuildProjectFileTranslationRequest{TargetLanguageID: "uk", SkipUntranslatedStrings: toPtr(true),
-				ExportApprovedOnly: toPtr(true)},
+			req: &BuildProjectFileTranslationRequest{
+				TargetLanguageID: "uk", SkipUntranslatedStrings: toPtr(true),
+				ExportApprovedOnly: toPtr(true),
+			},
 			valid: true,
 		},
 	}
@@ -233,8 +253,10 @@ func TestBuildProjectRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &BuildProjectRequest{BranchID: 1, TargetLanguageIDs: []string{"en"}, SkipUntranslatedStrings: toPtr(true),
-				ExportApprovedOnly: toPtr(true)},
+			req: &BuildProjectRequest{
+				BranchID: 1, TargetLanguageIDs: []string{"en"}, SkipUntranslatedStrings: toPtr(true),
+				ExportApprovedOnly: toPtr(true),
+			},
 			valid: true,
 		},
 	}
@@ -274,8 +296,10 @@ func TestPseudoBuildProjectRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &PseudoBuildProjectRequest{Pseudo: toPtr(true), BranchID: 1, Prefix: "prefix", Suffix: "suffix",
-				LengthTransformation: toPtr(50), CharTransformation: "cyrillic"},
+			req: &PseudoBuildProjectRequest{
+				Pseudo: toPtr(true), BranchID: 1, Prefix: "prefix", Suffix: "suffix",
+				LengthTransformation: toPtr(50), CharTransformation: "cyrillic",
+			},
 			valid: true,
 		},
 	}
@@ -315,9 +339,11 @@ func TestUploadTranslationsRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &UploadTranslationsRequest{StorageID: 1, FileID: 2, BranchID: 0,
+			req: &UploadTranslationsRequest{
+				StorageID: 1, FileID: 2, BranchID: 0,
 				ImportEqSuggestions: toPtr(true), AutoApproveImported: toPtr(true), TranslateHidden: toPtr(true),
-				AddToTM: toPtr(false)},
+				AddToTM: toPtr(false),
+			},
 			valid: true,
 		},
 	}
@@ -352,8 +378,10 @@ func TestExportTranslationRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &ExportTranslationRequest{TargetLanguageID: "uk", Format: "xliff", FileIDs: []int{1}, LabelIDs: []int{4},
-				SkipUntranslatedFiles: toPtr(false), ExportApprovedOnly: toPtr(false)},
+			req: &ExportTranslationRequest{
+				TargetLanguageID: "uk", Format: "xliff", FileIDs: []int{1}, LabelIDs: []int{4},
+				SkipUntranslatedFiles: toPtr(false), ExportApprovedOnly: toPtr(false),
+			},
 			valid: true,
 		},
 	}

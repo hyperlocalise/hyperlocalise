@@ -111,7 +111,7 @@ func testClientServices(t *testing.T, c *Client) {
 }
 
 func TestNewClient(t *testing.T) {
-	var token = "access_token"
+	token := "access_token"
 	c, _ := NewClient(token)
 	if c.token != token {
 		t.Errorf("Client token is %v, want %v", c.token, token)

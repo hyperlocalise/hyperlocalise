@@ -22,8 +22,10 @@ func TestProjectMembersListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &ProjectMembersListOptions{OrderBy: "createdAt desc,name,priority", Search: "test", Role: "all",
-				LanguageID: "en", WorkflowStepID: 1, ListOptions: ListOptions{Offset: 1, Limit: 10}},
+			opts: &ProjectMembersListOptions{
+				OrderBy: "createdAt desc,name,priority", Search: "test", Role: "all",
+				LanguageID: "en", WorkflowStepID: 1, ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority&role=all&search=test&workflowStepId=1",
 		},
 	}
@@ -66,8 +68,10 @@ func TestProjectMemberAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &ProjectMemberAddRequest{UserIDs: []int{1}, Usernames: []string{"test"}, Emails: []string{"test@example.com"},
-				ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true), Roles: []*TranslatorRole{{Name: RoleTranslator}}},
+			req: &ProjectMemberAddRequest{
+				UserIDs: []int{1}, Usernames: []string{"test"}, Emails: []string{"test@example.com"},
+				ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true), Roles: []*TranslatorRole{{Name: RoleTranslator}},
+			},
 			valid: true,
 		},
 	}
@@ -102,8 +106,10 @@ func TestProjectMemberReplaceRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &ProjectMemberReplaceRequest{ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true),
-				Roles: []*TranslatorRole{{Name: RoleTranslator, Permissions: &RolePermissions{AllLanguages: toPtr(true)}}}},
+			req: &ProjectMemberReplaceRequest{
+				ManagerAccess: toPtr(true), DeveloperAccess: toPtr(true),
+				Roles: []*TranslatorRole{{Name: RoleTranslator, Permissions: &RolePermissions{AllLanguages: toPtr(true)}}},
+			},
 			valid: true,
 		},
 	}
@@ -135,11 +141,13 @@ func TestUsersListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &UsersListOptions{OrderBy: "createdAt desc,name,priority", Status: "active", Search: "test",
+			opts: &UsersListOptions{
+				OrderBy: "createdAt desc,name,priority", Status: "active", Search: "test",
 				TwoFactor: "enabled", OrganizationRoles: "manager,client", TeamID: 4, ProjectIDs: "4, 5",
 				ProjectRoles: "manager,developer", LanguageIDs: "en,uk", GroupIDs: "2,3",
 				LastSeenFrom: "2024-01-10T10:41:33+00:00", LastSeenTo: "2024-01-10T10:41:33+00:00",
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "groupIds=2%2C3&languageIds=en%2Cuk&lastSeenFrom=2024-01-10T10%3A41%3A33%2B00%3A00&lastSeenTo=2024-01-10T10%3A41%3A33%2B00%3A00&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority&organizationRoles=manager%2Cclient&projectIds=4%2C+5&projectRoles=manager%2Cdeveloper&search=test&status=active&teamId=4&twoFactor=enabled",
 		},
 	}
@@ -182,8 +190,10 @@ func TestInviteUserRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &InviteUserRequest{Email: "test@example.com", FirstName: "Test", LastName: "User", Timezone: "UTC",
-				AdminAccess: toPtr(true)},
+			req: &InviteUserRequest{
+				Email: "test@example.com", FirstName: "Test", LastName: "User", Timezone: "UTC",
+				AdminAccess: toPtr(true),
+			},
 			valid: true,
 		},
 	}

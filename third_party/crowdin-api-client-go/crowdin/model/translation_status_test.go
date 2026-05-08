@@ -22,8 +22,10 @@ func TestProjectProgressListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &ProjectProgressListOptions{LanguageIDs: []string{"uk", "fr"},
-				ListOptions: ListOptions{Limit: 10, Offset: 5}},
+			opts: &ProjectProgressListOptions{
+				LanguageIDs: []string{"uk", "fr"},
+				ListOptions: ListOptions{Limit: 10, Offset: 5},
+			},
 			out: "languageIds=uk%2Cfr&limit=10&offset=5",
 		},
 	}
@@ -58,9 +60,11 @@ func TestQACheckListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &QACheckListOptions{Category: []string{"variables", "tags"},
+			opts: &QACheckListOptions{
+				Category:    []string{"variables", "tags"},
 				Validation:  []string{"spellcheck", "escaped_quotes_check", "multiple_spaces_check"},
-				LanguageIDs: []string{"uk", "fr"}},
+				LanguageIDs: []string{"uk", "fr"},
+			},
 			out: "category=variables%2Ctags&languageIds=uk%2Cfr&validation=spellcheck%2Cescaped_quotes_check%2Cmultiple_spaces_check",
 		},
 	}

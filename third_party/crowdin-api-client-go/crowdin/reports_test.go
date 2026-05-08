@@ -263,6 +263,7 @@ func TestReportsService_ExportArchive(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
 func TestReportsService_CheckArchiveExportStatus(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()

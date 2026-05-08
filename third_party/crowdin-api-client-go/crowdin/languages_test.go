@@ -302,7 +302,7 @@ func TestLanguageService_Add(t *testing.T) {
 	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 		testURL(t, r, "/api/v2/languages")
-		var b = `{"name":"CustomLanguage","code":"custom","localeCode":"custom-Uk","textDirection":"ltr","pluralCategoryNames":["one","other"],"threeLettersCode":"cus","twoLettersCode":"cu","dialectOf":"uk"}`
+		b := `{"name":"CustomLanguage","code":"custom","localeCode":"custom-Uk","textDirection":"ltr","pluralCategoryNames":["one","other"],"threeLettersCode":"cus","twoLettersCode":"cu","dialectOf":"uk"}`
 		testBody(t, r, b+"\n")
 
 		fmt.Fprint(w, `{

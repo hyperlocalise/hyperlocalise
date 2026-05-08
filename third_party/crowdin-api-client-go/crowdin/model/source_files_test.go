@@ -22,8 +22,10 @@ func TestDirectoryListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &DirectoryListOptions{OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
-				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10}},
+			opts: &DirectoryListOptions{
+				OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
+				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority",
 		},
 	}
@@ -57,7 +59,8 @@ func TestDirectoryAddRequestValidate(t *testing.T) {
 		{
 			name: "empty request",
 			req:  &DirectoryAddRequest{},
-			err:  "name is required"},
+			err:  "name is required",
+		},
 		{
 			name: "one of branchId or directoryId is required",
 			req:  &DirectoryAddRequest{Name: "main", BranchID: 1, DirectoryID: 2},
@@ -97,8 +100,10 @@ func TestFileListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &FileListOptions{OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
-				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10}},
+			opts: &FileListOptions{
+				OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
+				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority",
 		},
 	}

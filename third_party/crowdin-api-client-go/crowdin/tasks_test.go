@@ -312,7 +312,8 @@ func TestTasksService_List(t *testing.T) {
 						"some-field-2": float64(12),
 						"some-field-3": true,
 						"some-field-4": []any{"en", "uk"},
-					}},
+					},
+				},
 				{ID: 4, Fields: []any{}},
 				{ID: 6, Fields: map[string]any{}},
 				{ID: 8, Fields: nil},
@@ -733,7 +734,8 @@ func TestTasksService_ListUserTasks(t *testing.T) {
 
 			expected := []*model.Task{
 				{ID: 2, IsArchived: ToPtr(false)},
-				{ID: 4, IsArchived: ToPtr(true)}}
+				{ID: 4, IsArchived: ToPtr(true)},
+			}
 			assert.Equal(t, expected, tasks)
 
 			assert.Equal(t, 10, resp.Pagination.Offset)

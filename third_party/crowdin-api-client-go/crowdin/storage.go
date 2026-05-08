@@ -37,7 +37,8 @@ func (s *StorageService) Add(ctx context.Context, file *os.File) (*model.Storage
 	}
 
 	res := new(model.StorageGetResponse)
-	resp, err := s.client.Upload(ctx, "/api/v2/storages", file, res,
+	resp, err := s.client.Upload(
+		ctx, "/api/v2/storages", file, res,
 		Header("Content-Type", mime.TypeByExtension(filepath.Ext(file.Name()))),
 		Header("Crowdin-API-FileName", url.QueryEscape(filepath.Base(file.Name()))),
 	)

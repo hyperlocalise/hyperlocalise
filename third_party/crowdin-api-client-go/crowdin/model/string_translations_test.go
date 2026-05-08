@@ -22,9 +22,11 @@ func TestApprovalsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &ApprovalsListOptions{OrderBy: "createdAt desc,id", FileID: 1, LabelIDs: []int{1, 2},
+			opts: &ApprovalsListOptions{
+				OrderBy: "createdAt desc,id", FileID: 1, LabelIDs: []int{1, 2},
 				ExcludeLabelIDs: []int{3, 4}, StringID: 2, LanguageID: "en", TranslationID: 3,
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringId=2&translationId=3",
 		},
 	}
@@ -109,9 +111,11 @@ func TestLanguageTranslationsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &LanguageTranslationsListOptions{OrderBy: "createdAt desc,id", StringIDs: []int{1, 2}, LabelIDs: []int{1, 2},
+			opts: &LanguageTranslationsListOptions{
+				OrderBy: "createdAt desc,id", StringIDs: []int{1, 2}, LabelIDs: []int{1, 2},
 				FileID: 1, BranchID: 2, DirectoryID: 3, CroQL: "croql", DenormalizePlaceholders: toPtr(1),
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "branchId=2&croql=croql&denormalizePlaceholders=1&directoryId=3&fileId=1&labelIds=1%2C2&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringIds=1%2C2",
 		},
 	}
@@ -191,8 +195,10 @@ func TestStringTranslationsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &StringTranslationsListOptions{OrderBy: "createdAt desc,name", StringID: 1,
-				LanguageID: "en", DenormalizePlaceholders: toPtr(1)},
+			opts: &StringTranslationsListOptions{
+				OrderBy: "createdAt desc,name", StringID: 1,
+				LanguageID: "en", DenormalizePlaceholders: toPtr(1),
+			},
 			out: "denormalizePlaceholders=1&languageId=en&orderBy=createdAt+desc%2Cname&stringId=1",
 		},
 	}
@@ -240,8 +246,10 @@ func TestTranslationAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &TranslationAddRequest{StringID: 123, LanguageID: "uk", Text: "Hello, World!",
-				PluralCategoryName: "one", AddToTM: toPtr(true)},
+			req: &TranslationAddRequest{
+				StringID: 123, LanguageID: "uk", Text: "Hello, World!",
+				PluralCategoryName: "one", AddToTM: toPtr(true),
+			},
 			valid: true,
 		},
 	}
@@ -273,9 +281,11 @@ func TestVotesListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &VotesListOptions{StringID: 1, LanguageID: "en", TranslationID: 2, FileID: 3,
+			opts: &VotesListOptions{
+				StringID: 1, LanguageID: "en", TranslationID: 2, FileID: 3,
 				LabelIDs: []int{1, 2}, ExcludeLabelIDs: []int{3, 4},
-				ListOptions: ListOptions{Offset: 1, Limit: 10}},
+				ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "excludeLabelIds=3%2C4&fileId=3&labelIds=1%2C2&languageId=en&limit=10&offset=1&stringId=1&translationId=2",
 		},
 	}

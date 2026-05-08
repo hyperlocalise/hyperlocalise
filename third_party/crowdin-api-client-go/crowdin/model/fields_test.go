@@ -90,8 +90,10 @@ func TestFieldAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &FieldAddRequest{Name: "Custom field", Slug: "custom-field", Type: TypeSelect,
-				Entities: []FieldEntity{EntityTask}, Description: "Custom field description", Config: FieldConfig{}},
+			req: &FieldAddRequest{
+				Name: "Custom field", Slug: "custom-field", Type: TypeSelect,
+				Entities: []FieldEntity{EntityTask}, Description: "Custom field description", Config: FieldConfig{},
+			},
 			valid: true,
 		},
 	}

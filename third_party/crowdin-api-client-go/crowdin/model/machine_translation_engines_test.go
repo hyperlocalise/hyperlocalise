@@ -80,8 +80,10 @@ func TestMTAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &MTAddRequest{Name: "Crowdin Translate", Type: "crowdin",
-				Credentials: &MTECredentials{APIKey: "test"}},
+			req: &MTAddRequest{
+				Name: "Crowdin Translate", Type: "crowdin",
+				Credentials: &MTECredentials{APIKey: "test"},
+			},
 			valid: true,
 		},
 	}
@@ -126,8 +128,10 @@ func TestTranslateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &TranslateRequest{SourceLanguageID: "en", TargetLanguageID: "de",
-				LanguageRecognitionProvider: LanguageRecognitionProviderCrowdin, Strings: []string{"Hello, World!"}},
+			req: &TranslateRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				LanguageRecognitionProvider: LanguageRecognitionProviderCrowdin, Strings: []string{"Hello, World!"},
+			},
 			valid: true,
 		},
 	}

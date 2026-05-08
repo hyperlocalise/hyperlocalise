@@ -130,6 +130,7 @@ func TestSecurityLogsService_ListUserLogs_invalidJSON(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, res)
 }
+
 func TestSecurityLogsService_ListOrganizationLogs(t *testing.T) {
 	tests := []struct {
 		name          string

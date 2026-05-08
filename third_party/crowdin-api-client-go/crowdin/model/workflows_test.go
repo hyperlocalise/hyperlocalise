@@ -82,8 +82,10 @@ func TestWorkflowStepStringsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "with all options",
-			opts: &WorkflowStepStringsListOptions{LanguageIDs: []string{"en", "fr"}, OrderBy: "createdAt desc,text,identifier",
-				Status: "done", ListOptions: ListOptions{Offset: 1, Limit: 10}},
+			opts: &WorkflowStepStringsListOptions{
+				LanguageIDs: []string{"en", "fr"}, OrderBy: "createdAt desc,text,identifier",
+				Status: "done", ListOptions: ListOptions{Offset: 1, Limit: 10},
+			},
 			out: "languageIds=en%2Cfr&limit=10&offset=1&orderBy=createdAt+desc%2Ctext%2Cidentifier&status=done",
 		},
 	}

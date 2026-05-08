@@ -75,8 +75,10 @@ func TestBranchesAddRequestValidate(t *testing.T) {
 		},
 		{
 			name: "valid request",
-			req: &BranchesAddRequest{Name: "master", Title: "Master branch",
-				ExportPattern: "%three_letters_code%", Priority: "normal"},
+			req: &BranchesAddRequest{
+				Name: "master", Title: "Master branch",
+				ExportPattern: "%three_letters_code%", Priority: "normal",
+			},
 			valid: true,
 		},
 	}

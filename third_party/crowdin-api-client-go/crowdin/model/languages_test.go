@@ -45,20 +45,26 @@ func TestAddLanguageRequestValidate(t *testing.T) {
 		},
 		{
 			name: "missing fields (textDirection)",
-			req: &AddLanguageRequest{Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
-				PluralCategoryNames: []string{"one"}},
+			req: &AddLanguageRequest{
+				Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
+				PluralCategoryNames: []string{"one"},
+			},
 			err: "textDirection is required",
 		},
 		{
 			name: "invalid textDirection",
-			req: &AddLanguageRequest{Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
-				PluralCategoryNames: []string{"one"}, TextDirection: "invalid"},
+			req: &AddLanguageRequest{
+				Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
+				PluralCategoryNames: []string{"one"}, TextDirection: "invalid",
+			},
 			err: "textDirection must be \"ltr\" or \"rtl\"",
 		},
 		{
 			name: "valid request",
-			req: &AddLanguageRequest{Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
-				PluralCategoryNames: []string{"one"}, TextDirection: "ltr"},
+			req: &AddLanguageRequest{
+				Name: "Test", Code: "en", LocaleCode: "en_US", ThreeLettersCode: "eng",
+				PluralCategoryNames: []string{"one"}, TextDirection: "ltr",
+			},
 			valid: true,
 		},
 	}
