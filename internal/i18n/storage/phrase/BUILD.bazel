@@ -5,5 +5,9 @@ go_library(
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/phrase",
     visibility = ["//visibility:public"],
-    deps = ["//internal/i18n/storage"],
+    deps = [
+        "//internal/i18n/storage",
+        "@com_github_antihax_optional//:optional",
+        "@com_github_phrase_phrase_go_v4//:phrase-go",
+    ],
 )
