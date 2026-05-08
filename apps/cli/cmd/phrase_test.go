@@ -309,3 +309,166 @@ func TestPhraseDownloadSourcesTokenErrorListsFallback(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestPhraseDownloadTranslationsDryRun(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--output", "fr.json", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase translation download dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry-run action=phrase-download-translations") || !strings.Contains(out.String(), "target_locales=fr") || !strings.Contains(out.String(), "output=fr.json") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestPhraseDownloadTranslationsRequiresTargetLocale(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--format", "json"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing target locale error")
+	}
+	if !strings.Contains(err.Error(), "at least one --target-locale is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseDownloadTranslationsWritesStdout(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/projects/project-1/locales/fr/download" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "token secret" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if got := r.URL.Query().Get("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.URL.Query().Get("branch"); got != "main" {
+			t.Fatalf("branch = %q, want main", got)
+		}
+		if got := r.URL.Query().Get("tags"); got != "app,reviewed" {
+			t.Fatalf("tags = %q, want app,reviewed", got)
+		}
+		_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+	}))
+	defer server.Close()
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--branch", "main", "--tag", "app", "--tag", "reviewed", "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase translation download: %v", err)
+	}
+	if got := out.String(); got != `{"hello":"Bonjour"}` {
+		t.Fatalf("unexpected stdout content: %q", got)
+	}
+}
+
+func TestPhraseDownloadTranslationsWritesOutputFile(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+	}))
+	defer server.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "locales", "fr.json")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--output", outputPath, "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase translation download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "downloaded file="+outputPath) || !strings.Contains(out.String(), "locale=fr") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestPhraseDownloadTranslationsMultipleLocalesUseOutputPattern(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	requests := make([]string, 0, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.Path)
+		switch r.URL.Path {
+		case "/projects/project-1/locales/fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		case "/projects/project-1/locales/de/download":
+			_, _ = w.Write([]byte(`{"hello":"Hallo"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	outputPattern := filepath.Join(dir, "%locale%.json")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr,de", "--format", "json", "--output", outputPattern, "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase translation download: %v", err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("requests len = %d, want 2", len(requests))
+	}
+	fr, err := os.ReadFile(filepath.Join(dir, "fr.json"))
+	if err != nil {
+		t.Fatalf("read fr output: %v", err)
+	}
+	de, err := os.ReadFile(filepath.Join(dir, "de.json"))
+	if err != nil {
+		t.Fatalf("read de output: %v", err)
+	}
+	if string(fr) != `{"hello":"Bonjour"}` || string(de) != `{"hello":"Hallo"}` {
+		t.Fatalf("unexpected outputs: fr=%q de=%q", string(fr), string(de))
+	}
+}
+
+func TestPhraseDownloadTranslationsMultipleLocalesRequireOutputPattern(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--target-locale", "de", "--format", "json", "--output", "translations.json", "--dry-run"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected output pattern error")
+	}
+	if !strings.Contains(err.Error(), "must include %locale%") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "fr.json")
+	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--output", outputPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected overwrite error")
+	}
+	if !strings.Contains(err.Error(), "already exists; use --force to overwrite") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
