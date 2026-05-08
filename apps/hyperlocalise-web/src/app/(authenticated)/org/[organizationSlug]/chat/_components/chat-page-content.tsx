@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   TypographyH2,
   TypographyH4,
@@ -254,19 +256,26 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
-                      aria-label="Add translation context"
-                    />
-                  }
-                >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                </DropdownMenuTrigger>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
+                            aria-label="Add translation context"
+                          />
+                        }
+                      />
+                    }
+                  >
+                    <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+                  </TooltipTrigger>
+                  <TooltipContent>Add translation context</TooltipContent>
+                </Tooltip>
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
                     <DropdownMenuItem
@@ -363,7 +372,12 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label="Send translation request"
               >
-                <HugeiconsIcon icon={SentIcon} strokeWidth={2} /> Send
+                {chatRequestMutation.isPending ? (
+                  <Spinner className="text-primary-foreground" />
+                ) : (
+                  <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
+                )}
+                Send
               </Button>
             </div>
           </div>
@@ -381,6 +395,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               <div key={request.title}>
                 <button
                   type="button"
+                  onClick={() => setText(`${request.title}. ${request.detail}`)}
                   className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/10"
                 >
                   <HugeiconsIcon
