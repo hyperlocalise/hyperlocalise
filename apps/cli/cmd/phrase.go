@@ -245,6 +245,7 @@ func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTrans
 	if err != nil {
 		return err
 	}
+	writtenOutputs := make([]string, 0, len(outputs))
 	for idx, locale := range locales {
 		result, err := client.DownloadTranslationFile(backgroundContext(), phrase.TranslationDownloadInput{
 			ProjectID:  strings.TrimSpace(o.projectID),
@@ -255,6 +256,7 @@ func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTrans
 			Tags:       o.tags,
 		})
 		if err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
 			return fmt.Errorf("phrase download translations: %w", err)
 		}
 
@@ -264,9 +266,12 @@ func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTrans
 			return err
 		}
 		if err := writePhraseDownloadedTranslation(output, result.Content, o.force); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
 			return err
 		}
+		writtenOutputs = append(writtenOutputs, output)
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", output, len(result.Content), result.LocaleID, result.Format); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
 			return err
 		}
 	}
@@ -371,12 +376,20 @@ func writePhraseDownloadedTranslation(path string, content []byte, force bool) e
 	}
 	if _, err := file.Write(content); err != nil {
 		_ = file.Close()
+		_ = os.Remove(path)
 		return fmt.Errorf("phrase download translations: write output file %q: %w", path, err)
 	}
 	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
 		return fmt.Errorf("phrase download translations: close output file %q: %w", path, err)
 	}
 	return nil
+}
+
+func removePhraseDownloadedTranslationOutputs(paths []string) {
+	for i := len(paths) - 1; i >= 0; i-- {
+		_ = os.Remove(paths[i])
+	}
 }
 
 func writePhraseDownloadedSource(path string, content []byte, force bool) error {

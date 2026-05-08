@@ -456,6 +456,36 @@ func TestPhraseDownloadTranslationsMultipleLocalesRequireOutputPattern(t *testin
 	}
 }
 
+func TestPhraseDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/projects/project-1/locales/fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		case "/projects/project-1/locales/de/download":
+			http.Error(w, `{"message":"Locale not found"}`, http.StatusNotFound)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--target-locale", "de", "--format", "json", "--output", filepath.Join(dir, "%locale%.json"), "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected later locale failure")
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "fr.json")); !os.IsNotExist(statErr) {
+		t.Fatalf("fr output should be removed after later failure, stat err=%v", statErr)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "de.json")); !os.IsNotExist(statErr) {
+		t.Fatalf("de output should not exist after failure, stat err=%v", statErr)
+	}
+}
+
 func TestPhraseDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "fr.json")
 	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
