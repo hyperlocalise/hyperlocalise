@@ -55,7 +55,7 @@ func newPhraseUploadSourcesCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Phrase project ID")
 	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "Phrase source locale ID or name")
-	cmd.Flags().StringSliceVarP(&o.files, "file", "f", nil, "source file path(s) to upload")
+	cmd.Flags().StringArrayVarP(&o.files, "file", "f", nil, "source file path(s) to upload")
 	cmd.Flags().StringVar(&o.format, "format", "", "Phrase file format, for example json, yml, or strings")
 	cmd.Flags().StringVar(&o.branch, "branch", "", "Phrase branch name")
 	cmd.Flags().StringSliceVar(&o.tags, "tag", nil, "tag(s) to assign to uploaded keys")
@@ -96,6 +96,9 @@ func executePhraseUploadSources(cmd *cobra.Command, o phraseUploadSourcesOptions
 		token = strings.TrimSpace(os.Getenv("PHRASE_API_TOKEN"))
 	}
 	if token == "" {
+		if tokenEnv != "PHRASE_API_TOKEN" {
+			return fmt.Errorf("phrase upload sources: API token is required (%s or PHRASE_API_TOKEN)", tokenEnv)
+		}
 		return fmt.Errorf("phrase upload sources: API token is required (%s)", tokenEnv)
 	}
 

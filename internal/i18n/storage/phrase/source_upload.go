@@ -1,17 +1,15 @@
 package phrase
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/antihax/optional"
+	phraseapi "github.com/phrase/phrase-go/v4"
 )
 
 // SourceUploadInput describes one Phrase source file upload.
@@ -63,110 +61,100 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	if strings.TrimSpace(in.FilePath) == "" {
 		return SourceUploadResult{}, fmt.Errorf("phrase source upload: file path is required")
 	}
-	file, err := os.Open(in.FilePath)
-	if err != nil {
-		return SourceUploadResult{}, fmt.Errorf("open source file %q: %w", in.FilePath, err)
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	if err := writer.WriteField("file_format", strings.TrimSpace(in.FileFormat)); err != nil {
-		return SourceUploadResult{}, err
-	}
-	if err := writer.WriteField("locale_id", strings.TrimSpace(in.LocaleID)); err != nil {
-		return SourceUploadResult{}, err
-	}
+	opts := phraseapi.UploadCreateOpts{}
 	if branch := strings.TrimSpace(in.Branch); branch != "" {
-		if err := writer.WriteField("branch", branch); err != nil {
-			return SourceUploadResult{}, err
-		}
+		opts.Branch = optional.NewString(branch)
 	}
 	if tags := joinTrimmed(in.Tags); tags != "" {
-		if err := writer.WriteField("tags", tags); err != nil {
-			return SourceUploadResult{}, err
-		}
+		opts.Tags = optional.NewString(tags)
 	}
 	if in.UpdateTranslations {
-		if err := writer.WriteField("update_translations", "true"); err != nil {
-			return SourceUploadResult{}, err
-		}
+		opts.UpdateTranslations = optional.NewBool(true)
 	}
 	if in.SkipUploadTags {
-		if err := writer.WriteField("skip_upload_tags", "true"); err != nil {
-			return SourceUploadResult{}, err
-		}
-	}
-	part, err := writer.CreateFormFile("file", filepath.Base(in.FilePath))
-	if err != nil {
-		return SourceUploadResult{}, err
-	}
-	if _, err := io.Copy(part, file); err != nil {
-		return SourceUploadResult{}, fmt.Errorf("read source file %q: %w", in.FilePath, err)
-	}
-	if err := writer.Close(); err != nil {
-		return SourceUploadResult{}, err
+		opts.SkipUploadTags = optional.NewBool(true)
 	}
 
-	var out SourceUploadResult
-	path := fmt.Sprintf("/projects/%s/uploads", url.PathEscape(in.ProjectID))
-	if err := c.doMultipart(ctx, http.MethodPost, path, in.APIToken, writer.FormDataContentType(), body.Bytes(), &out); err != nil {
+	upload, err := c.uploadSourceFile(ctx, strings.TrimSpace(in.APIToken), strings.TrimSpace(in.ProjectID), in.FilePath, strings.TrimSpace(in.FileFormat), strings.TrimSpace(in.LocaleID), &opts)
+	if err != nil {
 		return SourceUploadResult{}, fmt.Errorf("phrase source upload %q: %w", in.FilePath, err)
 	}
-	return out, nil
+	return sourceUploadResultFromPhrase(upload), nil
 }
 
-func (c *HTTPClient) doMultipart(ctx context.Context, method, path, token, contentType string, bodyBytes []byte, out any) error {
+func (c *HTTPClient) uploadSourceFile(ctx context.Context, token, projectID, filePath, fileFormat, localeID string, opts *phraseapi.UploadCreateOpts) (phraseapi.Upload, error) {
+	authCtx := context.WithValue(ctx, phraseapi.ContextAPIKey, phraseapi.APIKey{Key: token, Prefix: "token"})
 	attempt := 0
 	for {
-		req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(bodyBytes))
+		file, err := os.Open(filePath)
 		if err != nil {
-			return err
+			return phraseapi.Upload{}, fmt.Errorf("open source file %q: %w", filePath, err)
 		}
-		req.Header.Set("Authorization", "token "+token)
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("Content-Type", contentType)
+		upload, resp, err := c.phraseClient.UploadsApi.UploadCreate(authCtx, projectID, file, fileFormat, localeID, opts)
+		if err == nil {
+			return upload, nil
+		}
+		if upload, ok := successfulUploadFromError(resp, err); ok {
+			return upload, nil
+		}
+		if !shouldRetry(apiResponseHTTPResponse(resp), err) || attempt >= maxRetries {
+			return phraseapi.Upload{}, phraseAPIError("POST", fmt.Sprintf("/projects/%s/uploads", projectID), resp, err)
+		}
+		delay := retryDelay(attempt, apiResponseHTTPResponse(resp))
+		attempt++
+		if err := sleepWithContext(ctx, delay); err != nil {
+			return phraseapi.Upload{}, err
+		}
+	}
+}
 
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			if !shouldRetry(nil, err) || attempt >= maxRetries {
-				return err
-			}
-			delay := retryDelay(attempt, nil)
-			attempt++
-			if err := sleepWithContext(ctx, delay); err != nil {
-				return err
-			}
-			continue
-		}
+func successfulUploadFromError(resp *phraseapi.APIResponse, err error) (phraseapi.Upload, bool) {
+	if resp == nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return phraseapi.Upload{}, false
+	}
+	bodyErr, ok := err.(interface{ Body() []byte })
+	if !ok || len(bodyErr.Body()) == 0 {
+		return phraseapi.Upload{}, false
+	}
+	var upload phraseapi.Upload
+	if err := json.Unmarshal(bodyErr.Body(), &upload); err != nil {
+		return phraseapi.Upload{}, false
+	}
+	return upload, true
+}
 
-		rawBody, readErr := io.ReadAll(resp.Body)
-		closeErr := resp.Body.Close()
-		if readErr != nil {
-			return readErr
-		}
-		if closeErr != nil {
-			return closeErr
-		}
-		if shouldRetry(resp, nil) && attempt < maxRetries {
-			delay := retryDelay(attempt, resp)
-			attempt++
-			if err := sleepWithContext(ctx, delay); err != nil {
-				return err
-			}
-			continue
-		}
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return fmt.Errorf("phrase API %s %s failed: status=%d body=%s", method, path, resp.StatusCode, strings.TrimSpace(string(rawBody)))
-		}
-		if out != nil && len(rawBody) > 0 {
-			if err := json.Unmarshal(rawBody, out); err != nil {
-				return fmt.Errorf("decode response: %w", err)
-			}
-		}
+func apiResponseHTTPResponse(resp *phraseapi.APIResponse) *http.Response {
+	if resp == nil {
 		return nil
+	}
+	return resp.Response
+}
+
+func phraseAPIError(method, path string, resp *phraseapi.APIResponse, err error) error {
+	if resp == nil {
+		return err
+	}
+	var body []byte
+	if bodyErr, ok := err.(interface{ Body() []byte }); ok {
+		body = bodyErr.Body()
+	}
+	return fmt.Errorf("phrase API %s %s failed: status=%d body=%s", method, path, resp.StatusCode, strings.TrimSpace(string(body)))
+}
+
+func sourceUploadResultFromPhrase(upload phraseapi.Upload) SourceUploadResult {
+	return SourceUploadResult{
+		ID:       upload.Id,
+		Filename: upload.Filename,
+		Format:   upload.Format,
+		State:    upload.State,
+		Summary: SourceUploadSummary{
+			TranslationKeysCreated:     int(upload.Summary.TranslationKeysCreated),
+			TranslationKeysUpdated:     int(upload.Summary.TranslationKeysUpdated),
+			TranslationKeysUnmentioned: int(upload.Summary.TranslationKeysUnmentioned),
+			TranslationsCreated:        int(upload.Summary.TranslationsCreated),
+			TranslationsUpdated:        int(upload.Summary.TranslationsUpdated),
+			TranslationKeysIgnored:     int(upload.Summary.TranslationKeysIgnored),
+		},
 	}
 }
 

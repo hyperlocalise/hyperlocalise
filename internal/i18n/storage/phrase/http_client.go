@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	phraseapi "github.com/phrase/phrase-go/v4"
 )
 
 const (
@@ -26,8 +27,9 @@ const (
 )
 
 type HTTPClient struct {
-	baseURL    string
-	httpClient *http.Client
+	baseURL      string
+	httpClient   *http.Client
+	phraseClient *phraseapi.APIClient
 }
 
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
@@ -35,7 +37,8 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	return &HTTPClient{baseURL: defaultBaseURL, httpClient: &http.Client{Timeout: timeout}}, nil
+	client := &http.Client{Timeout: timeout}
+	return newHTTPClient(defaultBaseURL, client), nil
 }
 
 func NewHTTPClientWithBaseURL(cfg Config, baseURL string, client *http.Client) (*HTTPClient, error) {
@@ -45,7 +48,20 @@ func NewHTTPClientWithBaseURL(cfg Config, baseURL string, client *http.Client) (
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultBaseURL
 	}
-	return &HTTPClient{baseURL: strings.TrimRight(baseURL, "/"), httpClient: client}, nil
+	return newHTTPClient(baseURL, client), nil
+}
+
+func newHTTPClient(baseURL string, client *http.Client) *HTTPClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	cfg := phraseapi.NewConfiguration()
+	cfg.BasePath = baseURL
+	cfg.HTTPClient = client
+	cfg.SetUserAgent("hyperlocalise")
+	return &HTTPClient{
+		baseURL:      baseURL,
+		httpClient:   client,
+		phraseClient: phraseapi.NewAPIClient(cfg),
+	}
 }
 
 func (c *HTTPClient) ListStrings(ctx context.Context, in ListStringsInput) ([]StringTranslation, string, error) {
@@ -308,14 +324,20 @@ func (c *HTTPClient) downloadURL(ctx context.Context, u, token string) ([]byte, 
 
 func (c *HTTPClient) doJSON(ctx context.Context, method, path, token string, payload any, out any) error {
 	var bodyBytes []byte
+	contentType := ""
 	if payload != nil {
 		encoded, err := json.Marshal(payload)
 		if err != nil {
 			return err
 		}
 		bodyBytes = encoded
+		contentType = "application/json"
 	}
 
+	return c.doRequest(ctx, method, path, token, contentType, bodyBytes, out)
+}
+
+func (c *HTTPClient) doRequest(ctx context.Context, method, path, token, contentType string, bodyBytes []byte, out any) error {
 	attempt := 0
 	for {
 		var body io.Reader
@@ -328,8 +350,8 @@ func (c *HTTPClient) doJSON(ctx context.Context, method, path, token string, pay
 		}
 		req.Header.Set("Authorization", "token "+token)
 		req.Header.Set("Accept", "application/json")
-		if payload != nil {
-			req.Header.Set("Content-Type", "application/json")
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
 		}
 
 		resp, err := c.httpClient.Do(req)

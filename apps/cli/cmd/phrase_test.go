@@ -31,6 +31,26 @@ func TestPhraseUploadSourcesDryRunValidatesFiles(t *testing.T) {
 	}
 }
 
+func TestPhraseUploadSourcesAcceptsCommaInFilePath(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "hello,world.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--file", sourcePath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase upload dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "files=1") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
 func TestPhraseUploadSourcesRequiresFile(t *testing.T) {
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"phrase", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json"})
@@ -40,6 +60,27 @@ func TestPhraseUploadSourcesRequiresFile(t *testing.T) {
 		t.Fatalf("expected missing file error")
 	}
 	if !strings.Contains(err.Error(), "at least one --file is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseUploadSourcesTokenErrorListsFallback(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	t.Setenv("PHRASE_CUSTOM_TOKEN", "")
+	t.Setenv("PHRASE_API_TOKEN", "")
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "upload", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--file", sourcePath, "--token-env", "PHRASE_CUSTOM_TOKEN"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing token error")
+	}
+	if !strings.Contains(err.Error(), "PHRASE_CUSTOM_TOKEN or PHRASE_API_TOKEN") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
