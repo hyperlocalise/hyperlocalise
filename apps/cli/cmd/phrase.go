@@ -249,13 +249,19 @@ func writePhraseDownloadedSource(path string, content []byte, force bool) error 
 	if path == "" || path == "-" {
 		return fmt.Errorf("phrase download sources: output file path is required")
 	}
-	if dir := filepath.Dir(path); dir != "." && dir != "" {
+	if dir := filepath.Dir(path); dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("phrase download sources: mkdir output directory: %w", err)
 		}
 	}
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if force {
+		return writePhraseDownloadedSourceAtomic(path, content, 0o644)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("phrase download sources: output file %q already exists; use --force to overwrite", path)
+		}
 		return fmt.Errorf("phrase download sources: open output file %q: %w", path, err)
 	}
 	if _, err := file.Write(content); err != nil {
@@ -265,6 +271,41 @@ func writePhraseDownloadedSource(path string, content []byte, force bool) error 
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("phrase download sources: close output file %q: %w", path, err)
 	}
+	return nil
+}
+
+func writePhraseDownloadedSourceAtomic(path string, content []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	file, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("phrase download sources: create temp output file %q: %w", path, err)
+	}
+	tempPath := file.Name()
+	renamed := false
+	defer func() {
+		if !renamed {
+			_ = os.Remove(tempPath)
+		}
+	}()
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("phrase download sources: write temp output file %q: %w", path, err)
+	}
+	if err := file.Chmod(perm); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("phrase download sources: chmod temp output file %q: %w", path, err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("phrase download sources: sync temp output file %q: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("phrase download sources: close temp output file %q: %w", path, err)
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("phrase download sources: replace output file %q: %w", path, err)
+	}
+	renamed = true
 	return nil
 }
 

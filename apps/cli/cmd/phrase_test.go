@@ -259,6 +259,41 @@ func TestPhraseDownloadSourcesRefusesOverwriteWithoutForce(t *testing.T) {
 	}
 }
 
+func TestPhraseDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"hello":"Hello"}`))
+	}))
+	defer server.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--output", outputPath, "--force", "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase download with force: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Hello"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	matches, err := filepath.Glob(filepath.Join(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".tmp-*"))
+	if err != nil {
+		t.Fatalf("glob temp files: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("expected no temp files, got %v", matches)
+	}
+}
+
 func TestPhraseDownloadSourcesTokenErrorListsFallback(t *testing.T) {
 	t.Setenv("PHRASE_CUSTOM_TOKEN", "")
 	t.Setenv("PHRASE_API_TOKEN", "")

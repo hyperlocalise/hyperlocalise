@@ -94,6 +94,9 @@ func readAndRemovePhraseTempFile(file *os.File) ([]byte, error) {
 			_ = os.Remove(name)
 		}
 	}()
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seek download response: %w", err)
+	}
 	content, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("read download response: %w", err)
