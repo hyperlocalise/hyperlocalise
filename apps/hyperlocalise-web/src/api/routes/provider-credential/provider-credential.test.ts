@@ -88,7 +88,7 @@ describe("providerCredentialRoutes", () => {
       providerCredential: {
         provider: "openai",
         defaultModel: "gpt-4.1-mini",
-        maskedApiKeySuffix: "-key",
+        maskedApiKeySuffix: "••••-key",
       },
     });
 
@@ -104,7 +104,7 @@ describe("providerCredentialRoutes", () => {
       );
     expect(authContext).toBeDefined();
     expect(storedCredential?.ciphertext).not.toContain("sk-live-provider-key");
-    expect(storedCredential?.maskedApiKeySuffix).toBe("-key");
+    expect(storedCredential?.maskedApiKeySuffix).toBe("••••-key");
   });
 
   it("blocks org members from managing provider credentials", async () => {

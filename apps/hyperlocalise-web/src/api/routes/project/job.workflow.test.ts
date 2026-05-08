@@ -34,7 +34,7 @@ async function insertProviderCredential(input: {
     updatedByUserId: input.userId,
     provider: input.provider,
     defaultModel: input.defaultModel,
-    maskedApiKeySuffix: "-key",
+    maskedApiKeySuffix: "••••-key",
     encryptionAlgorithm: encrypted.algorithm,
     ciphertext: encrypted.ciphertext,
     iv: encrypted.iv,

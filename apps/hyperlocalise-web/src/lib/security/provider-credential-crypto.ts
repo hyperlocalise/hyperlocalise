@@ -73,5 +73,5 @@ export function decryptProviderCredential(input: {
 }
 
 export function maskProviderCredentialSuffix(secret: string) {
-  return secret.slice(-4).padStart(4, "•");
+  return secret.slice(-4).padStart(8, "•");
 }
