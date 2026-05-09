@@ -124,6 +124,46 @@ func TestWriteTranslationMemoryCSVHandlesEmptyResults(t *testing.T) {
 	}
 }
 
+func TestWriteTranslationMemoryTMXWritesStableUnits(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/tms/48/segments", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/tms/48/segments?limit=500&orderBy=id")
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{
+					"id": 9,
+					"records": []any{
+						map[string]any{"id": 92, "languageId": "fr", "text": "Commander & payer"},
+						map[string]any{"id": 91, "languageId": "en", "text": "Checkout <now>"},
+					},
+				}},
+			},
+			"pagination": map[string]any{"offset": 0, "limit": 500},
+		})
+	})
+
+	var out bytes.Buffer
+	result, err := client.WriteTranslationMemoryTMX(context.Background(), TranslationMemoryDownloadRequest{
+		TranslationMemoryID: 48,
+		SourceLanguage:      "en",
+		TargetLanguages:     []string{"fr"},
+	}, &out)
+	if err != nil {
+		t.Fatalf("write translation memory tmx: %v", err)
+	}
+	if result.Rows != 2 || result.Segments != 1 {
+		t.Fatalf("result = %#v, want rows=2 segments=1", result)
+	}
+	got := out.String()
+	for _, want := range []string{`<header creationtool="hyperlocalise"`, `srclang="en"`, `<tu tuid="9">`, `<tuv xml:lang="en">`, `Checkout &lt;now&gt;`, `<tuv xml:lang="fr">`, `Commander &amp; payer`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("tmx = %q, want to contain %q", got, want)
+		}
+	}
+}
+
 func TestWriteTranslationMemoryCSVReturnsAPIError(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()

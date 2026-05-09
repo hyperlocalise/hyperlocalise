@@ -45,6 +45,7 @@ type crowdinTranslationMemoryDownloadOptions struct {
 	translationMemoryID int
 	sourceLanguage      string
 	targetLanguages     []string
+	format              string
 	outputPath          string
 }
 
@@ -52,15 +53,16 @@ type crowdinGlossaryCSVWriter interface {
 	WriteGlossaryCSV(context.Context, crowdinstorage.GlossaryDownloadRequest, io.Writer) (crowdinstorage.GlossaryDownloadResult, error)
 }
 
-type crowdinTranslationMemoryCSVWriter interface {
+type crowdinTranslationMemoryWriter interface {
 	WriteTranslationMemoryCSV(context.Context, crowdinstorage.TranslationMemoryDownloadRequest, io.Writer) (crowdinstorage.TranslationMemoryDownloadResult, error)
+	WriteTranslationMemoryTMX(context.Context, crowdinstorage.TranslationMemoryDownloadRequest, io.Writer) (crowdinstorage.TranslationMemoryDownloadResult, error)
 }
 
 var newCrowdinGlossaryCSVWriter = func(cfg crowdinstorage.Config) (crowdinGlossaryCSVWriter, error) {
 	return crowdinstorage.NewHTTPClient(cfg)
 }
 
-var newCrowdinTranslationMemoryCSVWriter = func(cfg crowdinstorage.Config) (crowdinTranslationMemoryCSVWriter, error) {
+var newCrowdinTranslationMemoryWriter = func(cfg crowdinstorage.Config) (crowdinTranslationMemoryWriter, error) {
 	return crowdinstorage.NewHTTPClient(cfg)
 }
 
@@ -315,14 +317,19 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 	o := crowdinTranslationMemoryDownloadOptions{}
 	cmd := &cobra.Command{
 		Use:          "download",
-		Short:        "download Crowdin translation memory entries as CSV",
+		Short:        "download Crowdin translation memory entries",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			outputFormat, err := normalizeTranslationMemoryDownloadFormat(o.format)
+			if err != nil {
+				return fmt.Errorf("crowdin translation memory download: %w", err)
+			}
+
 			cfg, _, err := crowdinstorage.LoadClientConfig(o.configPath, o.identityPath)
 			if err != nil {
 				return err
 			}
-			client, err := newCrowdinTranslationMemoryCSVWriter(cfg)
+			client, err := newCrowdinTranslationMemoryWriter(cfg)
 			if err != nil {
 				return err
 			}
@@ -334,21 +341,21 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 			if outputPath != "" {
 				file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
 				if err != nil {
-					return fmt.Errorf("create temporary translation memory csv: %w", err)
+					return fmt.Errorf("create temporary translation memory output: %w", err)
 				}
 				out = file
 				tempPath = file.Name()
 				closeOut = file.Close
 			}
 
-			result, err := client.WriteTranslationMemoryCSV(backgroundContext(), crowdinstorage.TranslationMemoryDownloadRequest{
+			result, err := writeCrowdinTranslationMemory(backgroundContext(), client, crowdinstorage.TranslationMemoryDownloadRequest{
 				TranslationMemoryID: o.translationMemoryID,
 				SourceLanguage:      o.sourceLanguage,
 				TargetLanguages:     o.targetLanguages,
-			}, out)
+			}, outputFormat, out)
 			if closeOut != nil {
 				if closeErr := closeOut(); closeErr != nil && err == nil {
-					err = fmt.Errorf("close translation memory csv: %w", closeErr)
+					err = fmt.Errorf("close translation memory output: %w", closeErr)
 				}
 			}
 			if err != nil {
@@ -362,11 +369,11 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 			if outputPath != "" {
 				if err := os.Rename(tempPath, outputPath); err != nil {
 					if removeErr := os.Remove(tempPath); removeErr != nil && !os.IsNotExist(removeErr) {
-						return fmt.Errorf("replace translation memory csv: %w; also failed to remove temporary output: %v", err, removeErr)
+						return fmt.Errorf("replace translation memory output: %w; also failed to remove temporary output: %v", err, removeErr)
 					}
-					return fmt.Errorf("replace translation memory csv: %w", err)
+					return fmt.Errorf("replace translation memory output: %w", err)
 				}
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s rows=%d segments=%d\n", outputPath, result.Rows, result.Segments)
+				_, err = writeTranslationMemoryDownloadSummary(cmd.OutOrStdout(), outputPath, outputFormat, result.Rows, result.Segments)
 				return err
 			}
 			return nil
@@ -377,7 +384,8 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 	cmd.Flags().IntVar(&o.translationMemoryID, "tm-id", 0, "Crowdin translation memory identifier")
 	cmd.Flags().StringVar(&o.sourceLanguage, "source-language", "", "source language ID to export")
 	cmd.Flags().StringSliceVarP(&o.targetLanguages, "target-language", "l", nil, "target language ID(s) to export")
-	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write CSV to file instead of stdout")
+	cmd.Flags().StringVar(&o.format, "format", "csv", "download format: csv or tmx")
+	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write output to file instead of stdout")
 	_ = cmd.MarkFlagRequired("tm-id")
 	_ = cmd.MarkFlagRequired("source-language")
 	_ = cmd.MarkFlagRequired("target-language")

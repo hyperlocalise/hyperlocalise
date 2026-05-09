@@ -121,6 +121,41 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, in Translati
 	return TranslationMemoryDownloadResult{Rows: len(rows), Segments: len(segments)}, nil
 }
 
+func (c *HTTPClient) WriteTranslationMemoryTMX(ctx context.Context, in TranslationMemoryDownloadInput, w io.Writer) (TranslationMemoryDownloadResult, error) {
+	if c == nil || c.httpClient == nil {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: client is nil")
+	}
+	if strings.TrimSpace(in.TranslationMemoryID) == "" {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: translation memory id is required")
+	}
+	if strings.TrimSpace(in.APIToken) == "" {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: api token is required")
+	}
+	if strings.TrimSpace(in.SourceLanguage) == "" {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: source language is required")
+	}
+	targets := locales.NormalizeList(in.TargetLanguages)
+	if len(targets) == 0 {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: at least one target language is required")
+	}
+	if w == nil {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: writer is nil")
+	}
+
+	content, err := c.downloadTranslationMemoryTMX(ctx, in.TranslationMemoryID, in.APIToken, targets)
+	if err != nil {
+		return TranslationMemoryDownloadResult{}, err
+	}
+	segments, err := parseTranslationMemoryTMX(content)
+	if err != nil {
+		return TranslationMemoryDownloadResult{}, err
+	}
+	if _, err := w.Write(content); err != nil {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("write phrase translation memory tmx: %w", err)
+	}
+	return TranslationMemoryDownloadResult{Rows: len(segments), Segments: len(segments)}, nil
+}
+
 func (c *HTTPClient) downloadTranslationMemoryTMX(ctx context.Context, tmID, token string, targetLanguages []string) ([]byte, error) {
 	var start struct {
 		AsyncRequest struct {
