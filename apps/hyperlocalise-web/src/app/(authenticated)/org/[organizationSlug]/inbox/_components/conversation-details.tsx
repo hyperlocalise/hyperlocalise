@@ -3,7 +3,11 @@
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH3, TypographyMuted, TypographySmall } from "@/components/ui/typography";
+import {
+  TypographyH4,
+  TypographyMuted,
+  TypographySmall,
+} from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 import {
@@ -37,7 +41,7 @@ export const ConversationDetails = memo(function ConversationDetails({
   return (
     <aside className="border-b border-border bg-background px-4 py-4 xl:absolute xl:right-5 xl:top-5 xl:z-10 xl:w-72 xl:rounded-xl xl:border xl:bg-card/95 xl:p-4 xl:shadow-2xl xl:shadow-background/40 xl:backdrop-blur">
       <section>
-        <TypographyH3 className="text-sm">Conversation details</TypographyH3>
+        <TypographyH4 className="text-sm">Conversation details</TypographyH4>
         <dl className="mt-4 flex flex-col gap-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Source</dt>
@@ -68,7 +72,7 @@ export const ConversationDetails = memo(function ConversationDetails({
 
       <section className="mt-4 border-t border-border pt-4">
         <div className="flex items-center justify-between gap-3">
-          <TypographyH3 className="text-sm">Linked jobs</TypographyH3>
+          <TypographyH4 className="text-sm">Linked jobs</TypographyH4>
           {!jobsIsLoading ? (
             <span className="text-xs text-muted-foreground">{jobs.length}</span>
           ) : null}

@@ -289,7 +289,7 @@ export function DashboardPageContent() {
         {overviewMetrics.map((metric) => (
           <Card
             key={metric.label}
-            className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
+            className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
           >
             <CardContent className="px-4 py-4">
               <div className="flex items-start justify-between gap-4">
@@ -310,7 +310,7 @@ export function DashboardPageContent() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)]">
-        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
             <CardTitle className="text-xl text-foreground">Locales at a glance</CardTitle>
             <CardDescription className="text-foreground/48">
@@ -368,7 +368,7 @@ export function DashboardPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
             <CardTitle className="text-xl text-foreground">Review queue</CardTitle>
             <CardDescription className="text-foreground/48">
@@ -506,7 +506,7 @@ export function DashboardPageContent() {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <Card
           id="projects"
-          className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
+          className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
         >
           <CardHeader className="px-5 pt-5">
             <CardTitle className="text-xl text-foreground">Active localization workflows</CardTitle>
@@ -573,7 +573,7 @@ export function DashboardPageContent() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
           <CardHeader className="px-5 pt-5">
             <CardTitle className="text-xl text-foreground">Agent activity</CardTitle>
             <CardDescription className="text-foreground/48">
@@ -627,7 +627,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
       <CardHeader className="px-5 pt-5">
         <CardTitle className="text-xl text-foreground">{title}</CardTitle>
         <CardDescription className="text-foreground/48">{description}</CardDescription>

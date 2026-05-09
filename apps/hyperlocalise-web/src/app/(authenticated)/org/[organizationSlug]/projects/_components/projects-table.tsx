@@ -70,7 +70,7 @@ export function ProjectsTable({
           {projects.map((project) => (
             <article
               key={project.id}
-              className="min-w-0 rounded-lg border border-foreground/8 bg-foreground/[0.025] p-4 transition-colors hover:border-foreground/14 hover:bg-foreground/[0.04]"
+              className="min-w-0 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4 transition-colors hover:border-foreground/14 hover:bg-foreground/4"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">

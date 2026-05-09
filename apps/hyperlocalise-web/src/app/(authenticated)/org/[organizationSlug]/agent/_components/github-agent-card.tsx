@@ -262,7 +262,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
         : null;
 
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
       <CardHeader className="gap-4 px-5 py-5 lg:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
@@ -347,7 +347,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search repositories"
-                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/[0.03] px-9 text-sm text-foreground outline-none placeholder:text-foreground/32 focus:border-foreground/20"
+                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/3 px-9 text-sm text-foreground outline-none placeholder:text-foreground/32 focus:border-foreground/20"
                   />
                 </div>
                 <Button
@@ -367,7 +367,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                 </Button>
               </div>
               <div className="overflow-hidden rounded-lg border border-foreground/10">
-                <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-foreground/10 bg-foreground/[0.03] text-xs font-medium tracking-wide text-foreground/42 uppercase">
+                <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-foreground/10 bg-foreground/3 text-xs font-medium tracking-wide text-foreground/42 uppercase">
                   <div className="px-4 py-3">
                     <span className="sr-only">Enabled</span>
                   </div>
@@ -384,7 +384,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                     return (
                       <label
                         key={repository.githubRepositoryId}
-                        className="grid min-h-14 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-foreground/8 text-sm last:border-b-0 hover:bg-foreground/[0.03]"
+                        className="grid min-h-14 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-foreground/8 text-sm last:border-b-0 hover:bg-foreground/3"
                       >
                         <div className="px-4">
                           <input

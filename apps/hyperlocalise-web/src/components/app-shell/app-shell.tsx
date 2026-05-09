@@ -112,7 +112,6 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
       activeOrganization={auth.activeOrganization}
       organizations={auth.organizations}
       user={{
-        email: auth.sessionUser.email,
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}

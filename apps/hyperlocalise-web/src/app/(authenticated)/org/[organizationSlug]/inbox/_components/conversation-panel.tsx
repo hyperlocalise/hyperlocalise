@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography";
+import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
 import { ConversationDetails } from "./conversation-details";
@@ -115,7 +115,7 @@ function ConversationHeader({
           className="mt-0.5 size-5 shrink-0 text-muted-foreground"
         />
         <div className="min-w-0">
-          <TypographyH1 className="truncate text-base">{conversation.title}</TypographyH1>
+          <TypographyH4 className="truncate text-base">{conversation.title}</TypographyH4>
           <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="outline" className="border-border bg-muted text-foreground">
               {sourceLabel[conversation.source]}

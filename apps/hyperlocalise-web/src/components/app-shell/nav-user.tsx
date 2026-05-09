@@ -28,23 +28,25 @@ import {
 } from "@/components/ui/sidebar";
 
 export function NavUser({
+  organizationName,
   organizationSlug,
   user,
 }: {
+  organizationName: string;
   organizationSlug: string;
   user: {
     name: string;
-    email: string;
     avatar: string;
   };
 }) {
   const { isMobile } = useSidebar();
-  const initials = user.name
-    .split(" ")
-    .slice(0, 2)
-    .map((namePart) => namePart[0])
-    .join("")
-    .toUpperCase();
+  const initials =
+    user.name
+      .split(" ")
+      .slice(0, 2)
+      .map((namePart) => namePart[0])
+      .join("")
+      .toUpperCase() || "HL";
 
   return (
     <SidebarMenu>
@@ -64,7 +66,7 @@ export function NavUser({
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+              <span className="truncate text-xs text-muted-foreground">{organizationName}</span>
             </div>
             <HugeiconsIcon
               icon={MoreVerticalCircle01Icon}
@@ -87,7 +89,9 @@ export function NavUser({
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {organizationName}
+                    </span>
                   </div>
                 </div>
               </DropdownMenuLabel>

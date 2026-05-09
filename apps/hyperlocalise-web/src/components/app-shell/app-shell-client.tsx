@@ -25,7 +25,6 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
 import { getAppShellTitle } from "./app-shell-title";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
@@ -44,7 +43,6 @@ type AppShellClientProps = {
   }>;
   user: {
     name: string;
-    email: string;
     avatarUrl?: string;
   };
 };
@@ -63,21 +61,10 @@ export function AppShellClient({
     <SidebarProvider
       defaultOpen
       style={{ "--sidebar-width": "15rem" } as CSSProperties}
-      className="min-h-svh bg-app-shell-background text-app-shell-foreground"
+      className="min-h-svh bg-background text-foreground"
     >
-      <Sidebar
-        variant="sidebar"
-        collapsible="icon"
-        className={cn(
-          "[--sidebar:var(--app-shell-background)]",
-          "[--sidebar-foreground:var(--app-shell-foreground)]",
-          "[--sidebar-border:oklch(0.28_0_0)]",
-          "[--sidebar-accent:oklch(0.16_0_0)]",
-          "[--sidebar-accent-foreground:oklch(0.97_0_0)]",
-          "[--sidebar-ring:oklch(0.55_0_0)]",
-        )}
-      >
-        <SidebarHeader className="gap-3 border-b border-app-shell-foreground/8 px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
+      <Sidebar variant="sidebar" collapsible="icon">
+        <SidebarHeader className="gap-3 border-b border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0">
           <div className="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
             <Image
               src="/images/logo.png"
@@ -88,10 +75,10 @@ export function AppShellClient({
               className="size-7 shrink-0 rounded-full"
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <TypographyP className="truncate text-sm font-medium text-app-shell-foreground">
+              <TypographyP className="truncate text-sm font-medium text-sidebar-foreground">
                 Hyperlocalise
               </TypographyP>
-              <TypographyP className="truncate text-xs text-app-shell-foreground/45">
+              <TypographyP className="truncate text-xs text-sidebar-foreground/45">
                 {activeOrganization.name}
               </TypographyP>
             </div>
@@ -110,7 +97,7 @@ export function AppShellClient({
                     size="sm"
                     variant="ghost"
                     nativeButton={false}
-                    className="h-8 rounded-lg border border-app-shell-foreground/8 px-2 text-xs text-app-shell-foreground/58 hover:bg-app-shell-foreground/8 hover:text-app-shell-foreground"
+                    className="h-8 rounded-lg border border-sidebar-border px-2 text-xs text-sidebar-foreground/58 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     render={<Link href={`/auth/select-organization/${organization.slug}`} />}
                   >
                     {organization.name}
@@ -120,14 +107,14 @@ export function AppShellClient({
           ) : null}
 
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <InputGroup className="h-9 rounded-xl border-app-shell-foreground/10 bg-app-shell-foreground/4 text-app-shell-foreground">
+            <InputGroup className="h-9 rounded-xl border-sidebar-border bg-sidebar-accent text-sidebar-foreground">
               <InputGroupInput
                 aria-label="Find"
                 placeholder="Find…"
-                className="text-sm text-app-shell-foreground placeholder:text-app-shell-foreground/28"
+                className="text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/28"
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupText className="text-xs text-app-shell-foreground/50">F</InputGroupText>
+                <InputGroupText className="text-xs text-sidebar-foreground/50">F</InputGroupText>
               </InputGroupAddon>
             </InputGroup>
           </div>
@@ -137,23 +124,23 @@ export function AppShellClient({
           {navigation}
 
           <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
-            <div className="rounded-lg border border-app-shell-foreground/8 bg-app-shell-foreground/3 px-3 py-3">
-              <TypographyP className="text-xs font-medium text-app-shell-foreground/84">
+            <div className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3">
+              <TypographyP className="text-xs font-medium text-sidebar-foreground">
                 Plan usage
               </TypographyP>
-              <TypographyP className="mt-3 text-xs text-app-shell-foreground/46">
+              <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
                 Enterprise
               </TypographyP>
-              <TypographyP className="mt-1 text-xs text-app-shell-foreground/38">
-                Renews on Aug 24, 2025
+              <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
+                Renews on Aug 24, 2027
               </TypographyP>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-app-shell-foreground/10">
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-foreground/10">
                 <div className="h-full w-[60%] rounded-full bg-bud-500" />
               </div>
-              <TypographyP className="mt-3 text-xs text-app-shell-foreground/68">
+              <TypographyP className="mt-3 text-xs text-sidebar-foreground/68">
                 1.2M / 2M words used
               </TypographyP>
-              <div className="mt-3 flex items-center gap-2 text-xs text-app-shell-foreground/58">
+              <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
                 <span>View usage</span>
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
               </div>
@@ -161,26 +148,27 @@ export function AppShellClient({
           </div>
         </SidebarContent>
 
-        <SidebarSeparator className="bg-app-shell-foreground/8" />
+        <SidebarSeparator className="bg-sidebar-border" />
 
         <SidebarFooter className="gap-3 px-3 py-3">
           <NavUser
+            organizationName={activeOrganization.name}
             organizationSlug={activeOrganization.slug ?? ""}
-            user={{ name: user.name, email: user.email, avatar: user.avatarUrl ?? "" }}
+            user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
           />
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-h-svh bg-app-shell-background">
-        <div className="sticky top-0 z-20 border-b border-app-shell-foreground/8 bg-app-shell-background/96 backdrop-blur">
+      <SidebarInset className="min-h-svh bg-background">
+        <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
           <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
             <SidebarTrigger className="-ms-1" />
             <Separator
               orientation="vertical"
               className="me-2 data-vertical:h-4 data-vertical:self-auto"
             />
-            <TypographyP className="font-heading text-base font-medium text-app-shell-foreground">
+            <TypographyP className="font-heading text-base font-medium text-foreground">
               {pageTitle}
             </TypographyP>
           </div>

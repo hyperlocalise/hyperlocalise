@@ -74,7 +74,7 @@ export function MetricsGrid({
       {metrics.map((metric) => (
         <Card
           key={metric.label}
-          className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
+          className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
         >
           <CardContent className="px-4 py-4">
             <TypographyP className="text-sm text-foreground/52">{metric.label}</TypographyP>
@@ -125,7 +125,7 @@ export function ResourceCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
       <CardHeader className="px-5 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>

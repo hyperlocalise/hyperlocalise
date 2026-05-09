@@ -100,7 +100,7 @@ function MarkdownBlock({ markdown }: { markdown: string }) {
     "code",
     {
       className:
-        "block max-h-96 overflow-auto rounded-lg border border-foreground/8 bg-foreground/[0.035] px-4 py-4 font-mono text-xs leading-6 whitespace-pre-wrap text-foreground/72",
+        "block max-h-96 overflow-auto rounded-lg border border-foreground/8 bg-foreground/3.5 px-4 py-4 font-mono text-xs leading-6 whitespace-pre-wrap text-foreground/72",
     },
     markdown,
   );
@@ -127,7 +127,7 @@ export function ContextPageContent() {
         {contextEntries.map((entry, index) => (
           <div key={entry.title}>
             <Collapsible defaultOpen={index === 0}>
-              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left outline-hidden hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.055]">
+              <CollapsibleTrigger className="group flex w-full items-center justify-between gap-4 px-5 py-4 text-left outline-hidden hover:bg-foreground/3.5 focus-visible:bg-foreground/5.5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <HugeiconsIcon

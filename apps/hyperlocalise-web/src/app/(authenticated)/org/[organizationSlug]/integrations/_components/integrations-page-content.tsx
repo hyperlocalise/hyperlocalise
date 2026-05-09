@@ -234,7 +234,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
           </TypographyP>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-foreground/8 bg-foreground/[0.025]">
+        <div className="overflow-x-auto rounded-lg border border-foreground/8 bg-foreground/2.5">
           {isLoading ? (
             <div className="flex flex-col px-5 py-4 lg:px-6">
               <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
@@ -330,7 +330,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
       </section>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="border border-foreground/8 bg-foreground/[0.025] text-foreground">
+        <DialogContent className="border border-foreground/8 bg-foreground/2.5 text-foreground">
           <DialogHeader>
             <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
             <DialogDescription className="text-foreground/52">
@@ -364,7 +364,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                 <select
                   value={selectedModel}
                   onChange={(event) => setSelectedModel(event.target.value)}
-                  className="h-9 w-full rounded-4xl border border-foreground/10 bg-foreground/[0.03] px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
+                  className="h-9 w-full rounded-4xl border border-foreground/10 bg-foreground/3 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
                 >
                   {selectedProviderConfig.models.map((model) => (
                     <option key={model} value={model} className="bg-[#0b0b0b] text-foreground">
@@ -388,7 +388,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     placeholder={`Enter ${selectedProviderLabel} API key`}
-                    className="border-foreground/10 bg-foreground/[0.03] ps-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    className="border-foreground/10 bg-foreground/3 ps-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                   />
                 </div>
               </label>
@@ -433,7 +433,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
           {tmsIntegrations.map((integration) => (
             <Card
               key={integration.name}
-              className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground opacity-78 ring-0"
+              className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground opacity-78 ring-0"
             >
               <CardHeader className="gap-4 px-5 py-5">
                 <div className="flex items-start justify-between gap-4">

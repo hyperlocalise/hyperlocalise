@@ -50,12 +50,12 @@ export function AppShellNavigation({ groups }: AppShellNavigationProps) {
         return (
           <Collapsible key={group.label} defaultOpen>
             <SidebarGroup className="p-0">
-              <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-[0.68rem] tracking-[0.08em] text-app-shell-foreground/34 uppercase outline-hidden transition-[margin,opacity] duration-200 hover:text-app-shell-foreground/54 focus-visible:text-app-shell-foreground/64 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
+              <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-[0.68rem] tracking-[0.08em] text-sidebar-foreground/34 uppercase outline-hidden transition-[margin,opacity] duration-200 hover:text-sidebar-foreground/54 focus-visible:text-sidebar-foreground/64 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
                 <span className="min-w-0 flex-1 truncate">{group.label}</span>
                 <HugeiconsIcon
                   icon={ArrowDown01Icon}
                   strokeWidth={1.8}
-                  className="size-3.5 shrink-0 transition-transform group-data-[panel-open]/collapsible-trigger:rotate-180"
+                  className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180"
                 />
               </CollapsibleTrigger>
               <CollapsibleContent hiddenUntilFound>{content}</CollapsibleContent>
@@ -85,8 +85,8 @@ function NavigationGroupItems({ group, pathname }: { group: NavigationGroup; pat
                 isActive={isActive}
                 tooltip={item.label}
                 className={cn(
-                  "h-10 rounded-lg px-3 text-sm font-normal text-app-shell-foreground/68 hover:text-app-shell-foreground group-data-[collapsible=icon]:size-9!",
-                  isActive && "bg-app-shell-foreground/10 text-app-shell-foreground",
+                  "h-10 rounded-lg px-3 text-sm font-normal text-sidebar-foreground/68 hover:text-sidebar-foreground group-data-[collapsible=icon]:size-9!",
+                  isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
                 )}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-5" />

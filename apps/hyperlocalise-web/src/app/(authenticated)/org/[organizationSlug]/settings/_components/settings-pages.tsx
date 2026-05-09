@@ -131,7 +131,7 @@ function SettingsHeader({
 function SurfaceCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <Card
-      className={`rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0 ${className}`}
+      className={`rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0 ${className}`}
     >
       {children}
     </Card>
@@ -332,7 +332,7 @@ export function BillingSettingsPageContent() {
             </div>
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
               <Metric label="Cycle usage" value="60%" />
-              <Metric label="Renewal" value="Aug 24, 2025" />
+              <Metric label="Renewal" value="Aug 24, 2027" />
               <Metric label="Billing owner" value="Finance" />
             </div>
           </CardContent>

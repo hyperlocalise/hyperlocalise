@@ -171,7 +171,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         </Button>
       </div>
 
-      <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+      <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Active keys</CardTitle>
           <CardDescription className="text-foreground/52">
@@ -230,7 +230,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           else setIsCreateOpen(true);
         }}
       >
-        <DialogContent className="border-foreground/8 bg-foreground/[0.025] text-foreground sm:max-w-lg">
+        <DialogContent className="border-foreground/8 bg-foreground/2.5 text-foreground sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-medium text-foreground">
               {createdKey ? "API key created" : "Create API key"}
@@ -322,7 +322,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         open={revokingKeyId !== null}
         onOpenChange={(open) => !open && setRevokingKeyId(null)}
       >
-        <DialogContent className="border-foreground/8 bg-foreground/[0.025] text-foreground sm:max-w-md">
+        <DialogContent className="border-foreground/8 bg-foreground/2.5 text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-medium text-foreground">
               Revoke API key

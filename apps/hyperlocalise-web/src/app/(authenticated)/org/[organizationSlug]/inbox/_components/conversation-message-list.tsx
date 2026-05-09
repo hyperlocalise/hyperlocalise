@@ -213,7 +213,7 @@ function MessageFrame({
         <MessageContent
           className={cn(
             "leading-6",
-            role === "assistant" && "rounded-xl bg-dew-500/10 px-4 py-2.5",
+            role === "assistant" && "rounded-xl bg-grove-900/15 px-4 py-2.5",
           )}
         >
           {children}

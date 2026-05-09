@@ -187,7 +187,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
       <section className="grid gap-3 lg:grid-cols-2">
         <GitHubAgentCard organizationSlug={organizationSlug} />
 
-        <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+        <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
           <CardHeader className="gap-4 px-5 py-5 lg:px-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex min-w-0 items-start gap-3">
@@ -273,7 +273,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
         {comingSoonAgents.map((agent) => (
           <Card
             key={agent.name}
-            className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0"
+            className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
           >
             <CardHeader className="gap-4 px-5 py-5">
               <div className="flex items-start justify-between gap-4">
@@ -310,7 +310,7 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
         ))}
       </section>
 
-      <Card className="rounded-lg border border-foreground/8 bg-foreground/[0.025] py-0 text-foreground ring-0">
+      <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
         <CardContent className="flex items-start gap-3 px-5 py-4">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-bud-500/10 text-bud-300">
             <HugeiconsIcon icon={BubbleChatIcon} strokeWidth={1.8} className="size-4" />

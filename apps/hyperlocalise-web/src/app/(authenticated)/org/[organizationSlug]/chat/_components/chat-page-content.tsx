@@ -11,7 +11,6 @@ import {
   Cancel01Icon,
   SentIcon,
   CheckmarkCircle02Icon,
-  Clock01Icon,
   FileAttachmentIcon,
   FolderLibraryIcon,
   MailReceive01Icon,
@@ -34,34 +33,25 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  TypographyH2,
-  TypographyH4,
-  TypographyMuted,
-  TypographySmall,
-} from "@/components/ui/typography";
+import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 
 const suggestedRequests = [
   {
-    icon: MailReceive01Icon,
-    title: "Translate the latest launch copy",
-    detail: "Use Product Web and prepare fr-FR, de-DE, and ja-JP drafts",
+    icon: BubbleChatTranslateIcon,
+    text: "Translate these release notes into ja-JP and vi-VN using the selected project's tone and glossary.",
+  },
+  {
+    icon: FileAttachmentIcon,
+    text: "Translate the attached resource file while preserving keys, placeholders, and file structure.",
   },
   {
     icon: CheckmarkCircle02Icon,
-    title: "Review blocked locale approvals",
-    detail: "Summarize unresolved comments before the release window",
+    text: "Review these strings for tone, terminology, placeholders, and length risks before release.",
   },
   {
-    icon: BubbleChatTranslateIcon,
-    title: "Adapt support macros for APAC",
-    detail: "Keep placeholders and legal disclaimers unchanged",
-  },
-  {
-    icon: Clock01Icon,
-    title: "Show translation work due today",
-    detail: "Prioritize inbox requests that affect the next release",
+    icon: MailReceive01Icon,
+    text: "Suggest glossary updates from this copy, including product terms and forbidden translations.",
   },
 ] as const;
 
@@ -173,7 +163,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
       <section className="w-full max-w-5xl">
         <div className="mb-7 text-center">
           <TypographyH2 className="text-balance text-foreground">
-            What do you want to translate?
+            What should we localise?
           </TypographyH2>
         </div>
 
@@ -184,7 +174,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               chatRequestMutation.mutate();
             }
           }}
-          className="overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10"
+          className="overflow-hidden rounded-[1.35rem] bg-muted text-foreground shadow-2xl shadow-black/10"
         >
           <label htmlFor="inbox-request" className="sr-only">
             Translation request
@@ -253,7 +243,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               ))}
             </div>
           ) : null}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-background/70 px-4 py-3 sm:px-5">
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <DropdownMenu>
                 <Tooltip>
@@ -383,41 +373,29 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
           </div>
         </form>
 
-        <TypographyMuted className="mt-5 flex items-center justify-center gap-2 text-muted-foreground">
+        <TypographyMuted className="mt-5 flex items-center justify-center gap-2 text-xs">
           <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.7} className="size-3.5" />
           Agent can turn inbox requests into translation jobs, glossary updates, or reviewer tasks.
         </TypographyMuted>
 
-        <div className="space-y-1.4 mt-6">
-          <TypographyH4>Suggestions</TypographyH4>
-          <div className="rounded-xl border border-border/20 bg-muted/5">
-            {suggestedRequests.map((request, index) => (
-              <div key={request.title}>
-                <button
-                  type="button"
-                  onClick={() => setText(`${request.title}. ${request.detail}`)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/10"
-                >
-                  <HugeiconsIcon
-                    icon={request.icon}
-                    strokeWidth={1.7}
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                  />
-                  <div className="min-w-0">
-                    <TypographySmall className="block text-foreground">
-                      {request.title}
-                    </TypographySmall>
-                    <TypographyMuted className="mt-1 text-muted-foreground">
-                      {request.detail}
-                    </TypographyMuted>
-                  </div>
-                </button>
-                {index < suggestedRequests.length - 1 ? (
-                  <Separator className="bg-border/20" />
-                ) : null}
-              </div>
-            ))}
-          </div>
+        <div className="mt-10 bg-muted/5">
+          {suggestedRequests.map((request, index) => (
+            <div key={request.text}>
+              <button
+                type="button"
+                onClick={() => setText(request.text)}
+                className="flex w-full items-start gap-3 px-4 py-3 text-left text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+              >
+                <HugeiconsIcon
+                  icon={request.icon}
+                  strokeWidth={1.7}
+                  className="mt-0.5 size-4 shrink-0"
+                />
+                <span className="min-w-0 text-sm leading-5">{request.text}</span>
+              </button>
+              {index < suggestedRequests.length - 1 ? <Separator className="bg-border/20" /> : null}
+            </div>
+          ))}
         </div>
       </section>
     </main>
