@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
@@ -326,14 +327,17 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 				return err
 			}
 
+			outputPath := strings.TrimSpace(o.outputPath)
 			out := cmd.OutOrStdout()
 			var closeOut func() error
-			if strings.TrimSpace(o.outputPath) != "" {
-				file, err := os.Create(o.outputPath)
+			var tempPath string
+			if outputPath != "" {
+				file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
 				if err != nil {
-					return fmt.Errorf("create translation memory csv: %w", err)
+					return fmt.Errorf("create temporary translation memory csv: %w", err)
 				}
 				out = file
+				tempPath = file.Name()
 				closeOut = file.Close
 			}
 
@@ -348,15 +352,21 @@ func newCrowdinTranslationMemoryDownloadCmd() *cobra.Command {
 				}
 			}
 			if err != nil {
-				if strings.TrimSpace(o.outputPath) != "" {
-					if removeErr := os.Remove(o.outputPath); removeErr != nil && !os.IsNotExist(removeErr) {
-						return fmt.Errorf("%w; also failed to remove partial output: %v", err, removeErr)
+				if tempPath != "" {
+					if removeErr := os.Remove(tempPath); removeErr != nil && !os.IsNotExist(removeErr) {
+						return fmt.Errorf("%w; also failed to remove temporary output: %v", err, removeErr)
 					}
 				}
 				return err
 			}
-			if strings.TrimSpace(o.outputPath) != "" {
-				_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s rows=%d segments=%d\n", o.outputPath, result.Rows, result.Segments)
+			if outputPath != "" {
+				if err := os.Rename(tempPath, outputPath); err != nil {
+					if removeErr := os.Remove(tempPath); removeErr != nil && !os.IsNotExist(removeErr) {
+						return fmt.Errorf("replace translation memory csv: %w; also failed to remove temporary output: %v", err, removeErr)
+					}
+					return fmt.Errorf("replace translation memory csv: %w", err)
+				}
+				_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s rows=%d segments=%d\n", outputPath, result.Rows, result.Segments)
 				return err
 			}
 			return nil

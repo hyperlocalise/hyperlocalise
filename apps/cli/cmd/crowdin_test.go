@@ -423,12 +423,59 @@ func TestCrowdinTranslationMemoryDownloadRequiresInputs(t *testing.T) {
 	}
 }
 
+func TestCrowdinTranslationMemoryDownloadPreservesExistingFileOnError(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id: 123
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldFactory := newCrowdinTranslationMemoryCSVWriter
+	defer func() {
+		newCrowdinTranslationMemoryCSVWriter = oldFactory
+	}()
+	newCrowdinTranslationMemoryCSVWriter = func(crowdinstorage.Config) (crowdinTranslationMemoryCSVWriter, error) {
+		return &fakeCrowdinTranslationMemoryCSVWriter{err: errors.New("api failed")}, nil
+	}
+
+	outputPath := filepath.Join(dir, "tm.csv")
+	if err := os.WriteFile(outputPath, []byte("existing csv\n"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "tm", "download", "--tm-id", "44", "--source-language", "en", "--target-language", "fr", "--output", outputPath})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "api failed") {
+		t.Fatalf("error = %v, want api failed", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read existing output: %v", err)
+	}
+	if got, want := string(content), "existing csv\n"; got != want {
+		t.Fatalf("file = %q, want preserved %q", got, want)
+	}
+}
+
 type fakeCrowdinTranslationMemoryCSVWriter struct {
 	req crowdinstorage.TranslationMemoryDownloadRequest
+	err error
 }
 
 func (f *fakeCrowdinTranslationMemoryCSVWriter) WriteTranslationMemoryCSV(_ context.Context, req crowdinstorage.TranslationMemoryDownloadRequest, w io.Writer) (crowdinstorage.TranslationMemoryDownloadResult, error) {
 	f.req = req
+	if f.err != nil {
+		return crowdinstorage.TranslationMemoryDownloadResult{}, f.err
+	}
 	if _, err := io.WriteString(w, "source_text,target_text\nCheckout,Commander\n"); err != nil {
 		return crowdinstorage.TranslationMemoryDownloadResult{}, err
 	}

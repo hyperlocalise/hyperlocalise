@@ -14,25 +14,27 @@ import (
 
 const translationMemoryCSVPageLimit = 500
 
-var translationMemoryCSVHeader = []string{
-	"tm_id",
-	"segment_id",
-	"source_locale",
-	"target_locale",
-	"source_text",
-	"target_text",
-	"source_record_id",
-	"target_record_id",
-	"source_usage_count",
-	"target_usage_count",
-	"source_created_at",
-	"target_created_at",
-	"source_updated_at",
-	"target_updated_at",
-	"source_created_by",
-	"target_created_by",
-	"source_updated_by",
-	"target_updated_by",
+func translationMemoryCSVHeader() []string {
+	return []string{
+		"tm_id",
+		"segment_id",
+		"source_locale",
+		"target_locale",
+		"source_text",
+		"target_text",
+		"source_record_id",
+		"target_record_id",
+		"source_usage_count",
+		"target_usage_count",
+		"source_created_at",
+		"target_created_at",
+		"source_updated_at",
+		"target_updated_at",
+		"source_created_by",
+		"target_created_by",
+		"source_updated_by",
+		"target_updated_by",
+	}
 }
 
 // TranslationMemoryDownloadRequest identifies the Crowdin translation memory records to export.
@@ -73,7 +75,7 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, req Translat
 
 	rows := translationMemoryCSVRows(req.TranslationMemoryID, segments, strings.TrimSpace(req.SourceLanguage), req.TargetLanguages)
 	writer := csv.NewWriter(w)
-	if err := writer.Write(translationMemoryCSVHeader); err != nil {
+	if err := writer.Write(translationMemoryCSVHeader()); err != nil {
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("write translation memory csv header: %w", err)
 	}
 	for _, row := range rows {
@@ -204,10 +206,10 @@ func translationMemoryCSVRow(tmID, segmentID int, sourceLanguage string, source,
 		target.CreatedAt,
 		source.UpdatedAt,
 		target.UpdatedAt,
-		formatOptionalInt(source.CreatedBy),
-		formatOptionalInt(target.CreatedBy),
-		formatOptionalInt(source.UpdatedBy),
-		formatOptionalInt(target.UpdatedBy),
+		fmt.Sprintf("%d", source.CreatedBy),
+		fmt.Sprintf("%d", target.CreatedBy),
+		fmt.Sprintf("%d", source.UpdatedBy),
+		fmt.Sprintf("%d", target.UpdatedBy),
 	}
 }
 
@@ -226,11 +228,4 @@ func normalizeLanguages(languages []string) []string {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized
-}
-
-func formatOptionalInt(value int) string {
-	if value == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%d", value)
 }

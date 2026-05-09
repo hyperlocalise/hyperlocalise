@@ -51,10 +51,10 @@ func TestWriteTranslationMemoryCSVWritesStableRows(t *testing.T) {
 	if len(records) != 3 {
 		t.Fatalf("record count = %d, want 3: %q", len(records), out.String())
 	}
-	if got, want := records[0], translationMemoryCSVHeader; !equalStrings(got, want) {
+	if got, want := records[0], translationMemoryCSVHeader(); !equalStrings(got, want) {
 		t.Fatalf("header = %#v, want %#v", got, want)
 	}
-	wantFirst := []string{"44", "9", "en", "es", "Checkout", "Pagar", "91", "93", "5", "1", "2024-01-01T03:04:05+00:00", "", "2024-01-04T03:04:05+00:00", "", "3", "", "4", ""}
+	wantFirst := []string{"44", "9", "en", "es", "Checkout", "Pagar", "91", "93", "5", "1", "2024-01-01T03:04:05+00:00", "", "2024-01-04T03:04:05+00:00", "", "3", "0", "4", "0"}
 	if got := records[1]; !equalStrings(got, wantFirst) {
 		t.Fatalf("first row = %#v, want %#v", got, wantFirst)
 	}
@@ -119,7 +119,7 @@ func TestWriteTranslationMemoryCSVHandlesEmptyResults(t *testing.T) {
 	if result.Rows != 0 || result.Segments != 0 {
 		t.Fatalf("result = %#v, want zero result", result)
 	}
-	if got, want := strings.TrimSpace(out.String()), strings.Join(translationMemoryCSVHeader, ","); got != want {
+	if got, want := strings.TrimSpace(out.String()), strings.Join(translationMemoryCSVHeader(), ","); got != want {
 		t.Fatalf("csv = %q, want %q", got, want)
 	}
 }
