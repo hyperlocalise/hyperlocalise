@@ -14,7 +14,7 @@ import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
-  supportedTranslationFileFormats,
+  supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -36,7 +36,7 @@ const createPublicJobBodySchema = z.discriminatedUnion("type", [
     projectId: z.string().trim().min(1),
     fileInput: z.object({
       sourceFileId: z.string().trim().min(1),
-      fileFormat: z.enum(supportedTranslationFileFormats),
+      fileFormat: z.enum(supportedFileTranslationFileFormats),
       sourceLocale: z.string().trim().min(1).max(32),
       targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
       metadata: z.record(z.string(), z.string()).optional(),

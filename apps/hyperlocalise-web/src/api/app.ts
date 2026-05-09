@@ -60,7 +60,7 @@ export function createApp(options: CreateAppOptions = {}) {
     )
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route("/orgs/:organizationSlug/api-keys", createApiKeyRoutes())
-    .route("/v1/jobs", createPublicJobRoutes(options))
+    .route("/v1/jobs", createPublicJobRoutes({ ...options, jobQueue }))
     .route(
       "/webhooks/github",
       createGithubWebhookRoutes({

@@ -1,4 +1,7 @@
 import { getWorkflowMetadata } from "workflow";
+import { and, asc, eq, inArray } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
   isImageTranslationFileFormat,
@@ -13,6 +16,7 @@ import {
   prepareSandbox,
   readTranslatedFile,
   runSandboxCommand,
+  type SandboxTranslationContext,
   stopTranslationSandbox,
   userFacingFailureReason,
   writeFileToSandbox,
@@ -51,11 +55,19 @@ async function runTranslationStep(
   sourceLocale: string | null,
   targetLocale: string,
   instructions: string | null,
+  context: SandboxTranslationContext,
 ) {
   "use step";
 
   const configPath = "/tmp/hyperlocalise-file.yml";
-  const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
+  const config = buildTempConfig(
+    inputFile,
+    outputFile,
+    sourceLocale,
+    targetLocale,
+    instructions,
+    context,
+  );
   await writeTempConfig(sandboxId, config, configPath);
 
   return runSandboxCommand(
@@ -97,6 +109,104 @@ async function logDiagnosticsStep(
     content,
     outputFilename,
   );
+}
+
+function sourceContainsTerm(
+  sourceText: string,
+  term: { sourceTerm: string; caseSensitive: boolean },
+) {
+  if (term.caseSensitive) {
+    return sourceText.includes(term.sourceTerm);
+  }
+
+  return sourceText.toLocaleLowerCase().includes(term.sourceTerm.toLocaleLowerCase());
+}
+
+async function assembleFileTranslationContextStep(input: {
+  jobId: string;
+  projectId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  sourceContent: Buffer;
+  metadata?: Record<string, string>;
+}) {
+  "use step";
+
+  const [project] = await db
+    .select({
+      id: schema.projects.id,
+      name: schema.projects.name,
+      translationContext: schema.projects.translationContext,
+    })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, input.projectId))
+    .limit(1);
+
+  if (!project) {
+    throw new Error(`project ${input.projectId} not found`);
+  }
+
+  const sourceText = input.sourceContent.toString("utf8").slice(0, 500_000);
+  const attachedTerms = await db
+    .select({
+      sourceTerm: schema.glossaryTerms.sourceTerm,
+      targetTerm: schema.glossaryTerms.targetTerm,
+      targetLocale: schema.glossaries.targetLocale,
+      description: schema.glossaryTerms.description,
+      forbidden: schema.glossaryTerms.forbidden,
+      caseSensitive: schema.glossaryTerms.caseSensitive,
+      priority: schema.projectGlossaries.priority,
+    })
+    .from(schema.projectGlossaries)
+    .innerJoin(schema.glossaries, eq(schema.glossaries.id, schema.projectGlossaries.glossaryId))
+    .innerJoin(schema.glossaryTerms, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+    .where(
+      and(
+        eq(schema.projectGlossaries.projectId, input.projectId),
+        eq(schema.glossaries.sourceLocale, input.sourceLocale),
+        inArray(schema.glossaries.targetLocale, input.targetLocales),
+        eq(schema.glossaries.status, "active"),
+        eq(schema.glossaryTerms.reviewStatus, "approved"),
+      ),
+    )
+    .orderBy(asc(schema.projectGlossaries.priority), asc(schema.glossaryTerms.sourceTerm))
+    .limit(500);
+
+  const glossaryTerms = attachedTerms
+    .filter((term) => sourceContainsTerm(sourceText, term))
+    .slice(0, 50)
+    .map(({ sourceTerm, targetTerm, targetLocale, description, forbidden }) => ({
+      sourceTerm,
+      targetTerm,
+      targetLocale,
+      description,
+      forbidden,
+    }));
+
+  const context = {
+    projectName: project.name,
+    projectTranslationContext: project.translationContext,
+    jobContext: input.metadata?.context ?? null,
+    glossaryTerms,
+  } satisfies SandboxTranslationContext;
+
+  await db
+    .update(schema.jobs)
+    .set({
+      contextSnapshot: {
+        assembledAt: new Date().toISOString(),
+        project,
+        job: {
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          metadata: input.metadata,
+        },
+        glossaryTerms,
+      },
+    })
+    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.projectId, input.projectId)));
+
+  return context;
 }
 
 export async function fileTranslationJobWorkflow(event: TranslationJobEventData) {
@@ -191,6 +301,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
   const { sandboxId } = await createSandboxStep();
   const inputFilename = getSandboxInputFilename(sourceFile.filename);
   const instructions = parsedInput.metadata?.instructions ?? null;
+  const context = await assembleFileTranslationContextStep({
+    jobId: claim.job.id,
+    projectId: claim.job.projectId,
+    sourceLocale: parsedInput.sourceLocale,
+    targetLocales: parsedInput.targetLocales,
+    sourceContent,
+    metadata: parsedInput.metadata,
+  });
 
   try {
     await prepareSandboxStep(sandboxId);
@@ -200,6 +318,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+      const localeContext = context.glossaryTerms
+        ? {
+            ...context,
+            glossaryTerms: context.glossaryTerms.filter(
+              (term) => term.targetLocale === targetLocale,
+            ),
+          }
+        : context;
 
       const translation = await runTranslationStep(
         sandboxId,
@@ -208,6 +334,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         parsedInput.sourceLocale,
         targetLocale,
         instructions,
+        localeContext,
       );
 
       if (translation.exitCode !== 0) {
