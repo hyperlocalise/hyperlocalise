@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/phrase"
 	"github.com/spf13/cobra"
 )
@@ -804,22 +805,7 @@ func validatePhraseDownloadOutputPath(path string, force bool) error {
 }
 
 func normalizePhraseLocales(values []string) []string {
-	locales := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
-			locale := strings.TrimSpace(part)
-			if locale == "" {
-				continue
-			}
-			if _, ok := seen[locale]; ok {
-				continue
-			}
-			seen[locale] = struct{}{}
-			locales = append(locales, locale)
-		}
-	}
-	return locales
+	return locales.NormalizeList(values)
 }
 
 func phraseTranslationOutputPaths(output string, locales []string) ([]string, error) {

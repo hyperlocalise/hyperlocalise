@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 )
 
 const (
@@ -85,7 +87,7 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, in Translati
 	if strings.TrimSpace(in.SourceLanguage) == "" {
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: source language is required")
 	}
-	targets := normalizePhraseTranslationMemoryLanguages(in.TargetLanguages)
+	targets := locales.NormalizeList(in.TargetLanguages)
 	if len(targets) == 0 {
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: at least one target language is required")
 	}
@@ -352,7 +354,7 @@ func decodeTranslationMemoryTUV(decoder *xml.Decoder, start xml.StartElement) (t
 
 func phraseTranslationMemoryCSVRows(tmID string, segments []translationMemoryTU, sourceLanguage string, targetLanguages []string) [][]string {
 	targetSet := make(map[string]struct{})
-	for _, language := range normalizePhraseTranslationMemoryLanguages(targetLanguages) {
+	for _, language := range locales.NormalizeList(targetLanguages) {
 		targetSet[language] = struct{}{}
 	}
 	sortedSegments := slices.Clone(segments)
@@ -421,32 +423,16 @@ func phraseTranslationMemorySegmentVariants(segment translationMemoryTU, sourceL
 	targets := make([]translationMemoryTUV, 0, len(variants))
 	for idx := range variants {
 		variant := variants[idx]
-		if variant.Language == sourceLanguage && source == nil {
+		if strings.EqualFold(variant.Language, sourceLanguage) && source == nil {
 			source = &variants[idx]
 			continue
 		}
-		if _, ok := targetSet[variant.Language]; ok {
-			targets = append(targets, variant)
+		for targetLang := range targetSet {
+			if strings.EqualFold(variant.Language, targetLang) {
+				targets = append(targets, variant)
+				break
+			}
 		}
 	}
 	return source, targets
-}
-
-func normalizePhraseTranslationMemoryLanguages(languages []string) []string {
-	normalized := make([]string, 0, len(languages))
-	seen := make(map[string]struct{}, len(languages))
-	for _, language := range languages {
-		for _, part := range strings.Split(language, ",") {
-			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
-			}
-			if _, ok := seen[trimmed]; ok {
-				continue
-			}
-			seen[trimmed] = struct{}{}
-			normalized = append(normalized, trimmed)
-		}
-	}
-	return normalized
 }

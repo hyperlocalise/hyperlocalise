@@ -558,6 +558,32 @@ func TestHTTPClientTMSDownloadRetriesNetworkErrors(t *testing.T) {
 	}
 }
 
+func TestPhraseTranslationMemoryCSVRowsMatchesLanguagesCaseInsensitively(t *testing.T) {
+	segments := []translationMemoryTU{
+		{
+			ID: "seg-1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-us", Text: "Checkout"},
+				{Language: "fr-fr", Text: "Paiement"},
+			},
+		},
+	}
+
+	rows := phraseTranslationMemoryCSVRows("tm-1", segments, "en-US", []string{"fr-FR"})
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if got, want := rows[0][3], "fr-fr"; got != want {
+		t.Fatalf("target locale = %q, want %q", got, want)
+	}
+	if got, want := rows[0][4], "Checkout"; got != want {
+		t.Fatalf("source text = %q, want %q", got, want)
+	}
+	if got, want := rows[0][5], "Paiement"; got != want {
+		t.Fatalf("target text = %q, want %q", got, want)
+	}
+}
+
 func TestPhraseTranslationMemoryCSVRowsMissingTUIDUsesUniqueSyntheticID(t *testing.T) {
 	segments := []translationMemoryTU{
 		{
