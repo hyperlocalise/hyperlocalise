@@ -67,10 +67,9 @@ describe("provider-credential-crypto", () => {
     it("throws an error when ciphertext is tampered with", () => {
       const encrypted = encryptProviderCredential("sensitive-data");
 
-      // Corrupt the ciphertext by changing one character in the base64 string
-      const tamperedCiphertext = encrypted.ciphertext.replace(/^[a-zA-Z]/, (c) =>
-        c === "A" ? "B" : "A",
-      );
+      // Corrupt the ciphertext by changing characters in the base64 string
+      // We use a regex that matches any character to ensure we actually change something
+      const tamperedCiphertext = encrypted.ciphertext.replace(/./, (c) => (c === "A" ? "B" : "A"));
       const tamperedEncrypted = { ...encrypted, ciphertext: tamperedCiphertext };
 
       // AES-GCM should detect tampering via the auth tag
@@ -80,9 +79,7 @@ describe("provider-credential-crypto", () => {
     it("throws an error when auth tag is tampered with", () => {
       const encrypted = encryptProviderCredential("sensitive-data");
 
-      const tamperedAuthTag = encrypted.authTag.replace(/^[a-zA-Z]/, (c) =>
-        c === "A" ? "B" : "A",
-      );
+      const tamperedAuthTag = encrypted.authTag.replace(/./, (c) => (c === "A" ? "B" : "A"));
       const tamperedEncrypted = { ...encrypted, authTag: tamperedAuthTag };
 
       expect(() => decryptProviderCredential(tamperedEncrypted)).toThrow();
