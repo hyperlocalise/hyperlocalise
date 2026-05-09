@@ -71,15 +71,20 @@ function getDefaultTranslationModel() {
 /**
  * Builds stable system instructions for deterministic string translation.
  *
- * Future improvements should pull in attached project glossaries, translation
- * memory examples, brand voice rules, and file-format-specific preservation
- * rules. Keep those additions structured and bounded so prompts stay auditable.
+ * Binding translation policy lives in the system prompt so provider-side
+ * instruction priority matches how reviewers expect these constraints to work.
  */
 function buildSystemPrompt(input: StringTranslationGeneratorInput) {
+  const glossaryTerms = input.contextSnapshot?.glossaryTerms ?? [];
+  const translationMemoryMatches = input.contextSnapshot?.translationMemoryMatches ?? [];
   const instructions = [
     "You are an expert software localization engine.",
     "Translate the provided source text into every requested target locale.",
     "Preserve meaning, tone, placeholders, HTML, Markdown, punctuation, whitespace, and line breaks.",
+    "Follow the project translation context and job context as binding style and usage guidance.",
+    "Use glossary terms exactly for their target locale. Do not use forbidden glossary terms.",
+    "Use approved translation memory matches as consistency references when they apply.",
+    "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project and job context, then translation memory examples.",
     "Do not explain your work.",
     "Return one translation for each requested locale.",
   ];
@@ -90,24 +95,8 @@ function buildSystemPrompt(input: StringTranslationGeneratorInput) {
     );
   }
 
-  return instructions.join("\n");
-}
-
-/**
- * Builds the user prompt with project and job-specific context.
- *
- * Later work should replace the raw metadata JSON blob with a typed prompt
- * section once clients start sending stable metadata keys. That will make
- * prompt changes easier to review and test.
- */
-function buildPrompt(input: StringTranslationGeneratorInput) {
-  const glossaryTerms = input.contextSnapshot?.glossaryTerms ?? [];
-  const translationMemoryMatches = input.contextSnapshot?.translationMemoryMatches ?? [];
-
-  return [
-    `Project: ${input.projectName}`,
-    `Source locale: ${input.jobInput.sourceLocale}`,
-    `Target locales: ${input.jobInput.targetLocales.join(", ")}`,
+  instructions.push(
+    "",
     `Project translation context: ${input.projectTranslationContext || "(none)"}`,
     `Job context: ${input.jobInput.context || "(none)"}`,
     glossaryTerms.length > 0
@@ -132,6 +121,23 @@ function buildPrompt(input: StringTranslationGeneratorInput) {
           ),
         ].join("\n")
       : "Translation memory matches: (none)",
+  );
+
+  return instructions.join("\n");
+}
+
+/**
+ * Builds the user prompt with project and job-specific context.
+ *
+ * Later work should replace the raw metadata JSON blob with a typed prompt
+ * section once clients start sending stable metadata keys. That will make
+ * prompt changes easier to review and test.
+ */
+function buildPrompt(input: StringTranslationGeneratorInput) {
+  return [
+    `Project: ${input.projectName}`,
+    `Source locale: ${input.jobInput.sourceLocale}`,
+    `Target locales: ${input.jobInput.targetLocales.join(", ")}`,
     `Metadata: ${JSON.stringify(input.jobInput.metadata ?? {})}`,
     "Source text:",
     input.jobInput.sourceText,

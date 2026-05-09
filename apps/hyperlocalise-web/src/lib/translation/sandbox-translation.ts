@@ -4,6 +4,19 @@ import { env } from "@/lib/env";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 
+export type SandboxTranslationContext = {
+  projectName?: string | null;
+  projectTranslationContext?: string | null;
+  jobContext?: string | null;
+  glossaryTerms?: Array<{
+    sourceTerm: string;
+    targetTerm: string;
+    targetLocale: string;
+    forbidden?: boolean | null;
+    description?: string | null;
+  }>;
+};
+
 export async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   const sandbox = await Sandbox.create({
     timeout: sandboxTimeoutMs,
@@ -71,14 +84,37 @@ export function buildTempConfig(
   sourceLocale: string | null,
   targetLocale: string,
   instructions: string | null = null,
+  context: SandboxTranslationContext | null = null,
 ): string {
   const yamlString = (value: string) => JSON.stringify(value);
   const normalizedInstructions = instructions?.trim();
+  const glossaryTerms = context?.glossaryTerms ?? [];
   const systemPrompt = [
     "You are a translation assistant. Translate the user-provided source text into the requested target language.",
     "Preserve meaning, placeholders, variables, formatting, HTML/Markdown structure, and ICU message syntax.",
     "Do not translate programmatic identifiers inside placeholders or ICU selectors.",
+    "Follow project context, job context, and glossary rules as binding translation guidance.",
+    "If constraints conflict, preserve placeholders and markup first, then glossary rules, then project and job context.",
+    context?.projectName ? `Project: ${context.projectName}` : null,
+    context?.projectTranslationContext?.trim()
+      ? `Project translation context: ${context.projectTranslationContext.trim()}`
+      : null,
+    context?.jobContext?.trim() ? `Job context: ${context.jobContext.trim()}` : null,
     normalizedInstructions ? `User style instructions: ${normalizedInstructions}` : null,
+    glossaryTerms.length > 0
+      ? [
+          "Glossary terms:",
+          ...glossaryTerms.map((term) =>
+            [
+              `- ${term.sourceTerm} -> ${term.targetTerm} (${term.targetLocale})`,
+              term.forbidden ? "forbidden" : null,
+              term.description ? `note: ${term.description}` : null,
+            ]
+              .filter(Boolean)
+              .join("; "),
+          ),
+        ].join("\n")
+      : null,
     "Return only the translated text with no explanations, labels, markdown fences, or quotes unless the translated content itself requires them.",
   ]
     .filter((line): line is string => line !== null)

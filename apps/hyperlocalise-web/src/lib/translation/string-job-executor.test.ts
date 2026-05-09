@@ -3,7 +3,7 @@ import "dotenv/config";
 process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
 
 import { MockLanguageModelV3, mockId, mockValues } from "ai/test";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   createStringTranslationGenerator,
@@ -60,6 +60,76 @@ function createInput(overrides: Partial<StringTranslationGeneratorInput> = {}) {
 }
 
 describe("createStringTranslationGenerator", () => {
+  it("puts binding context and terminology in the system prompt", async () => {
+    const doGenerate = vi.fn(async () => ({
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({
+            translations: [
+              { locale: "fr-FR", text: "Bonjour le monde" },
+              { locale: "de-DE", text: "Hallo Welt" },
+            ],
+          }),
+        },
+      ],
+      finishReason: { unified: "stop" as const, raw: undefined },
+      usage: {
+        inputTokens: {
+          total: 10,
+          noCache: 10,
+          cacheRead: undefined,
+          cacheWrite: undefined,
+        },
+        outputTokens: {
+          total: 20,
+          text: 20,
+          reasoning: undefined,
+        },
+      },
+      warnings: [],
+      request: {
+        body: JSON.stringify({ id: "prompt-capture" }),
+      },
+    }));
+    const translateStringJob = createStringTranslationGenerator({
+      model: new MockLanguageModelV3({ doGenerate }),
+    });
+
+    await translateStringJob(
+      createInput({
+        projectTranslationContext: "Use concise product-marketing language.",
+        contextSnapshot: {
+          glossaryTerms: [
+            {
+              sourceTerm: "workspace",
+              targetTerm: "espace de travail",
+              targetLocale: "fr-FR",
+              description: "Use the product term.",
+            },
+          ],
+          translationMemoryMatches: [
+            {
+              sourceText: "Hello workspace",
+              targetText: "Bonjour espace de travail",
+              targetLocale: "fr-FR",
+            },
+          ],
+        },
+      }),
+    );
+
+    const [[generateOptions]] = doGenerate.mock.calls as unknown as [
+      [{ prompt?: Array<{ role?: string; content?: unknown }> }],
+    ];
+    const systemMessage = generateOptions.prompt?.find((message) => message.role === "system");
+    const systemContent = JSON.stringify(systemMessage?.content);
+    expect(systemContent).toContain("Use concise product-marketing language.");
+    expect(systemContent).toContain("workspace");
+    expect(systemContent).toContain("espace de travail");
+    expect(systemContent).toContain("Hello workspace");
+  });
+
   it("returns translations in the requested locale order", async () => {
     const translateStringJob = createStringTranslationGenerator({
       model: createMockStructuredModel({
