@@ -469,7 +469,8 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 				"precedingTaskId": 1,
 				"vendor": "gengo",
 				"filesCount": 3,
-				"fileIds": [24,25,38]
+					"fileIds": [24,25,38],
+					"splitFiles": true
 			}
 		}`)
 	})
@@ -587,6 +588,8 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 		Vendor:          "gengo",
 		FilesCount:      3,
 		FileIDs:         []int{24, 25, 38},
+		SplitFiles:      ToPtr(true),
+		BranchIDs:       []int(nil),
 	}
 	assert.Equal(t, expected, task)
 }
