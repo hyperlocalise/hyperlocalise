@@ -23,6 +23,7 @@ go_library(
         "//apps/cli/internal/progressui",
         "//internal/i18n/htmltagparity",
         "//internal/i18n/icuparser",
+        "//internal/i18n/locales",
         "//internal/i18n/storage",
         "//internal/i18n/storage/crowdin",
         "//internal/i18n/storage/phrase",
