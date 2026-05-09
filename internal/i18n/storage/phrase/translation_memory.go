@@ -359,15 +359,18 @@ func phraseTranslationMemoryCSVRows(tmID string, segments []translationMemoryTU,
 	slices.SortStableFunc(sortedSegments, func(left, right translationMemoryTU) int {
 		return strings.Compare(left.ID, right.ID)
 	})
+	usedSegmentIDs := phraseTranslationMemoryUsedSegmentIDs(sortedSegments)
+	nextSyntheticSegmentID := 1
+
 	rows := make([][]string, 0, len(sortedSegments))
-	for idx, segment := range sortedSegments {
+	for _, segment := range sortedSegments {
 		source, targets := phraseTranslationMemorySegmentVariants(segment, sourceLanguage, targetSet)
 		if source == nil {
 			continue
 		}
-		segmentID := segment.ID
-		if strings.TrimSpace(segmentID) == "" {
-			segmentID = fmt.Sprintf("%d", idx+1)
+		segmentID := strings.TrimSpace(segment.ID)
+		if segmentID == "" {
+			segmentID, nextSyntheticSegmentID = phraseTranslationMemorySyntheticSegmentID(usedSegmentIDs, nextSyntheticSegmentID)
 		}
 		for _, target := range targets {
 			rows = append(rows, []string{
@@ -385,6 +388,28 @@ func phraseTranslationMemoryCSVRows(tmID string, segments []translationMemoryTU,
 		}
 	}
 	return rows
+}
+
+func phraseTranslationMemoryUsedSegmentIDs(segments []translationMemoryTU) map[string]struct{} {
+	used := make(map[string]struct{}, len(segments))
+	for _, segment := range segments {
+		if id := strings.TrimSpace(segment.ID); id != "" {
+			used[id] = struct{}{}
+		}
+	}
+	return used
+}
+
+func phraseTranslationMemorySyntheticSegmentID(used map[string]struct{}, next int) (string, int) {
+	for {
+		candidate := fmt.Sprintf("__missing_tuid_%d", next)
+		next++
+		if _, exists := used[candidate]; exists {
+			continue
+		}
+		used[candidate] = struct{}{}
+		return candidate, next
+	}
 }
 
 func phraseTranslationMemorySegmentVariants(segment translationMemoryTU, sourceLanguage string, targetSet map[string]struct{}) (*translationMemoryTUV, []translationMemoryTUV) {

@@ -557,3 +557,52 @@ func TestHTTPClientTMSDownloadRetriesNetworkErrors(t *testing.T) {
 		t.Fatalf("expected network error to be retryable")
 	}
 }
+
+func TestPhraseTranslationMemoryCSVRowsMissingTUIDUsesUniqueSyntheticID(t *testing.T) {
+	segments := []translationMemoryTU{
+		{
+			ID: "",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Missing ID"},
+				{Language: "fr-FR", Text: "ID manquant"},
+			},
+		},
+		{
+			ID: "1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Numeric real ID"},
+				{Language: "fr-FR", Text: "ID réel numérique"},
+			},
+		},
+		{
+			ID: "__missing_tuid_1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Synthetic-looking real ID"},
+				{Language: "fr-FR", Text: "ID réel synthétique"},
+			},
+		},
+	}
+
+	rows := phraseTranslationMemoryCSVRows("tm-1", segments, "en-US", []string{"fr-FR"})
+	if len(rows) != 3 {
+		t.Fatalf("rows = %d, want 3", len(rows))
+	}
+	seen := map[string]string{}
+	for _, row := range rows {
+		segmentID := row[1]
+		sourceText := row[4]
+		if previous, ok := seen[segmentID]; ok {
+			t.Fatalf("duplicate segment id %q for %q and %q", segmentID, previous, sourceText)
+		}
+		seen[segmentID] = sourceText
+	}
+	if got := rows[0][1]; got != "__missing_tuid_2" {
+		t.Fatalf("missing tuid fallback id = %q, want __missing_tuid_2", got)
+	}
+	if _, ok := seen["1"]; !ok {
+		t.Fatalf("real numeric segment id was not preserved: %#v", seen)
+	}
+	if _, ok := seen["__missing_tuid_1"]; !ok {
+		t.Fatalf("real synthetic-looking segment id was not preserved: %#v", seen)
+	}
+}
