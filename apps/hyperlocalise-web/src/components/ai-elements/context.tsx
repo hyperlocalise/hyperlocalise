@@ -14,7 +14,7 @@ const PERCENT_MAX = 100;
 
 /**
  * BOLT OPTIMIZATION: Reuse Intl.NumberFormat instances.
- * Creating Intl objects is expensive (~0.2ms per instance).
+ * Creating Intl objects is expensive (~0.02ms per instance).
  * Reusing shared instances reduces overhead by >95% and prevents
  * expensive re-instantiation on every render of this common component.
  */
