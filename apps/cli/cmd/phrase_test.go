@@ -602,6 +602,13 @@ func TestPhraseGlossaryDownloadWritesOutputFile(t *testing.T) {
 	if !strings.Contains(out.String(), "wrote "+outputPath+" terms=1 rows=1") {
 		t.Fatalf("unexpected summary: %q", out.String())
 	}
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		t.Fatalf("stat output: %v", err)
+	}
+	if got, want := info.Mode().Perm(), os.FileMode(0o644); got != want {
+		t.Fatalf("output permissions = %v, want %v", got, want)
+	}
 }
 
 func TestPhraseGlossaryDownloadRequiresAccountID(t *testing.T) {
@@ -613,6 +620,19 @@ func TestPhraseGlossaryDownloadRequiresAccountID(t *testing.T) {
 		t.Fatalf("expected missing account id error")
 	}
 	if !strings.Contains(err.Error(), "--account-id is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseGlossaryDownloadRequiresGlossaryID(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing glossary id error")
+	}
+	if !strings.Contains(err.Error(), "--glossary-id is required") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -235,6 +235,11 @@ func executePhraseGlossaryDownload(cmd *cobra.Command, o phraseGlossaryDownloadO
 		if err != nil {
 			return fmt.Errorf("phrase glossary download: create temp output file %q: %w", outputPath, err)
 		}
+		if err := file.Chmod(0o644); err != nil {
+			_ = file.Close()
+			_ = os.Remove(file.Name())
+			return fmt.Errorf("phrase glossary download: chmod temp output file %q: %w", outputPath, err)
+		}
 		tempPath = file.Name()
 		out = file
 	}
