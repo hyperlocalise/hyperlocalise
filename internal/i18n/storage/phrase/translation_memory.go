@@ -71,6 +71,9 @@ func NewTMSHTTPClientWithBaseURL(cfg Config, baseURL string, client *http.Client
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultTMSBaseURL
 	}
+	if err := validatePhraseBaseURL(baseURL); err != nil {
+		return nil, err
+	}
 	return newHTTPClient(baseURL, client), nil
 }
 

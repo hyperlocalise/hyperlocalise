@@ -556,12 +556,12 @@ func writeStatusCSV(w io.Writer, entries []storage.Entry, _ string) error {
 		for _, locale := range sortedLocales(byLocale) {
 			entry := byLocale[locale]
 			records = append(records, []string{
-				entry.Key,
-				entry.Namespace,
-				entry.Locale,
-				computeStatus(entry),
-				entry.Provenance.Origin,
-				entry.Provenance.State,
+				escapeCSVFormula(entry.Key),
+				escapeCSVFormula(entry.Namespace),
+				escapeCSVFormula(entry.Locale),
+				escapeCSVFormula(computeStatus(entry)),
+				escapeCSVFormula(entry.Provenance.Origin),
+				escapeCSVFormula(entry.Provenance.State),
 			})
 		}
 	}
@@ -572,4 +572,16 @@ func writeStatusCSV(w io.Writer, entries []storage.Entry, _ string) error {
 	}
 
 	return nil
+}
+
+func escapeCSVFormula(value string) string {
+	if value == "" {
+		return value
+	}
+	switch value[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + value
+	default:
+		return value
+	}
 }

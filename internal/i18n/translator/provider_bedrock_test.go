@@ -104,3 +104,60 @@ func TestSignBedrockRequest(t *testing.T) {
 		t.Fatalf("unexpected x-amz-security-token: %q", got)
 	}
 }
+
+func TestValidateBedrockRegion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		region  string
+		wantErr bool
+	}{
+		{
+			name:   "standard region",
+			region: "us-east-1",
+		},
+		{
+			name:   "gov region",
+			region: "us-gov-west-1",
+		},
+		{
+			name:   "iso region",
+			region: "us-iso-east-1",
+		},
+		{
+			name:    "host smuggling payload",
+			region:  "attacker.com:443/x",
+			wantErr: true,
+		},
+		{
+			name:    "query payload",
+			region:  "us-east-1?x=y",
+			wantErr: true,
+		},
+		{
+			name:    "uppercase region",
+			region:  "US-EAST-1",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateBedrockRegion(tc.region)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("validateBedrockRegion(%q): %v", tc.region, err)
+			}
+		})
+	}
+}

@@ -11,12 +11,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
 type BedrockProvider struct{}
+
+var bedrockRegionPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]+$`)
 
 func NewBedrockProvider() *BedrockProvider { return &BedrockProvider{} }
 
@@ -29,6 +32,9 @@ func (p *BedrockProvider) Translate(ctx context.Context, req Request) (string, e
 	}
 	if region == "" {
 		return "", fmt.Errorf("bedrock provider: AWS region is required (AWS_REGION or AWS_DEFAULT_REGION)")
+	}
+	if err := validateBedrockRegion(region); err != nil {
+		return "", err
 	}
 
 	accessKeyID := strings.TrimSpace(os.Getenv("AWS_ACCESS_KEY_ID"))
@@ -93,6 +99,14 @@ func (p *BedrockProvider) Translate(ctx context.Context, req Request) (string, e
 	SetUsage(ctx, usage)
 
 	return text, nil
+}
+
+func validateBedrockRegion(region string) error {
+	if !bedrockRegionPattern.MatchString(region) {
+		return fmt.Errorf("bedrock provider: invalid AWS region %q", region)
+	}
+
+	return nil
 }
 
 type bedrockConverseRequest struct {

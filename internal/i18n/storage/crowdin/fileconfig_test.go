@@ -272,6 +272,47 @@ files:
 	}
 }
 
+func TestLoadFileWorkflowConfigRejectsTraversalPaths(t *testing.T) {
+	t.Setenv(defaultProjectIDEnvName, "123")
+	t.Setenv(defaultAPITokenEnvName, "secret")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	if err := os.WriteFile(configPath, []byte(`
+files:
+  - source: /src/en.json
+    translation: ../../outside/%locale%.json
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, _, err := LoadFileWorkflowConfig(configPath, ""); err == nil {
+		t.Fatalf("expected traversal path to be rejected")
+	}
+}
+
+func TestLoadFileWorkflowConfigRejectsPathSegmentLanguageMapping(t *testing.T) {
+	t.Setenv(defaultProjectIDEnvName, "123")
+	t.Setenv(defaultAPITokenEnvName, "secret")
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "crowdin.yml")
+	if err := os.WriteFile(configPath, []byte(`
+files:
+  - source: /src/en.json
+    translation: /dist/%custom_locale%/%original_file_name%
+    languages_mapping:
+      custom_locale:
+        fr-FR: ../outside
+`), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, _, err := LoadFileWorkflowConfig(configPath, ""); err == nil {
+		t.Fatalf("expected path segment language mapping to be rejected")
+	}
+}
+
 func TestLoadFileWorkflowConfigPreservesExplicitFalseExportOptions(t *testing.T) {
 	t.Setenv(defaultProjectIDEnvName, "123")
 	t.Setenv(defaultAPITokenEnvName, "secret")
