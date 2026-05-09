@@ -496,6 +496,37 @@ func TestHTTPClientWriteTranslationMemoryCSV(t *testing.T) {
 	}
 }
 
+func TestHTTPClientWriteTranslationMemoryTMX(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"asyncRequest": map[string]string{"id": "async-1"}})
+	})
+	mux.HandleFunc("/v1/transMemories/downloadExport/async-1", func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("format"); got != "TMX" {
+			t.Fatalf("format = %q, want TMX", got)
+		}
+		_, _ = w.Write([]byte(`<tmx version="1.4"><body><tu tuid="seg-1"><tuv xml:lang="en-US"><seg>Cart</seg></tuv><tuv xml:lang="fr-FR"><seg>Panier</seg></tuv></tu></body></tmx>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client, _ := NewTMSHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteTranslationMemoryTMX(context.Background(), TranslationMemoryDownloadInput{TranslationMemoryID: "tm-1", APIToken: "secret", SourceLanguage: "en-US", TargetLanguages: []string{"fr-FR"}}, out)
+	if err != nil {
+		t.Fatalf("write tm tmx: %v", err)
+	}
+	if result.Rows != 0 || result.Segments != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if got := out.String(); !strings.Contains(got, `<tmx version="1.4">`) || !strings.Contains(got, `<seg>Panier</seg>`) {
+		t.Fatalf("tmx = %q", got)
+	}
+}
+
 func TestHTTPClientWriteTranslationMemoryCSVEmptyTMX(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, r *http.Request) {

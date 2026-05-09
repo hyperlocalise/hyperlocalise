@@ -59,6 +59,7 @@ type phraseTranslationMemoryDownloadOptions struct {
 	translationMemoryID string
 	sourceLanguage      string
 	targetLanguages     []string
+	format              string
 	output              string
 	tokenEnv            string
 	apiBaseURL          string
@@ -66,11 +67,12 @@ type phraseTranslationMemoryDownloadOptions struct {
 	dryRun              bool
 }
 
-type phraseTranslationMemoryCSVWriter interface {
+type phraseTranslationMemoryWriter interface {
 	WriteTranslationMemoryCSV(context.Context, phrase.TranslationMemoryDownloadInput, io.Writer) (phrase.TranslationMemoryDownloadResult, error)
+	WriteTranslationMemoryTMX(context.Context, phrase.TranslationMemoryDownloadInput, io.Writer) (phrase.TranslationMemoryDownloadResult, error)
 }
 
-var newPhraseTranslationMemoryCSVWriter = func(apiBaseURL string) (phraseTranslationMemoryCSVWriter, error) {
+var newPhraseTranslationMemoryWriter = func(apiBaseURL string) (phraseTranslationMemoryWriter, error) {
 	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{})
 }
 
@@ -130,7 +132,7 @@ func newPhraseTranslationMemoryDownloadCmd() *cobra.Command {
 	o := phraseTranslationMemoryDownloadOptions{tokenEnv: "PHRASE_API_TOKEN"}
 	cmd := &cobra.Command{
 		Use:          "download",
-		Short:        "download Phrase translation memory entries as CSV",
+		Short:        "download Phrase translation memory entries",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executePhraseTranslationMemoryDownload(cmd, o)
@@ -139,6 +141,7 @@ func newPhraseTranslationMemoryDownloadCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.translationMemoryID, "tm-id", "", "Phrase translation memory UID")
 	cmd.Flags().StringVar(&o.sourceLanguage, "source-language", "", "source language code to export")
 	cmd.Flags().StringSliceVarP(&o.targetLanguages, "target-language", "l", nil, "target language code(s) to export")
+	cmd.Flags().StringVar(&o.format, "format", "csv", "download format: csv or tmx")
 	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout")
 	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Phrase API token")
 	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Phrase TMS API base URL")
@@ -251,6 +254,11 @@ func newPhraseUploadSourcesCmd() *cobra.Command {
 }
 
 func executePhraseTranslationMemoryDownload(cmd *cobra.Command, o phraseTranslationMemoryDownloadOptions) error {
+	outputFormat, err := normalizeTranslationMemoryDownloadFormat(o.format)
+	if err != nil {
+		return fmt.Errorf("phrase translation memory download: %w", err)
+	}
+
 	if strings.TrimSpace(o.translationMemoryID) == "" {
 		return fmt.Errorf("phrase translation memory download: --tm-id is required")
 	}
@@ -277,7 +285,7 @@ func executePhraseTranslationMemoryDownload(cmd *cobra.Command, o phraseTranslat
 	if err != nil {
 		return err
 	}
-	client, err := newPhraseTranslationMemoryCSVWriter(o.apiBaseURL)
+	client, err := newPhraseTranslationMemoryWriter(o.apiBaseURL)
 	if err != nil {
 		return err
 	}
@@ -305,12 +313,13 @@ func executePhraseTranslationMemoryDownload(cmd *cobra.Command, o phraseTranslat
 		out = file
 	}
 
-	result, writeErr := client.WriteTranslationMemoryCSV(backgroundContext(), phrase.TranslationMemoryDownloadInput{
+	input := phrase.TranslationMemoryDownloadInput{
 		TranslationMemoryID: strings.TrimSpace(o.translationMemoryID),
 		APIToken:            token,
 		SourceLanguage:      strings.TrimSpace(o.sourceLanguage),
 		TargetLanguages:     targets,
-	}, out)
+	}
+	result, writeErr := writePhraseTranslationMemory(backgroundContext(), client, input, outputFormat, out)
 	if file != nil {
 		if syncErr := file.Sync(); syncErr != nil && writeErr == nil {
 			writeErr = fmt.Errorf("phrase translation memory download: sync output file %q: %w", outputPath, syncErr)
@@ -332,7 +341,7 @@ func executePhraseTranslationMemoryDownload(cmd *cobra.Command, o phraseTranslat
 			_ = os.Remove(tempPath)
 			return fmt.Errorf("phrase translation memory download: replace output file %q: %w", outputPath, err)
 		}
-		_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s rows=%d segments=%d\n", outputPath, result.Rows, result.Segments)
+		_, err = writeTranslationMemoryDownloadSummary(cmd.OutOrStdout(), outputPath, outputFormat, result.Rows, result.Segments)
 		return err
 	}
 	return nil
