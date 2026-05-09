@@ -52,6 +52,17 @@ type phraseDownloadTranslationsOptions struct {
 	dryRun        bool
 }
 
+type phraseGlossaryDownloadOptions struct {
+	accountID  string
+	glossaryID string
+	languages  []string
+	output     string
+	tokenEnv   string
+	apiBaseURL string
+	force      bool
+	dryRun     bool
+}
+
 func newPhraseCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "phrase",
@@ -59,6 +70,7 @@ func newPhraseCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPhraseUploadCmd())
 	cmd.AddCommand(newPhraseDownloadCmd())
+	cmd.AddCommand(newPhraseGlossaryCmd())
 	return cmd
 }
 
@@ -78,6 +90,36 @@ func newPhraseDownloadCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPhraseDownloadSourcesCmd())
 	cmd.AddCommand(newPhraseDownloadTranslationsCmd())
+	return cmd
+}
+
+func newPhraseGlossaryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "glossary",
+		Short: "Phrase glossary commands",
+	}
+	cmd.AddCommand(newPhraseGlossaryDownloadCmd())
+	return cmd
+}
+
+func newPhraseGlossaryDownloadCmd() *cobra.Command {
+	o := phraseGlossaryDownloadOptions{tokenEnv: "PHRASE_API_TOKEN"}
+	cmd := &cobra.Command{
+		Use:          "download",
+		Short:        "download Phrase glossary terms as CSV",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executePhraseGlossaryDownload(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.accountID, "account-id", "", "Phrase account ID")
+	cmd.Flags().StringVar(&o.glossaryID, "glossary-id", "", "Phrase glossary ID")
+	cmd.Flags().StringSliceVarP(&o.languages, "language", "l", nil, "translation locale(s) to include")
+	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout")
+	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Phrase API token")
+	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Phrase API base URL")
+	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
 	return cmd
 }
 
@@ -149,6 +191,85 @@ func newPhraseUploadSourcesCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.skipUploadTags, "skip-upload-tags", false, "do not create upload tags in Phrase")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
 	return cmd
+}
+
+func executePhraseGlossaryDownload(cmd *cobra.Command, o phraseGlossaryDownloadOptions) error {
+	if strings.TrimSpace(o.accountID) == "" {
+		return fmt.Errorf("phrase glossary download: --account-id is required")
+	}
+	if strings.TrimSpace(o.glossaryID) == "" {
+		return fmt.Errorf("phrase glossary download: --glossary-id is required")
+	}
+	outputPath := strings.TrimSpace(o.output)
+	if o.dryRun {
+		destination := outputPath
+		if destination == "" {
+			destination = "-"
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=phrase-glossary-download account_id=%s glossary_id=%s languages=%s output=%s\n", strings.TrimSpace(o.accountID), strings.TrimSpace(o.glossaryID), strings.Join(normalizePhraseLocales(o.languages), ","), destination)
+		return err
+	}
+	if err := validatePhraseGlossaryOutputPath(outputPath, o.force); err != nil {
+		return err
+	}
+	token, err := phraseAPIToken("phrase glossary download", o.tokenEnv)
+	if err != nil {
+		return err
+	}
+	client, err := phrase.NewHTTPClientWithBaseURL(phrase.Config{}, o.apiBaseURL, &http.Client{Timeout: 30 * time.Second})
+	if err != nil {
+		return err
+	}
+
+	out := cmd.OutOrStdout()
+	tempPath := ""
+	var file *os.File
+	if outputPath != "" && outputPath != "-" {
+		dir := filepath.Dir(outputPath)
+		if dir != "." {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("phrase glossary download: mkdir output directory: %w", err)
+			}
+		}
+		file, err = os.CreateTemp(dir, "."+filepath.Base(outputPath)+".tmp-*")
+		if err != nil {
+			return fmt.Errorf("phrase glossary download: create temp output file %q: %w", outputPath, err)
+		}
+		tempPath = file.Name()
+		out = file
+	}
+
+	result, writeErr := client.WriteGlossaryCSV(backgroundContext(), phrase.GlossaryDownloadInput{
+		AccountID:  strings.TrimSpace(o.accountID),
+		GlossaryID: strings.TrimSpace(o.glossaryID),
+		APIToken:   token,
+		Locales:    normalizePhraseLocales(o.languages),
+	}, out)
+	if file != nil {
+		if syncErr := file.Sync(); syncErr != nil && writeErr == nil {
+			writeErr = fmt.Errorf("phrase glossary download: sync output file %q: %w", outputPath, syncErr)
+		}
+		if closeErr := file.Close(); closeErr != nil && writeErr == nil {
+			writeErr = fmt.Errorf("phrase glossary download: close output file %q: %w", outputPath, closeErr)
+		}
+	}
+	if writeErr != nil {
+		if tempPath != "" {
+			if removeErr := os.Remove(tempPath); removeErr != nil && !os.IsNotExist(removeErr) {
+				return fmt.Errorf("%w; also failed to remove partial output: %v", writeErr, removeErr)
+			}
+		}
+		return writeErr
+	}
+	if outputPath != "" && outputPath != "-" {
+		if err := os.Rename(tempPath, outputPath); err != nil {
+			_ = os.Remove(tempPath)
+			return fmt.Errorf("phrase glossary download: replace output file %q: %w", outputPath, err)
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s terms=%d rows=%d\n", outputPath, result.Terms, result.Rows)
+		return err
+	}
+	return nil
 }
 
 func executePhraseUploadSources(cmd *cobra.Command, o phraseUploadSourcesOptions) error {
@@ -462,6 +583,23 @@ func writePhraseDownloadedFileAtomic(action, path string, content []byte, perm o
 		return fmt.Errorf("%s: replace output file %q: %w", action, path, err)
 	}
 	renamed = true
+	return nil
+}
+
+func validatePhraseGlossaryOutputPath(path string, force bool) error {
+	if path == "" || path == "-" {
+		return nil
+	}
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("phrase glossary download: output file %q is a directory", path)
+		}
+		if !force {
+			return fmt.Errorf("phrase glossary download: output file %q already exists; use --force to overwrite", path)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("phrase glossary download: stat output file %q: %w", path, err)
+	}
 	return nil
 }
 

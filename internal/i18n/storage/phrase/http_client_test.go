@@ -1,8 +1,11 @@
 package phrase
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -301,5 +304,138 @@ func TestRetryDelayUsesExponentialBackoff(t *testing.T) {
 	d2 := retryDelay(1, nil)
 	if d2 <= d1 || d1 < 200*time.Millisecond {
 		t.Fatalf("unexpected delays: %s %s", d1, d2)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
+	page := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/accounts/acct/glossaries/gloss/terms", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Fatalf("method = %s, want GET", r.Method)
+		}
+		if r.Header.Get("Authorization") != "token x" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if got := r.URL.Query().Get("per_page"); got != "100" {
+			t.Fatalf("per_page = %q, want 100", got)
+		}
+		page++
+		switch r.URL.Query().Get("page") {
+		case "1":
+			_, _ = w.Write([]byte(`[
+				{"id":"term-2","term":"Cart","description":"Shopping cart","translatable":true,"case_sensitive":false,"translations":[{"id":"tr-2","locale_code":"de-DE","content":"Warenkorb","created_at":"2024-02-01T00:00:00Z","updated_at":"2024-02-02T00:00:00Z"}],"created_at":"2024-01-01T00:00:00Z","updated_at":"2024-01-02T00:00:00Z"},
+				{"id":"term-1","term":"Checkout","description":"CTA","translatable":true,"case_sensitive":true,"translations":[{"id":"tr-1","locale_code":"fr-FR","content":"Paiement","created_at":"2024-03-01T00:00:00Z","updated_at":"2024-03-02T00:00:00Z"}],"created_at":"2024-01-03T00:00:00Z","updated_at":"2024-01-04T00:00:00Z"}
+			]`))
+		case "2":
+			_, _ = w.Write([]byte(`[]`))
+		default:
+			t.Fatalf("unexpected page: %s", r.URL.Query().Get("page"))
+		}
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{AccountID: "acct", GlossaryID: "gloss", APIToken: "x", Locales: []string{"fr-FR"}}, out)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if page != 1 {
+		t.Fatalf("page requests = %d, want 1", page)
+	}
+	if result.Terms != 2 || result.Rows != 1 {
+		t.Fatalf("result = %+v, want terms=2 rows=1", result)
+	}
+	want := "account_id,glossary_id,term_id,source_term,description,translatable,case_sensitive,translation_locale,translated_term,translation_id,translation_created_at,translation_updated_at,term_created_at,term_updated_at\nacct,gloss,term-1,Checkout,CTA,true,true,fr-FR,Paiement,tr-1,2024-03-01T00:00:00Z,2024-03-02T00:00:00Z,2024-01-03T00:00:00Z,2024-01-04T00:00:00Z\n"
+	if got := out.String(); got != want {
+		t.Fatalf("csv = %q, want %q", got, want)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVPaginates(t *testing.T) {
+	pages := make([]string, 0, 2)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/accounts/acct/glossaries/gloss/terms", func(w http.ResponseWriter, r *http.Request) {
+		pages = append(pages, r.URL.Query().Get("page"))
+		switch r.URL.Query().Get("page") {
+		case "1":
+			terms := make([]glossaryTerm, defaultPageSize)
+			for i := range terms {
+				terms[i] = glossaryTerm{ID: fmt.Sprintf("term-%03d", i), Term: fmt.Sprintf("Term %03d", i)}
+			}
+			_ = json.NewEncoder(w).Encode(terms)
+		case "2":
+			_ = json.NewEncoder(w).Encode([]glossaryTerm{{ID: "term-last", Term: "Last"}})
+		default:
+			t.Fatalf("unexpected page: %s", r.URL.Query().Get("page"))
+		}
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{AccountID: "acct", GlossaryID: "gloss", APIToken: "x"}, io.Discard)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if got, want := strings.Join(pages, ","), "1,2"; got != want {
+		t.Fatalf("pages = %s, want %s", got, want)
+	}
+	if result.Terms != defaultPageSize+1 || result.Rows != defaultPageSize+1 {
+		t.Fatalf("result = %+v, want %d terms/rows", result, defaultPageSize+1)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVIncludesTermsWithoutTranslations(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/accounts/acct/glossaries/gloss/terms", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"term-1","term":"Brand","description":"Do not translate","translatable":false,"case_sensitive":true,"translations":[],"created_at":"2024-01-01T00:00:00Z","updated_at":"2024-01-02T00:00:00Z"}]`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{AccountID: "acct", GlossaryID: "gloss", APIToken: "x"}, out)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if result.Terms != 1 || result.Rows != 1 {
+		t.Fatalf("result = %+v, want terms=1 rows=1", result)
+	}
+	if !strings.Contains(out.String(), "acct,gloss,term-1,Brand,Do not translate,false,true,,,,,,2024-01-01T00:00:00Z,2024-01-02T00:00:00Z") {
+		t.Fatalf("unexpected csv: %q", out.String())
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVAPIError(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/accounts/acct/glossaries/missing/terms", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"Glossary not found"}`, http.StatusNotFound)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{AccountID: "acct", GlossaryID: "missing", APIToken: "x"}, bytes.NewBuffer(nil))
+	if err == nil {
+		t.Fatalf("expected API error")
+	}
+	if !strings.Contains(err.Error(), "status=404") || !strings.Contains(err.Error(), "Glossary not found") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
