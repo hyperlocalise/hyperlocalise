@@ -573,7 +573,7 @@ func TestPhraseTranslationMemoryCSVRowsMatchesLanguagesCaseInsensitively(t *test
 	if len(rows) != 1 {
 		t.Fatalf("rows = %d, want 1", len(rows))
 	}
-	if got, want := rows[0][3], "fr-fr"; got != want {
+	if got, want := rows[0][3], "fr-FR"; got != want {
 		t.Fatalf("target locale = %q, want %q", got, want)
 	}
 	if got, want := rows[0][4], "Checkout"; got != want {
@@ -581,6 +581,27 @@ func TestPhraseTranslationMemoryCSVRowsMatchesLanguagesCaseInsensitively(t *test
 	}
 	if got, want := rows[0][5], "Paiement"; got != want {
 		t.Fatalf("target text = %q, want %q", got, want)
+	}
+}
+
+func TestPhraseTranslationMemoryCSVRowsDeduplicatesCaseVariantTargets(t *testing.T) {
+	segments := []translationMemoryTU{
+		{
+			ID: "seg-1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Checkout"},
+				{Language: "fr-FR", Text: "Paiement"},
+				{Language: "fr-fr", Text: "Paiement duplicate"},
+			},
+		},
+	}
+
+	rows := phraseTranslationMemoryCSVRows("tm-1", segments, "en-US", []string{"fr-FR"})
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if got, want := rows[0][3], "fr-FR"; got != want {
+		t.Fatalf("target locale = %q, want %q", got, want)
 	}
 }
 

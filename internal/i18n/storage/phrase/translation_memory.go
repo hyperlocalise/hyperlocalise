@@ -353,9 +353,9 @@ func decodeTranslationMemoryTUV(decoder *xml.Decoder, start xml.StartElement) (t
 }
 
 func phraseTranslationMemoryCSVRows(tmID string, segments []translationMemoryTU, sourceLanguage string, targetLanguages []string) [][]string {
-	targetSet := make(map[string]struct{})
+	targetSet := make(map[string]string)
 	for _, language := range locales.NormalizeList(targetLanguages) {
-		targetSet[language] = struct{}{}
+		targetSet[strings.ToLower(language)] = language
 	}
 	sortedSegments := slices.Clone(segments)
 	slices.SortStableFunc(sortedSegments, func(left, right translationMemoryTU) int {
@@ -414,25 +414,31 @@ func phraseTranslationMemorySyntheticSegmentID(used map[string]struct{}, next in
 	}
 }
 
-func phraseTranslationMemorySegmentVariants(segment translationMemoryTU, sourceLanguage string, targetSet map[string]struct{}) (*translationMemoryTUV, []translationMemoryTUV) {
+func phraseTranslationMemorySegmentVariants(segment translationMemoryTU, sourceLanguage string, targetSet map[string]string) (*translationMemoryTUV, []translationMemoryTUV) {
 	variants := slices.Clone(segment.Variants)
 	slices.SortStableFunc(variants, func(left, right translationMemoryTUV) int {
 		return strings.Compare(left.Language, right.Language)
 	})
 	var source *translationMemoryTUV
 	targets := make([]translationMemoryTUV, 0, len(variants))
+	seenTargets := make(map[string]struct{}, len(targetSet))
 	for idx := range variants {
 		variant := variants[idx]
 		if strings.EqualFold(variant.Language, sourceLanguage) && source == nil {
 			source = &variants[idx]
 			continue
 		}
-		for targetLang := range targetSet {
-			if strings.EqualFold(variant.Language, targetLang) {
-				targets = append(targets, variant)
-				break
-			}
+		targetKey := strings.ToLower(variant.Language)
+		targetLang, ok := targetSet[targetKey]
+		if !ok {
+			continue
 		}
+		if _, ok := seenTargets[targetKey]; ok {
+			continue
+		}
+		seenTargets[targetKey] = struct{}{}
+		variant.Language = targetLang
+		targets = append(targets, variant)
 	}
 	return source, targets
 }
