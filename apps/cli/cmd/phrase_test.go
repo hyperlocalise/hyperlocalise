@@ -549,3 +549,107 @@ func TestPhraseDownloadTranslationsRefusesOverwriteWithoutForce(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+func TestPhraseGlossaryDownloadWritesCSVToStdout(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/accounts/acct-1/glossaries/gloss-1/terms" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "token secret" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		_, _ = w.Write([]byte(`[{"id":"term-1","term":"Checkout","description":"CTA","translatable":true,"case_sensitive":true,"translations":[{"id":"tr-1","locale_code":"fr-FR","content":"Paiement","created_at":"2024-03-01T00:00:00Z","updated_at":"2024-03-02T00:00:00Z"}],"created_at":"2024-01-03T00:00:00Z","updated_at":"2024-01-04T00:00:00Z"}]`))
+	}))
+	defer server.Close()
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1", "--glossary-id", "gloss-1", "--language", "fr-FR", "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase glossary download: %v", err)
+	}
+	if !strings.Contains(out.String(), "account_id,glossary_id,term_id,source_term") || !strings.Contains(out.String(), "acct-1,gloss-1,term-1,Checkout,CTA,true,true,fr-FR,Paiement") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestPhraseGlossaryDownloadWritesOutputFile(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"term-1","term":"Checkout","description":"CTA","translatable":true,"case_sensitive":true,"translations":[],"created_at":"2024-01-03T00:00:00Z","updated_at":"2024-01-04T00:00:00Z"}]`))
+	}))
+	defer server.Close()
+
+	outputPath := filepath.Join(t.TempDir(), "glossary.csv")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1", "--glossary-id", "gloss-1", "--output", outputPath, "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", server.URL})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase glossary download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if !strings.Contains(string(content), "acct-1,gloss-1,term-1,Checkout,CTA,true,true") {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "wrote "+outputPath+" terms=1 rows=1") {
+		t.Fatalf("unexpected summary: %q", out.String())
+	}
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		t.Fatalf("stat output: %v", err)
+	}
+	if got, want := info.Mode().Perm(), os.FileMode(0o644); got != want {
+		t.Fatalf("output permissions = %v, want %v", got, want)
+	}
+}
+
+func TestPhraseGlossaryDownloadRequiresAccountID(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--glossary-id", "gloss-1"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing account id error")
+	}
+	if !strings.Contains(err.Error(), "--account-id is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseGlossaryDownloadRequiresGlossaryID(t *testing.T) {
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing glossary id error")
+	}
+	if !strings.Contains(err.Error(), "--glossary-id is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPhraseGlossaryDownloadRefusesOverwriteWithoutForce(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "glossary.csv")
+	if err := os.WriteFile(outputPath, []byte("old"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1", "--glossary-id", "gloss-1", "--output", outputPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected overwrite error")
+	}
+	if !strings.Contains(err.Error(), "already exists; use --force to overwrite") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
