@@ -134,7 +134,7 @@ func (c *HTTPClient) WriteTranslationMemoryTMX(ctx context.Context, in Translati
 	if strings.TrimSpace(in.SourceLanguage) == "" {
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: source language is required")
 	}
-	targets := normalizePhraseTranslationMemoryLanguages(in.TargetLanguages)
+	targets := locales.NormalizeList(in.TargetLanguages)
 	if len(targets) == 0 {
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("phrase translation memory download: at least one target language is required")
 	}
