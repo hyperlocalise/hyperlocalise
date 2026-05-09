@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -531,5 +532,28 @@ func TestHTTPClientWriteTranslationMemoryCSVAPIError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "response status=401") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestHTTPClientTMSDownloadRetriesNetworkErrors(t *testing.T) {
+	client := &HTTPClient{
+		baseURL: "https://phrase.example",
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return nil, &net.DNSError{Err: "temporary DNS failure", Name: "phrase.example", IsTemporary: true}
+		})},
+	}
+
+	_, retry, err := client.doTMSDownload(context.Background(), "/v1/transMemories/downloadExport/async-1?format=TMX", "secret")
+	if err == nil {
+		t.Fatalf("expected network error")
+	}
+	if !retry {
+		t.Fatalf("expected network error to be retryable")
 	}
 }

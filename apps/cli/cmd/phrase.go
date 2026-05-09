@@ -70,7 +70,7 @@ type phraseTranslationMemoryCSVWriter interface {
 }
 
 var newPhraseTranslationMemoryCSVWriter = func(apiBaseURL string) (phraseTranslationMemoryCSVWriter, error) {
-	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{Timeout: 30 * time.Second})
+	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{})
 }
 
 type phraseGlossaryDownloadOptions struct {

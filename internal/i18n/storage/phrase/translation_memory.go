@@ -233,7 +233,7 @@ func (c *HTTPClient) doTMSDownload(ctx context.Context, path, token string) ([]b
 	req.Header.Set("Authorization", phraseTMSAuthorizationHeader(token))
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, false, err
+		return nil, shouldRetry(nil, err), err
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -260,7 +260,7 @@ func phraseTMSAuthorizationHeader(token string) string {
 }
 
 func parseTranslationMemoryTMX(content []byte) ([]translationMemoryTU, error) {
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	decoder := xml.NewDecoder(bytes.NewReader(content))
 	segments := make([]translationMemoryTU, 0)
 	for {
 		token, err := decoder.Token()
