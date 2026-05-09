@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -52,6 +54,25 @@ type phraseDownloadTranslationsOptions struct {
 	dryRun        bool
 }
 
+type phraseTranslationMemoryDownloadOptions struct {
+	translationMemoryID string
+	sourceLanguage      string
+	targetLanguages     []string
+	output              string
+	tokenEnv            string
+	apiBaseURL          string
+	force               bool
+	dryRun              bool
+}
+
+type phraseTranslationMemoryCSVWriter interface {
+	WriteTranslationMemoryCSV(context.Context, phrase.TranslationMemoryDownloadInput, io.Writer) (phrase.TranslationMemoryDownloadResult, error)
+}
+
+var newPhraseTranslationMemoryCSVWriter = func(apiBaseURL string) (phraseTranslationMemoryCSVWriter, error) {
+	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{Timeout: 30 * time.Second})
+}
+
 type phraseGlossaryDownloadOptions struct {
 	accountID  string
 	glossaryID string
@@ -71,6 +92,7 @@ func newPhraseCmd() *cobra.Command {
 	cmd.AddCommand(newPhraseUploadCmd())
 	cmd.AddCommand(newPhraseDownloadCmd())
 	cmd.AddCommand(newPhraseGlossaryCmd())
+	cmd.AddCommand(newPhraseTranslationMemoryCmd())
 	return cmd
 }
 
@@ -90,6 +112,40 @@ func newPhraseDownloadCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPhraseDownloadSourcesCmd())
 	cmd.AddCommand(newPhraseDownloadTranslationsCmd())
+	return cmd
+}
+
+func newPhraseTranslationMemoryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "tm",
+		Aliases: []string{"translation-memory"},
+		Short:   "Phrase translation memory commands",
+	}
+	cmd.AddCommand(newPhraseTranslationMemoryDownloadCmd())
+	return cmd
+}
+
+func newPhraseTranslationMemoryDownloadCmd() *cobra.Command {
+	o := phraseTranslationMemoryDownloadOptions{tokenEnv: "PHRASE_API_TOKEN"}
+	cmd := &cobra.Command{
+		Use:          "download",
+		Short:        "download Phrase translation memory entries as CSV",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executePhraseTranslationMemoryDownload(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.translationMemoryID, "tm-id", "", "Phrase translation memory UID")
+	cmd.Flags().StringVar(&o.sourceLanguage, "source-language", "", "source language code to export")
+	cmd.Flags().StringSliceVarP(&o.targetLanguages, "target-language", "l", nil, "target language code(s) to export")
+	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout")
+	cmd.Flags().StringVar(&o.tokenEnv, "token-env", o.tokenEnv, "environment variable containing the Phrase API token")
+	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Phrase TMS API base URL")
+	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
+	_ = cmd.MarkFlagRequired("tm-id")
+	_ = cmd.MarkFlagRequired("source-language")
+	_ = cmd.MarkFlagRequired("target-language")
 	return cmd
 }
 
@@ -191,6 +247,94 @@ func newPhraseUploadSourcesCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.skipUploadTags, "skip-upload-tags", false, "do not create upload tags in Phrase")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without uploading files")
 	return cmd
+}
+
+func executePhraseTranslationMemoryDownload(cmd *cobra.Command, o phraseTranslationMemoryDownloadOptions) error {
+	if strings.TrimSpace(o.translationMemoryID) == "" {
+		return fmt.Errorf("phrase translation memory download: --tm-id is required")
+	}
+	if strings.TrimSpace(o.sourceLanguage) == "" {
+		return fmt.Errorf("phrase translation memory download: --source-language is required")
+	}
+	targets := normalizePhraseLocales(o.targetLanguages)
+	if len(targets) == 0 {
+		return fmt.Errorf("phrase translation memory download: at least one --target-language is required")
+	}
+	outputPath := strings.TrimSpace(o.output)
+	if o.dryRun {
+		destination := outputPath
+		if destination == "" {
+			destination = "-"
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=phrase-translation-memory-download tm_id=%s source_language=%s target_languages=%s output=%s\n", strings.TrimSpace(o.translationMemoryID), strings.TrimSpace(o.sourceLanguage), strings.Join(targets, ","), destination)
+		return err
+	}
+	if err := validatePhraseTranslationMemoryOutputPath(outputPath, o.force); err != nil {
+		return err
+	}
+	token, err := phraseAPIToken("phrase translation memory download", o.tokenEnv)
+	if err != nil {
+		return err
+	}
+	client, err := newPhraseTranslationMemoryCSVWriter(o.apiBaseURL)
+	if err != nil {
+		return err
+	}
+
+	out := cmd.OutOrStdout()
+	tempPath := ""
+	var file *os.File
+	if outputPath != "" && outputPath != "-" {
+		dir := filepath.Dir(outputPath)
+		if dir != "." {
+			if err := os.MkdirAll(dir, 0o755); err != nil {
+				return fmt.Errorf("phrase translation memory download: mkdir output directory: %w", err)
+			}
+		}
+		file, err = os.CreateTemp(dir, "."+filepath.Base(outputPath)+".tmp-*")
+		if err != nil {
+			return fmt.Errorf("phrase translation memory download: create temp output file %q: %w", outputPath, err)
+		}
+		if err := file.Chmod(0o644); err != nil {
+			_ = file.Close()
+			_ = os.Remove(file.Name())
+			return fmt.Errorf("phrase translation memory download: chmod temp output file %q: %w", outputPath, err)
+		}
+		tempPath = file.Name()
+		out = file
+	}
+
+	result, writeErr := client.WriteTranslationMemoryCSV(backgroundContext(), phrase.TranslationMemoryDownloadInput{
+		TranslationMemoryID: strings.TrimSpace(o.translationMemoryID),
+		APIToken:            token,
+		SourceLanguage:      strings.TrimSpace(o.sourceLanguage),
+		TargetLanguages:     targets,
+	}, out)
+	if file != nil {
+		if syncErr := file.Sync(); syncErr != nil && writeErr == nil {
+			writeErr = fmt.Errorf("phrase translation memory download: sync output file %q: %w", outputPath, syncErr)
+		}
+		if closeErr := file.Close(); closeErr != nil && writeErr == nil {
+			writeErr = fmt.Errorf("phrase translation memory download: close output file %q: %w", outputPath, closeErr)
+		}
+	}
+	if writeErr != nil {
+		if tempPath != "" {
+			if removeErr := os.Remove(tempPath); removeErr != nil && !os.IsNotExist(removeErr) {
+				return fmt.Errorf("%w; also failed to remove partial output: %v", writeErr, removeErr)
+			}
+		}
+		return writeErr
+	}
+	if outputPath != "" && outputPath != "-" {
+		if err := os.Rename(tempPath, outputPath); err != nil {
+			_ = os.Remove(tempPath)
+			return fmt.Errorf("phrase translation memory download: replace output file %q: %w", outputPath, err)
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s rows=%d segments=%d\n", outputPath, result.Rows, result.Segments)
+		return err
+	}
+	return nil
 }
 
 func executePhraseGlossaryDownload(cmd *cobra.Command, o phraseGlossaryDownloadOptions) error {
@@ -588,6 +732,23 @@ func writePhraseDownloadedFileAtomic(action, path string, content []byte, perm o
 		return fmt.Errorf("%s: replace output file %q: %w", action, path, err)
 	}
 	renamed = true
+	return nil
+}
+
+func validatePhraseTranslationMemoryOutputPath(path string, force bool) error {
+	if path == "" || path == "-" {
+		return nil
+	}
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("phrase translation memory download: output file %q is a directory", path)
+		}
+		if !force {
+			return fmt.Errorf("phrase translation memory download: output file %q already exists; use --force to overwrite", path)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("phrase translation memory download: stat output file %q: %w", path, err)
+	}
 	return nil
 }
 
