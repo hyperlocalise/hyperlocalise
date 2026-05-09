@@ -286,6 +286,49 @@ project_id: 123
 	}
 }
 
+func TestCrowdinGlossaryDownloadPreservesExistingFileOnError(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id: 123
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldFactory := newCrowdinGlossaryCSVWriter
+	defer func() {
+		newCrowdinGlossaryCSVWriter = oldFactory
+	}()
+	newCrowdinGlossaryCSVWriter = func(crowdinstorage.Config) (crowdinGlossaryCSVWriter, error) {
+		return &fakeCrowdinGlossaryCSVWriter{err: errors.New("api failed")}, nil
+	}
+
+	outputPath := filepath.Join(dir, "glossary.csv")
+	if err := os.WriteFile(outputPath, []byte("existing glossary\n"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "glossary", "download", "--glossary-id", "77", "--output", outputPath})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "api failed") {
+		t.Fatalf("error = %v, want api failed", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read existing output: %v", err)
+	}
+	if got, want := string(content), "existing glossary\n"; got != want {
+		t.Fatalf("file = %q, want preserved %q", got, want)
+	}
+}
+
 func TestCrowdinGlossaryDownloadRequiresGlossaryID(t *testing.T) {
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)
@@ -310,10 +353,14 @@ func (f *crowdinFailingWriter) Write(_ []byte) (int, error) {
 
 type fakeCrowdinGlossaryCSVWriter struct {
 	req crowdinstorage.GlossaryDownloadRequest
+	err error
 }
 
 func (f *fakeCrowdinGlossaryCSVWriter) WriteGlossaryCSV(_ context.Context, req crowdinstorage.GlossaryDownloadRequest, w io.Writer) (crowdinstorage.GlossaryDownloadResult, error) {
 	f.req = req
+	if f.err != nil {
+		return crowdinstorage.GlossaryDownloadResult{}, f.err
+	}
 	if _, err := io.WriteString(w, "term\nCheckout\n"); err != nil {
 		return crowdinstorage.GlossaryDownloadResult{}, err
 	}

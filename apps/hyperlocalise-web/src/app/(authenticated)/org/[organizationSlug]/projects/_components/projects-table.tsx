@@ -1,4 +1,4 @@
-import { Add01Icon, Archive01Icon, Edit02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
@@ -11,18 +11,18 @@ export function ProjectsTable({
   projects,
   projectsQuery,
   isSavingProject,
-  isArchivingProject,
+  isDeletingProject,
   onCreateProject,
   onEditProject,
-  onArchiveProject,
+  onDeleteProject,
 }: {
   projects: ProjectListRow[];
   projectsQuery: UseQueryResult<ProjectListRow[], Error>;
   isSavingProject: boolean;
-  isArchivingProject: boolean;
+  isDeletingProject: boolean;
   onCreateProject: () => void;
   onEditProject: (project: ProjectListRow) => void;
-  onArchiveProject: (project: ProjectListRow) => void;
+  onDeleteProject: (project: ProjectListRow) => void;
 }) {
   return (
     <section>
@@ -100,14 +100,14 @@ export function ProjectsTable({
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label={`Archive ${project.name}`}
+                    aria-label={`Delete ${project.name}`}
                     onClick={() => {
-                      onArchiveProject(project);
+                      onDeleteProject(project);
                     }}
-                    disabled={isArchivingProject || isSavingProject}
+                    disabled={isDeletingProject || isSavingProject}
                     className="text-foreground/54 hover:text-foreground"
                   >
-                    <HugeiconsIcon icon={Archive01Icon} strokeWidth={1.8} />
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
                   </Button>
                 </div>
               </div>

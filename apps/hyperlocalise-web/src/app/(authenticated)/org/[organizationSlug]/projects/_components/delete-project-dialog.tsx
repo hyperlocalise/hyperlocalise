@@ -1,4 +1,4 @@
-import { Archive01Icon } from "@hugeicons/core-free-icons";
+import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -14,41 +14,41 @@ import { Button } from "@/components/ui/button";
 
 import type { ProjectListRow } from "./project-list";
 
-export function ArchiveProjectDialog({
+export function DeleteProjectDialog({
   project,
-  isArchiving,
+  isDeleting,
   onOpenChange,
-  onArchive,
+  onDelete,
 }: {
   project: ProjectListRow | null;
-  isArchiving: boolean;
+  isDeleting: boolean;
   onOpenChange: (open: boolean) => void;
-  onArchive: (projectId: string) => void;
+  onDelete: (projectId: string) => void;
 }) {
   return (
     <AlertDialog open={project !== null} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Archive project?</AlertDialogTitle>
+          <AlertDialogTitle>Delete project?</AlertDialogTitle>
           <AlertDialogDescription>
             {project
-              ? `${project.name} will be removed from active projects.`
-              : "This project will be removed from active projects."}
+              ? `${project.name} will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association.`
+              : "This project will be permanently deleted. Jobs, files, and shared context linked to it will lose their project association."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isArchiving}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <Button
             variant="destructive"
-            disabled={isArchiving || !project}
+            disabled={isDeleting || !project}
             onClick={() => {
               if (project) {
-                onArchive(project.id);
+                onDelete(project.id);
               }
             }}
           >
-            <HugeiconsIcon icon={Archive01Icon} strokeWidth={1.8} />
-            {isArchiving ? "Archiving..." : "Archive"}
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+            {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
