@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
-import { ArchiveProjectDialog } from "./archive-project-dialog";
+import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
   createEmptyProjectForm,
   createProjectFormFromRow,
@@ -37,7 +37,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const queryClient = useQueryClient();
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
-  const [archiveProject, setArchiveProject] = useState<ProjectListRow | null>(null);
+  const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
   const projectsQuery = useQuery({
     queryKey: projectQueryKey(organizationSlug),
     queryFn: async () => {
@@ -98,7 +98,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       toast.error(error.message);
     },
   });
-  const archiveProjectMutation = useMutation({
+  const deleteProjectMutation = useMutation({
     mutationFn: async (projectId: string) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
         {
@@ -107,13 +107,13 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       );
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to archive project"));
+        throw new Error(await readProjectError(response, "Unable to delete project"));
       }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
-      setArchiveProject(null);
-      toast.success("Project archived");
+      setDeleteProject(null);
+      toast.success("Project deleted");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -187,10 +187,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           projects={projects}
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
-          isArchivingProject={archiveProjectMutation.isPending}
+          isDeletingProject={deleteProjectMutation.isPending}
           onCreateProject={openCreateProjectDialog}
           onEditProject={openEditProjectDialog}
-          onArchiveProject={setArchiveProject}
+          onDeleteProject={setDeleteProject}
         />
       </section>
       <ProjectDialog
@@ -202,15 +202,15 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         onOpenChange={closeProjectDialog}
         onSubmit={saveProject}
       />
-      <ArchiveProjectDialog
-        project={archiveProject}
-        isArchiving={archiveProjectMutation.isPending}
+      <DeleteProjectDialog
+        project={deleteProject}
+        isDeleting={deleteProjectMutation.isPending}
         onOpenChange={(open) => {
-          if (!open && !archiveProjectMutation.isPending) {
-            setArchiveProject(null);
+          if (!open && !deleteProjectMutation.isPending) {
+            setDeleteProject(null);
           }
         }}
-        onArchive={archiveProjectMutation.mutate}
+        onDelete={deleteProjectMutation.mutate}
       />
     </div>
   );
