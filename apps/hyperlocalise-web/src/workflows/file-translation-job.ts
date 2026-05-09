@@ -318,6 +318,14 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+      const localeContext = context.glossaryTerms
+        ? {
+            ...context,
+            glossaryTerms: context.glossaryTerms.filter(
+              (term) => term.targetLocale === targetLocale,
+            ),
+          }
+        : context;
 
       const translation = await runTranslationStep(
         sandboxId,
@@ -326,7 +334,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         parsedInput.sourceLocale,
         targetLocale,
         instructions,
-        context,
+        localeContext,
       );
 
       if (translation.exitCode !== 0) {
