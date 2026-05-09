@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -437,5 +438,171 @@ func TestHTTPClientWriteGlossaryCSVAPIError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "status=404") || !strings.Contains(err.Error(), "Glossary not found") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHTTPClientWriteTranslationMemoryCSV(t *testing.T) {
+	calls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if got := r.Header.Get("Authorization"); got != "ApiToken secret" {
+			t.Fatalf("auth = %q, want ApiToken secret", got)
+		}
+		var body struct {
+			ExportTargetLangs []string `json:"exportTargetLangs"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if strings.Join(body.ExportTargetLangs, ",") != "fr-FR,de-DE" {
+			t.Fatalf("target languages = %#v", body.ExportTargetLangs)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"asyncRequest": map[string]string{"id": "async-1"}})
+	})
+	mux.HandleFunc("/v1/transMemories/downloadExport/async-1", func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if got := r.URL.Query().Get("format"); got != "TMX" {
+			t.Fatalf("format = %q, want TMX", got)
+		}
+		if calls == 1 {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte(`<tmx version="1.4"><body><tu tuid="seg-2" creationdate="20240101T010101Z" changedate="20240102T010101Z" creationid="alice" changeid="bob"><tuv xml:lang="fr-FR"><seg>Paiement</seg></tuv><tuv xml:lang="en-US"><seg>Checkout</seg></tuv><tuv xml:lang="de-DE"><seg>Kasse</seg></tuv></tu><tu tuid="seg-1"><tuv xml:lang="en-US"><seg>Cart</seg></tuv><tuv xml:lang="fr-FR"><seg>Panier</seg></tuv></tu></body></tmx>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewTMSHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteTranslationMemoryCSV(context.Background(), TranslationMemoryDownloadInput{TranslationMemoryID: "tm-1", APIToken: "secret", SourceLanguage: "en-US", TargetLanguages: []string{"fr-FR", "de-DE"}}, out)
+	if err != nil {
+		t.Fatalf("write tm csv: %v", err)
+	}
+	if result.Rows != 3 || result.Segments != 2 {
+		t.Fatalf("result = %+v", result)
+	}
+	got := out.String()
+	want := "tm_id,segment_id,source_locale,target_locale,source_text,target_text,created_at,changed_at,creation_id,change_id\ntm-1,seg-1,en-US,fr-FR,Cart,Panier,,,,\ntm-1,seg-2,en-US,de-DE,Checkout,Kasse,20240101T010101Z,20240102T010101Z,alice,bob\ntm-1,seg-2,en-US,fr-FR,Checkout,Paiement,20240101T010101Z,20240102T010101Z,alice,bob\n"
+	if got != want {
+		t.Fatalf("csv = %q, want %q", got, want)
+	}
+}
+
+func TestHTTPClientWriteTranslationMemoryCSVEmptyTMX(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"asyncRequest": map[string]string{"id": "async-1"}})
+	})
+	mux.HandleFunc("/v1/transMemories/downloadExport/async-1", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<tmx version="1.4"><body></body></tmx>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client, _ := NewTMSHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteTranslationMemoryCSV(context.Background(), TranslationMemoryDownloadInput{TranslationMemoryID: "tm-1", APIToken: "ApiToken secret", SourceLanguage: "en-US", TargetLanguages: []string{"fr-FR"}}, out)
+	if err != nil {
+		t.Fatalf("write empty tm csv: %v", err)
+	}
+	if result.Rows != 0 || result.Segments != 0 {
+		t.Fatalf("result = %+v", result)
+	}
+	if got, want := out.String(), "tm_id,segment_id,source_locale,target_locale,source_text,target_text,created_at,changed_at,creation_id,change_id\n"; got != want {
+		t.Fatalf("csv = %q, want %q", got, want)
+	}
+}
+
+func TestHTTPClientWriteTranslationMemoryCSVAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	client, _ := NewTMSHTTPClientWithBaseURL(Config{}, server.URL, server.Client())
+	_, err := client.WriteTranslationMemoryCSV(context.Background(), TranslationMemoryDownloadInput{TranslationMemoryID: "tm-1", APIToken: "secret", SourceLanguage: "en-US", TargetLanguages: []string{"fr-FR"}}, bytes.NewBuffer(nil))
+	if err == nil {
+		t.Fatalf("expected api error")
+	}
+	if !strings.Contains(err.Error(), "response status=401") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestHTTPClientTMSDownloadRetriesNetworkErrors(t *testing.T) {
+	client := &HTTPClient{
+		baseURL: "https://phrase.example",
+		httpClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return nil, &net.DNSError{Err: "temporary DNS failure", Name: "phrase.example", IsTemporary: true}
+		})},
+	}
+
+	_, retry, err := client.doTMSDownload(context.Background(), "/v1/transMemories/downloadExport/async-1?format=TMX", "secret")
+	if err == nil {
+		t.Fatalf("expected network error")
+	}
+	if !retry {
+		t.Fatalf("expected network error to be retryable")
+	}
+}
+
+func TestPhraseTranslationMemoryCSVRowsMissingTUIDUsesUniqueSyntheticID(t *testing.T) {
+	segments := []translationMemoryTU{
+		{
+			ID: "",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Missing ID"},
+				{Language: "fr-FR", Text: "ID manquant"},
+			},
+		},
+		{
+			ID: "1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Numeric real ID"},
+				{Language: "fr-FR", Text: "ID réel numérique"},
+			},
+		},
+		{
+			ID: "__missing_tuid_1",
+			Variants: []translationMemoryTUV{
+				{Language: "en-US", Text: "Synthetic-looking real ID"},
+				{Language: "fr-FR", Text: "ID réel synthétique"},
+			},
+		},
+	}
+
+	rows := phraseTranslationMemoryCSVRows("tm-1", segments, "en-US", []string{"fr-FR"})
+	if len(rows) != 3 {
+		t.Fatalf("rows = %d, want 3", len(rows))
+	}
+	seen := map[string]string{}
+	for _, row := range rows {
+		segmentID := row[1]
+		sourceText := row[4]
+		if previous, ok := seen[segmentID]; ok {
+			t.Fatalf("duplicate segment id %q for %q and %q", segmentID, previous, sourceText)
+		}
+		seen[segmentID] = sourceText
+	}
+	if got := rows[0][1]; got != "__missing_tuid_2" {
+		t.Fatalf("missing tuid fallback id = %q, want __missing_tuid_2", got)
+	}
+	if _, ok := seen["1"]; !ok {
+		t.Fatalf("real numeric segment id was not preserved: %#v", seen)
+	}
+	if _, ok := seen["__missing_tuid_1"]; !ok {
+		t.Fatalf("real synthetic-looking segment id was not preserved: %#v", seen)
 	}
 }

@@ -2,13 +2,17 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/phrase"
 )
 
 func TestPhraseUploadSourcesDryRunValidatesFiles(t *testing.T) {
@@ -644,6 +648,99 @@ func TestPhraseGlossaryDownloadRefusesOverwriteWithoutForce(t *testing.T) {
 	}
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"phrase", "glossary", "download", "--account-id", "acct-1", "--glossary-id", "gloss-1", "--output", outputPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected overwrite error")
+	}
+	if !strings.Contains(err.Error(), "already exists; use --force to overwrite") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+type fakePhraseTranslationMemoryCSVWriter struct {
+	input phrase.TranslationMemoryDownloadInput
+	err   error
+}
+
+func (f *fakePhraseTranslationMemoryCSVWriter) WriteTranslationMemoryCSV(_ context.Context, input phrase.TranslationMemoryDownloadInput, w io.Writer) (phrase.TranslationMemoryDownloadResult, error) {
+	f.input = input
+	if f.err != nil {
+		return phrase.TranslationMemoryDownloadResult{}, f.err
+	}
+	if _, err := io.WriteString(w, "source_text,target_text\nCheckout,Paiement\n"); err != nil {
+		return phrase.TranslationMemoryDownloadResult{}, err
+	}
+	return phrase.TranslationMemoryDownloadResult{Rows: 1, Segments: 1}, nil
+}
+
+func TestPhraseTranslationMemoryDownloadWritesCSVToStdout(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	oldFactory := newPhraseTranslationMemoryCSVWriter
+	defer func() { newPhraseTranslationMemoryCSVWriter = oldFactory }()
+	fake := &fakePhraseTranslationMemoryCSVWriter{}
+	newPhraseTranslationMemoryCSVWriter = func(apiBaseURL string) (phraseTranslationMemoryCSVWriter, error) {
+		if apiBaseURL != "https://phrase-tms.example/api2" {
+			t.Fatalf("api base url = %q", apiBaseURL)
+		}
+		return fake, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "tm", "download", "--tm-id", "tm-1", "--source-language", "en-US", "--target-language", "fr-FR", "--token-env", "PHRASE_TEST_TOKEN", "--api-base-url", "https://phrase-tms.example/api2"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase tm download: %v", err)
+	}
+	if got, want := out.String(), "source_text,target_text\nCheckout,Paiement\n"; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+	if fake.input.TranslationMemoryID != "tm-1" || fake.input.APIToken != "secret" || fake.input.SourceLanguage != "en-US" {
+		t.Fatalf("input = %#v", fake.input)
+	}
+	if got, want := strings.Join(fake.input.TargetLanguages, ","), "fr-FR"; got != want {
+		t.Fatalf("target languages = %q, want %q", got, want)
+	}
+}
+
+func TestPhraseTranslationMemoryDownloadWritesCSVToFile(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	oldFactory := newPhraseTranslationMemoryCSVWriter
+	defer func() { newPhraseTranslationMemoryCSVWriter = oldFactory }()
+	newPhraseTranslationMemoryCSVWriter = func(string) (phraseTranslationMemoryCSVWriter, error) {
+		return &fakePhraseTranslationMemoryCSVWriter{}, nil
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "tm.csv")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "translation-memory", "download", "--tm-id", "tm-1", "--source-language", "en-US", "--target-language", "fr-FR", "--output", outputPath, "--token-env", "PHRASE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase tm download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if got, want := string(content), "source_text,target_text\nCheckout,Paiement\n"; got != want {
+		t.Fatalf("file = %q, want %q", got, want)
+	}
+	if !strings.Contains(out.String(), "wrote "+outputPath+" rows=1 segments=1") {
+		t.Fatalf("summary = %q", out.String())
+	}
+}
+
+func TestPhraseTranslationMemoryDownloadRefusesOverwriteWithoutForce(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "tm.csv")
+	if err := os.WriteFile(outputPath, []byte("old"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "tm", "download", "--tm-id", "tm-1", "--source-language", "en-US", "--target-language", "fr-FR", "--output", outputPath})
 
 	err := cmd.Execute()
 	if err == nil {
