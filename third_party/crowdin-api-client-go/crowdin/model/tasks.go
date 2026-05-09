@@ -19,41 +19,43 @@ const (
 type (
 	// Task represents a task in Crowdin.
 	Task struct {
-		ID               int                 `json:"id"`
-		ProjectID        int                 `json:"projectId"`
-		CreatorID        int                 `json:"creatorId"`
-		Type             int                 `json:"type"`
-		Status           TaskStatus          `json:"status"`
-		Title            string              `json:"title"`
-		Assignees        []*TaskAssignee     `json:"assignees"`
-		AssignedTeams    []*TaskAssignedTeam `json:"assignedTeams"`
-		Progress         TaskProgress        `json:"progress"`
-		SourceLanguageID string              `json:"sourceLanguageId"`
-		TargetLanguageID string              `json:"targetLanguageId"`
-		Description      string              `json:"description"`
-		TranslationURL   string              `json:"translationUrl"`
-		WebURL           string              `json:"webUrl"`
-		WordsCount       int                 `json:"wordsCount"`
-		CommentsCount    int                 `json:"commentsCount"`
-		Deadline         string              `json:"deadline"`
-		StartedAt        string              `json:"startedAt"`
-		ResolvedAt       string              `json:"resolvedAt"`
-		TimeRange        string              `json:"timeRange"`
-		WorkflowStepID   int                 `json:"workflowStepId"`
-		BuyURL           string              `json:"buyUrl"`
-		CreatedAt        string              `json:"createdAt"`
-		UpdatedAt        string              `json:"updatedAt"`
-		SourceLanguage   *Language           `json:"sourceLanguage"`
-		TargetLanguages  []*Language         `json:"targetLanguages"`
-		LabelIDs         []int               `json:"labelIds"`
-		ExcludeLabelIDs  []int               `json:"excludeLabelIds"`
-		PrecedingTaskID  int                 `json:"precedingTaskId"`
-		FilesCount       int                 `json:"filesCount"`
-		FileIDs          []int               `json:"fileIds,omitempty"`
-		Vendor           string              `json:"vendor,omitempty"`
-		BranchIDs        []int               `json:"branchIds,omitempty"`
-		IsArchived       *bool               `json:"isArchived,omitempty"`
-		Fields           any                 `json:"fields,omitempty"`
+		ID                int                 `json:"id"`
+		ProjectID         int                 `json:"projectId"`
+		CreatorID         int                 `json:"creatorId"`
+		Type              int                 `json:"type"`
+		Status            TaskStatus          `json:"status"`
+		Title             string              `json:"title"`
+		Assignees         []*TaskAssignee     `json:"assignees"`
+		AssignedTeams     []*TaskAssignedTeam `json:"assignedTeams"`
+		Progress          TaskProgress        `json:"progress"`
+		TranslateProgress *TaskProgress       `json:"translateProgress,omitempty"`
+		SourceLanguageID  string              `json:"sourceLanguageId"`
+		TargetLanguageID  string              `json:"targetLanguageId"`
+		Description       string              `json:"description"`
+		TranslationURL    string              `json:"translationUrl"`
+		WebURL            string              `json:"webUrl"`
+		WordsCount        int                 `json:"wordsCount"`
+		CommentsCount     int                 `json:"commentsCount"`
+		Deadline          string              `json:"deadline"`
+		StartedAt         string              `json:"startedAt"`
+		ResolvedAt        string              `json:"resolvedAt"`
+		TimeRange         string              `json:"timeRange"`
+		WorkflowStepID    int                 `json:"workflowStepId"`
+		BuyURL            string              `json:"buyUrl"`
+		CreatedAt         string              `json:"createdAt"`
+		UpdatedAt         string              `json:"updatedAt"`
+		SourceLanguage    *Language           `json:"sourceLanguage"`
+		TargetLanguages   []*Language         `json:"targetLanguages"`
+		LabelIDs          []int               `json:"labelIds"`
+		ExcludeLabelIDs   []int               `json:"excludeLabelIds"`
+		PrecedingTaskID   int                 `json:"precedingTaskId"`
+		FilesCount        int                 `json:"filesCount"`
+		FileIDs           []int               `json:"fileIds,omitempty"`
+		SplitFiles        *bool               `json:"splitFiles,omitempty"`
+		Vendor            string              `json:"vendor,omitempty"`
+		BranchIDs         []int               `json:"branchIds,omitempty"`
+		IsArchived        *bool               `json:"isArchived,omitempty"`
+		Fields            any                 `json:"fields,omitempty"`
 	}
 
 	// TaskAssignee represents an assignee of a task.
@@ -222,8 +224,14 @@ type (
 		Description string `json:"description,omitempty"`
 		// Split content for task.
 		SplitContent *bool `json:"splitContent,omitempty"`
+		// Split files for task.
+		SplitFiles *bool `json:"splitFiles,omitempty"`
 		// Skip strings already included in other tasks. Default: false.
 		SkipAssignedStrings *bool `json:"skipAssignedStrings,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Defines whether to export only pretranslated strings. Default: false.
 		// Note: `true` value can't be used with `skipUntranslatedStrings=false`,
 		// `type=0` or `type=2` in same request.
@@ -266,6 +274,10 @@ type (
 		Status TaskStatus `json:"status,omitempty"`
 		// Task description.
 		Description string `json:"description,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Defines whether to include only pretranslated strings. Default: false.
 		// Note: `true` value can't be used with `skipUntranslatedStrings=false` or
 		// `includeUntranslatedStringsOnly=true` in the same request.
@@ -302,6 +314,10 @@ type (
 		Status TaskStatus `json:"status,omitempty"`
 		// Task description.
 		Description string `json:"description,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Task expertise. Default: standard.
 		// Enum: standard, mobile-applications, software-it, gaming-video-games,
 		// technical-engineering, marketing-consumer-media, business-finance,
@@ -399,6 +415,10 @@ type (
 		Description string `json:"description,omitempty"`
 		// Skip strings already included in other tasks. Default: false.
 		SkipAssignedStrings *bool `json:"skipAssignedStrings,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Defines whether to export only pretranslated strings. Default: false.
 		// Note: `true` value can't be used with `skipUntranslatedStrings=false`,
 		// `type=0` or `type=2` in same request.
@@ -493,8 +513,14 @@ type (
 		Description string `json:"description,omitempty"`
 		// Split content for task.
 		SplitContent *bool `json:"splitContent,omitempty"`
+		// Split files for task.
+		SplitFiles *bool `json:"splitFiles,omitempty"`
 		// Skip strings already included in other tasks. Default: false.
 		SkipAssignedStrings *bool `json:"skipAssignedStrings,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Task assignees.
 		Assignees []CrowdinTaskAssignee `json:"assignees,omitempty"`
 		// Task assigned teams.
@@ -536,6 +562,10 @@ type (
 		Description string `json:"description,omitempty"`
 		// Skip strings already included in other tasks. Default: false.
 		SkipAssignedStrings *bool `json:"skipAssignedStrings,omitempty"`
+		// Defines whether to skip untranslated strings. Default: false.
+		SkipUntranslatedStrings *bool `json:"skipUntranslatedStrings,omitempty"`
+		// Defines whether to include only untranslated strings. Default: false.
+		IncludeUntranslatedStringsOnly *bool `json:"includeUntranslatedStringsOnly,omitempty"`
 		// Defines whether to export only pretranslated strings. Default: false.
 		// Note: `true` value can't be used with `skipUntranslatedStrings=false`,
 		// `type=0` or `type=2` in same request.
