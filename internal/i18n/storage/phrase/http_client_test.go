@@ -706,3 +706,35 @@ func TestPhraseTranslationMemoryCSVRowsMissingTUIDUsesUniqueSyntheticID(t *testi
 		t.Fatalf("real synthetic-looking segment id was not preserved: %#v", seen)
 	}
 }
+
+func TestValidatePhraseBaseURLRejectsUnsafeURLs(t *testing.T) {
+	tests := []string{
+		"http://api.phrase.com/v2",
+		"https://user:pass@api.phrase.com/v2",
+		"https://api.phrase.com/v2?token=1",
+		"https://api.phrase.com/v2#fragment",
+	}
+	for _, value := range tests {
+		t.Run(value, func(t *testing.T) {
+			if err := validatePhraseBaseURL(value); err == nil {
+				t.Fatalf("expected %q to be rejected", value)
+			}
+		})
+	}
+}
+
+func TestValidatePhraseBaseURLAllowsHTTPSAndLoopbackHTTP(t *testing.T) {
+	tests := []string{
+		"https://api.phrase.com/v2",
+		"https://phrase.example.test",
+		"http://127.0.0.1:8080",
+		"http://localhost:8080",
+	}
+	for _, value := range tests {
+		t.Run(value, func(t *testing.T) {
+			if err := validatePhraseBaseURL(value); err != nil {
+				t.Fatalf("validatePhraseBaseURL(%q): %v", value, err)
+			}
+		})
+	}
+}

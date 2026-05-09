@@ -515,7 +515,16 @@ func renderCrowdinTranslationPath(basePath, pattern, locale, sourcePath string, 
 	if crowdinPlaceholderRE.MatchString(rendered) {
 		return "", fmt.Errorf("unsupported placeholder remains in translation path %q", rendered)
 	}
-	return crowdinLocalPath(basePath, rendered), nil
+	targetPath := crowdinLocalPath(basePath, rendered)
+	relative, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve translation relative path: %w", err)
+	}
+	relative = filepath.ToSlash(relative)
+	if relative == ".." || strings.HasPrefix(relative, "../") {
+		return "", fmt.Errorf("translation path %q escapes base path %q", targetPath, basePath)
+	}
+	return targetPath, nil
 }
 
 func crowdinLocalPath(basePath, pattern string) string {

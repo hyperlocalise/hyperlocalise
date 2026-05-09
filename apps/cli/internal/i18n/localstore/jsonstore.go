@@ -105,9 +105,15 @@ func matchesKeyPrefix(key string, prefixes []string) bool {
 func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (syncsvc.ApplyResult, error) {
 	byLocale := make(map[string][]storage.Entry)
 	for _, entry := range plan.Creates {
+		if err := s.validateWritableLocale(entry.Locale); err != nil {
+			return syncsvc.ApplyResult{}, err
+		}
 		byLocale[entry.Locale] = append(byLocale[entry.Locale], entry)
 	}
 	for _, entry := range plan.Updates {
+		if err := s.validateWritableLocale(entry.Locale); err != nil {
+			return syncsvc.ApplyResult{}, err
+		}
 		byLocale[entry.Locale] = append(byLocale[entry.Locale], entry)
 	}
 
@@ -147,6 +153,18 @@ func (s *JSONStore) ApplyPull(_ context.Context, plan syncsvc.ApplyPullPlan) (sy
 
 func (s *JSONStore) localePath(locale string) string {
 	return pathresolver.ResolveTargetPath(s.localePattern, s.cfg.Locales.Source, locale)
+}
+
+func (s *JSONStore) validateWritableLocale(locale string) error {
+	if locale == s.cfg.Locales.Source {
+		return nil
+	}
+	for _, target := range s.cfg.Locales.Targets {
+		if locale == target {
+			return nil
+		}
+	}
+	return fmt.Errorf("apply pull: remote locale %q is not configured", locale)
 }
 
 func resolveLocalePattern(buckets map[string]config.BucketConfig) (string, string, error) {

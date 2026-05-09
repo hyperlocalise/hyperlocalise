@@ -247,7 +247,16 @@ func normalizeFileGroup(raw fileGroupYAML) (storage.FileGroupSpec, error) {
 	if strings.TrimSpace(raw.Translation) == "" {
 		return storage.FileGroupSpec{}, fmt.Errorf("translation is required")
 	}
+	if err := validateCrowdinLocalPattern(raw.Source); err != nil {
+		return storage.FileGroupSpec{}, fmt.Errorf("source: %w", err)
+	}
+	if err := validateCrowdinLocalPattern(raw.Translation); err != nil {
+		return storage.FileGroupSpec{}, fmt.Errorf("translation: %w", err)
+	}
 	if err := validateTranslationPlaceholders(raw.Translation, raw.LanguagesMapping); err != nil {
+		return storage.FileGroupSpec{}, err
+	}
+	if err := validateLanguageMappingPathValues(raw.LanguagesMapping); err != nil {
 		return storage.FileGroupSpec{}, err
 	}
 	excluded := normalizeDistinct(raw.ExcludedTargetLanguages)
@@ -275,6 +284,31 @@ func validateTranslationPlaceholders(pattern string, languageMappings map[string
 			continue
 		}
 		return fmt.Errorf("unsupported placeholder %q in translation pattern", "%"+name+"%")
+	}
+	return nil
+}
+
+func validateCrowdinLocalPattern(pattern string) error {
+	normalized := filepath.ToSlash(strings.TrimSpace(pattern))
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return fmt.Errorf("path must not contain parent directory traversal")
+		}
+	}
+	return nil
+}
+
+func validateLanguageMappingPathValues(mappings map[string]map[string]string) error {
+	for placeholder, byLocale := range mappings {
+		for locale, value := range byLocale {
+			trimmed := strings.TrimSpace(value)
+			if trimmed == "" {
+				continue
+			}
+			if strings.ContainsAny(trimmed, `/\`) || trimmed == "." || trimmed == ".." {
+				return fmt.Errorf("languages_mapping.%s.%s: value must be a single path segment", placeholder, locale)
+			}
+		}
 	}
 	return nil
 }

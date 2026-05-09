@@ -420,6 +420,23 @@ func TestBuildStatusSummaryIncludesSourceMatch(t *testing.T) {
 	}
 }
 
+func TestWriteStatusCSVEscapesFormulaFields(t *testing.T) {
+	out := bytes.NewBuffer(nil)
+	err := writeStatusCSV(out, []storage.Entry{{
+		Key:       "=IMPORTXML(\"https://example.test\")",
+		Namespace: "+namespace",
+		Locale:    "fr",
+	}}, "")
+	if err != nil {
+		t.Fatalf("write status csv: %v", err)
+	}
+
+	got := out.String()
+	if !strings.Contains(got, "'=IMPORTXML") || !strings.Contains(got, "'+namespace") {
+		t.Fatalf("expected spreadsheet formula fields to be escaped, got: %s", got)
+	}
+}
+
 func testStatusConfig() *config.I18NConfig {
 	return &config.I18NConfig{
 		Locales: config.LocaleConfig{

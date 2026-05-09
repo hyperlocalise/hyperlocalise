@@ -1,6 +1,7 @@
 package translator
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -102,5 +103,82 @@ func TestSignBedrockRequest(t *testing.T) {
 
 	if got := req.Header.Get("X-Amz-Security-Token"); got != "test-session-token" {
 		t.Fatalf("unexpected x-amz-security-token: %q", got)
+	}
+}
+
+func TestBedrockProviderTranslateNormalizesRegionFromEnv(t *testing.T) {
+	t.Setenv("AWS_REGION", "US-EAST-1")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+
+	_, err := NewBedrockProvider().Translate(context.Background(), Request{})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+
+	if strings.Contains(err.Error(), "invalid AWS region") {
+		t.Fatalf("expected uppercase region to be normalized, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "AWS credentials are required") {
+		t.Fatalf("expected credentials error, got %v", err)
+	}
+}
+
+func TestValidateBedrockRegion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		region  string
+		wantErr bool
+	}{
+		{
+			name:   "standard region",
+			region: "us-east-1",
+		},
+		{
+			name:   "gov region",
+			region: "us-gov-west-1",
+		},
+		{
+			name:   "iso region",
+			region: "us-iso-east-1",
+		},
+		{
+			name:    "host smuggling payload",
+			region:  "attacker.com:443/x",
+			wantErr: true,
+		},
+		{
+			name:    "query payload",
+			region:  "us-east-1?x=y",
+			wantErr: true,
+		},
+		{
+			name:    "uppercase region",
+			region:  "US-EAST-1",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateBedrockRegion(tc.region)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("validateBedrockRegion(%q): %v", tc.region, err)
+			}
+		})
 	}
 }

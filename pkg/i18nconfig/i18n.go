@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -30,6 +31,8 @@ const (
 	llmDefaultProfile      = "default"
 	defaultGroupName       = "default"
 )
+
+var safeLocalePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 // I18NConfig defines the i18n configuration file structure.
 type I18NConfig struct {
@@ -140,6 +143,9 @@ func Load(path string) (*I18NConfig, error) {
 	cfg.applyDefaults()
 
 	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validate i18n config: %w", err)
+	}
+	if err := cfg.validateProjectPaths(filepath.Dir(path)); err != nil {
 		return nil, fmt.Errorf("validate i18n config: %w", err)
 	}
 
@@ -287,6 +293,9 @@ func (c I18NConfig) validateLocales() (map[string]struct{}, error) {
 	if strings.TrimSpace(c.Locales.Source) == "" {
 		return nil, fmt.Errorf("locales.source: must not be empty")
 	}
+	if !safeLocalePattern.MatchString(c.Locales.Source) {
+		return nil, fmt.Errorf("locales.source: invalid locale %q", c.Locales.Source)
+	}
 
 	if len(c.Locales.Targets) == 0 {
 		return nil, fmt.Errorf("locales.targets: must not be empty")
@@ -297,6 +306,9 @@ func (c I18NConfig) validateLocales() (map[string]struct{}, error) {
 	for i, target := range c.Locales.Targets {
 		if strings.TrimSpace(target) == "" {
 			return nil, fmt.Errorf("locales.targets[%d]: must not be empty", i)
+		}
+		if !safeLocalePattern.MatchString(target) {
+			return nil, fmt.Errorf("locales.targets[%d]: invalid locale %q", i, target)
 		}
 
 		if target == c.Locales.Source {
@@ -354,6 +366,91 @@ func (c I18NConfig) validateFallbacks(targetSet map[string]struct{}) error {
 
 	if err := c.validateFallbackCycles(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c I18NConfig) validateProjectPaths(configDir string) error {
+	root, err := canonicalPathForContainment(configDir)
+	if err != nil {
+		return fmt.Errorf("resolve config directory: %w", err)
+	}
+
+	for bucketName, bucket := range c.Buckets {
+		for i, file := range bucket.Files {
+			if err := validateProjectPath(root, file.From); err != nil {
+				return fmt.Errorf("buckets.%s.files[%d].from: %w", bucketName, i, err)
+			}
+			if err := validateProjectPath(root, file.To); err != nil {
+				return fmt.Errorf("buckets.%s.files[%d].to: %w", bucketName, i, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateProjectPath(root, value string) error {
+	trimmed := strings.TrimSpace(value)
+	normalized := filepath.ToSlash(trimmed)
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment == ".." {
+			return fmt.Errorf("path must not contain parent directory traversal")
+		}
+	}
+
+	candidate := trimmed
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(root, candidate)
+	}
+	cleaned, err := canonicalPathForContainment(candidate)
+	if err != nil {
+		return fmt.Errorf("resolve path: %w", err)
+	}
+	if err := ensurePathUnderRoot(root, cleaned); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func canonicalPathForContainment(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		return resolved, nil
+	}
+
+	dir := abs
+	var suffix []string
+	for {
+		resolved, err := filepath.EvalSymlinks(dir)
+		if err == nil {
+			for i := len(suffix) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, suffix[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Clean(abs), nil
+		}
+		suffix = append(suffix, filepath.Base(dir))
+		dir = parent
+	}
+}
+
+func ensurePathUnderRoot(root, candidate string) error {
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return fmt.Errorf("resolve relative path: %w", err)
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == ".." || strings.HasPrefix(rel, "../") {
+		return fmt.Errorf("path %q escapes config directory %q", candidate, root)
 	}
 
 	return nil

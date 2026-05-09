@@ -168,6 +168,20 @@ func TestEntryMetaIDStable(t *testing.T) {
 	}
 }
 
+func TestJSONStoreApplyPullRejectsUnconfiguredLocale(t *testing.T) {
+	store := mustNewStore(t, filepath.Join(t.TempDir(), "lang", "[locale].json"))
+	_, err := store.ApplyPull(context.Background(), syncsvc.ApplyPullPlan{
+		Creates: []storage.Entry{{
+			Key:    "hello",
+			Locale: "../../package",
+			Value:  "bonjour",
+		}},
+	})
+	if err == nil {
+		t.Fatalf("expected unconfigured remote locale to be rejected")
+	}
+}
+
 func mustNewStore(t *testing.T, pattern string) *JSONStore {
 	t.Helper()
 

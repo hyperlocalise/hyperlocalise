@@ -48,7 +48,38 @@ func NewHTTPClientWithBaseURL(cfg Config, baseURL string, client *http.Client) (
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultBaseURL
 	}
+	if err := validatePhraseBaseURL(baseURL); err != nil {
+		return nil, err
+	}
 	return newHTTPClient(baseURL, client), nil
+}
+
+func validatePhraseBaseURL(baseURL string) error {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil {
+		return fmt.Errorf("phrase http client: invalid base URL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("phrase http client: base URL must include scheme and host")
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("phrase http client: base URL must not include userinfo, query, or fragment")
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()) {
+		return nil
+	}
+	return fmt.Errorf("phrase http client: base URL must use https")
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func newHTTPClient(baseURL string, client *http.Client) *HTTPClient {

@@ -1189,6 +1189,30 @@ func TestLoadAppliesImplicitDefaultGroupAcrossAllBucketsAndTargets(t *testing.T)
 	}
 }
 
+func TestLoadRejectsBucketPathTraversal(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["fr-FR"]},
+	  "buckets": {"ui": {"files": [{"from": "../secrets/en.json", "to": "lang/{{target}}.json"}]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+
+	if _, err := Load(path); err == nil {
+		t.Fatalf("expected bucket path traversal to be rejected")
+	}
+}
+
+func TestLoadRejectsUnsafeLocaleForPathTemplates(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {"source": "en-US", "targets": ["../../package"]},
+	  "buckets": {"ui": {"files": [{"from": "lang/{{source}}.json", "to": "lang/{{target}}.json"}]}},
+	  "llm": {"profiles": {"default": {"provider": "openai", "model": "gpt-5.2"}}}
+	}`)
+
+	if _, err := Load(path); err == nil {
+		t.Fatalf("expected unsafe locale to be rejected")
+	}
+}
+
 func writeConfigFile(t *testing.T, content string) string {
 	t.Helper()
 
