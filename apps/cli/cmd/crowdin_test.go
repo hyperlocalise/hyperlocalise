@@ -401,6 +401,45 @@ project_id: 123
 	}
 }
 
+func TestCrowdinTranslationMemoryDownloadWritesTMXToFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id: 123
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldFactory := newCrowdinTranslationMemoryWriter
+	defer func() { newCrowdinTranslationMemoryWriter = oldFactory }()
+	newCrowdinTranslationMemoryWriter = func(crowdinstorage.Config) (crowdinTranslationMemoryWriter, error) {
+		return &fakeCrowdinTranslationMemoryWriter{}, nil
+	}
+
+	outputPath := filepath.Join(dir, "tm.tmx")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "tm", "download", "--tm-id", "44", "--source-language", "en", "--target-language", "fr", "--format", "tmx", "--output", outputPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin tm tmx download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if !strings.Contains(string(content), "<tmx version=\"1.4\">") {
+		t.Fatalf("file = %q, want TMX", string(content))
+	}
+	if !strings.Contains(out.String(), "wrote "+outputPath+" format=tmx rows=1 segments=1") {
+		t.Fatalf("summary output = %q", out.String())
+	}
+}
+
 func TestCrowdinTranslationMemoryDownloadWritesCSVToFile(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -525,5 +564,5 @@ func (f *fakeCrowdinTranslationMemoryWriter) WriteTranslationMemoryTMX(_ context
 	if _, err := io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tmx version=\"1.4\"><body></body></tmx>"); err != nil {
 		return crowdinstorage.TranslationMemoryDownloadResult{}, err
 	}
-	return crowdinstorage.TranslationMemoryDownloadResult{Segments: 1}, nil
+	return crowdinstorage.TranslationMemoryDownloadResult{Rows: 1, Segments: 1}, nil
 }

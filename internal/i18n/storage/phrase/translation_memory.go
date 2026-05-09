@@ -146,14 +146,14 @@ func (c *HTTPClient) WriteTranslationMemoryTMX(ctx context.Context, in Translati
 	if err != nil {
 		return TranslationMemoryDownloadResult{}, err
 	}
-	if _, err := w.Write(content); err != nil {
-		return TranslationMemoryDownloadResult{}, fmt.Errorf("write phrase translation memory tmx: %w", err)
-	}
 	segments, err := parseTranslationMemoryTMX(content)
 	if err != nil {
 		return TranslationMemoryDownloadResult{}, err
 	}
-	return TranslationMemoryDownloadResult{Segments: len(segments)}, nil
+	if _, err := w.Write(content); err != nil {
+		return TranslationMemoryDownloadResult{}, fmt.Errorf("write phrase translation memory tmx: %w", err)
+	}
+	return TranslationMemoryDownloadResult{Rows: len(segments), Segments: len(segments)}, nil
 }
 
 func (c *HTTPClient) downloadTranslationMemoryTMX(ctx context.Context, tmID, token string, targetLanguages []string) ([]byte, error) {

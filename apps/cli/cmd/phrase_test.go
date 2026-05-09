@@ -682,7 +682,7 @@ func (f *fakePhraseTranslationMemoryWriter) WriteTranslationMemoryTMX(_ context.
 	if _, err := io.WriteString(w, "<?xml version=\"1.0\" encoding=\"UTF-8\"?><tmx version=\"1.4\"><body></body></tmx>"); err != nil {
 		return phrase.TranslationMemoryDownloadResult{}, err
 	}
-	return phrase.TranslationMemoryDownloadResult{Segments: 1}, nil
+	return phrase.TranslationMemoryDownloadResult{Rows: 1, Segments: 1}, nil
 }
 
 func TestPhraseTranslationMemoryDownloadWritesCSVToStdout(t *testing.T) {
@@ -738,6 +738,35 @@ func TestPhraseTranslationMemoryDownloadWritesTMXToStdout(t *testing.T) {
 	}
 	if fake.input.TranslationMemoryID != "tm-1" {
 		t.Fatalf("input = %#v", fake.input)
+	}
+}
+
+func TestPhraseTranslationMemoryDownloadWritesTMXToFile(t *testing.T) {
+	t.Setenv("PHRASE_TEST_TOKEN", "secret")
+	oldFactory := newPhraseTranslationMemoryWriter
+	defer func() { newPhraseTranslationMemoryWriter = oldFactory }()
+	newPhraseTranslationMemoryWriter = func(string) (phraseTranslationMemoryWriter, error) {
+		return &fakePhraseTranslationMemoryWriter{}, nil
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "tm.tmx")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "tm", "download", "--tm-id", "tm-1", "--source-language", "en-US", "--target-language", "fr-FR", "--format", "tmx", "--output", outputPath, "--token-env", "PHRASE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase tm tmx download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if !strings.Contains(string(content), "<tmx version=\"1.4\">") {
+		t.Fatalf("file = %q, want TMX", string(content))
+	}
+	if !strings.Contains(out.String(), "wrote "+outputPath+" format=tmx rows=1 segments=1") {
+		t.Fatalf("summary = %q", out.String())
 	}
 }
 

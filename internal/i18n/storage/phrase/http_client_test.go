@@ -519,11 +519,33 @@ func TestHTTPClientWriteTranslationMemoryTMX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("write tm tmx: %v", err)
 	}
-	if result.Rows != 0 || result.Segments != 1 {
+	if result.Rows != 1 || result.Segments != 1 {
 		t.Fatalf("result = %+v", result)
 	}
 	if got := out.String(); !strings.Contains(got, `<tmx version="1.4">`) || !strings.Contains(got, `<seg>Panier</seg>`) {
 		t.Fatalf("tmx = %q", got)
+	}
+}
+
+func TestHTTPClientWriteTranslationMemoryTMXParsesBeforeWrite(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"asyncRequest": map[string]string{"id": "async-1"}})
+	})
+	mux.HandleFunc("/v1/transMemories/downloadExport/async-1", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<tmx version="1.4"><body><tu>`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client, _ := NewTMSHTTPClientWithBaseURL(Config{}, srv.URL, srv.Client())
+
+	out := bytes.NewBuffer(nil)
+	_, err := client.WriteTranslationMemoryTMX(context.Background(), TranslationMemoryDownloadInput{TranslationMemoryID: "tm-1", APIToken: "secret", SourceLanguage: "en-US", TargetLanguages: []string{"fr-FR"}}, out)
+	if err == nil {
+		t.Fatalf("expected malformed TMX error")
+	}
+	if out.Len() != 0 {
+		t.Fatalf("output length = %d, want no bytes before parse succeeds", out.Len())
 	}
 }
 
