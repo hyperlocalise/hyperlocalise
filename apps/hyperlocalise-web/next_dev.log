@@ -1,0 +1,27 @@
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+✓ Ready in 692ms
+Discovering workflow directives 19379ms
+Created steps bundle 840ms
+Created intermediate workflow bundle 1445ms
+Creating webhook route
+Creating manifest...
+Created manifest with 86 steps, 4 workflows, and 8 classes 1355ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+Discovering workflow directives 15967ms
+Created steps bundle 192ms
+Created intermediate workflow bundle 1118ms
+Discovering workflow directives 13789ms
+Created steps bundle 160ms
+Created intermediate workflow bundle 1113ms
+⨯ Error: You must provide a redirect URI in the AuthKit middleware or in the environment variables.
+    at ignore-listed frames
+ GET /api/health 404 in 2.1s (next.js: -171733µs, proxy.ts: 2.1s, application-code: 179ms)
+[browser] Uncaught Error: You must provide a redirect URI in the AuthKit middleware or in the environment variables.
+○ Compiling /_not-found/page ...
