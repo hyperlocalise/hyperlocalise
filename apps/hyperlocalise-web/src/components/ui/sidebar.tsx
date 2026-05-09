@@ -6,6 +6,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -248,14 +249,7 @@ function Sidebar({
 
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isMac =
-    mounted && typeof window !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+  const isMac = useIsMac();
 
   return (
     <Tooltip>
