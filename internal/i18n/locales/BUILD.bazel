@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "locales",
+    srcs = ["normalize.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/locales",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "locales_test",
+    srcs = ["normalize_test.go"],
+    embed = [":locales"],
+)
