@@ -33,6 +33,7 @@ func (p *BedrockProvider) Translate(ctx context.Context, req Request) (string, e
 	if region == "" {
 		return "", fmt.Errorf("bedrock provider: AWS region is required (AWS_REGION or AWS_DEFAULT_REGION)")
 	}
+	region = strings.ToLower(region)
 	if err := validateBedrockRegion(region); err != nil {
 		return "", err
 	}

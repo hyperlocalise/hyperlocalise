@@ -1,6 +1,7 @@
 package translator
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -102,6 +103,26 @@ func TestSignBedrockRequest(t *testing.T) {
 
 	if got := req.Header.Get("X-Amz-Security-Token"); got != "test-session-token" {
 		t.Fatalf("unexpected x-amz-security-token: %q", got)
+	}
+}
+
+func TestBedrockProviderTranslateNormalizesRegionFromEnv(t *testing.T) {
+	t.Setenv("AWS_REGION", "US-EAST-1")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+
+	_, err := NewBedrockProvider().Translate(context.Background(), Request{})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+
+	if strings.Contains(err.Error(), "invalid AWS region") {
+		t.Fatalf("expected uppercase region to be normalized, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "AWS credentials are required") {
+		t.Fatalf("expected credentials error, got %v", err)
 	}
 }
 
