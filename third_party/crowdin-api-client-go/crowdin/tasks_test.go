@@ -109,6 +109,7 @@ func TestTasksService_Get(t *testing.T) {
 				"vendor": "gengo",
 				"filesCount": 3,
 				"fileIds": [24,25,38],
+				"splitFiles": true,
 				"branchIds": [24,25,38],
 				"fields": {
 					"some-field-1": "some value 1",
@@ -148,6 +149,11 @@ func TestTasksService_Get(t *testing.T) {
 			},
 		},
 		Progress: model.TaskProgress{
+			Total:   24,
+			Done:    15,
+			Percent: 62,
+		},
+		TranslateProgress: &model.TaskProgress{
 			Total:   24,
 			Done:    15,
 			Percent: 62,
@@ -207,6 +213,7 @@ func TestTasksService_Get(t *testing.T) {
 		Vendor:          "gengo",
 		FilesCount:      3,
 		FileIDs:         []int{24, 25, 38},
+		SplitFiles:      ToPtr(true),
 		BranchIDs:       []int{24, 25, 38},
 		Fields: map[string]any{
 			"some-field-1": "some value 1",
@@ -357,7 +364,10 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 			"status":"todo",
 			"description":"Proofread all French strings",
 			"splitContent":true,
+			"splitFiles":true,
 			"skipAssignedStrings":true,
+			"skipUntranslatedStrings":true,
+			"includeUntranslatedStringsOnly":true,
 			"includePreTranslatedStringsOnly":true,
 			"assignees":[
 				{
@@ -459,7 +469,8 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 				"precedingTaskId": 1,
 				"vendor": "gengo",
 				"filesCount": 3,
-				"fileIds": [24,25,38]
+					"fileIds": [24,25,38],
+					"splitFiles": true
 			}
 		}`)
 	})
@@ -474,7 +485,10 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 		Status:                          model.TaskStatusTodo,
 		Description:                     "Proofread all French strings",
 		SplitContent:                    ToPtr(true),
+		SplitFiles:                      ToPtr(true),
 		SkipAssignedStrings:             ToPtr(true),
+		SkipUntranslatedStrings:         ToPtr(true),
+		IncludeUntranslatedStringsOnly:  ToPtr(true),
 		IncludePreTranslatedStringsOnly: ToPtr(true),
 		Assignees:                       []model.CrowdinTaskAssignee{{ID: 1, WordsCount: 5}},
 		Deadline:                        "2023-09-27T07:00:14+00:00",
@@ -510,6 +524,11 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 			},
 		},
 		Progress: model.TaskProgress{
+			Total:   24,
+			Done:    15,
+			Percent: 62,
+		},
+		TranslateProgress: &model.TaskProgress{
 			Total:   24,
 			Done:    15,
 			Percent: 62,
@@ -569,6 +588,8 @@ func TestTasksService_Add_TaskCreateForm(t *testing.T) {
 		Vendor:          "gengo",
 		FilesCount:      3,
 		FileIDs:         []int{24, 25, 38},
+		SplitFiles:      ToPtr(true),
+		BranchIDs:       []int(nil),
 	}
 	assert.Equal(t, expected, task)
 }
