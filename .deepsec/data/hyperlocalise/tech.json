@@ -1,0 +1,13 @@
+{
+  "tags": [
+    "cobra",
+    "github-actions",
+    "go",
+    "grpc"
+  ],
+  "sentinels": [
+    "go.mod"
+  ],
+  "detectedAt": "2026-05-09T12:51:54.713Z",
+  "rootPath": "/Users/minhcung/work/hyperlocalise"
+}
