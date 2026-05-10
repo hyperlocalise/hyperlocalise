@@ -285,7 +285,7 @@ export async function getSlackBot() {
     return botInstance;
   }
 
-  if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET) {
+  if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET || !env.SLACK_SIGNING_SECRET) {
     throw new Error("missing Slack bot configuration");
   }
 
