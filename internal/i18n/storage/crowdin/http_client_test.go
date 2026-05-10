@@ -583,9 +583,9 @@ func TestHTTPClientDownloadLogsOmitArtifactURL(t *testing.T) {
 	mux.HandleFunc("/api/v2/projects/123/translations/builds/files/17", func(w http.ResponseWriter, r *http.Request) {
 		assertRequest(t, r, http.MethodPost, "/api/v2/projects/123/translations/builds/files/17")
 		assertJSONBody(t, r, map[string]any{
-			"targetLanguageId":        "fr",
+			"targetLanguageId":            "fr",
 			"exportWithMinApprovalsCount": 1,
-			"skipUntranslatedStrings": true,
+			"skipUntranslatedStrings":     true,
 		})
 		_, _ = io.WriteString(w, `{"data":{"url":"https://api.crowdin.com/downloads/secret-token.json"}}`)
 	})

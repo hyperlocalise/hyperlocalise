@@ -599,16 +599,16 @@ type ExportTranslationRequest struct {
 // MarshalJSON adapts export translation requests to Crowdin Enterprise behavior.
 func (r *ExportTranslationRequest) MarshalJSON() ([]byte, error) {
 	type exportTranslationRequest struct {
-		TargetLanguageID                string   `json:"targetLanguageId"`
-		Format                          string   `json:"format,omitempty"`
-		LabelIDs                        []int    `json:"labelIds,omitempty"`
-		BranchIDs                       []int    `json:"branchIds,omitempty"`
-		DirectoryIDs                    []int    `json:"directoryIds,omitempty"`
-		FileIDs                         []int    `json:"fileIds,omitempty"`
-		SkipUntranslatedStrings         *bool    `json:"skipUntranslatedStrings,omitempty"`
-		SkipUntranslatedFiles           *bool    `json:"skipUntranslatedFiles,omitempty"`
-		ExportWithMinApprovalsCount     *int     `json:"exportWithMinApprovalsCount,omitempty"`
-		ExportStringsThatPassedWorkflow *bool    `json:"exportStringsThatPassedWorkflow,omitempty"`
+		TargetLanguageID                string `json:"targetLanguageId"`
+		Format                          string `json:"format,omitempty"`
+		LabelIDs                        []int  `json:"labelIds,omitempty"`
+		BranchIDs                       []int  `json:"branchIds,omitempty"`
+		DirectoryIDs                    []int  `json:"directoryIds,omitempty"`
+		FileIDs                         []int  `json:"fileIds,omitempty"`
+		SkipUntranslatedStrings         *bool  `json:"skipUntranslatedStrings,omitempty"`
+		SkipUntranslatedFiles           *bool  `json:"skipUntranslatedFiles,omitempty"`
+		ExportWithMinApprovalsCount     *int   `json:"exportWithMinApprovalsCount,omitempty"`
+		ExportStringsThatPassedWorkflow *bool  `json:"exportStringsThatPassedWorkflow,omitempty"`
 	}
 
 	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
