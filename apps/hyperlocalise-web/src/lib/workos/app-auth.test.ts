@@ -74,4 +74,29 @@ describe("requireAppAuthContext", () => {
     await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
     expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
   });
+
+  it("can ignore the stored active organization when resolving memberships", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    const auth = {
+      user: { localUserId: "user_123" },
+      activeOrganization: { localOrganizationId: "org_1", slug: "current-org" },
+      organizations: [{ localOrganizationId: "org_1", slug: "current-org" }],
+    };
+    withAuthMock.mockResolvedValue(session);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(auth);
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(
+      requireAppAuthContext({ ignoreStoredActiveOrganization: true }),
+    ).resolves.toMatchObject(auth);
+    expect(getStoredActiveOrganizationSlugMock).not.toHaveBeenCalled();
+    expect(resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
+      organizationSlug: undefined,
+      session,
+    });
+  });
 });

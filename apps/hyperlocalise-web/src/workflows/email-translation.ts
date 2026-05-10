@@ -372,6 +372,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     await sendReplyEmail(task, attachment, translatedContent, outputFile);
     await markEmailTranslationJobSucceeded({
       jobId: task.jobId,
+      workflowRunId,
       sourceFilename: attachment.filename,
       outputFilename: outputFile,
       targetLocale,
@@ -383,7 +384,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     } catch {
       // Best-effort notification; keep the original workflow error.
     }
-    await markEmailTranslationJobFailed({ jobId: task.jobId, reason });
+    await markEmailTranslationJobFailed({ jobId: task.jobId, workflowRunId, reason });
     throw error;
   } finally {
     await stopTranslationSandbox(sandboxId);

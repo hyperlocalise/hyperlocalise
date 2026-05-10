@@ -73,7 +73,7 @@ type phraseTranslationMemoryWriter interface {
 }
 
 var newPhraseTranslationMemoryWriter = func(apiBaseURL string) (phraseTranslationMemoryWriter, error) {
-	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{})
+	return phrase.NewTMSHTTPClientWithBaseURL(phrase.Config{}, apiBaseURL, &http.Client{Timeout: 30 * time.Second})
 }
 
 type phraseGlossaryDownloadOptions struct {

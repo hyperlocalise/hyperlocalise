@@ -35,6 +35,25 @@ function badRequestResponse(c: { json(body: { error: string }, status: 400): Res
   return c.json({ error: "invalid_message_payload" }, 400);
 }
 
+async function cleanupStoredFiles(
+  storedFiles: Array<typeof schema.storedFiles.$inferSelect>,
+  adapter: FileStorageAdapter,
+) {
+  if (storedFiles.length === 0) {
+    return;
+  }
+
+  await db.delete(schema.storedFiles).where(
+    inArray(
+      schema.storedFiles.id,
+      storedFiles.map((file) => file.id),
+    ),
+  );
+  await Promise.allSettled(
+    storedFiles.map((file) => adapter.delete({ keyOrUrl: file.storageKey })),
+  );
+}
+
 function tooManyFilesResponse(c: {
   json(body: { error: string; maxFiles: number }, status: 400): Response;
 }) {
@@ -263,7 +282,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
-        const storedFiles = await Promise.all(
+        const uploadResults = await Promise.allSettled(
           files.map(async (file) =>
             createStoredFile({
               organizationId: orgId,
@@ -282,6 +301,17 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             }),
           ),
         );
+        const storedFiles = uploadResults
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value);
+        const failedUpload = uploadResults.find((result) => result.status === "rejected");
+
+        if (failedUpload) {
+          await cleanupStoredFiles(storedFiles, adapter);
+          throw failedUpload.reason instanceof Error
+            ? failedUpload.reason
+            : new Error("failed to store uploaded file");
+        }
 
         let message;
         try {
@@ -299,15 +329,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             })),
           });
         } catch (error) {
-          await db.delete(schema.storedFiles).where(
-            inArray(
-              schema.storedFiles.id,
-              storedFiles.map((f) => f.id),
-            ),
-          );
-          await Promise.allSettled(
-            storedFiles.map((file) => adapter.delete({ keyOrUrl: file.storageKey })),
-          );
+          await cleanupStoredFiles(storedFiles, adapter);
           throw error;
         }
 

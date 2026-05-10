@@ -1,9 +1,11 @@
 import "dotenv/config";
 
-process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
-
 import { MockLanguageModelV3, mockId, mockValues } from "ai/test";
 import { describe, expect, it, vi } from "vite-plus/test";
+
+vi.hoisted(() => {
+  process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
+});
 
 import {
   createStringTranslationGenerator,
@@ -146,6 +148,26 @@ describe("createStringTranslationGenerator", () => {
       translations: [
         { locale: "fr-FR", text: "Bonjour le monde" },
         { locale: "de-DE", text: "Hallo Welt" },
+      ],
+    });
+  });
+
+  it("preserves leading and trailing whitespace in translation text", async () => {
+    const translateStringJob = createStringTranslationGenerator({
+      model: createMockStructuredModel({
+        translations: [
+          { locale: "fr-FR", text: " Bonjour le monde " },
+          { locale: "de-DE", text: "\tHallo Welt\n" },
+        ],
+      }),
+    });
+
+    const result = await translateStringJob(createInput());
+
+    expect(result).toEqual({
+      translations: [
+        { locale: "fr-FR", text: " Bonjour le monde " },
+        { locale: "de-DE", text: "\tHallo Welt\n" },
       ],
     });
   });

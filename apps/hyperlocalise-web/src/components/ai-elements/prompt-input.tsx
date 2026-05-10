@@ -837,7 +837,7 @@ export const PromptInput = ({
           try {
             await result;
             clear();
-            if (usingProvider) {
+            if (usingProvider && controller.textInput.value === text) {
               controller.textInput.clear();
             }
           } catch {
@@ -846,7 +846,7 @@ export const PromptInput = ({
         } else {
           // Sync function completed without throwing, clear inputs
           clear();
-          if (usingProvider) {
+          if (usingProvider && controller.textInput.value === text) {
             controller.textInput.clear();
           }
         }

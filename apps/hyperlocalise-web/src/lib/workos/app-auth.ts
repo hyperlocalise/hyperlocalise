@@ -9,14 +9,21 @@ export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
 };
 
-export async function requireAppAuthContext(options: { organizationSlug?: string } = {}) {
+export async function requireAppAuthContext(
+  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
+) {
   const session = await withAuth({ ensureSignedIn: true });
 
   let auth: ApiAuthContext | null;
   try {
+    const shouldReadStoredOrganizationSlug =
+      !options.organizationSlug && !options.ignoreStoredActiveOrganization;
+    const storedOrganizationSlug = shouldReadStoredOrganizationSlug
+      ? ((await getStoredActiveOrganizationSlug()) ?? undefined)
+      : undefined;
+
     auth = await resolveApiAuthContextFromSession({
-      organizationSlug:
-        options.organizationSlug ?? (await getStoredActiveOrganizationSlug()) ?? undefined,
+      organizationSlug: options.organizationSlug ?? storedOrganizationSlug,
       session,
     });
   } catch (error) {

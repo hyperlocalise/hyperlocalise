@@ -1,5 +1,5 @@
 import { del, get, put } from "@vercel/blob";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -54,7 +54,7 @@ export async function markEmailTranslationJobRunning(input: {
 }) {
   "use step";
 
-  await db
+  const [updatedJob] = await db
     .update(schema.jobs)
     .set({
       status: "running",
@@ -63,11 +63,25 @@ export async function markEmailTranslationJobRunning(input: {
       outcomePayload: null,
       completedAt: null,
     })
-    .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+    .where(
+      and(
+        eq(schema.jobs.id, input.jobId),
+        eq(schema.jobs.kind, "translation"),
+        or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
+      ),
+    )
+    .returning({ id: schema.jobs.id });
+
+  if (!updatedJob) {
+    throw new Error(
+      `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
+    );
+  }
 }
 
 export async function markEmailTranslationJobSucceeded(input: {
   jobId: string;
+  workflowRunId: string;
   sourceFilename: string;
   outputFilename: string;
   targetLocale: string;
@@ -75,7 +89,7 @@ export async function markEmailTranslationJobSucceeded(input: {
   "use step";
 
   await db.transaction(async (tx) => {
-    await tx
+    const [updatedJob] = await tx
       .update(schema.jobs)
       .set({
         status: "succeeded",
@@ -88,7 +102,20 @@ export async function markEmailTranslationJobSucceeded(input: {
         lastError: null,
         completedAt: new Date(),
       })
-      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+      .where(
+        and(
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+      )
+      .returning({ id: schema.jobs.id });
+
+    if (!updatedJob) {
+      throw new Error(
+        `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
+      );
+    }
 
     await tx
       .update(schema.translationJobDetails)
@@ -97,11 +124,15 @@ export async function markEmailTranslationJobSucceeded(input: {
   });
 }
 
-export async function markEmailTranslationJobFailed(input: { jobId: string; reason: string }) {
+export async function markEmailTranslationJobFailed(input: {
+  jobId: string;
+  workflowRunId: string;
+  reason: string;
+}) {
   "use step";
 
   await db.transaction(async (tx) => {
-    await tx
+    const [updatedJob] = await tx
       .update(schema.jobs)
       .set({
         status: "failed",
@@ -112,7 +143,20 @@ export async function markEmailTranslationJobFailed(input: { jobId: string; reas
         lastError: input.reason,
         completedAt: new Date(),
       })
-      .where(and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.kind, "translation")));
+      .where(
+        and(
+          eq(schema.jobs.id, input.jobId),
+          eq(schema.jobs.kind, "translation"),
+          eq(schema.jobs.workflowRunId, input.workflowRunId),
+        ),
+      )
+      .returning({ id: schema.jobs.id });
+
+    if (!updatedJob) {
+      throw new Error(
+        `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
+      );
+    }
 
     await tx
       .update(schema.translationJobDetails)
