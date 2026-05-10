@@ -1,0 +1,1 @@
+ALTER TYPE "public"."interaction_source" ADD VALUE 'slack_agent';

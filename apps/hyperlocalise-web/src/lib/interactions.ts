@@ -4,7 +4,7 @@ import { db, schema } from "@/lib/database";
 
 type CreateInteractionInput = {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
   title: string;
   projectId?: string;
   sourceThreadId?: string;
@@ -106,7 +106,7 @@ export async function linkJobToInteraction(input: {
 
 export async function findInteractionBySourceThreadId(input: {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
   sourceThreadId: string;
 }) {
   const [interaction] = await db
