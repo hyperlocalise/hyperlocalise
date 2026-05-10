@@ -1,10 +1,6 @@
 import type { Thing, WithContext } from "schema-dts";
 
-export function JsonLd({
-  data,
-}: {
-  data: WithContext<Thing>;
-}) {
+export function JsonLd({ data }: { data: WithContext<Thing> }) {
   return (
     <script
       type="application/ld+json"
