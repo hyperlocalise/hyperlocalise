@@ -434,7 +434,6 @@ func TestTranslationsService_BuildProjectDirectoryTranslation(t *testing.T) {
 			"targetLanguageIds": ["uk"],
 			"skipUntranslatedStrings": false,
 			"skipUntranslatedFiles": false,
-			"exportApprovedOnly": false,
 			"exportWithMinApprovalsCount": 0,
 			"exportStringsThatPassedWorkflow": true,
 			"preserveFolderHierarchy": false
@@ -497,7 +496,6 @@ func TestTranslationsService_BuildProjectFileTranslation(t *testing.T) {
 			"targetLanguageId": "uk",
 			"skipUntranslatedStrings": true,
 			"skipUntranslatedFiles": false,
-			"exportApprovedOnly": false,
 			"exportWithMinApprovalsCount": 0,
 			"exportStringsThatPassedWorkflow": true
 		}`
@@ -980,8 +978,7 @@ func TestTranslationsService_ExportProjectTranslation(t *testing.T) {
 			"directoryIds": [3],
 			"fileIds": [4],
 			"skipUntranslatedStrings": false,
-			"skipUntranslatedFiles": false,
-			"exportApprovedOnly": false
+			"skipUntranslatedFiles": false
 		}`
 		testJSONBody(t, r, expectedReqBody)
 

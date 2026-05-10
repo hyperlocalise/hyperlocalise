@@ -233,6 +233,10 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
+				if payload == nil {
+					skipped = append(skipped, remotePath+"@"+locale.Locale)
+					continue
+				}
 				targetPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err

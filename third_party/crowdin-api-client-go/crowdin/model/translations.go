@@ -181,6 +181,33 @@ type BuildProjectDirectoryTranslationRequest struct {
 	ExportStringsThatPassedWorkflow *bool `json:"exportStringsThatPassedWorkflow,omitempty"`
 }
 
+// MarshalJSON adapts directory build requests to Crowdin Enterprise behavior.
+func (r *BuildProjectDirectoryTranslationRequest) MarshalJSON() ([]byte, error) {
+	type buildProjectDirectoryTranslationRequest struct {
+		TargetLanguageIDs               []string `json:"targetLanguageIds,omitempty"`
+		SkipUntranslatedStrings         *bool    `json:"skipUntranslatedStrings,omitempty"`
+		SkipUntranslatedFiles           *bool    `json:"skipUntranslatedFiles,omitempty"`
+		PreserveFolderHierarchy         *bool    `json:"preserveFolderHierarchy,omitempty"`
+		ExportWithMinApprovalsCount     *int     `json:"exportWithMinApprovalsCount,omitempty"`
+		ExportStringsThatPassedWorkflow *bool    `json:"exportStringsThatPassedWorkflow,omitempty"`
+	}
+
+	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
+	if r.ExportApprovedOnly != nil && *r.ExportApprovedOnly && exportWithMinApprovalsCount == nil {
+		minApprovalsCount := 1
+		exportWithMinApprovalsCount = &minApprovalsCount
+	}
+
+	return json.Marshal(buildProjectDirectoryTranslationRequest{
+		TargetLanguageIDs:               r.TargetLanguageIDs,
+		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
+		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
+		PreserveFolderHierarchy:         r.PreserveFolderHierarchy,
+		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
+		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
+	})
+}
+
 // Validate checks if the build project directory translation request is valid.
 // It implements the crowdin.RequestValidator interface.
 func (r *BuildProjectDirectoryTranslationRequest) Validate() error {
@@ -233,6 +260,31 @@ type BuildProjectFileTranslationRequest struct {
 	// Note: true value can't be used with `exportWithMinApprovalsCount>0` in same request
 	// or in projects without an assigned workflow.
 	ExportStringsThatPassedWorkflow *bool `json:"exportStringsThatPassedWorkflow,omitempty"`
+}
+
+// MarshalJSON adapts file build requests to Crowdin Enterprise behavior.
+func (r *BuildProjectFileTranslationRequest) MarshalJSON() ([]byte, error) {
+	type buildProjectFileTranslationRequest struct {
+		TargetLanguageID                string `json:"targetLanguageId"`
+		SkipUntranslatedStrings         *bool  `json:"skipUntranslatedStrings,omitempty"`
+		SkipUntranslatedFiles           *bool  `json:"skipUntranslatedFiles,omitempty"`
+		ExportWithMinApprovalsCount     *int   `json:"exportWithMinApprovalsCount,omitempty"`
+		ExportStringsThatPassedWorkflow *bool  `json:"exportStringsThatPassedWorkflow,omitempty"`
+	}
+
+	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
+	if r.ExportApprovedOnly != nil && *r.ExportApprovedOnly && exportWithMinApprovalsCount == nil {
+		minApprovalsCount := 1
+		exportWithMinApprovalsCount = &minApprovalsCount
+	}
+
+	return json.Marshal(buildProjectFileTranslationRequest{
+		TargetLanguageID:                r.TargetLanguageID,
+		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
+		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
+		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
+		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
+	})
 }
 
 // Validate checks if the build project file translation request is valid.
@@ -542,6 +594,41 @@ type ExportTranslationRequest struct {
 	// Note: true value can't be used with `exportWithMinApprovalsCount>0` in same request
 	// or in projects without an assigned workflow.
 	ExportStringsThatPassedWorkflow *bool `json:"exportStringsThatPassedWorkflow,omitempty"`
+}
+
+// MarshalJSON adapts export translation requests to Crowdin Enterprise behavior.
+func (r *ExportTranslationRequest) MarshalJSON() ([]byte, error) {
+	type exportTranslationRequest struct {
+		TargetLanguageID                string `json:"targetLanguageId"`
+		Format                          string `json:"format,omitempty"`
+		LabelIDs                        []int  `json:"labelIds,omitempty"`
+		BranchIDs                       []int  `json:"branchIds,omitempty"`
+		DirectoryIDs                    []int  `json:"directoryIds,omitempty"`
+		FileIDs                         []int  `json:"fileIds,omitempty"`
+		SkipUntranslatedStrings         *bool  `json:"skipUntranslatedStrings,omitempty"`
+		SkipUntranslatedFiles           *bool  `json:"skipUntranslatedFiles,omitempty"`
+		ExportWithMinApprovalsCount     *int   `json:"exportWithMinApprovalsCount,omitempty"`
+		ExportStringsThatPassedWorkflow *bool  `json:"exportStringsThatPassedWorkflow,omitempty"`
+	}
+
+	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
+	if r.ExportApprovedOnly != nil && *r.ExportApprovedOnly && exportWithMinApprovalsCount == nil {
+		minApprovalsCount := 1
+		exportWithMinApprovalsCount = &minApprovalsCount
+	}
+
+	return json.Marshal(exportTranslationRequest{
+		TargetLanguageID:                r.TargetLanguageID,
+		Format:                          r.Format,
+		LabelIDs:                        r.LabelIDs,
+		BranchIDs:                       r.BranchIDs,
+		DirectoryIDs:                    r.DirectoryIDs,
+		FileIDs:                         r.FileIDs,
+		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
+		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
+		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
+		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
+	})
 }
 
 // Validate checks if the request is valid.
