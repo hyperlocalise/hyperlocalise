@@ -115,7 +115,7 @@ func newSmartlingGlossaryDownloadCmd() *cobra.Command {
 					_ = os.Remove(tempPath)
 					return fmt.Errorf("replace glossary csv: %w", err)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "wrote %s entries=%d\n", outputPath, result.Entries)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "wrote %s entries=%d\n", outputPath, result.Entries)
 			}
 
 			return nil

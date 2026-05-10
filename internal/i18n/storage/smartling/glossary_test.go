@@ -39,7 +39,7 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 				"data":     map[string]any{"items": entries},
 			}
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
