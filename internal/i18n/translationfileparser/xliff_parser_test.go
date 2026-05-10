@@ -120,6 +120,37 @@ func TestMarshalXLIFF20PreservesSrcLangAndRewritesTrgLang(t *testing.T) {
 	}
 }
 
+func TestMarshalXLIFF20MultiSegmentCurrentlyRewritesEachActiveTargetWithUnitValue(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
+  <file id="f1">
+    <unit id="hello">
+      <segment>
+        <source>Hello </source>
+        <target>Bonjour </target>
+      </segment>
+      <segment>
+        <source>world</source>
+        <target>monde</target>
+      </segment>
+    </unit>
+  </file>
+</xliff>`)
+
+	out, err := MarshalXLIFF(template, map[string]string{"hello": "Salut tout le monde"}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal xliff: %v", err)
+	}
+
+	content := string(out)
+	if strings.Count(content, `>Salut tout le monde</target>`) != 2 {
+		t.Fatalf("expected current unit-level rewrite to replace each segment target with the unit value, got %q", content)
+	}
+	if !strings.Contains(content, `>Hello </source>`) || !strings.Contains(content, `>world</source>`) {
+		t.Fatalf("expected segment sources preserved when targets exist, got %q", content)
+	}
+}
+
 func TestMarshalXLIFFAddsMissingTargetLocaleAttrs(t *testing.T) {
 	xliff12 := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
