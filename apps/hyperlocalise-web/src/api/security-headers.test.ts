@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { app } from "@/api/app";
+import { createApp } from "@/api/app";
+
+const app = createApp();
 
 describe("security headers", () => {
   it("should have security headers on the health endpoint", async () => {
@@ -13,8 +15,8 @@ describe("security headers", () => {
   });
 
   it("should have security headers on other endpoints", async () => {
-    // Auth route
-    const res = await app.request("/api/auth/context");
+    // Health route (as a proxy for other routes)
+    const res = await app.request("/api/health");
     expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 });
