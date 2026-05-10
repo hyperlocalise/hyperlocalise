@@ -9,6 +9,7 @@ import type {
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
+import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth";
 import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
@@ -23,6 +24,7 @@ import { createProviderCredentialRoutes } from "./routes/provider-credential/pro
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
+import { createSlackWebhookRoutes } from "./routes/slack-webhook";
 import { createFileRoutes } from "./routes/file/file.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook";
@@ -51,6 +53,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes({ jobQueue }))
     .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
     .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
+    .route("/orgs/:organizationSlug/agent-slack", createAgentSlackRoutes())
     .route("/orgs/:organizationSlug/teams", createTeamRoutes())
     .route(
       "/orgs/:organizationSlug/files",
@@ -78,7 +81,8 @@ export function createApp(options: CreateAppOptions = {}) {
       createResendWebhookRoutes({
         emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
-    );
+    )
+    .route("/webhooks/slack", createSlackWebhookRoutes());
 }
 
 export const app = createApp();
