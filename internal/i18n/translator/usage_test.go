@@ -201,6 +201,27 @@ func TestUsageHasValues(t *testing.T) {
 func TestNormalizeUsage(t *testing.T) {
 	t.Parallel()
 
+	// Helper to compare Usage structs ignoring RawProviderUsage which is non-comparable
+	compareUsage := func(a, b Usage) bool {
+		return a.InputTokens == b.InputTokens &&
+			a.OutputTokens == b.OutputTokens &&
+			a.TotalTokens == b.TotalTokens &&
+			a.PromptTokens == b.PromptTokens &&
+			a.CompletionTokens == b.CompletionTokens &&
+			a.CachedInputTokens == b.CachedInputTokens &&
+			a.CacheWriteInputTokens == b.CacheWriteInputTokens &&
+			a.ReasoningTokens == b.ReasoningTokens &&
+			a.TextInputTokens == b.TextInputTokens &&
+			a.ImageInputTokens == b.ImageInputTokens &&
+			a.AudioInputTokens == b.AudioInputTokens &&
+			a.TextOutputTokens == b.TextOutputTokens &&
+			a.ImageOutputTokens == b.ImageOutputTokens &&
+			a.AudioOutputTokens == b.AudioOutputTokens &&
+			a.ToolInputTokens == b.ToolInputTokens &&
+			a.AcceptedPredictionTokens == b.AcceptedPredictionTokens &&
+			a.RejectedPredictionTokens == b.RejectedPredictionTokens
+	}
+
 	tests := []struct {
 		name     string
 		in       Usage
@@ -279,14 +300,9 @@ func TestNormalizeUsage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := NormalizeUsage(tc.in, tc.fallback)
-			if got.InputTokens != tc.want.InputTokens ||
-				got.OutputTokens != tc.want.OutputTokens ||
-				got.TotalTokens != tc.want.TotalTokens ||
-				got.PromptTokens != tc.want.PromptTokens ||
-				got.CompletionTokens != tc.want.CompletionTokens ||
-				got.CacheWriteInputTokens != tc.want.CacheWriteInputTokens ||
-				got.CachedInputTokens != tc.want.CachedInputTokens {
-				t.Errorf("NormalizeUsage(%+v) = %+v, want %+v", tc.in, got, tc.want)
+
+			if !compareUsage(got, tc.want) {
+				t.Errorf("NormalizeUsage() = %+v, want %+v", got, tc.want)
 			}
 		})
 	}
