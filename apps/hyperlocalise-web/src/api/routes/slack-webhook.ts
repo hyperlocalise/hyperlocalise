@@ -2,11 +2,9 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { after } from "next/server";
 
-import { and, eq, sql } from "drizzle-orm";
-
-import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { getSlackBot } from "@/lib/agents/slack/bot";
+import { findSlackConnector } from "@/lib/agents/slack/helpers";
 import { createLogger } from "@/lib/log";
 
 const logger = createLogger("slack-webhook");
@@ -64,21 +62,6 @@ function extractTeamId(payload: unknown): string | null {
   }
 
   return null;
-}
-
-async function findSlackConnector(teamId: string) {
-  const [connector] = await db
-    .select()
-    .from(schema.connectors)
-    .where(
-      and(
-        eq(schema.connectors.kind, "slack"),
-        sql`${schema.connectors.config}->>'teamId' = ${teamId}`,
-      ),
-    )
-    .limit(1);
-
-  return connector ?? null;
 }
 
 export function createSlackWebhookRoutes() {
