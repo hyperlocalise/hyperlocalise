@@ -1,6 +1,7 @@
 import { Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -47,7 +48,7 @@ export function DeleteProjectDialog({
               }
             }}
           >
-            <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+            {isDeleting ? <Spinner /> : <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />}
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </AlertDialogFooter>
