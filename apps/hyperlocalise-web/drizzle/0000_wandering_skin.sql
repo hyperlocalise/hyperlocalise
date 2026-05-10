@@ -6,6 +6,8 @@ CREATE TYPE "public"."job_status" AS ENUM('queued', 'running', 'succeeded', 'fai
 CREATE TYPE "public"."llm_provider" AS ENUM('openai', 'anthropic', 'gemini', 'groq', 'mistral');--> statement-breakpoint
 CREATE TYPE "public"."message_sender_type" AS ENUM('user', 'agent');--> statement-breakpoint
 CREATE TYPE "public"."organization_membership_role" AS ENUM('owner', 'admin', 'member');--> statement-breakpoint
+CREATE TYPE "public"."stored_file_role" AS ENUM('source', 'output', 'reference', 'asset');--> statement-breakpoint
+CREATE TYPE "public"."stored_file_source_kind" AS ENUM('chat_upload', 'email_attachment', 'job_output', 'repository_file', 'tms_file');--> statement-breakpoint
 CREATE TYPE "public"."team_membership_role" AS ENUM('manager', 'member');--> statement-breakpoint
 CREATE TYPE "public"."translation_job_outcome_kind" AS ENUM('string_result', 'file_result', 'error');--> statement-breakpoint
 CREATE TYPE "public"."translation_job_type" AS ENUM('string', 'file');--> statement-breakpoint
@@ -130,6 +132,7 @@ CREATE TABLE "jobs" (
 	"outcome_payload" jsonb,
 	"last_error" text,
 	"workflow_run_id" text,
+	"api_key_id" uuid,
 	"interaction_id" uuid,
 	"context_snapshot" jsonb DEFAULT '{}'::jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -168,6 +171,20 @@ CREATE TABLE "memory_entries" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "memory_entries_match_score_check" CHECK ("memory_entries"."match_score" >= 0 AND "memory_entries"."match_score" <= 100)
+);
+--> statement-breakpoint
+CREATE TABLE "organization_api_keys" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"key_hash" text NOT NULL,
+	"key_prefix" text NOT NULL,
+	"permissions" jsonb DEFAULT '["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb NOT NULL,
+	"created_by_user_id" uuid,
+	"last_used_at" timestamp with time zone,
+	"revoked_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "organization_llm_provider_credentials" (
@@ -245,6 +262,29 @@ CREATE TABLE "review_job_details" (
 	"config" jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "stored_files" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" uuid NOT NULL,
+	"project_id" text,
+	"created_by_user_id" uuid,
+	"role" "stored_file_role" NOT NULL,
+	"source_kind" "stored_file_source_kind" NOT NULL,
+	"source_interaction_id" uuid,
+	"source_job_id" text,
+	"storage_provider" text NOT NULL,
+	"storage_key" text NOT NULL,
+	"storage_url" text NOT NULL,
+	"download_url" text,
+	"filename" text NOT NULL,
+	"content_type" text NOT NULL,
+	"byte_size" integer NOT NULL,
+	"sha256" text NOT NULL,
+	"etag" text,
+	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "sync_job_details" (
 	"job_id" text PRIMARY KEY NOT NULL,
 	"connector_kind" text NOT NULL,
@@ -316,10 +356,13 @@ ALTER TABLE "jobs" ADD CONSTRAINT "jobs_organization_id_organizations_id_fk" FOR
 ALTER TABLE "jobs" ADD CONSTRAINT "jobs_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "jobs" ADD CONSTRAINT "jobs_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "jobs" ADD CONSTRAINT "jobs_owner_user_id_users_id_fk" FOREIGN KEY ("owner_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "jobs" ADD CONSTRAINT "jobs_api_key_id_organization_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."organization_api_keys"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "jobs" ADD CONSTRAINT "jobs_interaction_id_interactions_id_fk" FOREIGN KEY ("interaction_id") REFERENCES "public"."interactions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memories" ADD CONSTRAINT "memories_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memories" ADD CONSTRAINT "memories_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memory_entries" ADD CONSTRAINT "memory_entries_memory_id_memories_id_fk" FOREIGN KEY ("memory_id") REFERENCES "public"."memories"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "organization_api_keys" ADD CONSTRAINT "organization_api_keys_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "organization_api_keys" ADD CONSTRAINT "organization_api_keys_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_llm_provider_credentials" ADD CONSTRAINT "organization_llm_provider_credentials_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_llm_provider_credentials" ADD CONSTRAINT "organization_llm_provider_credentials_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_llm_provider_credentials" ADD CONSTRAINT "organization_llm_provider_credentials_updated_by_user_id_users_id_fk" FOREIGN KEY ("updated_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -332,6 +375,11 @@ ALTER TABLE "project_memories" ADD CONSTRAINT "project_memories_project_id_proje
 ALTER TABLE "projects" ADD CONSTRAINT "projects_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_job_details" ADD CONSTRAINT "review_job_details_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_source_interaction_id_interactions_id_fk" FOREIGN KEY ("source_interaction_id") REFERENCES "public"."interactions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stored_files" ADD CONSTRAINT "stored_files_source_job_id_jobs_id_fk" FOREIGN KEY ("source_job_id") REFERENCES "public"."jobs"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sync_job_details" ADD CONSTRAINT "sync_job_details_job_id_jobs_id_fk" FOREIGN KEY ("job_id") REFERENCES "public"."jobs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "team_memberships" ADD CONSTRAINT "team_memberships_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "team_memberships" ADD CONSTRAINT "team_memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -370,6 +418,7 @@ CREATE INDEX "idx_jobs_kind_status" ON "jobs" USING btree ("kind","status");--> 
 CREATE INDEX "idx_jobs_workflow_run_id" ON "jobs" USING btree ("workflow_run_id");--> statement-breakpoint
 CREATE INDEX "idx_jobs_status" ON "jobs" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_jobs_interaction" ON "jobs" USING btree ("interaction_id");--> statement-breakpoint
+CREATE INDEX "idx_jobs_api_key_id" ON "jobs" USING btree ("api_key_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "memories_id_organization_id_key" ON "memories" USING btree ("id","organization_id");--> statement-breakpoint
 CREATE INDEX "idx_memories_org_created_at" ON "memories" USING btree ("organization_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_memories_created_by_user_id" ON "memories" USING btree ("created_by_user_id");--> statement-breakpoint
@@ -377,6 +426,9 @@ CREATE UNIQUE INDEX "memory_entries_memory_locale_source_key" ON "memory_entries
 CREATE INDEX "idx_memory_entries_memory_locale_pair" ON "memory_entries" USING btree ("memory_id","source_locale","target_locale");--> statement-breakpoint
 CREATE INDEX "idx_memory_entries_external_key" ON "memory_entries" USING btree ("external_key");--> statement-breakpoint
 CREATE INDEX "idx_memory_entries_search_vector" ON "memory_entries" USING gin ("search_vector");--> statement-breakpoint
+CREATE UNIQUE INDEX "organization_api_keys_key_hash_key" ON "organization_api_keys" USING btree ("key_hash");--> statement-breakpoint
+CREATE INDEX "idx_organization_api_keys_org" ON "organization_api_keys" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "idx_organization_api_keys_created_at" ON "organization_api_keys" USING btree ("created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "organization_llm_provider_credentials_org_provider_key" ON "organization_llm_provider_credentials" USING btree ("organization_id","provider");--> statement-breakpoint
 CREATE INDEX "idx_organization_llm_provider_credentials_updated_at" ON "organization_llm_provider_credentials" USING btree ("updated_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "organization_memberships_org_user_key" ON "organization_memberships" USING btree ("organization_id","user_id");--> statement-breakpoint
@@ -394,6 +446,13 @@ CREATE INDEX "idx_project_memories_project_priority" ON "project_memories" USING
 CREATE UNIQUE INDEX "projects_id_organization_id_key" ON "projects" USING btree ("id","organization_id");--> statement-breakpoint
 CREATE INDEX "idx_projects_org_created_at" ON "projects" USING btree ("organization_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_projects_created_by_user_id" ON "projects" USING btree ("created_by_user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "stored_files_storage_provider_key" ON "stored_files" USING btree ("storage_provider","storage_key");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_org_created_at" ON "stored_files" USING btree ("organization_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_project_created_at" ON "stored_files" USING btree ("project_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_created_by_user_id" ON "stored_files" USING btree ("created_by_user_id");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_source_interaction" ON "stored_files" USING btree ("source_interaction_id");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_source_job" ON "stored_files" USING btree ("source_job_id");--> statement-breakpoint
+CREATE INDEX "idx_stored_files_org_role" ON "stored_files" USING btree ("organization_id","role");--> statement-breakpoint
 CREATE UNIQUE INDEX "team_memberships_team_user_key" ON "team_memberships" USING btree ("team_id","user_id");--> statement-breakpoint
 CREATE INDEX "idx_team_memberships_user_id" ON "team_memberships" USING btree ("user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "teams_org_slug_key" ON "teams" USING btree ("organization_id","slug");--> statement-breakpoint

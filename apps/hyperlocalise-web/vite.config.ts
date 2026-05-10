@@ -7,9 +7,12 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   fmt: {
-    exclude: ["**/drizzle/**"],
+    ignorePatterns: ["drizzle/**"],
   },
-  lint: { options: { typeAware: true, typeCheck: true } },
+  lint: {
+    ignorePatterns: ["drizzle/**"],
+    options: { typeAware: true, typeCheck: true },
+  },
   test: {
     server: {
       deps: {

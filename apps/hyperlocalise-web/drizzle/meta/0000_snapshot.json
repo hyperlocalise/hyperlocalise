@@ -1,5 +1,5 @@
 {
-  "id": "889b6ab7-867a-4ec9-8ea9-d71954d1a9a6",
+  "id": "181f0a53-2d8b-4e6b-83a1-39a414506373",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -40,8 +40,12 @@
           "name": "asset_management_job_details_job_id_jobs_id_fk",
           "tableFrom": "asset_management_job_details",
           "tableTo": "jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -147,8 +151,12 @@
           "name": "connectors_organization_id_organizations_id_fk",
           "tableFrom": "connectors",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -334,8 +342,12 @@
           "name": "github_installation_repositories_organization_id_organizations_id_fk",
           "tableFrom": "github_installation_repositories",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -454,8 +466,12 @@
           "name": "github_installations_organization_id_organizations_id_fk",
           "tableFrom": "github_installations",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -628,8 +644,12 @@
           "name": "glossaries_organization_id_organizations_id_fk",
           "tableFrom": "glossaries",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -637,8 +657,12 @@
           "name": "glossaries_created_by_user_id_users_id_fk",
           "tableFrom": "glossaries",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -831,8 +855,12 @@
           "name": "glossary_terms_glossary_id_glossaries_id_fk",
           "tableFrom": "glossary_terms",
           "tableTo": "glossaries",
-          "columnsFrom": ["glossary_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "glossary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -937,8 +965,12 @@
           "name": "inbox_items_interaction_id_interactions_id_fk",
           "tableFrom": "inbox_items",
           "tableTo": "interactions",
-          "columnsFrom": ["interaction_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -946,8 +978,12 @@
           "name": "inbox_items_organization_id_organizations_id_fk",
           "tableFrom": "inbox_items",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -955,8 +991,12 @@
           "name": "inbox_items_project_id_projects_id_fk",
           "tableFrom": "inbox_items",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1045,8 +1085,12 @@
           "name": "interaction_messages_interaction_id_interactions_id_fk",
           "tableFrom": "interaction_messages",
           "tableTo": "interactions",
-          "columnsFrom": ["interaction_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1198,8 +1242,12 @@
           "name": "interactions_organization_id_organizations_id_fk",
           "tableFrom": "interactions",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1207,8 +1255,12 @@
           "name": "interactions_project_id_projects_id_fk",
           "tableFrom": "interactions",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1289,6 +1341,12 @@
         "workflow_run_id": {
           "name": "workflow_run_id",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -1464,6 +1522,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_jobs_api_key_id": {
+          "name": "idx_jobs_api_key_id",
+          "columns": [
+            {
+              "expression": "api_key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1471,8 +1544,12 @@
           "name": "jobs_organization_id_organizations_id_fk",
           "tableFrom": "jobs",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1480,8 +1557,12 @@
           "name": "jobs_project_id_projects_id_fk",
           "tableFrom": "jobs",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1489,8 +1570,12 @@
           "name": "jobs_created_by_user_id_users_id_fk",
           "tableFrom": "jobs",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1498,8 +1583,25 @@
           "name": "jobs_owner_user_id_users_id_fk",
           "tableFrom": "jobs",
           "tableTo": "users",
-          "columnsFrom": ["owner_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "jobs_api_key_id_organization_api_keys_id_fk": {
+          "name": "jobs_api_key_id_organization_api_keys_id_fk",
+          "tableFrom": "jobs",
+          "tableTo": "organization_api_keys",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1507,8 +1609,12 @@
           "name": "jobs_interaction_id_interactions_id_fk",
           "tableFrom": "jobs",
           "tableTo": "interactions",
-          "columnsFrom": ["interaction_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1642,8 +1748,12 @@
           "name": "memories_organization_id_organizations_id_fk",
           "tableFrom": "memories",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1651,8 +1761,12 @@
           "name": "memories_created_by_user_id_users_id_fk",
           "tableFrom": "memories",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1866,8 +1980,12 @@
           "name": "memory_entries_memory_id_memories_id_fk",
           "tableFrom": "memory_entries",
           "tableTo": "memories",
-          "columnsFrom": ["memory_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "memory_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1881,6 +1999,162 @@
           "value": "\"memory_entries\".\"match_score\" >= 0 AND \"memory_entries\".\"match_score\" <= 100"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.organization_api_keys": {
+      "name": "organization_api_keys",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_hash": {
+          "name": "key_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_prefix": {
+          "name": "key_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "permissions": {
+          "name": "permissions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[\"jobs:read\", \"jobs:write\", \"files:read\", \"files:write\"]'::jsonb"
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "organization_api_keys_key_hash_key": {
+          "name": "organization_api_keys_key_hash_key",
+          "columns": [
+            {
+              "expression": "key_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_organization_api_keys_org": {
+          "name": "idx_organization_api_keys_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_organization_api_keys_created_at": {
+          "name": "idx_organization_api_keys_created_at",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "organization_api_keys_organization_id_organizations_id_fk": {
+          "name": "organization_api_keys_organization_id_organizations_id_fk",
+          "tableFrom": "organization_api_keys",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "organization_api_keys_created_by_user_id_users_id_fk": {
+          "name": "organization_api_keys_created_by_user_id_users_id_fk",
+          "tableFrom": "organization_api_keys",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.organization_llm_provider_credentials": {
@@ -2026,8 +2300,12 @@
           "name": "organization_llm_provider_credentials_organization_id_organizations_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2035,8 +2313,12 @@
           "name": "organization_llm_provider_credentials_created_by_user_id_users_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2044,8 +2326,12 @@
           "name": "organization_llm_provider_credentials_updated_by_user_id_users_id_fk",
           "tableFrom": "organization_llm_provider_credentials",
           "tableTo": "users",
-          "columnsFrom": ["updated_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2166,8 +2452,12 @@
           "name": "organization_memberships_organization_id_organizations_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2175,8 +2465,12 @@
           "name": "organization_memberships_user_id_users_id_fk",
           "tableFrom": "organization_memberships",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2400,8 +2694,12 @@
           "name": "project_glossaries_organization_id_organizations_id_fk",
           "tableFrom": "project_glossaries",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2409,8 +2707,12 @@
           "name": "project_glossaries_project_id_projects_id_fk",
           "tableFrom": "project_glossaries",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2536,8 +2838,12 @@
           "name": "project_memories_organization_id_organizations_id_fk",
           "tableFrom": "project_memories",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2545,8 +2851,12 @@
           "name": "project_memories_project_id_projects_id_fk",
           "tableFrom": "project_memories",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2678,8 +2988,12 @@
           "name": "projects_organization_id_organizations_id_fk",
           "tableFrom": "projects",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2687,8 +3001,12 @@
           "name": "projects_created_by_user_id_users_id_fk",
           "tableFrom": "projects",
           "tableTo": "users",
-          "columnsFrom": ["created_by_user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2736,9 +3054,347 @@
           "name": "review_job_details_job_id_jobs_id_fk",
           "tableFrom": "review_job_details",
           "tableTo": "jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stored_files": {
+      "name": "stored_files",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "stored_file_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_kind": {
+          "name": "source_kind",
+          "type": "stored_file_source_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_interaction_id": {
+          "name": "source_interaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_job_id": {
+          "name": "source_job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage_provider": {
+          "name": "storage_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage_url": {
+          "name": "storage_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "download_url": {
+          "name": "download_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "etag": {
+          "name": "etag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "stored_files_storage_provider_key": {
+          "name": "stored_files_storage_provider_key",
+          "columns": [
+            {
+              "expression": "storage_provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "storage_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_org_created_at": {
+          "name": "idx_stored_files_org_created_at",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_project_created_at": {
+          "name": "idx_stored_files_project_created_at",
+          "columns": [
+            {
+              "expression": "project_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_created_by_user_id": {
+          "name": "idx_stored_files_created_by_user_id",
+          "columns": [
+            {
+              "expression": "created_by_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_source_interaction": {
+          "name": "idx_stored_files_source_interaction",
+          "columns": [
+            {
+              "expression": "source_interaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_source_job": {
+          "name": "idx_stored_files_source_job",
+          "columns": [
+            {
+              "expression": "source_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_stored_files_org_role": {
+          "name": "idx_stored_files_org_role",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "stored_files_organization_id_organizations_id_fk": {
+          "name": "stored_files_organization_id_organizations_id_fk",
+          "tableFrom": "stored_files",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "stored_files_project_id_projects_id_fk": {
+          "name": "stored_files_project_id_projects_id_fk",
+          "tableFrom": "stored_files",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "stored_files_created_by_user_id_users_id_fk": {
+          "name": "stored_files_created_by_user_id_users_id_fk",
+          "tableFrom": "stored_files",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "stored_files_source_interaction_id_interactions_id_fk": {
+          "name": "stored_files_source_interaction_id_interactions_id_fk",
+          "tableFrom": "stored_files",
+          "tableTo": "interactions",
+          "columnsFrom": [
+            "source_interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "stored_files_source_job_id_jobs_id_fk": {
+          "name": "stored_files_source_job_id_jobs_id_fk",
+          "tableFrom": "stored_files",
+          "tableTo": "jobs",
+          "columnsFrom": [
+            "source_job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2784,8 +3440,12 @@
           "name": "sync_job_details_job_id_jobs_id_fk",
           "tableFrom": "sync_job_details",
           "tableTo": "jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2885,8 +3545,12 @@
           "name": "team_memberships_team_id_teams_id_fk",
           "tableFrom": "team_memberships",
           "tableTo": "teams",
-          "columnsFrom": ["team_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2894,8 +3558,12 @@
           "name": "team_memberships_user_id_users_id_fk",
           "tableFrom": "team_memberships",
           "tableTo": "users",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2999,8 +3667,12 @@
           "name": "teams_organization_id_organizations_id_fk",
           "tableFrom": "teams",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3117,8 +3789,12 @@
           "name": "tms_links_organization_id_organizations_id_fk",
           "tableFrom": "tms_links",
           "tableTo": "organizations",
-          "columnsFrom": ["organization_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3126,8 +3802,12 @@
           "name": "tms_links_project_id_projects_id_fk",
           "tableFrom": "tms_links",
           "tableTo": "projects",
-          "columnsFrom": ["project_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -3200,8 +3880,12 @@
           "name": "translation_job_details_job_id_jobs_id_fk",
           "tableFrom": "translation_job_details",
           "tableTo": "jobs",
-          "columnsFrom": ["job_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3327,57 +4011,125 @@
     "public.asset_status": {
       "name": "asset_status",
       "schema": "public",
-      "values": ["draft", "active", "archived"]
+      "values": [
+        "draft",
+        "active",
+        "archived"
+      ]
     },
     "public.inbox_status": {
       "name": "inbox_status",
       "schema": "public",
-      "values": ["active", "archived"]
+      "values": [
+        "active",
+        "archived"
+      ]
     },
     "public.interaction_source": {
       "name": "interaction_source",
       "schema": "public",
-      "values": ["chat_ui", "email_agent", "github_agent"]
+      "values": [
+        "chat_ui",
+        "email_agent",
+        "github_agent"
+      ]
     },
     "public.job_kind": {
       "name": "job_kind",
       "schema": "public",
-      "values": ["translation", "research", "review", "sync", "asset_management"]
+      "values": [
+        "translation",
+        "research",
+        "review",
+        "sync",
+        "asset_management"
+      ]
     },
     "public.job_status": {
       "name": "job_status",
       "schema": "public",
-      "values": ["queued", "running", "succeeded", "failed", "waiting_for_review", "cancelled"]
+      "values": [
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "waiting_for_review",
+        "cancelled"
+      ]
     },
     "public.llm_provider": {
       "name": "llm_provider",
       "schema": "public",
-      "values": ["openai", "anthropic", "gemini", "groq", "mistral"]
+      "values": [
+        "openai",
+        "anthropic",
+        "gemini",
+        "groq",
+        "mistral"
+      ]
     },
     "public.message_sender_type": {
       "name": "message_sender_type",
       "schema": "public",
-      "values": ["user", "agent"]
+      "values": [
+        "user",
+        "agent"
+      ]
     },
     "public.organization_membership_role": {
       "name": "organization_membership_role",
       "schema": "public",
-      "values": ["owner", "admin", "member"]
+      "values": [
+        "owner",
+        "admin",
+        "member"
+      ]
+    },
+    "public.stored_file_role": {
+      "name": "stored_file_role",
+      "schema": "public",
+      "values": [
+        "source",
+        "output",
+        "reference",
+        "asset"
+      ]
+    },
+    "public.stored_file_source_kind": {
+      "name": "stored_file_source_kind",
+      "schema": "public",
+      "values": [
+        "chat_upload",
+        "email_attachment",
+        "job_output",
+        "repository_file",
+        "tms_file"
+      ]
     },
     "public.team_membership_role": {
       "name": "team_membership_role",
       "schema": "public",
-      "values": ["manager", "member"]
+      "values": [
+        "manager",
+        "member"
+      ]
     },
     "public.translation_job_outcome_kind": {
       "name": "translation_job_outcome_kind",
       "schema": "public",
-      "values": ["string_result", "file_result", "error"]
+      "values": [
+        "string_result",
+        "file_result",
+        "error"
+      ]
     },
     "public.translation_job_type": {
       "name": "translation_job_type",
       "schema": "public",
-      "values": ["string", "file"]
+      "values": [
+        "string",
+        "file"
+      ]
     }
   },
   "schemas": {},
