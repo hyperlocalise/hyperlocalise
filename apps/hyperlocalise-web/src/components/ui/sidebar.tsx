@@ -6,6 +6,7 @@ import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Kbd } from "@/components/ui/kbd";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { SidebarLeftIcon } from "@hugeicons/core-free-icons";
 
@@ -247,23 +249,34 @@ function Sidebar({
 
 function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
   const { toggleSidebar } = useSidebar();
+  const isMac = useIsMac();
 
   return (
-    <Button
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
-      variant="ghost"
-      size="icon-sm"
-      className={cn(className)}
-      onClick={(event) => {
-        onClick?.(event);
-        toggleSidebar();
-      }}
-      {...props}
-    >
-      <HugeiconsIcon icon={SidebarLeftIcon} strokeWidth={2} className="rtl:rotate-180" />
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            data-sidebar="trigger"
+            data-slot="sidebar-trigger"
+            variant="ghost"
+            size="icon-sm"
+            className={cn(className)}
+            onClick={(event) => {
+              onClick?.(event);
+              toggleSidebar();
+            }}
+            {...props}
+          />
+        }
+      >
+        <HugeiconsIcon icon={SidebarLeftIcon} strokeWidth={2} className="rtl:rotate-180" />
+        <span className="sr-only">Toggle Sidebar</span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start">
+        Toggle Sidebar
+        <Kbd className="ms-2">{isMac ? "⌘B" : "Ctrl+B"}</Kbd>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
