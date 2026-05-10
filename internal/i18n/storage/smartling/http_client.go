@@ -2,30 +2,36 @@ package smartling
 
 import (
 	"bytes"
+	"cmp"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 )
 
 const (
-	authAPIBaseURL    = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL = "https://api.smartling.com/strings-api/v2"
-	translationsLimit = 500
+	authAPIBaseURL     = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL  = "https://api.smartling.com/strings-api/v2"
+	glossaryAPIBaseURL = "https://api.smartling.com/glossary-api/v2"
+	translationsLimit  = 500
+	glossaryLimit      = 500
 )
 
 type HTTPClient struct {
-	authBaseURL    string
-	stringsBaseURL string
-	http           *http.Client
-	userIdentifier string
-	userSecret     string
+	authBaseURL     string
+	stringsBaseURL  string
+	glossaryBaseURL string
+	http            *http.Client
+	userIdentifier  string
+	userSecret      string
 
 	tokenMu           sync.Mutex
 	cachedAccessToken string
@@ -39,11 +45,12 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	}
 
 	return &HTTPClient{
-		authBaseURL:    authAPIBaseURL,
-		stringsBaseURL: stringsAPIBaseURL,
-		http:           &http.Client{Timeout: timeout},
-		userIdentifier: cfg.UserIdentifier,
-		userSecret:     cfg.UserSecret,
+		authBaseURL:     authAPIBaseURL,
+		stringsBaseURL:  stringsAPIBaseURL,
+		glossaryBaseURL: glossaryAPIBaseURL,
+		http:            &http.Client{Timeout: timeout},
+		userIdentifier:  cfg.UserIdentifier,
+		userSecret:      cfg.UserSecret,
 	}, nil
 }
 
@@ -291,4 +298,185 @@ func (c *HTTPClient) do(req *http.Request, out any) error {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
+}
+
+// GlossaryDownloadRequest identifies the Smartling glossary to export.
+type GlossaryDownloadRequest struct {
+	AccountUID  string
+	GlossaryUID string
+	Languages   []string
+}
+
+// GlossaryDownloadResult summarizes a Smartling glossary CSV export.
+type GlossaryDownloadResult struct {
+	Entries int
+}
+
+type smartlingGlossaryEntry struct {
+	EntryUID     string                         `json:"entryUid"`
+	Term         string                         `json:"term"`
+	Definition   string                         `json:"definition"`
+	PartOfSpeech string                         `json:"partOfSpeech"`
+	LabelUIDs    []string                       `json:"labelUids"`
+	Translations []smartlingGlossaryTranslation `json:"translations"`
+}
+
+type smartlingGlossaryTranslation struct {
+	LocaleID   string `json:"localeId"`
+	Term       string `json:"term"`
+	Notes      string `json:"notes"`
+	Definition string `json:"definition"`
+}
+
+func (c *HTTPClient) listGlossaryEntries(ctx context.Context, token string, accountUID string, glossaryUID string) ([]smartlingGlossaryEntry, error) {
+	var entries []smartlingGlossaryEntry
+	offset := 0
+	for {
+		endpoint := fmt.Sprintf("%s/accounts/%s/glossaries/%s/entries", c.glossaryBaseURL, url.PathEscape(accountUID), url.PathEscape(glossaryUID))
+		params := url.Values{}
+		params.Set("limit", fmt.Sprintf("%d", glossaryLimit))
+		params.Set("offset", fmt.Sprintf("%d", offset))
+		fullURL := endpoint + "?" + params.Encode()
+
+		var resp struct {
+			Response struct {
+				Code string `json:"code"`
+			} `json:"response"`
+			Data struct {
+				Items []smartlingGlossaryEntry `json:"items"`
+			} `json:"data"`
+		}
+
+		if err := c.getJSON(ctx, fullURL, token, &resp); err != nil {
+			return nil, fmt.Errorf("list glossary entries: %w", err)
+		}
+
+		entries = append(entries, resp.Data.Items...)
+		if len(resp.Data.Items) < glossaryLimit {
+			break
+		}
+		offset += glossaryLimit
+	}
+	return entries, nil
+}
+
+var smartlingGlossaryCSVHeader = []string{
+	"account_uid",
+	"glossary_uid",
+	"entry_uid",
+	"term",
+	"definition",
+	"part_of_speech",
+	"label_uids",
+	"translation_locale",
+	"translation_term",
+	"translation_notes",
+	"translation_definition",
+}
+
+// WriteGlossaryCSV downloads Smartling glossary terms and writes them as stable CSV.
+func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, req GlossaryDownloadRequest, w io.Writer) (GlossaryDownloadResult, error) {
+	if strings.TrimSpace(req.AccountUID) == "" {
+		return GlossaryDownloadResult{}, fmt.Errorf("smartling glossary download: account uid is required")
+	}
+	if strings.TrimSpace(req.GlossaryUID) == "" {
+		return GlossaryDownloadResult{}, fmt.Errorf("smartling glossary download: glossary uid is required")
+	}
+	if w == nil {
+		return GlossaryDownloadResult{}, fmt.Errorf("smartling glossary download: writer is nil")
+	}
+
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return GlossaryDownloadResult{}, err
+	}
+
+	entries, err := c.listGlossaryEntries(ctx, token, req.AccountUID, req.GlossaryUID)
+	if err != nil {
+		return GlossaryDownloadResult{}, err
+	}
+
+	rows := smartlingGlossaryCSVRows(req.AccountUID, req.GlossaryUID, entries, req.Languages)
+
+	writer := csv.NewWriter(w)
+	if err := writer.Write(smartlingGlossaryCSVHeader); err != nil {
+		return GlossaryDownloadResult{}, fmt.Errorf("write smartling glossary csv header: %w", err)
+	}
+	for _, row := range rows {
+		if err := writer.Write(row); err != nil {
+			return GlossaryDownloadResult{}, fmt.Errorf("write smartling glossary csv row: %w", err)
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return GlossaryDownloadResult{}, fmt.Errorf("flush smartling glossary csv: %w", err)
+	}
+
+	return GlossaryDownloadResult{Entries: len(rows)}, nil
+}
+
+func smartlingGlossaryCSVRows(accountUID, glossaryUID string, entries []smartlingGlossaryEntry, locales []string) [][]string {
+	localeSet := make(map[string]struct{}, len(locales))
+	for _, value := range locales {
+		for _, part := range strings.Split(value, ",") {
+			if locale := strings.TrimSpace(part); locale != "" {
+				localeSet[locale] = struct{}{}
+			}
+		}
+	}
+
+	sortedEntries := slices.Clone(entries)
+	slices.SortStableFunc(sortedEntries, func(left, right smartlingGlossaryEntry) int {
+		if left.Term != right.Term {
+			return cmp.Compare(left.Term, right.Term)
+		}
+		return cmp.Compare(left.EntryUID, right.EntryUID)
+	})
+
+	var rows [][]string
+	for _, entry := range sortedEntries {
+		translations := slices.Clone(entry.Translations)
+		slices.SortStableFunc(translations, func(left, right smartlingGlossaryTranslation) int {
+			return cmp.Compare(left.LocaleID, right.LocaleID)
+		})
+
+		wroteTranslation := false
+		for _, translation := range translations {
+			if len(localeSet) > 0 {
+				if _, ok := localeSet[translation.LocaleID]; !ok {
+					continue
+				}
+			}
+			rows = append(rows, smartlingGlossaryCSVRow(accountUID, glossaryUID, entry, &translation))
+			wroteTranslation = true
+		}
+
+		if !wroteTranslation && len(localeSet) == 0 {
+			rows = append(rows, smartlingGlossaryCSVRow(accountUID, glossaryUID, entry, nil))
+		}
+	}
+	return rows
+}
+
+func smartlingGlossaryCSVRow(accountUID, glossaryUID string, entry smartlingGlossaryEntry, translation *smartlingGlossaryTranslation) []string {
+	row := []string{
+		accountUID,
+		glossaryUID,
+		entry.EntryUID,
+		entry.Term,
+		entry.Definition,
+		entry.PartOfSpeech,
+		strings.Join(entry.LabelUIDs, ","),
+		"",
+		"",
+		"",
+		"",
+	}
+	if translation != nil {
+		row[7] = translation.LocaleID
+		row[8] = translation.Term
+		row[9] = translation.Notes
+		row[10] = translation.Definition
+	}
+	return row
 }
