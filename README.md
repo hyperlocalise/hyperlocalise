@@ -166,7 +166,7 @@ Useful repo paths:
 
 - `apps/cli/`: CLI application entrypoint
 - `apps/cli/cmd/`: CLI command handlers
-- `apps/web/`: web app workspace
+- `apps/hyperlocalise-web/`: web app workspace
 - `internal/`: shared internal packages
 - `pkg/platform/`: runtime, auth, transport, and observability helpers
 - `api/proto/`: protobuf contract workspace
