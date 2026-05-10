@@ -9,6 +9,7 @@ export async function findSlackConnector(teamId: string) {
     .where(
       and(
         eq(schema.connectors.kind, "slack"),
+        eq(schema.connectors.enabled, true),
         sql`${schema.connectors.config}->>'teamId' = ${teamId}`,
       ),
     )

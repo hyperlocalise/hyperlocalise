@@ -136,6 +136,16 @@ describe("wrapThreadPost", () => {
 
     expect(addInteractionMessage).not.toHaveBeenCalled();
   });
+
+  it("does not double-wrap the same thread", async () => {
+    const { thread } = createThread();
+    await wrapThreadPost(thread, "interaction-123");
+    await wrapThreadPost(thread, "interaction-123");
+
+    await thread.post("Agent reply");
+
+    expect(addInteractionMessage).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("getOrCreateInteraction", () => {
@@ -145,7 +155,7 @@ describe("getOrCreateInteraction", () => {
 
     const result = await getOrCreateInteraction("org-123", "thread-123", "Title");
 
-    expect(result).toBe(existing);
+    expect(result).toEqual({ interaction: existing, isNew: false });
     expect(findInteractionBySourceThreadId).toHaveBeenCalledWith({
       organizationId: "org-123",
       source: "slack_agent",
@@ -163,7 +173,7 @@ describe("getOrCreateInteraction", () => {
 
     const result = await getOrCreateInteraction("org-123", "thread-123", "Title");
 
-    expect(result).toEqual({ id: "interaction-456", title: "Title" });
+    expect(result).toEqual({ interaction: { id: "interaction-456", title: "Title" }, isNew: true });
     expect(createInteraction).toHaveBeenCalledWith({
       organizationId: "org-123",
       source: "slack_agent",
@@ -248,8 +258,8 @@ describe("handleNewConversation", () => {
     expect(posts).toEqual(["Hello! I'm the Hyperlocalise agent. How can I help?"]);
   });
 
-  it("resumes existing interaction and persists agent reply", async () => {
-    const { thread, posts } = createThread();
+  it("resumes existing interaction without re-greeting", async () => {
+    const { thread, posts, getSubscribed } = createThread();
     const message = createMessage({ text: "Follow up" });
 
     vi.mocked(findSlackConnector).mockResolvedValue({
@@ -271,14 +281,8 @@ describe("handleNewConversation", () => {
       senderType: "user",
       text: "Follow up",
     });
-    expect(posts).toEqual(["Hello! I'm the Hyperlocalise agent. How can I help?"]);
-
-    // Agent reply should also be persisted via wrapped post
-    expect(addInteractionMessage).toHaveBeenLastCalledWith({
-      interactionId: "interaction-123",
-      senderType: "agent",
-      text: "Hello! I'm the Hyperlocalise agent. How can I help?",
-    });
+    expect(getSubscribed()).toBe(false);
+    expect(posts).toEqual([]);
   });
 });
 

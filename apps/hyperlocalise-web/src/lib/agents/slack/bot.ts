@@ -18,12 +18,19 @@ type SlackBotState = Record<string, unknown>;
 let botInstance: Chat<{ slack: ReturnType<typeof createSlackAdapter> }, SlackBotState> | null =
   null;
 
+const wrappedThreads = new WeakSet<Thread<SlackBotState>>();
+
 export function extractTeamId(message: Message): string | null {
   const raw = message.raw as { team_id?: string; team?: string } | undefined;
   return raw?.team_id ?? raw?.team ?? null;
 }
 
 export async function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: string) {
+  if (wrappedThreads.has(thread)) {
+    return;
+  }
+  wrappedThreads.add(thread);
+
   const originalPost = thread.post.bind(thread);
   thread.post = async (...args: Parameters<typeof originalPost>) => {
     const result = await originalPost(...args);
@@ -48,21 +55,22 @@ export async function getOrCreateInteraction(
   organizationId: string,
   threadId: string,
   title: string,
-) {
+): Promise<{ interaction: { id: string; title: string }; isNew: boolean }> {
   const existing = await findInteractionBySourceThreadId({
     organizationId,
     source: "slack_agent",
     sourceThreadId: threadId,
   });
   if (existing) {
-    return existing;
+    return { interaction: existing as { id: string; title: string }, isNew: false };
   }
-  return createInteraction({
+  const interaction = await createInteraction({
     organizationId,
     source: "slack_agent",
     title,
     sourceThreadId: threadId,
   });
+  return { interaction: interaction as { id: string; title: string }, isNew: true };
 }
 
 export async function handleNewConversation(thread: Thread<SlackBotState>, message: Message) {
@@ -80,7 +88,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     return;
   }
 
-  const interaction = await getOrCreateInteraction(
+  const { interaction, isNew } = await getOrCreateInteraction(
     connector.organizationId,
     thread.id,
     message.text.slice(0, 100) || "Slack conversation",
@@ -92,11 +100,11 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     text: message.text,
   });
 
-  await wrapThreadPost(thread, interaction.id);
-
-  await thread.subscribe();
-
-  await thread.post("Hello! I'm the Hyperlocalise agent. How can I help?");
+  if (isNew) {
+    await wrapThreadPost(thread, interaction.id);
+    await thread.subscribe();
+    await thread.post("Hello! I'm the Hyperlocalise agent. How can I help?");
+  }
 }
 
 export async function handleSubscribedMessage(thread: Thread<SlackBotState>, message: Message) {
@@ -114,7 +122,7 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     return;
   }
 
-  const interaction = await getOrCreateInteraction(
+  const { interaction } = await getOrCreateInteraction(
     connector.organizationId,
     thread.id,
     message.text.slice(0, 100) || "Slack conversation",
