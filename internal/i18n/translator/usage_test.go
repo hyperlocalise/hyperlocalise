@@ -136,3 +136,158 @@ func TestGeminiUsagePreservesThoughtsAndToolTokens(t *testing.T) {
 		t.Fatalf("unexpected gemini details: %+v", usage)
 	}
 }
+
+func TestUsageHasValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		usage Usage
+		want  bool
+	}{
+		{
+			name:  "empty",
+			usage: Usage{},
+			want:  false,
+		},
+		{
+			name:  "input tokens only",
+			usage: Usage{InputTokens: 10},
+			want:  true,
+		},
+		{
+			name:  "output tokens only",
+			usage: Usage{OutputTokens: 5},
+			want:  true,
+		},
+		{
+			name:  "total tokens only",
+			usage: Usage{TotalTokens: 15},
+			want:  true,
+		},
+		{
+			name:  "prompt tokens alias",
+			usage: Usage{PromptTokens: 10},
+			want:  true,
+		},
+		{
+			name:  "completion tokens alias",
+			usage: Usage{CompletionTokens: 5},
+			want:  true,
+		},
+		{
+			name:  "cached input tokens",
+			usage: Usage{CachedInputTokens: 100},
+			want:  true,
+		},
+		{
+			name:  "reasoning tokens",
+			usage: Usage{ReasoningTokens: 50},
+			want:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := UsageHasValues(tc.usage); got != tc.want {
+				t.Errorf("UsageHasValues(%+v) = %v, want %v", tc.usage, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeUsage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		in       Usage
+		fallback UsageTotalFallback
+		want     Usage
+	}{
+		{
+			name: "populates input/output from aliases",
+			in: Usage{
+				PromptTokens:     10,
+				CompletionTokens: 5,
+			},
+			fallback: UsageTotalFallbackInputOutput,
+			want: Usage{
+				InputTokens:      10,
+				OutputTokens:     5,
+				PromptTokens:     10,
+				CompletionTokens: 5,
+				TotalTokens:      15,
+			},
+		},
+		{
+			name: "populates aliases from input/output",
+			in: Usage{
+				InputTokens:  20,
+				OutputTokens: 10,
+			},
+			fallback: UsageTotalFallbackInputOutput,
+			want: Usage{
+				InputTokens:      20,
+				OutputTokens:     10,
+				PromptTokens:     20,
+				CompletionTokens: 10,
+				TotalTokens:      30,
+			},
+		},
+		{
+			name: "anthropic total fallback includes cache",
+			in: Usage{
+				InputTokens:           100,
+				OutputTokens:          50,
+				CacheWriteInputTokens: 10,
+				CachedInputTokens:     20,
+			},
+			fallback: UsageTotalFallbackAnthropic,
+			want: Usage{
+				InputTokens:           100,
+				OutputTokens:          50,
+				PromptTokens:          100,
+				CompletionTokens:      50,
+				CacheWriteInputTokens: 10,
+				CachedInputTokens:     20,
+				TotalTokens:           180, // 100 + 50 + 10 + 20
+			},
+		},
+		{
+			name: "does not overwrite existing total",
+			in: Usage{
+				InputTokens:  10,
+				OutputTokens: 10,
+				TotalTokens:  999,
+			},
+			fallback: UsageTotalFallbackInputOutput,
+			want: Usage{
+				InputTokens:      10,
+				OutputTokens:     10,
+				PromptTokens:     10,
+				CompletionTokens: 10,
+				TotalTokens:      999,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := NormalizeUsage(tc.in, tc.fallback)
+			if got.InputTokens != tc.want.InputTokens ||
+				got.OutputTokens != tc.want.OutputTokens ||
+				got.TotalTokens != tc.want.TotalTokens ||
+				got.PromptTokens != tc.want.PromptTokens ||
+				got.CompletionTokens != tc.want.CompletionTokens ||
+				got.CacheWriteInputTokens != tc.want.CacheWriteInputTokens ||
+				got.CachedInputTokens != tc.want.CachedInputTokens {
+				t.Errorf("NormalizeUsage(%+v) = %+v, want %+v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
