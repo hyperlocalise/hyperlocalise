@@ -172,6 +172,8 @@ async function processSlackMessage(
     const lastUserIndex = chatMessages.findLastIndex((m) => m.role === "user");
     if (lastUserIndex >= 0) {
       chatMessages[lastUserIndex] = { role: "user", content: userText };
+    } else {
+      chatMessages.push({ role: "user", content: userText });
     }
 
     const tools = buildTools({
@@ -292,6 +294,7 @@ export async function getSlackBot() {
       slack: createSlackAdapter({
         clientId: env.SLACK_CLIENT_ID,
         clientSecret: env.SLACK_CLIENT_SECRET,
+        signingSecret: env.SLACK_SIGNING_SECRET,
         userName: "hyperlocalise",
         logger: createChatLogger("slack"),
       }),
