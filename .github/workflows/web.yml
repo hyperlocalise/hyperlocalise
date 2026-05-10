@@ -56,9 +56,6 @@ jobs:
       - name: Install hyperlocalise-web dependencies
         run: vp install --frozen-lockfile
 
-      - name: Migrate hyperlocalise-web database
-        run: vp run db:migrate
-
       - name: Check for Drizzle migration collisions
         run: |
           set -euo pipefail
@@ -87,6 +84,9 @@ jobs:
             git --no-pager diff -- drizzle
             exit 1
           fi
+
+      - name: Migrate hyperlocalise-web database
+        run: vp run db:migrate
 
       - name: Check hyperlocalise-web
         run: vp check
