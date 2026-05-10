@@ -35,6 +35,8 @@ func TestSourceStringsService_List(t *testing.T) {
 						"isHidden": false,
 						"isDuplicate": true,
 						"masterStringId": 1,
+						"hasPlurals": false,
+						"isIcu": false,
 						"labelIds": [
 							3
 						],
@@ -96,6 +98,8 @@ func TestSourceStringsService_List(t *testing.T) {
 			IsHidden:       false,
 			IsDuplicate:    true,
 			MasterStringID: ToPtr(1),
+			HasPlurals:     false,
+			IsIcu:          false,
 			LabelIDs:       []int{3},
 			WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 			CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
@@ -230,6 +234,8 @@ func TestSourceStringsService_Get(t *testing.T) {
 				"isHidden": false,
 				"isDuplicate": true,
 				"masterStringId": 1,
+				"hasPlurals": false,
+				"isIcu": false,
 				"labelIds": [
 					3
 				],
@@ -261,6 +267,8 @@ func TestSourceStringsService_Get(t *testing.T) {
 		IsHidden:       false,
 		IsDuplicate:    true,
 		MasterStringID: ToPtr(1),
+		HasPlurals:     false,
+		IsIcu:          false,
 		LabelIDs:       []int{3},
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
@@ -323,6 +331,7 @@ func TestSourceStringsService_Add(t *testing.T) {
 		Identifier: "name",
 		Context:    "shown on main page",
 		IsHidden:   ToPtr(false),
+		IsIcu:      ToPtr(false),
 		MaxLength:  ToPtr(35),
 		LabelIDs:   []int{3, 5, 7},
 		Fields: map[string]any{
@@ -340,6 +349,7 @@ func TestSourceStringsService_Add(t *testing.T) {
 			"identifier": "name",
 			"context": "shown on main page",
 			"isHidden": false,
+			"isIcu": false,
 			"maxLength": 35,
 			"labelIds": [3,5,7],
 			"fields": {
@@ -361,6 +371,8 @@ func TestSourceStringsService_Add(t *testing.T) {
 				"isHidden": false,
 				"isDuplicate": true,
 				"masterStringId": 1,
+				"hasPlurals": false,
+				"isIcu": false,
 				"labelIds": [
 					3
 				],
@@ -394,6 +406,8 @@ func TestSourceStringsService_Add(t *testing.T) {
 		IsHidden:       false,
 		IsDuplicate:    true,
 		MasterStringID: ToPtr(1),
+		HasPlurals:     false,
+		IsIcu:          false,
 		LabelIDs:       []int{3},
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
@@ -559,8 +573,8 @@ func TestSourceStringsService_BatchOperations(t *testing.T) {
 						"isHidden": false,
 						"isDuplicate": true,
 						"masterStringId": 1,
-						"hasPlurals": false,
-						"isIcu": false,
+						"hasPlurals": true,
+						"isIcu": true,
 						"labelIds": [
 							3
 						],
@@ -591,6 +605,8 @@ func TestSourceStringsService_BatchOperations(t *testing.T) {
 			IsHidden:       false,
 			IsDuplicate:    true,
 			MasterStringID: ToPtr(1),
+			HasPlurals:     true,
+			IsIcu:          true,
 			LabelIDs:       []int{3},
 			WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#1",
 			CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
@@ -680,6 +696,8 @@ func TestSourceStringsService_Edit(t *testing.T) {
 		IsHidden:       true,
 		IsDuplicate:    true,
 		MasterStringID: ToPtr(1),
+		HasPlurals:     false,
+		IsIcu:          false,
 		LabelIDs:       []int{3},
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
