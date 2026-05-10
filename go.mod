@@ -1,6 +1,6 @@
 module github.com/hyperlocalise/hyperlocalise
 
-go 1.26
+go 1.26.1
 
 replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-client-go
 
@@ -188,10 +188,10 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.20.4 // indirect
+	github.com/prometheus/client_golang v1.21.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
-	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23 // indirect
 	github.com/quasilyte/gogrep v0.5.0 // indirect
@@ -258,13 +258,11 @@ require (
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20260209203927-2842357ff358 // indirect
 	golang.org/x/mod v0.35.0 // indirect
-	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
-	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
-	google.golang.org/genproto v0.0.0-20260504160031-60b97b32f348 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260427160629-7cedc36a6bc4 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4 // indirect
 	google.golang.org/grpc v1.80.0 // indirect
@@ -288,4 +286,13 @@ exclude google.golang.org/genproto v0.0.0-20220519153652-3a47de7e79bd
 
 exclude google.golang.org/genproto v0.0.0-20200825200019-8632dd797987
 
-exclude google.golang.org/genproto v0.0.0-20200804131852-c06518451d9c
+exclude (
+	google.golang.org/genproto v0.0.0-20200515170657-fc4c6c6a6587
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
+	google.golang.org/genproto v0.0.0-20200618031413-b414f8b61790
+	google.golang.org/genproto v0.0.0-20200729003335-053ba62fc06f
+	google.golang.org/genproto v0.0.0-20200804131852-c06518451d9c
+	google.golang.org/genproto v0.0.0-20260427160629-7cedc36a6bc4
+)
+
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20260427160629-7cedc36a6bc4
