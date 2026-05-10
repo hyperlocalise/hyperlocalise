@@ -120,7 +120,7 @@ func TestMarshalXLIFF20PreservesSrcLangAndRewritesTrgLang(t *testing.T) {
 	}
 }
 
-func TestMarshalXLIFF20MultiSegmentCurrentlyRewritesEachActiveTargetWithUnitValue(t *testing.T) {
+func TestMarshalXLIFF20MultiSegmentCurrentLimitationDuplicatesUnitValuePerTarget(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en-US" trgLang="fr-FR" xmlns="urn:oasis:names:tc:xliff:document:2.0">
   <file id="f1">
@@ -143,6 +143,8 @@ func TestMarshalXLIFF20MultiSegmentCurrentlyRewritesEachActiveTargetWithUnitValu
 	}
 
 	content := string(out)
+	// This locks today's limitation, not desired XLIFF 2.x behavior. When
+	// segment-level rewrite is implemented, replace this with per-segment checks.
 	if strings.Count(content, `>Salut tout le monde</target>`) != 2 {
 		t.Fatalf("expected current unit-level rewrite to replace each segment target with the unit value, got %q", content)
 	}
