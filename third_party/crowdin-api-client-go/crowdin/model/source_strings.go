@@ -22,6 +22,8 @@ type SourceString struct {
 	HasPlurals     bool    `json:"hasPlurals"`
 	IsIcu          bool    `json:"isIcu"`
 	LabelIDs       []int   `json:"labelIds"`
+	CommentsCount  int     `json:"commentsCount"`
+	IssuesCount    int     `json:"issuesCount"`
 	WebURL         string  `json:"webUrl"`
 	CreatedAt      *string `json:"createdAt,omitempty"`
 	UpdatedAt      *string `json:"updatedAt,omitempty"`

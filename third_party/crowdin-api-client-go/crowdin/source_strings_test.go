@@ -40,6 +40,8 @@ func TestSourceStringsService_List(t *testing.T) {
 						"labelIds": [
 							3
 						],
+						"commentsCount": 5,
+						"issuesCount": 1,
 						"webUrl": "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 						"createdAt": "2023-09-20T12:43:57+00:00",
 						"updatedAt": "2023-09-20T13:24:01+00:00",
@@ -101,6 +103,8 @@ func TestSourceStringsService_List(t *testing.T) {
 			HasPlurals:     false,
 			IsIcu:          false,
 			LabelIDs:       []int{3},
+			CommentsCount:  5,
+			IssuesCount:    1,
 			WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 			CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
 			UpdatedAt:      ToPtr("2023-09-20T13:24:01+00:00"),
@@ -239,6 +243,8 @@ func TestSourceStringsService_Get(t *testing.T) {
 				"labelIds": [
 					3
 				],
+				"commentsCount": 5,
+				"issuesCount": 1,
 				"webUrl": "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 				"createdAt": "2023-09-20T12:43:57+00:00",
 				"updatedAt": "2023-09-20T13:24:01+00:00",
@@ -270,6 +276,8 @@ func TestSourceStringsService_Get(t *testing.T) {
 		HasPlurals:     false,
 		IsIcu:          false,
 		LabelIDs:       []int{3},
+		CommentsCount:  5,
+		IssuesCount:    1,
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
 		UpdatedAt:      ToPtr("2023-09-20T13:24:01+00:00"),
@@ -376,6 +384,8 @@ func TestSourceStringsService_Add(t *testing.T) {
 				"labelIds": [
 					3
 				],
+				"commentsCount": 5,
+				"issuesCount": 1,
 				"webUrl": "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 				"createdAt": "2023-09-20T12:43:57+00:00",
 				"updatedAt": "2023-09-20T13:24:01+00:00",
@@ -409,6 +419,8 @@ func TestSourceStringsService_Add(t *testing.T) {
 		HasPlurals:     false,
 		IsIcu:          false,
 		LabelIDs:       []int{3},
+		CommentsCount:  5,
+		IssuesCount:    1,
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
 		UpdatedAt:      ToPtr("2023-09-20T13:24:01+00:00"),
@@ -578,6 +590,8 @@ func TestSourceStringsService_BatchOperations(t *testing.T) {
 						"labelIds": [
 							3
 						],
+						"commentsCount": 5,
+						"issuesCount": 1,
 						"webUrl": "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#1",
 						"createdAt": "2023-09-20T12:43:57+00:00",
 						"updatedAt": "2023-09-20T13:24:01+00:00"
@@ -608,6 +622,8 @@ func TestSourceStringsService_BatchOperations(t *testing.T) {
 			HasPlurals:     true,
 			IsIcu:          true,
 			LabelIDs:       []int{3},
+			CommentsCount:  5,
+			IssuesCount:    1,
 			WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#1",
 			CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
 			UpdatedAt:      ToPtr("2023-09-20T13:24:01+00:00"),
@@ -699,6 +715,8 @@ func TestSourceStringsService_Edit(t *testing.T) {
 		HasPlurals:     false,
 		IsIcu:          false,
 		LabelIDs:       []int{3},
+		CommentsCount:  0,
+		IssuesCount:    0,
 		WebURL:         "https://example.crowdin.com/editor/1/all/en-pl?filter=basic&value=0&view=comfortable#2",
 		CreatedAt:      ToPtr("2023-09-20T12:43:57+00:00"),
 		UpdatedAt:      ToPtr("2023-09-20T13:24:01+00:00"),
