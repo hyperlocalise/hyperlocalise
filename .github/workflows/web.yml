@@ -66,7 +66,7 @@ jobs:
             echo "Resolve by deleting your migration files, rebasing onto main, and rerunning 'vp run db:generate'."
             exit 1
           fi
-          duplicate_prefix=$(ls drizzle/*.sql 2>/dev/null | xargs -n1 basename | cut -c1-4 | sort | uniq -d || true)
+          duplicate_prefix=$(ls drizzle/*.sql 2>/dev/null | xargs -n1 basename | cut -c1-5 | sort | uniq -d || true)
           if [ -n "${duplicate_prefix}" ]; then
             echo "::error::Duplicate migration index prefix in drizzle/ (likely a merge from parallel branches):"
             echo "${duplicate_prefix}"
@@ -76,6 +76,7 @@ jobs:
 
       - name: Check for Drizzle migration drift
         run: |
+          set -euo pipefail
           vp run db:generate
           if [ -n "$(git status --porcelain drizzle)" ]; then
             echo "::error::Drizzle schema and migrations are out of sync."
