@@ -48,11 +48,7 @@ export function DeleteProjectDialog({
               }
             }}
           >
-            {isDeleting ? (
-              <Spinner />
-            ) : (
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-            )}
+            {isDeleting ? <Spinner /> : <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />}
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </AlertDialogFooter>
