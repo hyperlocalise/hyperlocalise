@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1777728051870,
-      "tag": "0000_furry_amphibian",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777865982684,
-      "tag": "0001_pale_star_brand",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777950000000,
-      "tag": "0002_add_organization_api_keys",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1778000000000,
-      "tag": "0003_api_key_default_file_permissions",
+      "when": 1778406156951,
+      "tag": "0000_wandering_skin",
       "breakpoints": true
     }
   ]
