@@ -15,6 +15,13 @@
       "when": 1778415091649,
       "tag": "0001_curly_toxin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778415723613,
+      "tag": "0002_polite_lyja",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@ import type { UIMessage } from "ai";
 export type Conversation = {
   id: string;
   title: string;
-  source: "chat_ui" | "email_agent" | "github_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
   status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;
@@ -53,6 +53,7 @@ export const sourceLabel: Record<Conversation["source"], string> = {
   chat_ui: "Chat",
   email_agent: "Email",
   github_agent: "GitHub",
+  slack_agent: "Slack",
 };
 
 export const statusStyles: Record<Conversation["status"], string> = {

@@ -84,6 +84,7 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
   "github_agent",
+  "slack_agent",
 ]);
 export const inboxStatusEnum = pgEnum("inbox_status", ["active", "archived"]);
 export const messageSenderTypeEnum = pgEnum("message_sender_type", ["user", "agent"]);
