@@ -1,11 +1,6 @@
-import type { WithContext } from "schema-dts";
+import type { Thing, WithContext } from "schema-dts";
 
-export function JsonLd({
-  data,
-}: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: WithContext<any>;
-}) {
+export function JsonLd({ data }: { data: WithContext<Thing> }) {
   return (
     <script
       type="application/ld+json"
