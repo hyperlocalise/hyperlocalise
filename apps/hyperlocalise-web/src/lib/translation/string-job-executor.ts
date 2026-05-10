@@ -16,7 +16,9 @@ const stringTranslationOutputSchema = z.object({
   translations: z.array(
     z.object({
       locale: z.string().trim().min(1),
-      text: z.string().trim().min(1),
+      text: z.string().refine((text) => text.trim().length > 0, {
+        message: "Translation text cannot be empty",
+      }),
     }),
   ),
 });

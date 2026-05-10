@@ -97,6 +97,7 @@ export const SpeechInput = ({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isStartingMediaRecorderRef = useRef(false);
   const audioChunksRef = useRef<Blob[]>([]);
   const onTranscriptionChangeRef =
     useRef<SpeechInputProps["onTranscriptionChange"]>(onTranscriptionChange);
@@ -183,12 +184,20 @@ export const SpeechInput = ({
 
   // Start MediaRecorder recording
   const startMediaRecorder = useCallback(async () => {
-    if (!onAudioRecordedRef.current) {
+    if (!onAudioRecordedRef.current || isStartingMediaRecorderRef.current) {
       return;
     }
 
+    isStartingMediaRecorderRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (mediaRecorderRef.current?.state === "recording") {
+        for (const track of stream.getTracks()) {
+          track.stop();
+        }
+        return;
+      }
+
       streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
@@ -241,6 +250,8 @@ export const SpeechInput = ({
       setIsListening(true);
     } catch {
       setIsListening(false);
+    } finally {
+      isStartingMediaRecorderRef.current = false;
     }
   }, []);
 
@@ -262,7 +273,7 @@ export const SpeechInput = ({
     } else if (mode === "media-recorder") {
       if (isListening) {
         stopMediaRecorder();
-      } else {
+      } else if (!isStartingMediaRecorderRef.current) {
         void startMediaRecorder();
       }
     }

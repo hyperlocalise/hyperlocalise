@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export default async function SelectOrganizationPage() {
-  const auth = await requireAppAuthContext();
+  const auth = await requireAppAuthContext({ ignoreStoredActiveOrganization: true });
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
