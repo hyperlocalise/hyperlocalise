@@ -19,7 +19,11 @@ type SourceString struct {
 	IsHidden       bool    `json:"isHidden"`
 	IsDuplicate    bool    `json:"isDuplicate"`
 	MasterStringID *int    `json:"masterStringId,omitempty"`
+	HasPlurals     bool    `json:"hasPlurals"`
+	IsIcu          bool    `json:"isIcu"`
 	LabelIDs       []int   `json:"labelIds"`
+	CommentsCount  int     `json:"commentsCount"`
+	IssuesCount    int     `json:"issuesCount"`
 	WebURL         string  `json:"webUrl"`
 	CreatedAt      *string `json:"createdAt,omitempty"`
 	UpdatedAt      *string `json:"updatedAt,omitempty"`
@@ -136,7 +140,7 @@ func (o *SourceStringsGetOptions) Values() (url.Values, bool) {
 	return v, len(v) > 0
 }
 
-// SourcseStringsAddRequest defines the structure of a request
+// SourceStringsAddRequest defines the structure of a request
 // to add a string.
 type SourceStringsAddRequest struct {
 	// Text for translation.
@@ -159,6 +163,8 @@ type SourceStringsAddRequest struct {
 	Context string `json:"context,omitempty"`
 	// Defines whether to make string unavailable for translation. Default: false.
 	IsHidden *bool `json:"isHidden,omitempty"`
+	// Defines whether string is ICU.
+	IsIcu *bool `json:"isIcu,omitempty"`
 	// Max. length of translated text (0 – unlimited).
 	MaxLength *int `json:"maxLength,omitempty"`
 	// Label Identifiers.
