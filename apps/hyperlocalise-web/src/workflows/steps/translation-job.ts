@@ -68,6 +68,9 @@ export async function markEmailTranslationJobRunning(input: {
         eq(schema.jobs.id, input.jobId),
         eq(schema.jobs.kind, "translation"),
         or(isNull(schema.jobs.workflowRunId), eq(schema.jobs.workflowRunId, input.workflowRunId)),
+        // Do not claim terminal jobs: legacy rows may have null workflowRunId, and replays must not
+        // reset succeeded/failed jobs that already share this workflowRunId.
+        or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
       ),
     )
     .returning({ id: schema.jobs.id });
