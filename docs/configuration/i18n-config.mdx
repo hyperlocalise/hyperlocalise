@@ -180,6 +180,13 @@ llm:
       group: docs
       profile: docs_review
 
+hyperlocalise:
+  project_id: project_123
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  manifest_path: .hyperlocalise/jobs.json
+  timeout_seconds: 1200
+
 cache:
   enabled: true
   endpoint: dns:///cache.internal:443
@@ -201,3 +208,5 @@ Then edit the generated `i18n.yml` for your project.
 - Keep group targets inside `locales.targets`.
 - Keep group buckets aligned with `buckets` keys.
 - Keep profile names consistent between `profiles` and `rules`.
+- Use `hyperlocalise` for `sync push` and `sync pull` jobs.
+- Keep `storage` for provider-specific TMS adapter configuration.

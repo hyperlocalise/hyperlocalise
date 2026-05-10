@@ -1,12 +1,10 @@
 ---
 title: "sync push"
-description: "Experimental: Push local translation changes to remote storage adapters."
+description: "Submit source files to Hyperlocalise translation jobs."
 ---
 
 <Note>
-This feature is experimental. Flags, output shape, and behavior may change between releases. Use in controlled workflows and pin versions in CI.
-
-Conflict handling and sync contracts may evolve as TMS integrations mature.
+The public jobs API contract may evolve while CI workflows stabilize.
 </Note>
 
 ## Usage
@@ -17,53 +15,41 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## Safe default behavior
 
-`sync push` defaults to dry-run mode and conflict failure.
+`sync push` defaults to dry-run mode.
 
-During a real push, Hyperlocalise reads local files, fetches a fresh remote baseline for the same scope, computes an in-memory diff, and pushes only changed entries.
+During a real push, Hyperlocalise reads configured source files from `i18n.yml`, uploads each source file to the public Hyperlocalise API, creates file translation jobs, and writes a jobs manifest. Use this manifest as a GitHub Actions artifact for a later `sync pull` job.
 
-For string-oriented adapters such as Crowdin, the default mutation unit is the individual translation entry (`key + context + locale`), not a whole file upload.
-
-Some adapters do not expose atomic compare-and-swap writes. In those cases, Hyperlocalise uses a best-effort safety model:
-
-- fetch a fresh remote baseline immediately before push
-- apply only changed entries
-- re-read affected entries after push to detect divergence
-
-Local metadata sidecars are not required for push correctness.
+`sync push` uses the top-level `hyperlocalise` config block. It does not use the `storage` TMS adapter block.
 
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
-- `--key-prefix`: limit sync scope to keys with any matching prefix, repeatable
+- `--manifest`: path to the jobs manifest
 - `--dry-run`: preview only (default `true`)
 - `--output`: `text`, `json`, or `markdown`
-- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
-- `--force-conflicts`: allow overwrite for mismatch cases where policy allows (default `false`)
+- `--force-conflicts`: not supported for Hyperlocalise job sync
 
 ## Example
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false
+hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
 ```
 
 ```bash
-hyperlocalise sync push --locale es-ES --key-prefix checkout. --dry-run=false
+hl push --locale es-ES --dry-run=false
 ```
 
 ## Notes
 
-- unchanged entries are skipped
-- filtered or invalid entries are not pushed
-- adapters may emit warnings when they can only provide best-effort concurrency protection
-- a post-push verification mismatch is reported as a conflict
-
-See [conflict handling](/troubleshooting/conflicts) before using `--force-conflicts`.
+- A successful manifest has `complete: true`.
+- A failed partial submission writes `complete: false` and exits non-zero.
+- `sync pull` refuses incomplete manifests.
+- Provider-specific TMS commands such as `crowdin` and `phrase` keep their own config and behavior.
 
 ## See also
 
 - [run](/commands/run)
 - [status](/commands/status)
 - [sync pull](/commands/sync-pull)
-- [Storage overview](/storage/overview)
-- [TMS curation loop (experimental)](/workflows/tms-curation-loop)
+- [CI automation](/workflows/ci-automation)

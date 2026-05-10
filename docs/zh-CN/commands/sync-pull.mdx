@@ -27,20 +27,13 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 - `--config`：配置路径
 - `--locale`：目标语言环境，可重复
-- `--key-prefix`：将同步范围限制为具有任意匹配前缀的键，可重复
 - `--dry-run`：仅预览（默认 `true`）
 - `--output`：`text`、`json`或`markdown`
-- `--fail-on-conflict`：在检测到冲突时返回错误（默认 `true`）
-- `--apply-curated-over-draft`：允许精选的远程值替换本地草稿值（默认 `true`）
 
 ## 示例
 
 ```bash
 hyperlocalise sync pull --locale es-ES --output json
-```
-
-```bash
-hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
 ```
 
 ## 注释

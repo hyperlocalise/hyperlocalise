@@ -7,9 +7,11 @@ import { db, schema } from "@/lib/database";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/api-keys";
 import { z } from "zod";
 
+const defaultApiKeyPermissions = ["jobs:read", "jobs:write", "files:read", "files:write"] as const;
+
 const createApiKeyBodySchema = z.object({
   name: z.string().trim().min(1).max(128),
-  permissions: z.array(z.enum(["jobs:read", "jobs:write"])).optional(),
+  permissions: z.array(z.enum(["jobs:read", "jobs:write", "files:read", "files:write"])).optional(),
 });
 
 const apiKeyIdParamsSchema = z.object({
@@ -84,7 +86,7 @@ export function createApiKeyRoutes() {
           name: payload.name,
           keyHash,
           keyPrefix,
-          permissions: payload.permissions ?? ["jobs:read", "jobs:write"],
+          permissions: payload.permissions ?? [...defaultApiKeyPermissions],
           createdByUserId: c.var.auth.user.localUserId,
         })
         .returning({

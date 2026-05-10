@@ -2,43 +2,28 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/spf13/cobra"
 )
 
 func newSyncPullCmd() *cobra.Command {
 	o := defaultSyncCommonOptions()
+	var wait bool
+	var timeout time.Duration
 
 	cmd := &cobra.Command{
 		Use:          "pull",
-		Short:        "pull latest curated translations from remote storage",
+		Short:        "pull completed Hyperlocalise job outputs",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			rt, err := newSyncRuntime(o.configPath)
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}
 
-			report, err := rt.svc.Pull(backgroundContext(), syncsvc.PullInput{
-				Adapter: rt.remote,
-				Local:   rt.local,
-				Request: storage.PullRequest{
-					Locales:     o.locales,
-					KeyPrefixes: o.keyPrefixes,
-				},
-				Read: syncsvc.LocalReadRequest{
-					Locales:     o.locales,
-					KeyPrefixes: o.keyPrefixes,
-				},
-				Options: syncsvc.PullOptions{
-					DryRun:                o.dryRun,
-					FailOnConflict:        o.failOnConflict,
-					ApplyCuratedOverDraft: o.applyCuratedOverDraft,
-				},
-			})
-			if writeErr := writeSyncReport(cmd, report, o.output); writeErr != nil {
+			report, err := runHyperlocalisePull(backgroundContext(), rt, o, wait, timeout)
+			if writeErr := writeHyperlocalisePullReport(cmd.OutOrStdout(), report, o.output); writeErr != nil {
 				return fmt.Errorf("write sync pull report: %w", writeErr)
 			}
 			if err != nil {
@@ -50,5 +35,7 @@ func newSyncPullCmd() *cobra.Command {
 	}
 
 	addSyncCommonFlags(cmd, &o)
+	cmd.Flags().BoolVar(&wait, "wait", wait, "wait for queued or running Hyperlocalise jobs to finish")
+	cmd.Flags().DurationVar(&timeout, "timeout", 0, "maximum time to wait for jobs, for example 20m")
 	return cmd
 }

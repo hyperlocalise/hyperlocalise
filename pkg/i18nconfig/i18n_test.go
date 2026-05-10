@@ -834,6 +834,62 @@ func TestLoadAllowsOptionalStorageConfig(t *testing.T) {
 	}
 }
 
+func TestLoadAllowsOptionalHyperlocaliseConfig(t *testing.T) {
+	path := writeConfigFile(t, `{
+	  "locales": {
+	    "source": "en-US",
+	    "targets": ["fr-FR"]
+	  },
+	  "buckets": {
+	    "json": {
+	      "files": [
+	        {"from": "lang/{{source}}.json", "to": "lang/{{target}}.json"}
+	      ]
+	    }
+	  },
+	  "groups": {
+	    "default": {
+	      "targets": ["fr-FR"],
+	      "buckets": ["json"]
+	    }
+	  },
+	  "llm": {
+	    "profiles": {
+	      "default": {
+	        "provider": "openai",
+	        "model": "gpt-4.1-mini",
+	        "prompt": "Translate from {source} to {target}."
+	      }
+	    }
+	  },
+	  "hyperlocalise": {
+	    "project_id": "project_123",
+	    "api_base_url": "https://api.example.test/api"
+	  },
+	  "storage": {
+	    "adapter": "poeditor",
+	    "config": {"projectID":"123"}
+	  }
+	}`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config with hyperlocalise: %v", err)
+	}
+	if cfg.Hyperlocalise == nil {
+		t.Fatalf("expected hyperlocalise config")
+	}
+	if cfg.Hyperlocalise.APIKeyEnv != "HYPERLOCALISE_API_KEY" {
+		t.Fatalf("unexpected api key env: %q", cfg.Hyperlocalise.APIKeyEnv)
+	}
+	if cfg.Hyperlocalise.ManifestPath != ".hyperlocalise/jobs.json" {
+		t.Fatalf("unexpected manifest path: %q", cfg.Hyperlocalise.ManifestPath)
+	}
+	if cfg.Storage == nil || cfg.Storage.Adapter != "poeditor" {
+		t.Fatalf("expected storage config to remain available: %+v", cfg.Storage)
+	}
+}
+
 func TestLoadRejectsEmptyStorageAdapter(t *testing.T) {
 	path := writeConfigFile(t, `{
 	  "locales": {

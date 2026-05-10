@@ -689,11 +689,11 @@ export const organizationApiKeys = pgTable(
     keyHash: text("key_hash").notNull(),
     // First 8 characters of the key shown in UI lists.
     keyPrefix: text("key_prefix").notNull(),
-    // Permissions granted to this key, e.g. ["jobs:read", "jobs:write"].
+    // Permissions granted to this key, e.g. ["jobs:read", "jobs:write", "files:read", "files:write"].
     permissions: jsonb("permissions")
       .$type<string[]>()
       .notNull()
-      .default(sql`'["jobs:read", "jobs:write"]'::jsonb`),
+      .default(sql`'["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb`),
     // User who created the key.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",

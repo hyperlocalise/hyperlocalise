@@ -36,12 +36,13 @@ var safeLocalePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
 // I18NConfig defines the i18n configuration file structure.
 type I18NConfig struct {
-	Locales LocaleConfig            `json:"locales" jsonschema:"required"`
-	Buckets map[string]BucketConfig `json:"buckets" jsonschema:"required"`
-	Groups  map[string]GroupConfig  `json:"groups,omitempty"`
-	LLM     LLMConfig               `json:"llm" jsonschema:"required"`
-	Storage *StorageConfig          `json:"storage,omitempty"`
-	Cache   CacheConfig             `json:"cache,omitempty"`
+	Locales       LocaleConfig            `json:"locales" jsonschema:"required"`
+	Buckets       map[string]BucketConfig `json:"buckets" jsonschema:"required"`
+	Groups        map[string]GroupConfig  `json:"groups,omitempty"`
+	LLM           LLMConfig               `json:"llm" jsonschema:"required"`
+	Hyperlocalise *HyperlocaliseConfig    `json:"hyperlocalise,omitempty"`
+	Storage       *StorageConfig          `json:"storage,omitempty"`
+	Cache         CacheConfig             `json:"cache,omitempty"`
 }
 
 // LocaleConfig configures source/target locales and fallback hierarchy.
@@ -101,6 +102,16 @@ type LLMRule struct {
 type StorageConfig struct {
 	Adapter string          `json:"adapter" jsonschema:"required"`
 	Config  json.RawMessage `json:"config,omitempty"`
+}
+
+// HyperlocaliseConfig configures the public Hyperlocalise web API used by sync commands.
+type HyperlocaliseConfig struct {
+	ProjectID      string `json:"project_id,omitempty"`
+	ProjectIDEnv   string `json:"project_id_env,omitempty"`
+	APIBaseURL     string `json:"api_base_url,omitempty"`
+	APIKeyEnv      string `json:"api_key_env,omitempty"`
+	ManifestPath   string `json:"manifest_path,omitempty"`
+	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 
 // CacheConfig configures the remote caching service client.
@@ -239,6 +250,9 @@ func (c I18NConfig) Validate() error {
 	if err := c.validateStorage(); err != nil {
 		return err
 	}
+	if err := c.validateHyperlocalise(); err != nil {
+		return err
+	}
 	if err := c.validateCache(); err != nil {
 		return err
 	}
@@ -248,7 +262,33 @@ func (c I18NConfig) Validate() error {
 
 func (c *I18NConfig) applyDefaults() {
 	c.applyDefaultGroups()
+	c.applyHyperlocaliseDefaults()
 	c.Cache.applyDefaults()
+}
+
+func (c *I18NConfig) applyHyperlocaliseDefaults() {
+	if c.Hyperlocalise == nil {
+		return
+	}
+	c.Hyperlocalise.applyDefaults()
+}
+
+func (c *HyperlocaliseConfig) applyDefaults() {
+	if strings.TrimSpace(c.APIBaseURL) == "" {
+		c.APIBaseURL = "https://hyperlocalise.com/api"
+	}
+	if strings.TrimSpace(c.APIKeyEnv) == "" {
+		c.APIKeyEnv = "HYPERLOCALISE_API_KEY"
+	}
+	if strings.TrimSpace(c.ProjectIDEnv) == "" {
+		c.ProjectIDEnv = "HYPERLOCALISE_PROJECT_ID"
+	}
+	if strings.TrimSpace(c.ManifestPath) == "" {
+		c.ManifestPath = ".hyperlocalise/jobs.json"
+	}
+	if c.TimeoutSeconds == 0 {
+		c.TimeoutSeconds = 1200
+	}
 }
 
 func (c *I18NConfig) applyDefaultGroups() {
@@ -738,6 +778,30 @@ func (c I18NConfig) validateStorage() error {
 
 	if strings.TrimSpace(c.Storage.Adapter) == "" {
 		return fmt.Errorf("storage.adapter: must not be empty")
+	}
+
+	return nil
+}
+
+func (c I18NConfig) validateHyperlocalise() error {
+	if c.Hyperlocalise == nil {
+		return nil
+	}
+
+	if strings.TrimSpace(c.Hyperlocalise.APIBaseURL) == "" {
+		return fmt.Errorf("hyperlocalise.api_base_url: must not be empty")
+	}
+	if strings.TrimSpace(c.Hyperlocalise.APIKeyEnv) == "" {
+		return fmt.Errorf("hyperlocalise.api_key_env: must not be empty")
+	}
+	if strings.TrimSpace(c.Hyperlocalise.ProjectID) == "" && strings.TrimSpace(c.Hyperlocalise.ProjectIDEnv) == "" {
+		return fmt.Errorf("hyperlocalise.project_id: must be set when hyperlocalise.project_id_env is empty")
+	}
+	if strings.TrimSpace(c.Hyperlocalise.ManifestPath) == "" {
+		return fmt.Errorf("hyperlocalise.manifest_path: must not be empty")
+	}
+	if c.Hyperlocalise.TimeoutSeconds < 0 {
+		return fmt.Errorf("hyperlocalise.timeout_seconds: must be >= 0")
 	}
 
 	return nil

@@ -33,8 +33,8 @@ hyperlocalise status --output csv
 `sync pull` 和 `sync push` 默认使用 `--dry-run=true`，这是一个安全的 CI 基线。
 
 ```bash
-hyperlocalise sync pull --output json --fail-on-conflict --dry-run=true
-hyperlocalise sync push --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync pull --output json --dry-run=true
+hyperlocalise sync push --output json --dry-run=true
 ```
 
 仅在明确授权可向本地文件或远程系统写入的任务中使用 `--dry-run=false`。
@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --dry-run=true
 ```
 
 要将远程更改应用到 CI 中的本地文件，请切换到：
 
 ```bash
-go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
+go run ./apps/cli sync pull --output json --dry-run=false
 ```
 
 ### 计划推送同步（可写，启用中）
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
+      - run: go run ./apps/cli sync push --output json --dry-run=false
 ```
 
 用于非变更验证遍历，请使用：
 
 ```bash
-go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
+go run ./apps/cli sync push --output json --dry-run=true
 ```
 
 对于可写入的任务，优先使用受保护的环境、审批门和最小权限的服务凭据。

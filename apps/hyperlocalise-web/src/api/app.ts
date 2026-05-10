@@ -20,6 +20,7 @@ import { healthRoutes } from "./routes/health";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
+import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook";
 import { createFileRoutes } from "./routes/file/file.route";
@@ -62,6 +63,7 @@ export function createApp(options: CreateAppOptions = {}) {
     )
     .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
     .route("/orgs/:organizationSlug/api-keys", createApiKeyRoutes())
+    .route("/v1/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/v1/jobs", createPublicJobRoutes({ ...options, jobQueue }))
     .route(
       "/webhooks/github",

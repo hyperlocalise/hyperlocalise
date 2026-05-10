@@ -27,20 +27,13 @@ Siêu dữ liệu phụ cục bộ vẫn có thể được dùng để báo cá
 
 - `--config`: đường dẫn cấu hình
 - `--locale`: ngôn ngữ địa phương đích, có thể lặp lại
-- `--key-prefix`: giới hạn phạm vi đồng bộ đối với các khóa có bất kỳ tiền tố khớp nào, có thể lặp lại
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text`, `json`, hoặc `markdown`
-- `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
-- `--apply-curated-over-draft`: cho phép các giá trị từ xa được tuyển chọn thay thế các giá trị bản nháp cục bộ (mặc định `true`)
 
 ## Ví dụ
 
 ```bash
 hyperlocalise sync pull --locale es-ES --output json
-```
-
-```bash
-hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
 ```
 
 ## Ghi chú
