@@ -64,8 +64,11 @@ export const env = createEnv({
     /** Display name for outbound emails sent by the email bot. */
     RESEND_FROM_NAME: z.string().min(1).optional(),
 
-    /** Slack bot token (xoxb-...) for the Slack adapter. Required for Slack bot integration. */
-    SLACK_BOT_TOKEN: z.string().min(1).optional(),
+    /** Slack OAuth client ID for multi-workspace adapter. Required for Slack bot integration. */
+    SLACK_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Slack OAuth client secret for multi-workspace adapter. Required for Slack bot integration. */
+    SLACK_CLIENT_SECRET: z.string().min(1).optional(),
 
     /** Slack signing secret for webhook verification. Required for secure Slack webhook handling. */
     SLACK_SIGNING_SECRET: z.string().min(1).optional(),
@@ -123,8 +126,10 @@ export const env = createEnv({
     RESEND_FROM_ADDRESS:
       process.env.RESEND_FROM_ADDRESS ?? (isTestEnv ? "bot@example.com" : undefined),
     RESEND_FROM_NAME: process.env.RESEND_FROM_NAME ?? (isTestEnv ? "Hyperlocalise Bot" : undefined),
-    SLACK_BOT_TOKEN:
-      process.env.SLACK_BOT_TOKEN ?? (isTestEnv ? "test-slack-bot-token" : undefined),
+    SLACK_CLIENT_ID:
+      process.env.SLACK_CLIENT_ID ?? (isTestEnv ? "test-slack-client-id" : undefined),
+    SLACK_CLIENT_SECRET:
+      process.env.SLACK_CLIENT_SECRET ?? (isTestEnv ? "test-slack-client-secret" : undefined),
     SLACK_SIGNING_SECRET:
       process.env.SLACK_SIGNING_SECRET ?? (isTestEnv ? "test-slack-signing-secret" : undefined),
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,

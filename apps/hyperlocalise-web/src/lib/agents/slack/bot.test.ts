@@ -11,8 +11,8 @@ import {
 
 vi.mock("@/lib/env", () => ({
   env: {
-    SLACK_BOT_TOKEN: "test-token",
-    SLACK_SIGNING_SECRET: "test-secret",
+    SLACK_CLIENT_ID: "test-client-id",
+    SLACK_CLIENT_SECRET: "test-client-secret",
     OPENAI_API_KEY: "test-openai-key",
   },
 }));
@@ -23,6 +23,7 @@ vi.mock("@ai-sdk/openai", () => ({
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
+  stepCountIs: vi.fn(() => vi.fn()),
 }));
 
 vi.mock("@/lib/tools/registry", () => ({

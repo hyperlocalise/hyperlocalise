@@ -281,15 +281,15 @@ export async function getSlackBot() {
     return botInstance;
   }
 
-  if (!env.SLACK_BOT_TOKEN || !env.SLACK_SIGNING_SECRET) {
+  if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET) {
     throw new Error("missing Slack bot configuration");
   }
 
   botInstance = new Chat({
     adapters: {
       slack: createSlackAdapter({
-        botToken: env.SLACK_BOT_TOKEN,
-        signingSecret: env.SLACK_SIGNING_SECRET,
+        clientId: env.SLACK_CLIENT_ID,
+        clientSecret: env.SLACK_CLIENT_SECRET,
         userName: "hyperlocalise",
         logger: createChatLogger("slack"),
       }),
