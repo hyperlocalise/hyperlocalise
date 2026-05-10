@@ -88,14 +88,12 @@ export async function fromThrowableAsync<T>(promise: Promise<T>): Promise<Result
  * @param fn function to wrap with ok on success or err on failure
  * @param errorFn when an error is thrown, this will wrap the error result if provided
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function fromThrowable<Fn extends (...args: readonly any[]) => any>(
-  fn: Fn,
+export function fromThrowable<Args extends readonly unknown[], Value>(
+  fn: (...args: Args) => Value,
   errorFn?: (e: unknown) => unknown,
-): (...args: Parameters<Fn>) => Result<ReturnType<Fn>, unknown> {
+): (...args: Args) => Result<Value, unknown> {
   return (...args) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const result = fn(...args);
       return ok(result);
     } catch (e) {
