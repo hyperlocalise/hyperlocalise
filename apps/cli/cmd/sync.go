@@ -8,12 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/localstore"
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storage/bootstrap"
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storageregistry"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
-	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -58,45 +53,6 @@ func addSyncCommonFlags(cmd *cobra.Command, o *syncCommonOptions) {
 	cmd.Flags().StringVar(&o.manifestPath, "manifest", o.manifestPath, "path to Hyperlocalise jobs manifest")
 	cmd.Flags().BoolVar(&o.failOnConflict, "fail-on-conflict", o.failOnConflict, "return error if conflicts are detected")
 	cmd.Flags().BoolVar(&o.applyCuratedOverDraft, "apply-curated-over-draft", o.applyCuratedOverDraft, "allow pull to update local draft entries with curated remote values")
-}
-
-type syncRuntime struct {
-	cfg    *config.I18NConfig
-	local  *localstore.JSONStore
-	remote storage.StorageAdapter
-	svc    *syncsvc.Service
-}
-
-func newSyncRuntime(configPath string) (*syncRuntime, error) {
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.Storage == nil {
-		return nil, fmt.Errorf("storage config is required: add top-level \"storage\" with adapter and config")
-	}
-
-	reg := storageregistry.New()
-	if err := bootstrap.RegisterBuiltins(reg); err != nil {
-		return nil, err
-	}
-
-	adapter, err := reg.New(cfg.Storage.Adapter, cfg.Storage.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	local, err := localstore.NewJSONStore(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return &syncRuntime{
-		cfg:    cfg,
-		local:  local,
-		remote: adapter,
-		svc:    syncsvc.New(),
-	}, nil
 }
 
 func writeSyncReport(cmd *cobra.Command, report syncsvc.Report, output string) error {
