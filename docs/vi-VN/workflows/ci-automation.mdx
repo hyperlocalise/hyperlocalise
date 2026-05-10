@@ -33,8 +33,8 @@ Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.
 `sync pull` và `sync push` mặc định là `--dry-run=true`, đây là một đường cơ sở CI an toàn.
 
 ```bash
-hyperlocalise sync pull --output json --fail-on-conflict --dry-run=true
-hyperlocalise sync push --output json --fail-on-conflict --dry-run=true
+hyperlocalise sync pull --output json --dry-run=true
+hyperlocalise sync push --output json --dry-run=true
 ```
 
 Chỉ sử dụng `--dry-run=false` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --dry-run=true
 ```
 
 Để áp dụng các thay đổi từ xa vào các tệp cục bộ trong CI, chuyển sang:
 
 ```bash
-go run ./apps/cli sync pull --output json --fail-on-conflict --dry-run=false
+go run ./apps/cli sync pull --output json --dry-run=false
 ```
 
 ### Đồng bộ đẩy theo lịch trình (đã bật ghi, đang hoạt động)
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=false
+      - run: go run ./apps/cli sync push --output json --dry-run=false
 ```
 
 Đối với một lần kiểm tra xác thực không làm thay đổi, hãy sử dụng:
 
 ```bash
-go run ./apps/cli sync push --output json --fail-on-conflict --dry-run=true
+go run ./apps/cli sync push --output json --dry-run=true
 ```
 
 Đối với các công việc có quyền ghi, hãy ưu tiên các môi trường được bảo vệ, các cổng phê duyệt và thông tin xác thực dịch vụ theo nguyên tắc đặc quyền tối thiểu.

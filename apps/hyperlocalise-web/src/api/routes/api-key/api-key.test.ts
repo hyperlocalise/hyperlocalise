@@ -59,7 +59,7 @@ async function insertApiKey(params: {
       name: params.name,
       keyHash,
       keyPrefix,
-      permissions: params.permissions ?? ["jobs:read", "jobs:write"],
+      permissions: params.permissions ?? ["jobs:read", "jobs:write", "files:read", "files:write"],
       createdByUserId: params.createdByUserId ?? null,
       revokedAt: params.revokedAt ?? null,
     })
@@ -76,7 +76,7 @@ async function ensureOrganizationApiKeysTestSchema() {
       name text NOT NULL,
       key_hash text NOT NULL,
       key_prefix text NOT NULL,
-      permissions jsonb DEFAULT '["jobs:read", "jobs:write"]'::jsonb NOT NULL,
+      permissions jsonb DEFAULT '["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb NOT NULL,
       created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
       last_used_at timestamp with time zone,
       revoked_at timestamp with time zone,

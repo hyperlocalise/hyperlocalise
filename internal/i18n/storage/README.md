@@ -259,7 +259,7 @@ The POEditor adapter returns pulled entries as curated/human by default:
 2. Pull remote curated entries from POEditor (`StorageAdapter.Pull`)
 3. Diff by `(key, context, locale)`
 4. Apply conservative curation-aware decision rules
-5. Report conflicts (and fail if `--fail-on-conflict`)
+5. Report conflicts (and exit with error when conflicts are present)
 6. If not dry-run, write:
    - updated target JSON values
    - updated metadata sidecar entries
@@ -371,10 +371,6 @@ Current rules:
 
 - `--dry-run` (default `true`)
   - compute/report only, no local writes or remote pushes
-- `--fail-on-conflict` (default `true`)
-  - return error when conflicts are found
-- `--apply-curated-over-draft` (default `true` for pull command)
-  - controls whether remote curated values can replace local drafts during pull
 - `--force-conflicts` (default `false` for push command)
   - allows overwrite for mismatch conflicts in push
   - does not bypass invariant validation safeguards

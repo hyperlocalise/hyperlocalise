@@ -3,6 +3,7 @@ import "dotenv/config";
 import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
+import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
@@ -73,7 +74,7 @@ function createMemoryFileStorageAdapter(): FileStorageAdapter {
 }
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const app = createApp({ fileStorageAdapter });
+const client = testClient(createApp({ fileStorageAdapter }));
 
 function hashApiKey(key: string) {
   return createHash("sha256").update(key).digest("hex");
@@ -121,7 +122,7 @@ async function createPublicApiFixture() {
     name: "Public API Test Key",
     keyHash: hashApiKey(apiKey),
     keyPrefix: apiKey.slice(0, 8),
-    permissions: ["jobs:read", "jobs:write"],
+    permissions: ["jobs:read", "jobs:write", "files:read", "files:write"],
     createdByUserId: user.id,
   });
 
@@ -136,7 +137,7 @@ async function ensurePublicFilesTestSchema() {
       name text NOT NULL,
       key_hash text NOT NULL,
       key_prefix text NOT NULL,
-      permissions jsonb DEFAULT '["jobs:read", "jobs:write"]'::jsonb NOT NULL,
+      permissions jsonb DEFAULT '["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb NOT NULL,
       created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
       last_used_at timestamp with time zone,
       revoked_at timestamp with time zone,
@@ -218,26 +219,27 @@ afterEach(async () => {
 describe("publicFileRoutes", () => {
   it("uploads and downloads a repository source file with an API key", async () => {
     const { apiKey, project } = await createPublicApiFixture();
-    const form = new FormData();
-    form.set("projectId", project.id);
-    form.set("sourcePath", "content/en/home.md");
-    form.set("sourceHash", "sha256:abc123");
-    form.set("file", new File(["# Hello"], "home.md", { type: "text/markdown" }));
 
-    const uploadResponse = await app.request("/api/v1/files", {
-      method: "POST",
-      headers: { "x-api-key": apiKey },
-      body: form,
-    });
+    const uploadResponse = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "content/en/home.md",
+          sourceHash: "sha256:abc123",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
 
     expect(uploadResponse.status).toBe(201);
     const uploadBody = (await uploadResponse.json()) as { file: { id: string } };
     expect(uploadBody.file.id).toMatch(/^file_/);
 
-    const downloadResponse = await app.request(`/api/v1/files/${uploadBody.file.id}/download`, {
-      method: "GET",
-      headers: { "x-api-key": apiKey },
-    });
+    const downloadResponse = await client.api.v1.files[":fileId"].download.$get(
+      { param: { fileId: uploadBody.file.id } },
+      { headers: { "x-api-key": apiKey } },
+    );
 
     expect(downloadResponse.status).toBe(200);
     expect(await downloadResponse.text()).toBe("# Hello");
@@ -245,15 +247,16 @@ describe("publicFileRoutes", () => {
 
   it("rejects unsupported source file formats", async () => {
     const { apiKey, project } = await createPublicApiFixture();
-    const form = new FormData();
-    form.set("projectId", project.id);
-    form.set("file", new File(["FROM node"], "Dockerfile", { type: "text/plain" }));
 
-    const response = await app.request("/api/v1/files", {
-      method: "POST",
-      headers: { "x-api-key": apiKey },
-      body: form,
-    });
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          file: new File(["FROM node"], "Dockerfile", { type: "text/plain" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({

@@ -14,8 +14,6 @@ Safe resolution:
 3. decide source of truth
 4. rerun with updated local/remote state
 
-`--apply-curated-over-draft` only applies when local entry is draft.
-
 ## Push conflicts
 
 Typical case: local draft differs from remote curated value.
@@ -28,6 +26,5 @@ Safe resolution:
 
 ## Recommended defaults
 
-- keep `--fail-on-conflict=true`
 - keep `--dry-run=true` until report is reviewed
 - archive JSON reports in CI for audit trails

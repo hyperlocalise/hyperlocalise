@@ -35,20 +35,14 @@ Các tệp sidecar siêu dữ liệu cục bộ không bắt buộc để việc
 
 - `--config`: đường dẫn cấu hình
 - `--locale`: ngôn ngữ mục tiêu, có thể lặp lại
-- `--key-prefix`: giới hạn phạm vi đồng bộ cho các khóa có bất kỳ tiền tố khớp nào, có thể lặp lại
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text`, `json`, hoặc `markdown`
-- `--fail-on-conflict`: trả về lỗi khi phát hiện xung đột (mặc định `true`)
 - `--force-conflicts`: cho phép ghi đè trong các trường hợp không khớp khi chính sách cho phép (mặc định `false`)
 
 ## Ví dụ
 
 ```bash
 hyperlocalise sync push --locale es-ES --dry-run=false
-```
-
-```bash
-hyperlocalise sync push --locale es-ES --key-prefix checkout. --dry-run=false
 ```
 
 ## Ghi chú

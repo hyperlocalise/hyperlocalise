@@ -64,7 +64,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
     .use("*", apiKeyAuthMiddleware)
     .post(
       "/",
-      requireApiKeyPermission("jobs:write"),
+      requireApiKeyPermission("files:write"),
       bodyLimit({
         maxSize: maxPublicUploadBytes,
         onError: (c) => c.json({ error: "file_upload_too_large" }, 413),
@@ -140,7 +140,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         );
       },
     )
-    .get("/:fileId/download", requireApiKeyPermission("jobs:read"), async (c) => {
+    .get("/:fileId/download", requireApiKeyPermission("files:read"), async (c) => {
       const parsed = fileParamsSchema.safeParse(c.req.param());
       if (!parsed.success) {
         return fileNotFoundResponse(c);

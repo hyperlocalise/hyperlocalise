@@ -194,10 +194,6 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string) (*hyperloc
 }
 
 func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePushReport, error) {
-	if len(o.keyPrefixes) > 0 {
-		return hyperlocalisePushReport{}, fmt.Errorf("sync push through Hyperlocalise jobs does not support --key-prefix")
-	}
-
 	plans, err := planHyperlocaliseFiles(rt.cfg, o.locales)
 	if err != nil {
 		return hyperlocalisePushReport{}, err
@@ -264,10 +260,6 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 }
 
 func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, wait bool, timeout time.Duration) (hyperlocalisePullReport, error) {
-	if len(o.keyPrefixes) > 0 {
-		return hyperlocalisePullReport{}, fmt.Errorf("sync pull through Hyperlocalise jobs does not support --key-prefix")
-	}
-
 	manifest, err := readHyperlocaliseManifest(rt.manifestPath)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
@@ -612,7 +604,8 @@ func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string
 		return nil, fmt.Errorf("hyperlocalise api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	return io.ReadAll(resp.Body)
+	const maxDownloadBytes = 50 * 1024 * 1024 // 50 MB
+	return io.ReadAll(io.LimitReader(resp.Body, maxDownloadBytes))
 }
 
 func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, contentType string, body io.Reader, out any) error {
