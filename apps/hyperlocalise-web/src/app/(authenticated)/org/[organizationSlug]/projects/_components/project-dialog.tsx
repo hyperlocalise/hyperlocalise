@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -141,7 +142,7 @@ export function ProjectDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving}>
-              <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+              {isSaving ? <Spinner /> : <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />}
               {isSaving ? "Saving..." : "Save project"}
             </Button>
           </DialogFooter>

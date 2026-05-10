@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { ProjectListRow } from "./project-list";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
@@ -83,32 +84,50 @@ export function ProjectsTable({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`Edit ${project.name}`}
-                    onClick={() => {
-                      onEditProject(project);
-                    }}
-                    disabled={isSavingProject}
-                    className="text-foreground/54 hover:text-foreground"
-                  >
-                    <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`Delete ${project.name}`}
-                    onClick={() => {
-                      onDeleteProject(project);
-                    }}
-                    disabled={isDeletingProject || isSavingProject}
-                    className="text-foreground/54 hover:text-foreground"
-                  >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => {
+                            onEditProject(project);
+                          }}
+                          disabled={isSavingProject}
+                          className="text-foreground/54 hover:text-foreground"
+                        />
+                      }
+                    >
+                      <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+                      <span className="sr-only">Edit project</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Edit project
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => {
+                            onDeleteProject(project);
+                          }}
+                          disabled={isDeletingProject || isSavingProject}
+                          className="text-foreground/54 hover:text-foreground"
+                        />
+                      }
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                      <span className="sr-only">Delete project</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" align="center">
+                      Delete project
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
