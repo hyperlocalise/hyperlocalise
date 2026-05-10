@@ -88,10 +88,10 @@ export async function fromThrowableAsync<T>(promise: Promise<T>): Promise<Result
  * @param fn function to wrap with ok on success or err on failure
  * @param errorFn when an error is thrown, this will wrap the error result if provided
  */
-export function fromThrowable<Fn extends (...args: readonly unknown[]) => unknown>(
-  fn: Fn,
+export function fromThrowable<Args extends readonly unknown[], Value>(
+  fn: (...args: Args) => Value,
   errorFn?: (e: unknown) => unknown,
-): (...args: Parameters<Fn>) => Result<ReturnType<Fn>, unknown> {
+): (...args: Args) => Result<Value, unknown> {
   return (...args) => {
     try {
       const result = fn(...args);
