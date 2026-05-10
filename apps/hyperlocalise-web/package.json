@@ -15,6 +15,7 @@
     "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "1.4.1",
     "@chat-adapter/github": "4.27.0",
+    "@chat-adapter/slack": "4.27.0",
     "@chat-adapter/state-memory": "4.27.0",
     "@chat-adapter/state-pg": "4.27.0",
     "@hookform/resolvers": "5.2.2",

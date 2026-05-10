@@ -64,6 +64,12 @@ export const env = createEnv({
     /** Display name for outbound emails sent by the email bot. */
     RESEND_FROM_NAME: z.string().min(1).optional(),
 
+    /** Slack bot token (xoxb-...) for the Slack adapter. Required for Slack bot integration. */
+    SLACK_BOT_TOKEN: z.string().min(1).optional(),
+
+    /** Slack signing secret for webhook verification. Required for secure Slack webhook handling. */
+    SLACK_SIGNING_SECRET: z.string().min(1).optional(),
+
     /** Object storage adapter for durable uploaded and generated files. */
     FILE_STORAGE_PROVIDER: z.enum(["vercel_blob"]).default("vercel_blob"),
 
@@ -117,6 +123,10 @@ export const env = createEnv({
     RESEND_FROM_ADDRESS:
       process.env.RESEND_FROM_ADDRESS ?? (isTestEnv ? "bot@example.com" : undefined),
     RESEND_FROM_NAME: process.env.RESEND_FROM_NAME ?? (isTestEnv ? "Hyperlocalise Bot" : undefined),
+    SLACK_BOT_TOKEN:
+      process.env.SLACK_BOT_TOKEN ?? (isTestEnv ? "test-slack-bot-token" : undefined),
+    SLACK_SIGNING_SECRET:
+      process.env.SLACK_SIGNING_SECRET ?? (isTestEnv ? "test-slack-signing-secret" : undefined),
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:

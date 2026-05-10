@@ -1,0 +1,1 @@
+CREATE INDEX "idx_connectors_slack_team_id" ON "connectors" USING btree ((config->>'teamId')) WHERE "connectors"."kind" = 'slack';

@@ -644,6 +644,9 @@ export const connectors = pgTable(
   (table) => [
     uniqueIndex("connectors_org_kind_key").on(table.organizationId, table.kind),
     index("idx_connectors_org").on(table.organizationId),
+    index("idx_connectors_slack_team_id")
+      .on(sql`(config->>'teamId')`)
+      .where(sql`${table.kind} = 'slack'`),
   ],
 );
 
