@@ -584,7 +584,7 @@ func TestHTTPClientDownloadLogsOmitArtifactURL(t *testing.T) {
 		assertRequest(t, r, http.MethodPost, "/api/v2/projects/123/translations/builds/files/17")
 		assertJSONBody(t, r, map[string]any{
 			"targetLanguageId":        "fr",
-			"exportApprovedOnly":      true,
+			"exportWithMinApprovalsCount": 1,
 			"skipUntranslatedStrings": true,
 		})
 		_, _ = io.WriteString(w, `{"data":{"url":"https://api.crowdin.com/downloads/secret-token.json"}}`)

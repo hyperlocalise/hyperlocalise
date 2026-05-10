@@ -777,7 +777,8 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, projectID stri
 		return nil, fmt.Errorf("build translation for file %d locale %s: %w", fileID, languageID, err)
 	}
 	if link == nil || strings.TrimSpace(link.URL) == "" {
-		return nil, fmt.Errorf("build translation for file %d locale %s: empty download link", fileID, languageID)
+		c.debugf("action=download-translation project_id=%d file_id=%d language_id=%s phase=skipped", projectInt, fileID, languageID)
+		return nil, nil
 	}
 	c.debugf("action=download-translation project_id=%d file_id=%d language_id=%s phase=download-artifact", projectInt, fileID, languageID)
 	return c.downloadURL(ctx, link.URL)

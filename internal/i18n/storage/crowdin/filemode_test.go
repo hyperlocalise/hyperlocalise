@@ -116,10 +116,7 @@ func (f *fakeFileClient) DownloadSourceFile(_ context.Context, _ string, fileID 
 func (f *fakeFileClient) DownloadTranslationFile(_ context.Context, _ string, fileID int, languageID string, opts storage.FileExportOptions) ([]byte, error) {
 	f.downloaded = append(f.downloaded, fmt.Sprintf("%s:%d", languageID, fileID))
 	f.downloadOptions = append(f.downloadOptions, opts)
-	if f.downloadPayload != nil {
-		return f.downloadPayload, nil
-	}
-	return []byte("translated-" + languageID), nil
+	return f.downloadPayload, nil
 }
 
 func TestFileAdapterUploadSourcesRegistersRemoteFiles(t *testing.T) {
@@ -245,6 +242,7 @@ func TestFileAdapterDownloadTranslationsPropagatesExportOptions(t *testing.T) {
 		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
+		downloadPayload: []byte("translated-fr"),
 	}
 	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
 		ProjectID:         "123",
@@ -309,6 +307,7 @@ func TestFileAdapterDownloadTranslationsUsesLanguageIDForRequestAndLocaleForPath
 		},
 		directories:     map[string]int{"src": 1},
 		failFindMissing: true,
+		downloadPayload: []byte("translated-fr"),
 	}
 	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
 		ProjectID:         "123",
@@ -843,6 +842,42 @@ func TestResolveCrowdinSourcePathsSupportsBracketClassesWithDoublestar(t *testin
 	want := []string{filepath.Join(base, "nested", "en.JSON")}
 	if !reflect.DeepEqual(matches, want) {
 		t.Fatalf("matches = %#v, want %#v", matches, want)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsHandlesSkippedFiles(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:     map[string]int{"src": 1},
+		files:           map[string]int{"messages.json": 1},
+		failFindMissing: true,
+		downloadPayload: nil, // Simulate skipped file (204 No Content -> nil payload)
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{})
+	if err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+
+	if len(result.Processed) != 0 {
+		t.Fatalf("processed = %v, want empty", result.Processed)
+	}
+	wantSkipped := []string{"src/messages.json@fr"}
+	if !reflect.DeepEqual(result.Skipped, wantSkipped) {
+		t.Fatalf("skipped = %v, want %v", result.Skipped, wantSkipped)
 	}
 }
 
