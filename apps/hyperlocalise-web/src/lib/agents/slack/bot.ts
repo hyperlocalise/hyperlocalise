@@ -2,7 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { Chat } from "chat";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { eq } from "drizzle-orm";
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
 import type { Message, Thread } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
@@ -164,28 +164,29 @@ async function processSlackMessage(
   projectId: string | null,
   userText: string,
 ) {
-  const chatMessages = await loadConversationHistory(interactionId);
-
-  // Replace the last user message with the current one (it was just persisted)
-  // to ensure we have the freshest text
-  const lastUserIndex = chatMessages.findLastIndex((m) => m.role === "user");
-  if (lastUserIndex >= 0) {
-    chatMessages[lastUserIndex] = { role: "user", content: userText };
-  }
-
-  const tools = buildTools({
-    conversationId: interactionId,
-    organizationId,
-    projectId,
-    db,
-  });
-
   try {
+    const chatMessages = await loadConversationHistory(interactionId);
+
+    // Replace the last user message with the current one (it was just persisted)
+    // to ensure we have the freshest text
+    const lastUserIndex = chatMessages.findLastIndex((m) => m.role === "user");
+    if (lastUserIndex >= 0) {
+      chatMessages[lastUserIndex] = { role: "user", content: userText };
+    }
+
+    const tools = buildTools({
+      conversationId: interactionId,
+      organizationId,
+      projectId,
+      db,
+    });
+
     const result = await generateText({
       model: getChatModel(),
       system: buildSlackSystemPrompt(projectId),
       messages: chatMessages,
       tools,
+      stopWhen: stepCountIs(5),
     });
 
     await wrapThreadPost(thread, interactionId);
