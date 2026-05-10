@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
@@ -38,6 +39,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
 
   return new Hono()
+    .use("*", secureHeaders())
     .basePath("/api")
     .route("/auth", authRoutes)
     .route("/glossary", createGlossaryRoutes())
