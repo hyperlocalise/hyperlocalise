@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestSyncPullRequiresStorageConfig(t *testing.T) {
+func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
 	content := `{
@@ -33,9 +33,9 @@ func TestSyncPullRequiresStorageConfig(t *testing.T) {
 
 	err := cmd.Execute()
 	if err == nil {
-		t.Fatalf("expected sync pull error without storage config")
+		t.Fatalf("expected sync pull error without hyperlocalise config")
 	}
-	if !strings.Contains(err.Error(), "storage config is required") {
+	if !strings.Contains(err.Error(), "hyperlocalise config is required") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

@@ -1,12 +1,10 @@
 ---
 title: "sync pull"
-description: "Experimental: Pull curated translations from remote storage into local files."
+description: "Pull completed Hyperlocalise job outputs into local files."
 ---
 
 <Note>
-This feature is experimental. Flags, output shape, and behavior may change between releases. Use in controlled workflows and pin versions in CI.
-
-Conflict handling and sync contracts may evolve as TMS integrations mature.
+The public jobs API contract may evolve while CI workflows stabilize.
 </Note>
 
 ## Usage
@@ -19,42 +17,41 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 `sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
 
-`sync pull` treats the remote adapter as authoritative at execution time. It fetches a fresh remote snapshot for the requested scope, compares it to local files, and then applies pull policy and invariant checks before writing local updates.
+`sync pull` reads a complete jobs manifest, polls the public Hyperlocalise API by job ID, downloads successful output files, and writes them to the target paths resolved by `i18n.yml`.
 
-Local metadata sidecars can still be used for reporting, but they are not required for pull correctness.
+The manifest is usually passed from a `sync push` GitHub Actions job to a `sync pull` job with `actions/upload-artifact` and `actions/download-artifact`.
 
 ## Flags
 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
-- `--key-prefix`: limit sync scope to keys with any matching prefix, repeatable
+- `--manifest`: path to the jobs manifest
+- `--wait`: wait for queued or running jobs to finish
+- `--timeout`: maximum wait time, for example `20m`
 - `--dry-run`: preview only (default `true`)
 - `--output`: `text`, `json`, or `markdown`
-- `--fail-on-conflict`: return error when conflicts are detected (default `true`)
-- `--apply-curated-over-draft`: allow curated remote values to replace local draft values (default `true`)
+- `--key-prefix`: not supported for Hyperlocalise job sync
 
 ## Example
 
 ```bash
-hyperlocalise sync pull --locale es-ES --output json
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
 ```
 
 ```bash
-hyperlocalise sync pull --locale es-ES --key-prefix checkout. --output json
+hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
 ```
 
 ## Notes
 
-- remote reads are always fresh for the requested scope
-- pull applies entry-level creates and updates after policy checks
-- invariant violations still block unsafe local writes
-
-See [conflict handling](/troubleshooting/conflicts) for resolution strategy.
+- `sync pull` rejects manifests with `complete: false`.
+- Without `--wait`, queued or running jobs cause a non-zero exit.
+- Output files are mapped by locale to the target paths captured in the manifest.
+- Provider-specific TMS commands such as `crowdin` and `phrase` keep their own config and behavior.
 
 ## See also
 
 - [run](/commands/run)
 - [status](/commands/status)
 - [sync push](/commands/sync-push)
-- [Storage overview](/storage/overview)
-- [TMS curation loop (experimental)](/workflows/tms-curation-loop)
+- [CI automation](/workflows/ci-automation)

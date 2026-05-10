@@ -23,6 +23,7 @@ type syncCommonOptions struct {
 	keyPrefixes           []string
 	dryRun                bool
 	output                string
+	manifestPath          string
 	failOnConflict        bool
 	applyCuratedOverDraft bool
 }
@@ -39,7 +40,7 @@ func defaultSyncCommonOptions() syncCommonOptions {
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "synchronize translations with remote storage adapters",
+		Short: "submit and retrieve Hyperlocalise jobs",
 	}
 
 	cmd.AddCommand(newSyncPullCmd())
@@ -54,6 +55,7 @@ func addSyncCommonFlags(cmd *cobra.Command, o *syncCommonOptions) {
 	cmd.Flags().StringSliceVar(&o.keyPrefixes, "key-prefix", nil, "restrict sync scope to keys with any of the given prefixes")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", o.dryRun, "preview changes without applying")
 	cmd.Flags().StringVar(&o.output, "output", o.output, "output format: text, json, or markdown")
+	cmd.Flags().StringVar(&o.manifestPath, "manifest", o.manifestPath, "path to Hyperlocalise jobs manifest")
 	cmd.Flags().BoolVar(&o.failOnConflict, "fail-on-conflict", o.failOnConflict, "return error if conflicts are detected")
 	cmd.Flags().BoolVar(&o.applyCuratedOverDraft, "apply-curated-over-draft", o.applyCuratedOverDraft, "allow pull to update local draft entries with curated remote values")
 }

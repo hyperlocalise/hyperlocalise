@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
 	"github.com/spf13/cobra"
 )
 
@@ -13,28 +12,19 @@ func newSyncPushCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:          "push",
-		Short:        "push local translation changes to remote storage",
+		Short:        "submit source files to Hyperlocalise jobs",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			rt, err := newSyncRuntime(o.configPath)
+			if forceConflicts {
+				return fmt.Errorf("sync push through Hyperlocalise jobs does not support --force-conflicts")
+			}
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}
 
-			report, err := rt.svc.Push(backgroundContext(), syncsvc.PushInput{
-				Adapter: rt.remote,
-				Local:   rt.local,
-				Read: syncsvc.LocalReadRequest{
-					Locales:     o.locales,
-					KeyPrefixes: o.keyPrefixes,
-				},
-				Options: syncsvc.PushOptions{
-					DryRun:         o.dryRun,
-					FailOnConflict: o.failOnConflict,
-					ForceConflicts: forceConflicts,
-				},
-			})
-			if writeErr := writeSyncReport(cmd, report, o.output); writeErr != nil {
+			report, err := runHyperlocalisePush(backgroundContext(), rt, o)
+			if writeErr := writeHyperlocalisePushReport(cmd.OutOrStdout(), report, o.output); writeErr != nil {
 				return fmt.Errorf("write sync push report: %w", writeErr)
 			}
 			if err != nil {
