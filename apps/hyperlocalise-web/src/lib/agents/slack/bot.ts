@@ -190,7 +190,9 @@ async function processSlackMessage(
     });
 
     await wrapThreadPost(thread, interactionId);
-    await thread.post(result.text);
+    if (result.text.trim()) {
+      await thread.post(result.text);
+    }
   } catch {
     await wrapThreadPost(thread, interactionId);
     await thread.post(

@@ -23,7 +23,7 @@ vi.mock("@ai-sdk/openai", () => ({
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
-  stepCountIs: vi.fn(() => vi.fn()),
+  stepCountIs: vi.fn((n: number) => n),
 }));
 
 vi.mock("@/lib/tools/registry", () => ({
