@@ -34,6 +34,7 @@ export async function getSlackBot() {
   });
 
   // Placeholder handlers — business logic will be wired in follow-up tickets.
+  // Both handlers below are stubs and must be replaced before going to production.
   botInstance.onNewMention(async (thread) => {
     await thread.subscribe();
     await thread.post("Hello! I'm the Hyperlocalise agent. How can I help?");

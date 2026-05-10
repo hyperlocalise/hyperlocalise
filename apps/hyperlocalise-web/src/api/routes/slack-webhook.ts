@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { after } from "next/server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -67,17 +67,18 @@ function extractTeamId(payload: unknown): string | null {
 }
 
 async function findSlackConnector(teamId: string) {
-  const connectors = await db
+  const [connector] = await db
     .select()
     .from(schema.connectors)
-    .where(eq(schema.connectors.kind, "slack"));
+    .where(
+      and(
+        eq(schema.connectors.kind, "slack"),
+        sql`${schema.connectors.config}->>'teamId' = ${teamId}`,
+      ),
+    )
+    .limit(1);
 
-  return (
-    connectors.find((c) => {
-      const config = (c.config ?? {}) as { teamId?: string };
-      return config.teamId === teamId;
-    }) ?? null
-  );
+  return connector ?? null;
 }
 
 export function createSlackWebhookRoutes() {
