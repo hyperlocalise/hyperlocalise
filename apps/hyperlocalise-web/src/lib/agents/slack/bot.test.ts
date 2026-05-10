@@ -13,7 +13,20 @@ vi.mock("@/lib/env", () => ({
   env: {
     SLACK_BOT_TOKEN: "test-token",
     SLACK_SIGNING_SECRET: "test-secret",
+    OPENAI_API_KEY: "test-openai-key",
   },
+}));
+
+vi.mock("@ai-sdk/openai", () => ({
+  openai: vi.fn(() => "mock-model"),
+}));
+
+vi.mock("ai", () => ({
+  generateText: vi.fn(),
+}));
+
+vi.mock("@/lib/tools/registry", () => ({
+  buildTools: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/agents/slack/helpers", () => ({
@@ -39,6 +52,31 @@ vi.mock("@/lib/log", () => ({
   })),
 }));
 
+vi.mock("@/lib/database", () => {
+  return {
+    db: {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({
+              limit: vi.fn(() => Promise.resolve([])),
+            })),
+          })),
+        })),
+      })),
+    },
+    schema: {
+      interactionMessages: {
+        senderType: "senderType",
+        text: "text",
+        interactionId: "interactionId",
+        createdAt: "createdAt",
+      },
+    },
+  };
+});
+
+import { generateText } from "ai";
 import { findSlackConnector } from "@/lib/agents/slack/helpers";
 import {
   addInteractionMessage,
@@ -150,7 +188,7 @@ describe("wrapThreadPost", () => {
 
 describe("getOrCreateInteraction", () => {
   it("returns existing interaction when found", async () => {
-    const existing = { id: "interaction-123", title: "Existing" };
+    const existing = { id: "interaction-123", title: "Existing", projectId: null };
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(existing as never);
 
     const result = await getOrCreateInteraction("org-123", "thread-123", "Title");
@@ -169,11 +207,15 @@ describe("getOrCreateInteraction", () => {
     vi.mocked(createInteraction).mockResolvedValue({
       id: "interaction-456",
       title: "Title",
+      projectId: null,
     } as never);
 
     const result = await getOrCreateInteraction("org-123", "thread-123", "Title");
 
-    expect(result).toEqual({ interaction: { id: "interaction-456", title: "Title" }, isNew: true });
+    expect(result).toEqual({
+      interaction: { id: "interaction-456", title: "Title", projectId: null },
+      isNew: true,
+    });
     expect(createInteraction).toHaveBeenCalledWith({
       organizationId: "org-123",
       source: "slack_agent",
@@ -186,6 +228,7 @@ describe("getOrCreateInteraction", () => {
 describe("handleNewConversation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(generateText).mockResolvedValue({ text: "AI response" } as never);
   });
 
   it("ignores bot messages", async () => {
@@ -220,7 +263,7 @@ describe("handleNewConversation", () => {
     expect(thread.subscribe).not.toHaveBeenCalled();
   });
 
-  it("creates interaction, persists message, subscribes, and posts greeting", async () => {
+  it("creates interaction, persists message, subscribes, and posts AI response", async () => {
     const { thread, posts, getSubscribed } = createThread();
     const message = createMessage({ text: "Help me translate" });
 
@@ -233,6 +276,7 @@ describe("handleNewConversation", () => {
     vi.mocked(createInteraction).mockResolvedValue({
       id: "interaction-123",
       title: "Help me translate",
+      projectId: null,
     } as never);
     vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
 
@@ -255,10 +299,11 @@ describe("handleNewConversation", () => {
       text: "Help me translate",
     });
     expect(getSubscribed()).toBe(true);
-    expect(posts).toEqual(["Hello! I'm the Hyperlocalise agent. How can I help?"]);
+    expect(generateText).toHaveBeenCalled();
+    expect(posts).toEqual(["AI response"]);
   });
 
-  it("resumes existing interaction without re-greeting", async () => {
+  it("resumes existing interaction and posts AI response", async () => {
     const { thread, posts, getSubscribed } = createThread();
     const message = createMessage({ text: "Follow up" });
 
@@ -270,6 +315,7 @@ describe("handleNewConversation", () => {
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
+      projectId: "proj-456",
     } as never);
     vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
 
@@ -282,13 +328,15 @@ describe("handleNewConversation", () => {
       text: "Follow up",
     });
     expect(getSubscribed()).toBe(false);
-    expect(posts).toEqual([]);
+    expect(generateText).toHaveBeenCalled();
+    expect(posts).toEqual(["AI response"]);
   });
 });
 
 describe("handleSubscribedMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(generateText).mockResolvedValue({ text: "AI response" } as never);
   });
 
   it("ignores bot messages", async () => {
@@ -300,7 +348,7 @@ describe("handleSubscribedMessage", () => {
     expect(findSlackConnector).not.toHaveBeenCalled();
   });
 
-  it("creates or resumes interaction and posts reply", async () => {
+  it("creates or resumes interaction and posts AI response", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({ text: "Second message" });
 
@@ -312,6 +360,7 @@ describe("handleSubscribedMessage", () => {
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
+      projectId: null,
     } as never);
     vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
 
@@ -322,13 +371,14 @@ describe("handleSubscribedMessage", () => {
       senderType: "user",
       text: "Second message",
     });
-    expect(posts).toEqual(["You said: Second message"]);
+    expect(generateText).toHaveBeenCalled();
+    expect(posts).toEqual(["AI response"]);
 
     // Agent reply should also be persisted
     expect(addInteractionMessage).toHaveBeenLastCalledWith({
       interactionId: "interaction-123",
       senderType: "agent",
-      text: "You said: Second message",
+      text: "AI response",
     });
   });
 });
