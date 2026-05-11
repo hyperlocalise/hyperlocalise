@@ -125,7 +125,9 @@ func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)

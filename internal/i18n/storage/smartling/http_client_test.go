@@ -330,7 +330,7 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 			if err != nil {
 				t.Fatalf("get file part: %v", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			if !strings.HasPrefix(header.Filename, "test-") {
 				t.Errorf("unexpected filename: %q", header.Filename)
@@ -361,7 +361,7 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create temp file: %v", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() { _ = os.Remove(tempFile.Name()) }()
 	_, _ = tempFile.WriteString(`{"k":"v"}`)
 	_ = tempFile.Close()
 
