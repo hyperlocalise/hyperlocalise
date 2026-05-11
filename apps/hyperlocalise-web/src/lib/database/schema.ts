@@ -691,12 +691,40 @@ export const mcpSessions = pgTable(
     accessTokenHash: text("access_token_hash").notNull(),
     refreshTokenHash: text("refresh_token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("idx_mcp_sessions_access_token_hash").on(table.accessTokenHash),
-    index("idx_mcp_sessions_refresh_token_hash").on(table.refreshTokenHash),
+    uniqueIndex("mcp_sessions_access_token_hash_key").on(table.accessTokenHash),
+    uniqueIndex("mcp_sessions_refresh_token_hash_key").on(table.refreshTokenHash),
   ],
+);
+
+export const mcpOAuthStates = pgTable(
+  "mcp_oauth_states",
+  {
+    state: text("state").primaryKey(),
+    mcpCodeChallenge: text("mcp_code_challenge").notNull(),
+    mcpRedirectUri: text("mcp_redirect_uri").notNull(),
+    workosCodeVerifier: text("workos_code_verifier").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_mcp_oauth_states_expires_at").on(table.expiresAt)],
+);
+
+export const mcpAuthCodes = pgTable(
+  "mcp_auth_codes",
+  {
+    code: text("code").primaryKey(),
+    userId: text("user_id").notNull(),
+    organizationId: text("organization_id").notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_mcp_auth_codes_expires_at").on(table.expiresAt)],
 );
 
 export const organizationApiKeys = pgTable(

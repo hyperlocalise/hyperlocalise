@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { env } from "../../../lib/env";
+
 export async function GET(request: Request) {
   const baseUrl = new URL(request.url).origin;
-  const mcpEnabled = process.env.MCP_AUTH_ENABLED !== "false";
+  const mcpEnabled = env.MCP_AUTH_ENABLED === "true";
 
   if (!mcpEnabled) {
     return NextResponse.json({ error: "mcp_disabled" }, { status: 503 });

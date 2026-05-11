@@ -108,7 +108,7 @@ export function createMcpRoutes() {
           );
         }
 
-        const workosCodeVerifier = storeOAuthState(state, codeChallenge, redirectUri);
+        const workosCodeVerifier = await storeOAuthState(state, codeChallenge, redirectUri);
         const workosCodeChallenge = generateCodeChallenge(workosCodeVerifier);
 
         const workosAuthorizeUrl = new URL("https://api.workos.com/user_management/authorize");
@@ -146,7 +146,7 @@ export function createMcpRoutes() {
           );
         }
 
-        const oauthState = getOAuthState(state);
+        const oauthState = await getOAuthState(state);
         if (!oauthState) {
           return c.json(
             { error: "invalid_request", error_description: "Invalid or expired state" },
@@ -154,7 +154,7 @@ export function createMcpRoutes() {
           );
         }
 
-        deleteOAuthState(state);
+        await deleteOAuthState(state);
 
         let workosResponse: Awaited<ReturnType<typeof exchangeWorkosCode>>;
         try {
@@ -227,7 +227,7 @@ export function createMcpRoutes() {
 
         // Generate MCP auth code
         const authCode = generateAuthCode();
-        storeAuthCode(authCode, {
+        await storeAuthCode(authCode, {
           userId: localUser.id,
           organizationId: localOrg.id,
           codeChallenge: oauthState.mcpCodeChallenge,
@@ -265,7 +265,7 @@ export function createMcpRoutes() {
             );
           }
 
-          const authCodeEntry = getAuthCode(code);
+          const authCodeEntry = await getAuthCode(code);
           if (!authCodeEntry) {
             return c.json(
               { error: "invalid_grant", error_description: "Invalid or expired code" },
@@ -273,7 +273,7 @@ export function createMcpRoutes() {
             );
           }
 
-          deleteAuthCode(code);
+          await deleteAuthCode(code);
 
           if (authCodeEntry.redirectUri !== redirectUri) {
             return c.json(

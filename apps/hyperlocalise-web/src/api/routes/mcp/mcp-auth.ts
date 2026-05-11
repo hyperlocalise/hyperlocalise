@@ -34,53 +34,57 @@ function base64urlEncode(buffer: Buffer): string {
 }
 
 // ---------------------------------------------------------------------------
-// In-memory OAuth state store (TTL 10 min)
+// Database-backed OAuth state store (TTL 10 min)
 // ---------------------------------------------------------------------------
 
 type OAuthState = {
   mcpCodeChallenge: string;
   mcpRedirectUri: string;
   workosCodeVerifier: string;
-  expiresAt: number;
 };
 
-const oauthStates = new Map<string, OAuthState>();
-
-function cleanupExpiredStates(): void {
-  const now = Date.now();
-  for (const [key, entry] of oauthStates) {
-    if (now > entry.expiresAt) oauthStates.delete(key);
-  }
-}
-
-setInterval(cleanupExpiredStates, 5 * 60 * 1000);
-
-export function storeOAuthState(
+export async function storeOAuthState(
   state: string,
   mcpCodeChallenge: string,
   mcpRedirectUri: string,
-): string {
+): Promise<string> {
   const workosCodeVerifier = generateCodeVerifier();
-  oauthStates.set(state, {
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  await db.insert(schema.mcpOAuthStates).values({
+    state,
     mcpCodeChallenge,
     mcpRedirectUri,
     workosCodeVerifier,
-    expiresAt: Date.now() + 10 * 60 * 1000,
+    expiresAt,
   });
   return workosCodeVerifier;
 }
 
-export function getOAuthState(state: string): OAuthState | undefined {
-  cleanupExpiredStates();
-  return oauthStates.get(state);
+export async function getOAuthState(state: string): Promise<OAuthState | undefined> {
+  const [row] = await db
+    .select()
+    .from(schema.mcpOAuthStates)
+    .where(eq(schema.mcpOAuthStates.state, state));
+
+  if (!row) return undefined;
+  if (new Date() > row.expiresAt) {
+    await deleteOAuthState(state);
+    return undefined;
+  }
+
+  return {
+    mcpCodeChallenge: row.mcpCodeChallenge,
+    mcpRedirectUri: row.mcpRedirectUri,
+    workosCodeVerifier: row.workosCodeVerifier,
+  };
 }
 
-export function deleteOAuthState(state: string): void {
-  oauthStates.delete(state);
+export async function deleteOAuthState(state: string): Promise<void> {
+  await db.delete(schema.mcpOAuthStates).where(eq(schema.mcpOAuthStates.state, state));
 }
 
 // ---------------------------------------------------------------------------
-// In-memory auth code store (TTL 5 min)
+// Database-backed auth code store (TTL 5 min)
 // ---------------------------------------------------------------------------
 
 type AuthCodeEntry = {
@@ -88,34 +92,39 @@ type AuthCodeEntry = {
   organizationId: string;
   codeChallenge: string;
   redirectUri: string;
-  expiresAt: number;
 };
 
-const authCodes = new Map<string, AuthCodeEntry>();
-
-function cleanupExpiredCodes(): void {
-  const now = Date.now();
-  for (const [key, entry] of authCodes) {
-    if (now > entry.expiresAt) authCodes.delete(key);
-  }
-}
-
-setInterval(cleanupExpiredCodes, 5 * 60 * 1000);
-
-export function storeAuthCode(code: string, entry: Omit<AuthCodeEntry, "expiresAt">): void {
-  authCodes.set(code, {
+export async function storeAuthCode(code: string, entry: AuthCodeEntry): Promise<void> {
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+  await db.insert(schema.mcpAuthCodes).values({
+    code,
     ...entry,
-    expiresAt: Date.now() + 5 * 60 * 1000,
+    expiresAt,
   });
 }
 
-export function getAuthCode(code: string): AuthCodeEntry | undefined {
-  cleanupExpiredCodes();
-  return authCodes.get(code);
+export async function getAuthCode(code: string): Promise<AuthCodeEntry | undefined> {
+  const [row] = await db
+    .select()
+    .from(schema.mcpAuthCodes)
+    .where(eq(schema.mcpAuthCodes.code, code));
+
+  if (!row) return undefined;
+  if (new Date() > row.expiresAt) {
+    await deleteAuthCode(code);
+    return undefined;
+  }
+
+  return {
+    userId: row.userId,
+    organizationId: row.organizationId,
+    codeChallenge: row.codeChallenge,
+    redirectUri: row.redirectUri,
+  };
 }
 
-export function deleteAuthCode(code: string): void {
-  authCodes.delete(code);
+export async function deleteAuthCode(code: string): Promise<void> {
+  await db.delete(schema.mcpAuthCodes).where(eq(schema.mcpAuthCodes.code, code));
 }
 
 // ---------------------------------------------------------------------------
@@ -171,12 +180,18 @@ export async function createMcpSession(userId: string, organizationId: string) {
   const tokenLifetimeMinutes = env.MCP_TOKEN_LIFETIME_MINUTES;
   const expiresAt = new Date(Date.now() + tokenLifetimeMinutes * 60 * 1000);
 
+  const refreshTokenLifetimeDays = env.MCP_REFRESH_TOKEN_LIFETIME_DAYS;
+  const refreshTokenExpiresAt = new Date(
+    Date.now() + refreshTokenLifetimeDays * 24 * 60 * 60 * 1000,
+  );
+
   await db.insert(schema.mcpSessions).values({
     userId,
     organizationId,
     accessTokenHash,
     refreshTokenHash,
     expiresAt,
+    refreshTokenExpiresAt,
   });
 
   return { accessToken, refreshToken, expiresAt };
@@ -205,6 +220,8 @@ export async function validateRefreshToken(token: string) {
     .limit(1);
 
   if (!session) return null;
+  if (new Date() > session.refreshTokenExpiresAt) return null;
+
   return session;
 }
 
@@ -216,12 +233,18 @@ export async function refreshMcpSession(sessionId: string) {
   const tokenLifetimeMinutes = env.MCP_TOKEN_LIFETIME_MINUTES;
   const expiresAt = new Date(Date.now() + tokenLifetimeMinutes * 60 * 1000);
 
+  const refreshTokenLifetimeDays = env.MCP_REFRESH_TOKEN_LIFETIME_DAYS;
+  const refreshTokenExpiresAt = new Date(
+    Date.now() + refreshTokenLifetimeDays * 24 * 60 * 60 * 1000,
+  );
+
   await db
     .update(schema.mcpSessions)
     .set({
       accessTokenHash: newAccessTokenHash,
       refreshTokenHash: newRefreshTokenHash,
       expiresAt,
+      refreshTokenExpiresAt,
     })
     .where(eq(schema.mcpSessions.id, sessionId));
 
