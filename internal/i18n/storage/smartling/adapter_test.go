@@ -42,10 +42,7 @@ func (f *fakeClient) UploadSourceFile(_ context.Context, _ SourceUploadInput) (S
 }
 
 func (f *fakeClient) ExportFile(_ context.Context, in ExportFileInput) ([]storage.Entry, string, error) {
-	if f.exportErr != nil {
-		return nil, "", f.exportErr
-	}
-	return f.exportOut, "rev-file", nil
+	return f.exportOut, "rev-file", f.exportErr
 }
 
 func (f *fakeClient) ImportFile(_ context.Context, in ImportFileInput) (string, error) {
@@ -289,6 +286,28 @@ func TestAdapterPullFilesDelegatesToExportFile(t *testing.T) {
 	entry := result.Snapshot.Entries[0]
 	if entry.Key != "hello" || entry.Locale != "fr" || entry.Value != "bonjour" {
 		t.Fatalf("unexpected entry mapping: %+v", entry)
+	}
+}
+
+func TestAdapterPullFilesPreservesPartialResultsOnError(t *testing.T) {
+	client := &fakeClient{
+		exportOut: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+		exportErr: errors.New("some locales failed"),
+	}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles, FileURI: "translations.json", FileFormat: "json"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Pull(context.Background(), storage.PullRequest{Locales: []string{"fr", "de"}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got := len(result.Snapshot.Entries); got != 1 {
+		t.Fatalf("expected 1 partial entry, got %d", got)
+	}
+	if result.Snapshot.Entries[0].Value != "bonjour" {
+		t.Fatalf("unexpected partial entry: %+v", result.Snapshot.Entries[0])
 	}
 }
 

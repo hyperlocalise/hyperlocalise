@@ -478,6 +478,7 @@ func TestHTTPClientExportFileDownloadsPerLocale(t *testing.T) {
 	entries, _, err := client.ExportFile(context.Background(), ExportFileInput{
 		ProjectID: "123",
 		FileURI:   "translations.json",
+		FileType:  "json",
 		Locales:   []string{"fr", "de"},
 	})
 	if err != nil {
@@ -513,6 +514,7 @@ func TestHTTPClientExportFileReturnsPartialOnLocaleError(t *testing.T) {
 	entries, _, err := client.ExportFile(context.Background(), ExportFileInput{
 		ProjectID: "123",
 		FileURI:   "translations.json",
+		FileType:  "json",
 		Locales:   []string{"fr", "de"},
 	})
 	if err == nil {
@@ -615,4 +617,32 @@ func writeTranslationsItemsResponse(w http.ResponseWriter, count int, start int,
 		)
 	}
 	_, _ = fmt.Fprint(w, `]}}`)
+}
+
+func TestDecodeFileContentNestedMap(t *testing.T) {
+	content := []byte(`{"fr":{"hello":"bonjour","goodbye":"au revoir"},"de":{"hello":"Hallo"}}`)
+	entries, err := decodeFileContent(content, "fr", "json")
+	if err != nil {
+		t.Fatalf("decode nested map: %v", err)
+	}
+	if got := len(entries); got != 2 {
+		t.Fatalf("expected 2 entries, got %d", got)
+	}
+	m := make(map[string]string, len(entries))
+	for _, e := range entries {
+		m[e.Key] = e.Value
+	}
+	if m["hello"] != "bonjour" || m["goodbye"] != "au revoir" {
+		t.Fatalf("unexpected decoded values: %v", m)
+	}
+}
+
+func TestDecodeFileContentUnsupportedFileType(t *testing.T) {
+	_, err := decodeFileContent([]byte("<xml></xml>"), "fr", "xliff")
+	if err == nil {
+		t.Fatal("expected error for unsupported file type")
+	}
+	if !strings.Contains(err.Error(), "unsupported file type") {
+		t.Fatalf("expected unsupported file type error, got: %v", err)
+	}
 }

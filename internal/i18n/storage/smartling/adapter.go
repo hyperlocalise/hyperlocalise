@@ -59,6 +59,7 @@ type Client interface {
 type ExportFileInput struct {
 	ProjectID string
 	FileURI   string
+	FileType  string
 	Locales   []string
 }
 
@@ -232,16 +233,18 @@ func (a *Adapter) pullFiles(ctx context.Context, req storage.PullRequest) (stora
 	entries, revision, err := a.client.ExportFile(ctx, ExportFileInput{
 		ProjectID: a.cfg.ProjectID,
 		FileURI:   a.cfg.FileURI,
+		FileType:  a.cfg.FileFormat,
 		Locales:   locales,
 	})
-	if err != nil {
-		return storage.PullResult{}, fmt.Errorf("smartling pull files: %w", err)
-	}
 
 	now := time.Now().UTC()
 	normalized := normalizeEntries(entries, revision, now)
 	retrievedAt := now
-	return storage.PullResult{Snapshot: storage.CatalogSnapshot{Entries: normalized, Revision: revision, RetrievedAt: &retrievedAt}}, nil
+	result := storage.PullResult{Snapshot: storage.CatalogSnapshot{Entries: normalized, Revision: revision, RetrievedAt: &retrievedAt}}
+	if err != nil {
+		return result, fmt.Errorf("smartling pull files: %w", err)
+	}
+	return result, nil
 }
 
 func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.PushResult, error) {

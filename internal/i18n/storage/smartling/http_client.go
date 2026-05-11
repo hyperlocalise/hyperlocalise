@@ -276,7 +276,7 @@ func (c *HTTPClient) ExportFile(ctx context.Context, in ExportFileInput) ([]stor
 			errs = append(errs, err)
 			continue
 		}
-		localeEntries, err := decodeFileContent(content, trimmedLocale)
+		localeEntries, err := decodeFileContent(content, trimmedLocale, in.FileType)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -520,7 +520,7 @@ func (c *HTTPClient) uploadFile(ctx context.Context, token string, projectID str
 	if err := writer.WriteField("fileType", fileType); err != nil {
 		return fmt.Errorf("build upload: %w", err)
 	}
-	part, err := writer.CreateFormFile("file", "translations.json")
+	part, err := writer.CreateFormFile("file", fileURI)
 	if err != nil {
 		return fmt.Errorf("build upload: %w", err)
 	}
@@ -555,13 +555,36 @@ func (c *HTTPClient) uploadFile(ctx context.Context, token string, projectID str
 	return nil
 }
 
-func decodeFileContent(content []byte, locale string) ([]storage.Entry, error) {
-	var items map[string]string
-	if err := json.Unmarshal(content, &items); err != nil {
+func decodeFileContent(content []byte, locale string, fileType string) ([]storage.Entry, error) {
+	fileType = strings.ToLower(strings.TrimSpace(fileType))
+	if fileType == "" {
+		fileType = "json"
+	}
+	if fileType != "json" {
+		return nil, fmt.Errorf("decode file content for %s: unsupported file type %q", locale, fileType)
+	}
+
+	// Try flat map first (one locale per file).
+	var flat map[string]string
+	if err := json.Unmarshal(content, &flat); err == nil {
+		entries := make([]storage.Entry, 0, len(flat))
+		for key, value := range flat {
+			entries = append(entries, storage.Entry{Key: key, Locale: locale, Value: value})
+		}
+		return entries, nil
+	}
+
+	// Fall back to nested locale-keyed map (matches encodeFileContent output).
+	var nested map[string]map[string]string
+	if err := json.Unmarshal(content, &nested); err != nil {
 		return nil, fmt.Errorf("decode file content for %s: %w", locale, err)
 	}
-	entries := make([]storage.Entry, 0, len(items))
-	for key, value := range items {
+	localeItems, ok := nested[locale]
+	if !ok {
+		return nil, fmt.Errorf("decode file content for %s: locale not found in nested map", locale)
+	}
+	entries := make([]storage.Entry, 0, len(localeItems))
+	for key, value := range localeItems {
 		entries = append(entries, storage.Entry{Key: key, Locale: locale, Value: value})
 	}
 	return entries, nil
