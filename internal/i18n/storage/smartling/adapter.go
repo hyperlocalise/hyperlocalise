@@ -233,30 +233,9 @@ func (a *Adapter) UploadSources(ctx context.Context, req storage.FileUploadSourc
 			}
 			fileUri = filepath.ToSlash(fileUri)
 
-			fileType := ""
 			ext := strings.ToLower(filepath.Ext(path))
-			switch ext {
-			case ".json":
-				fileType = "json"
-			case ".yaml", ".yml":
-				fileType = "yaml"
-			case ".xml":
-				fileType = "xml"
-			case ".html", ".htm":
-				fileType = "html"
-			case ".csv":
-				fileType = "csv"
-			case ".strings":
-				fileType = "ios"
-			case ".stringsdict":
-				fileType = "ios_stringsdict"
-			case ".properties":
-				fileType = "javaProperties"
-			case ".xliff", ".xlf":
-				fileType = "xliff"
-			case ".md", ".markdown":
-				fileType = "markdown"
-			default:
+			fileType := FileTypeForExtension(ext)
+			if fileType == "" {
 				result.Warnings = append(result.Warnings, storage.Warning{
 					Message: fmt.Sprintf("unsupported file extension %q for %s, skipping", ext, path),
 				})

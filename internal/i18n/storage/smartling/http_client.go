@@ -129,38 +129,54 @@ func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token
 		_ = file.Close()
 	}()
 
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
+	pr, pw := io.Pipe()
+	writer := multipart.NewWriter(pw)
 
-	for key, val := range params {
-		if err := writer.WriteField(key, val); err != nil {
-			return fmt.Errorf("write form field %s: %w", key, err)
+	writeErrCh := make(chan error, 1)
+	go func() {
+		var werr error
+		defer func() {
+			_ = pw.CloseWithError(werr)
+			writeErrCh <- werr
+		}()
+		for key, val := range params {
+			if werr = writer.WriteField(key, val); werr != nil {
+				werr = fmt.Errorf("write form field %s: %w", key, werr)
+				return
+			}
 		}
-	}
+		var part io.Writer
+		part, werr = writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+		if werr != nil {
+			werr = fmt.Errorf("create form file: %w", werr)
+			return
+		}
+		if _, werr = io.Copy(part, file); werr != nil {
+			werr = fmt.Errorf("copy file to form: %w", werr)
+			return
+		}
+		if werr = writer.Close(); werr != nil {
+			werr = fmt.Errorf("close multipart writer: %w", werr)
+		}
+	}()
 
-	part, err := writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, pr)
 	if err != nil {
-		return fmt.Errorf("create form file: %w", err)
-	}
-
-	if _, err := io.Copy(part, file); err != nil {
-		return fmt.Errorf("copy file to form: %w", err)
-	}
-
-	if err := writer.Close(); err != nil {
-		return fmt.Errorf("close multipart writer: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, body)
-	if err != nil {
-		return fmt.Errorf("build request: %w", err)
+		_ = pr.CloseWithError(err)
+		writeErr := <-writeErrCh
+		return errors.Join(fmt.Errorf("build request: %w", err), writeErr)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	return c.do(req, out)
+	httpErr := c.do(req, out)
+	if httpErr != nil {
+		_ = pr.CloseWithError(httpErr)
+	}
+	writeErr := <-writeErrCh
+	return errors.Join(httpErr, writeErr)
 }
 
 func (c *HTTPClient) ListTranslations(ctx context.Context, in ListTranslationsInput) ([]StringTranslation, string, error) {

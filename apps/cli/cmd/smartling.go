@@ -331,13 +331,17 @@ func executeSmartlingUploadSources(cmd *cobra.Command, o smartlingUploadSourcesO
 	if cfg.UserIdentifier == "" {
 		cfg.UserIdentifier = os.Getenv("SMARTLING_USER_IDENTIFIER")
 	}
-	if cfg.UserIdentifier == "" || cfg.UserSecret == "" {
-		return fmt.Errorf("smartling upload sources: credentials are required (via flags or SMARTLING_USER_IDENTIFIER/SMARTLING_USER_SECRET)")
-	}
 
-	client, err := smartling.NewHTTPClient(cfg)
-	if err != nil {
-		return err
+	var client *smartling.HTTPClient
+	if !o.dryRun {
+		if cfg.UserIdentifier == "" || cfg.UserSecret == "" {
+			return fmt.Errorf("smartling upload sources: credentials are required (via flags or SMARTLING_USER_IDENTIFIER/SMARTLING_USER_SECRET)")
+		}
+		var err error
+		client, err = smartling.NewHTTPClient(cfg)
+		if err != nil {
+			return err
+		}
 	}
 
 	processed := 0
@@ -349,29 +353,7 @@ func executeSmartlingUploadSources(cmd *cobra.Command, o smartlingUploadSourcesO
 
 		fileType := o.fileType
 		if fileType == "" {
-			ext := strings.ToLower(filepath.Ext(path))
-			switch ext {
-			case ".json":
-				fileType = "json"
-			case ".yaml", ".yml":
-				fileType = "yaml"
-			case ".xml":
-				fileType = "xml"
-			case ".html", ".htm":
-				fileType = "html"
-			case ".csv":
-				fileType = "csv"
-			case ".strings":
-				fileType = "ios"
-			case ".stringsdict":
-				fileType = "ios_stringsdict"
-			case ".properties":
-				fileType = "javaProperties"
-			case ".xliff", ".xlf":
-				fileType = "xliff"
-			case ".md", ".markdown":
-				fileType = "markdown"
-			}
+			fileType = smartling.FileTypeForExtension(filepath.Ext(path))
 		}
 		if fileType == "" {
 			return fmt.Errorf("smartling upload sources: could not determine file type for %q; use --file-type", path)
