@@ -147,6 +147,13 @@ export function createMcpRoutes() {
           );
         }
 
+        if (!env.WORKOS_CLIENT_ID) {
+          return c.json(
+            { error: "server_error", error_description: "MCP auth is not configured" },
+            500,
+          );
+        }
+
         const workosCodeVerifier = await storeOAuthState(state, codeChallenge, redirectUri);
         const workosCodeChallenge = generateCodeChallenge(workosCodeVerifier);
 
