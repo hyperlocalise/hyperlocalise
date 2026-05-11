@@ -30,9 +30,36 @@ export SMARTLING_USER_SECRET="your-smartling-user-secret"
 
 - `targetLanguages`
 - `timeoutSeconds` (defaults to `30`)
+- `mode` — `strings` (default) or `files`
+- `fileURI` — required when `mode` is `files`
+- `fileFormat` — required when `mode` is `files` (for example `json`)
+
+## Modes
+
+- `strings`: pull and push using Smartling string APIs.
+- `files`: pull and push using Smartling file download/upload APIs.
+
+## Files mode config example
+
+```jsonc
+{
+  "storage": {
+    "adapter": "smartling",
+    "config": {
+      "projectID": "your-project-id",
+      "userIdentifier": "your-smartling-user-identifier",
+      "userSecretEnv": "SMARTLING_USER_SECRET",
+      "mode": "files",
+      "fileURI": "translations.json",
+      "fileFormat": "json"
+    }
+  }
+}
+```
 
 ## Common issues
 
 - missing secret: export `SMARTLING_USER_SECRET` in the same shell session
 - missing user identifier: set `storage.config.userIdentifier`
 - locale mismatch: align `targetLanguages` with your project locales
+- file mode import failure: verify `fileFormat` matches your project settings

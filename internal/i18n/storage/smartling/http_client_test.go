@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
@@ -445,6 +447,146 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 	}
 }
 
+func TestHTTPClientExportFileDownloadsPerLocale(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/locales/fr/file":
+			if r.URL.Query().Get("fileUri") != "translations.json" {
+				t.Fatalf("unexpected fileUri: %s", r.URL.Query().Get("fileUri"))
+			}
+			_, _ = fmt.Fprint(w, `{"hello":"Bonjour"}`)
+		case "/projects/123/locales/de/file":
+			if r.URL.Query().Get("fileUri") != "translations.json" {
+				t.Fatalf("unexpected fileUri: %s", r.URL.Query().Get("fileUri"))
+			}
+			_, _ = fmt.Fprint(w, `{"hello":"Hallo"}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+	entries, _, err := client.ExportFile(context.Background(), ExportFileInput{
+		ProjectID: "123",
+		FileURI:   "translations.json",
+		FileType:  "json",
+		Locales:   []string{"fr", "de"},
+	})
+	if err != nil {
+		t.Fatalf("export file: %v", err)
+	}
+	if got := len(entries); got != 2 {
+		t.Fatalf("expected 2 entries, got %d", got)
+	}
+}
+
+func TestHTTPClientExportFileReturnsPartialOnLocaleError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/locales/fr/file":
+			http.Error(w, "not found", http.StatusNotFound)
+		case "/projects/123/locales/de/file":
+			_, _ = fmt.Fprint(w, `{"hello":"Hallo"}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+	entries, _, err := client.ExportFile(context.Background(), ExportFileInput{
+		ProjectID: "123",
+		FileURI:   "translations.json",
+		FileType:  "json",
+		Locales:   []string{"fr", "de"},
+	})
+	if err == nil {
+		t.Fatal("expected error for failed locale")
+	}
+	if got := len(entries); got != 1 {
+		t.Fatalf("expected 1 entry from successful locale, got %d", got)
+	}
+}
+
+func TestHTTPClientImportFileUploadsMultipart(t *testing.T) {
+	var receivedFileURI, receivedFileType string
+	var receivedBody []byte
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method: %s", r.Method)
+			}
+			file, header, err := r.FormFile("file")
+			if err != nil {
+				t.Fatalf("form file: %v", err)
+			}
+			defer func() { _ = file.Close() }()
+			receivedBody, _ = io.ReadAll(file)
+			receivedFileURI = r.FormValue("fileUri")
+			receivedFileType = r.FormValue("fileType")
+			if header.Filename != "translations.json" {
+				t.Fatalf("unexpected filename: %s", header.Filename)
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"wordCount":1,"stringCount":1}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+	_, err := client.ImportFile(context.Background(), ImportFileInput{
+		ProjectID: "123",
+		FileURI:   "translations.json",
+		FileType:  "json",
+		Entries:   []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+	})
+	if err != nil {
+		t.Fatalf("import file: %v", err)
+	}
+	if receivedFileURI != "translations.json" {
+		t.Fatalf("unexpected fileUri: %q", receivedFileURI)
+	}
+	if receivedFileType != "json" {
+		t.Fatalf("unexpected fileType: %q", receivedFileType)
+	}
+	var parsed map[string]map[string]string
+	if err := json.Unmarshal(receivedBody, &parsed); err != nil {
+		t.Fatalf("decode uploaded body: %v", err)
+	}
+	if parsed["fr"]["hello"] != "bonjour" {
+		t.Fatalf("unexpected uploaded content: %s", string(receivedBody))
+	}
+}
+
 func assertTranslationsQuery(t *testing.T, values url.Values, locale string, limit int, offset int) {
 	t.Helper()
 	if got := values.Get("targetLocaleId"); got != locale {
@@ -475,4 +617,32 @@ func writeTranslationsItemsResponse(w http.ResponseWriter, count int, start int,
 		)
 	}
 	_, _ = fmt.Fprint(w, `]}}`)
+}
+
+func TestDecodeFileContentNestedMap(t *testing.T) {
+	content := []byte(`{"fr":{"hello":"bonjour","goodbye":"au revoir"},"de":{"hello":"Hallo"}}`)
+	entries, err := decodeFileContent(content, "fr", "json")
+	if err != nil {
+		t.Fatalf("decode nested map: %v", err)
+	}
+	if got := len(entries); got != 2 {
+		t.Fatalf("expected 2 entries, got %d", got)
+	}
+	m := make(map[string]string, len(entries))
+	for _, e := range entries {
+		m[e.Key] = e.Value
+	}
+	if m["hello"] != "bonjour" || m["goodbye"] != "au revoir" {
+		t.Fatalf("unexpected decoded values: %v", m)
+	}
+}
+
+func TestDecodeFileContentUnsupportedFileType(t *testing.T) {
+	_, err := decodeFileContent([]byte("<xml></xml>"), "fr", "xliff")
+	if err == nil {
+		t.Fatal("expected error for unsupported file type")
+	}
+	if !strings.Contains(err.Error(), "unsupported file type") {
+		t.Fatalf("expected unsupported file type error, got: %v", err)
+	}
 }

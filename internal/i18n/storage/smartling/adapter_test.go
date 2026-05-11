@@ -18,6 +18,10 @@ type fakeClient struct {
 	upsertIn          UpsertTranslationsInput
 	upsertErr         error
 	uploadSourceCalls int
+	exportOut         []storage.Entry
+	exportErr         error
+	importIn          ImportFileInput
+	importErr         error
 }
 
 func (f *fakeClient) ListTranslations(_ context.Context, _ ListTranslationsInput) ([]StringTranslation, string, error) {
@@ -35,6 +39,18 @@ func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslations
 func (f *fakeClient) UploadSourceFile(_ context.Context, _ SourceUploadInput) (SourceUploadResult, error) {
 	f.uploadSourceCalls++
 	return SourceUploadResult{}, f.upsertErr
+}
+
+func (f *fakeClient) ExportFile(_ context.Context, in ExportFileInput) ([]storage.Entry, string, error) {
+	return f.exportOut, "rev-file", f.exportErr
+}
+
+func (f *fakeClient) ImportFile(_ context.Context, in ImportFileInput) (string, error) {
+	f.importIn = in
+	if f.importErr != nil {
+		return "", f.importErr
+	}
+	return "rev-file", nil
 }
 
 func TestParseConfigUsesEnvSecret(t *testing.T) {
@@ -67,7 +83,7 @@ func TestParseConfigRejectsInlineSecret(t *testing.T) {
 
 func TestAdapterPullMapsStringContextLanguage(t *testing.T) {
 	client := &fakeClient{items: []StringTranslation{{Key: "hello", Context: "home", Locale: "fr", Value: "bonjour"}}, listRevision: "rev1"}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -87,7 +103,7 @@ func TestAdapterPullMapsStringContextLanguage(t *testing.T) {
 
 func TestAdapterPushGroupsEntries(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -103,7 +119,7 @@ func TestAdapterPushGroupsEntries(t *testing.T) {
 
 func TestAdapterPushAppliedOnlyIncludesSentEntries(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -130,7 +146,7 @@ func TestAdapterPushAppliedOnlyIncludesSentEntries(t *testing.T) {
 
 func TestAdapterPushPreservesTranslationWhitespace(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -149,7 +165,7 @@ func TestAdapterPushPreservesTranslationWhitespace(t *testing.T) {
 
 func TestAdapterPushDeduplicatesByEntryID(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -186,7 +202,7 @@ func TestAdapterPushDeduplicatesByEntryID(t *testing.T) {
 
 func TestAdapterPushReturnsErrorWithoutAppliedOnFailure(t *testing.T) {
 	client := &fakeClient{upsertErr: errors.New("boom")}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -199,6 +215,118 @@ func TestAdapterPushReturnsErrorWithoutAppliedOnFailure(t *testing.T) {
 	}
 	if got := len(result.Applied); got != 0 {
 		t.Fatalf("expected no applied ids on error, got %d", got)
+	}
+}
+
+func TestParseConfigDefaultsToStringsMode(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	cfg, err := ParseConfig(json.RawMessage(`{"projectID":"123","userIdentifier":"uid"}`))
+	if err != nil {
+		t.Fatalf("parse config: %v", err)
+	}
+	if cfg.Mode != ModeStrings {
+		t.Fatalf("expected default mode %q, got %q", ModeStrings, cfg.Mode)
+	}
+}
+
+func TestParseConfigRejectsInvalidMode(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	_, err := ParseConfig(json.RawMessage(`{"projectID":"123","userIdentifier":"uid","mode":"invalid"}`))
+	if err == nil || !strings.Contains(err.Error(), "mode must") {
+		t.Fatalf("expected mode validation error, got %v", err)
+	}
+}
+
+func TestParseConfigRequiresFileURIInFilesMode(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	_, err := ParseConfig(json.RawMessage(`{"projectID":"123","userIdentifier":"uid","mode":"files"}`))
+	if err == nil || !strings.Contains(err.Error(), "fileURI is required") {
+		t.Fatalf("expected fileURI required error, got %v", err)
+	}
+}
+
+func TestAdapterCapabilitiesInStringsMode(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, &fakeClient{})
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+	caps := adapter.Capabilities()
+	if !caps.SupportsContext {
+		t.Fatal("expected context support in strings mode")
+	}
+}
+
+func TestAdapterCapabilitiesInFilesMode(t *testing.T) {
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles, FileURI: "translations.json", FileFormat: "json"}, &fakeClient{})
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+	caps := adapter.Capabilities()
+	if caps.SupportsContext {
+		t.Fatal("expected no context support in files mode")
+	}
+}
+
+func TestAdapterPullFilesDelegatesToExportFile(t *testing.T) {
+	client := &fakeClient{exportOut: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}}}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles, FileURI: "translations.json", FileFormat: "json"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Pull(context.Background(), storage.PullRequest{Locales: []string{"fr"}})
+	if err != nil {
+		t.Fatalf("pull files: %v", err)
+	}
+	if got := len(result.Snapshot.Entries); got != 1 {
+		t.Fatalf("expected 1 entry, got %d", got)
+	}
+	entry := result.Snapshot.Entries[0]
+	if entry.Key != "hello" || entry.Locale != "fr" || entry.Value != "bonjour" {
+		t.Fatalf("unexpected entry mapping: %+v", entry)
+	}
+}
+
+func TestAdapterPullFilesPreservesPartialResultsOnError(t *testing.T) {
+	client := &fakeClient{
+		exportOut: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}},
+		exportErr: errors.New("some locales failed"),
+	}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles, FileURI: "translations.json", FileFormat: "json"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.Pull(context.Background(), storage.PullRequest{Locales: []string{"fr", "de"}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if got := len(result.Snapshot.Entries); got != 1 {
+		t.Fatalf("expected 1 partial entry, got %d", got)
+	}
+	if result.Snapshot.Entries[0].Value != "bonjour" {
+		t.Fatalf("unexpected partial entry: %+v", result.Snapshot.Entries[0])
+	}
+}
+
+func TestAdapterPushFilesDelegatesToImportFile(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeFiles, FileURI: "translations.json", FileFormat: "json"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	_, err = adapter.Push(context.Background(), storage.PushRequest{Entries: []storage.Entry{{Key: "hello", Locale: "fr", Value: "bonjour"}}})
+	if err != nil {
+		t.Fatalf("push files: %v", err)
+	}
+	if got := len(client.importIn.Entries); got != 1 {
+		t.Fatalf("expected 1 import entry, got %d", got)
+	}
+	if client.importIn.FileURI != "translations.json" || client.importIn.FileType != "json" {
+		t.Fatalf("unexpected import input: uri=%q type=%q", client.importIn.FileURI, client.importIn.FileType)
 	}
 }
 
@@ -215,7 +343,7 @@ func TestNewBuildsAdapterFromRawConfig(t *testing.T) {
 
 func TestAdapterUploadSources(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}
@@ -251,7 +379,7 @@ func TestAdapterUploadSources(t *testing.T) {
 
 func TestAdapterUploadSourcesWarnsWhenSourcePatternMatchesNoFiles(t *testing.T) {
 	client := &fakeClient{}
-	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec", Mode: ModeStrings}, client)
 	if err != nil {
 		t.Fatalf("new adapter: %v", err)
 	}

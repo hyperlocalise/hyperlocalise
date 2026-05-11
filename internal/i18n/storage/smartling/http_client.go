@@ -18,14 +18,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
 const (
 	authAPIBaseURL     = "https://api.smartling.com/auth-api/v2"
 	stringsAPIBaseURL  = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL    = "https://api.smartling.com/files-api/v2"
 	glossaryAPIBaseURL = "https://api.smartling.com/glossary-api/v2"
 	tmAPIBaseURL       = "https://api.smartling.com/translation-memory-api/v2"
-	filesAPIBaseURL    = "https://api.smartling.com/files-api/v2"
 	translationsLimit  = 500
 	glossaryLimit      = 500
 )
@@ -33,9 +35,9 @@ const (
 type HTTPClient struct {
 	authBaseURL     string
 	stringsBaseURL  string
+	filesBaseURL    string
 	glossaryBaseURL string
 	tmBaseURL       string
-	filesBaseURL    string
 	http            *http.Client
 	userIdentifier  string
 	userSecret      string
@@ -54,9 +56,9 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	return &HTTPClient{
 		authBaseURL:     authAPIBaseURL,
 		stringsBaseURL:  stringsAPIBaseURL,
+		filesBaseURL:    filesAPIBaseURL,
 		glossaryBaseURL: glossaryAPIBaseURL,
 		tmBaseURL:       tmAPIBaseURL,
-		filesBaseURL:    filesAPIBaseURL,
 		http:            &http.Client{Timeout: timeout},
 		userIdentifier:  cfg.UserIdentifier,
 		userSecret:      cfg.UserSecret,
@@ -251,6 +253,63 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	return time.Now().UTC().Format(time.RFC3339Nano), nil
 }
 
+func (c *HTTPClient) ExportFile(ctx context.Context, in ExportFileInput) ([]storage.Entry, string, error) {
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	revision := time.Now().UTC().Format(time.RFC3339Nano)
+	if len(in.Locales) == 0 {
+		return nil, revision, nil
+	}
+
+	entries := make([]storage.Entry, 0)
+	errs := make([]error, 0)
+	for _, locale := range in.Locales {
+		trimmedLocale := strings.TrimSpace(locale)
+		if trimmedLocale == "" {
+			continue
+		}
+		content, err := c.downloadFile(ctx, token, in.ProjectID, trimmedLocale, in.FileURI)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		localeEntries, err := decodeFileContent(content, trimmedLocale, in.FileType)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		entries = append(entries, localeEntries...)
+	}
+
+	if len(errs) > 0 {
+		return entries, revision, errors.Join(errs...)
+	}
+	return entries, revision, nil
+}
+
+func (c *HTTPClient) ImportFile(ctx context.Context, in ImportFileInput) (string, error) {
+	if len(in.Entries) == 0 {
+		return time.Now().UTC().Format(time.RFC3339Nano), nil
+	}
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	content, err := encodeFileContent(in.Entries)
+	if err != nil {
+		return "", err
+	}
+
+	if err := c.uploadFile(ctx, token, in.ProjectID, in.FileURI, in.FileType, content); err != nil {
+		return "", err
+	}
+	return time.Now().UTC().Format(time.RFC3339Nano), nil
+}
+
 func (c *HTTPClient) authenticate(ctx context.Context) (string, error) {
 	endpoint := fmt.Sprintf("%s/authenticate", c.authBaseURL)
 	payload := map[string]string{
@@ -419,6 +478,130 @@ func (c *HTTPClient) do(req *http.Request, out any) error {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
+}
+
+func (c *HTTPClient) downloadFile(ctx context.Context, token string, projectID string, locale string, fileURI string) ([]byte, error) {
+	endpoint := fmt.Sprintf("%s/projects/%s/locales/%s/file", c.filesBaseURL, url.PathEscape(projectID), url.PathEscape(locale))
+	params := url.Values{}
+	params.Set("fileUri", fileURI)
+	endpoint = endpoint + "?" + params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download file %s: %w", locale, err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("download file %s: status %d: %s", locale, resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return io.ReadAll(resp.Body)
+}
+
+func (c *HTTPClient) uploadFile(ctx context.Context, token string, projectID string, fileURI string, fileType string, content []byte) error {
+	endpoint := fmt.Sprintf("%s/projects/%s/file", c.filesBaseURL, url.PathEscape(projectID))
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	if err := writer.WriteField("fileUri", fileURI); err != nil {
+		return fmt.Errorf("build upload: %w", err)
+	}
+	if err := writer.WriteField("fileType", fileType); err != nil {
+		return fmt.Errorf("build upload: %w", err)
+	}
+	part, err := writer.CreateFormFile("file", fileURI)
+	if err != nil {
+		return fmt.Errorf("build upload: %w", err)
+	}
+	if _, err := part.Write(content); err != nil {
+		return fmt.Errorf("build upload: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("build upload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &body)
+	if err != nil {
+		return fmt.Errorf("build upload request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload file: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("upload file: status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	return nil
+}
+
+func decodeFileContent(content []byte, locale string, fileType string) ([]storage.Entry, error) {
+	fileType = strings.ToLower(strings.TrimSpace(fileType))
+	if fileType == "" {
+		fileType = "json"
+	}
+	if fileType != "json" {
+		return nil, fmt.Errorf("decode file content for %s: unsupported file type %q", locale, fileType)
+	}
+
+	// Try flat map first (one locale per file).
+	var flat map[string]string
+	if err := json.Unmarshal(content, &flat); err == nil {
+		entries := make([]storage.Entry, 0, len(flat))
+		for key, value := range flat {
+			entries = append(entries, storage.Entry{Key: key, Locale: locale, Value: value})
+		}
+		return entries, nil
+	}
+
+	// Fall back to nested locale-keyed map (matches encodeFileContent output).
+	var nested map[string]map[string]string
+	if err := json.Unmarshal(content, &nested); err != nil {
+		return nil, fmt.Errorf("decode file content for %s: %w", locale, err)
+	}
+	localeItems, ok := nested[locale]
+	if !ok {
+		return nil, fmt.Errorf("decode file content for %s: locale not found in nested map", locale)
+	}
+	entries := make([]storage.Entry, 0, len(localeItems))
+	for key, value := range localeItems {
+		entries = append(entries, storage.Entry{Key: key, Locale: locale, Value: value})
+	}
+	return entries, nil
+}
+
+func encodeFileContent(entries []storage.Entry) ([]byte, error) {
+	items := make(map[string]map[string]string)
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.Key) == "" || strings.TrimSpace(entry.Locale) == "" || strings.TrimSpace(entry.Value) == "" {
+			continue
+		}
+		if _, ok := items[entry.Locale]; !ok {
+			items[entry.Locale] = map[string]string{}
+		}
+		items[entry.Locale][entry.Key] = entry.Value
+	}
+	return json.Marshal(items)
 }
 
 // GlossaryDownloadRequest identifies the Smartling glossary to export.
