@@ -24,9 +24,9 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			err:  "languageIds is required",
 		},
 		{
-			name: "missing fileIds",
+			name: "missing fileIds, branchIds and directoryIds",
 			req:  &PreTranslationRequest{LanguageIDs: []string{"uk"}},
-			err:  "fileIds is required",
+			err:  "one of fileIds, branchIds or directoryIds is required",
 		},
 		{
 			name: "valid request",
@@ -65,6 +65,22 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			req: &PreTranslationRequest{
 				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
 				Method: "mt", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with branchIds",
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, BranchIDs: []int{1},
+				Method: "tm",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with directoryIds",
+			req: &PreTranslationRequest{
+				LanguageIDs: []string{"uk"}, DirectoryIDs: []int{1},
+				Method: "tm",
 			},
 			valid: true,
 		},
