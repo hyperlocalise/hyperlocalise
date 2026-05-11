@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -69,6 +69,7 @@ function decryptString(ciphertext: string): string {
 // ---------------------------------------------------------------------------
 
 type OAuthState = {
+  mcpClientId: string;
   mcpCodeChallenge: string;
   mcpRedirectUri: string;
   workosCodeVerifier: string;
@@ -78,6 +79,7 @@ export async function storeOAuthState(
   state: string,
   mcpCodeChallenge: string,
   mcpRedirectUri: string,
+  mcpClientId: string,
 ): Promise<string> {
   const workosCodeVerifier = generateCodeVerifier();
   const encryptedVerifier = encryptString(workosCodeVerifier);
@@ -86,6 +88,7 @@ export async function storeOAuthState(
     .insert(schema.mcpOAuthStates)
     .values({
       state,
+      mcpClientId,
       mcpCodeChallenge,
       mcpRedirectUri,
       workosCodeVerifier: encryptedVerifier,
@@ -94,6 +97,7 @@ export async function storeOAuthState(
     .onConflictDoUpdate({
       target: schema.mcpOAuthStates.state,
       set: {
+        mcpClientId,
         mcpCodeChallenge,
         mcpRedirectUri,
         workosCodeVerifier: encryptedVerifier,
@@ -116,6 +120,7 @@ export async function getOAuthState(state: string): Promise<OAuthState | undefin
   }
 
   return {
+    mcpClientId: row.mcpClientId,
     mcpCodeChallenge: row.mcpCodeChallenge,
     mcpRedirectUri: row.mcpRedirectUri,
     workosCodeVerifier: decryptString(row.workosCodeVerifier),
@@ -138,6 +143,7 @@ export async function consumeOAuthState(state: string): Promise<OAuthState | und
   }
 
   return {
+    mcpClientId: row.mcpClientId,
     mcpCodeChallenge: row.mcpCodeChallenge,
     mcpRedirectUri: row.mcpRedirectUri,
     workosCodeVerifier: decryptString(row.workosCodeVerifier),
@@ -151,6 +157,7 @@ export async function consumeOAuthState(state: string): Promise<OAuthState | und
 type AuthCodeEntry = {
   userId: string;
   organizationId: string;
+  clientId: string;
   codeChallenge: string;
   redirectUri: string;
 };
@@ -181,6 +188,7 @@ export async function getAuthCode(code: string): Promise<AuthCodeEntry | undefin
   return {
     userId: row.userId,
     organizationId: row.organizationId,
+    clientId: row.clientId,
     codeChallenge: row.codeChallenge,
     redirectUri: row.redirectUri,
   };
@@ -206,6 +214,7 @@ export async function consumeAuthCode(code: string): Promise<AuthCodeEntry | und
   return {
     userId: row.userId,
     organizationId: row.organizationId,
+    clientId: row.clientId,
     codeChallenge: row.codeChallenge,
     redirectUri: row.redirectUri,
   };
@@ -231,6 +240,9 @@ export async function exchangeWorkosCode(
   code: string,
   codeVerifier: string,
 ): Promise<WorkosAuthenticateResponse> {
+  if (!env.WORKOS_API_KEY) {
+    throw new Error("workos_exchange_failed: WORKOS_API_KEY is not configured");
+  }
   const response = await fetch("https://api.workos.com/user_management/authenticate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -296,21 +308,9 @@ export async function validateMcpToken(token: string) {
   return session;
 }
 
-export async function validateRefreshToken(token: string) {
-  const hash = hashToken(token);
-  const [session] = await db
-    .select()
-    .from(schema.mcpSessions)
-    .where(eq(schema.mcpSessions.refreshTokenHash, hash))
-    .limit(1);
-
-  if (!session) return null;
-  if (new Date() > session.refreshTokenExpiresAt) return null;
-
-  return session;
-}
-
-export async function refreshMcpSession(sessionId: string) {
+/** Rotates tokens only if refresh_token still matches (single atomic UPDATE). */
+export async function rotateMcpRefreshToken(refreshToken: string) {
+  const oldRefreshHash = hashToken(refreshToken);
   const newAccessToken = generateToken();
   const newRefreshToken = generateToken();
   const newAccessTokenHash = hashToken(newAccessToken);
@@ -318,14 +318,22 @@ export async function refreshMcpSession(sessionId: string) {
   const tokenLifetimeMinutes = env.MCP_TOKEN_LIFETIME_MINUTES;
   const expiresAt = new Date(Date.now() + tokenLifetimeMinutes * 60 * 1000);
 
-  await db
+  const [row] = await db
     .update(schema.mcpSessions)
     .set({
       accessTokenHash: newAccessTokenHash,
       refreshTokenHash: newRefreshTokenHash,
       expiresAt,
     })
-    .where(eq(schema.mcpSessions.id, sessionId));
+    .where(
+      and(
+        eq(schema.mcpSessions.refreshTokenHash, oldRefreshHash),
+        gt(schema.mcpSessions.refreshTokenExpiresAt, new Date()),
+      ),
+    )
+    .returning({ id: schema.mcpSessions.id });
+
+  if (!row) return null;
 
   return { accessToken: newAccessToken, refreshToken: newRefreshToken, expiresAt };
 }

@@ -730,6 +730,7 @@ export const mcpOAuthStates = pgTable(
   "mcp_oauth_states",
   {
     state: text("state").primaryKey(),
+    mcpClientId: text("mcp_client_id").notNull(),
     mcpCodeChallenge: text("mcp_code_challenge").notNull(),
     mcpRedirectUri: text("mcp_redirect_uri").notNull(),
     workosCodeVerifier: text("workos_code_verifier").notNull(),
@@ -745,6 +746,7 @@ export const mcpAuthCodes = pgTable(
     codeHash: text("code_hash").notNull().primaryKey(),
     userId: uuid("user_id").notNull(),
     organizationId: uuid("organization_id").notNull(),
+    clientId: text("client_id").notNull(),
     codeChallenge: text("code_challenge").notNull(),
     redirectUri: text("redirect_uri").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

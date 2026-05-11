@@ -14,11 +14,10 @@ import {
   exchangeWorkosCode,
   generateAuthCode,
   generateCodeChallenge,
-  refreshMcpSession,
+  rotateMcpRefreshToken,
   storeAuthCode,
   storeOAuthState,
   validateMcpToken,
-  validateRefreshToken,
 } from "./mcp-auth";
 
 type McpVariables = {
@@ -154,7 +153,12 @@ export function createMcpRoutes() {
           );
         }
 
-        const workosCodeVerifier = await storeOAuthState(state, codeChallenge, redirectUri);
+        const workosCodeVerifier = await storeOAuthState(
+          state,
+          codeChallenge,
+          redirectUri,
+          clientId,
+        );
         const workosCodeChallenge = generateCodeChallenge(workosCodeVerifier);
 
         const workosAuthorizeUrl = new URL("https://api.workos.com/user_management/authorize");
@@ -270,6 +274,7 @@ export function createMcpRoutes() {
         await storeAuthCode(authCode, {
           userId: localUser.id,
           organizationId: localOrg.id,
+          clientId: oauthState.mcpClientId,
           codeChallenge: oauthState.mcpCodeChallenge,
           redirectUri: oauthState.mcpRedirectUri,
         });
@@ -346,14 +351,19 @@ export function createMcpRoutes() {
           }
 
           const clientId = typeof body["client_id"] === "string" ? body["client_id"] : undefined;
-          if (clientId) {
-            const client = await getMcpClient(clientId);
-            if (!client) {
-              return c.json(
-                { error: "invalid_client", error_description: "Unknown client_id" },
-                400,
-              );
-            }
+          if (!clientId || clientId !== authCodeEntry.clientId) {
+            return c.json(
+              {
+                error: "invalid_grant",
+                error_description: "client_id must match the authorization request",
+              },
+              400,
+            );
+          }
+
+          const client = await getMcpClient(clientId);
+          if (!client) {
+            return c.json({ error: "invalid_client", error_description: "Unknown client_id" }, 400);
           }
 
           const session = await createMcpSession(
@@ -381,15 +391,13 @@ export function createMcpRoutes() {
             );
           }
 
-          const session = await validateRefreshToken(refreshToken);
-          if (!session) {
+          const refreshed = await rotateMcpRefreshToken(refreshToken);
+          if (!refreshed) {
             return c.json(
               { error: "invalid_grant", error_description: "Invalid refresh token" },
               400,
             );
           }
-
-          const refreshed = await refreshMcpSession(session.id);
 
           return c.json({
             access_token: refreshed.accessToken,
