@@ -123,8 +123,10 @@ func parseGlobCharClass(pattern string) (string, int) {
 			b.WriteByte(']')
 			return b.String(), i + 1
 		}
-		if ch == '\\' {
-			b.WriteString(`\\`)
+		if ch == '\\' && i+1 < len(pattern) {
+			b.WriteByte('\\')
+			i++
+			b.WriteByte(pattern[i])
 			continue
 		}
 		b.WriteByte(ch)

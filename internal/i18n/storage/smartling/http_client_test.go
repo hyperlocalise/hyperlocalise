@@ -12,7 +12,71 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
+	for _, secs := range []int{0, -1} {
+		t.Run(fmt.Sprintf("timeoutSeconds_%d", secs), func(t *testing.T) {
+			c, err := NewHTTPClient(Config{
+				TimeoutSeconds: secs,
+				UserIdentifier: "id",
+				UserSecret:     "secret",
+			})
+			if err != nil {
+				t.Fatalf("NewHTTPClient: %v", err)
+			}
+			if got := c.http.Timeout; got != 30*time.Second {
+				t.Fatalf("default timeout: got %v want %v", got, 30*time.Second)
+			}
+		})
+	}
+}
+
+func TestHTTPClientDoHTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upstream failure", http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		stringsBaseURL: srv.URL,
+		http:           srv.Client(),
+	}
+	var out struct{}
+	err := client.getJSON(context.Background(), srv.URL+"/projects/x/translations", "token", &out)
+	if err == nil {
+		t.Fatal("expected non-2xx error, got nil")
+	}
+	if !strings.Contains(err.Error(), "status 502") {
+		t.Fatalf("expected status in error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "upstream failure") {
+		t.Fatalf("expected response body in error, got: %v", err)
+	}
+}
+
+func TestHTTPClientDoDecodeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `not-json`)
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		stringsBaseURL: srv.URL,
+		http:           srv.Client(),
+	}
+	var out struct{}
+	err := client.getJSON(context.Background(), srv.URL+"/ok", "token", &out)
+	if err == nil {
+		t.Fatal("expected decode error, got nil")
+	}
+	if !strings.Contains(err.Error(), "decode response") {
+		t.Fatalf("expected decode error, got: %v", err)
+	}
+}
 
 func TestHTTPClientAuthenticate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
