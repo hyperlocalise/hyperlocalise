@@ -350,9 +350,9 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 	defer srv.Close()
 
 	client := &HTTPClient{
-		authBaseURL:  srv.URL,
-		filesBaseURL: srv.URL,
-		http:         srv.Client(),
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
 		userIdentifier: "id",
 		userSecret:     "secret",
 	}

@@ -261,7 +261,6 @@ func newSmartlingTranslationMemoryDownloadCmd() *cobra.Command {
 	return cmd
 }
 
-
 type smartlingUploadSourcesOptions struct {
 	projectID      string
 	fileURI        string
