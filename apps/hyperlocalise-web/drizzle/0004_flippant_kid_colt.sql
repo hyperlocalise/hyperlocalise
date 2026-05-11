@@ -1,0 +1,1 @@
+ALTER TABLE "mcp_sessions" ADD COLUMN "client_id" text;

@@ -82,13 +82,24 @@ export async function storeOAuthState(
   const workosCodeVerifier = generateCodeVerifier();
   const encryptedVerifier = encryptString(workosCodeVerifier);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-  await db.insert(schema.mcpOAuthStates).values({
-    state,
-    mcpCodeChallenge,
-    mcpRedirectUri,
-    workosCodeVerifier: encryptedVerifier,
-    expiresAt,
-  });
+  await db
+    .insert(schema.mcpOAuthStates)
+    .values({
+      state,
+      mcpCodeChallenge,
+      mcpRedirectUri,
+      workosCodeVerifier: encryptedVerifier,
+      expiresAt,
+    })
+    .onConflictDoUpdate({
+      target: schema.mcpOAuthStates.state,
+      set: {
+        mcpCodeChallenge,
+        mcpRedirectUri,
+        workosCodeVerifier: encryptedVerifier,
+        expiresAt,
+      },
+    });
   return workosCodeVerifier;
 }
 
@@ -244,7 +255,7 @@ export async function exchangeWorkosCode(
 // MCP session management
 // ---------------------------------------------------------------------------
 
-export async function createMcpSession(userId: string, organizationId: string) {
+export async function createMcpSession(userId: string, organizationId: string, clientId?: string) {
   const accessToken = generateToken();
   const refreshToken = generateToken();
   const accessTokenHash = hashToken(accessToken);
@@ -265,6 +276,7 @@ export async function createMcpSession(userId: string, organizationId: string) {
     refreshTokenHash,
     expiresAt,
     refreshTokenExpiresAt,
+    clientId,
   });
 
   return { accessToken, refreshToken, expiresAt };
@@ -298,7 +310,7 @@ export async function validateRefreshToken(token: string) {
   return session;
 }
 
-export async function refreshMcpSession(sessionId: string, existingRefreshTokenExpiresAt: Date) {
+export async function refreshMcpSession(sessionId: string) {
   const newAccessToken = generateToken();
   const newRefreshToken = generateToken();
   const newAccessTokenHash = hashToken(newAccessToken);

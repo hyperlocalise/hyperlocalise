@@ -50,7 +50,7 @@ const mcpAuthMiddleware = createMiddleware<{ Variables: McpVariables }>(async (c
 
   c.set("mcpAuth", {
     token,
-    clientId: "mcp-client",
+    clientId: session.clientId ?? "mcp-client",
     scopes: ["mcp"],
     expiresAt: Math.floor(session.expiresAt.getTime() / 1000),
     extra: {
@@ -338,9 +338,21 @@ export function createMcpRoutes() {
             );
           }
 
+          const clientId = typeof body["client_id"] === "string" ? body["client_id"] : undefined;
+          if (clientId) {
+            const client = await getMcpClient(clientId);
+            if (!client) {
+              return c.json(
+                { error: "invalid_client", error_description: "Unknown client_id" },
+                400,
+              );
+            }
+          }
+
           const session = await createMcpSession(
             authCodeEntry.userId,
             authCodeEntry.organizationId,
+            clientId,
           );
 
           return c.json({
@@ -370,7 +382,7 @@ export function createMcpRoutes() {
             );
           }
 
-          const refreshed = await refreshMcpSession(session.id, session.refreshTokenExpiresAt);
+          const refreshed = await refreshMcpSession(session.id);
 
           return c.json({
             access_token: refreshed.accessToken,
