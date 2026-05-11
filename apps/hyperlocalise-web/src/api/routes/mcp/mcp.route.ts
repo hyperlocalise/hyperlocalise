@@ -383,15 +383,24 @@ export function createMcpRoutes() {
         if (grantType === "refresh_token") {
           const refreshToken =
             typeof body["refresh_token"] === "string" ? body["refresh_token"] : undefined;
+          const clientId = typeof body["client_id"] === "string" ? body["client_id"] : undefined;
 
-          if (!refreshToken) {
+          if (!refreshToken || !clientId) {
             return c.json(
-              { error: "invalid_request", error_description: "Missing refresh_token" },
+              {
+                error: "invalid_request",
+                error_description: "Missing refresh_token or client_id",
+              },
               400,
             );
           }
 
-          const refreshed = await rotateMcpRefreshToken(refreshToken);
+          const client = await getMcpClient(clientId);
+          if (!client) {
+            return c.json({ error: "invalid_client", error_description: "Unknown client_id" }, 400);
+          }
+
+          const refreshed = await rotateMcpRefreshToken(refreshToken, clientId);
           if (!refreshed) {
             return c.json(
               { error: "invalid_grant", error_description: "Invalid refresh token" },

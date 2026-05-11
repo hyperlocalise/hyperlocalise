@@ -308,8 +308,8 @@ export async function validateMcpToken(token: string) {
   return session;
 }
 
-/** Rotates tokens only if refresh_token still matches (single atomic UPDATE). */
-export async function rotateMcpRefreshToken(refreshToken: string) {
+/** Rotates tokens only if refresh_token and client_id still match (single atomic UPDATE). */
+export async function rotateMcpRefreshToken(refreshToken: string, clientId: string) {
   const oldRefreshHash = hashToken(refreshToken);
   const newAccessToken = generateToken();
   const newRefreshToken = generateToken();
@@ -328,6 +328,7 @@ export async function rotateMcpRefreshToken(refreshToken: string) {
     .where(
       and(
         eq(schema.mcpSessions.refreshTokenHash, oldRefreshHash),
+        eq(schema.mcpSessions.clientId, clientId),
         gt(schema.mcpSessions.refreshTokenExpiresAt, new Date()),
       ),
     )

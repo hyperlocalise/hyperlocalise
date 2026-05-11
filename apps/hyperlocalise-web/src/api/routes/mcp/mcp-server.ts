@@ -29,24 +29,31 @@ mcpServer.registerTool(
       };
     }
 
-    const projects = await db
-      .select({
-        id: schema.projects.id,
-        name: schema.projects.name,
-        description: schema.projects.description,
-        createdAt: schema.projects.createdAt,
-      })
-      .from(schema.projects)
-      .where(eq(schema.projects.organizationId, organizationId))
-      .orderBy(desc(schema.projects.createdAt));
+    try {
+      const projects = await db
+        .select({
+          id: schema.projects.id,
+          name: schema.projects.name,
+          description: schema.projects.description,
+          createdAt: schema.projects.createdAt,
+        })
+        .from(schema.projects)
+        .where(eq(schema.projects.organizationId, organizationId))
+        .orderBy(desc(schema.projects.createdAt));
 
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({ projects }),
-        },
-      ],
-    };
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ projects }),
+          },
+        ],
+      };
+    } catch {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ error: "internal_error" }) }],
+        isError: true,
+      };
+    }
   },
 );
