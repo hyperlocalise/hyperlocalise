@@ -28,6 +28,8 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                   {isExternalHref(link.href) ? (
                     <a
                       href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
                       {link.label}

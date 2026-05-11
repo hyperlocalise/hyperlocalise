@@ -311,7 +311,9 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                   <Button
                     variant="outline"
                     className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                    render={<a href={installationSettingsUrl} target="_blank" rel="noreferrer" />}
+                    render={
+                      <a href={installationSettingsUrl} target="_blank" rel="noopener noreferrer" />
+                    }
                   >
                     Manage access
                   </Button>

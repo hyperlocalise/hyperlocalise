@@ -14,7 +14,7 @@ export function FinalCtaSection() {
         <Button
           className="rounded-full px-5"
           nativeButton={false}
-          render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noreferrer" />}
+          render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />}
         >
           Join waitlist
         </Button>
@@ -22,7 +22,7 @@ export function FinalCtaSection() {
           variant="outline"
           className="rounded-full border-border bg-muted/40 px-5 text-foreground hover:bg-muted"
           nativeButton={false}
-          render={<a href={githubRepoUrl} target="_blank" rel="noreferrer" />}
+          render={<a href={githubRepoUrl} target="_blank" rel="noopener noreferrer" />}
         >
           View GitHub
         </Button>
