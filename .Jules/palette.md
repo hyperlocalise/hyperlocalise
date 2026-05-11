@@ -1,3 +1,0 @@
-## 2026-05-10 - [Standardizing Accessible Icon Buttons & Async Feedback]
-**Learning:** The idiomatic pattern for accessible icon buttons with tooltips in this app involves wrapping the `Button` in a `TooltipTrigger` (using the `render` prop) and providing both the icon and an `<span className="sr-only">` label as children. For async actions, adding the `Spinner` component to primary/destructive buttons during `isSaving`/`isDeleting` states significantly improves perceived responsiveness and prevents double-submissions.
-**Action:** Always use `sr-only` spans alongside tooltips for icon-only buttons, and prefer the `Spinner` component for all button loading states.
