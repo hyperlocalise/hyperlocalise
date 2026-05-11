@@ -41,7 +41,6 @@ func TestHTTPClientWriteTranslationMemoryCSV(t *testing.T) {
 		TranslationMemoryUID: "tm1",
 		SourceLanguage:       "en-US",
 	}, out)
-
 	if err != nil {
 		t.Fatalf("WriteTranslationMemoryCSV: %v", err)
 	}
@@ -83,7 +82,6 @@ func TestHTTPClientWriteTranslationMemoryTMX(t *testing.T) {
 		TranslationMemoryUID: "tm1",
 		SourceLanguage:       "en-US",
 	}, out)
-
 	if err != nil {
 		t.Fatalf("WriteTranslationMemoryTMX: %v", err)
 	}
