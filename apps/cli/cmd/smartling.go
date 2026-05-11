@@ -27,6 +27,7 @@ func newSmartlingCmd() *cobra.Command {
 		Short: "Smartling compatibility subcommands",
 	}
 	cmd.AddCommand(newSmartlingGlossaryCmd())
+	cmd.AddCommand(newSmartlingTranslationMemoryCmd())
 	return cmd
 }
 
@@ -132,6 +133,129 @@ func newSmartlingGlossaryDownloadCmd() *cobra.Command {
 
 	_ = cmd.MarkFlagRequired("account-uid")
 	_ = cmd.MarkFlagRequired("glossary-uid")
+
+	return cmd
+}
+
+type smartlingTranslationMemoryDownloadOptions struct {
+	accountUID           string
+	translationMemoryUID string
+	userIdentifier       string
+	userSecret           string
+	userSecretEnv        string
+	sourceLanguage       string
+	targetLanguages      []string
+	format               string
+	outputPath           string
+}
+
+func newSmartlingTranslationMemoryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "tm",
+		Aliases: []string{"translation-memory"},
+		Short:   "Smartling translation memory commands",
+	}
+	cmd.AddCommand(newSmartlingTranslationMemoryDownloadCmd())
+	return cmd
+}
+
+func newSmartlingTranslationMemoryDownloadCmd() *cobra.Command {
+	o := smartlingTranslationMemoryDownloadOptions{}
+	cmd := &cobra.Command{
+		Use:          "download",
+		Short:        "download Smartling translation memory entries",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			outputFormat, err := normalizeTranslationMemoryDownloadFormat(o.format)
+			if err != nil {
+				return fmt.Errorf("smartling tm download: %w", err)
+			}
+
+			ctx := context.Background()
+			cfg := smartling.Config{
+				UserIdentifier: strings.TrimSpace(o.userIdentifier),
+				UserSecret:     strings.TrimSpace(o.userSecret),
+				UserSecretEnv:  strings.TrimSpace(o.userSecretEnv),
+			}
+
+			if cfg.UserSecret == "" {
+				envVar := cfg.UserSecretEnv
+				if envVar == "" {
+					envVar = "SMARTLING_USER_SECRET"
+				}
+				cfg.UserSecret = os.Getenv(envVar)
+			}
+			if cfg.UserIdentifier == "" {
+				cfg.UserIdentifier = os.Getenv("SMARTLING_USER_IDENTIFIER")
+			}
+			if cfg.UserIdentifier == "" || cfg.UserSecret == "" {
+				return fmt.Errorf("smartling tm download: credentials are required (via flags or SMARTLING_USER_IDENTIFIER/SMARTLING_USER_SECRET)")
+			}
+
+			client, err := smartling.NewHTTPClient(cfg)
+			if err != nil {
+				return err
+			}
+
+			outputPath := strings.TrimSpace(o.outputPath)
+			out := cmd.OutOrStdout()
+			var closeOut func() error
+			var tempPath string
+			if outputPath != "" {
+				file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
+				if err != nil {
+					return fmt.Errorf("create temporary translation memory output: %w", err)
+				}
+				out = file
+				tempPath = file.Name()
+				closeOut = file.Close
+			}
+
+			result, err := writeSmartlingTranslationMemory(ctx, client, smartling.TranslationMemoryDownloadRequest{
+				AccountUID:           o.accountUID,
+				TranslationMemoryUID: o.translationMemoryUID,
+				SourceLanguage:       o.sourceLanguage,
+				TargetLanguages:      o.targetLanguages,
+			}, outputFormat, out)
+
+			if closeOut != nil {
+				if closeErr := closeOut(); closeErr != nil && err == nil {
+					err = fmt.Errorf("close translation memory output: %w", closeErr)
+				}
+			}
+
+			if err != nil {
+				if tempPath != "" {
+					_ = os.Remove(tempPath)
+				}
+				return err
+			}
+
+			if outputPath != "" {
+				if err := os.Rename(tempPath, outputPath); err != nil {
+					_ = os.Remove(tempPath)
+					return fmt.Errorf("replace translation memory output: %w", err)
+				}
+				_, _ = writeTranslationMemoryDownloadSummary(cmd.OutOrStdout(), outputPath, outputFormat, result.Rows, result.Segments)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&o.accountUID, "account-uid", "", "Smartling account UID")
+	cmd.Flags().StringVar(&o.translationMemoryUID, "tm-uid", "", "Smartling translation memory UID")
+	cmd.Flags().StringVar(&o.userIdentifier, "user-id", "", "Smartling user identifier")
+	cmd.Flags().StringVar(&o.userSecret, "user-secret", "", "Smartling user secret")
+	cmd.Flags().StringVar(&o.userSecretEnv, "user-secret-env", "", "Environment variable for Smartling user secret")
+	cmd.Flags().StringVar(&o.sourceLanguage, "source-language", "", "source language ID to export")
+	cmd.Flags().StringSliceVarP(&o.targetLanguages, "target-language", "l", nil, "target language ID(s) to export")
+	cmd.Flags().StringVar(&o.format, "format", "csv", "download format: csv or tmx")
+	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "write output to file instead of stdout")
+
+	_ = cmd.MarkFlagRequired("account-uid")
+	_ = cmd.MarkFlagRequired("tm-uid")
+	_ = cmd.MarkFlagRequired("source-language")
 
 	return cmd
 }
