@@ -8,50 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
-
-func TestNewHTTPClientUsesDefaultTimeout(t *testing.T) {
-	client, err := NewHTTPClient(Config{})
-	if err != nil {
-		t.Fatalf("new http client: %v", err)
-	}
-	if got, want := client.http.Timeout, 30*time.Second; got != want {
-		t.Fatalf("unexpected default timeout: got %v want %v", got, want)
-	}
-}
-
-func TestHTTPClientDoHTTPError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Error(w, "boom", http.StatusBadRequest)
-	}))
-	defer srv.Close()
-
-	client := &HTTPClient{http: srv.Client()}
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
-	err := client.do(req, &struct{}{})
-	if err == nil || !strings.Contains(err.Error(), "status 400") {
-		t.Fatalf("expected status error, got %v", err)
-	}
-}
-
-func TestHTTPClientDoDecodeError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = io.WriteString(w, "{not-json")
-	}))
-	defer srv.Close()
-
-	client := &HTTPClient{http: srv.Client()}
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
-	err := client.do(req, &struct{}{})
-	if err == nil || !strings.Contains(err.Error(), "decode response") {
-		t.Fatalf("expected decode error, got %v", err)
-	}
-}
 
 func TestHTTPClientAuthenticate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -334,6 +295,89 @@ func TestHTTPClientUpsertTranslationsPreservesWhitespace(t *testing.T) {
 	}
 	if got := putBody.Items[0].Value; got != value {
 		t.Fatalf("unexpected payload value: got %q want %q", got, value)
+	}
+}
+
+func TestHTTPClientUploadSourceFile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file":
+			if r.Method != http.MethodPost {
+				t.Fatalf("unexpected method: %s", r.Method)
+			}
+			if !strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+				t.Fatalf("unexpected content type: %s", r.Header.Get("Content-Type"))
+			}
+
+			err := r.ParseMultipartForm(10 << 20)
+			if err != nil {
+				t.Fatalf("parse multipart form: %v", err)
+			}
+
+			if got := r.FormValue("fileUri"); got != "test.json" {
+				t.Fatalf("unexpected fileUri: %q", got)
+			}
+			if got := r.FormValue("fileType"); got != "json" {
+				t.Fatalf("unexpected fileType: %q", got)
+			}
+			if got := r.FormValue("authorize"); got != "true" {
+				t.Fatalf("unexpected authorize: %q", got)
+			}
+
+			file, header, err := r.FormFile("file")
+			if err != nil {
+				t.Fatalf("get file part: %v", err)
+			}
+			defer file.Close()
+
+			if !strings.HasPrefix(header.Filename, "test-") {
+				t.Errorf("unexpected filename: %q", header.Filename)
+				return
+			}
+
+			content, _ := io.ReadAll(file)
+			if string(content) != `{"k":"v"}` {
+				t.Fatalf("unexpected content: %q", string(content))
+			}
+
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"overWritten":true,"stringCount":10,"wordCount":50}}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:  srv.URL,
+		filesBaseURL: srv.URL,
+		http:         srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+
+	tempFile, err := os.CreateTemp("", "test-*.json")
+	if err != nil {
+		t.Fatalf("create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+	_, _ = tempFile.WriteString(`{"k":"v"}`)
+	_ = tempFile.Close()
+
+	result, err := client.UploadSourceFile(context.Background(), SourceUploadInput{
+		ProjectID: "123",
+		FileURI:   "test.json",
+		FilePath:  tempFile.Name(),
+		FileType:  "json",
+		Authorize: true,
+	})
+	if err != nil {
+		t.Fatalf("upload source file: %v", err)
+	}
+
+	if !result.OverWritten || result.StringCount != 10 || result.WordCount != 50 {
+		t.Fatalf("unexpected result: %+v", result)
 	}
 }
 

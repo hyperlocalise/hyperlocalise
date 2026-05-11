@@ -9,8 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -22,6 +25,7 @@ const (
 	stringsAPIBaseURL  = "https://api.smartling.com/strings-api/v2"
 	glossaryAPIBaseURL = "https://api.smartling.com/glossary-api/v2"
 	tmAPIBaseURL       = "https://api.smartling.com/translation-memory-api/v2"
+	filesAPIBaseURL    = "https://api.smartling.com/files-api/v2"
 	translationsLimit  = 500
 	glossaryLimit      = 500
 )
@@ -31,6 +35,7 @@ type HTTPClient struct {
 	stringsBaseURL  string
 	glossaryBaseURL string
 	tmBaseURL       string
+	filesBaseURL    string
 	http            *http.Client
 	userIdentifier  string
 	userSecret      string
@@ -51,10 +56,109 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		stringsBaseURL:  stringsAPIBaseURL,
 		glossaryBaseURL: glossaryAPIBaseURL,
 		tmBaseURL:       tmAPIBaseURL,
+		filesBaseURL:    filesAPIBaseURL,
 		http:            &http.Client{Timeout: timeout},
 		userIdentifier:  cfg.UserIdentifier,
 		userSecret:      cfg.UserSecret,
 	}, nil
+}
+
+// SourceUploadInput contains the parameters for uploading a source file to Smartling.
+type SourceUploadInput struct {
+	ProjectID string
+	FileURI   string
+	FilePath  string
+	FileType  string
+	Authorize bool
+}
+
+// SourceUploadResult contains the results of a source file upload to Smartling.
+type SourceUploadResult struct {
+	OverWritten bool `json:"overWritten"`
+	StringCount int  `json:"stringCount"`
+	WordCount   int  `json:"wordCount"`
+}
+
+// UploadSourceFile uploads a source file to Smartling.
+func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput) (SourceUploadResult, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return SourceUploadResult{}, fmt.Errorf("smartling upload: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return SourceUploadResult{}, fmt.Errorf("smartling upload: file uri is required")
+	}
+	if strings.TrimSpace(in.FilePath) == "" {
+		return SourceUploadResult{}, fmt.Errorf("smartling upload: file path is required")
+	}
+	if strings.TrimSpace(in.FileType) == "" {
+		return SourceUploadResult{}, fmt.Errorf("smartling upload: file type is required")
+	}
+
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return SourceUploadResult{}, err
+	}
+
+	endpoint := fmt.Sprintf("%s/projects/%s/file", c.filesBaseURL, url.PathEscape(in.ProjectID))
+	params := map[string]string{
+		"fileUri":   in.FileURI,
+		"fileType":  in.FileType,
+		"authorize": fmt.Sprintf("%t", in.Authorize),
+	}
+
+	var resp struct {
+		Response struct {
+			Code string `json:"code"`
+		} `json:"response"`
+		Data SourceUploadResult `json:"data"`
+	}
+
+	if err := c.uploadMultipart(ctx, endpoint, token, params, "file", in.FilePath, &resp); err != nil {
+		return SourceUploadResult{}, fmt.Errorf("smartling upload file: %w", err)
+	}
+
+	return resp.Data, nil
+}
+
+func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	for key, val := range params {
+		if err := writer.WriteField(key, val); err != nil {
+			return fmt.Errorf("write form field %s: %w", key, err)
+		}
+	}
+
+	part, err := writer.CreateFormFile(fileFieldName, filepath.Base(filePath))
+	if err != nil {
+		return fmt.Errorf("create form file: %w", err)
+	}
+
+	if _, err := io.Copy(part, file); err != nil {
+		return fmt.Errorf("copy file to form: %w", err)
+	}
+
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("close multipart writer: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, body)
+	if err != nil {
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	return c.do(req, out)
 }
 
 func (c *HTTPClient) ListTranslations(ctx context.Context, in ListTranslationsInput) ([]StringTranslation, string, error) {
@@ -100,36 +204,37 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	if len(in.Entries) == 0 {
 		return time.Now().UTC().Format(time.RFC3339Nano), nil
 	}
+
 	token, err := c.accessToken(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	grouped := make(map[string][]StringTranslation)
+	byLocale := make(map[string][]StringTranslation)
 	for _, entry := range in.Entries {
-		key := strings.TrimSpace(entry.Key)
 		locale := strings.TrimSpace(entry.Locale)
-		if key == "" || locale == "" || strings.TrimSpace(entry.Value) == "" {
+		if locale == "" {
 			continue
 		}
-		grouped[locale] = append(grouped[locale], StringTranslation{
-			Key:     key,
-			Context: strings.TrimSpace(entry.Context),
-			Locale:  locale,
-			Value:   entry.Value,
-		})
+		byLocale[locale] = append(byLocale[locale], entry)
 	}
 
-	for locale, items := range grouped {
-		if err := c.upsertLocaleTranslations(ctx, token, in.ProjectID, locale, items); err != nil {
-			return "", err
+	errs := make([]error, 0)
+	for locale, entries := range byLocale {
+		if err := c.upsertLocaleTranslations(ctx, token, in.ProjectID, locale, entries); err != nil {
+			errs = append(errs, err)
 		}
+	}
+
+	if len(errs) > 0 {
+		return "", errors.Join(errs...)
 	}
 
 	return time.Now().UTC().Format(time.RFC3339Nano), nil
 }
 
 func (c *HTTPClient) authenticate(ctx context.Context) (string, error) {
+	endpoint := fmt.Sprintf("%s/authenticate", c.authBaseURL)
 	payload := map[string]string{
 		"userIdentifier": c.userIdentifier,
 		"userSecret":     c.userSecret,
@@ -145,19 +250,14 @@ func (c *HTTPClient) authenticate(ctx context.Context) (string, error) {
 		} `json:"data"`
 	}
 
-	if err := c.postJSON(ctx, c.authBaseURL+"/authenticate", "", payload, &resp); err != nil {
-		return "", fmt.Errorf("authenticate: %w", err)
-	}
-	if strings.TrimSpace(resp.Data.AccessToken) == "" {
-		return "", fmt.Errorf("authenticate: empty access token")
+	if err := c.postJSON(ctx, endpoint, "", payload, &resp); err != nil {
+		return "", fmt.Errorf("smartling authenticate: %w", err)
 	}
 
 	c.tokenMu.Lock()
 	c.cachedAccessToken = resp.Data.AccessToken
 	if resp.Data.ExpiresIn > 0 {
-		expiry := time.Now().UTC().Add(time.Duration(resp.Data.ExpiresIn) * time.Second)
-		// Refresh slightly before expiry to avoid edge-of-window failures.
-		c.tokenExpiresAt = expiry.Add(-15 * time.Second)
+		c.tokenExpiresAt = time.Now().UTC().Add(time.Duration(resp.Data.ExpiresIn) * time.Second).Add(-time.Minute)
 	} else {
 		c.tokenExpiresAt = time.Time{}
 	}

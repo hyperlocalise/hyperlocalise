@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -28,6 +29,10 @@ func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslations
 		return "", f.upsertErr
 	}
 	return "rev2", nil
+}
+
+func (f *fakeClient) UploadSourceFile(_ context.Context, _ SourceUploadInput) (SourceUploadResult, error) {
+	return SourceUploadResult{}, f.upsertErr
 }
 
 func TestParseConfigUsesEnvSecret(t *testing.T) {
@@ -203,5 +208,41 @@ func TestNewBuildsAdapterFromRawConfig(t *testing.T) {
 	}
 	if got := adapter.Name(); got != AdapterName {
 		t.Fatalf("unexpected adapter name: %q", got)
+	}
+}
+
+func TestAdapterUploadSources(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	tempDir := t.TempDir()
+	tempFile := filepath.Join(tempDir, "test.json")
+	if err := os.WriteFile(tempFile, []byte(`{"k":"v"}`), 0o644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	req := storage.FileUploadSourcesRequest{
+		Config: storage.FileWorkflowConfig{
+			ProjectID: "123",
+			BasePath:  tempDir,
+			Files: []storage.FileGroupSpec{
+				{Source: "test.json"},
+			},
+		},
+	}
+
+	result, err := adapter.UploadSources(context.Background(), req)
+	if err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+
+	if got := len(result.Processed); got != 1 {
+		t.Fatalf("expected 1 processed file, got %d", got)
+	}
+	if result.Processed[0] != tempFile {
+		t.Fatalf("unexpected processed file: %q", result.Processed[0])
 	}
 }

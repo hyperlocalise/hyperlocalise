@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -45,6 +46,7 @@ type UpsertTranslationsInput struct {
 type Client interface {
 	ListTranslations(ctx context.Context, in ListTranslationsInput) ([]StringTranslation, string, error)
 	UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (string, error)
+	UploadSourceFile(ctx context.Context, in SourceUploadInput) (SourceUploadResult, error)
 }
 
 type Adapter struct {
@@ -207,4 +209,81 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 		return storage.PushResult{}, fmt.Errorf("smartling push: %w", err)
 	}
 	return storage.PushResult{Applied: applied, Revision: revision}, nil
+}
+
+func (a *Adapter) FileWorkflowCapabilities() storage.FileWorkflowCapabilities {
+	return storage.FileWorkflowCapabilities{
+		SupportsSourceUpload: true,
+	}
+}
+
+func (a *Adapter) UploadSources(ctx context.Context, req storage.FileUploadSourcesRequest) (storage.FileOperationResult, error) {
+	result := storage.FileOperationResult{}
+	for _, fileGroup := range req.Config.Files {
+		sourcePaths, err := resolveSourcePaths(req.Config.BasePath, fileGroup.Source)
+		if err != nil {
+			return result, err
+		}
+
+		for _, path := range sourcePaths {
+			// In Smartling, fileUri is typically the relative path from project root
+			fileUri, err := filepath.Rel(req.Config.BasePath, path)
+			if err != nil {
+				fileUri = filepath.Base(path)
+			}
+			fileUri = filepath.ToSlash(fileUri)
+
+			fileType := ""
+			ext := strings.ToLower(filepath.Ext(path))
+			switch ext {
+			case ".json":
+				fileType = "json"
+			case ".yaml", ".yml":
+				fileType = "yaml"
+			case ".xml":
+				fileType = "xml"
+			case ".html", ".htm":
+				fileType = "html"
+			case ".csv":
+				fileType = "csv"
+			case ".strings":
+				fileType = "ios"
+			case ".stringsdict":
+				fileType = "ios_stringsdict"
+			case ".properties":
+				fileType = "javaProperties"
+			case ".xliff", ".xlf":
+				fileType = "xliff"
+			case ".md", ".markdown":
+				fileType = "markdown"
+			default:
+				result.Warnings = append(result.Warnings, storage.Warning{
+					Message: fmt.Sprintf("unsupported file extension %q for %s, skipping", ext, path),
+				})
+				result.Skipped = append(result.Skipped, path)
+				continue
+			}
+
+			_, err = a.client.UploadSourceFile(ctx, SourceUploadInput{
+				ProjectID: req.Config.ProjectID,
+				FileURI:   fileUri,
+				FilePath:  path,
+				FileType:  fileType,
+				Authorize: true,
+			})
+			if err != nil {
+				return result, fmt.Errorf("upload %s: %w", path, err)
+			}
+			result.Processed = append(result.Processed, path)
+		}
+	}
+	return result, nil
+}
+
+func (a *Adapter) UploadTranslations(ctx context.Context, req storage.FileUploadTranslationsRequest) (storage.FileOperationResult, error) {
+	return storage.FileOperationResult{}, fmt.Errorf("smartling adapter: UploadTranslations not implemented")
+}
+
+func (a *Adapter) DownloadTranslations(ctx context.Context, req storage.FileDownloadTranslationsRequest) (storage.FileOperationResult, error) {
+	return storage.FileOperationResult{}, fmt.Errorf("smartling adapter: DownloadTranslations not implemented")
 }
