@@ -36,6 +36,13 @@
       "when": 1778459740617,
       "tag": "0004_third_expediter",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778460472750,
+      "tag": "0005_plain_bastion",
+      "breakpoints": true
     }
   ]
 }

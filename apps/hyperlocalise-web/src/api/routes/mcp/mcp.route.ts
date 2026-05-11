@@ -70,6 +70,15 @@ function getBaseUrl(c: { req: { url: string } }): string {
   return new URL(c.req.url).origin;
 }
 
+async function getMcpClient(clientId: string) {
+  const [client] = await db
+    .select()
+    .from(schema.mcpClients)
+    .where(eq(schema.mcpClients.clientId, clientId))
+    .limit(1);
+  return client ?? undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Route module
 // ---------------------------------------------------------------------------
@@ -89,12 +98,13 @@ export function createMcpRoutes() {
 
         const query = c.req.query();
 
+        const clientId = query["client_id"];
         const redirectUri = query["redirect_uri"];
         const state = query["state"];
         const codeChallenge = query["code_challenge"];
         const codeChallengeMethod = query["code_challenge_method"] ?? "S256";
 
-        if (!redirectUri || !state || !codeChallenge) {
+        if (!clientId || !redirectUri || !state || !codeChallenge) {
           return c.json(
             { error: "invalid_request", error_description: "Missing required parameters" },
             400,
@@ -104,6 +114,18 @@ export function createMcpRoutes() {
         if (codeChallengeMethod !== "S256") {
           return c.json(
             { error: "invalid_request", error_description: "Only S256 PKCE is supported" },
+            400,
+          );
+        }
+
+        const client = await getMcpClient(clientId);
+        if (!client) {
+          return c.json({ error: "invalid_client", error_description: "Unknown client_id" }, 400);
+        }
+
+        if (!client.allowedRedirectUris.includes(redirectUri)) {
+          return c.json(
+            { error: "invalid_request", error_description: "Invalid redirect_uri" },
             400,
           );
         }
@@ -249,14 +271,35 @@ export function createMcpRoutes() {
           return c.json({ error: "mcp_disabled" }, 503);
         }
 
-        const body = await c.req.json().catch(() => ({}));
+        const contentType = c.req.header("content-type") ?? "";
+        let body: Record<string, unknown>;
+        try {
+          if (contentType.includes("application/x-www-form-urlencoded")) {
+            const form = await c.req.parseBody();
+            body = Object.fromEntries(
+              Object.entries(form).map(([k, v]) => [
+                k,
+                typeof v === "string" ? v : JSON.stringify(v),
+              ]),
+            );
+          } else {
+            body = await c.req.json();
+          }
+        } catch {
+          return c.json(
+            { error: "invalid_request", error_description: "Malformed request body" },
+            400,
+          );
+        }
 
         const grantType = body["grant_type"];
 
         if (grantType === "authorization_code") {
-          const code = body["code"];
-          const codeVerifier = body["code_verifier"];
-          const redirectUri = body["redirect_uri"];
+          const code = typeof body["code"] === "string" ? body["code"] : undefined;
+          const codeVerifier =
+            typeof body["code_verifier"] === "string" ? body["code_verifier"] : undefined;
+          const redirectUri =
+            typeof body["redirect_uri"] === "string" ? body["redirect_uri"] : undefined;
 
           if (!code || !codeVerifier || !redirectUri) {
             return c.json(
@@ -304,7 +347,8 @@ export function createMcpRoutes() {
         }
 
         if (grantType === "refresh_token") {
-          const refreshToken = body["refresh_token"];
+          const refreshToken =
+            typeof body["refresh_token"] === "string" ? body["refresh_token"] : undefined;
 
           if (!refreshToken) {
             return c.json(

@@ -700,6 +700,31 @@ export const mcpSessions = pgTable(
   ],
 );
 
+export const mcpClients = pgTable(
+  "mcp_clients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    clientId: text("client_id").notNull(),
+    name: text("name").notNull(),
+    allowedRedirectUris: jsonb("allowed_redirect_uris")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("mcp_clients_client_id_key").on(table.clientId),
+    index("idx_mcp_clients_org").on(table.organizationId),
+  ],
+);
+
 export const mcpOAuthStates = pgTable(
   "mcp_oauth_states",
   {
@@ -717,8 +742,8 @@ export const mcpAuthCodes = pgTable(
   "mcp_auth_codes",
   {
     code: text("code").primaryKey(),
-    userId: text("user_id").notNull(),
-    organizationId: text("organization_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    organizationId: uuid("organization_id").notNull(),
     codeChallenge: text("code_challenge").notNull(),
     redirectUri: text("redirect_uri").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
