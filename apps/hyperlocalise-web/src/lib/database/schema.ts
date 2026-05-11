@@ -678,6 +678,27 @@ export const tmsLinks = pgTable(
   ],
 );
 
+export const mcpSessions = pgTable(
+  "mcp_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    accessTokenHash: text("access_token_hash").notNull(),
+    refreshTokenHash: text("refresh_token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_mcp_sessions_access_token_hash").on(table.accessTokenHash),
+    index("idx_mcp_sessions_refresh_token_hash").on(table.refreshTokenHash),
+  ],
+);
+
 export const organizationApiKeys = pgTable(
   "organization_api_keys",
   {

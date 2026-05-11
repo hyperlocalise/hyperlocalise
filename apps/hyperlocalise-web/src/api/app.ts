@@ -10,6 +10,7 @@ import type {
 } from "@/lib/workflow/types";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
+import { createMcpRoutes } from "./routes/mcp/mcp.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth";
 import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
@@ -82,7 +83,8 @@ export function createApp(options: CreateAppOptions = {}) {
         emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
     )
-    .route("/webhooks/slack", createSlackWebhookRoutes());
+    .route("/webhooks/slack", createSlackWebhookRoutes())
+    .route("/mcp", createMcpRoutes());
 }
 
 export const app = createApp();

@@ -73,6 +73,15 @@ export const env = createEnv({
     /** Slack signing secret for webhook verification. Required for secure Slack webhook handling. */
     SLACK_SIGNING_SECRET: z.string().min(1).optional(),
 
+    /** Enable MCP HTTP server and OAuth authorization endpoints. */
+    MCP_AUTH_ENABLED: z.enum(["true", "false"]).default("true"),
+
+    /** Access token lifetime in minutes. */
+    MCP_TOKEN_LIFETIME_MINUTES: z.coerce.number().min(1).default(60),
+
+    /** Refresh token lifetime in days. */
+    MCP_REFRESH_TOKEN_LIFETIME_DAYS: z.coerce.number().min(1).default(30),
+
     /** Object storage adapter for durable uploaded and generated files. */
     FILE_STORAGE_PROVIDER: z.enum(["vercel_blob"]).default("vercel_blob"),
 
@@ -132,6 +141,9 @@ export const env = createEnv({
       process.env.SLACK_CLIENT_SECRET ?? (isTestEnv ? "test-slack-client-secret" : undefined),
     SLACK_SIGNING_SECRET:
       process.env.SLACK_SIGNING_SECRET ?? (isTestEnv ? "test-slack-signing-secret" : undefined),
+    MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED,
+    MCP_TOKEN_LIFETIME_MINUTES: process.env.MCP_TOKEN_LIFETIME_MINUTES,
+    MCP_REFRESH_TOKEN_LIFETIME_DAYS: process.env.MCP_REFRESH_TOKEN_LIFETIME_DAYS,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:
