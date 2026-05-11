@@ -21,6 +21,7 @@ const (
 	authAPIBaseURL     = "https://api.smartling.com/auth-api/v2"
 	stringsAPIBaseURL  = "https://api.smartling.com/strings-api/v2"
 	glossaryAPIBaseURL = "https://api.smartling.com/glossary-api/v2"
+	tmAPIBaseURL       = "https://api.smartling.com/translation-memory-api/v2"
 	translationsLimit  = 500
 	glossaryLimit      = 500
 )
@@ -29,6 +30,7 @@ type HTTPClient struct {
 	authBaseURL     string
 	stringsBaseURL  string
 	glossaryBaseURL string
+	tmBaseURL       string
 	http            *http.Client
 	userIdentifier  string
 	userSecret      string
@@ -48,6 +50,7 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 		authBaseURL:     authAPIBaseURL,
 		stringsBaseURL:  stringsAPIBaseURL,
 		glossaryBaseURL: glossaryAPIBaseURL,
+		tmBaseURL:       tmAPIBaseURL,
 		http:            &http.Client{Timeout: timeout},
 		userIdentifier:  cfg.UserIdentifier,
 		userSecret:      cfg.UserSecret,
