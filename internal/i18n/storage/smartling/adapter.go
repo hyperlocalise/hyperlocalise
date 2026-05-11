@@ -225,6 +225,13 @@ func (a *Adapter) UploadSources(ctx context.Context, req storage.FileUploadSourc
 			return result, err
 		}
 
+		if len(sourcePaths) == 0 {
+			result.Warnings = append(result.Warnings, storage.Warning{
+				Message: fmt.Sprintf("source pattern %q matched no files", fileGroup.Source),
+			})
+			continue
+		}
+
 		for _, path := range sourcePaths {
 			// In Smartling, fileUri is typically the relative path from project root
 			fileUri, err := filepath.Rel(req.Config.BasePath, path)

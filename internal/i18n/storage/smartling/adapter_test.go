@@ -13,10 +13,11 @@ import (
 )
 
 type fakeClient struct {
-	items        []StringTranslation
-	listRevision string
-	upsertIn     UpsertTranslationsInput
-	upsertErr    error
+	items             []StringTranslation
+	listRevision      string
+	upsertIn          UpsertTranslationsInput
+	upsertErr         error
+	uploadSourceCalls int
 }
 
 func (f *fakeClient) ListTranslations(_ context.Context, _ ListTranslationsInput) ([]StringTranslation, string, error) {
@@ -32,6 +33,7 @@ func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslations
 }
 
 func (f *fakeClient) UploadSourceFile(_ context.Context, _ SourceUploadInput) (SourceUploadResult, error) {
+	f.uploadSourceCalls++
 	return SourceUploadResult{}, f.upsertErr
 }
 
@@ -244,5 +246,46 @@ func TestAdapterUploadSources(t *testing.T) {
 	}
 	if result.Processed[0] != tempFile {
 		t.Fatalf("unexpected processed file: %q", result.Processed[0])
+	}
+}
+
+func TestAdapterUploadSourcesWarnsWhenSourcePatternMatchesNoFiles(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", UserIdentifier: "uid", UserSecret: "sec"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	tempDir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(tempDir, "locales"), 0o755); err != nil {
+		t.Fatalf("make locales dir: %v", err)
+	}
+
+	req := storage.FileUploadSourcesRequest{
+		Config: storage.FileWorkflowConfig{
+			ProjectID: "123",
+			BasePath:  tempDir,
+			Files: []storage.FileGroupSpec{
+				{Source: "locales/**/*.json"},
+			},
+		},
+	}
+
+	result, err := adapter.UploadSources(context.Background(), req)
+	if err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+
+	if got := len(result.Processed); got != 0 {
+		t.Fatalf("expected no processed files, got %d", got)
+	}
+	if got := client.uploadSourceCalls; got != 0 {
+		t.Fatalf("expected no upload calls, got %d", got)
+	}
+	if got := len(result.Warnings); got != 1 {
+		t.Fatalf("expected 1 warning, got %d", got)
+	}
+	if !strings.Contains(result.Warnings[0].Message, `source pattern "locales/**/*.json" matched no files`) {
+		t.Fatalf("unexpected warning: %+v", result.Warnings[0])
 	}
 }
