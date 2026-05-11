@@ -8,14 +8,12 @@ import { db, schema } from "@/lib/database";
 import { and, eq } from "drizzle-orm";
 import { mcpTransport } from "./mcp-transport";
 import {
+  consumeAuthCode,
+  consumeOAuthState,
   createMcpSession,
-  deleteAuthCode,
-  deleteOAuthState,
   exchangeWorkosCode,
   generateAuthCode,
   generateCodeChallenge,
-  getAuthCode,
-  getOAuthState,
   refreshMcpSession,
   storeAuthCode,
   storeOAuthState,
@@ -86,7 +84,11 @@ async function getMcpClient(clientId: string) {
 export function createMcpRoutes() {
   return (
     new Hono()
-      .use("*", cors({ origin: "*" }))
+      // Keep CORS permissive only for the stateless MCP transport; restrict OAuth endpoints.
+      .use("/", cors({ origin: "*" }))
+      .use("/authorize", cors({ origin: env.APP_URL ?? "*" }))
+      .use("/callback", cors({ origin: env.APP_URL ?? "*" }))
+      .use("/token", cors({ origin: env.APP_URL ?? "*" }))
 
       // -----------------------------------------------------------------------
       // OAuth Authorization Endpoint
@@ -97,6 +99,17 @@ export function createMcpRoutes() {
         }
 
         const query = c.req.query();
+
+        const responseType = query["response_type"];
+        if (responseType !== "code") {
+          return c.json(
+            {
+              error: "unsupported_response_type",
+              error_description: "Only response_type=code is supported",
+            },
+            400,
+          );
+        }
 
         const clientId = query["client_id"];
         const redirectUri = query["redirect_uri"];
@@ -168,15 +181,13 @@ export function createMcpRoutes() {
           );
         }
 
-        const oauthState = await getOAuthState(state);
+        const oauthState = await consumeOAuthState(state);
         if (!oauthState) {
           return c.json(
             { error: "invalid_request", error_description: "Invalid or expired state" },
             400,
           );
         }
-
-        await deleteOAuthState(state);
 
         let workosResponse: Awaited<ReturnType<typeof exchangeWorkosCode>>;
         try {
@@ -308,15 +319,13 @@ export function createMcpRoutes() {
             );
           }
 
-          const authCodeEntry = await getAuthCode(code);
+          const authCodeEntry = await consumeAuthCode(code);
           if (!authCodeEntry) {
             return c.json(
               { error: "invalid_grant", error_description: "Invalid or expired code" },
               400,
             );
           }
-
-          await deleteAuthCode(code);
 
           if (authCodeEntry.redirectUri !== redirectUri) {
             return c.json(

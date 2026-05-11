@@ -43,6 +43,9 @@ export const env = createEnv({
     /** WorkOS client ID for OAuth flows. */
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
 
+    /** Base URL of the Hyperlocalise application. Used for first-party CORS restrictions. */
+    APP_URL: z.url().optional(),
+
     /** Redirect URI registered in WorkOS for OAuth callbacks. */
     WORKOS_REDIRECT_URI: z.url().optional(),
 
@@ -122,6 +125,7 @@ export const env = createEnv({
     CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
+    APP_URL: process.env.APP_URL ?? (isTestEnv ? "http://localhost:3000" : undefined),
     WORKOS_REDIRECT_URI:
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),
     WORKOS_COOKIE_PASSWORD:

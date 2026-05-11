@@ -83,6 +83,24 @@ export async function deleteOAuthState(state: string): Promise<void> {
   await db.delete(schema.mcpOAuthStates).where(eq(schema.mcpOAuthStates.state, state));
 }
 
+export async function consumeOAuthState(state: string): Promise<OAuthState | undefined> {
+  const [row] = await db
+    .delete(schema.mcpOAuthStates)
+    .where(eq(schema.mcpOAuthStates.state, state))
+    .returning();
+
+  if (!row) return undefined;
+  if (new Date() > row.expiresAt) {
+    return undefined;
+  }
+
+  return {
+    mcpCodeChallenge: row.mcpCodeChallenge,
+    mcpRedirectUri: row.mcpRedirectUri,
+    workosCodeVerifier: row.workosCodeVerifier,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Database-backed auth code store (TTL 5 min)
 // ---------------------------------------------------------------------------
@@ -125,6 +143,25 @@ export async function getAuthCode(code: string): Promise<AuthCodeEntry | undefin
 
 export async function deleteAuthCode(code: string): Promise<void> {
   await db.delete(schema.mcpAuthCodes).where(eq(schema.mcpAuthCodes.code, code));
+}
+
+export async function consumeAuthCode(code: string): Promise<AuthCodeEntry | undefined> {
+  const [row] = await db
+    .delete(schema.mcpAuthCodes)
+    .where(eq(schema.mcpAuthCodes.code, code))
+    .returning();
+
+  if (!row) return undefined;
+  if (new Date() > row.expiresAt) {
+    return undefined;
+  }
+
+  return {
+    userId: row.userId,
+    organizationId: row.organizationId,
+    codeChallenge: row.codeChallenge,
+    redirectUri: row.redirectUri,
+  };
 }
 
 // ---------------------------------------------------------------------------
