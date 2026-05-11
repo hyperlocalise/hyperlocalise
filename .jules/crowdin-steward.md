@@ -17,3 +17,9 @@
 **Learning:** The Crowdin Source Strings API v2 returns `hasPlurals` and `isIcu` fields which were missing from the `SourceString` model. Additionally, `isIcu` can be specified when adding a new string but was missing from `SourceStringsAddRequest`.
 
 **Action:** Added `HasPlurals`, `IsIcu`, `CommentsCount`, and `IssuesCount` fields to the `SourceString` response model and `IsIcu` (*bool) to the `SourceStringsAddRequest` model. Updated contract tests to verify correct parsing and serialization of these fields. Fixed a typo in the `SourceStringsAddRequest` documentation comment.
+
+## 2026-05-29 - Improve Pre-Translation parity for branches and directories
+
+**Learning:** The Crowdin API v2 Apply Pre-Translation endpoint supports `branchIds` and `directoryIds` in the request body, allowing for more granular targeting than just `fileIds`. Additionally, the response attributes include `directoryIds`.
+
+**Action:** Added `BranchIDs` and `DirectoryIDs` to `PreTranslationRequest` and `DirectoryIDs` to `PreTranslationAttributes` in `model/translations.go`. Updated `PreTranslationRequest.Validate()` to require at least one of `fileIds`, `branchIds`, or `directoryIds`. Verified with updated unit tests.
