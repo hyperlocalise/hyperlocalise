@@ -29,6 +29,13 @@ type McpVariables = {
 // Auth middleware
 // ---------------------------------------------------------------------------
 
+const mcpEnabledMiddleware = createMiddleware(async (c, next) => {
+  if (!isMcpEnabled()) {
+    return c.json({ error: "mcp_disabled" }, 503);
+  }
+  await next();
+});
+
 const mcpAuthMiddleware = createMiddleware<{ Variables: McpVariables }>(async (c, next) => {
   const authHeader = c.req.header("authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -89,15 +96,12 @@ export function createMcpRoutes() {
       .use("/authorize", cors({ origin: env.APP_URL ?? "*" }))
       .use("/callback", cors({ origin: env.APP_URL ?? "*" }))
       .use("/token", cors({ origin: env.APP_URL ?? "*" }))
+      .use(mcpEnabledMiddleware)
 
       // -----------------------------------------------------------------------
       // OAuth Authorization Endpoint
       // -----------------------------------------------------------------------
       .get("/authorize", async (c) => {
-        if (!isMcpEnabled()) {
-          return c.json({ error: "mcp_disabled" }, 503);
-        }
-
         const query = c.req.query();
 
         const responseType = query["response_type"];
@@ -161,10 +165,6 @@ export function createMcpRoutes() {
       // OAuth Callback
       // -----------------------------------------------------------------------
       .get("/callback", async (c) => {
-        if (!isMcpEnabled()) {
-          return c.json({ error: "mcp_disabled" }, 503);
-        }
-
         const query = c.req.query();
         const code = query["code"];
         const state = query["state"];
@@ -278,10 +278,6 @@ export function createMcpRoutes() {
       // OAuth Token Endpoint
       // -----------------------------------------------------------------------
       .post("/token", async (c) => {
-        if (!isMcpEnabled()) {
-          return c.json({ error: "mcp_disabled" }, 503);
-        }
-
         const contentType = c.req.header("content-type") ?? "";
         let body: Record<string, unknown>;
         try {
@@ -374,7 +370,7 @@ export function createMcpRoutes() {
             );
           }
 
-          const refreshed = await refreshMcpSession(session.id);
+          const refreshed = await refreshMcpSession(session.id, session.refreshTokenExpiresAt);
 
           return c.json({
             access_token: refreshed.accessToken,
@@ -391,10 +387,6 @@ export function createMcpRoutes() {
       // MCP Streamable HTTP Transport
       // -----------------------------------------------------------------------
       .all("/", mcpAuthMiddleware, async (c) => {
-        if (!isMcpEnabled()) {
-          return c.json({ error: "mcp_disabled" }, 503);
-        }
-
         const authInfo = c.var.mcpAuth;
         return mcpTransport.handleRequest(c.req.raw, { authInfo });
       })

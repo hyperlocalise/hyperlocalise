@@ -741,7 +741,7 @@ export const mcpOAuthStates = pgTable(
 export const mcpAuthCodes = pgTable(
   "mcp_auth_codes",
   {
-    code: text("code").primaryKey(),
+    codeHash: text("code_hash").notNull().primaryKey(),
     userId: uuid("user_id").notNull(),
     organizationId: uuid("organization_id").notNull(),
     codeChallenge: text("code_challenge").notNull(),

@@ -1,5 +1,5 @@
 CREATE TABLE "mcp_auth_codes" (
-	"code" text PRIMARY KEY NOT NULL,
+	"code_hash" text PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"code_challenge" text NOT NULL,

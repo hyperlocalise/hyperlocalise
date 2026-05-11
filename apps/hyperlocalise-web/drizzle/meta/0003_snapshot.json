@@ -1,5 +1,5 @@
 {
-  "id": "adc633fa-2c2e-4dd8-9e7d-537f5bedc689",
+  "id": "0fab7cbe-d95b-4432-88ce-36d0f562ac20",
   "prevId": "07130afc-ec23-4b39-9400-79204729edbe",
   "version": "7",
   "dialect": "postgresql",
@@ -1645,8 +1645,8 @@
       "name": "mcp_auth_codes",
       "schema": "",
       "columns": {
-        "code": {
-          "name": "code",
+        "code_hash": {
+          "name": "code_hash",
           "type": "text",
           "primaryKey": true,
           "notNull": true

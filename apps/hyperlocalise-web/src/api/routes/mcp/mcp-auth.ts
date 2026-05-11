@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
@@ -34,6 +34,37 @@ function base64urlEncode(buffer: Buffer): string {
 }
 
 // ---------------------------------------------------------------------------
+// Encryption utilities (AES-256-GCM with key derived from env secret)
+// ---------------------------------------------------------------------------
+
+const MCP_ENCRYPTION_CONTEXT = "mcp-oauth-state-v1";
+
+function getMcpEncryptionKey(): Buffer {
+  const masterKey = Buffer.from(env.PROVIDER_CREDENTIALS_MASTER_KEY, "base64");
+  return createHmac("sha256", masterKey).update(MCP_ENCRYPTION_CONTEXT).digest();
+}
+
+function encryptString(plaintext: string): string {
+  const key = getMcpEncryptionKey();
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, authTag, encrypted]).toString("base64url");
+}
+
+function decryptString(ciphertext: string): string {
+  const key = getMcpEncryptionKey();
+  const data = Buffer.from(ciphertext, "base64url");
+  const iv = data.subarray(0, 12);
+  const authTag = data.subarray(12, 28);
+  const encrypted = data.subarray(28);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+}
+
+// ---------------------------------------------------------------------------
 // Database-backed OAuth state store (TTL 10 min)
 // ---------------------------------------------------------------------------
 
@@ -49,12 +80,13 @@ export async function storeOAuthState(
   mcpRedirectUri: string,
 ): Promise<string> {
   const workosCodeVerifier = generateCodeVerifier();
+  const encryptedVerifier = encryptString(workosCodeVerifier);
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await db.insert(schema.mcpOAuthStates).values({
     state,
     mcpCodeChallenge,
     mcpRedirectUri,
-    workosCodeVerifier,
+    workosCodeVerifier: encryptedVerifier,
     expiresAt,
   });
   return workosCodeVerifier;
@@ -75,7 +107,7 @@ export async function getOAuthState(state: string): Promise<OAuthState | undefin
   return {
     mcpCodeChallenge: row.mcpCodeChallenge,
     mcpRedirectUri: row.mcpRedirectUri,
-    workosCodeVerifier: row.workosCodeVerifier,
+    workosCodeVerifier: decryptString(row.workosCodeVerifier),
   };
 }
 
@@ -97,7 +129,7 @@ export async function consumeOAuthState(state: string): Promise<OAuthState | und
   return {
     mcpCodeChallenge: row.mcpCodeChallenge,
     mcpRedirectUri: row.mcpRedirectUri,
-    workosCodeVerifier: row.workosCodeVerifier,
+    workosCodeVerifier: decryptString(row.workosCodeVerifier),
   };
 }
 
@@ -113,19 +145,21 @@ type AuthCodeEntry = {
 };
 
 export async function storeAuthCode(code: string, entry: AuthCodeEntry): Promise<void> {
+  const codeHash = hashToken(code);
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
   await db.insert(schema.mcpAuthCodes).values({
-    code,
+    codeHash,
     ...entry,
     expiresAt,
   });
 }
 
 export async function getAuthCode(code: string): Promise<AuthCodeEntry | undefined> {
+  const codeHash = hashToken(code);
   const [row] = await db
     .select()
     .from(schema.mcpAuthCodes)
-    .where(eq(schema.mcpAuthCodes.code, code));
+    .where(eq(schema.mcpAuthCodes.codeHash, codeHash));
 
   if (!row) return undefined;
   if (new Date() > row.expiresAt) {
@@ -142,13 +176,15 @@ export async function getAuthCode(code: string): Promise<AuthCodeEntry | undefin
 }
 
 export async function deleteAuthCode(code: string): Promise<void> {
-  await db.delete(schema.mcpAuthCodes).where(eq(schema.mcpAuthCodes.code, code));
+  const codeHash = hashToken(code);
+  await db.delete(schema.mcpAuthCodes).where(eq(schema.mcpAuthCodes.codeHash, codeHash));
 }
 
 export async function consumeAuthCode(code: string): Promise<AuthCodeEntry | undefined> {
+  const codeHash = hashToken(code);
   const [row] = await db
     .delete(schema.mcpAuthCodes)
-    .where(eq(schema.mcpAuthCodes.code, code))
+    .where(eq(schema.mcpAuthCodes.codeHash, codeHash))
     .returning();
 
   if (!row) return undefined;
@@ -262,7 +298,7 @@ export async function validateRefreshToken(token: string) {
   return session;
 }
 
-export async function refreshMcpSession(sessionId: string) {
+export async function refreshMcpSession(sessionId: string, existingRefreshTokenExpiresAt: Date) {
   const newAccessToken = generateToken();
   const newRefreshToken = generateToken();
   const newAccessTokenHash = hashToken(newAccessToken);
@@ -270,18 +306,12 @@ export async function refreshMcpSession(sessionId: string) {
   const tokenLifetimeMinutes = env.MCP_TOKEN_LIFETIME_MINUTES;
   const expiresAt = new Date(Date.now() + tokenLifetimeMinutes * 60 * 1000);
 
-  const refreshTokenLifetimeDays = env.MCP_REFRESH_TOKEN_LIFETIME_DAYS;
-  const refreshTokenExpiresAt = new Date(
-    Date.now() + refreshTokenLifetimeDays * 24 * 60 * 60 * 1000,
-  );
-
   await db
     .update(schema.mcpSessions)
     .set({
       accessTokenHash: newAccessTokenHash,
       refreshTokenHash: newRefreshTokenHash,
       expiresAt,
-      refreshTokenExpiresAt,
     })
     .where(eq(schema.mcpSessions.id, sessionId));
 
