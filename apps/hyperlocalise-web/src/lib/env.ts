@@ -87,6 +87,21 @@ export const env = createEnv({
 
     /** Vercel Blob read/write token used by the Vercel Blob storage adapter. */
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+
+    /** Enables MCP OAuth and transport endpoints. */
+    MCP_AUTH_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+
+    /** MCP opaque access token lifetime in minutes. */
+    MCP_TOKEN_LIFETIME_MINUTES: z.coerce.number().int().positive().default(60),
+
+    /** MCP refresh token lifetime in days. */
+    MCP_REFRESH_TOKEN_LIFETIME_DAYS: z.coerce.number().int().positive().default(30),
+
+    /** AES-256-GCM key for MCP token encryption at rest. */
+    MCP_ENCRYPTION_KEY: z.string().min(1).optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -146,6 +161,12 @@ export const env = createEnv({
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:
       process.env.BLOB_READ_WRITE_TOKEN ?? (isTestEnv ? "test-blob-read-write-token" : undefined),
+    MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED,
+    MCP_TOKEN_LIFETIME_MINUTES: process.env.MCP_TOKEN_LIFETIME_MINUTES,
+    MCP_REFRESH_TOKEN_LIFETIME_DAYS: process.env.MCP_REFRESH_TOKEN_LIFETIME_DAYS,
+    MCP_ENCRYPTION_KEY:
+      process.env.MCP_ENCRYPTION_KEY ??
+      (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

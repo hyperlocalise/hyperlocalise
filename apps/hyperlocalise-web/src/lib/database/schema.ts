@@ -721,6 +721,38 @@ export const organizationApiKeys = pgTable(
   ],
 );
 
+export const mcpSessions = pgTable(
+  "mcp_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    accessTokenHash: text("access_token_hash").notNull(),
+    refreshTokenHash: text("refresh_token_hash").notNull(),
+    workosAccessTokenEncrypted: text("workos_access_token_encrypted"),
+    workosRefreshTokenEncrypted: text("workos_refresh_token_encrypted"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("mcp_sessions_access_token_hash_key").on(table.accessTokenHash),
+    uniqueIndex("mcp_sessions_refresh_token_hash_key").on(table.refreshTokenHash),
+    index("idx_mcp_sessions_user_id").on(table.userId),
+    index("idx_mcp_sessions_organization_id").on(table.organizationId),
+    index("idx_mcp_sessions_expires_at").on(table.expiresAt),
+  ],
+);
+
 export const jobs = pgTable(
   "jobs",
   {

@@ -4,6 +4,7 @@ import type {
   jobKindEnum,
   jobStatusEnum,
   llmProviderEnum,
+  mcpSessions,
   organizationApiKeys,
   organizationLlmProviderCredentials,
   translationJobDetails,
@@ -32,6 +33,8 @@ export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.
 export type LlmProvider = (typeof llmProviderEnum.enumValues)[number];
 export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;
 export type NewOrganizationApiKey = typeof organizationApiKeys.$inferInsert;
+export type McpSession = typeof mcpSessions.$inferSelect;
+export type NewMcpSession = typeof mcpSessions.$inferInsert;
 export type OrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferSelect;
 export type NewOrganizationLlmProviderCredential =
