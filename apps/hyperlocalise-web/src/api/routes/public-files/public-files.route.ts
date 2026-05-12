@@ -175,11 +175,17 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         return fileNotFoundResponse(c);
       }
 
-      c.header("Content-Type", storedObject.contentType ?? file.contentType);
+      c.header(
+        "Content-Type",
+        storedObject.contentType ?? file.contentType ?? "application/octet-stream",
+      );
       c.header(
         "Content-Disposition",
         `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
+      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
+      c.header("X-Download-Options", "noopen");
+      c.header("Cache-Control", "no-store");
 
       return c.body(storedObject.body);
     });
