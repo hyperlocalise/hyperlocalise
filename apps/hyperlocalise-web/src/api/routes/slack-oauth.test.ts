@@ -1,0 +1,112 @@
+import "dotenv/config";
+
+import { and, eq } from "drizzle-orm";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { signSlackState } from "@/lib/agents/slack/oauth-state";
+import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
+import { createSlackOAuthRoutes } from "./slack-oauth";
+
+const mocks = vi.hoisted(() => ({
+  initialize: vi.fn().mockResolvedValue(undefined),
+  handleOAuthCallback: vi.fn().mockResolvedValue({
+    teamId: "T_INSTALLED",
+    installation: {
+      botToken: "xoxb-token",
+      botUserId: "U_BOT",
+      teamName: "Installed Workspace",
+    },
+  }),
+}));
+
+vi.mock("@/lib/agents/slack/bot", () => ({
+  getSlackBot: vi.fn().mockResolvedValue({
+    initialize: mocks.initialize,
+    getAdapter: vi.fn(() => ({
+      handleOAuthCallback: mocks.handleOAuthCallback,
+    })),
+  }),
+}));
+
+const fixture = createProjectTestFixture();
+
+async function createSlackState(slug: string) {
+  const payload = `${slug}:${Date.now()}`;
+  return `${payload}:${await signSlackState(payload, env.SLACK_OAUTH_STATE_SECRET ?? "")}`;
+}
+
+describe("slackOAuthRoutes", () => {
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("stores a slack installation against the organization from state", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+    if (!auth) {
+      throw new Error("missing auth context");
+    }
+
+    const app = createSlackOAuthRoutes();
+    const state = await createSlackState(organizationSlug);
+    const response = await app.request(
+      `http://localhost/callback?code=abc123&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `/org/${organizationSlug}/agent?slack_connected=1`,
+    );
+    expect(mocks.initialize).toHaveBeenCalled();
+    expect(mocks.handleOAuthCallback).toHaveBeenCalledWith(
+      expect.any(Request),
+      expect.objectContaining({
+        redirectUri: "http://localhost/api/auth/slack/callback",
+      }),
+    );
+
+    const [connector] = await db
+      .select({
+        organizationId: schema.connectors.organizationId,
+        enabled: schema.connectors.enabled,
+        config: schema.connectors.config,
+      })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, auth.organization.localOrganizationId),
+          eq(schema.connectors.kind, "slack"),
+        ),
+      )
+      .limit(1);
+
+    expect(connector).toEqual({
+      organizationId: auth.organization.localOrganizationId,
+      enabled: true,
+      config: {
+        teamId: "T_INSTALLED",
+        teamName: "Installed Workspace",
+        botUserId: "U_BOT",
+      },
+    });
+  });
+
+  it("rejects callbacks with invalid state", async () => {
+    const app = createSlackOAuthRoutes();
+
+    const response = await app.request("http://localhost/callback?code=abc123&state=bad");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/dashboard?error=invalid_slack_state");
+    expect(mocks.handleOAuthCallback).not.toHaveBeenCalled();
+  });
+});
