@@ -6,6 +6,12 @@ import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
+type SlackOAuthResult = Awaited<
+  ReturnType<
+    ReturnType<Awaited<ReturnType<typeof getSlackBot>>["getAdapter"]>["handleOAuthCallback"]
+  >
+>;
+
 export function getSlackRedirectUri(requestUrl: string): string {
   if (env.SLACK_REDIRECT_URI) {
     return env.SLACK_REDIRECT_URI;
@@ -41,12 +47,12 @@ export function createSlackOAuthRoutes() {
       return c.redirect("/dashboard?error=organization_not_found");
     }
 
-    const bot = await getSlackBot();
-    await bot.initialize();
-
-    const adapter = bot.getAdapter("slack");
-    let oauthResult: Awaited<ReturnType<typeof adapter.handleOAuthCallback>>;
+    let oauthResult: SlackOAuthResult;
     try {
+      const bot = await getSlackBot();
+      await bot.initialize();
+
+      const adapter = bot.getAdapter("slack");
       oauthResult = await adapter.handleOAuthCallback(c.req.raw, {
         redirectUri: getSlackRedirectUri(c.req.url),
       });
@@ -55,30 +61,34 @@ export function createSlackOAuthRoutes() {
     }
     const { teamId, installation } = oauthResult;
 
-    await db
-      .insert(schema.connectors)
-      .values({
-        organizationId: org.id,
-        kind: "slack",
-        enabled: true,
-        config: {
-          teamId,
-          teamName: installation.teamName,
-          botUserId: installation.botUserId,
-        },
-      })
-      .onConflictDoUpdate({
-        target: [schema.connectors.organizationId, schema.connectors.kind],
-        set: {
+    try {
+      await db
+        .insert(schema.connectors)
+        .values({
+          organizationId: org.id,
+          kind: "slack",
           enabled: true,
           config: {
             teamId,
             teamName: installation.teamName,
             botUserId: installation.botUserId,
           },
-          updatedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: [schema.connectors.organizationId, schema.connectors.kind],
+          set: {
+            enabled: true,
+            config: {
+              teamId,
+              teamName: installation.teamName,
+              botUserId: installation.botUserId,
+            },
+            updatedAt: new Date(),
+          },
+        });
+    } catch {
+      return c.redirect("/dashboard?error=slack_install_failed");
+    }
 
     return c.redirect(`/org/${verified.slug}/agent?slack_connected=1`);
   });

@@ -10,7 +10,9 @@ import { env } from "@/lib/env";
 import { createSlackOAuthRoutes } from "./slack-oauth";
 
 const mocks = vi.hoisted(() => ({
+  getSlackBot: vi.fn(),
   initialize: vi.fn().mockResolvedValue(undefined),
+  getAdapter: vi.fn(),
   handleOAuthCallback: vi.fn().mockResolvedValue({
     teamId: "T_INSTALLED",
     installation: {
@@ -22,11 +24,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/agents/slack/bot", () => ({
-  getSlackBot: vi.fn().mockResolvedValue({
+  getSlackBot: mocks.getSlackBot.mockResolvedValue({
     initialize: mocks.initialize,
-    getAdapter: vi.fn(() => ({
+    getAdapter: mocks.getAdapter.mockReturnValue({
       handleOAuthCallback: mocks.handleOAuthCallback,
-    })),
+    }),
   }),
 }));
 
@@ -127,6 +129,46 @@ describe("slackOAuthRoutes", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/dashboard?error=slack_oauth_failed");
+  });
+
+  it("redirects when slack bot initialization fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    await fixture.authHeadersFor(identity);
+    mocks.initialize.mockRejectedValueOnce(new Error("slack unavailable"));
+
+    const app = createSlackOAuthRoutes();
+    const state = await createSlackState(organizationSlug);
+    const response = await app.request(
+      `http://localhost/callback?code=abc123&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/dashboard?error=slack_oauth_failed");
+    expect(mocks.handleOAuthCallback).not.toHaveBeenCalled();
+  });
+
+  it("redirects when slack installation storage fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    await fixture.authHeadersFor(identity);
+    const insertSpy = vi.spyOn(db, "insert").mockImplementationOnce(() => {
+      throw new Error("db unavailable");
+    });
+
+    try {
+      const app = createSlackOAuthRoutes();
+      const state = await createSlackState(organizationSlug);
+      const response = await app.request(
+        `http://localhost/callback?code=abc123&state=${encodeURIComponent(state)}`,
+      );
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/dashboard?error=slack_install_failed");
+      expect(mocks.handleOAuthCallback).toHaveBeenCalled();
+    } finally {
+      insertSpy.mockRestore();
+    }
   });
 
   it("rejects callbacks with invalid state", async () => {
