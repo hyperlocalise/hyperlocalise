@@ -585,7 +585,7 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in Translation
 		return TranslationDownloadResult{}, err
 	}
 
-	content, err := c.downloadFile(ctx, token, in.ProjectID, in.LocaleID, in.FileURI)
+	content, err := c.downloadFile(ctx, token, strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.LocaleID), strings.TrimSpace(in.FileURI))
 	if err != nil {
 		return TranslationDownloadResult{}, err
 	}

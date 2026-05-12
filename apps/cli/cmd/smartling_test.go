@@ -332,7 +332,6 @@ func TestSmartlingDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testi
 	defer func() { newSmartlingTranslationDownloader = orig }()
 
 	// We need to simulate an error on the second locale. Use a custom downloader.
-	callCount := 0
 	newSmartlingTranslationDownloader = func(_ smartling.Config) (smartlingTranslationDownloader, error) {
 		return &fakeSmartlingTranslationDownloaderWithError{
 			results: map[string]smartling.TranslationDownloadResult{
@@ -361,7 +360,6 @@ func TestSmartlingDownloadTranslationsRemovesWrittenFilesOnLaterFailure(t *testi
 	if _, statErr := os.Stat(filepath.Join(dir, "fr.json")); !os.IsNotExist(statErr) {
 		t.Fatalf("fr output should be removed after later failure, stat err=%v", statErr)
 	}
-	_ = callCount
 }
 
 type fakeSmartlingTranslationDownloaderWithError struct {
