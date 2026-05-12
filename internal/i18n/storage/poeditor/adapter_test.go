@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,6 +17,7 @@ type fakeClient struct {
 	listRevision string
 	upsertIn     UpsertTranslationsInput
 	upsertErr    error
+	uploads      []UploadTermsFileInput
 }
 
 func (f *fakeClient) ListTerms(_ context.Context, _ ListTermsInput) ([]TermTranslation, string, error) {
@@ -28,6 +30,11 @@ func (f *fakeClient) UpsertTranslations(_ context.Context, in UpsertTranslations
 		return "", f.upsertErr
 	}
 	return "rev2", nil
+}
+
+func (f *fakeClient) UploadTermsFile(_ context.Context, in UploadTermsFileInput) (UploadTermsFileResult, error) {
+	f.uploads = append(f.uploads, in)
+	return UploadTermsFileResult{}, f.upsertErr
 }
 
 func TestParseConfigUsesEnvToken(t *testing.T) {
@@ -189,5 +196,91 @@ func TestAdapterNameAndCapabilities(t *testing.T) {
 	}
 	if caps.SupportsDeletes {
 		t.Fatalf("expected SupportsDeletes=false")
+	}
+}
+
+func TestAdapterFileWorkflowCapabilities(t *testing.T) {
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, &fakeClient{})
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	caps := adapter.FileWorkflowCapabilities()
+	if !caps.SupportsSourceUpload {
+		t.Fatalf("expected source upload support")
+	}
+	if caps.SupportsTranslationUpload || caps.SupportsTranslationExport || caps.SupportsSourceDownload {
+		t.Fatalf("unexpected file workflow capabilities: %+v", caps)
+	}
+}
+
+func TestAdapterUploadSourcesUploadsTermsFiles(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	tempDir := t.TempDir()
+	sourcePath := filepath.Join(tempDir, "messages.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	result, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{
+		Config: storage.FileWorkflowConfig{
+			BasePath: tempDir,
+			Files: []storage.FileGroupSpec{
+				{Source: "messages.json"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if got := len(result.Processed); got != 1 {
+		t.Fatalf("expected 1 processed source, got %d", got)
+	}
+	if result.Processed[0] != sourcePath {
+		t.Fatalf("unexpected processed source: %q", result.Processed[0])
+	}
+	if got := len(client.uploads); got != 1 {
+		t.Fatalf("expected 1 upload call, got %d", got)
+	}
+	upload := client.uploads[0]
+	if upload.ProjectID != "123" || upload.APIToken != "token" || upload.FilePath != sourcePath {
+		t.Fatalf("unexpected upload input: %+v", upload)
+	}
+}
+
+func TestAdapterUploadSourcesWarnsWhenGlobMatchesNoFiles(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{
+		Config: storage.FileWorkflowConfig{
+			BasePath: t.TempDir(),
+			Files: []storage.FileGroupSpec{
+				{Source: "*.po"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if got := len(result.Processed); got != 0 {
+		t.Fatalf("expected no processed sources, got %d", got)
+	}
+	if got := len(client.uploads); got != 0 {
+		t.Fatalf("expected no upload calls, got %d", got)
+	}
+	if got := len(result.Warnings); got != 1 {
+		t.Fatalf("expected 1 warning, got %d", got)
+	}
+	if !strings.Contains(result.Warnings[0].Message, `source pattern "*.po" matched no files`) {
+		t.Fatalf("unexpected warning: %+v", result.Warnings[0])
 	}
 }

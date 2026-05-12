@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -28,6 +30,7 @@ type Config struct {
 type Client interface {
 	ListTerms(ctx context.Context, in ListTermsInput) ([]TermTranslation, string, error)
 	UpsertTranslations(ctx context.Context, in UpsertTranslationsInput) (string, error)
+	UploadTermsFile(ctx context.Context, in UploadTermsFileInput) (UploadTermsFileResult, error)
 }
 
 type Adapter struct {
@@ -207,6 +210,75 @@ func (a *Adapter) Push(ctx context.Context, req storage.PushRequest) (storage.Pu
 		Applied:  applied,
 		Revision: revision,
 	}, nil
+}
+
+func (a *Adapter) FileWorkflowCapabilities() storage.FileWorkflowCapabilities {
+	return storage.FileWorkflowCapabilities{
+		SupportsSourceUpload: true,
+	}
+}
+
+func (a *Adapter) UploadSources(ctx context.Context, req storage.FileUploadSourcesRequest) (storage.FileOperationResult, error) {
+	cfg := req.Config
+	if strings.TrimSpace(cfg.ProjectID) == "" {
+		cfg.ProjectID = a.cfg.ProjectID
+	}
+	if strings.TrimSpace(cfg.APIToken) == "" {
+		cfg.APIToken = a.cfg.APIToken
+	}
+	if strings.TrimSpace(cfg.BasePath) == "" {
+		cfg.BasePath = "."
+	}
+
+	result := storage.FileOperationResult{}
+	for _, fileGroup := range cfg.Files {
+		sourcePaths, err := resolveSourcePaths(cfg.BasePath, fileGroup.Source)
+		if err != nil {
+			return result, err
+		}
+		if len(sourcePaths) == 0 {
+			result.Warnings = append(result.Warnings, storage.Warning{
+				Message: fmt.Sprintf("source pattern %q matched no files", fileGroup.Source),
+			})
+			continue
+		}
+
+		for _, sourcePath := range sourcePaths {
+			_, err := a.client.UploadTermsFile(ctx, UploadTermsFileInput{
+				ProjectID: cfg.ProjectID,
+				APIToken:  cfg.APIToken,
+				FilePath:  sourcePath,
+			})
+			if err != nil {
+				return result, fmt.Errorf("poeditor upload source %s: %w", sourcePath, err)
+			}
+			result.Processed = append(result.Processed, sourcePath)
+		}
+	}
+	return result, nil
+}
+
+func (a *Adapter) UploadTranslations(ctx context.Context, req storage.FileUploadTranslationsRequest) (storage.FileOperationResult, error) {
+	return storage.FileOperationResult{}, fmt.Errorf("poeditor adapter: UploadTranslations not implemented")
+}
+
+func (a *Adapter) DownloadTranslations(ctx context.Context, req storage.FileDownloadTranslationsRequest) (storage.FileOperationResult, error) {
+	return storage.FileOperationResult{}, fmt.Errorf("poeditor adapter: DownloadTranslations not implemented")
+}
+
+func resolveSourcePaths(basePath, pattern string) ([]string, error) {
+	localPattern := strings.TrimPrefix(filepath.ToSlash(pattern), "/")
+	localPattern = filepath.Clean(filepath.Join(basePath, filepath.FromSlash(localPattern)))
+
+	if !strings.ContainsAny(localPattern, "*?[") {
+		return []string{localPattern}, nil
+	}
+	matches, err := filepath.Glob(localPattern)
+	if err != nil {
+		return nil, err
+	}
+	slices.Sort(matches)
+	return matches, nil
 }
 
 type TermTranslation struct {
