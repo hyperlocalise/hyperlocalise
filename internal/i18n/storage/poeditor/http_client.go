@@ -81,6 +81,11 @@ type UploadTermsFileInput struct {
 	Tags      string
 }
 
+type multipartField struct {
+	key   string
+	value string
+}
+
 type UploadTermsFileResult struct {
 	Terms struct {
 		Parsed  int `json:"parsed"`
@@ -250,7 +255,7 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 		values.Set("data", string(raw))
 
 		var response struct{ apiEnvelope }
-		if err := c.postForm(ctx, "/languages/update", values, &response); err != nil {
+		if err := c.postForm(ctx, "/translations/update", values, &response); err != nil {
 			return "", err
 		}
 	}
@@ -270,16 +275,16 @@ func (c *HTTPClient) UploadTermsFile(ctx context.Context, in UploadTermsFileInpu
 		return result, fmt.Errorf("poeditor upload terms: file path is required")
 	}
 
-	fields := map[string]string{
-		"api_token": in.APIToken,
-		"id":        in.ProjectID,
-		"updating":  "terms",
+	fields := []multipartField{
+		{key: "api_token", value: in.APIToken},
+		{key: "id", value: in.ProjectID},
+		{key: "updating", value: "terms"},
 	}
 	if in.SyncTerms {
-		fields["sync_terms"] = "1"
+		fields = append(fields, multipartField{key: "sync_terms", value: "1"})
 	}
 	if strings.TrimSpace(in.Tags) != "" {
-		fields["tags"] = in.Tags
+		fields = append(fields, multipartField{key: "tags", value: in.Tags})
 	}
 
 	var response struct {
@@ -358,7 +363,7 @@ func (c *HTTPClient) postForm(ctx context.Context, endpoint string, values url.V
 	return nil
 }
 
-func (c *HTTPClient) postMultipartFile(ctx context.Context, endpoint string, fields map[string]string, fileFieldName, filePath string, out any) error {
+func (c *HTTPClient) postMultipartFile(ctx context.Context, endpoint string, fields []multipartField, fileFieldName, filePath string, out any) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("poeditor request %s: open file: %w", endpoint, err)
@@ -376,9 +381,9 @@ func (c *HTTPClient) postMultipartFile(ctx context.Context, endpoint string, fie
 			_ = pw.CloseWithError(werr)
 			writeErrCh <- werr
 		}()
-		for key, value := range fields {
-			if werr = writer.WriteField(key, value); werr != nil {
-				werr = fmt.Errorf("write form field %s: %w", key, werr)
+		for _, field := range fields {
+			if werr = writer.WriteField(field.key, field.value); werr != nil {
+				werr = fmt.Errorf("write form field %s: %w", field.key, werr)
 				return
 			}
 		}

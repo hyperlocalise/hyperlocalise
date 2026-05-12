@@ -284,3 +284,35 @@ func TestAdapterUploadSourcesWarnsWhenGlobMatchesNoFiles(t *testing.T) {
 		t.Fatalf("unexpected warning: %+v", result.Warnings[0])
 	}
 }
+
+func TestAdapterUploadSourcesWarnsWhenLiteralFileIsMissing(t *testing.T) {
+	client := &fakeClient{}
+	adapter, err := NewWithClient(Config{ProjectID: "123", APIToken: "token"}, client)
+	if err != nil {
+		t.Fatalf("new adapter: %v", err)
+	}
+
+	result, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{
+		Config: storage.FileWorkflowConfig{
+			BasePath: t.TempDir(),
+			Files: []storage.FileGroupSpec{
+				{Source: "missing.po"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if got := len(result.Processed); got != 0 {
+		t.Fatalf("expected no processed sources, got %d", got)
+	}
+	if got := len(client.uploads); got != 0 {
+		t.Fatalf("expected no upload calls, got %d", got)
+	}
+	if got := len(result.Warnings); got != 1 {
+		t.Fatalf("expected 1 warning, got %d", got)
+	}
+	if !strings.Contains(result.Warnings[0].Message, `source pattern "missing.po" matched no files`) {
+		t.Fatalf("unexpected warning: %+v", result.Warnings[0])
+	}
+}

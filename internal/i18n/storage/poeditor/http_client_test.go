@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -249,8 +250,8 @@ func TestHTTPClientUpsertTranslationsSendsGroupedPayload(t *testing.T) {
 	if seenPaths["/terms/add"] != 1 {
 		t.Fatalf("expected one terms/add call, got paths: %+v", seenPaths)
 	}
-	if seenPaths["/languages/update"] != 2 {
-		t.Fatalf("expected two languages/update calls, got paths: %+v", seenPaths)
+	if seenPaths["/translations/update"] != 2 {
+		t.Fatalf("expected two translations/update calls, got paths: %+v", seenPaths)
 	}
 }
 
@@ -268,40 +269,59 @@ func TestHTTPClientUploadTermsFileUsesProjectsUpload(t *testing.T) {
 		if ct := r.Header.Get("Content-Type"); !strings.Contains(ct, "multipart/form-data") {
 			t.Fatalf("unexpected content-type: %s", ct)
 		}
-		if err := r.ParseMultipartForm(1 << 20); err != nil {
-			t.Fatalf("parse multipart: %v", err)
+		reader, err := r.MultipartReader()
+		if err != nil {
+			t.Fatalf("read multipart: %v", err)
 		}
-		if got := r.FormValue("api_token"); got != "token" {
+
+		var fieldOrder []string
+		fieldValues := map[string]string{}
+		var fileName string
+		var fileContent string
+		for {
+			part, err := reader.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("read multipart part: %v", err)
+			}
+			name := part.FormName()
+			fieldOrder = append(fieldOrder, name)
+			content, err := io.ReadAll(part)
+			if err != nil {
+				t.Fatalf("read multipart %s: %v", name, err)
+			}
+			if part.FileName() != "" {
+				fileName = part.FileName()
+				fileContent = string(content)
+				continue
+			}
+			fieldValues[name] = string(content)
+		}
+		if want := []string{"api_token", "id", "updating", "sync_terms", "tags", "file"}; !slices.Equal(fieldOrder, want) {
+			t.Fatalf("unexpected multipart field order: got %v want %v", fieldOrder, want)
+		}
+		if got := fieldValues["api_token"]; got != "token" {
 			t.Fatalf("unexpected api_token: %q", got)
 		}
-		if got := r.FormValue("id"); got != "123" {
+		if got := fieldValues["id"]; got != "123" {
 			t.Fatalf("unexpected project id: %q", got)
 		}
-		if got := r.FormValue("updating"); got != "terms" {
+		if got := fieldValues["updating"]; got != "terms" {
 			t.Fatalf("unexpected updating mode: %q", got)
 		}
-		if got := r.FormValue("sync_terms"); got != "1" {
+		if got := fieldValues["sync_terms"]; got != "1" {
 			t.Fatalf("unexpected sync_terms: %q", got)
 		}
-		if got := r.FormValue("tags"); got != `{"all":"imported"}` {
+		if got := fieldValues["tags"]; got != `{"all":"imported"}` {
 			t.Fatalf("unexpected tags: %q", got)
 		}
 
-		file, header, err := r.FormFile("file")
-		if err != nil {
-			t.Fatalf("read multipart file: %v", err)
+		if fileName != "messages.po" {
+			t.Fatalf("unexpected uploaded filename: %q", fileName)
 		}
-		defer func() {
-			_ = file.Close()
-		}()
-		if header.Filename != "messages.po" {
-			t.Fatalf("unexpected uploaded filename: %q", header.Filename)
-		}
-		content, err := io.ReadAll(file)
-		if err != nil {
-			t.Fatalf("read uploaded file: %v", err)
-		}
-		if got := string(content); got != "msgid \"hello\"\nmsgstr \"\"\n" {
+		if got := fileContent; got != "msgid \"hello\"\nmsgstr \"\"\n" {
 			t.Fatalf("unexpected uploaded content: %q", got)
 		}
 

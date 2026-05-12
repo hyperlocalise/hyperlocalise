@@ -271,6 +271,12 @@ func resolveSourcePaths(basePath, pattern string) ([]string, error) {
 	localPattern = filepath.Clean(filepath.Join(basePath, filepath.FromSlash(localPattern)))
 
 	if !strings.ContainsAny(localPattern, "*?[") {
+		if _, err := os.Stat(localPattern); err != nil {
+			if os.IsNotExist(err) {
+				return nil, nil
+			}
+			return nil, err
+		}
 		return []string{localPattern}, nil
 	}
 	matches, err := filepath.Glob(localPattern)
