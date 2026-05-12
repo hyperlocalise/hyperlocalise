@@ -32,6 +32,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 						"title": "Description materials",
 						"exportPattern": "/localization/%locale%/file_name",
 						"path": "/main",
+						"isReadOnly": true,
 						"priority": "normal",
 						"createdAt": "2024-04-18T14:14:00+00:00",
 						"updatedAt": "2024-04-18T14:14:00+00:00"
@@ -58,6 +59,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 			Title:         "Description materials",
 			ExportPattern: "/localization/%locale%/file_name",
 			Path:          "/main",
+			IsReadOnly:    true,
 			Priority:      "normal",
 			CreatedAt:     "2024-04-18T14:14:00+00:00",
 			UpdatedAt:     "2024-04-18T14:14:00+00:00",
