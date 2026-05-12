@@ -16,6 +16,7 @@ type Directory struct {
 	Title         string `json:"title"`
 	ExportPattern string `json:"exportPattern"`
 	Path          string `json:"path"`
+	IsReadOnly    *bool  `json:"isReadOnly,omitempty"`
 	Priority      string `json:"priority"`
 	CreatedAt     string `json:"createdAt"`
 	UpdatedAt     string `json:"updatedAt"`

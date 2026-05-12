@@ -2,6 +2,7 @@ package crowdin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -32,6 +33,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 						"title": "Description materials",
 						"exportPattern": "/localization/%locale%/file_name",
 						"path": "/main",
+						"isReadOnly": true,
 						"priority": "normal",
 						"createdAt": "2024-04-18T14:14:00+00:00",
 						"updatedAt": "2024-04-18T14:14:00+00:00"
@@ -58,6 +60,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 			Title:         "Description materials",
 			ExportPattern: "/localization/%locale%/file_name",
 			Path:          "/main",
+			IsReadOnly:    ToPtr(true),
 			Priority:      "normal",
 			CreatedAt:     "2024-04-18T14:14:00+00:00",
 			UpdatedAt:     "2024-04-18T14:14:00+00:00",
@@ -80,6 +83,21 @@ func TestSourceFilesService_ListDirectories_invalidJSON(t *testing.T) {
 	res, _, err := client.SourceFiles.ListDirectories(context.Background(), 1, nil)
 	require.Error(t, err)
 	assert.Nil(t, res)
+}
+
+func TestDirectory_MarshalJSON_IsReadOnly(t *testing.T) {
+	directory := &model.Directory{IsReadOnly: ToPtr(false)}
+
+	b, err := json.Marshal(directory)
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"id":0,"projectId":0,"name":"","title":"","exportPattern":"","path":"","isReadOnly":false,"priority":"","createdAt":"","updatedAt":""}`, string(b))
+
+	directory.IsReadOnly = nil
+	b, err = json.Marshal(directory)
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(b), "isReadOnly")
 }
 
 func TestSourceFilesService_ListDirectories_WithQueryParams(t *testing.T) {

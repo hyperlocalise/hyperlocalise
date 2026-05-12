@@ -69,6 +69,7 @@ func TestProjectsService_Get(t *testing.T) {
 				}
 			],
 			"webUrl": "https://crowdin.com/project/some-project",
+			"background": "data:image/png;base64,iVBORw0KGgo",
 			"translateDuplicates": 2,
 			"tagsDetection": 0,
 			"glossaryAccess": false,
@@ -401,7 +402,9 @@ func TestProjectsService_Get(t *testing.T) {
 			TextDirection:       "ltr",
 			DialectOf:           "",
 		},
-		TMContextType: "segmentContext",
+		TMContextType:          "segmentContext",
+		Background:             "data:image/png;base64,iVBORw0KGgo",
+		AssistActionAiPromptID: 0,
 	}
 	assert.Equal(t, expectedProjects, project)
 }
@@ -600,6 +603,7 @@ func TestProjectsService_Get_Enterprise(t *testing.T) {
 				"textDirection": "ltr",
 				"dialectOf": null
 			},
+			"assistActionAiPromptId": 1,
 			"tmContextType": "segmentContext"
 		}
 	}`
@@ -630,6 +634,7 @@ func TestProjectsService_Get_Enterprise(t *testing.T) {
 		WorkflowID:        3,
 		HasCrowdsourcing:  false,
 		PublicDownloads:   true,
+		Background:        "data:image/png;base64,iVBORw0KGgo",
 		CreatedAt:         "2023-09-20T11:34:40+00:00",
 		UpdatedAt:         "2023-09-20T11:34:40+00:00",
 		LastActivity:      "2023-09-20T11:34:40+00:00",
@@ -786,7 +791,8 @@ func TestProjectsService_Get_Enterprise(t *testing.T) {
 			TextDirection:       "ltr",
 			DialectOf:           "",
 		},
-		TMContextType: "segmentContext",
+		TMContextType:          "segmentContext",
+		AssistActionAiPromptID: 1,
 	}
 	assert.Equal(t, expectedProjects, project)
 }

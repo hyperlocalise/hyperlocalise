@@ -33,6 +33,7 @@ type (
 		SourceLanguage       *Language   `json:"sourceLanguage"`
 		TargetLanguages      []*Language `json:"targetLanguages"`
 		WebURL               string      `json:"webUrl"`
+		Background           string      `json:"background,omitempty"`
 		Fields               any         `json:"fields,omitempty"`
 
 		ClientOrganizationID            int                        `json:"clientOrganizationId,omitempty"`
@@ -71,6 +72,7 @@ type (
 		TMPreTranslate                  *ProjectTMPreTranslate     `json:"tmPreTranslate,omitempty"`
 		MTPreTranslate                  *ProjectMTPreTranslate     `json:"mtPreTranslate,omitempty"`
 		AiPreTranslate                  *ProjectAiPreTranslate     `json:"aiPreTranslate,omitempty"`
+		AssistActionAiPromptID          int                        `json:"assistActionAiPromptId,omitempty"`
 		SaveMetaInfoInSource            bool                       `json:"saveMetaInfoInSource,omitempty"`
 		SkipUntranslatedFiles           bool                       `json:"skipUntranslatedFiles,omitempty"`
 		InContext                       bool                       `json:"inContext,omitempty"`
