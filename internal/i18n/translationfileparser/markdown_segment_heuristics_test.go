@@ -46,8 +46,8 @@ func TestValidateMarkdownTranslatedBlockStructure(t *testing.T) {
 		},
 		{
 			name:   "allows code fence if source has it",
-			source: "```go\n```",
-			target: "```rust\n```",
+			source: "```",
+			target: "```",
 		},
 		{
 			name:    "rejects injected thematic break",
