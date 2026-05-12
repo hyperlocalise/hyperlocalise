@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
@@ -67,6 +67,11 @@ export const MessageAction = ({
   size = "icon-sm",
   ...props
 }: MessageActionProps) => {
+  /**
+   * BOLT OPTIMIZATION: Remove redundant TooltipProvider.
+   * RootLayout already provides a TooltipProvider. Local providers add
+   * unnecessary React context overhead and can lead to desynced timers.
+   */
   const button = (
     <Button size={size} type="button" variant={variant} {...props}>
       {children}
@@ -76,14 +81,12 @@ export const MessageAction = ({
 
   if (tooltip) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger>{button}</TooltipTrigger>
-          <TooltipContent>
-            <TypographyP>{tooltip}</TypographyP>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger>{button}</TooltipTrigger>
+        <TooltipContent>
+          <TypographyP>{tooltip}</TypographyP>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
