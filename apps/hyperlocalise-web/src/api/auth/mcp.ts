@@ -200,7 +200,7 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
 
     if (!token) {
       return c.json({ error: "unauthorized" }, 401, {
-        "WWW-Authenticate": 'Bearer resource_metadata="/.well-known/oauth-authorization-server"',
+        "WWW-Authenticate": `Bearer resource_metadata="${new URL("/.well-known/oauth-authorization-server", c.req.url).origin}/.well-known/oauth-authorization-server"`,
       });
     }
 

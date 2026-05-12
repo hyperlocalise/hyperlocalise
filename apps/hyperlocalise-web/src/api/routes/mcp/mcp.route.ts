@@ -99,8 +99,12 @@ async function readTokenRequestBody(request: Request) {
     return request.json();
   }
 
-  const formData = await request.formData();
-  return Object.fromEntries(formData.entries());
+  try {
+    const formData = await request.formData();
+    return Object.fromEntries(formData.entries());
+  } catch {
+    return {};
+  }
 }
 
 function tokenResponse(input: {
@@ -480,7 +484,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
       const refreshToken = generateMcpToken();
       const { accessTokenExpiresAt, refreshTokenExpiresAt } = getMcpTokenExpiry();
 
-      await db
+      const updated = await db
         .update(schema.mcpSessions)
         .set({
           accessTokenHash: hashMcpToken(accessToken),
@@ -489,7 +493,17 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
           refreshExpiresAt: refreshTokenExpiresAt,
           updatedAt: new Date(),
         })
-        .where(eq(schema.mcpSessions.id, session.id));
+        .where(
+          and(
+            eq(schema.mcpSessions.id, session.id),
+            eq(schema.mcpSessions.refreshTokenHash, hashMcpToken(parsed.data.refresh_token)),
+          ),
+        )
+        .returning({ id: schema.mcpSessions.id });
+
+      if (!updated.length) {
+        return c.json({ error: "invalid_grant" }, 400);
+      }
 
       return c.json(
         tokenResponse({

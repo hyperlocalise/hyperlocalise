@@ -132,6 +132,28 @@ describe("mcpRoutes", () => {
     });
   });
 
+  it("returns an absolute OAuth metadata URI on bearer challenges", async () => {
+    const response = await app.request("http://localhost/api/mcp/sse");
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-authorization-server"',
+    );
+  });
+
+  it("rejects unsupported token request bodies as invalid requests", async () => {
+    const response = await app.request("http://localhost/api/mcp/token", {
+      method: "POST",
+      headers: {
+        "content-type": "text/plain",
+      },
+      body: "not form data",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_request" });
+  });
+
   it("exchanges a PKCE-bound authorization code for persisted MCP tokens", async () => {
     const identity = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(identity);
