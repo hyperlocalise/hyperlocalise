@@ -119,14 +119,14 @@ func TestResolveSourcePaths(t *testing.T) {
 		},
 		{
 			pattern: "b/*.json",
-			want:    []string{
+			want: []string{
 				filepath.Join(tempDir, "b/c.json"),
 				filepath.Join(tempDir, "b/d.json"),
 			},
 		},
 		{
 			pattern: "**/*.json",
-			want:    []string{
+			want: []string{
 				filepath.Join(tempDir, "a.json"),
 				filepath.Join(tempDir, "b/c.json"),
 				filepath.Join(tempDir, "b/d.json"),
@@ -135,7 +135,7 @@ func TestResolveSourcePaths(t *testing.T) {
 		},
 		{
 			pattern: "b/**/*.json",
-			want:    []string{
+			want: []string{
 				filepath.Join(tempDir, "b/c.json"),
 				filepath.Join(tempDir, "b/d.json"),
 				filepath.Join(tempDir, "b/e/f.json"),
