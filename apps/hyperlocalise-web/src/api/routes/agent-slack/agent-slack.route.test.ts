@@ -147,6 +147,29 @@ describe("agentSlackRoutes", () => {
     ).resolves.toEqual(expect.objectContaining({ slug: organizationSlug }));
   });
 
+  it("rejects slack install url requests when the organization has no slug", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const identityWithoutSlug = {
+      ...identity,
+      organization: {
+        ...identity.organization,
+        slug: undefined,
+      },
+    };
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"]["install-url"].$get(
+      {
+        param: { organizationSlug: "missing-slug" },
+      },
+      {
+        headers: await fixture.authHeadersFor(identityWithoutSlug),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "organization_slug_required" });
+  });
+
   it("rejects slack install url requests from non-admin members", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const organizationSlug = identity.organization.slug ?? "missing-slug";

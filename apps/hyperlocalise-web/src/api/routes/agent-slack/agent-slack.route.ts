@@ -69,7 +69,11 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "slack_app_not_configured" as const }, 503);
       }
 
-      const slug = c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+      const slug = c.var.auth.organization.slug;
+      if (!slug) {
+        return c.json({ error: "organization_slug_required" as const }, 400);
+      }
+
       const state = await createSlackState(slug, getSlackStateSecret());
       const redirectUri = getSlackRedirectUri(c.req.url);
 
