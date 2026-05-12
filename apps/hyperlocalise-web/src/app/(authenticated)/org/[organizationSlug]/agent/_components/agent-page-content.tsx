@@ -8,7 +8,6 @@ import {
   GoogleIcon,
   MailReceive01Icon,
   MicrosoftIcon,
-  SlackIcon,
   TelegramIcon,
   Tick02Icon,
   WhatsappIcon,
@@ -19,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { GitHubAgentCard } from "./github-agent-card";
+import { SlackAgentCard } from "./slack-agent-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,11 +46,6 @@ type EmailAgentState = {
 const api = createApiClient();
 
 const comingSoonAgents = [
-  {
-    name: "Slack agent",
-    description: "Triage release requests, answer localization questions, and notify channels.",
-    icon: SlackIcon,
-  },
   {
     name: "Linear agent",
     description: "Create issues from translation blockers and keep launch tasks in sync.",
@@ -180,12 +175,13 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
           variant="outline"
           className="h-8 w-fit rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
         >
-          2 available
+          3 available
         </Badge>
       </section>
 
       <section className="grid gap-3 lg:grid-cols-2">
         <GitHubAgentCard organizationSlug={organizationSlug} />
+        <SlackAgentCard organizationSlug={organizationSlug} />
 
         <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
           <CardHeader className="gap-4 px-5 py-5 lg:px-6">

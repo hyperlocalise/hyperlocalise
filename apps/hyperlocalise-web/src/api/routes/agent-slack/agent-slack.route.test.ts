@@ -6,7 +6,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { verifySlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -111,6 +113,78 @@ describe("agentSlackRoutes", () => {
         teamName: "My Team",
       },
     });
+  });
+
+  it("returns an org-scoped slack install url for admins", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"]["install-url"].$get(
+      {
+        param: { organizationSlug },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    if (!("url" in body)) {
+      throw new Error("Expected slack install url response");
+    }
+    const url = new URL(body.url);
+    const state = url.searchParams.get("state");
+
+    expect(url.origin).toBe("https://slack.com");
+    expect(url.pathname).toBe("/oauth/v2/authorize");
+    expect(url.searchParams.get("client_id")).toBe(env.SLACK_CLIENT_ID);
+    expect(url.searchParams.get("redirect_uri")).toBe("http://localhost/api/auth/slack/callback");
+    expect(url.searchParams.get("scope")).toContain("app_mentions:read");
+    expect(state).toBeTruthy();
+    await expect(
+      verifySlackState(state ?? "", env.SLACK_OAUTH_STATE_SECRET ?? ""),
+    ).resolves.toEqual(expect.objectContaining({ slug: organizationSlug }));
+  });
+
+  it("rejects slack install url requests when the organization has no slug", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const identityWithoutSlug = {
+      ...identity,
+      organization: {
+        ...identity.organization,
+        slug: undefined,
+      },
+    };
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"]["install-url"].$get(
+      {
+        param: { organizationSlug: "missing-slug" },
+      },
+      {
+        headers: await fixture.authHeadersFor(identityWithoutSlug),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "organization_slug_required" });
+  });
+
+  it("rejects slack install url requests from non-admin members", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"]["install-url"].$get(
+      {
+        param: { organizationSlug },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
   });
 
   it("enables the slack agent", async () => {

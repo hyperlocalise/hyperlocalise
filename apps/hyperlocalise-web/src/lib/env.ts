@@ -73,6 +73,12 @@ export const env = createEnv({
     /** Slack signing secret for webhook verification. Required for secure Slack webhook handling. */
     SLACK_SIGNING_SECRET: z.string().min(1).optional(),
 
+    /** Secret used to sign Slack OAuth state parameters. Required for Slack workspace installation. */
+    SLACK_OAUTH_STATE_SECRET: z.string().min(1).optional(),
+
+    /** Slack OAuth redirect URI. Optional — falls back to the current request origin. */
+    SLACK_REDIRECT_URI: z.url().optional(),
+
     /** Object storage adapter for durable uploaded and generated files. */
     FILE_STORAGE_PROVIDER: z.enum(["vercel_blob"]).default("vercel_blob"),
 
@@ -132,6 +138,10 @@ export const env = createEnv({
       process.env.SLACK_CLIENT_SECRET ?? (isTestEnv ? "test-slack-client-secret" : undefined),
     SLACK_SIGNING_SECRET:
       process.env.SLACK_SIGNING_SECRET ?? (isTestEnv ? "test-slack-signing-secret" : undefined),
+    SLACK_OAUTH_STATE_SECRET:
+      process.env.SLACK_OAUTH_STATE_SECRET ??
+      (isTestEnv ? "test-slack-oauth-state-secret" : undefined),
+    SLACK_REDIRECT_URI: process.env.SLACK_REDIRECT_URI,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:

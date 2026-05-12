@@ -98,7 +98,7 @@ export function createSlackWebhookRoutes() {
       return c.json({ ok: true, ignored: true }, 200);
     }
 
-    const connector = await findSlackConnector(teamId);
+    const connector = await findSlackConnector(teamId, { enabledOnly: false });
     if (!connector) {
       logger.info({ teamId }, "ignoring slack webhook: unknown workspace");
       return c.json({ ok: true, ignored: true }, 200);
