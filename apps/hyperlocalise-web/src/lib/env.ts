@@ -161,7 +161,7 @@ export const env = createEnv({
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:
       process.env.BLOB_READ_WRITE_TOKEN ?? (isTestEnv ? "test-blob-read-write-token" : undefined),
-    MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED,
+    MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED ?? "true",
     MCP_TOKEN_LIFETIME_MINUTES: process.env.MCP_TOKEN_LIFETIME_MINUTES,
     MCP_REFRESH_TOKEN_LIFETIME_DAYS: process.env.MCP_REFRESH_TOKEN_LIFETIME_DAYS,
     MCP_ENCRYPTION_KEY:

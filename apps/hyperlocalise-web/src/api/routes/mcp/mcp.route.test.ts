@@ -75,6 +75,14 @@ async function ensureMcpSessionTable() {
     ADD COLUMN IF NOT EXISTS scope text DEFAULT 'mcp' NOT NULL;
   `);
   await db.$client.query(`
+    ALTER TABLE mcp_sessions
+    ADD COLUMN IF NOT EXISTS workos_access_token_encrypted text;
+  `);
+  await db.$client.query(`
+    ALTER TABLE mcp_sessions
+    ADD COLUMN IF NOT EXISTS workos_refresh_token_encrypted text;
+  `);
+  await db.$client.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS mcp_sessions_access_token_hash_key
     ON mcp_sessions (access_token_hash);
   `);
