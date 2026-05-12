@@ -65,7 +65,7 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "forbidden" as const }, 403);
       }
 
-      if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET) {
+      if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET || !env.SLACK_OAUTH_STATE_SECRET) {
         return c.json({ error: "slack_app_not_configured" as const }, 503);
       }
 
