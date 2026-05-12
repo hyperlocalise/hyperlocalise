@@ -66,6 +66,8 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
       c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
+      c.header("X-Download-Options", "noopen");
+      c.header("Cache-Control", "no-store");
 
       return c.body(storedObject.body);
     });
