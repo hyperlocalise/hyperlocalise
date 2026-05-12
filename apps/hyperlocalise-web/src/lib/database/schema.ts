@@ -731,6 +731,7 @@ export const mcpSessions = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    scope: text("scope").notNull().default("mcp"),
     accessTokenHash: text("access_token_hash").notNull(),
     refreshTokenHash: text("refresh_token_hash").notNull(),
     workosAccessTokenEncrypted: text("workos_access_token_encrypted"),
@@ -751,6 +752,16 @@ export const mcpSessions = pgTable(
     index("idx_mcp_sessions_organization_id").on(table.organizationId),
     index("idx_mcp_sessions_expires_at").on(table.expiresAt),
   ],
+);
+
+export const usedAuthorizationCodes = pgTable(
+  "used_authorization_codes",
+  {
+    codeHash: text("code_hash").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("idx_used_authorization_codes_expires_at").on(table.expiresAt)],
 );
 
 export const jobs = pgTable(

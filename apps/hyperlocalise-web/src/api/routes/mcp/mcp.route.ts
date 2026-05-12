@@ -9,7 +9,6 @@ import { z } from "zod";
 
 import {
   createAuthorizationCode,
-  encryptMcpSecret,
   generateMcpToken,
   getMcpTokenExpiry,
   hashMcpToken,
@@ -422,7 +421,10 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
           return c.json({ error: "invalid_grant" }, 400);
         }
 
-        markAuthorizationCodeUsed(parsed.data.code);
+        const isFirstCodeUse = await markAuthorizationCodeUsed(parsed.data.code, payload);
+        if (!isFirstCodeUse) {
+          return c.json({ error: "invalid_grant" }, 400);
+        }
 
         const accessToken = generateMcpToken();
         const refreshToken = generateMcpToken();
@@ -431,10 +433,11 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         await db.insert(schema.mcpSessions).values({
           userId: payload.userId,
           organizationId: payload.organizationId,
+          scope: payload.scope,
           accessTokenHash: hashMcpToken(accessToken),
           refreshTokenHash: hashMcpToken(refreshToken),
-          workosAccessTokenEncrypted: encryptMcpSecret(null),
-          workosRefreshTokenEncrypted: encryptMcpSecret(null),
+          workosAccessTokenEncrypted: null,
+          workosRefreshTokenEncrypted: null,
           expiresAt: accessTokenExpiresAt,
           refreshExpiresAt: refreshTokenExpiresAt,
         });
@@ -451,7 +454,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
       }
 
       const [session] = await db
-        .select({ id: schema.mcpSessions.id })
+        .select({ id: schema.mcpSessions.id, scope: schema.mcpSessions.scope })
         .from(schema.mcpSessions)
         .innerJoin(
           schema.organizationMemberships,
@@ -493,7 +496,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
           accessToken,
           refreshToken,
           expiresIn: env.MCP_TOKEN_LIFETIME_MINUTES * 60,
-          scope: "mcp",
+          scope: session.scope,
         }),
         200,
       );

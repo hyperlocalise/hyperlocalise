@@ -7,7 +7,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 
 import { db, schema } from "@/lib/database";
@@ -46,7 +46,6 @@ type AuthorizationCodePayload = {
 };
 
 const TOKEN_PREFIX = "hl_mcp_";
-const usedAuthorizationCodes = new Set<string>();
 
 function getMcpSecret(): Buffer {
   const configuredKey = env.MCP_ENCRYPTION_KEY ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
@@ -108,10 +107,6 @@ export function createAuthorizationCode(
 }
 
 export function parseAuthorizationCode(code: string): AuthorizationCodePayload | null {
-  if (usedAuthorizationCodes.has(code)) {
-    return null;
-  }
-
   const [encodedPayload, signature] = code.split(".");
   if (!encodedPayload || !signature || !constantTimeEqual(signature, sign(encodedPayload))) {
     return null;
@@ -131,8 +126,24 @@ export function parseAuthorizationCode(code: string): AuthorizationCodePayload |
   return payload;
 }
 
-export function markAuthorizationCodeUsed(code: string) {
-  usedAuthorizationCodes.add(code);
+export async function markAuthorizationCodeUsed(
+  code: string,
+  payload: AuthorizationCodePayload,
+): Promise<boolean> {
+  await db
+    .delete(schema.usedAuthorizationCodes)
+    .where(lt(schema.usedAuthorizationCodes.expiresAt, new Date()));
+
+  const [usedCode] = await db
+    .insert(schema.usedAuthorizationCodes)
+    .values({
+      codeHash: createHash("sha256").update(code).digest("hex"),
+      expiresAt: new Date(payload.expiresAt),
+    })
+    .onConflictDoNothing()
+    .returning({ codeHash: schema.usedAuthorizationCodes.codeHash });
+
+  return Boolean(usedCode);
 }
 
 export function encryptMcpSecret(value: string | null | undefined): string | null {

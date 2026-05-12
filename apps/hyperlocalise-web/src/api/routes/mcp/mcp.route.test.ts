@@ -3,7 +3,7 @@ import "dotenv/config";
 import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthorizationCode, hashMcpToken } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
@@ -36,9 +36,86 @@ async function exchangeCode(input: { code: string; verifier: string }) {
   });
 }
 
+async function refreshToken(refreshToken: string) {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: "test-client",
+  });
+
+  return app.request("http://localhost/api/mcp/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+}
+
+async function ensureMcpSessionTable() {
+  await db.$client.query(`
+    CREATE TABLE IF NOT EXISTS mcp_sessions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
+      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
+      scope text DEFAULT 'mcp' NOT NULL,
+      access_token_hash text NOT NULL,
+      refresh_token_hash text NOT NULL,
+      workos_access_token_encrypted text,
+      workos_refresh_token_encrypted text,
+      expires_at timestamp with time zone NOT NULL,
+      refresh_expires_at timestamp with time zone NOT NULL,
+      revoked_at timestamp with time zone,
+      created_at timestamp with time zone DEFAULT now() NOT NULL,
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    );
+  `);
+  await db.$client.query(`
+    ALTER TABLE mcp_sessions
+    ADD COLUMN IF NOT EXISTS scope text DEFAULT 'mcp' NOT NULL;
+  `);
+  await db.$client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS mcp_sessions_access_token_hash_key
+    ON mcp_sessions (access_token_hash);
+  `);
+  await db.$client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS mcp_sessions_refresh_token_hash_key
+    ON mcp_sessions (refresh_token_hash);
+  `);
+  await db.$client.query(`
+    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_user_id
+    ON mcp_sessions (user_id);
+  `);
+  await db.$client.query(`
+    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_organization_id
+    ON mcp_sessions (organization_id);
+  `);
+  await db.$client.query(`
+    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_expires_at
+    ON mcp_sessions (expires_at);
+  `);
+  await db.$client.query(`
+    CREATE TABLE IF NOT EXISTS used_authorization_codes (
+      code_hash text PRIMARY KEY NOT NULL,
+      expires_at timestamp with time zone NOT NULL,
+      created_at timestamp with time zone DEFAULT now() NOT NULL
+    );
+  `);
+  await db.$client.query(`
+    CREATE INDEX IF NOT EXISTS idx_used_authorization_codes_expires_at
+    ON used_authorization_codes (expires_at);
+  `);
+}
+
 describe("mcpRoutes", () => {
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+    await ensureMcpSessionTable();
+  });
+
   afterEach(async () => {
     await fixture.cleanup();
+    await db.delete(schema.usedAuthorizationCodes);
   });
 
   it("returns OAuth authorization server metadata", async () => {
@@ -96,7 +173,63 @@ describe("mcpRoutes", () => {
     expect(session).toMatchObject({
       userId: auth.user.localUserId,
       organizationId: auth.organization.localOrganizationId,
+      scope: "mcp",
       refreshTokenHash: hashMcpToken(body.refresh_token),
     });
+  });
+
+  it("rejects an authorization code after it has been exchanged once", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const code = createAuthorizationCode({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: pkceChallenge(verifier),
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+      userId: auth.user.localUserId,
+      organizationId: auth.organization.localOrganizationId,
+    });
+
+    expect((await exchangeCode({ code, verifier })).status).toBe(200);
+    expect((await exchangeCode({ code, verifier })).status).toBe(400);
+  });
+
+  it("returns the persisted session scope when refreshing tokens", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const scope = "mcp repositories:read";
+    const code = createAuthorizationCode({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: pkceChallenge(verifier),
+      codeChallengeMethod: "S256",
+      scope,
+      userId: auth.user.localUserId,
+      organizationId: auth.organization.localOrganizationId,
+    });
+
+    const codeResponse = await exchangeCode({ code, verifier });
+    expect(codeResponse.status).toBe(200);
+    const codeBody = await codeResponse.json();
+
+    const refreshResponse = await refreshToken(codeBody.refresh_token);
+
+    expect(refreshResponse.status).toBe(200);
+    await expect(refreshResponse.json()).resolves.toMatchObject({ scope });
   });
 });
