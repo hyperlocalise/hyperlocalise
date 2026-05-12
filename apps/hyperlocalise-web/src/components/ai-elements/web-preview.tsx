@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
@@ -95,27 +95,30 @@ export const WebPreviewNavigationButton = ({
   children,
   ...props
 }: WebPreviewNavigationButtonProps) => (
-  <TooltipProvider>
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            className="h-8 w-8 p-0 hover:text-foreground"
-            disabled={disabled}
-            onClick={onClick}
-            size="sm"
-            variant="ghost"
-            {...props}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent>
-        <TypographyP>{tooltip}</TypographyP>
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+  /**
+   * BOLT OPTIMIZATION: Remove redundant TooltipProvider.
+   * RootLayout already provides a TooltipProvider. Local providers add
+   * unnecessary React context overhead and can lead to desynced timers.
+   */
+  <Tooltip>
+    <TooltipTrigger
+      render={
+        <Button
+          className="h-8 w-8 p-0 hover:text-foreground"
+          disabled={disabled}
+          onClick={onClick}
+          size="sm"
+          variant="ghost"
+          {...props}
+        />
+      }
+    >
+      {children}
+    </TooltipTrigger>
+    <TooltipContent>
+      <TypographyP>{tooltip}</TypographyP>
+    </TooltipContent>
+  </Tooltip>
 );
 
 export type WebPreviewUrlProps = ComponentProps<typeof Input>;

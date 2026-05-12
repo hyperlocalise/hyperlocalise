@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { XIcon } from "lucide-react";
@@ -84,6 +84,11 @@ export const ArtifactAction = ({
   variant = "ghost",
   ...props
 }: ArtifactActionProps) => {
+  /**
+   * BOLT OPTIMIZATION: Remove redundant TooltipProvider.
+   * RootLayout already provides a TooltipProvider. Local providers add
+   * unnecessary React context overhead and can lead to desynced timers.
+   */
   const button = (
     <Button
       className={cn("size-8 p-0 text-muted-foreground hover:text-foreground", className)}
@@ -99,14 +104,12 @@ export const ArtifactAction = ({
 
   if (tooltip) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger>{button}</TooltipTrigger>
-          <TooltipContent>
-            <TypographyP>{tooltip}</TypographyP>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger>{button}</TooltipTrigger>
+        <TooltipContent>
+          <TypographyP>{tooltip}</TypographyP>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
