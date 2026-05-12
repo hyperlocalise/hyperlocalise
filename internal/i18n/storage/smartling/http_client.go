@@ -555,6 +555,44 @@ func (c *HTTPClient) uploadFile(ctx context.Context, token string, projectID str
 	return nil
 }
 
+// TranslationDownloadInput contains the parameters for downloading a translated file from Smartling.
+type TranslationDownloadInput struct {
+	ProjectID string
+	FileURI   string
+	LocaleID  string
+}
+
+// TranslationDownloadResult contains the results of a translation file download from Smartling.
+type TranslationDownloadResult struct {
+	LocaleID string
+	Content  []byte
+}
+
+// DownloadTranslationFile downloads a translated file from Smartling for a specific locale.
+func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in TranslationDownloadInput) (TranslationDownloadResult, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("smartling download: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("smartling download: file uri is required")
+	}
+	if strings.TrimSpace(in.LocaleID) == "" {
+		return TranslationDownloadResult{}, fmt.Errorf("smartling download: locale id is required")
+	}
+
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return TranslationDownloadResult{}, err
+	}
+
+	content, err := c.downloadFile(ctx, token, strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.LocaleID), strings.TrimSpace(in.FileURI))
+	if err != nil {
+		return TranslationDownloadResult{}, err
+	}
+
+	return TranslationDownloadResult{LocaleID: in.LocaleID, Content: content}, nil
+}
+
 func decodeFileContent(content []byte, locale string, fileType string) ([]storage.Entry, error) {
 	fileType = strings.ToLower(strings.TrimSpace(fileType))
 	if fileType == "" {
