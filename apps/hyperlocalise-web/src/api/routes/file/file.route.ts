@@ -63,8 +63,9 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
       );
       c.header(
         "Content-Disposition",
-        `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
+      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
 
       return c.body(storedObject.body);
     });

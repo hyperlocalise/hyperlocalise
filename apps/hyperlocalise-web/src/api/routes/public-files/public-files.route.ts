@@ -180,6 +180,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         "Content-Disposition",
         `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
+      c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
 
       return c.body(storedObject.body);
     });
