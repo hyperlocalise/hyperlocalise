@@ -26,6 +26,11 @@ export function createSlackOAuthRoutes() {
       return c.redirect("/dashboard?error=invalid_slack_state");
     }
 
+    const errorParam = c.req.query("error");
+    if (errorParam) {
+      return c.redirect(`/dashboard?error=${encodeURIComponent(errorParam)}`);
+    }
+
     const [org] = await db
       .select()
       .from(schema.organizations)
@@ -40,9 +45,15 @@ export function createSlackOAuthRoutes() {
     await bot.initialize();
 
     const adapter = bot.getAdapter("slack");
-    const { teamId, installation } = await adapter.handleOAuthCallback(c.req.raw, {
-      redirectUri: getSlackRedirectUri(c.req.url),
-    });
+    let oauthResult: Awaited<ReturnType<typeof adapter.handleOAuthCallback>>;
+    try {
+      oauthResult = await adapter.handleOAuthCallback(c.req.raw, {
+        redirectUri: getSlackRedirectUri(c.req.url),
+      });
+    } catch {
+      return c.redirect("/dashboard?error=slack_oauth_failed");
+    }
+    const { teamId, installation } = oauthResult;
 
     await db
       .insert(schema.connectors)

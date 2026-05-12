@@ -20,17 +20,25 @@ export async function signSlackState(payload: string, secret: string): Promise<s
   return Buffer.from(signature).toString("base64");
 }
 
+export async function createSlackState(slug: string, secret: string): Promise<string> {
+  const encodedSlug = encodeURIComponent(slug);
+  const payload = `${encodedSlug}:${Date.now()}`;
+  return `${payload}:${await signSlackState(payload, secret)}`;
+}
+
 export async function verifySlackState(
   state: string,
   secret: string,
 ): Promise<{ slug: string; timestamp: number } | null> {
   const parts = state.split(":");
-  if (parts.length !== 3) return null;
+  if (parts.length < 3) return null;
 
-  const [slug, timestampStr, providedSignature] = parts;
-  if (!slug || !timestampStr || !providedSignature) return null;
+  const providedSignature = parts.at(-1);
+  const timestampStr = parts.at(-2);
+  const encodedSlug = parts.slice(0, -2).join(":");
+  if (!encodedSlug || !timestampStr || !providedSignature) return null;
 
-  const payload = `${slug}:${timestampStr}`;
+  const payload = `${encodedSlug}:${timestampStr}`;
   const expectedSignature = await signSlackState(payload, secret);
   const enc = new TextEncoder();
   const providedBytes = enc.encode(providedSignature);
@@ -42,6 +50,13 @@ export async function verifySlackState(
   if (!Number.isFinite(timestamp)) return null;
 
   if (Date.now() - timestamp > 60 * 60 * 1000) return null;
+
+  let slug: string;
+  try {
+    slug = decodeURIComponent(encodedSlug);
+  } catch {
+    return null;
+  }
 
   return { slug, timestamp };
 }

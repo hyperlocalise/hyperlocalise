@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { signSlackState } from "@/lib/agents/slack/oauth-state";
+import { createSlackState as createSignedSlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createSlackOAuthRoutes } from "./slack-oauth";
@@ -33,8 +33,7 @@ vi.mock("@/lib/agents/slack/bot", () => ({
 const fixture = createProjectTestFixture();
 
 async function createSlackState(slug: string) {
-  const payload = `${slug}:${Date.now()}`;
-  return `${payload}:${await signSlackState(payload, env.SLACK_OAUTH_STATE_SECRET ?? "")}`;
+  return createSignedSlackState(slug, env.SLACK_OAUTH_STATE_SECRET ?? "");
 }
 
 describe("slackOAuthRoutes", () => {
@@ -98,6 +97,36 @@ describe("slackOAuthRoutes", () => {
         botUserId: "U_BOT",
       },
     });
+  });
+
+  it("redirects when slack authorization is denied", async () => {
+    const app = createSlackOAuthRoutes();
+    const state = await createSlackState("acme");
+
+    const response = await app.request(
+      `http://localhost/callback?error=access_denied&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/dashboard?error=access_denied");
+    expect(mocks.initialize).not.toHaveBeenCalled();
+    expect(mocks.handleOAuthCallback).not.toHaveBeenCalled();
+  });
+
+  it("redirects when slack oauth callback handling fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    await fixture.authHeadersFor(identity);
+    mocks.handleOAuthCallback.mockRejectedValueOnce(new Error("expired code"));
+
+    const app = createSlackOAuthRoutes();
+    const state = await createSlackState(organizationSlug);
+    const response = await app.request(
+      `http://localhost/callback?code=expired&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/dashboard?error=slack_oauth_failed");
   });
 
   it("rejects callbacks with invalid state", async () => {

@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth";
-import { getSlackStateSecret, signSlackState } from "@/lib/agents/slack/oauth-state";
+import { createSlackState, getSlackStateSecret } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
@@ -70,8 +70,7 @@ export function createAgentSlackRoutes() {
       }
 
       const slug = c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
-      const payload = `${slug}:${Date.now()}`;
-      const state = `${payload}:${await signSlackState(payload, getSlackStateSecret())}`;
+      const state = await createSlackState(slug, getSlackStateSecret());
       const redirectUri = getSlackRedirectUri(c.req.url);
 
       const url = new URL("https://slack.com/oauth/v2/authorize");

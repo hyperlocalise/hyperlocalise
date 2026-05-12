@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { describe, expect, it } from "vitest";
 import { createApp } from "@/api/app";
 
