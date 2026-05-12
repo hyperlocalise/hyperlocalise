@@ -15,9 +15,9 @@ describe("Tooltip Redundancy Optimization", () => {
         React.createElement(
           MessageAction,
           { tooltip: "Test Tooltip", label: "Test Label" },
-          "Click me"
-        )
-      )
+          "Click me",
+        ),
+      ),
     );
     // Should contain the button text and the sr-only label
     expect(markup).toContain("Click me");
@@ -34,9 +34,9 @@ describe("Tooltip Redundancy Optimization", () => {
         React.createElement(
           ArtifactAction,
           { tooltip: "Artifact Tooltip", label: "Artifact Label" },
-          "Artifact"
-        )
-      )
+          "Artifact",
+        ),
+      ),
     );
     expect(markup).toContain("Artifact");
     expect(markup).toContain("Artifact Label");
@@ -48,12 +48,8 @@ describe("Tooltip Redundancy Optimization", () => {
       React.createElement(
         TooltipProvider,
         {},
-        React.createElement(
-          WebPreviewNavigationButton,
-          { tooltip: "Web Tooltip" },
-          "Web"
-        )
-      )
+        React.createElement(WebPreviewNavigationButton, { tooltip: "Web Tooltip" }, "Web"),
+      ),
     );
     expect(markup).toContain("Web");
     expect(markup).toContain('data-slot="tooltip-trigger"');
