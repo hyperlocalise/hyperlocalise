@@ -1,4 +1,5 @@
 import type { db } from "@/lib/database";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 /**
  * Request-scoped context passed to every chat tool.
@@ -9,6 +10,7 @@ import type { db } from "@/lib/database";
 export type ToolContext = {
   conversationId: string;
   organizationId: string;
+  membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   db: typeof db;
 };

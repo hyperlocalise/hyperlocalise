@@ -203,6 +203,14 @@ export function createTranslationJobTool(ctx: ToolContext) {
         .describe("Optional maximum string length for string jobs."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
+        };
+      }
+
       if (!ctx.projectId) {
         return {
           success: false,

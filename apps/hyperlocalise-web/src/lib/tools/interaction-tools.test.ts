@@ -53,6 +53,7 @@ async function executeResolveInteractionTool(input: {
   const resolveInteraction = createResolveInteractionTool({
     conversationId: input.conversationId,
     organizationId: input.organizationId,
+    membershipRole: "admin",
     projectId: null,
     db,
   });

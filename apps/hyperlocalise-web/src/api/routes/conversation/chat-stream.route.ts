@@ -122,6 +122,7 @@ export function createChatStreamRoutes() {
       const tools = buildTools({
         conversationId,
         organizationId: orgId,
+        membershipRole: c.var.auth.membership.role,
         projectId: conversation.projectId ?? null,
         db,
       });

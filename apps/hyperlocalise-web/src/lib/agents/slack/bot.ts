@@ -3,7 +3,7 @@ import { Chat } from "chat";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { eq } from "drizzle-orm";
 import { generateText, stepCountIs } from "ai";
-import type { Message, Thread } from "chat";
+import type { Message, Thread, UserInfo } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { db, schema } from "@/lib/database";
@@ -16,7 +16,7 @@ import {
 } from "@/lib/interactions";
 import { buildTools } from "@/lib/tools/registry";
 
-import { findSlackConnector } from "./helpers";
+import { findSlackConnector, lookupMembership } from "./helpers";
 
 type SlackBotState = Record<string, unknown>;
 
@@ -28,6 +28,13 @@ const wrappedThreads = new WeakSet<Thread<SlackBotState>>();
 export function extractTeamId(message: Message): string | null {
   const raw = message.raw as { team_id?: string; team?: string } | undefined;
   return raw?.team_id ?? raw?.team ?? null;
+}
+
+async function getSlackUser(
+  thread: Thread<SlackBotState>,
+  userId: string,
+): Promise<UserInfo | null> {
+  return (await thread.adapter.getUser?.(userId)) ?? null;
 }
 
 export async function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: string) {
@@ -159,10 +166,10 @@ async function loadConversationHistory(interactionId: string) {
 
 async function processSlackMessage(
   thread: Thread<SlackBotState>,
+  message: Message,
   interactionId: string,
   organizationId: string,
   projectId: string | null,
-  userText: string,
 ) {
   try {
     const chatMessages = await loadConversationHistory(interactionId);
@@ -171,14 +178,28 @@ async function processSlackMessage(
     // to ensure we have the freshest text
     const lastUserIndex = chatMessages.findLastIndex((m) => m.role === "user");
     if (lastUserIndex >= 0) {
-      chatMessages[lastUserIndex] = { role: "user", content: userText };
+      chatMessages[lastUserIndex] = { role: "user", content: message.text };
     } else {
-      chatMessages.push({ role: "user", content: userText });
+      chatMessages.push({ role: "user", content: message.text });
+    }
+
+    const slackUser = await getSlackUser(thread, message.author.userId);
+    const membership = slackUser?.email
+      ? await lookupMembership({ email: slackUser.email, organizationId })
+      : null;
+
+    if (!membership) {
+      await wrapThreadPost(thread, interactionId);
+      await thread.post(
+        "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      );
+      return;
     }
 
     const tools = buildTools({
       conversationId: interactionId,
       organizationId,
+      membershipRole: membership.role,
       projectId,
       db,
     });
@@ -224,10 +245,13 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     message.text.slice(0, 100) || "Slack conversation",
   );
 
+  const slackUser = await getSlackUser(thread, message.author.userId);
+
   await addInteractionMessage({
     interactionId: interaction.id,
     senderType: "user",
     text: message.text,
+    senderEmail: slackUser?.email,
   });
 
   if (isNew) {
@@ -237,10 +261,10 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
 
   await processSlackMessage(
     thread,
+    message,
     interaction.id,
     connector.organizationId,
     interaction.projectId,
-    message.text,
   );
 }
 
@@ -265,18 +289,21 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     message.text.slice(0, 100) || "Slack conversation",
   );
 
+  const slackUser = await getSlackUser(thread, message.author.userId);
+
   await addInteractionMessage({
     interactionId: interaction.id,
     senderType: "user",
     text: message.text,
+    senderEmail: slackUser?.email,
   });
 
   await processSlackMessage(
     thread,
+    message,
     interaction.id,
     connector.organizationId,
     interaction.projectId,
-    message.text,
   );
 }
 

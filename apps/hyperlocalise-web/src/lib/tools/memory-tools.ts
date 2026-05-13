@@ -62,6 +62,14 @@ export function createCreateTranslationMemoryTool(ctx: ToolContext) {
       description: z.string().max(10_000).optional().describe("Optional description."),
     }),
     execute: async ({ name, description }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to create translation memories. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const [memory] = await ctx.db
         .insert(schema.memories)
         .values({
@@ -86,6 +94,14 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to update translation memories. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { memoryId, ...rest } = input;
       const updates = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 
@@ -120,6 +136,14 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
       memoryId: z.string().describe("The memory ID to delete."),
     }),
     execute: async ({ memoryId }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to delete translation memories. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const deleted = await ctx.db
         .delete(schema.memories)
         .where(
@@ -221,6 +245,14 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
       externalKey: z.string().optional().describe("Optional external identifier."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to create translation memory entries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { memoryId, ...entryData } = input;
 
       const memory = await getOwnedMemory(ctx.db, ctx.organizationId, memoryId);
@@ -311,6 +343,14 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to update translation memory entries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { entryId, sourceText, ...rest } = input;
       const updates: Record<string, unknown> = Object.fromEntries(
         Object.entries(rest).filter(([, v]) => v !== undefined),
@@ -355,6 +395,14 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
       entryId: z.string().describe("The entry ID to delete."),
     }),
     execute: async ({ entryId }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error:
+            "You do not have permission to delete translation memory entries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       // Verify ownership via the parent memory.
       const [entryWithMemory] = await ctx.db
         .select({ memoryOrgId: schema.memories.organizationId })
