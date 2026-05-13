@@ -328,7 +328,7 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
       return new Response(JSON.stringify({ error: "not_initialized" }), { status: 503 });
     }
 
-    void this.chat.processMessage(this, message.threadId, message, options);
+    this.chat.processMessage(this, message.threadId, message, options);
     return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
   }
 

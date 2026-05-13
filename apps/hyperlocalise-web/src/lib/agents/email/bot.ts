@@ -4,6 +4,7 @@ import type { Message, Thread } from "chat";
 import { and, eq } from "drizzle-orm";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
+import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";
@@ -714,27 +715,9 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
           }
         }
 
-        // Wrap thread.post to also save agent messages
-        const originalPost = thread.post.bind(thread);
-        const trackedPost = async (...args: Parameters<typeof originalPost>) => {
-          const result = await originalPost(...args);
-          if (track && conversationId) {
-            try {
-              const text = typeof args[0] === "string" ? args[0] : "";
-              if (text) {
-                await track.addMessage({
-                  interactionId: conversationId,
-                  senderType: "agent",
-                  text,
-                });
-              }
-            } catch {
-              // Best-effort tracking
-            }
-          }
-          return result;
-        };
-        (thread as { post: typeof trackedPost }).post = trackedPost;
+        if (track && conversationId) {
+          await wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+        }
 
         log.info("resuming pending clarification");
         await handlePendingClarification({
@@ -802,28 +785,9 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         }
       }
 
-      // Wrap thread.post to also save agent messages
-      const originalPost = thread.post.bind(thread);
-      const trackedPost = async (...args: Parameters<typeof originalPost>) => {
-        const result = await originalPost(...args);
-        if (track && conversationId) {
-          try {
-            const text = typeof args[0] === "string" ? args[0] : "";
-            if (text) {
-              await track.addMessage({
-                interactionId: conversationId,
-                senderType: "agent",
-                text,
-              });
-            }
-          } catch {
-            // Best-effort tracking
-          }
-        }
-        return result;
-      };
-      // Replace thread.post temporarily for this handler invocation
-      (thread as { post: typeof trackedPost }).post = trackedPost;
+      if (track && conversationId) {
+        await wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+      }
 
       const intent = await dependencies.interpretEmailRequest({
         subject: raw.subject ?? "",
