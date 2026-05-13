@@ -235,7 +235,7 @@ describe("mcpRoutes", () => {
   });
 
   // TODO: Re-enable after diagnosing the CI-only 500 during MCP authorization code exchange.
-  it.skip("exchanges a PKCE-bound authorization code for persisted MCP tokens", async () => {
+  it("exchanges a PKCE-bound authorization code for persisted MCP tokens", async () => {
     const identity = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext;
@@ -281,7 +281,7 @@ describe("mcpRoutes", () => {
     });
   });
 
-  it.skip("rejects an authorization code after it has been exchanged once", async () => {
+  it("rejects an authorization code after it has been exchanged once", async () => {
     const identity = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext;
@@ -305,7 +305,7 @@ describe("mcpRoutes", () => {
     expect((await exchangeCode({ code, verifier })).status).toBe(400);
   });
 
-  it.skip("returns the persisted session scope when refreshing tokens", async () => {
+  it("returns the persisted session scope when refreshing tokens", async () => {
     const identity = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext;
