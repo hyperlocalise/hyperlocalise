@@ -135,14 +135,13 @@ async function processSlackMessage(
       ...(interactionAttachments.length > 0 ? { attachments: interactionAttachments } : {}),
     });
 
-    if (
-      unsupportedFileAttachments.length > 0 &&
-      storedFileAttachments.length === 0 &&
-      imageAttachments.length === 0
-    ) {
+    if (unsupportedFileAttachments.length > 0) {
       wrapThreadPost(thread, interactionId);
       await thread.post(buildUnsupportedSlackFilesMessage(unsupportedFileAttachments));
-      return;
+
+      if (storedFileAttachments.length === 0 && imageAttachments.length === 0) {
+        return;
+      }
     }
 
     const chatMessages = replaceLastUserMessage(
@@ -150,7 +149,7 @@ async function processSlackMessage(
       persistedUserText,
     );
 
-    if (imageAttachments.length > 0 && storedFileAttachments.length === 0) {
+    if (imageAttachments.length > 0) {
       const imageIntentMessages = chatMessages.flatMap((chatMessage) => {
         if (
           (chatMessage.role !== "user" && chatMessage.role !== "assistant") ||
@@ -163,7 +162,10 @@ async function processSlackMessage(
 
       wrapThreadPost(thread, interactionId);
       await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
-      return;
+
+      if (storedFileAttachments.length === 0) {
+        return;
+      }
     }
 
     const agent = createConversationToolLoopAgent({

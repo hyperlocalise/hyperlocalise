@@ -101,13 +101,17 @@ export async function storeSlackFileAttachments(input: StoreSlackFileAttachments
         slackAttachmentUrl: attachment.url,
       },
     });
+    const url = file.downloadUrl ?? file.storageUrl;
+    if (!url) {
+      throw new Error(`Stored Slack file ${file.id} has no retrievable URL`);
+    }
 
     storedFiles.push({
       id: file.id,
       filename: file.filename,
       contentType: file.contentType,
       fileFormat,
-      url: file.downloadUrl ?? file.storageUrl,
+      url,
     });
   }
 

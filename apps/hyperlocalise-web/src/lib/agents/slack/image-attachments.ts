@@ -188,7 +188,12 @@ export async function handleSlackImageAttachments(
         ],
       });
       localizedCount += 1;
-    } catch {
+    } catch (error) {
+      console.error("Failed to localize Slack image attachment", {
+        error,
+        imageName: imageAttachment.name,
+        targetLocale,
+      });
       await thread.post(buildImageFailureMessage(imageAttachment));
     }
   }
