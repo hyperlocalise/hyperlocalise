@@ -3,7 +3,7 @@ import { Chat } from "chat";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import { eq } from "drizzle-orm";
 import { generateText, stepCountIs } from "ai";
-import type { Message, Thread } from "chat";
+import type { Message, Thread, UserInfo } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { db, schema } from "@/lib/database";
@@ -28,6 +28,13 @@ const wrappedThreads = new WeakSet<Thread<SlackBotState>>();
 export function extractTeamId(message: Message): string | null {
   const raw = message.raw as { team_id?: string; team?: string } | undefined;
   return raw?.team_id ?? raw?.team ?? null;
+}
+
+async function getSlackUser(
+  thread: Thread<SlackBotState>,
+  userId: string,
+): Promise<UserInfo | null> {
+  return (await thread.adapter.getUser?.(userId)) ?? null;
 }
 
 export async function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: string) {
@@ -176,7 +183,7 @@ async function processSlackMessage(
       chatMessages.push({ role: "user", content: message.text });
     }
 
-    const slackUser = await thread.adapter.getUser(message.author.userId);
+    const slackUser = await getSlackUser(thread, message.author.userId);
     const membership = slackUser?.email
       ? await lookupMembership({ email: slackUser.email, organizationId })
       : null;
@@ -238,7 +245,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     message.text.slice(0, 100) || "Slack conversation",
   );
 
-  const slackUser = await thread.adapter.getUser(message.author.userId);
+  const slackUser = await getSlackUser(thread, message.author.userId);
 
   await addInteractionMessage({
     interactionId: interaction.id,
@@ -282,7 +289,7 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     message.text.slice(0, 100) || "Slack conversation",
   );
 
-  const slackUser = await thread.adapter.getUser(message.author.userId);
+  const slackUser = await getSlackUser(thread, message.author.userId);
 
   await addInteractionMessage({
     interactionId: interaction.id,
