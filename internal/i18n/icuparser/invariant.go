@@ -56,7 +56,7 @@ func SameICUBlocks(a, b []BlockSignature) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slicesEqual(a[i].Options, b[i].Options) {
+		if a[i].Arg != b[i].Arg || a[i].Type != b[i].Type || !slicesEqual(a[i].Options, b[i].Options) || !slicesEqual(a[i].Pounds, b[i].Pounds) {
 			return false
 		}
 	}
