@@ -8,6 +8,8 @@ import (
 )
 
 func TestGlobToRegex(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		pattern string
 		match   []string
@@ -70,6 +72,8 @@ func TestGlobToRegex(t *testing.T) {
 }
 
 func TestBaseDirForDoublestar(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		pattern string
 		want    string
@@ -89,6 +93,8 @@ func TestBaseDirForDoublestar(t *testing.T) {
 }
 
 func TestResolveSourcePaths(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	files := []string{
@@ -170,6 +176,8 @@ func TestResolveSourcePaths(t *testing.T) {
 }
 
 func TestParseGlobCharClass(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		pattern string
 		wantRE  string
