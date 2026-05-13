@@ -2,6 +2,7 @@ package crowdin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -516,6 +517,79 @@ func TestFileAdapterDownloadTranslationsMergeApprovedPreservesNestedJSON(t *test
 	}
 }
 
+func TestFileAdapterDownloadTranslationsMergeApprovedSkipsSourceFallbacks(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello","bye":"Bye","nav":{"home":"Home","about":"About"},"new":"New"}`)
+	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"hello":"Bonjour old","bye":"Au revoir","nav":{"home":"Accueil","about":"A propos"},"draft":"Brouillon"}`)
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+		downloadPayload: []byte(`{"hello":"Bonjour approved","bye":"Bye","nav":{"home":"Home","about":"A propos approved"},"new":"New"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	if _, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{MergeApproved: true}); err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+	payload, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	want := "{\n  \"hello\": \"Bonjour approved\",\n  \"bye\": \"Au revoir\",\n  \"nav\": {\n    \"home\": \"Accueil\",\n    \"about\": \"A propos approved\"\n  },\n  \"draft\": \"Brouillon\"\n}\n"
+	if string(payload) != want {
+		t.Fatalf("payload = %q, want %q", string(payload), want)
+	}
+}
+
+func TestFileAdapterDownloadTranslationsMergeApprovedFallsBackWhenSourceMissing(t *testing.T) {
+	base := t.TempDir()
+	targetPath := writeJSONFixture(t, filepath.Join(base, "download", "fr", "messages.json"), `{"hello":"Bonjour old","draft":"Brouillon"}`)
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:     map[string]int{"src": 1},
+		files:           map[string]int{"messages.json": 7},
+		failFindMissing: true,
+		downloadPayload: []byte(`{"hello":"Bonjour approved","bye":"Au revoir"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/messages.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{MergeApproved: true}); err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+	payload, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	want := "{\n  \"hello\": \"Bonjour approved\",\n  \"draft\": \"Brouillon\",\n  \"bye\": \"Au revoir\"\n}\n"
+	if string(payload) != want {
+		t.Fatalf("payload = %q, want %q", string(payload), want)
+	}
+}
+
 func TestFileAdapterDownloadTranslationsMergeApprovedCreatesMissingJSON(t *testing.T) {
 	base := t.TempDir()
 	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
@@ -878,6 +952,52 @@ func TestFileAdapterDownloadTranslationsHandlesSkippedFiles(t *testing.T) {
 	wantSkipped := []string{"src/messages.json@fr"}
 	if !reflect.DeepEqual(result.Skipped, wantSkipped) {
 		t.Fatalf("skipped = %v, want %v", result.Skipped, wantSkipped)
+	}
+}
+
+func TestJSONValuesEqual(t *testing.T) {
+	tests := []struct {
+		name  string
+		left  string
+		right string
+		want  bool
+	}{
+		{
+			name:  "matching strings",
+			left:  `"Hello"`,
+			right: `"Hello"`,
+			want:  true,
+		},
+		{
+			name:  "string and number are not equal",
+			left:  `"1"`,
+			right: `1`,
+			want:  false,
+		},
+		{
+			name:  "matching numbers",
+			left:  `1`,
+			right: `1`,
+			want:  true,
+		},
+		{
+			name:  "matching arrays",
+			left:  `[true,null]`,
+			right: `[true,null]`,
+			want:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := jsonValuesEqual(json.RawMessage(tt.left), json.RawMessage(tt.right))
+			if err != nil {
+				t.Fatalf("json values equal: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("jsonValuesEqual(%s, %s) = %v, want %v", tt.left, tt.right, got, tt.want)
+			}
+		})
 	}
 }
 

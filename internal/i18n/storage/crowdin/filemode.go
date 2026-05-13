@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -245,7 +246,7 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir translation output: %w", err)
 				}
 				if req.MergeApproved {
-					payload, err = mergeApprovedJSONFile(targetPath, payload)
+					payload, err = mergeApprovedJSONFile(sourcePath, targetPath, payload)
 					if err != nil {
 						return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 					}
@@ -279,10 +280,23 @@ func effectiveFileExportOptions(base storage.FileExportOptions, overrides *stora
 	return base
 }
 
-func mergeApprovedJSONFile(targetPath string, approvedPayload []byte) ([]byte, error) {
+func mergeApprovedJSONFile(sourcePath, targetPath string, approvedPayload []byte) ([]byte, error) {
 	approved, err := decodeOrderedJSONObject(approvedPayload)
 	if err != nil {
 		return nil, fmt.Errorf("merge approved translations: downloaded payload for %s must be a JSON object: %w", targetPath, err)
+	}
+	sourcePayload, err := os.ReadFile(sourcePath)
+	if err == nil {
+		source, err := decodeOrderedJSONObject(sourcePayload)
+		if err != nil {
+			return nil, fmt.Errorf("merge approved translations: source file %s must be a JSON object: %w", sourcePath, err)
+		}
+		approved, err = filterSourceFallbackJSONObjects(approved, source)
+		if err != nil {
+			return nil, fmt.Errorf("merge approved translations: filter source-language fallback values: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("merge approved translations: read source file %s: %w", sourcePath, err)
 	}
 	if len(approved) == 0 {
 		if existing, err := os.ReadFile(targetPath); err == nil {
@@ -391,6 +405,93 @@ func mergeOrderedJSONObjects(existing, approved orderedJSONObject) (orderedJSONO
 		merged[existingIndex].value = formatOrderedJSONObject(nested, 0)
 	}
 	return merged, nil
+}
+
+func filterSourceFallbackJSONObjects(approved, source orderedJSONObject) (orderedJSONObject, error) {
+	filtered := make(orderedJSONObject, 0, len(approved))
+	for _, approvedMember := range approved {
+		sourceIndex := orderedJSONObjectIndex(source, approvedMember.key)
+		if sourceIndex == -1 {
+			filtered = append(filtered, cloneOrderedJSONMember(approvedMember))
+			continue
+		}
+
+		sourceMember := source[sourceIndex]
+		if isJSONObject(approvedMember.value) && isJSONObject(sourceMember.value) {
+			approvedObject, err := decodeOrderedJSONObject(approvedMember.value)
+			if err != nil {
+				return nil, err
+			}
+			sourceObject, err := decodeOrderedJSONObject(sourceMember.value)
+			if err != nil {
+				return nil, err
+			}
+			nested, err := filterSourceFallbackJSONObjects(approvedObject, sourceObject)
+			if err != nil {
+				return nil, err
+			}
+			if len(nested) == 0 {
+				continue
+			}
+			filtered = append(filtered, orderedJSONMember{
+				key:   approvedMember.key,
+				value: formatOrderedJSONObject(nested, 0),
+			})
+			continue
+		}
+
+		equal, err := jsonValuesEqual(approvedMember.value, sourceMember.value)
+		if err != nil {
+			return nil, err
+		}
+		if equal {
+			continue
+		}
+		filtered = append(filtered, cloneOrderedJSONMember(approvedMember))
+	}
+	return filtered, nil
+}
+
+func cloneOrderedJSONMember(member orderedJSONMember) orderedJSONMember {
+	return orderedJSONMember{
+		key:   member.key,
+		value: append(json.RawMessage(nil), member.value...),
+	}
+}
+
+func jsonValuesEqual(left, right json.RawMessage) (bool, error) {
+	leftString, leftIsString, err := decodeJSONString(left)
+	if err != nil {
+		return false, err
+	}
+	rightString, rightIsString, err := decodeJSONString(right)
+	if err != nil {
+		return false, err
+	}
+	if leftIsString || rightIsString {
+		return leftIsString && rightIsString && leftString == rightString, nil
+	}
+
+	var leftValue any
+	if err := json.Unmarshal(left, &leftValue); err != nil {
+		return false, err
+	}
+	var rightValue any
+	if err := json.Unmarshal(right, &rightValue); err != nil {
+		return false, err
+	}
+	return reflect.DeepEqual(leftValue, rightValue), nil
+}
+
+func decodeJSONString(payload json.RawMessage) (string, bool, error) {
+	if !bytes.HasPrefix(bytes.TrimSpace(payload), []byte(`"`)) {
+		return "", false, nil
+	}
+	var value string
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return "", false, err
+	}
+	return value, true, nil
 }
 
 func orderedJSONObjectIndex(obj orderedJSONObject, key string) int {
