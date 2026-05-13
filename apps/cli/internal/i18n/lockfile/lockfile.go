@@ -278,11 +278,11 @@ func decodeRunCheckpoint(raw json.RawMessage, impliedTargetPath, impliedEntryKey
 	}
 
 	updatedAt := time.Time{}
-	if payload.UpdatedAt != nil {
-		updatedAt = *payload.UpdatedAt
-	}
 	if payload.ShortUpdatedAt != nil {
 		updatedAt = *payload.ShortUpdatedAt
+	}
+	if payload.UpdatedAt != nil {
+		updatedAt = *payload.UpdatedAt
 	}
 
 	return RunCheckpoint{
