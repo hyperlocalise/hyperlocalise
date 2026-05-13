@@ -126,6 +126,33 @@ func TestSmartlingDownloadTranslationsFlags(t *testing.T) {
 	}
 }
 
+func TestSmartlingDownloadSourcesFlags(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{"smartling", "download", "sources"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing required flags")
+	}
+	if !strings.Contains(err.Error(), "required flag(s)") {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	out.Reset()
+	root.SetArgs([]string{"smartling", "download", "sources", "--help"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("help failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "--project-id") ||
+		!strings.Contains(out.String(), "--source-locale") ||
+		!strings.Contains(out.String(), "--file-uri") {
+		t.Error("help output missing required flags")
+	}
+}
+
 func TestSmartlingDownloadTranslationsDryRun(t *testing.T) {
 	root := newRootCmd("test")
 	out := &bytes.Buffer{}
@@ -150,6 +177,189 @@ func TestSmartlingDownloadTranslationsDryRun(t *testing.T) {
 		!strings.Contains(out.String(), "file_uri=test.json") ||
 		!strings.Contains(out.String(), "output=fr.json") {
 		t.Errorf("unexpected output: %s", out.String())
+	}
+}
+
+func TestSmartlingDownloadSourcesDryRun(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "en",
+		"--file-uri", "test.json",
+		"--output", "en.json",
+		"--dry-run",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "dry-run action=smartling-download-sources") ||
+		!strings.Contains(out.String(), "source_locale=en") ||
+		!strings.Contains(out.String(), "file_uri=test.json") ||
+		!strings.Contains(out.String(), "output=en.json") {
+		t.Errorf("unexpected output: %s", out.String())
+	}
+}
+
+type fakeSmartlingSourceDownloader struct {
+	result smartling.SourceDownloadResult
+	err    error
+}
+
+func (f *fakeSmartlingSourceDownloader) DownloadSourceFile(_ context.Context, in smartling.SourceDownloadInput) (smartling.SourceDownloadResult, error) {
+	if f.err != nil {
+		return smartling.SourceDownloadResult{}, f.err
+	}
+	if f.result.Content != nil {
+		return f.result, nil
+	}
+	return smartling.SourceDownloadResult{
+		SourceLocale: in.SourceLocale,
+		FileURI:      in.FileURI,
+		Content:      []byte(`{"hello":"Hello"}`),
+	}, nil
+}
+
+func TestSmartlingDownloadSourcesWritesStdout(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingSourceDownloader
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{}, nil
+	}
+	defer func() { newSmartlingSourceDownloader = orig }()
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "en",
+		"--file-uri", "test.json",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	if got := out.String(); got != `{"hello":"Hello"}` {
+		t.Errorf("unexpected stdout content: %s", got)
+	}
+}
+
+func TestSmartlingDownloadSourcesWritesOutputFile(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingSourceDownloader
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{}, nil
+	}
+	defer func() { newSmartlingSourceDownloader = orig }()
+
+	outputPath := filepath.Join(t.TempDir(), "en.json")
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "en",
+		"--file-uri", "test.json",
+		"--output", outputPath,
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Hello"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "downloaded file="+outputPath) ||
+		!strings.Contains(out.String(), "source_locale=en") ||
+		!strings.Contains(out.String(), "file_uri=test.json") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestSmartlingDownloadSourcesRefusesOverwriteWithoutForce(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	root := newRootCmd("test")
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "en",
+		"--file-uri", "test.json",
+		"--output", outputPath,
+	})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected overwrite error")
+	}
+	if !strings.Contains(err.Error(), "already exists; use --force to overwrite") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSmartlingDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
+	t.Setenv("SMARTLING_USER_IDENTIFIER", "uid")
+	t.Setenv("SMARTLING_USER_SECRET", "secret")
+
+	orig := newSmartlingSourceDownloader
+	newSmartlingSourceDownloader = func(_ smartling.Config) (smartlingSourceDownloader, error) {
+		return &fakeSmartlingSourceDownloader{}, nil
+	}
+	defer func() { newSmartlingSourceDownloader = orig }()
+
+	outputPath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(outputPath, []byte(`{"old":"Old"}`), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "en",
+		"--file-uri", "test.json",
+		"--output", outputPath,
+		"--force",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Hello"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
 	}
 }
 
