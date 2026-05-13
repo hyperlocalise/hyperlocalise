@@ -206,7 +206,8 @@ export function createTranslationJobTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
         };
       }
 

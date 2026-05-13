@@ -65,7 +65,8 @@ export function createCreateTranslationMemoryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to create translation memories. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to create translation memories. Only organization owners and admins can perform this action.",
         };
       }
 
@@ -96,7 +97,8 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to update translation memories. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to update translation memories. Only organization owners and admins can perform this action.",
         };
       }
 
@@ -137,7 +139,8 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to delete translation memories. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to delete translation memories. Only organization owners and admins can perform this action.",
         };
       }
 
@@ -245,7 +248,8 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to create translation memory entries. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to create translation memory entries. Only organization owners and admins can perform this action.",
         };
       }
 
@@ -342,7 +346,8 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to update translation memory entries. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to update translation memory entries. Only organization owners and admins can perform this action.",
         };
       }
 
@@ -393,7 +398,8 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
       if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
         return {
           success: false,
-          error: "You do not have permission to delete translation memory entries. Only organization owners and admins can perform this action.",
+          error:
+            "You do not have permission to delete translation memory entries. Only organization owners and admins can perform this action.",
         };
       }
 

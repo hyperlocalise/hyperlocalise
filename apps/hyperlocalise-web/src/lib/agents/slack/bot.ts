@@ -179,6 +179,7 @@ async function processSlackMessage(
     const tools = buildTools({
       conversationId: interactionId,
       organizationId,
+      membershipRole: "admin", // Slack bot operates as an admin within the org context it is connected to.
       projectId,
       db,
     });
