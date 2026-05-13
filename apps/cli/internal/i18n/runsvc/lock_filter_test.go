@@ -198,6 +198,35 @@ func TestApplyLockFilterMigratesLegacyMarkdownContextSensitiveTaskHash(t *testin
 	}
 }
 
+func TestLockTaskHashCandidatesOmitsMarkdownLegacyDefaultLockTaskHash(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: Paragraph[2]/line[0]",
+	}, "\n")
+
+	candidates := lockTaskHashCandidates(task)
+	deadCandidate := legacyDefaultLockTaskHash(task)
+	for _, candidate := range candidates {
+		if candidate == deadCandidate {
+			t.Fatalf("expected markdown candidates to omit legacy default lock task hash")
+		}
+	}
+
+	contextSensitiveLegacyDefault := legacyDefaultContextSensitiveLockTaskHash(task)
+	for _, candidate := range candidates {
+		if candidate == contextSensitiveLegacyDefault {
+			return
+		}
+	}
+	t.Fatalf("expected markdown candidates to include context-sensitive legacy default task hash")
+}
+
 func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"

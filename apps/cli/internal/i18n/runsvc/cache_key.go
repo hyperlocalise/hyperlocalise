@@ -79,6 +79,9 @@ func legacyMarkdownSourceContextVariants(context string) []string {
 }
 
 func markdownStructuralPathLegacyLineVariants(line string) []string {
+	// Try nearby previous ordinals for one structural path component at a time.
+	// Combined shifts across multiple components may still fall through to
+	// retranslation; maxShift bounds this best-effort migration window.
 	const maxShift = 8
 
 	matches := markdownStructuralOrdinalPattern.FindAllStringSubmatchIndex(line, -1)

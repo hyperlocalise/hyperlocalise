@@ -279,12 +279,11 @@ func taskLockSourceHash(task Task) string {
 }
 
 func lockTaskHashCandidates(task Task) []string {
-	candidates := []string{
-		lockTaskHash(task),
-		legacyDefaultLockTaskHash(task),
-	}
+	candidates := []string{lockTaskHash(task)}
 	if isMarkdownEntryKey(task.EntryKey) {
 		candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
+	} else {
+		candidates = append(candidates, legacyDefaultLockTaskHash(task))
 	}
 
 	seen := map[string]struct{}{}
