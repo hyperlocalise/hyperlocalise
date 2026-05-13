@@ -22,6 +22,13 @@
       "when": 1778415723613,
       "tag": "0002_polite_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778634260042,
+      "tag": "0003_nifty_lila_cheney",
+      "breakpoints": true
     }
   ]
 }

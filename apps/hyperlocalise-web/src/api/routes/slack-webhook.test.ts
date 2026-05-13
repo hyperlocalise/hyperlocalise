@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
 import { createSlackWebhookRoutes } from "./slack-webhook";
 
 const fixture = createProjectTestFixture();
@@ -30,7 +31,7 @@ vi.mock("@/lib/agents/slack/bot", () => {
 });
 
 function signSlackPayload(body: string): Record<string, string> {
-  const secret = "test-slack-signing-secret";
+  const secret = env.SLACK_SIGNING_SECRET ?? "test-slack-signing-secret";
   const timestamp = String(Math.floor(Date.now() / 1000));
   const baseString = `v0:${timestamp}:${body}`;
   const signature = `v0=${createHmac("sha256", secret).update(baseString).digest("hex")}`;

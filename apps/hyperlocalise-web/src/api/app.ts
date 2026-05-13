@@ -18,6 +18,7 @@ import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook";
 import { healthRoutes } from "./routes/health";
+import { createMcpRoutes } from "./routes/mcp/mcp.route";
 import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
@@ -45,6 +46,7 @@ export function createApp(options: CreateAppOptions = {}) {
   return new Hono()
     .use("*", secureHeaders())
     .basePath("/api")
+    .route("/", createMcpRoutes())
     .route("/auth", authRoutes)
     .route("/auth/slack", createSlackOAuthRoutes())
     .route("/glossary", createGlossaryRoutes())
