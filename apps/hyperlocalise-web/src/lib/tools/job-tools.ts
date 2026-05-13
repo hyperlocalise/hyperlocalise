@@ -7,9 +7,8 @@ import { z } from "zod";
 import { schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import {
-  inferSupportedTranslationFileFormat,
-  isImageTranslationFileFormat,
-  supportedTranslationFileFormats,
+  inferSupportedFileTranslationFileFormat,
+  supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
@@ -186,10 +185,12 @@ export function createTranslationJobTool(ctx: ToolContext) {
       sourceText: z.string().optional().describe("Source text for string jobs."),
       sourceFileId: z.string().optional().describe("Source file ID for file jobs."),
       fileFormat: z
-        .enum(supportedTranslationFileFormats)
+        .enum(supportedFileTranslationFileFormats)
         .optional()
         .describe("File format for file jobs."),
-      sourceLocale: z.string().describe("BCP-47 source locale tag."),
+      sourceLocale: z
+        .string()
+        .describe('BCP-47 source locale tag, or "auto" when the source locale is unknown.'),
       targetLocales: z.array(z.string()).min(1).describe("List of BCP-47 target locale tags."),
       context: z.string().optional().describe("Optional job-level translation context."),
       metadata: z
@@ -245,18 +246,11 @@ export function createTranslationJobTool(ctx: ToolContext) {
           };
         }
 
-        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return {
             success: false,
             error: "Source file extension is not supported for translation jobs.",
-          };
-        }
-
-        if (isImageTranslationFileFormat(inferredFileFormat)) {
-          return {
-            success: false,
-            error: "Image files are not supported for file translation jobs yet.",
           };
         }
 

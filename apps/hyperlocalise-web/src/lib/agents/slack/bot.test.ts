@@ -69,6 +69,16 @@ vi.mock("@/lib/image-generation", () => ({
   regenerateImageFromAttachment: vi.fn(),
 }));
 
+vi.mock("@/lib/file-storage/records", () => ({
+  createStoredFile: vi.fn(async (input: { filename: string; contentType: string }) => ({
+    id: "file_123",
+    filename: input.filename,
+    contentType: input.contentType,
+    downloadUrl: null,
+    storageUrl: "https://files.example/file_123",
+  })),
+}));
+
 vi.mock("@/lib/agents/slack/helpers", () => ({
   findSlackConnector: vi.fn(),
   lookupMembership: vi.fn(),
@@ -119,6 +129,7 @@ vi.mock("@/lib/database", () => {
 
 import { generateText } from "ai";
 import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
+import { createStoredFile } from "@/lib/file-storage/records";
 import { regenerateImageFromAttachment } from "@/lib/image-generation";
 import {
   addInteractionMessage,
@@ -473,6 +484,127 @@ describe("handleSubscribedMessage", () => {
       senderType: "agent",
       text: "AI response",
     });
+  });
+
+  it("stores supported Slack file attachments for file translation jobs", async () => {
+    const { thread, posts } = createThread();
+    const fileData = Buffer.from('{"hello":"Hello"}');
+    const fetchData = vi.fn(async () => fileData);
+    const message = createMessage({
+      text: "Translate this to French",
+      attachments: [
+        {
+          type: "file",
+          name: "en-US.json",
+          mimeType: "application/json",
+          fetchData,
+        },
+      ],
+    });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(fetchData).toHaveBeenCalledOnce();
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-123",
+        projectId: "project-123",
+        createdByUserId: "user-123",
+        role: "source",
+        sourceKind: "chat_upload",
+        sourceInteractionId: "interaction-123",
+        filename: "en-US.json",
+        contentType: "application/json",
+        content: fileData,
+        metadata: expect.objectContaining({
+          uploadSurface: "slack_agent",
+          translationSource: true,
+        }),
+      }),
+    );
+    expect(addInteractionMessage).toHaveBeenCalledWith({
+      interactionId: "interaction-123",
+      senderType: "user",
+      text: expect.stringContaining("sourceFileId=file_123"),
+      senderEmail: "alice@example.com",
+      attachments: [
+        {
+          id: "file_123",
+          filename: "en-US.json",
+          contentType: "application/json",
+          url: "https://files.example/file_123",
+        },
+      ],
+    });
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalInstructions: expect.stringContaining('Use sourceLocale "auto"'),
+      }),
+    );
+    expect(agentGenerateMock).toHaveBeenCalledWith({
+      messages: [
+        expect.objectContaining({
+          role: "user",
+          content: expect.stringContaining("sourceFileId=file_123"),
+        }),
+      ],
+    });
+    expect(agentGenerateMock.mock.calls[0]?.[0]?.messages[0]?.content).toContain("fileFormat=json");
+    expect(posts).toEqual(["AI response"]);
+  });
+
+  it("rejects unsupported Slack file attachments before calling the model", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Translate this PDF to French",
+      attachments: [
+        {
+          type: "file",
+          name: "brief.pdf",
+          mimeType: "application/pdf",
+          fetchData: vi.fn(async () => Buffer.from("pdf")),
+        },
+      ],
+    });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(createStoredFile).not.toHaveBeenCalled();
+    expect(generateText).not.toHaveBeenCalled();
+    expect(agentGenerateMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([expect.stringContaining("not a supported text translation source")]);
   });
 
   it("uses LLM intent extraction before localizing Slack image attachments", async () => {
