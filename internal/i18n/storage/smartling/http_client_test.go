@@ -477,14 +477,13 @@ func TestHTTPClientDownloadSourceFile(t *testing.T) {
 		userSecret:     "secret",
 	}
 	result, err := client.DownloadSourceFile(context.Background(), SourceDownloadInput{
-		ProjectID:    "123",
-		SourceLocale: "en",
-		FileURI:      "source.json",
+		ProjectID: "123",
+		FileURI:   "source.json",
 	})
 	if err != nil {
 		t.Fatalf("download source file: %v", err)
 	}
-	if string(result.Content) != `{"hello":"Hello"}` || result.SourceLocale != "en" || result.FileURI != "source.json" {
+	if string(result.Content) != `{"hello":"Hello"}` || result.FileURI != "source.json" {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 }
@@ -510,9 +509,8 @@ func TestHTTPClientDownloadSourceFileAPIError(t *testing.T) {
 		userSecret:     "secret",
 	}
 	_, err := client.DownloadSourceFile(context.Background(), SourceDownloadInput{
-		ProjectID:    "123",
-		SourceLocale: "en",
-		FileURI:      "missing.json",
+		ProjectID: "123",
+		FileURI:   "missing.json",
 	})
 	if err == nil {
 		t.Fatal("expected API error")

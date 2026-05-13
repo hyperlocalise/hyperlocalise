@@ -95,7 +95,7 @@ func newSmartlingDownloadSourcesCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Smartling project ID")
-	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "Smartling source locale ID")
+	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "deprecated; Smartling source downloads use the project source locale")
 	cmd.Flags().StringVar(&o.fileURI, "file-uri", "", "Smartling file URI")
 	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output file path; omit or use - for stdout")
 	cmd.Flags().StringVar(&o.userIdentifier, "user-id", "", "Smartling user identifier")
@@ -104,8 +104,8 @@ func newSmartlingDownloadSourcesCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
 	_ = cmd.MarkFlagRequired("project-id")
-	_ = cmd.MarkFlagRequired("source-locale")
 	_ = cmd.MarkFlagRequired("file-uri")
+	_ = cmd.Flags().MarkDeprecated("source-locale", "Smartling source downloads use the project source locale; omit this flag")
 	return cmd
 }
 
@@ -138,9 +138,6 @@ func executeSmartlingDownloadSources(cmd *cobra.Command, o smartlingDownloadSour
 	if strings.TrimSpace(o.projectID) == "" {
 		return fmt.Errorf("smartling download sources: --project-id is required")
 	}
-	if strings.TrimSpace(o.sourceLocale) == "" {
-		return fmt.Errorf("smartling download sources: --source-locale is required")
-	}
 	if strings.TrimSpace(o.fileURI) == "" {
 		return fmt.Errorf("smartling download sources: --file-uri is required")
 	}
@@ -151,7 +148,7 @@ func executeSmartlingDownloadSources(cmd *cobra.Command, o smartlingDownloadSour
 		if destination == "" {
 			destination = "-"
 		}
-		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-sources project_id=%s source_locale=%s file_uri=%s output=%s\n", strings.TrimSpace(o.projectID), strings.TrimSpace(o.sourceLocale), strings.TrimSpace(o.fileURI), destination)
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=smartling-download-sources project_id=%s file_uri=%s output=%s\n", strings.TrimSpace(o.projectID), strings.TrimSpace(o.fileURI), destination)
 		return err
 	}
 	if err := validateSmartlingDownloadSourcesOutputPath(outputPath, o.force); err != nil {
@@ -185,9 +182,8 @@ func executeSmartlingDownloadSources(cmd *cobra.Command, o smartlingDownloadSour
 		return err
 	}
 	result, err := client.DownloadSourceFile(backgroundContext(), smartling.SourceDownloadInput{
-		ProjectID:    strings.TrimSpace(o.projectID),
-		FileURI:      strings.TrimSpace(o.fileURI),
-		SourceLocale: strings.TrimSpace(o.sourceLocale),
+		ProjectID: strings.TrimSpace(o.projectID),
+		FileURI:   strings.TrimSpace(o.fileURI),
 	})
 	if err != nil {
 		return fmt.Errorf("smartling download sources: %w", err)
@@ -200,7 +196,7 @@ func executeSmartlingDownloadSources(cmd *cobra.Command, o smartlingDownloadSour
 	if err := writeSmartlingDownloadedSource(outputPath, result.Content, o.force); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d source_locale=%s file_uri=%s\n", outputPath, len(result.Content), result.SourceLocale, result.FileURI)
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d file_uri=%s\n", outputPath, len(result.Content), result.FileURI)
 	return err
 }
 

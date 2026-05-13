@@ -147,9 +147,11 @@ func TestSmartlingDownloadSourcesFlags(t *testing.T) {
 		t.Fatalf("help failed: %v", err)
 	}
 	if !strings.Contains(out.String(), "--project-id") ||
-		!strings.Contains(out.String(), "--source-locale") ||
 		!strings.Contains(out.String(), "--file-uri") {
 		t.Error("help output missing required flags")
+	}
+	if strings.Contains(out.String(), "--source-locale") {
+		t.Error("help output includes unsupported source locale flag")
 	}
 }
 
@@ -189,7 +191,6 @@ func TestSmartlingDownloadSourcesDryRun(t *testing.T) {
 	root.SetArgs([]string{
 		"smartling", "download", "sources",
 		"--project-id", "123",
-		"--source-locale", "en",
 		"--file-uri", "test.json",
 		"--output", "en.json",
 		"--dry-run",
@@ -200,10 +201,37 @@ func TestSmartlingDownloadSourcesDryRun(t *testing.T) {
 	}
 
 	if !strings.Contains(out.String(), "dry-run action=smartling-download-sources") ||
-		!strings.Contains(out.String(), "source_locale=en") ||
 		!strings.Contains(out.String(), "file_uri=test.json") ||
 		!strings.Contains(out.String(), "output=en.json") {
 		t.Errorf("unexpected output: %s", out.String())
+	}
+	if strings.Contains(out.String(), "source_locale=") {
+		t.Errorf("unexpected source locale in output: %s", out.String())
+	}
+}
+
+func TestSmartlingDownloadSourcesSourceLocaleFlagDeprecated(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "download", "sources",
+		"--project-id", "123",
+		"--source-locale", "fr",
+		"--file-uri", "test.json",
+		"--dry-run",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute failed: %v", err)
+	}
+	if !strings.Contains(out.String(), "Flag --source-locale has been deprecated") {
+		t.Errorf("expected deprecated flag warning, got: %s", out.String())
+	}
+	if strings.Contains(out.String(), "source_locale=") {
+		t.Errorf("unexpected source locale in output: %s", out.String())
 	}
 }
 
@@ -220,9 +248,8 @@ func (f *fakeSmartlingSourceDownloader) DownloadSourceFile(_ context.Context, in
 		return f.result, nil
 	}
 	return smartling.SourceDownloadResult{
-		SourceLocale: in.SourceLocale,
-		FileURI:      in.FileURI,
-		Content:      []byte(`{"hello":"Hello"}`),
+		FileURI: in.FileURI,
+		Content: []byte(`{"hello":"Hello"}`),
 	}, nil
 }
 
@@ -244,7 +271,6 @@ func TestSmartlingDownloadSourcesWritesStdout(t *testing.T) {
 	root.SetArgs([]string{
 		"smartling", "download", "sources",
 		"--project-id", "123",
-		"--source-locale", "en",
 		"--file-uri", "test.json",
 	})
 
@@ -276,7 +302,6 @@ func TestSmartlingDownloadSourcesWritesOutputFile(t *testing.T) {
 	root.SetArgs([]string{
 		"smartling", "download", "sources",
 		"--project-id", "123",
-		"--source-locale", "en",
 		"--file-uri", "test.json",
 		"--output", outputPath,
 	})
@@ -293,9 +318,11 @@ func TestSmartlingDownloadSourcesWritesOutputFile(t *testing.T) {
 		t.Fatalf("unexpected file content: %q", string(content))
 	}
 	if !strings.Contains(out.String(), "downloaded file="+outputPath) ||
-		!strings.Contains(out.String(), "source_locale=en") ||
 		!strings.Contains(out.String(), "file_uri=test.json") {
 		t.Fatalf("unexpected output: %q", out.String())
+	}
+	if strings.Contains(out.String(), "source_locale=") {
+		t.Fatalf("unexpected source locale in output: %q", out.String())
 	}
 }
 
@@ -309,7 +336,6 @@ func TestSmartlingDownloadSourcesRefusesOverwriteWithoutForce(t *testing.T) {
 	root.SetArgs([]string{
 		"smartling", "download", "sources",
 		"--project-id", "123",
-		"--source-locale", "en",
 		"--file-uri", "test.json",
 		"--output", outputPath,
 	})
@@ -345,7 +371,6 @@ func TestSmartlingDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
 	root.SetArgs([]string{
 		"smartling", "download", "sources",
 		"--project-id", "123",
-		"--source-locale", "en",
 		"--file-uri", "test.json",
 		"--output", outputPath,
 		"--force",

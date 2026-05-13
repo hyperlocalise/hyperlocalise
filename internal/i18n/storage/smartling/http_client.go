@@ -83,16 +83,14 @@ type SourceUploadResult struct {
 
 // SourceDownloadInput contains the parameters for downloading an original source file from Smartling.
 type SourceDownloadInput struct {
-	ProjectID    string
-	FileURI      string
-	SourceLocale string
+	ProjectID string
+	FileURI   string
 }
 
 // SourceDownloadResult contains the results of a source file download from Smartling.
 type SourceDownloadResult struct {
-	SourceLocale string
-	FileURI      string
-	Content      []byte
+	FileURI string
+	Content []byte
 }
 
 // UploadSourceFile uploads a source file to Smartling.
@@ -144,9 +142,6 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 	if strings.TrimSpace(in.FileURI) == "" {
 		return SourceDownloadResult{}, fmt.Errorf("smartling source download: file uri is required")
 	}
-	if strings.TrimSpace(in.SourceLocale) == "" {
-		return SourceDownloadResult{}, fmt.Errorf("smartling source download: source locale is required")
-	}
 
 	token, err := c.accessToken(ctx)
 	if err != nil {
@@ -159,9 +154,8 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 	}
 
 	return SourceDownloadResult{
-		SourceLocale: strings.TrimSpace(in.SourceLocale),
-		FileURI:      strings.TrimSpace(in.FileURI),
-		Content:      content,
+		FileURI: strings.TrimSpace(in.FileURI),
+		Content: content,
 	}, nil
 }
 
