@@ -423,6 +423,54 @@ func TestRunDryRunFiltersByGroup(t *testing.T) {
 	}
 }
 
+func TestRunDryRunFiltersByFile(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	uiSourcePath := filepath.Join(dir, "content", "en", "ui.json")
+	marketingSourcePath := filepath.Join(dir, "content", "en", "marketing.json")
+	uiTargetPath := filepath.Join(dir, "dist", "fr", "ui.json")
+	marketingTargetPath := filepath.Join(dir, "dist", "fr", "marketing.json")
+
+	if err := os.MkdirAll(filepath.Dir(uiSourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(uiSourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write ui source file: %v", err)
+	}
+	if err := os.WriteFile(marketingSourcePath, []byte(`{"sale":"Sale"}`), 0o600); err != nil {
+		t.Fatalf("write marketing source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(filepath.Join(dir, "content", "en", "*.json")) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "*.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--file", marketingSourcePath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run filtered file: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") {
+		t.Fatalf("expected only one planned task, got %q", out.String())
+	}
+	if strings.Contains(out.String(), filepath.ToSlash(uiTargetPath)) {
+		t.Fatalf("expected ui source file to be filtered out, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(marketingTargetPath)) {
+		t.Fatalf("expected marketing source file task, got %q", out.String())
+	}
+}
+
 func TestRunDryRunFiltersByTargetLocale(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

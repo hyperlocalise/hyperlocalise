@@ -80,6 +80,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.progress, "progress", string(progressui.ModeAuto), "progress rendering mode: auto|on|off")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "only run tasks for the given bucket")
 	cmd.Flags().StringVar(&o.group, "group", "", "only run tasks for the given group")
+	cmd.Flags().StringSliceVar(&o.sourcePaths, "file", nil, "only run tasks for the given source file(s)")
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "only run tasks for the given target locale(s)")
 	cmd.Flags().StringSliceVar(&o.targetLocaleAlias, "target-locale", nil, "alias for --locale")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
