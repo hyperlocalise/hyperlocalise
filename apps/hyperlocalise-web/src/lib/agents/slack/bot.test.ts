@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Message, Thread } from "chat";
 
 import {
@@ -32,6 +32,7 @@ vi.mock("@/lib/tools/registry", () => ({
 
 vi.mock("@/lib/agents/slack/helpers", () => ({
   findSlackConnector: vi.fn(),
+  lookupMembership: vi.fn(),
 }));
 
 vi.mock("@/lib/interactions", () => ({
@@ -78,7 +79,7 @@ vi.mock("@/lib/database", () => {
 });
 
 import { generateText } from "ai";
-import { findSlackConnector } from "@/lib/agents/slack/helpers";
+import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
 import {
   addInteractionMessage,
   createInteraction,
@@ -122,6 +123,12 @@ function createThread() {
     subscribe: vi.fn(async () => {
       subscribed = true;
     }),
+    adapter: {
+      getUser: vi.fn(async (userId: string) => ({
+        id: userId,
+        email: "alice@example.com",
+      })),
+    },
   } as unknown as Thread<Record<string, unknown>>;
 
   return { thread, posts, getSubscribed: () => subscribed };
@@ -273,6 +280,7 @@ describe("handleNewConversation", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
     vi.mocked(createInteraction).mockResolvedValue({
       id: "interaction-123",
@@ -298,6 +306,7 @@ describe("handleNewConversation", () => {
       interactionId: "interaction-123",
       senderType: "user",
       text: "Help me translate",
+      senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(true);
     expect(generateText).toHaveBeenCalled();
@@ -313,6 +322,7 @@ describe("handleNewConversation", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
@@ -327,6 +337,7 @@ describe("handleNewConversation", () => {
       interactionId: "interaction-123",
       senderType: "user",
       text: "Follow up",
+      senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(false);
     expect(generateText).toHaveBeenCalled();
@@ -358,6 +369,7 @@ describe("handleSubscribedMessage", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
@@ -371,6 +383,7 @@ describe("handleSubscribedMessage", () => {
       interactionId: "interaction-123",
       senderType: "user",
       text: "Second message",
+      senderEmail: "alice@example.com",
     });
     expect(generateText).toHaveBeenCalled();
     expect(posts).toEqual(["AI response"]);

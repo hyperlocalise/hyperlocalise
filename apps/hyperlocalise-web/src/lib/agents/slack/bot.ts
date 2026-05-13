@@ -16,7 +16,7 @@ import {
 } from "@/lib/interactions";
 import { buildTools } from "@/lib/tools/registry";
 
-import { findSlackConnector } from "./helpers";
+import { findSlackConnector, lookupMembership } from "./helpers";
 
 type SlackBotState = Record<string, unknown>;
 
@@ -159,10 +159,10 @@ async function loadConversationHistory(interactionId: string) {
 
 async function processSlackMessage(
   thread: Thread<SlackBotState>,
+  message: Message,
   interactionId: string,
   organizationId: string,
   projectId: string | null,
-  userText: string,
 ) {
   try {
     const chatMessages = await loadConversationHistory(interactionId);
@@ -171,15 +171,28 @@ async function processSlackMessage(
     // to ensure we have the freshest text
     const lastUserIndex = chatMessages.findLastIndex((m) => m.role === "user");
     if (lastUserIndex >= 0) {
-      chatMessages[lastUserIndex] = { role: "user", content: userText };
+      chatMessages[lastUserIndex] = { role: "user", content: message.text };
     } else {
-      chatMessages.push({ role: "user", content: userText });
+      chatMessages.push({ role: "user", content: message.text });
+    }
+
+    const slackUser = await thread.adapter.getUser(message.author.userId);
+    const membership = slackUser?.email
+      ? await lookupMembership({ email: slackUser.email, organizationId })
+      : null;
+
+    if (!membership) {
+      await wrapThreadPost(thread, interactionId);
+      await thread.post(
+        "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      );
+      return;
     }
 
     const tools = buildTools({
       conversationId: interactionId,
       organizationId,
-      membershipRole: "admin", // Slack bot operates as an admin within the org context it is connected to.
+      membershipRole: membership.role,
       projectId,
       db,
     });
@@ -225,10 +238,13 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     message.text.slice(0, 100) || "Slack conversation",
   );
 
+  const slackUser = await thread.adapter.getUser(message.author.userId);
+
   await addInteractionMessage({
     interactionId: interaction.id,
     senderType: "user",
     text: message.text,
+    senderEmail: slackUser?.email,
   });
 
   if (isNew) {
@@ -238,10 +254,10 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
 
   await processSlackMessage(
     thread,
+    message,
     interaction.id,
     connector.organizationId,
     interaction.projectId,
-    message.text,
   );
 }
 
@@ -266,18 +282,21 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     message.text.slice(0, 100) || "Slack conversation",
   );
 
+  const slackUser = await thread.adapter.getUser(message.author.userId);
+
   await addInteractionMessage({
     interactionId: interaction.id,
     senderType: "user",
     text: message.text,
+    senderEmail: slackUser?.email,
   });
 
   await processSlackMessage(
     thread,
+    message,
     interaction.id,
     connector.organizationId,
     interaction.projectId,
-    message.text,
   );
 }
 

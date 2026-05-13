@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it, vi } from "vitest";
 
 // Mock environment and database before importing tools
 vi.mock("@/lib/env", () => ({

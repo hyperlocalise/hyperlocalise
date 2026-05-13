@@ -93,6 +93,8 @@ export function createAgentSlackRoutes() {
           "mpim:history",
           "mpim:read",
           "reactions:read",
+          "users:read",
+          "users:read.email",
         ].join(","),
       );
       url.searchParams.set("redirect_uri", redirectUri);

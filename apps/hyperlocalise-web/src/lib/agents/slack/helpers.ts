@@ -19,3 +19,22 @@ export async function findSlackConnector(teamId: string, options: { enabledOnly?
 
   return connector ?? null;
 }
+
+export async function lookupMembership(input: { email: string; organizationId: string }) {
+  const [membership] = await db
+    .select({
+      role: schema.organizationMemberships.role,
+      localUserId: schema.users.id,
+    })
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, input.organizationId),
+        eq(sql`lower(${schema.users.email})`, input.email.toLowerCase()),
+      ),
+    )
+    .limit(1);
+
+  return membership ?? null;
+}
