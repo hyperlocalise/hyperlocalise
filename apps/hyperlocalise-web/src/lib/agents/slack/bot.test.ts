@@ -280,7 +280,10 @@ describe("handleNewConversation", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
-    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue(null as never);
     vi.mocked(createInteraction).mockResolvedValue({
       id: "interaction-123",
@@ -322,7 +325,10 @@ describe("handleNewConversation", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
-    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
@@ -369,7 +375,10 @@ describe("handleSubscribedMessage", () => {
       organizationId: "org-123",
       enabled: true,
     } as never);
-    vi.mocked(lookupMembership).mockResolvedValue({ role: "member", localUserId: "user-123" } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
