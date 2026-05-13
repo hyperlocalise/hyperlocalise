@@ -141,6 +141,8 @@ describe("agentSlackRoutes", () => {
     expect(url.searchParams.get("client_id")).toBe(env.SLACK_CLIENT_ID);
     expect(url.searchParams.get("redirect_uri")).toBe("http://localhost/api/auth/slack/callback");
     expect(url.searchParams.get("scope")).toContain("app_mentions:read");
+    expect(url.searchParams.get("scope")).toContain("files:read");
+    expect(url.searchParams.get("scope")).toContain("files:write");
     expect(state).toBeTruthy();
     await expect(
       verifySlackState(state ?? "", env.SLACK_OAUTH_STATE_SECRET ?? ""),

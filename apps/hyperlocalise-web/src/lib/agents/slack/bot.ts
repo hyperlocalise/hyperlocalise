@@ -12,13 +12,23 @@ import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger } from "@/lib/log";
+import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
+  updateInteractionMessage,
 } from "@/lib/interactions";
 
 import { findSlackConnector, lookupMembership } from "./helpers";
+import {
+  appendSlackStoredFileContext,
+  buildUnsupportedSlackFilesMessage,
+  getSlackTranslationFileAttachments,
+  getUnsupportedSlackFileAttachments,
+  storeSlackFileAttachments,
+} from "./file-attachments";
+import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
 
 type SlackBotState = Record<string, unknown>;
 
@@ -72,6 +82,10 @@ export async function getOrCreateInteraction(
   };
 }
 
+function buildSlackFileTranslationInstructions() {
+  return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
+}
+
 async function processSlackMessage(
   thread: Thread<SlackBotState>,
   message: Message,
@@ -80,12 +94,15 @@ async function processSlackMessage(
   projectId: string | null,
 ) {
   try {
-    const chatMessages = replaceLastUserMessage(
-      await loadInteractionModelMessages(interactionId),
-      message.text,
-    );
-
     const slackUser = await getSlackUser(thread, message.author.userId);
+
+    const persistedMessage = await addInteractionMessage({
+      interactionId,
+      senderType: "user",
+      text: message.text,
+      senderEmail: slackUser?.email,
+    });
+
     const membership = slackUser?.email
       ? await lookupMembership({ email: slackUser.email, organizationId })
       : null;
@@ -98,6 +115,67 @@ async function processSlackMessage(
       return;
     }
 
+    const imageAttachments = getSlackImageAttachments(message);
+    const fileAttachments = getSlackTranslationFileAttachments(message);
+    const unsupportedFileAttachments = getUnsupportedSlackFileAttachments(message);
+    const storedFileAttachments =
+      fileAttachments.length > 0
+        ? await storeSlackFileAttachments({
+            attachments: fileAttachments,
+            organizationId,
+            projectId,
+            createdByUserId: membership.localUserId,
+            interactionId,
+          })
+        : [];
+    const persistedUserText = appendSlackStoredFileContext(message.text, storedFileAttachments);
+    const interactionAttachments = storedFileAttachments.map((file) => ({
+      id: file.id,
+      filename: file.filename,
+      contentType: file.contentType,
+      url: file.url,
+    }));
+
+    if (interactionAttachments.length > 0) {
+      await updateInteractionMessage(persistedMessage.id, {
+        text: persistedUserText,
+        attachments: interactionAttachments,
+      });
+    }
+
+    if (unsupportedFileAttachments.length > 0) {
+      wrapThreadPost(thread, interactionId);
+      await thread.post(buildUnsupportedSlackFilesMessage(unsupportedFileAttachments));
+
+      if (storedFileAttachments.length === 0 && imageAttachments.length === 0) {
+        return;
+      }
+    }
+
+    const chatMessages = replaceLastUserMessage(
+      await loadInteractionModelMessages(interactionId),
+      persistedUserText,
+    );
+
+    if (imageAttachments.length > 0) {
+      const imageIntentMessages = chatMessages.flatMap((chatMessage) => {
+        if (
+          (chatMessage.role !== "user" && chatMessage.role !== "assistant") ||
+          typeof chatMessage.content !== "string"
+        ) {
+          return [];
+        }
+        return [{ role: chatMessage.role, content: chatMessage.content }];
+      });
+
+      wrapThreadPost(thread, interactionId);
+      await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
+
+      if (storedFileAttachments.length === 0) {
+        return;
+      }
+    }
+
     const agent = createConversationToolLoopAgent({
       surface: "slack",
       toolContext: {
@@ -107,6 +185,7 @@ async function processSlackMessage(
         projectId,
         db,
       },
+      additionalInstructions: buildSlackFileTranslationInstructions(),
     });
     const result = await agent.generate({ messages: chatMessages });
 
@@ -143,15 +222,6 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     message.text.slice(0, 100) || "Slack conversation",
   );
 
-  const slackUser = await getSlackUser(thread, message.author.userId);
-
-  await addInteractionMessage({
-    interactionId: interaction.id,
-    senderType: "user",
-    text: message.text,
-    senderEmail: slackUser?.email,
-  });
-
   if (isNew) {
     wrapThreadPost(thread, interaction.id);
     await thread.subscribe();
@@ -186,15 +256,6 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     thread.id,
     message.text.slice(0, 100) || "Slack conversation",
   );
-
-  const slackUser = await getSlackUser(thread, message.author.userId);
-
-  await addInteractionMessage({
-    interactionId: interaction.id,
-    senderType: "user",
-    text: message.text,
-    senderEmail: slackUser?.email,
-  });
 
   await processSlackMessage(
     thread,

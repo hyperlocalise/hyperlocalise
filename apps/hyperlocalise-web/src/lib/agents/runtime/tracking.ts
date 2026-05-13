@@ -15,6 +15,21 @@ type TrackedPostState = {
 
 const trackedThreadPosts = new WeakMap<object, TrackedPostState>();
 
+function getPostText(content: unknown) {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (
+    typeof content === "object" &&
+    content !== null &&
+    "raw" in content &&
+    typeof content.raw === "string"
+  ) {
+    return content.raw;
+  }
+  return "";
+}
+
 export function wrapThreadPostForInteraction<TState>(
   thread: Thread<TState>,
   interactionId: string,
@@ -35,8 +50,7 @@ export function wrapThreadPostForInteraction<TState>(
     const result = await originalPost(...args);
 
     try {
-      const content = args[0];
-      const text = typeof content === "string" ? content : "";
+      const text = getPostText(args[0]);
       if (text) {
         await trackedState.addMessage({
           interactionId: trackedState.interactionId,
