@@ -115,6 +115,21 @@ func mergeRunLocaleFlags(primary, alias []string) []string {
 	return out
 }
 
+func normalizeRunFileFlags(paths []string) ([]string, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	normalized := make([]string, 0, len(paths))
+	for _, path := range paths {
+		trimmed := strings.TrimSpace(path)
+		if trimmed == "" {
+			return nil, fmt.Errorf("invalid --file value: must not be empty")
+		}
+		normalized = append(normalized, trimmed)
+	}
+	return normalized, nil
+}
+
 func executeRun(cmd *cobra.Command, o runOptions) error {
 	baseCtx := cmd.Context()
 	if baseCtx == nil {
@@ -145,6 +160,13 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 				return fmt.Errorf("invalid --locale value: must not be empty")
 			}
 		}
+	}
+	if cmd.Flags().Changed("file") && len(o.sourcePaths) == 0 {
+		return fmt.Errorf("invalid --file value: must not be empty")
+	}
+	sourcePaths, err := normalizeRunFileFlags(o.sourcePaths)
+	if err != nil {
+		return err
 	}
 	contextMemoryScope := strings.ToLower(strings.TrimSpace(o.contextMemoryScope))
 	if contextMemoryScope == "" {
@@ -204,7 +226,7 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		Bucket:                    o.bucket,
 		Group:                     o.group,
 		TargetLocales:             targetLocales,
-		SourcePaths:               o.sourcePaths,
+		SourcePaths:               sourcePaths,
 		ExperimentalContextMemory: o.experimentalContextMemory,
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,
@@ -267,6 +289,9 @@ func syncInteractiveScopeFlags(cmd *cobra.Command, o runOptions) {
 	}
 	if flag := cmd.Flags().Lookup("bucket"); flag != nil {
 		flag.Changed = strings.TrimSpace(o.bucket) != ""
+	}
+	if flag := cmd.Flags().Lookup("file"); flag != nil {
+		flag.Changed = len(o.sourcePaths) > 0
 	}
 	hasLocales := len(o.targetLocales) > 0
 	if flag := cmd.Flags().Lookup("locale"); flag != nil {
