@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
+import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -113,7 +114,11 @@ async function readTokenRequestBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
 
   if (contentType.includes("application/json")) {
-    return request.json();
+    try {
+      return await request.json();
+    } catch {
+      return {};
+    }
   }
 
   try {
@@ -138,6 +143,14 @@ function tokenResponse(input: {
     scope: input.scope,
   };
 }
+
+const mcpAuthEnabledMiddleware = createMiddleware(async (c, next) => {
+  if (!env.MCP_AUTH_ENABLED) {
+    return c.json({ error: "mcp_auth_disabled" }, 503);
+  }
+
+  await next();
+});
 
 async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
   const server = new McpServer({
@@ -351,6 +364,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
     )
+    .use("/mcp/*", mcpAuthEnabledMiddleware)
     .post("/mcp/register", validateRegisterBody, async (c) => {
       const payload = c.req.valid("json");
       const unsupportedRedirectUri = payload.redirect_uris.find(

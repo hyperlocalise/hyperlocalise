@@ -40,6 +40,20 @@ jobs:
     env:
       CI: "true"
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+      NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
+      NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+      GITHUB_APP_WEBHOOK_SECRET: your-github-app-webhook-secret
+      WORKOS_API_KEY: your-workos-api-key
+      WORKOS_CLIENT_ID: client_your_workos_client_id
+      WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+      WORKOS_COOKIE_PASSWORD: replace-with-a-random-32-character-secret
+      WORKOS_WEBHOOK_SECRET: your-workos-webhook-secret
+      MCP_AUTH_ENABLED: "true"
+      MCP_TOKEN_LIFETIME_MINUTES: "60"
+      MCP_REFRESH_TOKEN_LIFETIME_DAYS: "30"
+      MCP_ENCRYPTION_KEY: base64-encoded-32-byte-key
+      SLACK_BOT_TOKEN: xoxb-your-slack-bot-token
+      SLACK_SIGNING_SECRET: your-slack-signing-secret
     defaults:
       run:
         working-directory: apps/hyperlocalise-web

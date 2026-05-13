@@ -8,11 +8,13 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAuthorizationCode, hashMcpToken } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
 
 import { createProjectTestFixture } from "../project/project.fixture";
 
 const app = createApp();
 const fixture = createProjectTestFixture();
+const originalMcpAuthEnabled = env.MCP_AUTH_ENABLED;
 
 function pkceChallenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
@@ -131,6 +133,13 @@ async function ensureMcpSessionTable() {
   `);
 }
 
+function setMcpAuthEnabled(value: boolean) {
+  Object.defineProperty(env, "MCP_AUTH_ENABLED", {
+    configurable: true,
+    value,
+  });
+}
+
 describe("mcpRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
@@ -138,6 +147,7 @@ describe("mcpRoutes", () => {
   });
 
   afterEach(async () => {
+    setMcpAuthEnabled(originalMcpAuthEnabled);
     await fixture.cleanup();
     await db.delete(schema.usedAuthorizationCodes);
     await db.delete(schema.mcpOAuthClients);
@@ -177,6 +187,58 @@ describe("mcpRoutes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid_request" });
+  });
+
+  it("rejects malformed JSON token request bodies as invalid requests", async () => {
+    const response = await app.request("http://localhost/api/mcp/token", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: "{",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_request" });
+  });
+
+  it("disables MCP OAuth endpoints when MCP auth is disabled", async () => {
+    setMcpAuthEnabled(false);
+
+    const authorizeUrl = new URL("http://localhost/api/mcp/authorize");
+    authorizeUrl.searchParams.set("response_type", "code");
+    authorizeUrl.searchParams.set("client_id", "test-client");
+    authorizeUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");
+    authorizeUrl.searchParams.set("code_challenge", pkceChallenge("a".repeat(64)));
+    authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+    const responses = await Promise.all([
+      app.request("http://localhost/api/mcp/register", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          redirect_uris: ["http://localhost:8787/callback"],
+        }),
+      }),
+      app.request(authorizeUrl),
+      app.request("http://localhost/api/mcp/token", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: "test-refresh-token",
+        }),
+      }),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toEqual({ error: "mcp_auth_disabled" });
+    }
   });
 
   it("persists dynamic client registrations for redirect URI validation", async () => {
