@@ -27,6 +27,9 @@ vi.mock("@/workflows/adapters", () => ({
   createEmailAgentTaskQueue: vi.fn(() => ({
     enqueue: vi.fn(async () => ({ ids: ["run_123"] })),
   })),
+  createTranslationJobEventQueue: vi.fn(() => ({
+    enqueue: vi.fn(async () => ({ ids: ["run_123"] })),
+  })),
 }));
 
 describe("resendWebhookRoutes", () => {

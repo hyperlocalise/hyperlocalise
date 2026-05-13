@@ -24,6 +24,9 @@ vi.mock("@/lib/resend/adapter", () => ({
 
 vi.mock("@/workflows/adapters", () => ({
   createEmailAgentTaskQueue: vi.fn(),
+  createTranslationJobEventQueue: vi.fn(() => ({
+    enqueue: vi.fn(async () => ({ ids: ["run_123"] })),
+  })),
 }));
 
 function createThread(initialState: EmailBotState = {}) {
