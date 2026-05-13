@@ -9,6 +9,16 @@ import {
   wrapThreadPost,
 } from "./bot";
 
+const { agentGenerateMock, createConversationToolLoopAgentMock, loadMessagesMock } = vi.hoisted(
+  () => ({
+    agentGenerateMock: vi.fn(),
+    createConversationToolLoopAgentMock: vi.fn(() => ({
+      generate: agentGenerateMock,
+    })),
+    loadMessagesMock: vi.fn(async () => []),
+  }),
+);
+
 vi.mock("@/lib/env", () => ({
   env: {
     SLACK_CLIENT_ID: "test-client-id",
@@ -17,18 +27,25 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-vi.mock("@ai-sdk/openai", () => ({
-  openai: vi.fn(() => "mock-model"),
-}));
-
-vi.mock("ai", () => ({
-  generateText: vi.fn(),
-  stepCountIs: vi.fn((n: number) => n),
-}));
-
-vi.mock("@/lib/tools/registry", () => ({
-  buildTools: vi.fn(() => ({})),
-}));
+vi.mock("@/lib/agents/hyperlocalise-agent", () => {
+  return {
+    createConversationToolLoopAgent: createConversationToolLoopAgentMock,
+    loadInteractionModelMessages: loadMessagesMock,
+    replaceLastUserMessage: (
+      messages: Array<{ role: "user" | "assistant"; content: string }>,
+      text: string,
+    ) => {
+      const nextMessages = [...messages];
+      const lastUserIndex = nextMessages.findLastIndex((message) => message.role === "user");
+      if (lastUserIndex >= 0) {
+        nextMessages[lastUserIndex] = { role: "user", content: text };
+        return nextMessages;
+      }
+      nextMessages.push({ role: "user", content: text });
+      return nextMessages;
+    },
+  };
+});
 
 vi.mock("@/lib/agents/slack/helpers", () => ({
   findSlackConnector: vi.fn(),
@@ -78,7 +95,6 @@ vi.mock("@/lib/database", () => {
   };
 });
 
-import { generateText } from "ai";
 import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
 import {
   addInteractionMessage,
@@ -163,7 +179,7 @@ describe("wrapThreadPost", () => {
 
   it("persists agent replies after posting", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post("Agent reply");
 
@@ -176,7 +192,7 @@ describe("wrapThreadPost", () => {
 
   it("does not persist non-string posts", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post({ markdown: "complex" });
 
@@ -185,8 +201,8 @@ describe("wrapThreadPost", () => {
 
   it("does not double-wrap the same thread", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post("Agent reply");
 
@@ -236,7 +252,8 @@ describe("getOrCreateInteraction", () => {
 describe("handleNewConversation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(generateText).mockResolvedValue({ text: "AI response" } as never);
+    agentGenerateMock.mockResolvedValue({ text: "AI response" });
+    loadMessagesMock.mockResolvedValue([]);
   });
 
   it("ignores bot messages", async () => {
@@ -312,7 +329,20 @@ describe("handleNewConversation", () => {
       senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(true);
-    expect(generateText).toHaveBeenCalled();
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surface: "slack",
+        toolContext: expect.objectContaining({
+          conversationId: "interaction-123",
+          organizationId: "org-123",
+          membershipRole: "member",
+          projectId: null,
+        }),
+      }),
+    );
+    expect(agentGenerateMock).toHaveBeenCalledWith({
+      messages: [{ role: "user", content: "Help me translate" }],
+    });
     expect(posts).toEqual(["AI response"]);
   });
 
@@ -346,7 +376,7 @@ describe("handleNewConversation", () => {
       senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(false);
-    expect(generateText).toHaveBeenCalled();
+    expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual(["AI response"]);
   });
 });
@@ -354,7 +384,8 @@ describe("handleNewConversation", () => {
 describe("handleSubscribedMessage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(generateText).mockResolvedValue({ text: "AI response" } as never);
+    agentGenerateMock.mockResolvedValue({ text: "AI response" });
+    loadMessagesMock.mockResolvedValue([]);
   });
 
   it("ignores bot messages", async () => {
@@ -394,7 +425,7 @@ describe("handleSubscribedMessage", () => {
       text: "Second message",
       senderEmail: "alice@example.com",
     });
-    expect(generateText).toHaveBeenCalled();
+    expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual(["AI response"]);
 
     // Agent reply should also be persisted

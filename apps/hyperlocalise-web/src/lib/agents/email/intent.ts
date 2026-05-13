@@ -1,8 +1,7 @@
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
-import { env } from "@/lib/env";
+import { getHyperlocaliseAgentModel } from "@/lib/agents/hyperlocalise-agent";
 import type { EmailAgentIntentKind } from "./types";
 
 const emailRequestIntentSchema = z.object({
@@ -19,15 +18,6 @@ export type EmailRequestIntent = z.infer<typeof emailRequestIntentSchema>;
 type CreateEmailRequestInterpreterOptions = {
   model: LanguageModel;
 };
-
-function getEmailIntentModel() {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  const provider = createOpenAI({ apiKey: env.OPENAI_API_KEY });
-  return provider("gpt-5.4-mini");
-}
 
 export function normalizeLocale(locale: string | null) {
   const value = locale?.trim().replaceAll("_", "-");
@@ -149,7 +139,7 @@ export async function interpretEmailRequest(input: {
   text: string;
 }): Promise<EmailRequestIntent> {
   const interpret = createEmailRequestInterpreter({
-    model: getEmailIntentModel(),
+    model: getHyperlocaliseAgentModel(),
   });
 
   return interpret(input);
@@ -159,7 +149,7 @@ export async function interpretClarificationReply(input: {
   text: string;
 }): Promise<EmailRequestIntent> {
   const interpret = createClarificationInterpreter({
-    model: getEmailIntentModel(),
+    model: getHyperlocaliseAgentModel(),
   });
 
   return interpret(input);
