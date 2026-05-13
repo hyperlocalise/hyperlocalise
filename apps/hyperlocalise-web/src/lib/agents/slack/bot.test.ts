@@ -179,7 +179,7 @@ describe("wrapThreadPost", () => {
 
   it("persists agent replies after posting", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post("Agent reply");
 
@@ -192,7 +192,7 @@ describe("wrapThreadPost", () => {
 
   it("does not persist non-string posts", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post({ markdown: "complex" });
 
@@ -201,8 +201,8 @@ describe("wrapThreadPost", () => {
 
   it("does not double-wrap the same thread", async () => {
     const { thread } = createThread();
-    await wrapThreadPost(thread, "interaction-123");
-    await wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
+    wrapThreadPost(thread, "interaction-123");
 
     await thread.post("Agent reply");
 

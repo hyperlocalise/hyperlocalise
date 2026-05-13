@@ -716,7 +716,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
         }
 
         if (track && conversationId) {
-          await wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+          wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
         }
 
         log.info("resuming pending clarification");
@@ -786,7 +786,7 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
       }
 
       if (track && conversationId) {
-        await wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
+        wrapThreadPostForInteraction(thread, conversationId, track.addMessage);
       }
 
       const intent = await dependencies.interpretEmailRequest({

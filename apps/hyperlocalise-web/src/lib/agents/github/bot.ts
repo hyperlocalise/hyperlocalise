@@ -121,7 +121,7 @@ export async function handleMention(
         text: message.text,
       });
 
-      await wrapThreadPostForInteraction(thread, conversationId);
+      wrapThreadPostForInteraction(thread, conversationId);
     }
   } catch {
     // Best-effort tracking

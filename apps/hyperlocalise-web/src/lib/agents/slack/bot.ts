@@ -37,8 +37,8 @@ async function getSlackUser(
   return (await thread.adapter.getUser?.(userId)) ?? null;
 }
 
-export async function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: string) {
-  await wrapThreadPostForInteraction(thread, interactionId);
+export function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: string) {
+  wrapThreadPostForInteraction(thread, interactionId);
 }
 
 export async function getOrCreateInteraction(
@@ -91,7 +91,7 @@ async function processSlackMessage(
       : null;
 
     if (!membership) {
-      await wrapThreadPost(thread, interactionId);
+      wrapThreadPost(thread, interactionId);
       await thread.post(
         "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
       );
@@ -110,12 +110,12 @@ async function processSlackMessage(
     });
     const result = await agent.generate({ messages: chatMessages });
 
-    await wrapThreadPost(thread, interactionId);
+    wrapThreadPost(thread, interactionId);
     if (result.text.trim()) {
       await thread.post(result.text);
     }
   } catch {
-    await wrapThreadPost(thread, interactionId);
+    wrapThreadPost(thread, interactionId);
     await thread.post(
       "I'm having trouble processing that right now. I can help with translation jobs, project questions, glossary lookups, and job status checks. How can I assist you?",
     );
@@ -153,7 +153,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
   });
 
   if (isNew) {
-    await wrapThreadPost(thread, interaction.id);
+    wrapThreadPost(thread, interaction.id);
     await thread.subscribe();
   }
 

@@ -28,7 +28,7 @@ describe("wrapThreadPostForInteraction", () => {
     const addMessage = vi.fn(async () => ({ id: "msg_123" }));
     const { thread } = createThread();
 
-    await wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
     await thread.post("Agent reply");
 
     expect(addMessage).toHaveBeenCalledWith({
@@ -42,7 +42,7 @@ describe("wrapThreadPostForInteraction", () => {
     const addMessage = vi.fn(async () => ({ id: "msg_123" }));
     const { thread } = createThread();
 
-    await wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
     await thread.post({ markdown: "complex" });
 
     expect(addMessage).not.toHaveBeenCalled();
@@ -52,8 +52,8 @@ describe("wrapThreadPostForInteraction", () => {
     const addMessage = vi.fn(async () => ({ id: "msg_123" }));
     const { thread } = createThread();
 
-    await wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
-    await wrapThreadPostForInteraction(thread, "interaction_456", addMessage);
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    wrapThreadPostForInteraction(thread, "interaction_456", addMessage);
     await thread.post("Agent reply");
 
     expect(addMessage).toHaveBeenCalledTimes(1);
