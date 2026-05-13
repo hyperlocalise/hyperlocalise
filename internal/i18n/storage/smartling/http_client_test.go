@@ -447,6 +447,79 @@ func TestHTTPClientUploadSourceFile(t *testing.T) {
 	}
 }
 
+func TestHTTPClientDownloadSourceFile(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file":
+			if r.Method != http.MethodGet {
+				t.Fatalf("unexpected method: %s", r.Method)
+			}
+			if got := r.Header.Get("Authorization"); got != "Bearer token" {
+				t.Fatalf("unexpected auth header: %q", got)
+			}
+			if got := r.URL.Query().Get("fileUri"); got != "source.json" {
+				t.Fatalf("unexpected fileUri: %q", got)
+			}
+			_, _ = fmt.Fprint(w, `{"hello":"Hello"}`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+	result, err := client.DownloadSourceFile(context.Background(), SourceDownloadInput{
+		ProjectID: "123",
+		FileURI:   "source.json",
+	})
+	if err != nil {
+		t.Fatalf("download source file: %v", err)
+	}
+	if string(result.Content) != `{"hello":"Hello"}` || result.FileURI != "source.json" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
+func TestHTTPClientDownloadSourceFileAPIError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/authenticate":
+			_, _ = fmt.Fprint(w, `{"response":{"code":"SUCCESS"},"data":{"accessToken":"token"}}`)
+		case "/projects/123/file":
+			http.Error(w, "not found", http.StatusNotFound)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	client := &HTTPClient{
+		authBaseURL:    srv.URL,
+		filesBaseURL:   srv.URL,
+		http:           srv.Client(),
+		userIdentifier: "id",
+		userSecret:     "secret",
+	}
+	_, err := client.DownloadSourceFile(context.Background(), SourceDownloadInput{
+		ProjectID: "123",
+		FileURI:   "missing.json",
+	})
+	if err == nil {
+		t.Fatal("expected API error")
+	}
+	if !strings.Contains(err.Error(), "status 404") || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestHTTPClientExportFileDownloadsPerLocale(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

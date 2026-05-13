@@ -81,6 +81,18 @@ type SourceUploadResult struct {
 	WordCount   int  `json:"wordCount"`
 }
 
+// SourceDownloadInput contains the parameters for downloading an original source file from Smartling.
+type SourceDownloadInput struct {
+	ProjectID string
+	FileURI   string
+}
+
+// SourceDownloadResult contains the results of a source file download from Smartling.
+type SourceDownloadResult struct {
+	FileURI string
+	Content []byte
+}
+
 // UploadSourceFile uploads a source file to Smartling.
 func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput) (SourceUploadResult, error) {
 	if strings.TrimSpace(in.ProjectID) == "" {
@@ -120,6 +132,31 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	}
 
 	return resp.Data, nil
+}
+
+// DownloadSourceFile downloads the original source file content from Smartling.
+func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadInput) (SourceDownloadResult, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return SourceDownloadResult{}, fmt.Errorf("smartling source download: project id is required")
+	}
+	if strings.TrimSpace(in.FileURI) == "" {
+		return SourceDownloadResult{}, fmt.Errorf("smartling source download: file uri is required")
+	}
+
+	token, err := c.accessToken(ctx)
+	if err != nil {
+		return SourceDownloadResult{}, err
+	}
+
+	content, err := c.downloadSourceFile(ctx, token, strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.FileURI))
+	if err != nil {
+		return SourceDownloadResult{}, err
+	}
+
+	return SourceDownloadResult{
+		FileURI: strings.TrimSpace(in.FileURI),
+		Content: content,
+	}, nil
 }
 
 func (c *HTTPClient) uploadMultipart(ctx context.Context, endpoint string, token string, params map[string]string, fileFieldName, filePath string, out any) error {
@@ -505,6 +542,35 @@ func (c *HTTPClient) downloadFile(ctx context.Context, token string, projectID s
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("download file %s: status %d: %s", locale, resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	return io.ReadAll(resp.Body)
+}
+
+func (c *HTTPClient) downloadSourceFile(ctx context.Context, token string, projectID string, fileURI string) ([]byte, error) {
+	endpoint := fmt.Sprintf("%s/projects/%s/file", c.filesBaseURL, url.PathEscape(projectID))
+	params := url.Values{}
+	params.Set("fileUri", fileURI)
+	endpoint = endpoint + "?" + params.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download source file: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("download source file: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return io.ReadAll(resp.Body)
 }
