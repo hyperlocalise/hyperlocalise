@@ -76,6 +76,23 @@ export async function addInteractionMessage(input: AddMessageInput) {
   return message;
 }
 
+export async function updateInteractionMessage(
+  messageId: string,
+  input: Partial<Pick<AddMessageInput, "text" | "senderEmail" | "attachments">>,
+) {
+  const [message] = await db
+    .update(schema.interactionMessages)
+    .set({
+      text: input.text,
+      senderEmail: input.senderEmail ?? null,
+      attachments: input.attachments ?? null,
+    })
+    .where(eq(schema.interactionMessages.id, messageId))
+    .returning();
+
+  return message;
+}
+
 export async function linkJobToInteraction(input: {
   organizationId: string;
   jobId: string;

@@ -17,6 +17,7 @@ import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
+  updateInteractionMessage,
 } from "@/lib/interactions";
 
 import { findSlackConnector, lookupMembership } from "./helpers";
@@ -94,6 +95,14 @@ async function processSlackMessage(
 ) {
   try {
     const slackUser = await getSlackUser(thread, message.author.userId);
+
+    const persistedMessage = await addInteractionMessage({
+      interactionId,
+      senderType: "user",
+      text: message.text,
+      senderEmail: slackUser?.email,
+    });
+
     const membership = slackUser?.email
       ? await lookupMembership({ email: slackUser.email, organizationId })
       : null;
@@ -127,13 +136,12 @@ async function processSlackMessage(
       url: file.url,
     }));
 
-    await addInteractionMessage({
-      interactionId,
-      senderType: "user",
-      text: persistedUserText,
-      senderEmail: slackUser?.email,
-      ...(interactionAttachments.length > 0 ? { attachments: interactionAttachments } : {}),
-    });
+    if (interactionAttachments.length > 0) {
+      await updateInteractionMessage(persistedMessage.id, {
+        text: persistedUserText,
+        attachments: interactionAttachments,
+      });
+    }
 
     if (unsupportedFileAttachments.length > 0) {
       wrapThreadPost(thread, interactionId);

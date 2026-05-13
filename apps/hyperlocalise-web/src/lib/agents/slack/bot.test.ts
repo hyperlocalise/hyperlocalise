@@ -85,9 +85,10 @@ vi.mock("@/lib/agents/slack/helpers", () => ({
 }));
 
 vi.mock("@/lib/interactions", () => ({
-  addInteractionMessage: vi.fn(),
+  addInteractionMessage: vi.fn(async () => ({ id: "msg-123" })),
   createInteraction: vi.fn(),
   findInteractionBySourceThreadId: vi.fn(),
+  updateInteractionMessage: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/runtime/state", () => ({
@@ -135,6 +136,7 @@ import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
+  updateInteractionMessage,
 } from "@/lib/interactions";
 
 function createMessage(
@@ -541,8 +543,11 @@ describe("handleSubscribedMessage", () => {
     expect(addInteractionMessage).toHaveBeenCalledWith({
       interactionId: "interaction-123",
       senderType: "user",
-      text: expect.stringContaining("sourceFileId=file_123"),
+      text: "Translate this to French",
       senderEmail: "alice@example.com",
+    });
+    expect(updateInteractionMessage).toHaveBeenCalledWith("msg-123", {
+      text: expect.stringContaining("sourceFileId=file_123"),
       attachments: [
         {
           id: "file_123",
