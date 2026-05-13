@@ -15,7 +15,7 @@ type TrackedPostState = {
 
 const trackedThreadPosts = new WeakMap<object, TrackedPostState>();
 
-export async function wrapThreadPostForInteraction<TState>(
+export function wrapThreadPostForInteraction<TState>(
   thread: Thread<TState>,
   interactionId: string,
   addMessage: AddAgentMessage = addInteractionMessage,
