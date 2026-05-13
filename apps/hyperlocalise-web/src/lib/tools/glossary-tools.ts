@@ -80,6 +80,13 @@ export function createCreateGlossaryTool(ctx: ToolContext) {
         .describe("BCP-47 target locale tag."),
     }),
     execute: async ({ name, description, sourceLocale, targetLocale }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to create glossaries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const [glossary] = await ctx.db
         .insert(schema.glossaries)
         .values({
@@ -122,6 +129,13 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to update glossaries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { glossaryId, ...rest } = input;
       const updates = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 
@@ -156,6 +170,13 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
       glossaryId: z.string().describe("The glossary ID to delete."),
     }),
     execute: async ({ glossaryId }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to delete glossaries. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const deleted = await ctx.db
         .delete(schema.glossaries)
         .where(
@@ -229,6 +250,13 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
       forbidden: z.boolean().default(false).describe("Whether this translation is forbidden."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to create glossary terms. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { glossaryId, ...termData } = input;
 
       const glossary = await getOwnedGlossary(ctx.db, ctx.organizationId, glossaryId);
@@ -297,6 +325,13 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to update glossary terms. Only organization owners and admins can perform this action.",
+        };
+      }
+
       const { termId, ...rest } = input;
       const updates = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
 
@@ -334,6 +369,13 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
       termId: z.string().describe("The term ID to delete."),
     }),
     execute: async ({ termId }) => {
+      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+        return {
+          success: false,
+          error: "You do not have permission to delete glossary terms. Only organization owners and admins can perform this action.",
+        };
+      }
+
       // Verify ownership via the parent glossary.
       const [termWithGlossary] = await ctx.db
         .select({ glossaryOrgId: schema.glossaries.organizationId })

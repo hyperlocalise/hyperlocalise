@@ -7,3 +7,8 @@
 **Vulnerability:** The API lacked standard security headers (e.g., `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`), leaving it more exposed to MIME-type sniffing, clickjacking, and referrer information leaks.
 **Learning:** Modern web frameworks like Hono often have middleware dedicated to applying these security best practices with minimal configuration, making it easy to implement defense-in-depth.
 **Prevention:** Always apply a `secureHeaders` middleware to the root of the API instance to ensure consistent security policies across all endpoints.
+
+## 2026-05-15 - [High] Broken Function Level Authorization in Agent Tools
+**Vulnerability:** AI-triggered mutation tools (creating jobs, glossaries, TMs) lacked RBAC checks, allowing users with the "member" role to perform administrative actions through the chat agent that were blocked in the equivalent REST API.
+**Learning:** Agent-based tool execution can bypass standard route-level middleware if the tool context does not explicitly carry and check user permissions.
+**Prevention:** Include `membershipRole` in the `ToolContext` passed to all AI tools and enforce `isMutationAllowed` checks (limiting to owner/admin) within the tool execution logic.
