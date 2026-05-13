@@ -83,6 +83,150 @@ func TestApplyLockFilterDoesNotSkipWhenTaskHashChanges(t *testing.T) {
 	}
 }
 
+func TestApplyLockFilterMigratesLegacyMarkdownWhenInsertedParagraphShiftsStructuralPath(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Preserve every internal placeholder token matching the pattern \\x1eHLMDPH_...\\x1f exactly (do not translate, remove, or rename them).",
+		"Structural path: Paragraph[3]/line[0]",
+	}, "\n")
+
+	old := task
+	old.SourceContext = strings.ReplaceAll(task.SourceContext, "Paragraph[3]", "Paragraph[2]")
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(old.SourceText),
+			TaskHash:   legacyContextSensitiveLockTaskHash(old),
+		},
+	}
+
+	report, executable, _, migrated, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 1 {
+		t.Fatalf("expected unchanged markdown segment to be skipped, got report %+v", report)
+	}
+	if len(executable) != 0 {
+		t.Fatalf("expected no executable tasks, got %d", len(executable))
+	}
+	if !migrated {
+		t.Fatalf("expected legacy markdown task hash to migrate")
+	}
+	if got, want := completed[taskIdentity(task.TargetPath, task.EntryKey)].TaskHash, lockTaskHash(task); got != want {
+		t.Fatalf("expected migrated task hash %q, got %q", want, got)
+	}
+}
+
+func TestLockTaskHashIgnoresMarkdownPromptContext(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: List[0]/ListItem[2]/Paragraph[0]/line[0]",
+		"Adjacent source before (context only; do not translate this line): - ",
+	}, "\n")
+
+	changedContext := task
+	changedContext.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: List[0]/ListItem[3]/Paragraph[0]/line[0]",
+		"Adjacent source before (context only; do not translate this line): New item.",
+	}, "\n")
+
+	if lockTaskHash(task) != lockTaskHash(changedContext) {
+		t.Fatalf("expected markdown prompt context changes to stay out of lock task hash")
+	}
+}
+
+func TestLockTaskHashStillIncludesNonMarkdownSourceContext(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceContext = "Description: short greeting"
+
+	changed := task
+	changed.SourceContext = "Description: CTA label"
+
+	if lockTaskHash(task) == lockTaskHash(changed) {
+		t.Fatalf("expected non-markdown source context changes to affect task hash")
+	}
+}
+
+func TestApplyLockFilterMigratesLegacyMarkdownContextSensitiveTaskHash(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: Paragraph[2]/line[0]",
+	}, "\n")
+
+	completed := map[string]lockfile.RunCompletion{
+		taskIdentity(task.TargetPath, task.EntryKey): {
+			SourceHash: hashSourceText(task.SourceText),
+			TaskHash:   legacyContextSensitiveLockTaskHash(task),
+		},
+	}
+
+	report, executable, _, migrated, err := applyLockFilter([]Task{task}, completed, nil, "", false)
+	if err != nil {
+		t.Fatalf("applyLockFilter: %v", err)
+	}
+	if report.SkippedByLock != 1 || len(executable) != 0 {
+		t.Fatalf("expected legacy markdown task hash to skip, report=%+v executable=%d", report, len(executable))
+	}
+	if !migrated {
+		t.Fatalf("expected legacy markdown task hash to migrate")
+	}
+	if got, want := completed[taskIdentity(task.TargetPath, task.EntryKey)].TaskHash, lockTaskHash(task); got != want {
+		t.Fatalf("expected migrated task hash %q, got %q", want, got)
+	}
+}
+
+func TestLockTaskHashCandidatesOmitsMarkdownLegacyDefaultLockTaskHash(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: Paragraph[2]/line[0]",
+	}, "\n")
+
+	candidates := lockTaskHashCandidates(task)
+	deadCandidate := legacyDefaultLockTaskHash(task)
+	for _, candidate := range candidates {
+		if candidate == deadCandidate {
+			t.Fatalf("expected markdown candidates to omit legacy default lock task hash")
+		}
+	}
+
+	contextSensitiveLegacyDefault := legacyDefaultContextSensitiveLockTaskHash(task)
+	for _, candidate := range candidates {
+		if candidate == contextSensitiveLegacyDefault {
+			return
+		}
+	}
+	t.Fatalf("expected markdown candidates to include context-sensitive legacy default task hash")
+}
+
 func TestApplyLockFilterLegacyFullTaskHashMatchesShortFingerprint(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.json"

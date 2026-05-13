@@ -227,10 +227,10 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 	for _, task := range planned {
 		identity := taskIdentity(task.TargetPath, task.EntryKey)
 		sourceHash := taskLockSourceHash(task)
-		taskHash := lockTaskHash(task)
-		legacyTaskHash := legacyDefaultLockTaskHash(task)
-		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHash, legacyTaskHash) {
-			if strings.TrimSpace(cp.TaskHash) == "" {
+		taskHashes := lockTaskHashCandidates(task)
+		taskHash := taskHashes[0]
+		if cp, ok := checkpoints[identity]; ok && checkpointMatchesActiveRun(cp, activeRunID) && checkpointMatchesTask(cp, sourceHash, taskHashes) {
+			if !lockFingerprintEqual(cp.TaskHash, taskHash) {
 				cp.TaskHash = taskHash
 				checkpoints[identity] = cp
 				lockMigrated = true
@@ -254,8 +254,8 @@ func applyLockFilterWithReader(planned []Task, completed map[string]lockfile.Run
 				return Report{}, nil, nil, false, fmt.Errorf("stage checkpoint output for %s: %w", identity, stageErr)
 			}
 		}
-		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHash, legacyTaskHash) {
-			if strings.TrimSpace(c.TaskHash) == "" {
+		if c, ok := completed[identity]; ok && completionMatchesTask(c, sourceHash, taskHashes) {
+			if !lockFingerprintEqual(c.TaskHash, taskHash) {
 				c.TaskHash = taskHash
 				completed[identity] = c
 				lockMigrated = true
@@ -278,6 +278,29 @@ func taskLockSourceHash(task Task) string {
 	return lockStoredFingerprint(task.SourceText)
 }
 
+func lockTaskHashCandidates(task Task) []string {
+	candidates := []string{lockTaskHash(task)}
+	if isMarkdownEntryKey(task.EntryKey) {
+		candidates = append(candidates, legacyMarkdownContextSensitiveLockTaskHashCandidates(task)...)
+	} else {
+		candidates = append(candidates, legacyDefaultLockTaskHash(task))
+	}
+
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate) == "" {
+			continue
+		}
+		if _, ok := seen[candidate]; ok {
+			continue
+		}
+		seen[candidate] = struct{}{}
+		out = append(out, candidate)
+	}
+	return out
+}
+
 func ensureActiveRunID(state *lockfile.File) string {
 	return state.ActiveRunID
 }
@@ -286,20 +309,27 @@ func checkpointMatchesActiveRun(cp lockfile.RunCheckpoint, activeRunID string) b
 	return activeRunID != "" && cp.RunID == activeRunID
 }
 
-func completionMatchesTask(completion lockfile.RunCompletion, sourceHash, taskHash, legacyTaskHash string) bool {
+func completionMatchesTask(completion lockfile.RunCompletion, sourceHash string, taskHashes []string) bool {
 	if strings.TrimSpace(completion.TaskHash) != "" {
-		return lockFingerprintEqual(completion.TaskHash, taskHash) ||
-			lockFingerprintEqual(completion.TaskHash, legacyTaskHash)
+		return lockFingerprintEqualAny(completion.TaskHash, taskHashes)
 	}
 	return lockFingerprintEqual(completion.SourceHash, sourceHash)
 }
 
-func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash, taskHash, legacyTaskHash string) bool {
+func checkpointMatchesTask(checkpoint lockfile.RunCheckpoint, sourceHash string, taskHashes []string) bool {
 	if strings.TrimSpace(checkpoint.TaskHash) != "" {
-		return lockFingerprintEqual(checkpoint.TaskHash, taskHash) ||
-			lockFingerprintEqual(checkpoint.TaskHash, legacyTaskHash)
+		return lockFingerprintEqualAny(checkpoint.TaskHash, taskHashes)
 	}
 	return lockFingerprintEqual(checkpoint.SourceHash, sourceHash)
+}
+
+func lockFingerprintEqualAny(stored string, computed []string) bool {
+	for _, candidate := range computed {
+		if lockFingerprintEqual(stored, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 func nextRunID(now time.Time) string {
