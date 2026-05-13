@@ -6,7 +6,7 @@ description: "从已配置的源文件中规划并执行本地翻译生成。"
 ## 用法
 
 ```bash
-hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
+hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <path>] [--locale <locale>] [--dry-run] [--workers <count>] [--output <report.json>] [--experimental-context-memory] [--context-memory-scope <file|bucket|group>] [--context-memory-max-chars <count>]
 ```
 
 ## 行为
@@ -85,12 +85,13 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale
 - `--config`：配置文件路径（默认 `i18n.yml`，回退到当前目录中的 `i18n.jsonc`）
 - `--group`：仅运行给定组名的任务
 - `--bucket`：仅为给定的存储桶名称运行任务
-- `--locale`：仅为给定的目标区域设置运行任务（可重复）；`--target-locale` 是一个别名
+- `--file`：仅运行给定源文件路径的任务（可重复）
+- `--locale`：仅为给定的目标语言环境运行任务（可重复）；`--target-locale` 是一个别名
 - `--dry-run`：仅打印计划，不要翻译或写入文件
 - `--force`：重新运行所有计划任务并忽略锁文件跳过状态
-- `--prune`：移除源文件中不再存在的目标键
-- `--prune-max-deletions`：在需要显式覆盖之前，单次运行中删除的最大过期密钥数（默认 `100`）
-- `--prune-force`：绕过修剪删除安全限制
+- `--prune`：删除源文件中不再存在的目标键
+- `--prune-max-deletions`：在一次运行中删除的最大过期键数量，超过此值后需要显式覆盖（默认 `100`）
+- `--prune-force`：绕过 prune 删除安全限制
 - `--workers`：并行翻译工作线程数量（默认为 CPU 核心数）
 - `--progress`：进度渲染模式（`auto|on|off`，默认：`auto`）
 - `--output`：将机器可读的 JSON 运行报告写入给定路径
@@ -101,9 +102,9 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale
 ## 提示词契约用于 `run`
 
 - `system_prompt` 用于说明和运行时上下文。
-- `user_prompt` 用于负载内容（要翻译的文本，或用于上下文记忆总结的源内容）。
-- 翻译流程支持配置文件`user_prompt`覆盖。
-- 上下文记忆摘要流程始终使用内置的摘要负载模板，并且不应用配置文件 `user_prompt` 覆盖。
+- `user_prompt` 用于负载内容（要翻译的文本，或用于上下文记忆摘要的源内容）。
+- 翻译流程支持配置文件 `user_prompt` 覆盖。
+- 上下文记忆摘要流程始终使用内置的摘要负载模板，不会应用配置文件`user_prompt`覆盖。
 
 <Note>
 更改提示结构（例如将上下文从用户消息移到系统消息）不会自动使远程缓存条目失效。要在提示重构后强制重新翻译，请在你的配置文件中提升 `prompt_version`。
@@ -113,7 +114,7 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--locale
 
 要排查进度渲染问题，你可以在不更改 CLI 标志的情况下启用调试日志：
 
-- `HYPERLOCALISE_PROGRESS_DEBUG=1` 启用进度调试日志。
+- `HYPERLOCALISE_PROGRESS_DEBUG=1` 启用进度调试日志记录。
 - `HYPERLOCALISE_PROGRESS_DEBUG_FILE=<path>` 覆盖日志文件位置。
 
 启用时的默认日志路径：`.hyperlocalise/logs/run.log`。
@@ -142,9 +143,9 @@ flowchart TD
 
 ### 为什么它看起来像是在等待
 
-- 新作用域中的首个条目会等待内存生成完成。
-- 同一作用域中的后续条目会重用现有的作用域内存，并在不重新构建的情况下继续执行。
-- 进度 UI 现在会在文件列表中显示上下文记忆步骤，因此你可以看到当前作用域级别的工作。
+- 新作用域中的第一个条目会等待内存生成完成。
+- 同一作用域中的后续条目会复用现有的作用域内存，并在不重新构建的情况下继续执行。
+- 进度 UI 现在会在文件列表中显示上下文内存步骤，这样你就可以看到当前作用域级别的工作。
 
 
 ## 作用范围延伸到一个组
@@ -167,17 +168,27 @@ hyperlocalise run --bucket ui --dry-run
 
 如果你的配置中不存在该 bucket，`run` 会因 `unknown bucket` 规划错误而失败。
 
+## 范围仅适用于一个源文件
+
+当你只想运行一个已配置的源文件时，请使用 `--file`。你可以重复该标志以选择多个源文件，并且可以将其与 `--group`、`--bucket` 和 `--locale` 结合使用。
+
+```bash
+hyperlocalise run --file content/en/checkout.json --dry-run
+```
+
+如果该文件不属于已配置的源映射，`run` 会以 `unknown source file` 规划错误失败。
+
 ## 范围适用于一个目标语言环境
 
-当你想在不更改分组或桶选择的情况下只重新运行特定区域设置时，请使用 `--locale`。你可以重复该标志以选择多个区域设置。为兼容较旧的脚本，同样的过滤器也可作为 `--target-locale` 使用。
+当你想在不更改组或分桶选择的情况下，仅重新运行特定区域设置时，请使用 `--locale`。你可以重复该标志以选择多个区域设置。为了兼容旧脚本，同样的过滤器也可作为 `--target-locale` 使用。
 
 ```bash
 hyperlocalise run --group tests --locale fr --locale de --dry-run
 ```
 
-如果请求的语言区域不在`locales.targets`中，`run`会因`unknown target locale`规划错误而失败。与`--group`结合使用时，只会规划属于该组的语言区域。
+如果请求的区域设置不在 `locales.targets` 中，`run` 会因 `unknown target locale` 规划错误而失败。与 `--group` 结合时，仅会规划属于该组的区域设置。
 
-当与 `--prune` 结合使用时，过期键检测也仅限于所选目标语言环境。`run` 只会扫描并清理属于筛选后语言环境集合的目标文件。
+当与`--prune`结合时，过期键检测也仅限于所选的目标语言环境。`run` 只会扫描并清理属于筛选后的语言环境集合的目标文件。
 
 ```bash
 hyperlocalise run --prune --locale de --dry-run
@@ -185,7 +196,7 @@ hyperlocalise run --prune --locale de --dry-run
 
 ## 强制重新运行所有计划任务
 
-使用 `--force` 来忽略锁文件跳过状态，并再次执行每个计划中的任务。
+使用 `--force` 来忽略锁定文件跳过状态并再次执行所有计划的任务。
 
 ```bash
 hyperlocalise run --group tests --force
@@ -203,25 +214,25 @@ hyperlocalise run --group tests --force
 - `completion_tokens`
 - `total_tokens`
 
-每个区域设置的令牌使用情况打印为：`locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`。
+每个语言区域的 token 使用情况会打印为：`locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`。
 
-当你传递`--output`时，JSON 报告会包含运行元数据（`generatedAt`、`configPath`）、汇总的 token 使用量、按语言环境的使用量以及按条目的批处理使用量。
+当你传递`--output`时，JSON 报告会包含运行元数据（`generatedAt`、`configPath`）、汇总的 token 使用情况、按语言环境的使用情况以及按条目的批处理使用情况。
 
 ## 失败输出
 
-在任务失败时，输出包括 `failure target=<...> key=<...> reason=<...>`。
+任务失败时，输出包括 `failure target=<...> key=<...> reason=<...>`。
 
 
-## 工人调优指南
+## Worker 调优指南
 
-在提供商速率限制下或在受限的 CI 环境中运行时，降低 `--workers`。先从 `1` 开始以稳定重试，然后逐步增加。
+当你遇到提供方速率限制或在受限的 CI 环境中运行时，降低`--workers`。先从`1`开始以稳定重试，然后逐步增加。
 
-当你的提供商配额和机器资源允许更高吞吐量时，提高 `--workers`。请小幅度增加，并观察 API 错误率以及本地 CPU 和内存使用情况。
+当你的提供方配额和机器资源允许更高吞吐量时，提高`--workers`。请小幅递增，并观察 API 错误率以及本地 CPU 和内存使用情况。
 
-## 另请参见
+## 另见
 
 - [eval](/commands/eval)
 - [状态](/commands/status)
 - [sync push](/commands/sync-push)
 - [sync pull](/commands/sync-pull)
-- [锁定文件契约](/reference/lockfile-contract)
+- [锁定文件合约](/reference/lockfile-contract)

@@ -48,12 +48,12 @@ description: "hyperlocalise i18n 配置架构的简明参考。"
 - `project_key_env` 字符串
 - `timeout_seconds` 整数
 
-有关示例，请参见 [i18n config](/configuration/i18n-config)。
+有关示例，请参见 [i18n 配置](/configuration/i18n-config)。
 
 
 ## CSV 工作流说明
 
-在运行基于 CSV 的本地化流程时，请使用`buckets.*.files[].from`和`to`来指向`.csv`文件。
+在运行基于 CSV 的本地化流程时，请使用 `buckets.*.files[].from` 和 `to` 指向 `.csv` 文件。
 
-- 按语言区域划分的文件通常在 `[locale]` 的 `to` 路径中使用。
-- 共享的 CSV 文件可以复用相同的 `from` 和 `to` 路径。
+- 按区域设置的文件通常在 `[locale]` 路径中使用 `to`。
+- 共享 CSV 文件可以复用相同的 `from` 和 `to` 路径。
