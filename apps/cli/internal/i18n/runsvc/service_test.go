@@ -2410,6 +2410,121 @@ func TestRunWritesMarkdownWithInsertedSectionWhenExistingTargetPresent(t *testin
 	}
 }
 
+func TestRunMarkdownInsertionSkipsFollowingLegacyTaskHashEntries(t *testing.T) {
+	sourcePath := "/tmp/source.md"
+	targetPath := "/tmp/out.md"
+	sourceBefore := "# Guide\n\nExisting intro.\n\nExisting outro.\n"
+	sourceAfter := "# Guide\n\nExisting intro.\n\nNew section added.\n\nExisting outro.\n"
+	targetBefore := "# Guide\n\nIntro existant.\n\nConclusion existante.\n"
+	cfg := testConfig(sourcePath, targetPath)
+
+	planner := newTestService()
+	planner.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(sourceBefore), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	beforeTasks, _, err := planner.planTasks(&cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("plan before tasks: %v", err)
+	}
+	if len(beforeTasks) == 0 {
+		t.Fatalf("expected markdown tasks before insertion")
+	}
+
+	completed := map[string]lockfile.RunCompletion{}
+	for _, task := range beforeTasks {
+		completed[taskIdentity(task.TargetPath, task.EntryKey)] = lockfile.RunCompletion{
+			SourceHash: taskLockSourceHash(task),
+			TaskHash:   legacyContextSensitiveLockTaskHash(task),
+		}
+	}
+	lockState := &lockfile.File{RunCompleted: completed}
+
+	svc := newTestService()
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) { return lockState, nil }
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(sourceAfter), nil
+		case targetPath:
+			return []byte(targetBefore), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	var translated []string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		translated = append(translated, req.Source)
+		if req.Source != "New section added." {
+			t.Fatalf("unexpected translation request for unchanged markdown entry: %q", req.Source)
+		}
+		return "Nouvelle section ajoutee.", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.SkippedByLock != len(beforeTasks) || report.ExecutableTotal != 1 || report.Succeeded != 1 {
+		t.Fatalf("expected only inserted markdown section to execute, got %+v", report)
+	}
+	if len(translated) != 1 || translated[0] != "New section added." {
+		t.Fatalf("expected one translation call for inserted section, got %v", translated)
+	}
+
+	out := string(written)
+	for _, want := range []string{"Intro existant.", "Nouvelle section ajoutee.", "Conclusion existante."} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected output to contain %q, got %q", want, out)
+		}
+	}
+
+	afterPlanner := newTestService()
+	afterPlanner.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(sourceAfter), nil
+		}
+		return nil, os.ErrNotExist
+	}
+	afterTasks, _, err := afterPlanner.planTasks(&cfg, "", "", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("plan after tasks: %v", err)
+	}
+	var outroTask Task
+	for _, task := range afterTasks {
+		if task.SourceText == "Existing outro." {
+			outroTask = task
+			break
+		}
+	}
+	if outroTask.EntryKey == "" {
+		t.Fatalf("expected task for unchanged trailing markdown section")
+	}
+	completion := lockState.RunCompleted[taskIdentity(targetPath, outroTask.EntryKey)]
+	if got, want := completion.TaskHash, lockTaskHash(outroTask); got != want {
+		t.Fatalf("expected trailing section lock hash migrated to %q, got %q", want, got)
+	}
+}
+
 func TestRunWritesAppleStringsUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.strings"
