@@ -754,6 +754,27 @@ export const mcpSessions = pgTable(
   ],
 );
 
+export const mcpOAuthClients = pgTable(
+  "mcp_oauth_clients",
+  {
+    clientId: text("client_id").primaryKey(),
+    clientName: text("client_name"),
+    redirectUris: jsonb("redirect_uris").$type<string[]>().notNull(),
+    grantTypes: jsonb("grant_types")
+      .$type<string[]>()
+      .notNull()
+      .default(["authorization_code", "refresh_token"]),
+    responseTypes: jsonb("response_types").$type<string[]>().notNull().default(["code"]),
+    scope: text("scope").notNull().default("mcp"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [index("idx_mcp_oauth_clients_created_at").on(table.createdAt)],
+);
+
 export const usedAuthorizationCodes = pgTable(
   "used_authorization_codes",
   {

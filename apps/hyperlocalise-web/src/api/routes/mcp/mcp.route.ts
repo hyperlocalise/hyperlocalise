@@ -66,6 +66,23 @@ function isAllowedRedirectUri(redirectUri: string): boolean {
   return url.protocol === "http:" && (url.hostname === "localhost" || url.hostname === "127.0.0.1");
 }
 
+async function findRegisteredMcpClient(clientId: string, redirectUri: string) {
+  const [client] = await db
+    .select({
+      clientId: schema.mcpOAuthClients.clientId,
+      redirectUris: schema.mcpOAuthClients.redirectUris,
+    })
+    .from(schema.mcpOAuthClients)
+    .where(eq(schema.mcpOAuthClients.clientId, clientId))
+    .limit(1);
+
+  if (!client?.redirectUris.includes(redirectUri)) {
+    return null;
+  }
+
+  return client;
+}
+
 function endpointOrigin(c: { req: { url: string } }) {
   return new URL(c.req.url).origin;
 }
@@ -167,7 +184,14 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     },
     async ({ projectId }) => {
       const [project] = await db
-        .select()
+        .select({
+          id: schema.projects.id,
+          name: schema.projects.name,
+          description: schema.projects.description,
+          translationContext: schema.projects.translationContext,
+          createdAt: schema.projects.createdAt,
+          updatedAt: schema.projects.updatedAt,
+        })
         .from(schema.projects)
         .where(
           and(
@@ -327,7 +351,7 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
     )
-    .post("/mcp/register", validateRegisterBody, (c) => {
+    .post("/mcp/register", validateRegisterBody, async (c) => {
       const payload = c.req.valid("json");
       const unsupportedRedirectUri = payload.redirect_uris.find(
         (uri) => !isAllowedRedirectUri(uri),
@@ -337,25 +361,44 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.json({ error: "invalid_redirect_uri" }, 400);
       }
 
+      const clientId = `mcp_${randomUUID()}`;
+      const grantTypes = ["authorization_code", "refresh_token"];
+      const responseTypes = ["code"];
+      const scope = payload.scope ?? "mcp";
+
+      await db.insert(schema.mcpOAuthClients).values({
+        clientId,
+        clientName: payload.client_name,
+        redirectUris: payload.redirect_uris,
+        grantTypes,
+        responseTypes,
+        scope,
+      });
+
       return c.json(
         {
-          client_id: `mcp_${randomUUID()}`,
+          client_id: clientId,
           client_id_issued_at: Math.floor(Date.now() / 1000),
           client_name: payload.client_name,
           redirect_uris: payload.redirect_uris,
-          grant_types: ["authorization_code", "refresh_token"],
-          response_types: ["code"],
+          grant_types: grantTypes,
+          response_types: responseTypes,
           token_endpoint_auth_method: "none",
-          scope: payload.scope ?? "mcp",
+          scope,
         },
         201,
       );
     })
-    .get("/mcp/authorize", validateAuthorizationQuery, (c) => {
+    .get("/mcp/authorize", validateAuthorizationQuery, async (c) => {
       const query = c.req.valid("query");
 
       if (!isAllowedRedirectUri(query.redirect_uri)) {
         return c.json({ error: "invalid_redirect_uri" }, 400);
+      }
+
+      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+      if (!client) {
+        return c.json({ error: "invalid_client" }, 400);
       }
 
       const callbackUrl = new URL(`${apiBasePath}/mcp/callback`, endpointOrigin(c));
@@ -372,6 +415,12 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
     })
     .get("/mcp/callback", validateAuthorizationQuery, async (c) => {
       const query = c.req.valid("query");
+      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+
+      if (!client) {
+        return c.json({ error: "invalid_client" }, 400);
+      }
+
       const auth = await resolveApiAuthContextFromSession({
         organizationSlug: query.organizationSlug,
       });
