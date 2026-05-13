@@ -286,16 +286,17 @@ func mergeApprovedJSONFile(sourcePath, targetPath string, approvedPayload []byte
 		return nil, fmt.Errorf("merge approved translations: downloaded payload for %s must be a JSON object: %w", targetPath, err)
 	}
 	sourcePayload, err := os.ReadFile(sourcePath)
-	if err != nil {
+	if err == nil {
+		source, err := decodeOrderedJSONObject(sourcePayload)
+		if err != nil {
+			return nil, fmt.Errorf("merge approved translations: source file %s must be a JSON object: %w", sourcePath, err)
+		}
+		approved, err = filterSourceFallbackJSONObjects(approved, source)
+		if err != nil {
+			return nil, fmt.Errorf("merge approved translations: filter source-language fallback values: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("merge approved translations: read source file %s: %w", sourcePath, err)
-	}
-	source, err := decodeOrderedJSONObject(sourcePayload)
-	if err != nil {
-		return nil, fmt.Errorf("merge approved translations: source file %s must be a JSON object: %w", sourcePath, err)
-	}
-	approved, err = filterSourceFallbackJSONObjects(approved, source)
-	if err != nil {
-		return nil, fmt.Errorf("merge approved translations: filter source-language fallback values: %w", err)
 	}
 	if len(approved) == 0 {
 		if existing, err := os.ReadFile(targetPath); err == nil {
@@ -459,11 +460,16 @@ func cloneOrderedJSONMember(member orderedJSONMember) orderedJSONMember {
 }
 
 func jsonValuesEqual(left, right json.RawMessage) (bool, error) {
-	var leftString, rightString string
-	if err := json.Unmarshal(left, &leftString); err == nil {
-		if err := json.Unmarshal(right, &rightString); err == nil {
-			return leftString == rightString, nil
-		}
+	leftString, leftIsString, err := decodeJSONString(left)
+	if err != nil {
+		return false, err
+	}
+	rightString, rightIsString, err := decodeJSONString(right)
+	if err != nil {
+		return false, err
+	}
+	if leftIsString || rightIsString {
+		return leftIsString && rightIsString && leftString == rightString, nil
 	}
 
 	var leftValue any
@@ -475,6 +481,17 @@ func jsonValuesEqual(left, right json.RawMessage) (bool, error) {
 		return false, err
 	}
 	return reflect.DeepEqual(leftValue, rightValue), nil
+}
+
+func decodeJSONString(payload json.RawMessage) (string, bool, error) {
+	if !bytes.HasPrefix(bytes.TrimSpace(payload), []byte(`"`)) {
+		return "", false, nil
+	}
+	var value string
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return "", false, err
+	}
+	return value, true, nil
 }
 
 func orderedJSONObjectIndex(obj orderedJSONObject, key string) int {
