@@ -124,3 +124,4 @@ hyperlocalise crowdin download --language fr --merge-approved
 ```
 
 `--merge-approved` currently supports JSON object translation files. It forces an approved-only sparse export for the request, then overwrites only keys present in the approved Crowdin payload.
+Downloaded values that still match the source JSON are treated as Crowdin source-language fallbacks and are not merged over existing local translations.
