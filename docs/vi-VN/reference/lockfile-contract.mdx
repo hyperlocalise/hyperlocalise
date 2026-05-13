@@ -11,7 +11,7 @@ Tên tệp khóa được cố định thành `.hyperlocalise.lock.json`.
 
 Giữ tệp trong thư mục gốc của dự án để `run` và các lệnh đồng bộ chia sẻ cùng trạng thái điểm kiểm tra.
 
-CLI ghi lockfile dưới dạng **JSON thu gọn** (không thụt lề) để giới hạn kích thước tệp.
+CLI ghi tệp khóa dưới dạng **JSON thụt lề** để các diff dễ đọc. Nó giữ kích thước tệp ở mức thấp bằng cách nhóm các mục tác vụ theo đường dẫn đích và lưu các tên trường ngắn.
 
 ## Khóa tệp dùng để làm gì
 
@@ -41,8 +41,11 @@ Hình dạng hiện tại:
     }
   },
   "run_completed": {
-    "apps/web/lang/es-ES.json::checkout.submit": {
-      "source_hash": "7f4f7d..."
+    "apps/web/lang/es-ES.json": {
+      "checkout.submit": {
+        "s": "7f4f7d...",
+        "t": "1a2b3c..."
+      }
     }
   }
 }
@@ -56,57 +59,67 @@ Hình dạng hiện tại:
 - `locale_states`: ánh xạ checkpoint theo từng locale.
   - `revision`: bản sửa đổi adapter hoặc con trỏ cho logic kéo tăng dần.
   - `updated_at`: lần cuối điểm kiểm tra locale đó được làm mới.
-- `run_completed`: bản đồ hoàn thành theo từng tác vụ được `run` dùng cho các quyết định bỏ qua.
-  - `source_hash`: dấu vân tay của đoạn nguồn. Các lần ghi mới sử dụng tiền tố hex chữ thường **32 ký tự** của SHA-512. Các tệp khóa cũ hơn vẫn có thể lưu toàn bộ mã băm hex **128 ký tự**; cả hai dạng đều được chấp nhận khi quyết định có bỏ qua công việc hay không.
-  - `task_hash`: khi có mặt, dấu vân tay của các kích thước tác vụ (mô hình, prompt, các trường ngữ cảnh và các đầu vào liên quan). Nó sử dụng các quy tắc mã hóa giống như `source_hash`.
+- `run_completed`: bản đồ hoàn thành theo từng tác vụ được `run` dùng để quyết định bỏ qua. Các lần ghi hiện tại nhóm các mục theo đường dẫn đích.
+  - khóa lồng nhau: khóa mục bên trong tệp đích.
+  - `s`: dấu vân tay của phân đoạn nguồn.
+  - `t`: dấu vân tay của các kích thước tác vụ, chẳng hạn như mô hình, prompt, các trường ngữ cảnh và các đầu vào liên quan.
+- `active_run_id`: mã định danh cho một lần chạy đang diễn ra. Nó được xóa sau khi chạy thành công.
+- `run_checkpoint`: điểm kiểm tra đầu ra tạm thời cho từng tác vụ khi chạy bị gián đoạn. Nó được nhóm theo đường dẫn đích và được xóa sau khi chạy thành công.
+  - `r`: mã định danh lần chạy.
+  - `p`: đường dẫn nguồn.
+  - `l`: ngôn ngữ bản địa đích.
+  - `v`: giá trị đầu ra theo giai đoạn.
+  - `s`, `t`, và `u`: dấu vân tay nguồn, dấu vân tay tác vụ, và dấu thời gian cập nhật.
+
+Các bản ghi mới sử dụng tiền tố hex chữ thường **32 ký tự** của SHA-512 cho fingerprint. Các tệp khóa cũ hơn vẫn có thể lưu các khóa phẳng `target::entry` và các tên trường đầy đủ như `source_hash` và `task_hash`. Chúng cũng có thể lưu các chuỗi băm hex đầy đủ **128 ký tự**. CLI chấp nhận cả hai dạng và cả hai độ dài chuỗi băm.
 
 ## Vòng đời theo lệnh
 
 ### `hyperlocalise run`
 
-- Đọc `.hyperlocalise.lock.json` khi lập kế hoạch công việc.
-- Bỏ qua công việc đã được đánh dấu là hoàn thành trong `run_completed`.
-- Duy trì các tác vụ thành công trở lại `run_completed`.
+- Tải về một ảnh chụp nhanh từ xa mới cho phạm vi được yêu cầu.
+- Cập nhật `adapter`, `project_id`, `last_pull_at`, và `locale_states` sau khi pull thành công.
+- Có thể đọc ngữ cảnh adapter/dự án từ tệp khóa.
 
 ### `hyperlocalise sync pull`
 
-- Có thể đọc siêu dữ liệu checkpoint của adapter và ngôn ngữ hiện có như một gợi ý về hiệu suất.
-- Tải về một ảnh chụp nhanh từ xa mới cho phạm vi được yêu cầu.
-- Cập nhật `adapter`, `project_id`, `last_pull_at`, và `locale_states` sau khi pull thành công.
-
-### `hyperlocalise sync push`
-
-- Có thể đọc ngữ cảnh adapter/dự án từ tệp khóa.
 - Không yêu cầu tệp khóa hoặc siêu dữ liệu sidecar để cho phép ghi.
 - Tính toán các thay đổi đẩy từ các tệp cục bộ cùng với một đường cơ sở từ xa mới cho cùng phạm vi.
 - Không thay thế thẩm quyền nội dung nguồn/đích.
 
-## Hướng dẫn đặt lại an toàn
-
-Đặt lại file khóa khi trạng thái điểm kiểm tra đã cũ hoặc không còn đáng tin cậy.
-
-Các trường hợp đặt lại thường gặp:
+### `hyperlocalise sync push`
 
 - bạn đã thay đổi cấu trúc văn bản nguồn rất nhiều
 - bạn đã thay đổi ánh xạ bucket hoặc mẫu đường dẫn tệp
 - bạn đã chuyển bộ điều hợp hoặc dự án
 - bạn nghi ngờ các mục checkpoint bị hỏng hoặc đã được chỉnh sửa thủ công
 
+## Các quy ước của nhóm
+
+Các trường hợp đặt lại thường gặp:
+
 Các bước đặt lại an toàn:
+
+- Không chỉnh sửa thủ công các trường lockfile trừ khi đang gỡ lỗi một sự cố cục bộ.
+- Giữ việc xử lý lockfile rõ ràng trong các script CI.
+- Xem xét các thay đổi của lockfile trong pull request khi hành vi chạy/đồng bộ có vẻ bất thường.
+- `run` có thể thực thi lại các tác vụ trước đó đã bị bỏ qua
+
+Các tác dụng phụ dự kiến sau khi đặt lại:
 
 1. đảm bảo rằng các tệp nguồn và tệp đã tạo của bạn được commit hoặc sao lưu
 2. xóa `.hyperlocalise.lock.json`
 3. chạy `hyperlocalise run --dry-run` để kiểm tra kế hoạch lớn hơn
 4. chạy `hyperlocalise run` và/hoặc `hyperlocalise sync pull` để xây dựng lại trạng thái điểm kiểm tra
 
-Các tác dụng phụ dự kiến sau khi đặt lại:
+Đặt lại file khóa khi trạng thái điểm kiểm tra đã cũ hoặc không còn đáng tin cậy.
 
-- `run` có thể thực thi lại các tác vụ trước đó đã bị bỏ qua
 - lần kéo đồng bộ tiếp theo có thể thực hiện làm mới rộng hơn cho các ngôn ngữ địa phương
 - CLI runtime có thể tăng tạm thời cho đến khi các checkpoint được xây dựng lại
+- Có thể đọc siêu dữ liệu checkpoint của adapter và ngôn ngữ hiện có như một gợi ý về hiệu suất.
 
-## Các quy ước của nhóm
+## Hướng dẫn đặt lại an toàn
 
-- Không chỉnh sửa thủ công các trường lockfile trừ khi đang gỡ lỗi một sự cố cục bộ.
-- Giữ việc xử lý lockfile rõ ràng trong các script CI.
-- Xem xét các thay đổi của lockfile trong pull request khi hành vi chạy/đồng bộ có vẻ bất thường.
+- Duy trì các tác vụ thành công trở lại `run_completed`.
+- Bỏ qua công việc đã được đánh dấu là hoàn thành trong `run_completed`.
+- Đọc `.hyperlocalise.lock.json` khi lập kế hoạch công việc.
