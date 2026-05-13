@@ -1,6 +1,7 @@
 package lockfile
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,6 +168,173 @@ func TestLoadLegacyRunCompletedWithCompletedAt(t *testing.T) {
 	}
 	if !strings.Contains(string(rewritten), "abc123") {
 		t.Fatalf("expected rewritten lockfile to preserve source_hash, got %s", string(rewritten))
+	}
+}
+
+func TestSaveWritesIndentedGroupedRunCompleted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.lock.json")
+	fullSourceHash := strings.Repeat("a", 128)
+	fullTaskHash := strings.Repeat("B", 128)
+
+	if err := Save(path, File{
+		RunCompleted: map[string]RunCompletion{
+			"locales/fr.json::hello": {
+				SourceHash: fullSourceHash,
+				TaskHash:   fullTaskHash,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save lockfile: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved lockfile: %v", err)
+	}
+	rewritten := string(content)
+	if strings.Contains(rewritten, "source_hash") || strings.Contains(rewritten, "task_hash") {
+		t.Fatalf("expected compact hash keys, got %s", rewritten)
+	}
+	if strings.Contains(rewritten, fullSourceHash) || strings.Contains(rewritten, fullTaskHash) {
+		t.Fatalf("expected full hashes to be compacted, got %s", rewritten)
+	}
+	if !strings.Contains(rewritten, "\n  \"run_completed\": {\n") {
+		t.Fatalf("expected indented run_completed, got %s", rewritten)
+	}
+	var payload struct {
+		RunCompleted map[string]map[string]diskRunCompletion `json:"run_completed"`
+	}
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode saved lockfile: %v", err)
+	}
+	completionOnDisk := payload.RunCompleted["locales/fr.json"]["hello"]
+	if completionOnDisk.SourceHash != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || completionOnDisk.TaskHash != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Fatalf("expected grouped compact run_completed, got %+v", payload.RunCompleted)
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load compact lockfile: %v", err)
+	}
+	completion := got.RunCompleted["locales/fr.json::hello"]
+	if completion.SourceHash != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || completion.TaskHash != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Fatalf("unexpected compact completion: %+v", completion)
+	}
+}
+
+func TestLoadGroupedRunCompleted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "grouped.lock.json")
+	content := []byte(`{
+	  "run_completed": {
+	    "locales/fr.json": {
+	      "hello": {"s": "source-a", "t": "task-a"},
+	      "bye": ["source-b", "task-b"]
+	    }
+	  }
+	}`)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write compact lockfile: %v", err)
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load compact lockfile: %v", err)
+	}
+	if got.RunCompleted["locales/fr.json::hello"].SourceHash != "source-a" {
+		t.Fatalf("expected grouped object completion, got %+v", got.RunCompleted)
+	}
+	if got.RunCompleted["locales/fr.json::bye"].TaskHash != "task-b" {
+		t.Fatalf("expected grouped tuple completion, got %+v", got.RunCompleted)
+	}
+}
+
+func TestSaveAndLoadGroupedRunCheckpoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "checkpoint.lock.json")
+	now := time.Unix(1700000000, 0).UTC()
+	fullSourceHash := strings.Repeat("c", 128)
+	fullTaskHash := strings.Repeat("D", 128)
+
+	if err := Save(path, File{
+		ActiveRunID: "run_1",
+		RunCheckpoint: map[string]RunCheckpoint{
+			"locales/fr.json::hello": {
+				RunID:        "run_1",
+				TargetPath:   "locales/fr.json",
+				SourcePath:   "locales/en.json",
+				TargetLocale: "fr",
+				EntryKey:     "hello",
+				Value:        "Bonjour",
+				SourceHash:   fullSourceHash,
+				TaskHash:     fullTaskHash,
+				UpdatedAt:    now,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save checkpoint lockfile: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved lockfile: %v", err)
+	}
+	rewritten := string(content)
+	for _, legacyKey := range []string{"target_path", "entry_key", "source_hash", "task_hash", fullSourceHash, fullTaskHash} {
+		if strings.Contains(rewritten, legacyKey) {
+			t.Fatalf("expected compact checkpoint encoding without %q, got %s", legacyKey, rewritten)
+		}
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load checkpoint lockfile: %v", err)
+	}
+	checkpoint := got.RunCheckpoint["locales/fr.json::hello"]
+	if checkpoint.TargetPath != "locales/fr.json" || checkpoint.EntryKey != "hello" {
+		t.Fatalf("expected identity to round-trip from grouped checkpoint, got %+v", checkpoint)
+	}
+	if checkpoint.SourcePath != "locales/en.json" || checkpoint.TargetLocale != "fr" || checkpoint.Value != "Bonjour" {
+		t.Fatalf("unexpected checkpoint payload: %+v", checkpoint)
+	}
+	if checkpoint.SourceHash != "cccccccccccccccccccccccccccccccc" || checkpoint.TaskHash != "dddddddddddddddddddddddddddddddd" {
+		t.Fatalf("unexpected compact checkpoint hashes: %+v", checkpoint)
+	}
+	if !checkpoint.UpdatedAt.Equal(now) {
+		t.Fatalf("unexpected checkpoint updated_at: %+v", checkpoint.UpdatedAt)
+	}
+}
+
+func TestLoadLegacyFlatRunCheckpoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-checkpoint.lock.json")
+	fullSourceHash := strings.Repeat("e", 128)
+	content := []byte(`{
+	  "active_run_id": "run_1",
+	  "run_checkpoint": {
+	    "locales/fr.json::hello": {
+	      "run_id": "run_1",
+	      "target_path": "locales/fr.json",
+	      "source_path": "locales/en.json",
+	      "target_locale": "fr",
+	      "entry_key": "hello",
+	      "value": "Bonjour",
+	      "source_hash": "` + fullSourceHash + `",
+	      "updated_at": "2023-11-14T22:13:20Z"
+	    }
+	  }
+	}`)
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatalf("write legacy checkpoint lockfile: %v", err)
+	}
+
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("load legacy checkpoint lockfile: %v", err)
+	}
+	checkpoint := got.RunCheckpoint["locales/fr.json::hello"]
+	if checkpoint.RunID != "run_1" || checkpoint.SourcePath != "locales/en.json" || checkpoint.Value != "Bonjour" {
+		t.Fatalf("unexpected legacy checkpoint: %+v", checkpoint)
+	}
+	if checkpoint.SourceHash != "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" {
+		t.Fatalf("expected compacted legacy checkpoint hash, got %+v", checkpoint)
 	}
 }
 

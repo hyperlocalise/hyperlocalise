@@ -11,7 +11,7 @@ The lockfile name is fixed to `.hyperlocalise.lock.json`.
 
 Keep the file in your project root so `run` and sync commands share the same checkpoint state.
 
-The CLI writes the lockfile as **compact JSON** (no indentation) to limit file size.
+The CLI writes the lockfile as **indented JSON** so diffs are readable. It keeps file size down by grouping task entries by target path and storing short field names.
 
 ## What the lockfile is for
 
@@ -41,8 +41,11 @@ Current shape:
     }
   },
   "run_completed": {
-    "apps/web/lang/es-ES.json::checkout.submit": {
-      "source_hash": "7f4f7d..."
+    "apps/web/lang/es-ES.json": {
+      "checkout.submit": {
+        "s": "7f4f7d...",
+        "t": "1a2b3c..."
+      }
     }
   }
 }
@@ -56,9 +59,19 @@ Field meanings:
 - `locale_states`: per-locale checkpoint map.
   - `revision`: adapter revision or cursor for incremental pull logic.
   - `updated_at`: last time that locale checkpoint was refreshed.
-- `run_completed`: per-task completion map used by `run` for skip decisions.
-  - `source_hash`: fingerprint of the source segment. New writes use a **32-character** lowercase hex prefix of SHA-512. Older lockfiles may still store the full **128-character** hex digest; both forms are accepted when deciding whether to skip work.
-  - `task_hash`: when present, fingerprint of task dimensions (model, prompt, context fields, and related inputs). It uses the same encoding rules as `source_hash`.
+- `run_completed`: per-task completion map used by `run` for skip decisions. Current writes group entries by target path.
+  - nested key: entry key inside the target file.
+  - `s`: fingerprint of the source segment.
+  - `t`: fingerprint of task dimensions, such as model, prompt, context fields, and related inputs.
+- `active_run_id`: identifier for an in-progress run. It is cleared after a successful run.
+- `run_checkpoint`: temporary per-task output checkpoint for interrupted runs. It is grouped by target path and cleared after a successful run.
+  - `r`: run identifier.
+  - `p`: source path.
+  - `l`: target locale.
+  - `v`: staged output value.
+  - `s`, `t`, and `u`: source fingerprint, task fingerprint, and update timestamp.
+
+New writes use a **32-character** lowercase hex prefix of SHA-512 for fingerprints. Older lockfiles may still store flat `target::entry` keys and full field names such as `source_hash` and `task_hash`. They may also store full **128-character** hex digests. The CLI accepts both shapes and both digest lengths.
 
 ## Lifecycle by command
 
