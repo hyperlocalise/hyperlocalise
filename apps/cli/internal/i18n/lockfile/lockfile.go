@@ -366,7 +366,7 @@ func isRunCompletionValue(key string, raw json.RawMessage) bool {
 	if trimmed[0] != '{' {
 		return false
 	}
-	return rawObjectHasStringField(trimmed, "source_hash", "task_hash", "s", "t", "completed_at")
+	return rawObjectHasStringField(trimmed, "source_hash", "task_hash", "s", "t")
 }
 
 func isRunCheckpointValue(key string, raw json.RawMessage) bool {
@@ -405,6 +405,9 @@ func rawObjectHasStringField(raw json.RawMessage, names ...string) bool {
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &object); err != nil {
 		return false
+	}
+	if len(object) == 0 {
+		return true
 	}
 	for _, name := range names {
 		field, ok := object[name]
