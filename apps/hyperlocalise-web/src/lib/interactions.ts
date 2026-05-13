@@ -84,8 +84,8 @@ export async function updateInteractionMessage(
     .update(schema.interactionMessages)
     .set({
       text: input.text,
-      senderEmail: input.senderEmail ?? null,
-      attachments: input.attachments ?? null,
+      senderEmail: input.senderEmail,
+      attachments: input.attachments,
     })
     .where(eq(schema.interactionMessages.id, messageId))
     .returning();
