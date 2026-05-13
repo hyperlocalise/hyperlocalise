@@ -86,6 +86,8 @@ export function createAgentSlackRoutes() {
           "channels:history",
           "channels:read",
           "chat:write",
+          "files:read",
+          "files:write",
           "groups:history",
           "groups:read",
           "im:history",

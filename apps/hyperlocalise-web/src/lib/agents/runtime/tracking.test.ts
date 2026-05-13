@@ -48,6 +48,20 @@ describe("wrapThreadPostForInteraction", () => {
     expect(addMessage).not.toHaveBeenCalled();
   });
 
+  it("persists raw object agent posts", async () => {
+    const addMessage = vi.fn(async () => ({ id: "msg_123" }));
+    const { thread } = createThread();
+
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    await thread.post({ raw: "Agent reply", files: [] });
+
+    expect(addMessage).toHaveBeenCalledWith({
+      interactionId: "interaction_123",
+      senderType: "agent",
+      text: "Agent reply",
+    });
+  });
+
   it("updates the tracked interaction without double wrapping", async () => {
     const addMessage = vi.fn(async () => ({ id: "msg_123" }));
     const { thread } = createThread();

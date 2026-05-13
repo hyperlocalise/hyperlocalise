@@ -19,6 +19,7 @@ import {
 } from "@/lib/interactions";
 
 import { findSlackConnector, lookupMembership } from "./helpers";
+import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
 
 type SlackBotState = Record<string, unknown>;
 
@@ -95,6 +96,23 @@ async function processSlackMessage(
       await thread.post(
         "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
       );
+      return;
+    }
+
+    const imageAttachments = getSlackImageAttachments(message);
+    if (imageAttachments.length > 0) {
+      const imageIntentMessages = chatMessages.flatMap((chatMessage) => {
+        if (
+          (chatMessage.role !== "user" && chatMessage.role !== "assistant") ||
+          typeof chatMessage.content !== "string"
+        ) {
+          return [];
+        }
+        return [{ role: chatMessage.role, content: chatMessage.content }];
+      });
+
+      wrapThreadPost(thread, interactionId);
+      await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
       return;
     }
 

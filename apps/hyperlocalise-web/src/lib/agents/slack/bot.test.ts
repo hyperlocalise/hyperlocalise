@@ -47,6 +47,28 @@ vi.mock("@/lib/agents/hyperlocalise-agent", () => {
   };
 });
 
+vi.mock("@ai-sdk/openai", () => ({
+  openai: vi.fn(() => "mock-model"),
+}));
+
+vi.mock("ai", async () => {
+  const actual = await vi.importActual<typeof import("ai")>("ai");
+
+  return {
+    ...actual,
+    generateText: vi.fn(),
+    stepCountIs: vi.fn((n: number) => n),
+  };
+});
+
+vi.mock("@/lib/tools/registry", () => ({
+  buildTools: vi.fn(() => ({})),
+}));
+
+vi.mock("@/lib/image-generation", () => ({
+  regenerateImageFromAttachment: vi.fn(),
+}));
+
 vi.mock("@/lib/agents/slack/helpers", () => ({
   findSlackConnector: vi.fn(),
   lookupMembership: vi.fn(),
@@ -95,7 +117,9 @@ vi.mock("@/lib/database", () => {
   };
 });
 
+import { generateText } from "ai";
 import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
+import { regenerateImageFromAttachment } from "@/lib/image-generation";
 import {
   addInteractionMessage,
   createInteraction,
@@ -107,6 +131,7 @@ function createMessage(
     text?: string;
     isBot?: boolean;
     raw?: Record<string, unknown>;
+    attachments?: Message["attachments"];
   } = {},
 ): Message {
   return {
@@ -123,6 +148,7 @@ function createMessage(
     },
     metadata: { dateSent: new Date(), edited: false },
     formatted: { type: "root", children: [] },
+    attachments: input.attachments ?? [],
   } as unknown as Message;
 }
 
@@ -197,6 +223,19 @@ describe("wrapThreadPost", () => {
     await thread.post({ markdown: "complex" });
 
     expect(addInteractionMessage).not.toHaveBeenCalled();
+  });
+
+  it("persists raw object posts", async () => {
+    const { thread } = createThread();
+    wrapThreadPost(thread, "interaction-123");
+
+    await thread.post({ raw: "Agent reply", files: [] });
+
+    expect(addInteractionMessage).toHaveBeenCalledWith({
+      interactionId: "interaction-123",
+      senderType: "agent",
+      text: "Agent reply",
+    });
   });
 
   it("does not double-wrap the same thread", async () => {
@@ -434,5 +473,134 @@ describe("handleSubscribedMessage", () => {
       senderType: "agent",
       text: "AI response",
     });
+  });
+
+  it("uses LLM intent extraction before localizing Slack image attachments", async () => {
+    const { thread, posts } = createThread();
+    const imageData = Buffer.from("source-image");
+    const generatedImage = Buffer.from("generated-image");
+    const message = createMessage({
+      text: "Localize this campaign image to French",
+      attachments: [
+        {
+          type: "image",
+          name: "banner.png",
+          mimeType: "image/png",
+          fetchData: vi.fn(async () => imageData),
+        },
+      ],
+    });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(generateText).mockResolvedValueOnce({
+      output: {
+        targetLocale: "fr",
+        instructions: "Use refined campaign copy.",
+        confidence: 0.98,
+        missingFields: [],
+      },
+    } as never);
+    vi.mocked(regenerateImageFromAttachment).mockResolvedValue({
+      image: generatedImage,
+      mimeType: "image/webp",
+      prompt: "prompt",
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(generateText).toHaveBeenCalledOnce();
+    expect(generateText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "Current Slack message:\nLocalize this campaign image to French",
+        ),
+      }),
+    );
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      imageData,
+      "image/png",
+      expect.stringContaining("Target locale: fr"),
+    );
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      imageData,
+      "image/png",
+      expect.stringContaining("User instructions: Use refined campaign copy."),
+    );
+    expect(posts).toEqual([
+      {
+        raw: expect.stringContaining("localized version of banner.png for fr"),
+        files: [
+          {
+            data: generatedImage,
+            filename: "banner-fr.webp",
+            mimeType: "image/webp",
+          },
+        ],
+      },
+    ]);
+    expect(addInteractionMessage).toHaveBeenLastCalledWith({
+      interactionId: "interaction-123",
+      senderType: "agent",
+      text: expect.stringContaining("localized version of banner.png for fr"),
+    });
+  });
+
+  it("asks for a target language before localizing Slack images", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Localize this campaign image",
+      attachments: [
+        {
+          type: "image",
+          name: "banner.png",
+          mimeType: "image/png",
+          fetchData: vi.fn(async () => Buffer.from("source-image")),
+        },
+      ],
+    });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(generateText).mockResolvedValueOnce({
+      output: {
+        targetLocale: null,
+        instructions: null,
+        confidence: 0.92,
+        missingFields: ["targetLocale"],
+      },
+    } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(generateText).toHaveBeenCalledOnce();
+    expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
+    expect(posts).toEqual([expect.stringContaining("I need the target language")]);
   });
 });
