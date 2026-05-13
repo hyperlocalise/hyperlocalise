@@ -1,18 +1,18 @@
 ---
 title: "Crowdin 适配器"
-description: "为原生同步模式或与 Crowdin 兼容的文件模式配置 Crowdin。"
+description: "为原生同步模式或 Crowdin 兼容文件模式配置 Crowdin。"
 ---
 
 ## 两个 Crowdin 工作流
 
 Hyperlocalise 现在支持两种不同的 Crowdin 集成：
 
-1. 原生同步模式，带有 `i18n.yml` 加上 `sync push` / `sync pull`
-2. 与 Crowdin 兼容的文件模式，包含 `crowdin.yml` 以及 `hyperlocalise crowdin ...`
+1. 原生同步模式，带有`i18n.yml`加上`sync push` / `sync pull`
+2. 兼容 Crowdin 的文件模式，带有 `crowdin.yml` 和 `hyperlocalise crowdin ...`
 
-在需要使用 Hyperlocalise 管理的条目同步时，请使用原生同步模式。
+当你想要使用 Hyperlocalise 管理的条目同步时，请使用原生同步模式。
 
-当你希望更贴近 Crowdin CLI 文件工作流的直接替代方案时，请使用文件模式。
+当你希望更贴近 Crowdin CLI 文件工作流的即插即用替代方案时，请使用文件模式。
 
 ## 原生同步模式
 
@@ -32,7 +32,7 @@ Hyperlocalise 现在支持两种不同的 Crowdin 集成：
 
 ### Crowdin 企业
 
-当你的工作区使用 Crowdin Enterprise 而不是默认的 Crowdin Cloud API 时，设置 `apiBaseURL`。
+当你的工作区使用 Crowdin Enterprise 而不是默认的 Crowdin Cloud API 时，请设置 `apiBaseURL`。
 
 ```jsonc
 {
@@ -49,7 +49,7 @@ Hyperlocalise 现在支持两种不同的 Crowdin 集成：
 
 ### 可选配置字段
 
-- `apiBaseURL`：覆盖 Crowdin API 基础 URL。Crowdin Enterprise 请使用此项。
+- `apiBaseURL`：覆盖 Crowdin API 基础 URL。用于 Crowdin Enterprise。
 - `sourceLanguage`
 - `targetLanguages`
 - `timeoutSeconds`
@@ -98,17 +98,23 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate
 hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
-hyperlocalise crowdin download --language fr
+hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
+hyperlocalise crowdin download --language fr --merge-approved
+hyperlocalise crowdin download --language fr --include-sources
 ```
 
-使用 `crowdin.yml` 根级 `branch:` 或传递 `--branch <name>`，可以从 Crowdin 分支上传和下载文件。该标志会覆盖当前命令的配置值。
+`--merge-approved` 将已批准的 JSON 对象键合并到现有的本地翻译文件中，并保留 Crowdin 已批准导出中省略的本地键。
 
-对不受支持的 Crowdin 字段或命令，验证将失败并保持关闭状态。
+`--include-sources` 也会在写入翻译之前，将匹配的 Crowdin 源文件下载到已配置的 `files[].source` 路径中。如果缺少精确的源路径，则可以在本地创建；通配的源路径仅限于本地 glob 展开匹配到的文件。
+
+在 `branch:` 中使用根目录，或传入 `crowdin.yml` 和 `--branch <name>`，以从 Crowdin 分支上传和下载文件。该标志会覆盖该命令的配置值。
+
+在不支持的 Crowdin 字段或命令上，验证会失败并保持关闭。
 
 ## 常见问题
 
-- 未找到令牌：export `CROWDIN_API_TOKEN`
-- 企业 API 请求失败：请验证 `storage.config.apiBaseURL` 指向你的企业 API 主机并使用 `https`
+- 找不到令牌：导出 `CROWDIN_API_TOKEN`
+- 企业 API 请求失败：请验证 `storage.config.apiBaseURL` 是否指向你的企业 API 主机，并使用 `https`
 - 项目查找失败：请检查项目 ID 和账户权限
-- 部分更新：使用 `--output json` 审查冲突报告
-- 文件模式验证错误：移除不受支持的 `crowdin.yml` 字段，或切换到原生 `i18n.yml` 同步模式
+- 部分更新：查看带有 `--output json` 的冲突报告
+- 文件模式验证错误：移除不受支持的`crowdin.yml`字段，或切换为原生`i18n.yml`同步模式

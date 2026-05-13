@@ -1,6 +1,6 @@
 ---
 title: "crowdin"
-description: "由 crowdin.yml 驱动的 Crowdin 兼容文件工作流命令。"
+description: "由 crowdin.yml 驱动的、与 Crowdin 兼容的文件工作流命令。"
 ---
 
 ## 用法
@@ -10,24 +10,27 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
 ```
 
-## 此命令系列的作用
+## 这个命令组的作用
 
-这些命令会直接作用于`crowdin.yml`或`crowdin.yaml`。
+这些命令直接作用于`crowdin.yml`或`crowdin.yaml`。
 
 它们与 Hyperlocalise 原生 `i18n.yml` 和 `sync push` / `sync pull` 工作流是分开的。
 
-在你想要使用与 Crowdin 兼容的文件模式时使用它们：
+当你想使用与 Crowdin 兼容的文件模式时，请使用它们：
 
 - 从 `files[].source` 上传源文件
 - 从 `files[].translation` 上传翻译
 - 将翻译下载/导出回你的仓库
-- 使用根级 `branch:` 或 `--branch` 进行分支范围的上传和下载
-- 受支持的`crowdin.yml`字段的严格验证
+- 可选将源下载回到 `files[].source` 中，并使用 `--include-sources`
+- 带有根 `branch:` 或 `--branch` 的分支作用域上传和下载
+- 严格的 YAML 解码：只有 Crowdin 文档和 `hl` 可识别的键才可以出现在 `crowdin.yml` 中（未知键仍然会报错）
 
 ## 支持的配置字段
+
+这些驱动 Hyperlocalise Crowdin 文件模式：
 
 - `project_id`
 - `project_id_env`
@@ -47,15 +50,22 @@ hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <
 - `files[].skip_untranslated_files`
 - `files[].export_only_approved`
 
+## Crowdin CLI 兼容性（已解析，未应用）
+
+解码器还接受一些 Crowdin 文档中记录的键，因此你可以重复使用标准的`crowdin.yml`而无需去除元数据。Hyperlocalise 目前尚未实现这些键的行为；它们在解析后会被忽略：
+
+- 根：`export_languages`、`pull_request_title`、`pull_request_labels`、`commit_message`、`append_commit_message`、`pull_request_assignees`、`pull_request_reviewers`
+- 每个文件：`type`、`dest`、`update_option`、`export_pattern`、`translate_content`、`translate_attributes`、`content_segmentation`、`translatable_elements`、`ignore`、`translation_replace`、`first_line_contains_header`、`scheme`、`custom_segmentation`、`escape_quotes`、`escape_special_characters`、`labels`
+
 ## 不支持的功能
 
-对不支持的 Crowdin CLI 功能，验证会以失败关闭。
+未列在上面的 YAML 键仍然会导致解码错误（`KnownFields`）。
 
 此 v1 文件模式实现不支持：
 
 - TM、词汇表、任务、截图、评论、分发或应用命令
 - 宽松的“警告并忽略”兼容模式
-- 交互式 Crowdin 项目引导程序
+- 交互式 Crowdin 项目引导初始化
 
 ## 示例
 
@@ -71,7 +81,7 @@ hyperlocalise crowdin config validate
 hyperlocalise crowdin upload sources
 ```
 
-仅上传法语译文：
+仅上传法语翻译：
 
 ```bash
 hyperlocalise crowdin upload translations --language fr
@@ -83,15 +93,34 @@ hyperlocalise crowdin upload translations --language fr
 hyperlocalise crowdin upload sources --branch feature/login
 ```
 
-仅下载已批准的法语译文：
+仅下载已批准的法语翻译：
+
+```bash
+hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
+```
+
+下载法语翻译并刷新匹配的本地源文件：
+
+```bash
+hyperlocalise crowdin download --language fr --include-sources
+```
+
+对于精确的 `files[].source` 路径，即使本地缺少源文件，Hyperlocalise 也可以写入源文件。对于使用 glob 的源路径，本地的 glob 展开仍然决定会处理哪些已配置文件。
+
+或者在 `crowdin.yml` 中配置导出行为：
 
 ```yaml
 files:
   - source: /src/messages.json
     translation: /locales/%locale%/%original_file_name%
     export_only_approved: true
+    skip_untranslated_strings: true
 ```
 
+将已批准的 JSON 字符串合并到现有的本地翻译文件中，不要删除已批准导出中不存在的本地键：
+
 ```bash
-hyperlocalise crowdin download --language fr
+hyperlocalise crowdin download --language fr --merge-approved
 ```
+
+`--merge-approved`目前支持 JSON 对象翻译文件。它会为该请求强制执行仅限已批准的稀疏导出，然后只覆盖已批准的 Crowdin 载荷中存在的键。

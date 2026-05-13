@@ -1,15 +1,13 @@
 ---
 title: "đồng bộ đẩy"
-description: "Thử nghiệm: Đẩy các thay đổi dịch thuật cục bộ lên các bộ điều hợp lưu trữ từ xa."
+description: "Gửi các tệp nguồn tới các công việc dịch Hyperlocalise."
 ---
 
 <Note>
-Tính năng này đang ở giai đoạn thử nghiệm. Cờ, dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình làm việc có kiểm soát và cố định phiên bản trong CI.
-
-Xử lý xung đột và các điều khoản đồng bộ có thể thay đổi khi các tích hợp TMS trưởng thành.
+Hợp đồng API việc làm công khai có thể thay đổi trong khi các quy trình CI ổn định.
 </Note>
 
-## Cách dùng
+## Cách sử dụng
 
 ```bash
 hyperlocalise sync push [--config <path>] [flags]
@@ -17,47 +15,41 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync push` mặc định ở chế độ chạy thử và thất bại khi xung đột.
+`sync push` mặc định ở chế độ chạy thử.
 
-Trong một lần đẩy thực sự, Hyperlocalise đọc các tệp cục bộ, lấy về một baseline từ xa mới cho cùng phạm vi, tính toán chênh lệch trong bộ nhớ và chỉ đẩy những mục đã thay đổi.
+Trong một lần push thực sự, Hyperlocalise đọc các tệp nguồn đã được cấu hình từ `i18n.yml`, tải từng tệp nguồn lên API công khai của Hyperlocalise, tạo các tác vụ dịch tệp, và ghi một bản kê khai tác vụ. Hãy dùng bản kê khai này làm artifact của GitHub Actions cho một job `sync pull` sau đó.
 
-Đối với các bộ chuyển đổi theo hướng chuỗi như Crowdin, đơn vị biến đổi mặc định là từng mục dịch riêng lẻ (`key + context + locale`), chứ không phải toàn bộ một tệp tải lên.
-
-Một số bộ điều hợp không hỗ trợ các thao tác ghi so sánh-và-hoán đổi nguyên tử. Trong những trường hợp đó, Hyperlocalise sử dụng mô hình an toàn theo nỗ lực tốt nhất:
-
-- lấy baseline từ xa mới ngay trước khi đẩy lên
-- chỉ áp dụng các mục đã thay đổi
-- đọc lại các mục bị ảnh hưởng sau khi push để phát hiện sai lệch
-
-Các tệp sidecar siêu dữ liệu cục bộ không bắt buộc để việc đẩy là chính xác.
+`sync push` sử dụng khối cấu hình cấp cao nhất `hyperlocalise`. Nó không sử dụng khối bộ điều hợp TMS `storage`.
 
 ## Cờ
 
 - `--config`: đường dẫn cấu hình
-- `--locale`: ngôn ngữ mục tiêu, có thể lặp lại
+- `--locale`: ngôn ngữ/vùng đích, có thể lặp lại
+- `--manifest`: đường dẫn đến tệp kê khai công việc
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text`, `json`, hoặc `markdown`
-- `--force-conflicts`: cho phép ghi đè trong các trường hợp không khớp khi chính sách cho phép (mặc định `false`)
+- `--force-conflicts`: không được hỗ trợ cho đồng bộ hóa công việc Hyperlocalise
 
 ## Ví dụ
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false
+hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
+```
+
+```bash
+hl push --locale es-ES --dry-run=false
 ```
 
 ## Ghi chú
 
-- các mục không thay đổi sẽ bị bỏ qua
-- các mục đã lọc hoặc không hợp lệ không được đẩy vào
-- các adapter có thể phát ra cảnh báo khi chúng chỉ có thể cung cấp bảo vệ đồng thời ở mức nỗ lực tốt nhất
-- một sai lệch xác minh sau khi đẩy được báo cáo là xung đột
-
-Xem [xử lý xung đột](/troubleshooting/conflicts) trước khi sử dụng `--force-conflicts`.
+- Một manifest thành công có `complete: true`.
+- Việc gửi một phần không thành công sẽ ghi `complete: false` và thoát với mã khác 0.
+- `sync pull` từ chối các manifest chưa hoàn chỉnh.
+- Các lệnh TMS cụ thể cho từng nhà cung cấp như `crowdin` và `phrase` giữ nguyên cấu hình và hành vi riêng của chúng.
 
 ## Xem thêm
 
 - [run](/commands/run)
 - [trạng thái](/commands/status)
 - [sync pull](/commands/sync-pull)
-- [Tổng quan lưu trữ](/storage/overview)
-- [Vòng lặp quản lý TMS (thử nghiệm)](/workflows/tms-curation-loop)
+- [CI tự động hóa](/workflows/ci-automation)

@@ -5,7 +5,7 @@ description: "Hướng dẫn từng trường cho tệp cấu hình i18n đượ
 
 ## Tổng quan tệp
 
-`i18n.yml` kiểm soát các ngôn ngữ, ánh xạ tệp, hồ sơ mô hình và định tuyến nâng cao tùy chọn. `i18n.jsonc` vẫn được hỗ trợ để tương thích.
+`i18n.yml` điều khiển ngôn ngữ, ánh xạ tệp, hồ sơ mô hình và định tuyến nâng cao tùy chọn. `i18n.jsonc` vẫn được hỗ trợ để tương thích.
 
 ## Cấu hình khởi đầu
 
@@ -35,29 +35,29 @@ Khi `groups` bị bỏ qua, Hyperlocalise sẽ tự động sử dụng một nh
 - tất cả các ngôn ngữ từ `locales.targets`
 - tất cả tên bucket từ `buckets`
 
-## Ngôn ngữ cục bộ
+## Ngôn ngữ vùng miền
 
 - `locales.source`: ngôn ngữ nguồn.
-- `locales.targets`: danh sách các ngôn ngữ đích.
-- tùy chọn `locales.fallbacks`: thứ tự dự phòng cho mỗi ngôn ngữ.
+- `locales.targets`: danh sách ngôn ngữ đích.
+- tùy chọn `locales.fallbacks`: thứ tự dự phòng theo từng ngôn ngữ.
 
 ## Xô chứa
 
-`buckets` ánh xạ các tệp nguồn sang các mẫu đầu ra đích.
+`buckets` ánh xạ các tệp nguồn tới các mẫu đầu ra đích.
 
 Mỗi ánh xạ tệp sử dụng:
 
 - `from`: mẫu đường dẫn nguồn
-- `to`: mẫu đường dẫn đích
+- `to`: mẫu đường dẫn mục tiêu
 
-Sử dụng `{{source}}`, `{{target}}`, và `{{localeDir}}` trong các mẫu. `{{localeDir}}` sẽ phân giải thành một đoạn trống khi đích bằng nguồn, và thành ngôn ngữ đích trong các trường hợp khác.
+Sử dụng `{{source}}`, `{{target}}`, và `{{localeDir}}` trong các mẫu. `{{localeDir}}` được phân giải thành một phân đoạn trống khi đích bằng nguồn, và thành ngôn ngữ của đích trong các trường hợp khác.
 
 
-### Mẫu ánh xạ tệp CSV
+### Các mẫu ánh xạ tệp CSV
 
-Dùng ánh xạ tệp bucket để mô hình hóa quy trình CSV.
+Dùng ánh xạ tệp bucket để mô hình hóa các quy trình làm việc CSV.
 
-Tệp theo từng ngôn ngữ:
+Các tệp theo từng ngôn ngữ:
 
 ```json
 {
@@ -75,26 +75,26 @@ Tệp đa ngôn ngữ dùng chung:
 }
 ```
 
-Đối với các tệp CSV đa ngôn ngữ dùng chung, hãy giữ một cột khóa và một cột ngôn ngữ đích mà `run` có thể cập nhật nhất quán.
+Đối với các tệp CSV đa ngôn ngữ được chia sẻ, hãy giữ một cột khóa và một cột ngôn ngữ đích mà `run` có thể cập nhật một cách nhất quán.
 
-## Nhóm
+## Các nhóm
 
-`groups.<name>` xác định những gì sẽ được xử lý cùng nhau.
+`groups.<name>` xác định những gì cần xử lý cùng nhau.
 
 - `targets`: tập con của `locales.targets`
 - `buckets`: danh sách tên bucket
 
-`groups` là tùy chọn đối với các cấu hình dành cho người mới bắt đầu. Thêm nó khi bạn muốn tách việc thực thi theo locale hoặc theo bộ tệp.
+`groups` là tùy chọn cho các cấu hình dành cho người mới bắt đầu. Thêm nó khi bạn muốn tách việc thực thi theo locale hoặc theo bộ tệp.
 
-## Hồ sơ LLM
+## các hồ sơ LLM
 
 `llm.profiles.<name>` trường:
 
 - `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, hoặc `ollama`
 - `model`: mã mô hình nhà cung cấp
 - `system_prompt` (tùy chọn): mẫu thông báo hệ thống rõ ràng
-- `user_prompt` (tùy chọn): mẫu thông báo người dùng rõ ràng
-- `prompt` (đã ngừng dùng, tùy chọn): mẫu lời nhắc cũ được dùng làm phương án dự phòng của hệ thống
+- `user_prompt` (tùy chọn): mẫu thông điệp người dùng rõ ràng
+- `prompt` (lỗi thời, không bắt buộc): mẫu lời nhắc cũ được dùng làm phương án dự phòng của hệ thống
 
 Biến nhắc:
 
@@ -104,22 +104,22 @@ Biến nhắc:
 
 ## Quy tắc
 
-`llm.rules` chọn hồ sơ theo nhóm.
+`llm.rules` chọn hồ sơ cho mỗi nhóm.
 
-- `priority`: cao hơn thắng
+- `priority`: giá trị cao hơn thắng
 - `group`: tên nhóm
 - `profile`: tên hồ sơ
 
-`llm.rules` là tùy chọn. Khi không có quy tắc nào khớp với một nhóm, Hyperlocalise sẽ quay về `llm.profiles.default`.
+`llm.rules` là tùy chọn. Khi không có quy tắc nào khớp với một nhóm, Hyperlocalise sẽ chuyển sang `llm.profiles.default`.
 
 ## Bộ nhớ đệm
 
-`cache` cấu hình client bộ nhớ đệm từ xa.
+`cache` cấu hình ứng dụng khách bộ nhớ đệm từ xa.
 
 - `enabled` (tùy chọn): bật bộ nhớ đệm từ xa cho `run`.
-- `endpoint` (bắt buộc khi `enabled=true`): endpoint của dịch vụ bộ nhớ đệm từ xa.
-- `project_key_env` (bắt buộc khi `enabled=true`): tên biến môi trường chứa khóa cache của dự án.
-- `timeout_seconds` (tùy chọn): thời gian chờ yêu cầu bộ nhớ đệm từ xa, tính bằng giây.
+- `endpoint` (không bắt buộc trừ khi `enabled=true`): điểm cuối dịch vụ bộ nhớ đệm từ xa.
+- `project_key_env` (tùy chọn trừ khi `enabled=true`): biến môi trường chứa khóa bộ nhớ đệm của dự án.
+- `timeout_seconds` (tùy chọn): thời gian chờ yêu cầu bộ nhớ đệm từ xa tính bằng giây.
 
 ## Ví dụ nâng cao
 
@@ -180,6 +180,13 @@ llm:
       group: docs
       profile: docs_review
 
+hyperlocalise:
+  project_id: project_123
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  manifest_path: .hyperlocalise/jobs.json
+  timeout_seconds: 1200
+
 cache:
   enabled: true
   endpoint: dns:///cache.internal:443
@@ -193,11 +200,13 @@ cache:
 hyperlocalise init
 ```
 
-Sau đó, chỉnh sửa `i18n.yml` đã tạo cho dự án của bạn.
+Sau đó chỉnh sửa `i18n.yml` đã được tạo cho dự án của bạn.
 
 ## Mẹo xác thực
 
-- Nếu bạn bỏ qua `groups`, mọi bucket sẽ chạy cho mọi ngôn ngữ đích.
+- Nếu bạn bỏ qua `groups`, mọi bucket sẽ chạy cho mọi locale đích.
 - Giữ các mục tiêu nhóm bên trong `locales.targets`.
 - Giữ các bucket nhóm được căn chỉnh với các khóa `buckets`.
 - Giữ tên hồ sơ nhất quán giữa `profiles` và `rules`.
+- Dùng `hyperlocalise` cho các công việc `sync push` và `sync pull`.
+- Giữ `storage` cho cấu hình bộ điều hợp TMS dành riêng cho nhà cung cấp.

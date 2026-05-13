@@ -1,6 +1,6 @@
 ---
 title: "kiểm tra"
-description: "Kiểm tra các tệp đã bản địa hóa để tìm nội dung chưa được bản địa hóa, các khóa mồ côi, các tệp đích bị thiếu và các vấn đề về vệ sinh bản dịch."
+description: "Kiểm tra các tệp đã bản địa hóa để tìm nội dung chưa được bản địa hóa, các khóa mồ côi, các tệp đích bị thiếu và các vấn đề về tính nhất quán của bản dịch."
 ---
 
 ## Cách sử dụng
@@ -11,20 +11,22 @@ hyperlocalise check [--config <path>] [flags]
 
 ## Kiểm tra mặc định
 
-Mỗi kiểm tra đều có một **mức độ nghiêm trọng** (`error` hoặc `warning`) trong JSON báo cáo và trong đầu ra **định dạng đẹp**. Mã thoát `1` được áp dụng khi có bất kỳ kết quả phát hiện nào, trừ khi bạn truyền `--no-fail`. Với **`--quiet`**, chỉ các kết quả phát hiện **error** mới được tính vào mã thoát và đầu ra in/JSON; các lần chạy chỉ có cảnh báo sẽ thoát `0`.
+Mỗi kiểm tra có một **mức độ nghiêm trọng** (`error` hoặc `warning`) trong JSON báo cáo và trong đầu ra **định dạng đẹp**. Mã thoát `1` được áp dụng khi có bất kỳ phát hiện nào trừ khi bạn truyền `--no-fail`. Với **`--quiet`**, chỉ các phát hiện **lỗi** mới được tính vào mã thoát và đầu ra in/JSON; các lần chạy chỉ có cảnh báo thoát `0`.
+
+Với **`--diff-stdin`**, `check` đọc một unified git patch từ stdin và chỉ xác thực **các khóa đã thay đổi** cho các tệp dịch key-value được hỗ trợ: **`.json`**, **`.jsonc`**, và **`.arb`**. Ở chế độ này, CLI bỏ qua các loại tệp không được hỗ trợ trong patch, coi các tệp đã cấu hình nhưng không có khóa đã thay đổi xác định được là không có tác dụng, và bỏ qua các kiểm tra ở cấp tệp hoặc cấp tài liệu không phù hợp với xác thực diff theo phạm vi khóa.
 
 ### Lỗi
 
-- `not_localized`: khóa đích bị thiếu hoặc giá trị đích trống (sau khi loại bỏ khoảng trắng)
-- `missing_target_file`: tệp đích đã giải quyết không tồn tại
+- `not_localized`: khóa đích bị thiếu hoặc giá trị đích trống (sau khi cắt khoảng trắng)
+- `missing_target_file`: tệp đích đã được phân giải không tồn tại
 - `placeholder_mismatch`: các placeholder khác với nguồn
-- `html_tag_mismatch`: Cấu trúc thẻ HTML khác với nguồn
+- `html_tag_mismatch`: các **tên** thẻ HTML nội tuyến (các phần tử đã biết từ tập thẻ của bộ tokenizer HTML) khác nhau về thứ tự giữa nguồn và đích. Văn bản trong dấu ngoặc nhọn trong đường dẫn hoặc tài liệu—chẳng hạn như `&lt;name&gt;` trong `llm.profiles.&lt;name&gt;.provider`—không được tính là HTML cho kiểm tra này
 - `icu_shape_mismatch`: Cấu trúc ICU khác với nguồn hoặc bị sai định dạng (các tệp không phải markdown)
-- `markdown_ast_mismatch`: cấu trúc tài liệu markdown hoặc MDX khác với nguồn (độ tương đồng của cây tiêu đề/thành phần)
+- `markdown_ast_mismatch`: cấu trúc tài liệu markdown hoặc MDX khác với nguồn (tương ứng cây tiêu đề/thành phần)
 
 ### Cảnh báo
 
-- `same_as_source`: giá trị đích khớp với văn bản nguồn. Thường gặp với thương hiệu, mã hoặc chuỗi không phụ thuộc ngôn ngữ; hãy dùng `--exclude-check same_as_source` nếu bạn muốn ẩn các chuỗi này
+- `same_as_source`: giá trị đích khớp với văn bản nguồn. Thường gặp với thương hiệu, mã hoặc chuỗi trung lập theo ngôn ngữ; hãy dùng `--exclude-check same_as_source` nếu bạn muốn ẩn các mục này
 - `orphaned_key`: khóa đích tồn tại nhưng khóa nguồn không tồn tại
 - `whitespace_only`: giá trị đích chỉ chứa khoảng trắng
 
@@ -36,15 +38,18 @@ Việc chọn `--check icu_shape_mismatch` chỉ chạy các kiểm tra ICU; nó
 - `--locale`: bộ lọc ngôn ngữ đích (có thể lặp lại)
 - `--group`: lọc theo tên nhóm
 - `--bucket`: lọc theo tên bucket
+- `--file`: lọc theo đường dẫn tệp nguồn. Không được hỗ trợ với **`--diff-stdin`**
+- `--key`: lọc theo khóa dịch. Với **`--diff-stdin`**, đây trở thành một bộ lọc giao nhau bổ sung, nằm trên các khóa đã thay đổi được trích xuất từ bản vá
+- `--diff-stdin`: đọc unified diff từ stdin và xác thực chỉ các khóa đã thay đổi. Hỗ trợ các tệp **`.json`**, **`.jsonc`**, và **`.arb`** đã được cấu hình. Chỉ chạy các kiểm tra theo phạm vi khóa: `not_localized`, `same_as_source`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, và `icu_shape_mismatch`. Bỏ qua `missing_target_file`, `orphaned_key`, và `markdown_ast_mismatch`
 - `--check`: chỉ chạy các kiểm tra cụ thể (có thể lặp lại)
 - `--exclude-check`: bỏ qua các kiểm tra mặc định cụ thể (có thể lặp lại)
-- `--format`: định dạng đầu ra (mặc định là `stylish`, `text`, hoặc `json`). **Stylish** in chẩn đoán kiểu ESLint được nhóm theo tệp; khi stdout là terminal, mức độ nghiêm trọng sẽ dùng màu (không màu khi được pipe hoặc trong các log CI thông thường).
-- `--output-file`: ghi cùng định dạng văn bản thuần hoặc JSON như stdout vào một tệp
-- `--json-report`: luôn ghi toàn bộ báo cáo JSON có thể đọc bằng máy vào đường dẫn này, bất kể `--format` (hữu ích trong CI: nhật ký đẹp mắt cộng với một artifact JSON cho công cụ)
-- `--no-fail`: trả về mã thoát `0` ngay cả khi vẫn có phát hiện
-- `--quiet`: bỏ qua các kết quả **cảnh báo** khỏi stdout, `--output-file`, và `--json-report`; dùng mã thoát `0` khi kết quả đầy đủ chỉ bao gồm cảnh báo. Kiểm tra nội bộ vẫn chạy trên tất cả các mức độ nghiêm trọng; **`--fix`** vẫn lập kế hoạch từ kết quả đầy đủ (bao gồm cả cảnh báo) để các vấn đề có thể sửa không bị bỏ qua.
-- `--fix`: sau khi báo cáo, dịch lại các phát hiện **có thể sửa được** bằng cùng quy trình AI như [`run`](/commands/run) (cùng cấu hình, hồ sơ và biến môi trường). Áp dụng cho các phát hiện có khóa thuộc các loại `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, và `icu_shape_mismatch`. Đối với **`markdown_ast_mismatch`** trên các tệp `.md`/`.mdx` (các phát hiện theo từng tệp, thường không có `key`), `--fix` sẽ dịch lại **tất cả** các đoạn đã căn chỉnh cho cặp nguồn/đích/locale đó để cấu trúc có thể căn chỉnh lại. Không sửa `same_as_source` (bản sao có chủ ý), các tệp đích bị thiếu, hoặc các khóa mồ côi.
-- `--fix-dry-run`: với `--fix`, giải quyết các tác vụ dịch đã lên kế hoạch mà không ghi mục tiêu hoặc gọi mô hình (vẫn tải cấu hình và lập kế hoạch).
+- `--format`: định dạng đầu ra (mặc định `stylish`, `text`, hoặc `json`). **Stylish** in các chẩn đoán kiểu ESLint được nhóm theo tệp; khi stdout là một terminal, mức độ nghiêm trọng sẽ dùng màu (không có màu khi được pipe hoặc trong các log CI thông thường).
+- `--output-file`: ghi cùng định dạng văn bản thuần túy của con người hoặc JSON như stdout vào một tệp
+- `--json-report`: luôn ghi toàn bộ báo cáo JSON có thể đọc bằng máy vào đường dẫn này, bất kể `--format` (hữu ích trong CI: log đẹp mắt cùng với một artifact JSON cho công cụ). Các kết quả phát hiện bao gồm `annotationFile` và `annotationLine` khi CLI có thể ánh xạ một khóa tới một dòng. Đối với các đoạn **`.md` / `.mdx`** với các khóa có tiền tố `md.`, dòng được lấy từ thứ tự phân tích markdown/MDX (đầu của đoạn có thể dịch đó). Với các tệp khác, việc phân giải sẽ chuyển sang tìm kiếm một mẩu khóa được đặt trong dấu ngoặc kép hoặc một chuỗi con của văn bản đoạn trong tệp đích, điều này có thể xếp hạng dòng sai khi cùng một văn bản xuất hiện nhiều hơn một lần
+- `--no-fail`: trả về mã thoát `0` ngay cả khi vẫn có các phát hiện
+- `--quiet`: bỏ qua các kết quả **cảnh báo** khỏi stdout, `--output-file`, và `--json-report`; dùng mã thoát `0` khi kết quả đầy đủ chỉ toàn cảnh báo. Kiểm tra nội bộ vẫn chạy trên tất cả mức độ nghiêm trọng; **`--fix`** vẫn lập kế hoạch từ kết quả đầy đủ (bao gồm cả cảnh báo) nên các vấn đề có thể sửa sẽ không bị bỏ qua.
+- `--fix`: sau khi báo cáo, dịch lại các phát hiện **có thể sửa** bằng cùng quy trình AI như [`run`](/commands/run) (cùng cấu hình, hồ sơ và biến môi trường). Áp dụng cho các phát hiện có khóa thuộc các loại `not_localized`, `whitespace_only`, `placeholder_mismatch`, `html_tag_mismatch`, và `icu_shape_mismatch`. Với **`markdown_ast_mismatch`** trên các tệp `.md`/`.mdx` (các phát hiện theo từng tệp, thường không có `key`), `--fix` sẽ dịch lại **tất cả** các đoạn đã căn chỉnh cho cặp nguồn/đích/địa phương đó để cấu trúc có thể căn chỉnh lại. Không sửa `same_as_source` (sao chép có chủ ý), các tệp đích bị thiếu, hoặc các khóa mồ côi.
+- `--fix-dry-run`: với `--fix`, giải quyết các tác vụ dịch đã lên kế hoạch mà không viết đích đến hoặc gọi mô hình (vẫn tải cấu hình và lập kế hoạch).
 - `--workers`: với `--fix`, số lượng worker dịch song song (mặc định: số lõi CPU)
 
 ## Ví dụ
@@ -77,7 +82,11 @@ hyperlocalise check --fix --locale fr --bucket ui
 hyperlocalise check --fix --fix-dry-run --no-fail
 ```
 
+```bash
+git diff --cached | hyperlocalise check --diff-stdin --no-fail
+```
+
 ## Xem thêm
 
-- [trạng thái](/commands/status)
-- [run](/commands/run)
+- [status](/commands/status)
+- [chạy](/commands/run)

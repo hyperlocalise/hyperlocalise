@@ -3,7 +3,7 @@ title: "Smartling 适配器"
 description: "为远程翻译拉取/推送同步配置 Smartling。"
 ---
 
-## 必需配置
+## 必需的配置
 
 ```jsonc
 {
@@ -24,15 +24,42 @@ description: "为远程翻译拉取/推送同步配置 Smartling。"
 export SMARTLING_USER_SECRET="your-smartling-user-secret"
 ```
 
-`userSecret` 配置中的内联不受支持。仅使用环境变量。
+`userSecret` 配置中不支持内联。仅使用环境变量。
 
 ## 可选配置字段
 
 - `targetLanguages`
 - `timeoutSeconds`（默认为`30`）
+- `mode` — `strings`（默认）或 `files`
+- `fileURI` — 当 `mode` 为 `files` 时必填
+- `fileFormat` — 当 `mode` 为 `files` 时必填（例如 `json`）
+
+## 模式
+
+- `strings`：使用 Smartling 字符串 API 进行拉取和推送。
+- `files`：使用 Smartling 文件下载/上传 API 进行拉取和推送。
+
+## 文件模式配置示例
+
+```jsonc
+{
+  "storage": {
+    "adapter": "smartling",
+    "config": {
+      "projectID": "your-project-id",
+      "userIdentifier": "your-smartling-user-identifier",
+      "userSecretEnv": "SMARTLING_USER_SECRET",
+      "mode": "files",
+      "fileURI": "translations.json",
+      "fileFormat": "json"
+    }
+  }
+}
+```
 
 ## 常见问题
 
 - 缺少密钥：在同一个 shell 会话中导出 `SMARTLING_USER_SECRET`
 - 缺少用户标识符：设置 `storage.config.userIdentifier`
-- 区域设置不匹配：将 `targetLanguages` 与你的项目区域设置保持一致
+- 语言区域不匹配：将 `targetLanguages` 与你的项目语言区域保持一致
+- 文件模式导入失败：请验证 `fileFormat` 是否与您的项目设置匹配

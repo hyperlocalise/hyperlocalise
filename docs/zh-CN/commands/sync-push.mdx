@@ -1,12 +1,10 @@
 ---
 title: "同步推送"
-description: "实验性：将本地翻译更改推送到远程存储适配器。"
+description: "提交源文件到 Hyperlocalise 翻译任务。"
 ---
 
 <Note>
-此功能为实验性功能。标志、输出形式和行为可能会在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
-
-随着 TMS 集成逐步成熟，冲突处理和同步约定可能会演变。
+随着 CI 工作流趋于稳定，公共 jobs API 契约可能会演进。
 </Note>
 
 ## 用法
@@ -17,47 +15,41 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## 安全的默认行为
 
-`sync push` 默认处于 dry-run 模式和冲突失败。
+`sync push` 默认为试运行模式。
 
-在实际推送过程中，Hyperlocalise 会读取本地文件，获取相同范围的最新远程基线，计算内存中的差异，并且只推送已更改的条目。
+在实际推送过程中，Hyperlocalise 会从`i18n.yml`读取已配置的源文件，将每个源文件上传到公开的 Hyperlocalise API，创建文件翻译任务，并写出任务清单。请将此清单用作 GitHub Actions 产物，以供后续的`sync pull`任务使用。
 
-对于像 Crowdin 这样的以字符串为导向的适配器，默认的变更单位是单个翻译条目（`key + context + locale`），而不是整个文件上传。
-
-某些适配器不支持原子比较并交换写入。在这些情况下，Hyperlocalise 使用尽力而为的安全模型：
-
-- 在推送前立即获取最新的远程基线
-- 仅应用已更改的条目
-- 在推送后重新读取受影响的条目以检测分歧
-
-本地元数据侧车对于推送正确性并非必需。
+`sync push` 使用顶层的 `hyperlocalise` 配置块。它不使用 `storage` TMS 适配器块。
 
 ## 标志
 
-- `--config`：配置路径
-- `--locale`：目标语言环境，可重复
+- `--config`: 配置路径
+- `--locale`：目标区域设置，可重复
+- `--manifest`：作业清单路径
 - `--dry-run`：仅预览（默认`true`）
-- `--output`：`text`、`json`，或`markdown`
-- `--force-conflicts`：允许在策略允许的不匹配情况下覆盖（默认 `false`）
+- `--output`: `text`、`json`，或 `markdown`
+- `--force-conflicts`：不支持 Hyperlocalise 任务同步
 
 ## 示例
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false
+hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
 ```
 
-## 注释
+```bash
+hl push --locale es-ES --dry-run=false
+```
 
-- 未更改的条目会被跳过
-- 已筛选或无效的条目不会被推送
-- 当适配器只能提供尽力而为的并发保护时，可能会发出警告
-- 推送后验证不匹配被报告为冲突
+## 备注
 
-在使用`--force-conflicts`之前，请参阅[冲突处理](/troubleshooting/conflicts)。
+- 成功的清单具有`complete: true`。
+- 失败的部分提交会写入 `complete: false` 并以非零状态退出。
+- `sync pull` 拒绝不完整的清单。
+- 特定于提供商的 TMS 命令，例如 `crowdin` 和 `phrase`，会保留各自的配置和行为。
 
-## 另请参阅
+## 另请参见
 
-- [运行](/commands/run)
+- [run](/commands/run)
 - [状态](/commands/status)
 - [sync pull](/commands/sync-pull)
-- [存储概览](/storage/overview)
-- [TMS 筛选循环（实验性）](/workflows/tms-curation-loop)
+- [CI 自动化](/workflows/ci-automation)

@@ -1,11 +1,11 @@
 ---
 title: "i18n 配置"
-description: "run、status 和 sync 命令使用的 i18n 配置文件的逐字段指南。"
+description: "run、status 和 sync 命令使用的 i18n 配置文件字段逐项指南。"
 ---
 
 ## 文件概览
 
-`i18n.yml` 控制区域设置、文件映射、模型配置文件以及可选的高级路由。`i18n.jsonc` 仍受支持以保持兼容性。
+`i18n.yml` 控制区域设置、文件映射、模型配置文件以及可选的高级路由。`i18n.jsonc` 仍然受支持，以保持兼容性。
 
 ## 入门配置
 
@@ -28,20 +28,20 @@ llm:
       model: gpt-5.2
 ```
 
-这是由 `hyperlocalise init` 写下的形状。
+这是由`hyperlocalise init`写下的形状。
 
 当省略 `groups` 时，Hyperlocalise 会自动使用一个隐式的 `default` 组，包含：
 
-- 所有语言环境来自`locales.targets`
-- 所有存储桶名称来自`buckets`
+- 所有区域设置，来自`locales.targets`
+- 所有来自 `buckets` 的桶名称
 
-## 区域设置
+## 语言环境
 
 - `locales.source`：源语言环境。
 - `locales.targets`：目标语言环境列表。
 - 可选 `locales.fallbacks`：每个区域设置的回退顺序。
 
-## 分组
+## 存储桶
 
 `buckets` 将源文件映射到目标输出模板。
 
@@ -50,14 +50,14 @@ llm:
 - `from`：源路径模板
 - `to`：目标路径模板
 
-在模板中使用 `{{source}}`、`{{target}}` 和 `{{localeDir}}`。当目标等于源时，`{{localeDir}}` 会解析为空片段，否则解析为目标区域设置。
+在模板中使用 `{{source}}`、`{{target}}` 和 `{{localeDir}}`。当目标等于源时，`{{localeDir}}` 会解析为空片段；否则会解析为目标区域设置。
 
 
 ### CSV 文件映射模式
 
-使用 bucket 文件映射来建模 CSV 工作流。
+使用存储桶文件映射来建模 CSV 工作流。
 
-每个语言环境的文件：
+按语言区域的文件：
 
 ```json
 {
@@ -75,26 +75,26 @@ llm:
 }
 ```
 
-对于共享的多语言 CSV 文件，请保留一个键列和一个目标语言列，以便 `run` 能够一致地更新。
+对于共享的多语言 CSV 文件，请保留一个键列和一个目标语言列，这样 `run` 就可以保持一致地更新。
 
-## 组
+## 分组
 
 `groups.<name>` 定义了要一起处理的内容。
 
 - `targets`：`locales.targets`的子集
 - `buckets`：存储桶名称列表
 
-`groups` 对初学者配置是可选的。 当你想按语言区域或文件集拆分执行时，请添加它。
+`groups` 对于初学者配置是可选的。当你想按语言环境或文件集拆分执行时，再添加它。
 
 ## LLM 配置文件
 
-`llm.profiles.<name>` 字段:
+`llm.profiles.<name>` 字段：
 
-- `provider`：`openai`、`azure_openai`、`anthropic`、`gemini`、`bedrock`、`lmstudio`、`groq`、`mistral`，或 `ollama`
-- `model`：提供方模型 ID
+- `provider`: `openai`、`azure_openai`、`anthropic`、`gemini`、`bedrock`、`lmstudio`、`groq`、`mistral`，或`ollama`
+- `model`：提供者模型 ID
 - `system_prompt`（可选）：显式系统消息模板
 - `user_prompt`（可选）：显式用户消息模板
-- `prompt`（已弃用，可选）：用作系统回退的旧版提示模板
+- `prompt`（已弃用，可选）：作为系统回退使用的旧版提示模板
 
 提示变量：
 
@@ -108,7 +108,7 @@ llm:
 
 - `priority`：更高者获胜
 - `group`：组名
-- `profile`：配置文件名称
+- `profile`：个人资料名称
 
 `llm.rules` 是可选的。当没有规则匹配某个组时，Hyperlocalise 会回退到 `llm.profiles.default`。
 
@@ -116,9 +116,9 @@ llm:
 
 `cache` 配置远程缓存客户端。
 
-- `enabled`（可选）：为 `run` 启用远程缓存。
-- `endpoint`（当 `enabled=true` 时必填）：远程缓存服务端点。
-- `project_key_env`（当 `enabled=true` 时必填）：保存项目缓存密钥的环境变量名。
+- `enabled`（可选）：为`run`启用远程缓存。
+- `endpoint`（除非 `enabled=true`，否则为可选）：远程缓存服务端点。
+- `project_key_env`（可选，除非`enabled=true`）：包含项目缓存键的环境变量。
 - `timeout_seconds`（可选）：远程缓存请求超时时间（秒）。
 
 ## 高级示例
@@ -180,6 +180,13 @@ llm:
       group: docs
       profile: docs_review
 
+hyperlocalise:
+  project_id: project_123
+  api_base_url: https://hyperlocalise.com/api
+  api_key_env: HYPERLOCALISE_API_KEY
+  manifest_path: .hyperlocalise/jobs.json
+  timeout_seconds: 1200
+
 cache:
   enabled: true
   endpoint: dns:///cache.internal:443
@@ -187,7 +194,7 @@ cache:
   timeout_seconds: 5
 ```
 
-## 生成一个起始模板
+## 生成一个入门模板
 
 ```bash
 hyperlocalise init
@@ -197,7 +204,9 @@ hyperlocalise init
 
 ## 验证提示
 
-- 如果你省略`groups`，则每个存储桶都会针对每个目标区域设置运行。
-- 将组目标保留在`locales.targets`内。
+- 如果你省略`groups`，每个存储桶都会针对每个目标区域设置运行。
+- 将组目标保留在 `locales.targets` 中。
 - 保持组桶与 `buckets` 键对齐。
-- 在 `profiles` 和 `rules` 之间保持个人资料名称一致。
+- 在 `profiles` 和 `rules` 之间保持配置文件名称一致。
+- 将`hyperlocalise`用于`sync push`和`sync pull`任务。
+- 保留 `storage` 用于特定提供商的 TMS 适配器配置。

@@ -1,12 +1,10 @@
 ---
 title: "đồng bộ kéo xuống"
-description: "Thử nghiệm: Kéo các bản dịch được tuyển chọn từ bộ nhớ từ xa vào các tệp cục bộ."
+description: "Kéo các đầu ra của tác vụ Hyperlocalise đã hoàn tất vào các tệp cục bộ."
 ---
 
 <Note>
-Tính năng này đang ở giai đoạn thử nghiệm. Cờ, dạng đầu ra và hành vi có thể thay đổi giữa các bản phát hành. Hãy sử dụng trong các quy trình làm việc được kiểm soát và ghim phiên bản trong CI.
-
-Xử lý xung đột và các hợp đồng đồng bộ có thể thay đổi khi các tích hợp TMS trưởng thành.
+Hợp đồng API việc làm công khai có thể phát triển trong khi các luồng công việc CI dần ổn định.
 </Note>
 
 ## Cách sử dụng
@@ -17,37 +15,42 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Hành vi mặc định an toàn
 
-`sync pull` mặc định ở chế độ dry-run. Hãy bắt đầu bằng cách xem lại báo cáo, rồi chạy lại với `--dry-run=false`.
+`sync pull` mặc định ở chế độ chạy thử. Hãy bắt đầu bằng cách xem lại báo cáo, rồi chạy lại với `--dry-run=false`.
 
-`sync pull` coi bộ điều hợp từ xa là nguồn thẩm quyền tại thời điểm thực thi. Nó lấy một ảnh chụp nhanh từ xa mới cho phạm vi được yêu cầu, so sánh nó với các tệp cục bộ, rồi áp dụng chính sách kéo và các kiểm tra bất biến trước khi ghi các cập nhật cục bộ.
+`sync pull` đọc một manifest công việc hoàn chỉnh, thăm dò API Hyperlocalise công khai theo ID công việc, tải xuống các tệp đầu ra thành công và ghi chúng vào các đường dẫn đích được phân giải bởi `i18n.yml`.
 
-Siêu dữ liệu phụ cục bộ vẫn có thể được dùng để báo cáo, nhưng chúng không bắt buộc để kéo chính xác.
+Manifest thường được truyền từ một công việc GitHub Actions `sync push` sang một công việc `sync pull` với `actions/upload-artifact` và `actions/download-artifact`.
 
 ## Cờ
 
 - `--config`: đường dẫn cấu hình
-- `--locale`: ngôn ngữ địa phương đích, có thể lặp lại
+- `--locale`: ngôn ngữ mục tiêu, có thể lặp lại
+- `--manifest`: đường dẫn đến tệp manifest của các công việc
+- `--wait`: chờ các công việc đang xếp hàng hoặc đang chạy hoàn tất
+- `--timeout`: thời gian chờ tối đa, ví dụ `20m`
 - `--dry-run`: chỉ xem trước (mặc định `true`)
 - `--output`: `text`, `json`, hoặc `markdown`
 
 ## Ví dụ
 
 ```bash
-hyperlocalise sync pull --locale es-ES --output json
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
+```
+
+```bash
+hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
 ```
 
 ## Ghi chú
 
-- các lần đọc từ xa luôn mới nhất cho phạm vi được yêu cầu
-- kéo áp dụng các tạo và cập nhật ở cấp mục sau khi kiểm tra chính sách
-- vi phạm bất biến vẫn chặn các ghi cục bộ không an toàn
-
-Xem [xử lý xung đột](/troubleshooting/conflicts) để biết chiến lược giải quyết.
+- `sync pull` từ chối các manifest có `complete: false`.
+- Không có `--wait`, các công việc đang xếp hàng hoặc đang chạy sẽ gây ra mã thoát khác 0.
+- Các tệp đầu ra được ánh xạ theo ngôn ngữ sang các đường dẫn đích được ghi lại trong tệp kê khai.
+- Các lệnh TMS cụ thể theo nhà cung cấp như `crowdin` và `phrase` giữ nguyên cấu hình và hành vi riêng của chúng.
 
 ## Xem thêm
 
-- [run](/commands/run)
-- [trạng thái](/commands/status)
+- [chạy](/commands/run)
+- [status](/commands/status)
 - [sync push](/commands/sync-push)
-- [Tổng quan về lưu trữ](/storage/overview)
-- [TMS curation loop (experimental)](/workflows/tms-curation-loop)
+- [Tự động hóa CI](/workflows/ci-automation)

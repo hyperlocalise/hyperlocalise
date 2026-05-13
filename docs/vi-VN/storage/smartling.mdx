@@ -1,6 +1,6 @@
 ---
 title: "Bộ điều hợp Smartling"
-description: "Cấu hình Smartling để đồng bộ kéo/đẩy bản dịch từ xa."
+description: "Cấu hình Smartling cho đồng bộ kéo/đẩy bản dịch từ xa."
 ---
 
 ## Cấu hình bắt buộc
@@ -26,13 +26,40 @@ export SMARTLING_USER_SECRET="your-smartling-user-secret"
 
 `userSecret` inline trong cấu hình không được hỗ trợ. Chỉ sử dụng biến môi trường.
 
-## Trường cấu hình tùy chọn
+## Các trường cấu hình tùy chọn
 
 - `targetLanguages`
 - `timeoutSeconds` (mặc định là `30`)
+- `mode` — `strings` (mặc định) hoặc `files`
+- `fileURI` — bắt buộc khi `mode` là `files`
+- `fileFormat` — bắt buộc khi `mode` là `files` (ví dụ `json`)
+
+## Các chế độ
+
+- `strings`: kéo và đẩy bằng cách sử dụng API chuỗi Smartling.
+- `files`: kéo và đẩy bằng cách sử dụng các API tải xuống/tải lên tệp của Smartling.
+
+## Ví dụ cấu hình chế độ tệp
+
+```jsonc
+{
+  "storage": {
+    "adapter": "smartling",
+    "config": {
+      "projectID": "your-project-id",
+      "userIdentifier": "your-smartling-user-identifier",
+      "userSecretEnv": "SMARTLING_USER_SECRET",
+      "mode": "files",
+      "fileURI": "translations.json",
+      "fileFormat": "json"
+    }
+  }
+}
+```
 
 ## Các vấn đề thường gặp
 
-- thiếu secret: export `SMARTLING_USER_SECRET` trong cùng phiên shell
-- thiếu mã định danh người dùng: đặt `storage.config.userIdentifier`
-- không khớp ngôn ngữ: căn chỉnh `targetLanguages` với các ngôn ngữ của dự án của bạn
+- thiếu bí mật: xuất `SMARTLING_USER_SECRET` trong cùng phiên shell
+- thiếu định danh người dùng: đặt `storage.config.userIdentifier`
+- không khớp ngôn ngữ: căn chỉnh `targetLanguages` với các locale của dự án bạn
+- lỗi nhập chế độ tệp: xác minh `fileFormat` khớp với cài đặt dự án của bạn

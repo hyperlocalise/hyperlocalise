@@ -11,24 +11,26 @@ hyperlocalise check [--config <path>] [flags]
 
 ## 默认检查
 
-每个检查在报告 JSON 和 **stylish** 输出中都有一个 **严重性**（`error` 或 `warning`）。当存在任何发现时，退出代码 `1` 将适用，除非你传入 `--no-fail`。使用 **`--quiet`** 时，只有 **error** 级发现会计入退出代码以及打印/JSON 输出；仅有 warning 的运行会以 `0` 退出。
+每个检查在报告 JSON 和 **stylish** 输出中都有一个 **severity**（`error` 或 `warning`）。当存在任何发现时，退出代码 `1` 适用，除非你传入 `--no-fail`。使用 **`--quiet`** 时，只有 **error** 级别的发现会计入退出代码以及打印/JSON 输出；仅有 warning 的运行会以 `0` 退出。
+
+借助 **`--diff-stdin`**，`check` 会从 stdin 读取统一的 git patch，并仅对受支持的键值翻译文件中的**已更改键**进行验证：**`.json`**、**`.jsonc`** 和 **`.arb`**。在此模式下，CLI 会忽略 patch 中不受支持的文件类型，将已配置但未识别出任何已更改键的文件视为无操作，并跳过不适用于按键范围差异验证的文件级或文档级检查。
 
 ### 错误
 
 - `not_localized`：目标键缺失或目标值为空（去除首尾空白后）
-- `missing_target_file`：已解析的目标文件不存在
+- `missing_target_file`：解析后的目标文件不存在
 - `placeholder_mismatch`：占位符与源文本不同
-- `html_tag_mismatch`：HTML 标签结构与源内容不同
-- `icu_shape_mismatch`：ICU 结构与源文本不同或格式错误（非 Markdown 文件）
-- `markdown_ast_mismatch`：Markdown 或 MDX 文档结构与源内容不同（标题/组件树一致性）
+- `html_tag_mismatch`：内联 HTML 标签**名称**（HTML 分词器标签集中已知的元素）在源文和目标文中顺序不同。路径或文档中的尖括号文本——例如 `&lt;name&gt;` 中的 `llm.profiles.&lt;name&gt;.provider`——在此检查中不算作 HTML。
+- `icu_shape_mismatch`：ICU 结构与源内容不同或格式错误（非 Markdown 文件）
+- `markdown_ast_mismatch`：Markdown 或 MDX 文档结构与源内容不同（标题/组件树不一致）
 
 ### 警告
 
-- `same_as_source`：目标值与源文本相匹配。常见于品牌、代码或与语言环境无关的字符串；如果你想隐藏这些内容，请使用`--exclude-check same_as_source`
+- `same_as_source`：目标值与源文本匹配。常用于品牌、代码或与地区无关的字符串；如果你想隐藏这些内容，请使用`--exclude-check same_as_source`
 - `orphaned_key`：目标键存在，但源键不存在
 - `whitespace_only`：目标值仅包含空白字符
 
-选择 `--check icu_shape_mismatch` 仅运行 ICU 检查；它不包括 `markdown_ast_mismatch`。如果你需要同时进行 ICU 和 MD/MDX 结构检查，请同时使用这两个标志。
+选择 `--check icu_shape_mismatch` 仅会运行 ICU 检查；它不包括 `markdown_ast_mismatch`。如果你需要同时进行 ICU 和 MD/MDX 结构检查，请同时使用这两个标志。
 
 ## 标志
 
@@ -36,16 +38,19 @@ hyperlocalise check [--config <path>] [flags]
 - `--locale`：目标区域设置筛选器（可重复）
 - `--group`：按组名称筛选
 - `--bucket`：按存储桶名称筛选
+- `--file`：按源文件路径过滤。不支持与 **`--diff-stdin`** 一起使用
+- `--key`：按翻译键筛选。通过 **`--diff-stdin`**，这会在从补丁中提取的已更改键之上，额外增加一个交集筛选条件
+- `--diff-stdin`：从 stdin 读取统一 diff 并仅验证已更改的键。支持已配置的 **`.json`**、**`.jsonc`** 和 **`.arb`** 文件。仅运行键范围检查：`not_localized`、`same_as_source`、`whitespace_only`、`placeholder_mismatch`、`html_tag_mismatch` 和 `icu_shape_mismatch`。跳过 `missing_target_file`、`orphaned_key` 和 `markdown_ast_mismatch`
 - `--check`：仅运行特定检查（可重复）
-- `--exclude-check`：跳过特定默认检查（可重复）
-- `--format`：输出格式（`stylish` 默认、`text`，或 `json`）。**Stylish** 会按文件分组打印类似 ESLint 风格的诊断；当 stdout 是终端时，严重级别会使用颜色（在管道输出或典型 CI 日志中则不使用颜色）。
-- `--output-file`：将与标准输出相同的人类可读格式或 JSON 格式写入文件
-- `--json-report`：始终将完整的机器可读 JSON 报告写入此路径，而不管 `--format`（在 CI 中很有用：既有美观的日志，也有供工具使用的 JSON 产物）
-- `--no-fail`：即使存在发现，也返回退出码 `0`
-- `--quiet`：从 stdout 中省略 **warning** 结果，`--output-file`，以及 `--json-report`；当完整结果仅包含 warnings 时，使用退出码 `0`。内部检查仍会对所有严重级别运行；**`--fix`** 仍会根据完整结果（包括 warnings）进行计划，因此可修复的问题不会被跳过。
-- `--fix`：在报告之后，使用与 [`run`](/commands/run) 相同的 AI 流水线（相同的配置、配置文件和环境变量）重新翻译**可修复**的问题。适用于类型为 `not_localized`、`whitespace_only`、`placeholder_mismatch`、`html_tag_mismatch` 和 `icu_shape_mismatch` 的带键问题。对于 `markdown_ast_mismatch` 在 `.md`/`.mdx` 文件上（按文件的问题，通常没有 `key`），`--fix` 会重新翻译该源/目标/区域设置对的**所有**对齐片段，以便结构可以重新对齐。不会修复 `same_as_source`（故意复制）、缺失的目标文件或孤立的键。
-- `--fix-dry-run`：使用`--fix`，在不写入目标或调用模型的情况下解决计划中的翻译任务（仍会加载配置和规划）。
-- `--workers`：使用 `--fix`，并行翻译工作进程数量（默认值：CPU 核心数）
+- `--exclude-check`：跳过特定的默认检查（可重复）
+- `--format`：输出格式（`stylish` 默认、`text`，或 `json`）。**Stylish** 会按文件分组打印 ESLint 风格的诊断信息；当 stdout 是终端时，严重级别会使用颜色显示（在管道输出或典型 CI 日志中不使用颜色）。
+- `--output-file`：将与 stdout 相同的人类可读格式或 JSON 格式写入文件
+- `--json-report`：始终将完整的机器可读 JSON 报告写入此路径，无论 `--format` 如何（在 CI 中很有用：既有精美日志，又有用于工具的 JSON 产物）。当 CLI 能将某个键映射到某一行时，发现内容包括 `annotationFile` 和 `annotationLine`。对于键以前缀 `md.` 开头的 **`.md` / `.mdx`** 片段，该行取自 markdown/MDX 的解析顺序（该可翻译片段的起始处）。对于其他文件，解析会退回到在目标文件中搜索带引号的键片段或该片段文本的子字符串，这在相同文本出现不止一次时可能会导致行号排序不准确
+- `--no-fail`：即使存在发现，也返回退出代码 `0`
+- `--quiet`：将 **warning** 结果从 stdout、`--output-file` 和 `--json-report` 中省略；当完整结果仅包含警告时，使用退出代码 `0`。内部检查仍会针对所有严重级别运行；**`--fix`** 仍会基于完整结果（包括警告）进行计划，因此可修复的问题不会被跳过。
+- `--fix`：在报告之后，使用与 [`run`](/commands/run) 相同的 AI 流水线（相同的配置、配置文件和环境变量）重新翻译**可修复**的问题。适用于类型为 `not_localized`、`whitespace_only`、`placeholder_mismatch`、`html_tag_mismatch` 和 `icu_shape_mismatch` 的带键问题。对于 `markdown_ast_mismatch` 上的 `.md`/`.mdx` 文件（按文件的问题，通常没有 `key`），`--fix` 会重新翻译该源/目标/区域设置对的**所有**对齐片段，以便结构能够重新对齐。不会修复 `same_as_source`（有意复制）、缺失的目标文件或孤立的键。
+- `--fix-dry-run`：通过`--fix`，在不写入目标或调用模型的情况下完成计划中的翻译任务（仍会加载配置和规划）。
+- `--workers`：使用`--fix`，并行翻译工作线程数量（默认值：CPU 核心数）
 
 ## 示例
 
@@ -77,7 +82,11 @@ hyperlocalise check --fix --locale fr --bucket ui
 hyperlocalise check --fix --fix-dry-run --no-fail
 ```
 
-## 另请参见
+```bash
+git diff --cached | hyperlocalise check --diff-stdin --no-fail
+```
+
+## 另请参阅
 
 - [状态](/commands/status)
 - [运行](/commands/run)

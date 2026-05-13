@@ -1,6 +1,6 @@
 ---
 title: "crowdin"
-description: "Các lệnh quy trình tệp tương thích với Crowdin được hỗ trợ bởi crowdin.yml."
+description: "Các lệnh quy trình làm việc của tệp tương thích với Crowdin được hỗ trợ bởi crowdin.yml."
 ---
 
 ## Cách sử dụng
@@ -10,24 +10,27 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
+hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
 ```
 
-## Bộ lệnh này làm gì
+## Lệnh này làm gì
 
 Các lệnh này hoạt động trực tiếp trên `crowdin.yml` hoặc `crowdin.yaml`.
 
-Chúng tách biệt với các quy trình gốc `i18n.yml` và `sync push` / `sync pull` của Hyperlocalise.
+Chúng tách biệt với các quy trình native `i18n.yml` và `sync push` / `sync pull` của Hyperlocalise.
 
 Sử dụng chúng khi bạn muốn chế độ tệp tương thích với Crowdin:
 
 - tải lên tệp nguồn từ `files[].source`
 - tải lên bản dịch từ `files[].translation`
-- tải xuống/xuất bản dịch trở lại vào kho lưu trữ của bạn
-- tải lên và tải xuống theo nhánh bằng `branch:` ở gốc hoặc `--branch`
-- xác thực nghiêm ngặt các trường `crowdin.yml` được hỗ trợ
+- dịch tải xuống/xuất trở lại vào repo của bạn
+- tải nguồn tùy chọn trở lại `files[].source` với `--include-sources`
+- tải lên và tải xuống theo nhánh với gốc `branch:` hoặc `--branch`
+- giải mã YAML nghiêm ngặt: chỉ các khóa mà tài liệu Crowdin và `hl` nhận diện mới có thể xuất hiện trong `crowdin.yml` (các khóa không xác định vẫn báo lỗi)
 
 ## Các trường cấu hình được hỗ trợ
+
+Chính những điều này điều khiển chế độ tệp Crowdin của Hyperlocalise:
 
 - `project_id`
 - `project_id_env`
@@ -47,15 +50,22 @@ Sử dụng chúng khi bạn muốn chế độ tệp tương thích với Crowd
 - `files[].skip_untranslated_files`
 - `files[].export_only_approved`
 
+## Tương thích Crowdin CLI (đã phân tích, chưa áp dụng)
+
+Bộ giải mã cũng chấp nhận một số khóa được Crowdin tài liệu hóa để bạn có thể tái sử dụng một `crowdin.yml` chuẩn mà không cần loại bỏ siêu dữ liệu. Hyperlocalise hiện **chưa** triển khai hành vi cho các khóa này; chúng sẽ bị bỏ qua sau khi phân tích cú pháp:
+
+- Root: `export_languages`, `pull_request_title`, `pull_request_labels`, `commit_message`, `append_commit_message`, `pull_request_assignees`, `pull_request_reviewers`
+- Mỗi tệp: `type`, `dest`, `update_option`, `export_pattern`, `translate_content`, `translate_attributes`, `content_segmentation`, `translatable_elements`, `ignore`, `translation_replace`, `first_line_contains_header`, `scheme`, `custom_segmentation`, `escape_quotes`, `escape_special_characters`, `labels`
+
 ## Các tính năng không được hỗ trợ
 
-Xác thực sẽ thất bại mặc định với các tính năng Crowdin CLI không được hỗ trợ.
+Các khóa YAML không được liệt kê ở trên vẫn gây ra lỗi giải mã (`KnownFields`).
 
-Việc triển khai chế độ tệp v1 này không hỗ trợ:
+Bản triển khai chế độ tệp v1 này không hỗ trợ:
 
-- TM, bảng thuật ngữ, nhiệm vụ, ảnh chụp màn hình, bình luận, phân phối hoặc lệnh ứng dụng
-- chế độ tương thích "cảnh báo và bỏ qua" mang tính cho phép
-- khởi động dự án Crowdin tương tác
+- TM, thuật ngữ, tác vụ, ảnh chụp màn hình, nhận xét, phân phối hoặc lệnh ứng dụng
+- chế độ tương thích "cảnh báo và bỏ qua" linh hoạt
+- khởi tạo dự án Crowdin tương tác
 
 ## Ví dụ
 
@@ -77,7 +87,7 @@ Chỉ tải lên bản dịch tiếng Pháp:
 hyperlocalise crowdin upload translations --language fr
 ```
 
-Tải tệp nguồn lên một nhánh Crowdin:
+Tải lên nguồn vào một nhánh Crowdin:
 
 ```bash
 hyperlocalise crowdin upload sources --branch feature/login
@@ -85,13 +95,32 @@ hyperlocalise crowdin upload sources --branch feature/login
 
 Tải xuống chỉ các bản dịch tiếng Pháp đã được phê duyệt:
 
+```bash
+hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
+```
+
+Tải xuống các bản dịch tiếng Pháp và làm mới các tệp nguồn cục bộ khớp tương ứng:
+
+```bash
+hyperlocalise crowdin download --language fr --include-sources
+```
+
+Đối với các đường dẫn chính xác `files[].source`, Hyperlocalise có thể ghi tệp nguồn ngay cả khi tệp đó bị thiếu cục bộ. Đối với các đường dẫn nguồn dạng glob, việc mở rộng glob cục bộ vẫn xác định những tệp đã cấu hình nào được xử lý.
+
+Hoặc cấu hình hành vi xuất trong `crowdin.yml`:
+
 ```yaml
 files:
   - source: /src/messages.json
     translation: /locales/%locale%/%original_file_name%
     export_only_approved: true
+    skip_untranslated_strings: true
 ```
 
+Hợp nhất các chuỗi JSON đã được phê duyệt vào tệp bản dịch cục bộ hiện có mà không xóa các khóa cục bộ không có trong bản xuất đã được phê duyệt:
+
 ```bash
-hyperlocalise crowdin download --language fr
+hyperlocalise crowdin download --language fr --merge-approved
 ```
+
+`--merge-approved` hiện hỗ trợ các tệp dịch đối tượng JSON. Nó buộc một bản xuất thưa chỉ dành cho các mục đã được phê duyệt cho yêu cầu, sau đó chỉ ghi đè các khóa có trong payload Crowdin đã được phê duyệt.

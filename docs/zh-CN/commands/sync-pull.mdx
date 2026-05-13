@@ -1,12 +1,10 @@
 ---
 title: "同步拉取"
-description: "实验性：将精选翻译从远程存储拉取到本地文件。"
+description: "将已完成的 Hyperlocalise 作业输出拉取到本地文件。"
 ---
 
 <Note>
-此功能为实验性功能。标志、输出格式和行为可能在不同版本之间发生变化。请在受控工作流中使用，并在 CI 中固定版本。
-
-随着 TMS 集成的成熟，冲突处理和同步约定可能会不断演变。
+公共 jobs API 合同可能会在 CI 工作流稳定的同时演进。
 </Note>
 
 ## 用法
@@ -17,37 +15,42 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## 安全的默认行为
 
-`sync pull` 默认为试运行模式。先查看报告，然后使用 `--dry-run=false` 重新运行。
+`sync pull` 默认为 dry-run 模式。请先查看报告，然后使用 `--dry-run=false` 重新运行。
 
-`sync pull` 在执行时将远程适配器视为权威。它会为请求的范围获取一份新的远程快照，将其与本地文件进行比较，然后在写入本地更新之前应用拉取策略和不变式检查。
+`sync pull` 读取完整的作业清单，按作业 ID 轮询公开的 Hyperlocalise API，下载成功的输出文件，并将它们写入由 `i18n.yml` 解析出的目标路径。
 
-本地元数据 sidecar 仍可用于报告，但对于拉取正确性而言并非必需。
+清单通常会从一个 `sync push` GitHub Actions 作业传递到一个 `sync pull` 作业，使用 `actions/upload-artifact` 和 `actions/download-artifact`。
 
 ## 标志
 
-- `--config`：配置路径
+- `--config`: 配置路径
 - `--locale`：目标语言环境，可重复
-- `--dry-run`：仅预览（默认 `true`）
+- `--manifest`：作业清单路径
+- `--wait`：等待队列中或正在运行的作业完成
+- `--timeout`：最大等待时间，例如 `20m`
+- `--dry-run`：仅预览（默认`true`）
 - `--output`：`text`、`json`或`markdown`
 
 ## 示例
 
 ```bash
-hyperlocalise sync pull --locale es-ES --output json
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
 ```
 
-## 注释
+```bash
+hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
+```
 
-- 远程读取始终是所请求范围内的最新数据
-- 拉取会在策略检查后应用入门级创建和更新
-- 不变量违规仍会阻止不安全的本地写入
+## 备注
 
-参见 [冲突处理](/troubleshooting/conflicts) 了解解决策略。
+- `sync pull` 拒绝包含 `complete: false` 的清单。
+- 如果没有`--wait`，排队中或正在运行的作业会导致非零退出。
+- 输出文件会按语言区域映射到清单中捕获的目标路径。
+- 特定于提供商的 TMS 命令，例如 `crowdin` 和 `phrase`，保留各自的配置和行为。
 
-## 另见
+## 另请参见
 
-- [运行](/commands/run)
+- [run](/commands/run)
 - [状态](/commands/status)
-- [同步推送](/commands/sync-push)
-- [存储概览](/storage/overview)
-- [TMS 选编循环（实验性）](/workflows/tms-curation-loop)
+- [sync push](/commands/sync-push)
+- [CI 自动化](/workflows/ci-automation)
