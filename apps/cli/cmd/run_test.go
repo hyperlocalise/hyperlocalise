@@ -423,6 +423,117 @@ func TestRunDryRunFiltersByGroup(t *testing.T) {
 	}
 }
 
+type runFileFilterFixture struct {
+	configPath          string
+	uiSourcePath        string
+	marketingSourcePath string
+	uiTargetPath        string
+	marketingTargetPath string
+}
+
+func setupRunFileFilterFixture(t *testing.T) runFileFilterFixture {
+	t.Helper()
+	dir := t.TempDir()
+	fixture := runFileFilterFixture{
+		configPath:          filepath.Join(dir, "i18n.jsonc"),
+		uiSourcePath:        filepath.Join(dir, "content", "en", "ui.json"),
+		marketingSourcePath: filepath.Join(dir, "content", "en", "marketing.json"),
+		uiTargetPath:        filepath.Join(dir, "dist", "fr", "ui.json"),
+		marketingTargetPath: filepath.Join(dir, "dist", "fr", "marketing.json"),
+	}
+
+	if err := os.MkdirAll(filepath.Dir(fixture.uiSourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.WriteFile(fixture.uiSourcePath, []byte(`{"hello":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write ui source file: %v", err)
+	}
+	if err := os.WriteFile(fixture.marketingSourcePath, []byte(`{"sale":"Sale"}`), 0o600); err != nil {
+		t.Fatalf("write marketing source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(filepath.Join(dir, "content", "en", "*.json")) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "*.json")) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(fixture.configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	return fixture
+}
+
+func TestRunDryRunFiltersByFile(t *testing.T) {
+	fixture := setupRunFileFilterFixture(t)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", fixture.configPath, "--dry-run", "--file", fixture.marketingSourcePath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run filtered file: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=1") {
+		t.Fatalf("expected only one planned task, got %q", out.String())
+	}
+	if strings.Contains(out.String(), filepath.ToSlash(fixture.uiTargetPath)) {
+		t.Fatalf("expected ui source file to be filtered out, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(fixture.marketingTargetPath)) {
+		t.Fatalf("expected marketing source file task, got %q", out.String())
+	}
+}
+
+func TestRunDryRunFiltersByRepeatedFileFlag(t *testing.T) {
+	fixture := setupRunFileFilterFixture(t)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", fixture.configPath, "--dry-run", "--file", fixture.uiSourcePath, "--file", fixture.marketingSourcePath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run repeated file filter: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=2") {
+		t.Fatalf("expected two planned tasks, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(fixture.uiTargetPath)) {
+		t.Fatalf("expected ui source file task, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(fixture.marketingTargetPath)) {
+		t.Fatalf("expected marketing source file task, got %q", out.String())
+	}
+}
+
+func TestRunDryRunFiltersByCommaSeparatedFileFlag(t *testing.T) {
+	fixture := setupRunFileFilterFixture(t)
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", fixture.configPath, "--dry-run", "--file", fixture.uiSourcePath + "," + fixture.marketingSourcePath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run comma-separated file filter: %v", err)
+	}
+	if !strings.Contains(out.String(), "planned_total=2") {
+		t.Fatalf("expected two planned tasks, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(fixture.uiTargetPath)) {
+		t.Fatalf("expected ui source file task, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), filepath.ToSlash(fixture.marketingTargetPath)) {
+		t.Fatalf("expected marketing source file task, got %q", out.String())
+	}
+}
+
 func TestRunDryRunFiltersByTargetLocale(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -746,6 +857,45 @@ func TestRunRejectsMixedEmptyTargetLocaleValue(t *testing.T) {
 	}
 }
 
+func TestRunRejectsEmptyFileValue(t *testing.T) {
+	for _, value := range []string{"", "   ", ",content/en/a.json"} {
+		t.Run("file="+value, func(t *testing.T) {
+			cmd := newRootCmd("")
+			out := bytes.NewBuffer(nil)
+			cmd.SetOut(out)
+			cmd.SetErr(out)
+			cmd.SetArgs([]string{"run", "--dry-run", "--file", value})
+
+			err := cmd.Execute()
+			if err == nil {
+				t.Fatalf("expected empty file value error")
+			}
+			if !strings.Contains(err.Error(), "invalid --file value: must not be empty") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestRunReturnsErrorForUnknownFile(t *testing.T) {
+	fixture := setupRunFileFilterFixture(t)
+	missingSourcePath := filepath.Join(filepath.Dir(fixture.uiSourcePath), "missing.json")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", fixture.configPath, "--dry-run", "--file", missingSourcePath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected unknown file error")
+	}
+	if !strings.Contains(err.Error(), `planning tasks: unknown source file "`+missingSourcePath+`"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestSyncInteractiveScopeFlagsClearsTargetLocaleChangedForAllTargets(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })
@@ -774,6 +924,20 @@ func TestSyncInteractiveScopeFlagsClearsTargetLocaleChangedForAllTargets(t *test
 	}
 	if gotInput.TargetLocales != nil {
 		t.Fatalf("expected cleared interactive target locales to remain nil, got %#v", gotInput.TargetLocales)
+	}
+}
+
+func TestSyncInteractiveScopeFlagsSetsFileChanged(t *testing.T) {
+	cmd := newRunCmd()
+
+	syncInteractiveScopeFlags(cmd, runOptions{sourcePaths: []string{"content/en/a.json"}})
+	if !cmd.Flags().Changed("file") {
+		t.Fatalf("expected file flag to be marked changed when source paths are selected")
+	}
+
+	syncInteractiveScopeFlags(cmd, runOptions{})
+	if cmd.Flags().Changed("file") {
+		t.Fatalf("expected file flag changed state to clear when source paths are cleared")
 	}
 }
 

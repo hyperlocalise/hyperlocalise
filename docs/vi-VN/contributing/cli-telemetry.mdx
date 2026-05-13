@@ -1,0 +1,38 @@
+---
+title: "CLI OpenTelemetry (Jaeger)"
+description: "Các dấu vết tùy chọn cho chạy và kiểm tra hyperlocalise — mặc định là tắt."
+---
+
+## Bật chức năng
+
+Telemetry **bị tắt theo mặc định**. Chỉ xuất trace khi **cả hai** điều kiện đều đúng:
+
+1. Đặt `HYPERLOCALISE_OTEL=1`.
+2. Đặt một endpoint OTLP cho traces, ví dụ `OTEL_EXPORTER_OTLP_ENDPOINT` hoặc `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (xem [biến môi trường OTEL](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)).
+
+`OTEL_SDK_DISABLED=true` buộc tắt telemetry.
+
+## Các mô-đun Go
+
+Thêm OpenTelemetry vào workspace `go.mod` (các phiên bản nên luôn đồng bộ), ví dụ:
+
+```bash
+go get go.opentelemetry.io/otel@latest \
+  go.opentelemetry.io/otel/sdk@latest \
+  go.opentelemetry.io/otel/trace@latest \
+  go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@latest
+```
+
+CLI sử dụng semconv `go.opentelemetry.io/otel/semconv/v1.26.0` như được nhập bởi `apps/cli/internal/cliotel`.
+
+## Lấy mẫu
+
+- `HYPERLOCALISE_OTEL_TRACE_SAMPLE_RATIO` — giá trị tùy chọn trong `[0,1]` cho lấy mẫu trace dựa trên head (mặc định là `1` khi chưa được đặt).
+
+## Được xuất là gì
+
+Các lệnh được đo đạc: **`run`** và **`check`** (bao gồm `check --fix`). Các span bao gồm thời gian theo pha cho lập kế hoạch, khóa, prune, thực thi và đầu ra; các cuộc gọi LLM phát ra một span con `translate` với **chỉ tên nhà cung cấp** (không có prompt, nội dung, đường dẫn, hay lỗi API thô).
+
+## Điều gì không được xuất hiện trên các span
+
+Không đặt lời nhắc, nội dung người dùng, đường dẫn tệp, khóa API, chuỗi thô `error.Error()` từ các nhà cung cấp, hoặc chi tiết theo từng phát hiện trên span. Chỉ sử dụng mã lỗi ổn định trong phần mô tả trạng thái của span.

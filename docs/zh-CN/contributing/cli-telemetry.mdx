@@ -1,0 +1,38 @@
+---
+title: "CLI OpenTelemetry（Jaeger）"
+description: "hyperlocalise 运行和检查的可选跟踪 — 默认关闭。"
+---
+
+## 启用
+
+遥测**默认已禁用**。仅当**两者**都为 true 时才导出跟踪：
+
+1. 设置 `HYPERLOCALISE_OTEL=1`。
+2. 设置 traces OTLP 端点，例如 `OTEL_EXPORTER_OTLP_ENDPOINT` 或 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`（参见 [OTEL 环境变量](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)）。
+
+`OTEL_SDK_DISABLED=true` 强制关闭遥测。
+
+## Go 模块
+
+向工作区添加 OpenTelemetry `go.mod`（版本应保持一致），例如：
+
+```bash
+go get go.opentelemetry.io/otel@latest \
+  go.opentelemetry.io/otel/sdk@latest \
+  go.opentelemetry.io/otel/trace@latest \
+  go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp@latest
+```
+
+CLI 使用由 `go.opentelemetry.io/otel/semconv/v1.26.0` 导入的 semconv `apps/cli/internal/cliotel`。
+
+## 抽样
+
+- `HYPERLOCALISE_OTEL_TRACE_SAMPLE_RATIO` — 在 `[0,1]` 中用于基于头部的 trace 采样的可选值（未设置时默认为 `1`）。
+
+## 导出了什么
+
+已检测的命令：**`run`** 和 **`check`**（包括 `check --fix`）。跨度包含规划、锁定、剪枝、执行和输出各阶段的时间；LLM 调用会发出一个 `translate` 子跨度，仅包含**提供方名称**（不包含提示、内容、路径或原始 API 错误）。
+
+## 跨度上不应出现什么
+
+不要在 span 上放置提示词、用户内容、文件路径、API 密钥、来自提供方的原始 `error.Error()` 字符串，或逐项发现详情。仅在 span 状态描述中使用稳定的错误代码。
