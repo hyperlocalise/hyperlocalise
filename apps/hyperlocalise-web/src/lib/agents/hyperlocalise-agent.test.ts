@@ -66,6 +66,8 @@ describe("hyperlocalise agent core", () => {
     });
 
     expect(instructions).toContain("Slack-friendly");
+    expect(instructions).toContain("bold labels");
+    expect(instructions).toContain("relevant emoji");
     expect(instructions).toContain("This conversation is attached to project proj_123.");
     expect(instructions).toContain("Call getProjectContext");
   });

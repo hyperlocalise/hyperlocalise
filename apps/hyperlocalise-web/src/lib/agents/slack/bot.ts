@@ -1,4 +1,4 @@
-import { Chat } from "chat";
+import { Chat, emoji } from "chat";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
@@ -86,6 +86,12 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
+async function removeEyesReaction(thread: Thread<SlackBotState>, message: Message): Promise<void> {
+  await thread.adapter.removeReaction(thread.id, message.id, emoji.eyes).catch(() => {
+    // Ignore reaction failures
+  });
+}
+
 async function processSlackMessage(
   thread: Thread<SlackBotState>,
   message: Message,
@@ -94,6 +100,10 @@ async function processSlackMessage(
   projectId: string | null,
 ) {
   try {
+    await thread.adapter.addReaction(thread.id, message.id, emoji.eyes).catch(() => {
+      // Ignore reaction failures so message processing continues
+    });
+
     const slackUser = await getSlackUser(thread, message.author.userId);
 
     const persistedMessage = await addInteractionMessage({
@@ -108,10 +118,24 @@ async function processSlackMessage(
       : null;
 
     if (!membership) {
-      wrapThreadPost(thread, interactionId);
-      await thread.post(
-        "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
-      );
+      const state = await thread.state;
+      const warnedUsers = (state?.warnedNonMemberUsers as string[] | undefined) ?? [];
+
+      if (warnedUsers.includes(message.author.userId)) {
+        await removeEyesReaction(thread, message);
+        await thread.adapter.addReaction(thread.id, message.id, emoji.x).catch(() => {
+          // Ignore reaction failures
+        });
+      } else {
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        await thread.post(
+          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+        );
+        await thread.setState({
+          warnedNonMemberUsers: [...warnedUsers, message.author.userId],
+        });
+      }
       return;
     }
 
@@ -144,6 +168,7 @@ async function processSlackMessage(
     }
 
     if (unsupportedFileAttachments.length > 0) {
+      await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
       await thread.post(buildUnsupportedSlackFilesMessage(unsupportedFileAttachments));
 
@@ -168,6 +193,7 @@ async function processSlackMessage(
         return [{ role: chatMessage.role, content: chatMessage.content }];
       });
 
+      await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
       await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
 
@@ -189,11 +215,14 @@ async function processSlackMessage(
     });
     const result = await agent.generate({ messages: chatMessages });
 
+    await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
-    if (result.text.trim()) {
-      await thread.post(result.text);
+    const replyText = result.text.trim();
+    if (replyText) {
+      await thread.post({ markdown: replyText });
     }
   } catch {
+    await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     await thread.post(
       "I'm having trouble processing that right now. I can help with translation jobs, project questions, glossary lookups, and job status checks. How can I assist you?",

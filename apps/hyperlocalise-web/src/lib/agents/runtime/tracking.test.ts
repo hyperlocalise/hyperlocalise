@@ -38,12 +38,26 @@ describe("wrapThreadPostForInteraction", () => {
     });
   });
 
-  it("does not persist non-string posts", async () => {
+  it("persists markdown object agent posts", async () => {
     const addMessage = vi.fn(async () => ({ id: "msg_123" }));
     const { thread } = createThread();
 
     wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
     await thread.post({ markdown: "complex" });
+
+    expect(addMessage).toHaveBeenCalledWith({
+      interactionId: "interaction_123",
+      senderType: "agent",
+      text: "complex",
+    });
+  });
+
+  it("does not persist posts without text content", async () => {
+    const addMessage = vi.fn(async () => ({ id: "msg_123" }));
+    const { thread } = createThread();
+
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    await thread.post({ card: { type: "card", children: [] } });
 
     expect(addMessage).not.toHaveBeenCalled();
   });
