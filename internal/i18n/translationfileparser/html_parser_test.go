@@ -702,3 +702,38 @@ func TestHTMLParserImgWithoutAltDoesNotFragmentProse(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalHTMLRejectsUnauthorizedHTML(t *testing.T) {
+	template := []byte("<div>Hello <b>world</b></div>")
+	parser := HTMLParser{}
+	entries, err := parser.Parse(template)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	var key string
+	var source string
+	for k, v := range entries {
+		key = k
+		source = v
+		break
+	}
+
+	// Malicious translation containing an img tag with onerror
+	maliciousTranslation := source + "<img src=x onerror=alert(1)>"
+
+	translatedValues := map[string]string{
+		key: maliciousTranslation,
+	}
+
+	output, diags := MarshalHTML(template, translatedValues)
+	rendered := string(output)
+
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Errorf("Expected fallback for key %s, but got none", key)
+	}
+
+	if strings.Contains(rendered, "<img src=x") {
+		t.Errorf("Security vulnerability: output contains raw img tag: %s", rendered)
+	}
+}

@@ -82,6 +82,10 @@ var htmlSkipElements = map[string]bool{
 // original unmodified bytes.
 var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
 
+func containsHTMLTag(s string) bool {
+	return htmlTagPattern.MatchString(s)
+}
+
 // htmlStructuralElements are container tags that are always emitted as
 // literals rather than buffered as inline content. This prevents </body>,
 // </html>, etc. from being wrapped in a translation unit when orphaned inline
@@ -408,6 +412,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 		rendered := preserveChunkBoundaryWhitespace(part.source, translated)
 		// Ensure every placeholder survived translation. A dropped placeholder
 		// means source markup was lost; fall back rather than emit incomplete HTML.
+		// We also check for any newly introduced HTML tags to prevent XSS.
 		allPresent := true
 		for ph := range part.placeholders {
 			if !strings.Contains(rendered, ph) {
@@ -415,7 +420,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 				break
 			}
 		}
-		if !allPresent {
+		if !allPresent || containsHTMLTag(rendered) {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
 			continue
