@@ -7,6 +7,7 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps } from "react";
@@ -113,17 +114,24 @@ export const SnippetCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
+  const tooltipText = isCopied ? "Copied!" : "Copy";
 
   return (
-    <InputGroupButton
-      aria-label="Copy"
-      className={className}
-      onClick={copyToClipboard}
-      size="icon-sm"
-      title="Copy"
-      {...props}
-    >
-      {children ?? <Icon className="size-3.5" size={14} />}
-    </InputGroupButton>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            aria-label={tooltipText}
+            className={className}
+            onClick={copyToClipboard}
+            size="icon-sm"
+            {...props}
+          />
+        }
+      >
+        {children ?? <Icon className="size-3.5" size={14} />}
+      </TooltipTrigger>
+      <TooltipContent>{tooltipText}</TooltipContent>
+    </Tooltip>
   );
 };

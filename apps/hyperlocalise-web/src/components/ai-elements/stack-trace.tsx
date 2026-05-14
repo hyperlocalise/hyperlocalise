@@ -3,6 +3,7 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AlertTriangleIcon, CheckIcon, ChevronDownIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps } from "react";
@@ -326,17 +327,26 @@ export const StackTraceCopyButton = memo(
     );
 
     const Icon = isCopied ? CheckIcon : CopyIcon;
+    const tooltipText = isCopied ? "Copied!" : "Copy stack trace";
 
     return (
-      <Button
-        className={cn("size-7", className)}
-        onClick={copyToClipboard}
-        size="icon"
-        variant="ghost"
-        {...props}
-      >
-        {children ?? <Icon size={14} />}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={tooltipText}
+              className={cn("size-7", className)}
+              onClick={copyToClipboard}
+              size="icon"
+              variant="ghost"
+              {...props}
+            />
+          }
+        >
+          {children ?? <Icon size={14} />}
+        </TooltipTrigger>
+        <TooltipContent>{tooltipText}</TooltipContent>
+      </Tooltip>
     );
   },
 );

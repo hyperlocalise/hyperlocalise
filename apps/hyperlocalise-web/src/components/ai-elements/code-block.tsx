@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
@@ -467,17 +468,26 @@ export const CodeBlockCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
+  const tooltipText = isCopied ? "Copied!" : "Copy code";
 
   return (
-    <Button
-      className={cn("shrink-0", className)}
-      onClick={copyToClipboard}
-      size="icon"
-      variant="ghost"
-      {...props}
-    >
-      {children ?? <Icon size={14} />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label={tooltipText}
+            className={cn("shrink-0", className)}
+            onClick={copyToClipboard}
+            size="icon"
+            variant="ghost"
+            {...props}
+          />
+        }
+      >
+        {children ?? <Icon size={14} />}
+      </TooltipTrigger>
+      <TooltipContent>{tooltipText}</TooltipContent>
+    </Tooltip>
   );
 };
 
