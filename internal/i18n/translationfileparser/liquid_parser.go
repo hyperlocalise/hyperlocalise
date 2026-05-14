@@ -420,7 +420,7 @@ func (d liquidDocument) renderTextPart(part htmlPart, values map[string]string, 
 	}
 
 	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
-	if !htmlPlaceholdersPresent(part, rendered) || !liquidPlaceholdersPresent(part.source, rendered) {
+	if !htmlPlaceholdersPresent(part, rendered) || !liquidPlaceholdersPresent(part.source, rendered) || containsHTMLTag(rendered) {
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 		return renderLiquidSourcePart(part, d.liquidPlaceholders)
 	}
