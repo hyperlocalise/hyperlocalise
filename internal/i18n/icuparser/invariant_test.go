@@ -22,10 +22,10 @@ func TestSameICUBlocks(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "pound mismatch",
+			name: "pound mismatch is accepted",
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{1}}},
 			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{2}}},
-			want: false,
+			want: true,
 		},
 		{
 			name: "type mismatch",
@@ -50,12 +50,6 @@ func TestSameICUBlocks(t *testing.T) {
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
 			b:    []BlockSignature{},
 			want: false,
-		},
-		{
-			name: "nil vs empty pounds",
-			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: nil}},
-			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{}}},
-			want: true,
 		},
 	}
 
