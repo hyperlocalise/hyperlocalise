@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MessageAction } from "./message";
 import { ArtifactAction } from "./artifact";
 import { WebPreviewNavigationButton } from "./web-preview";
+import { CodeBlockCopyButton } from "./code-block";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 describe("Tooltip Redundancy Optimization", () => {
@@ -53,5 +54,18 @@ describe("Tooltip Redundancy Optimization", () => {
     );
     expect(markup).toContain("Web");
     expect(markup).toContain('data-slot="tooltip-trigger"');
+  });
+
+  it("CodeBlockCopyButton renders correctly within a TooltipProvider", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(
+        TooltipProvider,
+        {},
+        React.createElement(CodeBlockCopyButton, {}, "Copy"),
+      ),
+    );
+    expect(markup).toContain("Copy");
+    expect(markup).toContain('data-slot="tooltip-trigger"');
+    expect(markup).toContain('aria-label="Copy code"');
   });
 });
