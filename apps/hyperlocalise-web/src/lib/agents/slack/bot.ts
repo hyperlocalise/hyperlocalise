@@ -127,14 +127,14 @@ async function processSlackMessage(
           // Ignore reaction failures
         });
       } else {
-        await thread.setState({
-          warnedNonMemberUsers: [...warnedUsers, message.author.userId],
-        });
         await removeEyesReaction(thread, message);
         wrapThreadPost(thread, interactionId);
         await thread.post({
           markdown:
             "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+        });
+        await thread.setState({
+          warnedNonMemberUsers: [...warnedUsers, message.author.userId],
         });
       }
       return;
@@ -171,7 +171,9 @@ async function processSlackMessage(
     if (unsupportedFileAttachments.length > 0) {
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
-      await thread.post(buildUnsupportedSlackFilesMessage(unsupportedFileAttachments));
+      await thread.post({
+        markdown: buildUnsupportedSlackFilesMessage(unsupportedFileAttachments),
+      });
 
       if (storedFileAttachments.length === 0 && imageAttachments.length === 0) {
         return;

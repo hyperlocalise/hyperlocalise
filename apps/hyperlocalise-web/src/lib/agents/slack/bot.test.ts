@@ -813,7 +813,9 @@ describe("handleSubscribedMessage", () => {
     expect(createStoredFile).not.toHaveBeenCalled();
     expect(generateText).not.toHaveBeenCalled();
     expect(agentGenerateMock).not.toHaveBeenCalled();
-    expect(posts).toEqual([expect.stringContaining("not a supported text translation source")]);
+    expect(posts).toEqual([
+      { markdown: expect.stringContaining("not a supported text translation source") },
+    ]);
   });
 
   it("reports unsupported files while still localizing attached images", async () => {
@@ -872,7 +874,7 @@ describe("handleSubscribedMessage", () => {
     expect(createStoredFile).not.toHaveBeenCalled();
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
-      expect.stringContaining("brief.pdf"),
+      { markdown: expect.stringContaining("brief.pdf") },
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),
         files: [
