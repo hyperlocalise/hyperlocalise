@@ -18,19 +18,25 @@ type (
 		UpdatedAt  string                    `json:"updatedAt"`
 		StartedAt  string                    `json:"startedAt,omitempty"`
 		FinishedAt string                    `json:"finishedAt,omitempty"`
+		ETA        string                    `json:"eta,omitempty"`
 	}
 
 	PreTranslationAttributes struct {
-		LanguageIDs                   []string `json:"languageIds"`
-		BranchIDs                     []int    `json:"branchIds,omitempty"`
-		DirectoryIDs                  []int    `json:"directoryIds,omitempty"`
-		FileIDs                       []int    `json:"fileIds,omitempty"`
-		Method                        *string  `json:"method,omitempty"`
-		AutoApproveOption             *string  `json:"autoApproveOption,omitempty"`
-		DuplicateTranslations         *bool    `json:"duplicateTranslations,omitempty"`
-		SkipApprovedTranslations      *bool    `json:"skipApprovedTranslations,omitempty"`
-		TranslateUntranslatedOnly     *bool    `json:"translateUntranslatedOnly,omitempty"`
-		TranslateWithPerfectMatchOnly *bool    `json:"translateWithPerfectMatchOnly,omitempty"`
+		LanguageIDs                   []string            `json:"languageIds"`
+		BranchIDs                     []int               `json:"branchIds,omitempty"`
+		DirectoryIDs                  []int               `json:"directoryIds,omitempty"`
+		FileIDs                       []int               `json:"fileIds,omitempty"`
+		Method                        *string             `json:"method,omitempty"`
+		EngineID                      *int                `json:"engineId,omitempty"`
+		AIPromptID                    *int                `json:"aiPromptId,omitempty"`
+		AutoApproveOption             *string             `json:"autoApproveOption,omitempty"`
+		DuplicateTranslations         *bool               `json:"duplicateTranslations,omitempty"`
+		SkipApprovedTranslations      *bool               `json:"skipApprovedTranslations,omitempty"`
+		TranslateUntranslatedOnly     *bool               `json:"translateUntranslatedOnly,omitempty"`
+		TranslateWithPerfectMatchOnly *bool               `json:"translateWithPerfectMatchOnly,omitempty"`
+		FallbackLanguages             map[string][]string `json:"fallbackLanguages,omitempty"`
+		LabelIDs                      []int               `json:"labelIds,omitempty"`
+		ExcludeLabelIDs               []int               `json:"excludeLabelIds,omitempty"`
 	}
 
 	PreTranslationReport struct {
@@ -102,9 +108,9 @@ type PreTranslationRequest struct {
 	//  - ai – pre-translation via AI. "ai" should be used with `aiPromptId` parameter.
 	Method string `json:"method,omitempty"`
 	// Machine Translation engine Identifier. Required if `method` is set to "mt".
-	EngineID int `json:"engineId,omitempty"`
+	EngineID *int `json:"engineId,omitempty"`
 	// AI Prompt Identifier. Required if `method` is set to "ai".
-	AIPromptID int `json:"aiPromptId,omitempty"`
+	AIPromptID *int `json:"aiPromptId,omitempty"`
 	// Defines which translations added by TM pre-translation should be auto-approved. Default: "none".
 	// Enum: "all", "exceptAutoSubstituted", "perfectMatchApprovedOnly", "perfectMatchOnly", "none"
 	//  - all – all
@@ -150,10 +156,10 @@ func (r *PreTranslationRequest) Validate() error {
 	if len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
 		return errors.New("one of fileIds, branchIds or directoryIds is required")
 	}
-	if r.Method == "ai" && r.AIPromptID == 0 {
+	if r.Method == "ai" && (r.AIPromptID == nil || *r.AIPromptID == 0) {
 		return errors.New("aiPromptId is required")
 	}
-	if r.Method == "mt" && r.EngineID == 0 {
+	if r.Method == "mt" && (r.EngineID == nil || *r.EngineID == 0) {
 		return errors.New("engineId is required")
 	}
 	return nil

@@ -32,7 +32,7 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			name: "valid request",
 			req: &PreTranslationRequest{
 				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "tm", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+				Method: "tm", EngineID: toPtr(1), AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
 			},
 			valid: true,
 		},
@@ -48,7 +48,7 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			name: "valid request with ai method",
 			req: &PreTranslationRequest{
 				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "ai", AIPromptID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+				Method: "ai", AIPromptID: toPtr(1), AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
 			},
 			valid: true,
 		},
@@ -64,7 +64,7 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			name: "valid request with mt method",
 			req: &PreTranslationRequest{
 				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
-				Method: "mt", EngineID: 1, AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+				Method: "mt", EngineID: toPtr(1), AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
 			},
 			valid: true,
 		},

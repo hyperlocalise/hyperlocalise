@@ -206,7 +206,7 @@ type ProjectsAddRequest struct {
 	Cname string `json:"cname,omitempty"`
 	// Project description.
 	Description string `json:"description,omitempty"`
-	// Values available: 0 - Auto, 1 - Count tags, 1 - Skip tags. Default: 0.
+	// Values available: 0 - Auto, 1 - Count tags, 2 - Skip tags. Default: 0.
 	TagsDetection *int `json:"tagsDetection,omitempty"`
 	// Allows machine translations (Microsoft Translator, Google Translate) be visible
 	// for translators in the Editor. Default: true.

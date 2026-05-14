@@ -29,16 +29,24 @@ func TestTranslationsService_PreTranslationStatus(t *testing.T) {
 					"languageIds": ["uk"],
 					"fileIds": [742],
 					"method": "tm",
+					"engineId": 1,
+					"aiPromptId": 2,
 					"autoApproveOption": "all",
 					"duplicateTranslations": true,
 					"skipApprovedTranslations": true,
 					"translateUntranslatedOnly": true,
-					"translateWithPerfectMatchOnly": true
+					"translateWithPerfectMatchOnly": true,
+					"fallbackLanguages": {
+						"es": ["en"]
+					},
+					"labelIds": [3],
+					"excludeLabelIds": [4]
 				},
 				"createdAt": "2023-09-20T14:05:50+00:00",
 				"updatedAt": "2023-09-20T14:05:50+00:00",
 				"startedAt": "2023-08-24T14:15:22Z",
-				"finishedAt": "2023-08-24T14:15:22Z"
+				"finishedAt": "2023-08-24T14:15:22Z",
+				"eta": "10s"
 			}
 		}`)
 	})
@@ -54,16 +62,24 @@ func TestTranslationsService_PreTranslationStatus(t *testing.T) {
 			LanguageIDs:                   []string{"uk"},
 			FileIDs:                       []int{742},
 			Method:                        ToPtr("tm"),
+			EngineID:                      ToPtr(1),
+			AIPromptID:                    ToPtr(2),
 			AutoApproveOption:             ToPtr("all"),
 			DuplicateTranslations:         ToPtr(true),
 			SkipApprovedTranslations:      ToPtr(true),
 			TranslateUntranslatedOnly:     ToPtr(true),
 			TranslateWithPerfectMatchOnly: ToPtr(true),
+			FallbackLanguages: map[string][]string{
+				"es": {"en"},
+			},
+			LabelIDs:        []int{3},
+			ExcludeLabelIDs: []int{4},
 		},
 		CreatedAt:  "2023-09-20T14:05:50+00:00",
 		UpdatedAt:  "2023-09-20T14:05:50+00:00",
 		StartedAt:  "2023-08-24T14:15:22Z",
 		FinishedAt: "2023-08-24T14:15:22Z",
+		ETA:        "10s",
 	}
 	assert.Equal(t, expected, status)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
@@ -190,6 +206,8 @@ func TestTranslationsService_ListPreTranslations(t *testing.T) {
 								"method": "tm",
 								"branchIds": [2],
 								"languageIds": ["en", "de"],
+								"engineId": null,
+								"aiPromptId": null,
 								"excludeLabelIds": null,
 								"autoApproveOption": null,
 								"fallbackLanguages": null,
@@ -225,11 +243,16 @@ func TestTranslationsService_ListPreTranslations(t *testing.T) {
 					LanguageIDs:                   []string{"en", "de"},
 					FileIDs:                       nil,
 					Method:                        ToPtr("tm"),
+					EngineID:                      nil,
+					AIPromptID:                    nil,
 					AutoApproveOption:             nil,
 					DuplicateTranslations:         nil,
 					SkipApprovedTranslations:      nil,
 					TranslateUntranslatedOnly:     nil,
 					TranslateWithPerfectMatchOnly: nil,
+					FallbackLanguages:             nil,
+					LabelIDs:                      nil,
+					ExcludeLabelIDs:               nil,
 				},
 				CreatedAt:  "2024-11-10T19:14:37+00:00",
 				UpdatedAt:  "2024-11-10T19:14:45+00:00",
@@ -348,11 +371,17 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 					"languageIds": ["uk"],
 					"fileIds": [742],
 					"method": "tm",
+					"engineId": 1,
 					"autoApproveOption": "all",
 					"duplicateTranslations": true,
 					"skipApprovedTranslations": true,
 					"translateUntranslatedOnly": false,
-					"translateWithPerfectMatchOnly": true
+					"translateWithPerfectMatchOnly": true,
+					"fallbackLanguages": {
+						"languageId": ["uk"]
+					},
+					"labelIds": [1],
+					"excludeLabelIds": [2]
 				},
 				"createdAt": "2023-09-20T14:05:50+00:00",
 				"updatedAt": "2023-09-20T14:05:50+00:00",
@@ -366,7 +395,7 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 		LanguageIDs:                   []string{"uk"},
 		FileIDs:                       []int{742},
 		Method:                        "tm",
-		EngineID:                      1,
+		EngineID:                      ToPtr(1),
 		AutoApproveOption:             "all",
 		DuplicateTranslations:         ToPtr(true),
 		SkipApprovedTranslations:      ToPtr(true),
@@ -389,11 +418,18 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 			LanguageIDs:                   []string{"uk"},
 			FileIDs:                       []int{742},
 			Method:                        ToPtr("tm"),
+			EngineID:                      ToPtr(1),
+			AIPromptID:                    nil,
 			AutoApproveOption:             ToPtr("all"),
 			DuplicateTranslations:         ToPtr(true),
 			SkipApprovedTranslations:      ToPtr(true),
 			TranslateUntranslatedOnly:     ToPtr(false),
 			TranslateWithPerfectMatchOnly: ToPtr(true),
+			FallbackLanguages: map[string][]string{
+				"languageId": {"uk"},
+			},
+			LabelIDs:        []int{1},
+			ExcludeLabelIDs: []int{2},
 		},
 		CreatedAt:  "2023-09-20T14:05:50+00:00",
 		UpdatedAt:  "2023-09-20T14:05:50+00:00",
