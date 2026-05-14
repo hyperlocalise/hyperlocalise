@@ -505,7 +505,10 @@ describe("handleNewConversation", () => {
     await handleNewConversation(thread, message);
 
     expect(posts).toEqual([
-      "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      {
+        markdown:
+          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      },
     ]);
     expect(getState()).toEqual({ warnedNonMemberUsers: ["U123"] });
     expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
@@ -1115,7 +1118,10 @@ describe("handleSubscribedMessage", () => {
     await handleSubscribedMessage(thread, message);
 
     expect(posts).toEqual([
-      "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      {
+        markdown:
+          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      },
     ]);
     expect(getState()).toEqual({ warnedNonMemberUsers: ["U123"] });
     expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);

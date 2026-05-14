@@ -127,13 +127,14 @@ async function processSlackMessage(
           // Ignore reaction failures
         });
       } else {
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post(
-          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
-        );
         await thread.setState({
           warnedNonMemberUsers: [...warnedUsers, message.author.userId],
+        });
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        await thread.post({
+          markdown:
+            "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
         });
       }
       return;
@@ -224,9 +225,10 @@ async function processSlackMessage(
   } catch {
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
-    await thread.post(
-      "I'm having trouble processing that right now. I can help with translation jobs, project questions, glossary lookups, and job status checks. How can I assist you?",
-    );
+    await thread.post({
+      markdown:
+        "I'm having trouble processing that right now. I can help with translation jobs, project questions, glossary lookups, and job status checks. How can I assist you?",
+    });
   }
 }
 
