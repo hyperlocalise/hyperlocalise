@@ -418,6 +418,41 @@ func TestMarshalLiquidFallsBackWhenLiquidPlaceholderMissing(t *testing.T) {
 	}
 }
 
+func TestMarshalLiquidRejectsUnauthorizedHTML(t *testing.T) {
+	template := []byte("<p>Welcome, {{ user.name }}!</p>")
+	parser := LiquidParser{}
+	entries, err := parser.Parse(template)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	var key string
+	var source string
+	for k, v := range entries {
+		key = k
+		source = v
+		break
+	}
+
+	// Malicious translation containing a script tag
+	maliciousTranslation := source + "<script>alert('XSS')</script>"
+
+	translatedValues := map[string]string{
+		key: maliciousTranslation,
+	}
+
+	output, diags := MarshalLiquid(template, translatedValues)
+	rendered := string(output)
+
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Errorf("Expected fallback for key %s, but got none", key)
+	}
+
+	if strings.Contains(rendered, "<script>") {
+		t.Errorf("Security vulnerability: output contains raw script tag: %s", rendered)
+	}
+}
+
 func TestMarshalLiquidWithTargetFallbackUsesExistingTargetByPosition(t *testing.T) {
 	source := []byte("<h1>Welcome</h1>\n<p>Checkout now.</p>\n")
 	target := []byte("<h1>Bienvenue</h1>\n<p>Achetez maintenant.</p>\n")
