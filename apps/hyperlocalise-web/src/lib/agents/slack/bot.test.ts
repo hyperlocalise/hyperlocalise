@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { emoji } from "chat";
 import type { Message, Thread } from "chat";
 
 import {
@@ -165,9 +166,12 @@ function createMessage(
   } as unknown as Message;
 }
 
-function createThread() {
+function createThread(initialState?: Record<string, unknown>) {
   const posts: unknown[] = [];
+  const reactions: Array<{ messageId: string; emoji: string }> = [];
+  const removedReactions: Array<{ messageId: string; emoji: string }> = [];
   let subscribed = false;
+  let state: Record<string, unknown> | null = initialState ?? null;
 
   const thread = {
     id: "slack:C123:1234567890.123456",
@@ -183,10 +187,29 @@ function createThread() {
         id: userId,
         email: "alice@example.com",
       })),
+      addReaction: vi.fn(async (_threadId: string, messageId: string, emoji: string) => {
+        reactions.push({ messageId, emoji });
+      }),
+      removeReaction: vi.fn(async (_threadId: string, messageId: string, emoji: string) => {
+        removedReactions.push({ messageId, emoji });
+      }),
     },
+    get state() {
+      return Promise.resolve(state);
+    },
+    setState: vi.fn(async (newState: Record<string, unknown>) => {
+      state = { ...state, ...newState };
+    }),
   } as unknown as Thread<Record<string, unknown>>;
 
-  return { thread, posts, getSubscribed: () => subscribed };
+  return {
+    thread,
+    posts,
+    reactions,
+    removedReactions,
+    getSubscribed: () => subscribed,
+    getState: () => state,
+  };
 }
 
 describe("extractTeamId", () => {
@@ -229,13 +252,17 @@ describe("wrapThreadPost", () => {
     });
   });
 
-  it("does not persist non-string posts", async () => {
+  it("persists markdown object posts", async () => {
     const { thread } = createThread();
     wrapThreadPost(thread, "interaction-123");
 
     await thread.post({ markdown: "complex" });
 
-    expect(addInteractionMessage).not.toHaveBeenCalled();
+    expect(addInteractionMessage).toHaveBeenCalledWith({
+      interactionId: "interaction-123",
+      senderType: "agent",
+      text: "complex",
+    });
   });
 
   it("persists raw object posts", async () => {
@@ -395,7 +422,7 @@ describe("handleNewConversation", () => {
     expect(agentGenerateMock).toHaveBeenCalledWith({
       messages: [{ role: "user", content: "Help me translate" }],
     });
-    expect(posts).toEqual(["AI response"]);
+    expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
   it("resumes existing interaction and posts AI response", async () => {
@@ -429,7 +456,91 @@ describe("handleNewConversation", () => {
     });
     expect(getSubscribed()).toBe(false);
     expect(agentGenerateMock).toHaveBeenCalled();
-    expect(posts).toEqual(["AI response"]);
+    expect(posts).toEqual([{ markdown: "AI response" }]);
+  });
+
+  it("adds an eyes reaction while processing a message and removes it on reply", async () => {
+    const { thread, reactions, removedReactions } = createThread();
+    const message = createMessage({ text: "Help me translate" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(reactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+  });
+
+  it("warns non-member once and tracks them in thread state", async () => {
+    const { thread, posts, getState, removedReactions } = createThread();
+    const message = createMessage({ text: "Help me translate" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue(null as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(posts).toEqual([
+      {
+        markdown:
+          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      },
+    ]);
+    expect(getState()).toEqual({ warnedNonMemberUsers: ["U123"] });
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+  });
+
+  it("reacts with x for repeat non-member messages", async () => {
+    const { thread, posts, reactions, removedReactions } = createThread({
+      warnedNonMemberUsers: ["U123"],
+    });
+    const message = createMessage({ text: "Help me translate" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue(null as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(posts).toEqual([]);
+    expect(reactions).toEqual([
+      { messageId: "msg_123", emoji: emoji.eyes },
+      { messageId: "msg_123", emoji: emoji.x },
+    ]);
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
   });
 });
 
@@ -478,7 +589,7 @@ describe("handleSubscribedMessage", () => {
       senderEmail: "alice@example.com",
     });
     expect(agentGenerateMock).toHaveBeenCalled();
-    expect(posts).toEqual(["AI response"]);
+    expect(posts).toEqual([{ markdown: "AI response" }]);
 
     // Agent reply should also be persisted
     expect(addInteractionMessage).toHaveBeenLastCalledWith({
@@ -571,7 +682,7 @@ describe("handleSubscribedMessage", () => {
       ],
     });
     expect(agentGenerateMock.mock.calls[0]?.[0]?.messages[0]?.content).toContain("fileFormat=json");
-    expect(posts).toEqual(["AI response"]);
+    expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
   it("localizes images and creates file translation jobs when both are attached", async () => {
@@ -663,7 +774,7 @@ describe("handleSubscribedMessage", () => {
           },
         ],
       },
-      "AI response",
+      { markdown: "AI response" },
     ]);
   });
 
@@ -702,7 +813,9 @@ describe("handleSubscribedMessage", () => {
     expect(createStoredFile).not.toHaveBeenCalled();
     expect(generateText).not.toHaveBeenCalled();
     expect(agentGenerateMock).not.toHaveBeenCalled();
-    expect(posts).toEqual([expect.stringContaining("not a supported text translation source")]);
+    expect(posts).toEqual([
+      { markdown: expect.stringContaining("not a supported text translation source") },
+    ]);
   });
 
   it("reports unsupported files while still localizing attached images", async () => {
@@ -761,7 +874,7 @@ describe("handleSubscribedMessage", () => {
     expect(createStoredFile).not.toHaveBeenCalled();
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
-      expect.stringContaining("brief.pdf"),
+      { markdown: expect.stringContaining("brief.pdf") },
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),
         files: [
@@ -959,5 +1072,89 @@ describe("handleSubscribedMessage", () => {
     } finally {
       consoleError.mockRestore();
     }
+  });
+
+  it("adds an eyes reaction while processing a subscribed message and removes it on reply", async () => {
+    const { thread, reactions, removedReactions } = createThread();
+    const message = createMessage({ text: "Second message" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(reactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+  });
+
+  it("warns non-member once on subscribed messages and tracks them", async () => {
+    const { thread, posts, getState, removedReactions } = createThread();
+    const message = createMessage({ text: "Second message" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue(null as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([
+      {
+        markdown:
+          "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+      },
+    ]);
+    expect(getState()).toEqual({ warnedNonMemberUsers: ["U123"] });
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
+  });
+
+  it("reacts with x for repeat non-member subscribed messages", async () => {
+    const { thread, posts, reactions, removedReactions } = createThread({
+      warnedNonMemberUsers: ["U123"],
+    });
+    const message = createMessage({ text: "Second message" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue(null as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(posts).toEqual([]);
+    expect(reactions).toEqual([
+      { messageId: "msg_123", emoji: emoji.eyes },
+      { messageId: "msg_123", emoji: emoji.x },
+    ]);
+    expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
   });
 });

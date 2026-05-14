@@ -63,7 +63,7 @@ export function buildHyperlocaliseAgentInstructions(input: {
 
   if (input.surface === "slack") {
     lines.push(
-      "Keep responses concise and Slack-friendly. Use markdown formatting when it improves readability.",
+      "Keep responses concise and Slack-friendly. Use short Markdown with bullets, bold labels, and a small number of relevant emoji when it improves readability.",
     );
   } else if (input.surface === "github") {
     lines.push(

@@ -27,6 +27,14 @@ function getPostText(content: unknown) {
   ) {
     return content.raw;
   }
+  if (
+    typeof content === "object" &&
+    content !== null &&
+    "markdown" in content &&
+    typeof content.markdown === "string"
+  ) {
+    return content.markdown;
+  }
   return "";
 }
 
