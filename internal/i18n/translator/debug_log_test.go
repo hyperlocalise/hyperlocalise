@@ -161,6 +161,31 @@ func TestMaskSecrets(t *testing.T) {
 			want: "aws AKIA1234...CDEF",
 		},
 		{
+			name: "lowercase aws access key lookalike",
+			in:   "aws akia1234567890abcdef",
+			want: "aws akia1234567890abcdef",
+		},
+		{
+			name: "aws secret access key env var",
+			in:   "AWS_SECRET_ACCESS_KEY=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/+=A",
+			want: "AWS_SECRET_ACCESS_KEY=AbCdEfGh.../+=A",
+		},
+		{
+			name: "aws bedrock credentials",
+			in:   "AWS_ACCESS_KEY_ID=AKIA1234567890ABCDEF AWS_SECRET_ACCESS_KEY=AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/+=A",
+			want: "AWS_ACCESS_KEY_ID=AKIA1234...CDEF AWS_SECRET_ACCESS_KEY=AbCdEfGh.../+=A",
+		},
+		{
+			name: "aws secret access key json",
+			in:   `{"secretAccessKey":"AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/+=A","region":"us-east-1"}`,
+			want: `{"secretAccessKey":"AbCdEfGh.../+=A","region":"us-east-1"}`,
+		},
+		{
+			name: "unlabeled aws secret lookalike",
+			in:   "token AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/+=A",
+			want: "token AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/+=A",
+		},
+		{
 			name: "multiple secrets",
 			in:   "keys: sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef and hl_abc1234567890abcdef1234567890abcdef",
 			want: "keys: sk-proj-...cdef and hl_abc12...cdef",
