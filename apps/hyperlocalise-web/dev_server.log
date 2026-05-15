@@ -1,0 +1,50 @@
+
+> hyperlocalise-web@0.1.0 dev /app/apps/hyperlocalise-web
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 593ms
+Discovering workflow directives 13774ms
+Created steps bundle 938ms
+Created intermediate workflow bundle 1022ms
+Creating webhook route
+Creating manifest...
+Created manifest with 87 steps, 4 workflows, and 8 classes 640ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+Discovering workflow directives 13348ms
+Created steps bundle 186ms
+Created intermediate workflow bundle 922ms
+Discovering workflow directives 11992ms
+Created steps bundle 157ms
+Created intermediate workflow bundle 944ms
+Discovering workflow directives 12547ms
+Created steps bundle 155ms
+Created intermediate workflow bundle 890ms
+Discovering workflow directives 12205ms
+Created steps bundle 170ms
+Created intermediate workflow bundle 949ms
+Discovering workflow directives 13043ms
+Created steps bundle 282ms
+Created intermediate workflow bundle 944ms
+○ Compiling /verify-commit-timestamp ...
+ GET /verify-commit-timestamp 200 in 9.0s (next.js: 8.1s, application-code: 888ms)
+⨯ Error: You are calling 'withAuth' on a route that isn't covered by the AuthKit middleware. Make sure it is running on all paths you are calling 'withAuth' from by updating your middleware config in 'middleware.(js|ts)'.
+    at ignore-listed frames {
+  digest: '287354485'
+}
+ POST /verify-commit-timestamp 500 in 1517ms (next.js: 16ms, application-code: 1501ms)
+  └─ ƒ getAuthAction({"ensureSignedIn":false}) in 84ms node_modules/.pnpm/@workos-inc+authkit-nextjs@4.0.1_next@16.2.6_@babel+core@7.29.0_@opentelemetry+api@1.9._f6eb3e675432764f08d2b54822699b3f/node_modules/@workos-inc/authkit-nextjs/dist/esm/actions.js
+[browser] Base UI: A component that acts as a button expected a native <button> because the `nativeButton` prop is true. Rendering a non-<button> removes native button semantics, which can impact forms and accessibility. Use a real <button> in the `render` prop, or set `nativeButton` to `false`.
+    at CollapsibleTrigger (http://localhost:3000/_next/static/chunks/src_components_07l0u5d._.js:522:420)
+    at CommitHeader (http://localhost:3000/_next/static/chunks/src_components_07l0u5d._.js:752:420)
+    at VerifyCommitTimestamp (about://React/Server/file:///app/apps/hyperlocalise-web/.next/dev/server/chunks/ssr/%5Broot-of-the-server%5D__0abnt4b._.js?12:368:490)
+Discovering workflow directives 21644ms
+Created steps bundle 208ms
+Created intermediate workflow bundle 2739ms
