@@ -38,7 +38,8 @@ type promptDebugEvent struct {
 
 var (
 	translatorPromptDebugLogger promptDebugLogger
-	secretRegex                 = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,})\b`)
+	secretRegex                 = regexp.MustCompile(`\b(?i:(?:sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|gsk_[a-z0-9]{20,}|mistral_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,}))\b|\bAKIA[A-Z0-9]{16}\b`)
+	awsSecretAccessKeyRegex     = regexp.MustCompile(`(?i)\b((?:aws[ \t_-]*)?secret[ \t_-]*access[ \t_-]*key)(["']?\s*[:=]\s*["']?)([A-Za-z0-9/+=]{40})(["']?)([^A-Za-z0-9/+=]|$)`)
 )
 
 func logPromptCall(req Request, providerName, systemPrompt, userPrompt string) {
@@ -135,10 +136,21 @@ func maskSecrets(text string) string {
 	if text == "" {
 		return ""
 	}
-	return secretRegex.ReplaceAllStringFunc(text, func(match string) string {
-		if len(match) < 12 {
-			return "****"
-		}
-		return match[:8] + "..." + match[len(match)-4:]
+	text = secretRegex.ReplaceAllStringFunc(text, func(match string) string {
+		return maskSecretValue(match)
 	})
+	return awsSecretAccessKeyRegex.ReplaceAllStringFunc(text, func(match string) string {
+		parts := awsSecretAccessKeyRegex.FindStringSubmatch(match)
+		if len(parts) != 6 {
+			return match
+		}
+		return parts[1] + parts[2] + maskSecretValue(parts[3]) + parts[4] + parts[5]
+	})
+}
+
+func maskSecretValue(value string) string {
+	if len(value) < 12 {
+		return "****"
+	}
+	return value[:8] + "..." + value[len(value)-4:]
 }
