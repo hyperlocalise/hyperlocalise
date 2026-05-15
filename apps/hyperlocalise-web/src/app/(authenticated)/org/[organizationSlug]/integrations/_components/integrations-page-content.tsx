@@ -374,7 +374,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
             >
               <Field className="gap-2">
                 <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
-                <Select value={selectedModel} onValueChange={(value) => setSelectedModel(value ?? "")}>
+                <Select
+                  value={selectedModel}
+                  onValueChange={(value) => setSelectedModel(value ?? "")}
+                >
                   <SelectTrigger
                     id={modelFieldId}
                     className="h-9 w-full border-foreground/10 bg-foreground/3 text-foreground focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
