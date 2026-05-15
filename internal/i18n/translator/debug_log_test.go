@@ -141,6 +141,26 @@ func TestMaskSecrets(t *testing.T) {
 			want: "google AIzaSyA1...efGH",
 		},
 		{
+			name: "anthropic secret",
+			in:   "anthropic sk-ant-api03-1234567890abcdef1234567890abcdef1234567890abcdef",
+			want: "anthropic sk-ant-a...cdef",
+		},
+		{
+			name: "groq secret",
+			in:   "groq gsk_1234567890abcdef1234567890abcdef1234567890abcdef",
+			want: "groq gsk_1234...cdef",
+		},
+		{
+			name: "mistral secret",
+			in:   "mistral mistral_1234567890abcdef1234567890abcdef",
+			want: "mistral mistral_...cdef",
+		},
+		{
+			name: "aws access key",
+			in:   "aws AKIA1234567890ABCDEF",
+			want: "aws AKIA1234...CDEF",
+		},
+		{
 			name: "multiple secrets",
 			in:   "keys: sk-proj-1234567890abcdef1234567890abcdef1234567890abcdef and hl_abc1234567890abcdef1234567890abcdef",
 			want: "keys: sk-proj-...cdef and hl_abc12...cdef",

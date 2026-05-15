@@ -38,7 +38,7 @@ type promptDebugEvent struct {
 
 var (
 	translatorPromptDebugLogger promptDebugLogger
-	secretRegex                 = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,})\b`)
+	secretRegex                 = regexp.MustCompile(`(?i)\b(sk-[a-z0-9-]{20,}|hl_[a-z0-9]{20,}|gsk_[a-z0-9]{20,}|mistral_[a-z0-9]{20,}|AIza[a-z0-9_-]{35,}|AKIA[A-Z0-9]{16})\b`)
 )
 
 func logPromptCall(req Request, providerName, systemPrompt, userPrompt string) {
