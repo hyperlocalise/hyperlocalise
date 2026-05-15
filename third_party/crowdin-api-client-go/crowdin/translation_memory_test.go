@@ -23,7 +23,9 @@ func TestTranslationMemoryService_GetTM(t *testing.T) {
 			"data": {
 				"id": 4,
 				"userId": 2,
+				"groupId": 1,
 				"name": "Knowledge Base's TM",
+				"description": "TM description",
 				"languageId": "fr",
 				"languageIds": ["el"],
 				"segmentsCount": 21,
@@ -42,7 +44,9 @@ func TestTranslationMemoryService_GetTM(t *testing.T) {
 	expected := &model.TranslationMemory{
 		ID:                4,
 		UserID:            2,
+		GroupID:           1,
 		Name:              "Knowledge Base's TM",
+		Description:       "TM description",
 		LanguageID:        "fr",
 		LanguageIDs:       []string{"el"},
 		SegmentsCount:     21,
@@ -162,13 +166,15 @@ func TestTranslationMemoryService_AddTM(t *testing.T) {
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, path)
-		testBody(t, r, `{"name":"Knowledge Base's TM","languageId":"fr"}`+"\n")
+		testBody(t, r, `{"name":"Knowledge Base's TM","languageId":"fr","groupId":2}`+"\n")
 
 		fmt.Fprint(w, `{
 			"data": {
 				"id": 4,
 				"userId": 2,
+				"groupId": 2,
 				"name": "Knowledge Base's TM",
+				"description": "New TM description",
 				"languageId": "fr",
 				"languageIds": ["el"],
 				"segmentsCount": 21,
@@ -183,6 +189,7 @@ func TestTranslationMemoryService_AddTM(t *testing.T) {
 	req := &model.TranslationMemoryAddRequest{
 		Name:       "Knowledge Base's TM",
 		LanguageID: "fr",
+		GroupID:    ToPtr(2),
 	}
 	tm, resp, err := client.TranslationMemory.AddTM(context.Background(), req)
 	require.NoError(t, err)
@@ -191,7 +198,9 @@ func TestTranslationMemoryService_AddTM(t *testing.T) {
 	expected := &model.TranslationMemory{
 		ID:                4,
 		UserID:            2,
+		GroupID:           2,
 		Name:              "Knowledge Base's TM",
+		Description:       "New TM description",
 		LanguageID:        "fr",
 		LanguageIDs:       []string{"el"},
 		SegmentsCount:     21,
