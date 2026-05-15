@@ -29,3 +29,9 @@
 **Learning:** The Pre-Translation status response includes an `eta` field and several attributes (`engineId`, `aiPromptId`, `fallbackLanguages`, `labelIds`, `excludeLabelIds`) that were missing from the SDK models. Additionally, documentation for `TagsDetection` was using incorrect values for "Skip tags".
 
 **Action:** Added `ETA` to `PreTranslation` and missing fields to `PreTranslationAttributes`. Used `*int` for `EngineID` and `AIPromptID` to correctly handle zero values vs omission. Updated `PreTranslationRequest` to include these fields as well. Corrected the `TagsDetection` comment in `ProjectsAddRequest`. Updated contract tests to verify parsing of these new fields.
+
+## 2026-06-12 - Improve Glossary and TM model parity for description and groupId
+
+**Learning:** Crowdin API v2 for Glossaries and Translation Memories includes a `description` field for both, and Translation Memories also support a `groupId` field in both responses and addition requests. These fields were missing from the Go SDK models, preventing users from fully managing these resources, especially in Enterprise environments where resource organization into groups is common.
+
+**Action:** Added `Description` field to `Glossary` and `GlossaryAddRequest` in `model/glossaries.go`. Added `Description` and `GroupID` fields to `TranslationMemory`, and `GroupID` (*int) to `TranslationMemoryAddRequest` in `model/translation_memory.go`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization.

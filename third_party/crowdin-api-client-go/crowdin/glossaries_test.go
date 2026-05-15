@@ -305,6 +305,7 @@ func TestGlossariesService_GetGlossary(t *testing.T) {
 			"data": {
 				"id": 2,
 				"name": "Be My Eyes iOS's Glossary",
+				"description": "This is a sample description.",
 				"groupId": 2,
 				"userId": 2,
 				"terms": 25,
@@ -325,6 +326,7 @@ func TestGlossariesService_GetGlossary(t *testing.T) {
 	expected := &model.Glossary{
 		ID:                2,
 		Name:              "Be My Eyes iOS's Glossary",
+		Description:       "This is a sample description.",
 		GroupID:           2,
 		UserID:            2,
 		Terms:             25,
@@ -457,12 +459,13 @@ func TestGlossariesService_AddGlossary(t *testing.T) {
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, path)
-		testBody(t, r, `{"name":"Be My Eyes iOS's Glossary","languageId":"fr","groupId":0}`+"\n")
+		testBody(t, r, `{"name":"Be My Eyes iOS's Glossary","description":"New Glossary Description","languageId":"fr","groupId":0}`+"\n")
 
 		fmt.Fprint(w, `{
 			"data": {
 				"id": 2,
 				"name": "Be My Eyes iOS's Glossary",
+				"description": "New Glossary Description",
 				"groupId": 2,
 				"userId": 2,
 				"terms": 25,
@@ -477,9 +480,10 @@ func TestGlossariesService_AddGlossary(t *testing.T) {
 	})
 
 	req := &model.GlossaryAddRequest{
-		Name:       "Be My Eyes iOS's Glossary",
-		LanguageID: "fr",
-		GroupID:    ToPtr(0),
+		Name:        "Be My Eyes iOS's Glossary",
+		Description: "New Glossary Description",
+		LanguageID:  "fr",
+		GroupID:     ToPtr(0),
 	}
 	glossary, resp, err := client.Glossaries.AddGlossary(context.Background(), req)
 	require.NoError(t, err)
@@ -488,6 +492,7 @@ func TestGlossariesService_AddGlossary(t *testing.T) {
 	expected := &model.Glossary{
 		ID:                2,
 		Name:              "Be My Eyes iOS's Glossary",
+		Description:       "New Glossary Description",
 		GroupID:           2,
 		UserID:            2,
 		Terms:             25,

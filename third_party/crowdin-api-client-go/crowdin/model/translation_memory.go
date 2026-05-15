@@ -10,7 +10,9 @@ import (
 type TranslationMemory struct {
 	ID                int      `json:"id"`
 	UserID            int      `json:"userId"`
+	GroupID           int      `json:"groupId,omitempty"`
 	Name              string   `json:"name"`
+	Description       string   `json:"description,omitempty"`
 	LanguageID        string   `json:"languageId"`
 	LanguageIDs       []string `json:"languageIds"`
 	SegmentsCount     int      `json:"segmentsCount"`
@@ -71,6 +73,10 @@ type TranslationMemoryAddRequest struct {
 	Name string `json:"name"`
 	// Translation Memory Language Identifier.
 	LanguageID string `json:"languageId"`
+	// Group Identifier - defines group to which Translation Memory is added.
+	// If `0` – Translation Memory will be available for all projects and groups
+	// in your workspace. Default: 0.
+	GroupID *int `json:"groupId,omitempty"`
 }
 
 // Validate checks if the TranslationMemoryAddRequest is valid.

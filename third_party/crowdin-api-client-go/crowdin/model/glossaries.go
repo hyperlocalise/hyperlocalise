@@ -117,6 +117,7 @@ func (r *ConceptUpdateRequest) Validate() error {
 type Glossary struct {
 	ID                int      `json:"id"`
 	Name              string   `json:"name"`
+	Description       string   `json:"description,omitempty"`
 	GroupID           int      `json:"groupId"`
 	UserID            int      `json:"userId"`
 	Terms             int      `json:"terms"`
@@ -182,6 +183,8 @@ func (o *GlossariesListOptions) Values() (url.Values, bool) {
 type GlossaryAddRequest struct {
 	// Glossary name.
 	Name string `json:"name"`
+	// Glossary description.
+	Description string `json:"description,omitempty"`
 	// Glossary Language Identifier.
 	LanguageID string `json:"languageId"`
 	// Group Identifier - defines group to which Glossary is added.
