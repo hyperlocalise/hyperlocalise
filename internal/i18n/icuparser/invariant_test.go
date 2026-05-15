@@ -61,3 +61,27 @@ func TestSameICUBlocks(t *testing.T) {
 		})
 	}
 }
+
+func TestCountPoundsNestedPlurals(t *testing.T) {
+	// Inside the "one" branch of c1, there is one # (for c1) and a nested c2 plural.
+	// The # inside the c2 plural MUST NOT be counted towards c1's pound count.
+	msg := "{c1, plural, one {# {c2, plural, one {#} other {##}}}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	foundC1 := false
+	for _, block := range inv.ICUBlocks {
+		if block.Arg == "c1" {
+			foundC1 = true
+			// Expected Pounds for c1: [1] (only the one # that refers to c1)
+			if len(block.Pounds) != 1 || block.Pounds[0] != 1 {
+				t.Errorf("expected c1 Pounds [1], got %v", block.Pounds)
+			}
+		}
+	}
+	if !foundC1 {
+		t.Fatal("block c1 not found")
+	}
+}

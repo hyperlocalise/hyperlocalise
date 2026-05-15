@@ -234,9 +234,9 @@ func countPounds(elems []Element) int {
 				total += countPounds(opt.Value)
 			}
 		case PluralElement:
-			for _, opt := range v.Options {
-				total += countPounds(opt.Value)
-			}
+			// Stop recursion into nested plurals because '#' within them
+			// refers to the nested plural's argument.
+			continue
 		}
 	}
 	return total

@@ -103,13 +103,15 @@ type noopEl struct{}
 func (noopEl) Type() ElementType { return "noop" }
 
 func TestCountPoundsNested(t *testing.T) {
+	// countPounds should recurse into Tags and Selects, but NOT into nested Plurals,
+	// as '#' inside nested plurals refers to the nested plural's argument.
 	n := countPounds([]Element{
 		TagElement{Children: []Element{PoundElement{}}},
 		SelectElement{Options: []SelectOption{{Value: []Element{PoundElement{}, PoundElement{}}}}},
 		PluralElement{Options: []PluralOption{{Value: []Element{PoundElement{}}}}},
 	})
-	if n != 4 {
-		t.Fatalf("countPounds: got %d", n)
+	if n != 3 {
+		t.Fatalf("countPounds: got %d, expected 3 (1 from tag, 2 from select, 0 from nested plural)", n)
 	}
 }
 
