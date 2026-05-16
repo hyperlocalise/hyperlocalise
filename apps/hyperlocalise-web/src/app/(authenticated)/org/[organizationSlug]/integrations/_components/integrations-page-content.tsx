@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Image from "next/image";
 import {
   CheckmarkCircle02Icon,
@@ -9,6 +9,7 @@ import {
   Key01Icon,
   SaveIcon,
 } from "@hugeicons/core-free-icons";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,6 +20,14 @@ import { createApiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -173,6 +182,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const [selectedModel, setSelectedModel] = useState(defaultModelByProvider.openai);
   const [apiKey, setApiKey] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  const modelFieldId = useId();
+  const apiKeyFieldId = useId();
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {
@@ -353,29 +366,37 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                   {
                     onSuccess: () => {
                       setApiKey("");
+                      setShowApiKey(false);
                       setDialogOpen(false);
                     },
                   },
                 );
               }}
             >
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-foreground">Default model</span>
-                <select
+              <Field className="gap-2">
+                <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
+                <Select
                   value={selectedModel}
-                  onChange={(event) => setSelectedModel(event.target.value)}
-                  className="h-9 w-full rounded-4xl border border-foreground/10 bg-foreground/3 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-dew-500/60 focus-visible:ring-[3px] focus-visible:ring-dew-500/20"
+                  onValueChange={(value) => setSelectedModel(value ?? "")}
                 >
-                  {selectedProviderConfig.models.map((model) => (
-                    <option key={model} value={model} className="bg-[#0b0b0b] text-foreground">
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <SelectTrigger
+                    id={modelFieldId}
+                    className="h-9 w-full border-foreground/10 bg-foreground/3 text-foreground focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#0b0b0b] text-foreground">
+                    {selectedProviderConfig.models.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
 
-              <label className="flex flex-col gap-2">
-                <span className="text-sm font-medium text-foreground">API key</span>
+              <Field className="gap-2">
+                <FieldLabel htmlFor={apiKeyFieldId}>API key</FieldLabel>
                 <div className="relative">
                   <HugeiconsIcon
                     icon={Key01Icon}
@@ -383,15 +404,24 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                     className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
                   />
                   <Input
-                    type="password"
+                    id={apiKeyFieldId}
+                    type={showApiKey ? "text" : "password"}
                     autoComplete="off"
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     placeholder={`Enter ${selectedProviderLabel} API key`}
-                    className="border-foreground/10 bg-foreground/3 ps-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    className="border-foreground/10 bg-foreground/3 ps-9 pe-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-foreground/38 transition-colors hover:text-foreground"
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                  >
+                    {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
                 </div>
-              </label>
+              </Field>
 
               <DialogFooter>
                 <Button
