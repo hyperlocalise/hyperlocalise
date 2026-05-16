@@ -61,3 +61,38 @@ func TestSameICUBlocks(t *testing.T) {
 		})
 	}
 }
+
+func TestCountPoundsNestedPlurals(t *testing.T) {
+	// Inside the "one" branch of c1, there is one # (for c1) and a nested c2 plural.
+	// The # inside the c2 plural MUST NOT be counted towards c1's pound count,
+	// as it refers to c2.
+	msg := "{c1, plural, one {# {c2, plural, one {#} other {##}}}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	// c1 has one option ("one") with 1 pound sign.
+	// c2 has two options ("one", "other") with 1 and 2 pound signs respectively.
+	expected := []struct {
+		arg    string
+		pounds []int
+	}{
+		{arg: "c1", pounds: []int{1}},
+		{arg: "c2", pounds: []int{1, 2}},
+	}
+
+	if len(inv.ICUBlocks) != len(expected) {
+		t.Fatalf("expected %d ICU blocks, got %d", len(expected), len(inv.ICUBlocks))
+	}
+
+	for i, exp := range expected {
+		block := inv.ICUBlocks[i]
+		if block.Arg != exp.arg {
+			t.Errorf("block %d: expected Arg %q, got %q", i, exp.arg, block.Arg)
+		}
+		if !slicesEqual(block.Pounds, exp.pounds) {
+			t.Errorf("block %d (%s): expected Pounds %v, got %v", i, exp.arg, exp.pounds, block.Pounds)
+		}
+	}
+}
