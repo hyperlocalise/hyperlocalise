@@ -320,15 +320,21 @@ func htmlSegmentKey(segment string, occurrences map[string]int) string {
 // expandHTMLPlaceholders replaces sentinel tokens in rendered with their original
 // tag bytes. Tokens are expanded longest-first to avoid partial-prefix collisions.
 func expandHTMLPlaceholders(rendered string, placeholders map[string]string) string {
+	if len(placeholders) == 0 {
+		return rendered
+	}
+	// BOLT OPTIMIZATION: Use strings.Replacer for single-pass replacement of all placeholders.
 	keys := make([]string, 0, len(placeholders))
 	for ph := range placeholders {
 		keys = append(keys, ph)
 	}
 	slices.SortFunc(keys, func(a, b string) int { return len(b) - len(a) })
+
+	oldnew := make([]string, 0, len(keys)*2)
 	for _, ph := range keys {
-		rendered = strings.ReplaceAll(rendered, ph, placeholders[ph])
+		oldnew = append(oldnew, ph, placeholders[ph])
 	}
-	return rendered
+	return strings.NewReplacer(oldnew...).Replace(rendered)
 }
 
 // MarshalHTML reconstructs template with translated values applied.

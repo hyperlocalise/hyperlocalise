@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 const unknownLiquidFilePath = "<unknown>"
@@ -349,19 +350,25 @@ func findLiquidSkippedBlockEnd(input string, from int, tagName string) (int, boo
 }
 
 func liquidPartHasTranslatableText(part htmlPart, liquidPlaceholders map[string]string) bool {
-	plain := part.source
-	for placeholder := range part.placeholders {
-		plain = strings.ReplaceAll(plain, placeholder, "")
-	}
-	for placeholder := range liquidPlaceholders {
-		// Boundary placeholders are emitted as HTML comments and stripped from
-		// text parts by the HTML parser; only inline tokens can appear here.
-		if strings.HasPrefix(placeholder, "<!--") {
+	// Optimization: instead of removing each placeholder via strings.ReplaceAll in a loop
+	// (which causes O(N*M) allocations), we skip any text between sentinel delimiters.
+	inPlaceholder := false
+	for _, r := range part.source {
+		if r == '\x1e' {
+			inPlaceholder = true
 			continue
 		}
-		plain = strings.ReplaceAll(plain, placeholder, "")
+		if r == '\x1f' {
+			inPlaceholder = false
+			continue
+		}
+		if !inPlaceholder {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				return true
+			}
+		}
 	}
-	return isTranslatableChunk(plain)
+	return false
 }
 
 func renderLiquidSourcePart(part htmlPart, liquidPlaceholders map[string]string) string {
@@ -455,15 +462,21 @@ func liquidPlaceholdersPresent(source, rendered string) bool {
 }
 
 func expandLiquidPlaceholders(rendered string, placeholders map[string]string) string {
+	if len(placeholders) == 0 {
+		return rendered
+	}
+	// BOLT OPTIMIZATION: Use strings.Replacer for single-pass replacement of all placeholders.
 	keys := make([]string, 0, len(placeholders))
 	for placeholder := range placeholders {
 		keys = append(keys, placeholder)
 	}
 	slices.SortFunc(keys, func(a, b string) int { return len(b) - len(a) })
+
+	oldnew := make([]string, 0, len(keys)*2)
 	for _, placeholder := range keys {
-		rendered = strings.ReplaceAll(rendered, placeholder, placeholders[placeholder])
+		oldnew = append(oldnew, placeholder, placeholders[placeholder])
 	}
-	return rendered
+	return strings.NewReplacer(oldnew...).Replace(rendered)
 }
 
 var liquidInternalPlaceholderPattern = regexp.MustCompile(`\x1eHL(?:LQ|HT)PH_[A-F0-9]{12}_[0-9]+\x1f`)
