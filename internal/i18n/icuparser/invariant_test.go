@@ -96,3 +96,25 @@ func TestCountPoundsNestedPlurals(t *testing.T) {
 		}
 	}
 }
+
+func TestSelectArgumentInPlaceholders(t *testing.T) {
+	// Select arguments MUST be included in the invariant's Placeholder list,
+	// just like plural arguments and simple interpolation placeholders.
+	msg := "{gender, select, male {male} other {other}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	found := false
+	for _, p := range inv.Placeholders {
+		if p == "gender" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected 'gender' in placeholders, got %v", inv.Placeholders)
+	}
+}

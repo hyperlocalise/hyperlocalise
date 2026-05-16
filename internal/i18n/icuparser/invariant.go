@@ -159,6 +159,7 @@ func appendPlaceholder(inv *Invariant, value string) {
 }
 
 func appendSelectBlockInvariant(inv *Invariant, v SelectElement, pluralArg string) {
+	appendPlaceholder(inv, v.Value)
 	inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
 		Arg:     v.Value,
 		Type:    "select",
