@@ -366,6 +366,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                   {
                     onSuccess: () => {
                       setApiKey("");
+                      setShowApiKey(false);
                       setDialogOpen(false);
                     },
                   },
