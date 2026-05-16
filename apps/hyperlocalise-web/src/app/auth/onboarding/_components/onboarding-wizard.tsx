@@ -7,10 +7,11 @@ import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
+  EyeIcon,
   SparklesIcon,
+  ViewOffIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
 import Link from "next/link";
 
 import type { LlmProvider } from "@/lib/database/types";
@@ -338,7 +339,11 @@ function ProviderCredentialStep({
                 className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                 aria-label={showApiKey ? "Hide API key" : "Show API key"}
               >
-                {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                <HugeiconsIcon
+                  icon={showApiKey ? ViewOffIcon : EyeIcon}
+                  size={16}
+                  strokeWidth={2}
+                />
               </button>
             </div>
             <FieldDescription>

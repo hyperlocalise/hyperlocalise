@@ -12,9 +12,9 @@ describe("OnboardingWizard Accessibility", () => {
         {},
         React.createElement(OnboardingWizard, {
           step: "provider",
-          providerSetupStatus: "pending"
-        })
-      )
+          providerSetupStatus: "pending",
+        }),
+      ),
     );
 
     // Check for API key label
@@ -34,9 +34,9 @@ describe("OnboardingWizard Accessibility", () => {
         TooltipProvider,
         {},
         React.createElement(OnboardingWizard, {
-          step: "create"
-        })
-      )
+          step: "create",
+        }),
+      ),
     );
 
     expect(markup).toContain("Workspace name");
