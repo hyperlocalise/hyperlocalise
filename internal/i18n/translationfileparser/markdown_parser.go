@@ -778,10 +778,15 @@ func restoreSourceReferenceDefinitionDestination(part markdownPart, rendered str
 }
 
 func expandMarkdownPlaceholders(rendered string, placeholders map[string]string) string {
-	for placeholder, original := range placeholders {
-		rendered = strings.ReplaceAll(rendered, placeholder, original)
+	if len(placeholders) == 0 {
+		return rendered
 	}
-	return rendered
+	// BOLT OPTIMIZATION: Use strings.Replacer for single-pass replacement of all placeholders.
+	oldnew := make([]string, 0, len(placeholders)*2)
+	for placeholder, original := range placeholders {
+		oldnew = append(oldnew, placeholder, original)
+	}
+	return strings.NewReplacer(oldnew...).Replace(rendered)
 }
 
 func normalizeMarkdownPlaceholders(rendered string, placeholders map[string]string) string {
