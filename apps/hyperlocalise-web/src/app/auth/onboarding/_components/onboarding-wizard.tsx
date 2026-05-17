@@ -25,6 +25,8 @@ import {
   FieldDescription,
   FieldError,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
@@ -225,7 +227,9 @@ function ProviderCredentialStep({
     ) {
       setSelectedModel(defaultModelByProvider[selectedProvider]);
     }
-  }, [selectedModel, selectedProvider]);
+    // Always hide API key when provider changes to prevent "wrong-provider" value visibility risk.
+    setShowApiKey(false);
+  }, [selectedProvider, selectedModel]);
 
   return (
     <div className="space-y-6">
@@ -263,39 +267,37 @@ function ProviderCredentialStep({
         <input type="hidden" name="provider" value={selectedProvider} />
         <input type="hidden" name="defaultModel" value={selectedModel} />
 
-        <Field>
-          <FieldContent>
-            <FieldLabel>Provider</FieldLabel>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
-                const isActive = provider === selectedProvider;
+        <FieldSet className="gap-2">
+          <FieldLegend variant="label">Provider</FieldLegend>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
+              const isActive = provider === selectedProvider;
 
-                return (
-                  <button
-                    key={provider}
-                    type="button"
-                    onClick={() => {
-                      setSelectedProvider(provider as LlmProvider);
-                      setSelectedModel(defaultModelByProvider[provider as LlmProvider]);
-                    }}
-                    className={cn(
-                      "rounded-3xl border px-4 py-4 text-left transition-colors",
-                      isActive
-                        ? "border-primary/40 bg-primary/10 text-foreground shadow-[0_12px_30px_rgba(79,180,141,0.12)]"
-                        : "border-border/70 bg-background/80 text-foreground hover:border-primary/25 hover:bg-primary/5",
-                    )}
-                  >
-                    <div className="text-sm font-medium">{providerConfig.label}</div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {providerConfig.models.length} curated models
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <FieldError>{state.fieldErrors?.provider}</FieldError>
-          </FieldContent>
-        </Field>
+              return (
+                <button
+                  key={provider}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProvider(provider as LlmProvider);
+                    setSelectedModel(defaultModelByProvider[provider as LlmProvider]);
+                  }}
+                  className={cn(
+                    "rounded-3xl border px-4 py-4 text-left transition-colors",
+                    isActive
+                      ? "border-primary/40 bg-primary/10 text-foreground shadow-[0_12px_30px_rgba(79,180,141,0.12)]"
+                      : "border-border/70 bg-background/80 text-foreground hover:border-primary/25 hover:bg-primary/5",
+                  )}
+                >
+                  <div className="text-sm font-medium">{providerConfig.label}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {providerConfig.models.length} curated models
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <FieldError>{state.fieldErrors?.provider}</FieldError>
+        </FieldSet>
 
         <Field>
           <FieldContent>
