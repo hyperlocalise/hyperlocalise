@@ -73,6 +73,7 @@ type LiquidRenderDiagnostics struct {
 type liquidDocument struct {
 	htmlDoc            htmlDocument
 	liquidPlaceholders map[string]string
+	liquidReplacer     *strings.Replacer
 }
 
 // MarshalLiquid reconstructs a Liquid template with translated values applied.
@@ -134,6 +135,8 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 		return liquidDocument{}, nil, err
 	}
 
+	liquidReplacer := newLiquidReplacer(liquidPlaceholders)
+
 	htmlDoc, _, err := parseHTMLDocument(masked)
 	if err != nil {
 		return liquidDocument{}, nil, err
@@ -147,7 +150,7 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 			continue
 		}
 		if !liquidPartHasTranslatableText(*part, liquidPlaceholders) {
-			part.literal = renderLiquidSourcePart(*part, liquidPlaceholders)
+			part.literal = renderLiquidSourcePart(*part, liquidReplacer)
 			part.key = ""
 			part.source = ""
 			part.placeholders = nil
@@ -164,6 +167,7 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 	return liquidDocument{
 		htmlDoc:            htmlDoc,
 		liquidPlaceholders: liquidPlaceholders,
+		liquidReplacer:     liquidReplacer,
 	}, entries, nil
 }
 
@@ -371,11 +375,11 @@ func liquidPartHasTranslatableText(part htmlPart, liquidPlaceholders map[string]
 	return false
 }
 
-func renderLiquidSourcePart(part htmlPart, liquidPlaceholders map[string]string) string {
+func renderLiquidSourcePart(part htmlPart, liquidReplacer *strings.Replacer) string {
 	if part.isVoidAttr {
-		return expandLiquidPlaceholders(part.voidTagPrefix+html.EscapeString(part.source)+part.voidTagSuffix, liquidPlaceholders)
+		return expandLiquidPlaceholders(part.voidTagPrefix+html.EscapeString(part.source)+part.voidTagSuffix, liquidReplacer)
 	}
-	return expandLiquidPlaceholders(expandHTMLPlaceholders(part.source, part.placeholders), liquidPlaceholders)
+	return expandLiquidPlaceholders(expandHTMLPlaceholders(part.source, part.placeholders), liquidReplacer)
 }
 
 func liquidSegmentKey(segment string, occurrences map[string]int) string {
@@ -397,7 +401,7 @@ func (d liquidDocument) render(values map[string]string) ([]byte, LiquidRenderDi
 		case part.isVoidAttr:
 			b.WriteString(d.renderVoidAttrPart(part, values, &diags))
 		case part.key == "":
-			b.WriteString(expandLiquidPlaceholders(part.literal, d.liquidPlaceholders))
+			b.WriteString(expandLiquidPlaceholders(part.literal, d.liquidReplacer))
 		default:
 			b.WriteString(d.renderTextPart(part, values, &diags))
 		}
@@ -416,14 +420,14 @@ func (d liquidDocument) renderVoidAttrPart(part htmlPart, values map[string]stri
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 		rendered = part.source
 	}
-	return expandLiquidPlaceholders(part.voidTagPrefix+html.EscapeString(rendered)+part.voidTagSuffix, d.liquidPlaceholders)
+	return expandLiquidPlaceholders(part.voidTagPrefix+html.EscapeString(rendered)+part.voidTagSuffix, d.liquidReplacer)
 }
 
 func (d liquidDocument) renderTextPart(part htmlPart, values map[string]string, diags *LiquidRenderDiagnostics) string {
 	translated, ok := values[part.key]
 	if !ok {
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
-		return renderLiquidSourcePart(part, d.liquidPlaceholders)
+		return renderLiquidSourcePart(part, d.liquidReplacer)
 	}
 
 	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
@@ -431,14 +435,14 @@ func (d liquidDocument) renderTextPart(part htmlPart, values map[string]string, 
 	// introduced (to prevent XSS).
 	if !htmlPlaceholdersPresent(part, rendered) || !liquidPlaceholdersPresent(part.source, rendered) || containsHTMLTag(rendered) {
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
-		return renderLiquidSourcePart(part, d.liquidPlaceholders)
+		return renderLiquidSourcePart(part, d.liquidReplacer)
 	}
 
 	rendered = expandHTMLPlaceholders(rendered, part.placeholders)
-	rendered = expandLiquidPlaceholders(rendered, d.liquidPlaceholders)
+	rendered = expandLiquidPlaceholders(rendered, d.liquidReplacer)
 	if strings.ContainsRune(rendered, '\x1e') || strings.ContainsRune(rendered, '\x1f') {
 		diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
-		return renderLiquidSourcePart(part, d.liquidPlaceholders)
+		return renderLiquidSourcePart(part, d.liquidReplacer)
 	}
 	return rendered
 }
@@ -461,11 +465,18 @@ func liquidPlaceholdersPresent(source, rendered string) bool {
 	return true
 }
 
-func expandLiquidPlaceholders(rendered string, placeholders map[string]string) string {
-	if len(placeholders) == 0 {
+func expandLiquidPlaceholders(rendered string, replacer *strings.Replacer) string {
+	if replacer == nil {
 		return rendered
 	}
-	// BOLT OPTIMIZATION: Use strings.Replacer for single-pass replacement of all placeholders.
+	return replacer.Replace(rendered)
+}
+
+func newLiquidReplacer(placeholders map[string]string) *strings.Replacer {
+	if len(placeholders) == 0 {
+		return nil
+	}
+
 	keys := make([]string, 0, len(placeholders))
 	for placeholder := range placeholders {
 		keys = append(keys, placeholder)
@@ -476,7 +487,7 @@ func expandLiquidPlaceholders(rendered string, placeholders map[string]string) s
 	for _, placeholder := range keys {
 		oldnew = append(oldnew, placeholder, placeholders[placeholder])
 	}
-	return strings.NewReplacer(oldnew...).Replace(rendered)
+	return strings.NewReplacer(oldnew...)
 }
 
 var liquidInternalPlaceholderPattern = regexp.MustCompile(`\x1eHL(?:LQ|HT)PH_[A-F0-9]{12}_[0-9]+\x1f`)
