@@ -4,6 +4,10 @@ import type { Logger as ChatLogger } from "chat";
 const isEdge = process.env.NEXT_RUNTIME === "edge";
 const isProduction = process.env.NODE_ENV === "production";
 
+/**
+ * Sensitive keys that should be redacted from logs.
+ * We use wildcards (*.key) to ensure these are caught at any depth in logged objects.
+ */
 export const REDACTION_PATHS = [
   "apiKey",
   "token",
@@ -17,16 +21,22 @@ export const REDACTION_PATHS = [
   "cookie",
   "x-api-key",
   "x-workos-signature",
-  "headers.authorization",
-  "headers.cookie",
-  "headers['x-api-key']",
-  "headers['x-workos-signature']",
-  "headers.x-api-key",
-  "headers.x-workos-signature",
-  "*.password",
   "*.apiKey",
   "*.token",
   "*.secret",
+  "*.password",
+  "*.credential",
+  "*.ciphertext",
+  "*.iv",
+  "*.authTag",
+  "*.authorization",
+  "*.cookie",
+  "*.x-api-key",
+  "*.x-workos-signature",
+  "headers.authorization",
+  "headers.cookie",
+  "headers.x-api-key",
+  "headers.x-workos-signature",
 ];
 
 const root = pino({
