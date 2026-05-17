@@ -4,8 +4,46 @@ import type { Logger as ChatLogger } from "chat";
 const isEdge = process.env.NEXT_RUNTIME === "edge";
 const isProduction = process.env.NODE_ENV === "production";
 
+/**
+ * Sensitive keys that should be redacted from logs.
+ */
+export const REDACTION_PATHS = [
+  "apiKey",
+  "token",
+  "secret",
+  "password",
+  "credential",
+  "ciphertext",
+  "iv",
+  "authTag",
+  "authorization",
+  "cookie",
+  '["x-api-key"]',
+  '["x-workos-signature"]',
+  "*.apiKey",
+  "*.token",
+  "*.secret",
+  "*.password",
+  "*.credential",
+  "*.ciphertext",
+  "*.iv",
+  "*.authTag",
+  "*.authorization",
+  "*.cookie",
+  "*.x-api-key",
+  "*.x-workos-signature",
+  "headers.authorization",
+  "headers.cookie",
+  'headers["x-api-key"]',
+  'headers["x-workos-signature"]',
+];
+
 const root = pino({
   level: process.env.LOG_LEVEL ?? "info",
+  redact: {
+    paths: REDACTION_PATHS,
+    censor: "[REDACTED]",
+  },
   ...(isProduction || isEdge
     ? {}
     : {
