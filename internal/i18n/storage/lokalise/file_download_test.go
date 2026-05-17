@@ -105,6 +105,36 @@ func TestDownloadTranslationFilesUsesCustomBundleStructure(t *testing.T) {
 	}
 }
 
+func TestDownloadTranslationFilesPreservesEscapedBranchProjectID(t *testing.T) {
+	client, mux, baseURL, teardown := newLokaliseTranslationDownloadClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api2/projects/", func(w http.ResponseWriter, r *http.Request) {
+		assertLokaliseDownloadRequest(t, r)
+		if got, want := r.URL.EscapedPath(), "/api2/projects/project-1:feature%2Fmy-branch/files/download"; got != want {
+			t.Fatalf("escaped path = %q, want %q", got, want)
+		}
+		writeLokaliseJSON(t, w, map[string]any{
+			"project_id": "project-1:feature%2Fmy-branch",
+			"bundle_url": baseURL + "/bundle.zip",
+		})
+	})
+	mux.HandleFunc("/bundle.zip", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(lokaliseZipFixture(t, map[string]string{
+			"fr.json": `{"hello":"Bonjour"}`,
+		}))
+	})
+
+	_, err := client.DownloadTranslationFiles(context.Background(), TranslationFileDownloadRequest{
+		ProjectID:       "project-1:feature%2Fmy-branch",
+		TargetLanguages: []string{"fr"},
+		Format:          "json",
+	})
+	if err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+}
+
 func TestDownloadTranslationFilesReturnsAPIError(t *testing.T) {
 	client, mux, _, teardown := newLokaliseTranslationDownloadClientForTest(t)
 	defer teardown()

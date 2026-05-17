@@ -338,6 +338,16 @@ func TestLokaliseDownloadTranslationsPrintsAPIWarning(t *testing.T) {
 	}
 }
 
+func TestLokaliseProjectIDWithBranchEscapesBranchOnce(t *testing.T) {
+	got, err := lokaliseProjectIDWithBranch("project-1", " feature/my-branch ")
+	if err != nil {
+		t.Fatalf("project ID with branch: %v", err)
+	}
+	if want := "project-1:feature%2Fmy-branch"; got != want {
+		t.Fatalf("project ID = %q, want %q", got, want)
+	}
+}
+
 func TestLokaliseDownloadTranslationsRequiresInputs(t *testing.T) {
 	t.Chdir(t.TempDir())
 
