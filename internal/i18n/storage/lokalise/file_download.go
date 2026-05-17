@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 	lokaliseapi "github.com/lokalise/go-lokalise-api/v5"
 )
 
@@ -197,21 +198,5 @@ func normalizeTranslationDownloadFormat(format string) string {
 }
 
 func normalizeTranslationDownloadLanguages(languages []string) []string {
-	normalized := make([]string, 0, len(languages))
-	seen := make(map[string]struct{}, len(languages))
-	for _, language := range languages {
-		for _, part := range strings.Split(language, ",") {
-			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
-			}
-			key := strings.ToLower(trimmed)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			normalized = append(normalized, trimmed)
-		}
-	}
-	return normalized
+	return locales.NormalizeList(languages)
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lokalise"
 	i18nconfig "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
@@ -293,11 +294,11 @@ func lokaliseTranslationOutputPaths(output string, locales []string) ([]string, 
 }
 
 func writeLokaliseDownloadedTranslation(path string, content []byte, force bool) error {
-	if err := validateLokaliseDownloadOutputPath(path, force); err != nil {
-		return err
-	}
 	if path == "" || path == "-" {
 		return fmt.Errorf("lokalise download translations: output file path is required")
+	}
+	if err := validateLokaliseDownloadOutputPath(path, force); err != nil {
+		return err
 	}
 	if dir := filepath.Dir(path); dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -390,23 +391,7 @@ func normalizeLokaliseDownloadFormat(format string) string {
 }
 
 func normalizeLokaliseDownloadLocales(values []string) []string {
-	out := make([]string, 0, len(values))
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
-			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
-			}
-			key := strings.ToLower(trimmed)
-			if _, ok := seen[key]; ok {
-				continue
-			}
-			seen[key] = struct{}{}
-			out = append(out, trimmed)
-		}
-	}
-	return out
+	return locales.NormalizeList(values)
 }
 
 func newLokaliseGlossaryCmd() *cobra.Command {
