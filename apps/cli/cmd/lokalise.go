@@ -187,7 +187,7 @@ func resolveLokaliseDownloadTranslationsConfig(o lokaliseDownloadTranslationsOpt
 	configPath := strings.TrimSpace(o.configPath)
 	shouldLoadConfig := configPath != "" || cfg.ProjectID == "" || (len(targets) == 0 && defaultI18NConfigExists())
 	if shouldLoadConfig {
-		loaded, err := loadLokaliseStorageConfigForAction(o.configPath, "lokalise download translations")
+		loaded, err := loadLokaliseStorageConfigForAction(configPath, "lokalise download translations")
 		if err != nil {
 			if configPath != "" || cfg.ProjectID == "" {
 				return lokalise.Config{}, lokalise.TranslationFileDownloadRequest{}, nil, err

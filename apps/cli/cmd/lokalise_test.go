@@ -155,7 +155,7 @@ storage:
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
 	cmd.SetErr(out)
-	cmd.SetArgs([]string{"lokalise", "download", "translations", "--config", configPath, "--format", "json", "--output", outputPath})
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--config", "  " + configPath + "  ", "--format", "json", "--output", outputPath})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute lokalise download translations: %v", err)
