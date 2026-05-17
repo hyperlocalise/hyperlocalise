@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	AdapterName         = "lokalise"
-	defaultTokenEnvName = "LOKALISE_API_TOKEN"
+	AdapterName = "lokalise"
+	// DefaultTokenEnvName is the fallback environment variable for Lokalise API tokens.
+	DefaultTokenEnvName = "LOKALISE_API_TOKEN"
+	defaultTokenEnvName = DefaultTokenEnvName
 )
 
 type Config struct {

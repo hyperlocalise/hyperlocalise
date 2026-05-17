@@ -169,7 +169,7 @@ func resolveLokaliseDownloadSourcesConfig(cmd *cobra.Command, o lokaliseDownload
 		if !flagChanged(cmd, "source-locale") && cfg.SourceLanguage == "" {
 			cfg.SourceLanguage = loaded.SourceLanguage
 		}
-		cfg.APIToken = loaded.APIToken
+		// Config.APIToken is json:"-"; ResolveConfig fills it from the environment when auth is required.
 	}
 
 	format := strings.TrimSpace(o.format)
@@ -338,16 +338,16 @@ func resolveLokaliseGlossaryConfig(o lokaliseGlossaryDownloadOptions) (lokalise.
 		return lokalise.Config{}, fmt.Errorf("lokalise glossary download: --project-id is required unless --config points to a Lokalise storage config")
 	}
 	if cfg.APITokenEnv == "" {
-		cfg.APITokenEnv = "LOKALISE_API_TOKEN"
+		cfg.APITokenEnv = lokalise.DefaultTokenEnvName
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
 		token := strings.TrimSpace(os.Getenv(cfg.APITokenEnv))
-		if token == "" && cfg.APITokenEnv != "LOKALISE_API_TOKEN" {
-			token = strings.TrimSpace(os.Getenv("LOKALISE_API_TOKEN"))
+		if token == "" && cfg.APITokenEnv != lokalise.DefaultTokenEnvName {
+			token = strings.TrimSpace(os.Getenv(lokalise.DefaultTokenEnvName))
 		}
 		if token == "" {
-			if cfg.APITokenEnv != "LOKALISE_API_TOKEN" {
-				return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s or LOKALISE_API_TOKEN)", cfg.APITokenEnv)
+			if cfg.APITokenEnv != lokalise.DefaultTokenEnvName {
+				return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s or %s)", cfg.APITokenEnv, lokalise.DefaultTokenEnvName)
 			}
 			return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s)", cfg.APITokenEnv)
 		}
@@ -395,7 +395,7 @@ func decodeLokaliseStorageConfig(raw json.RawMessage) (lokalise.Config, error) {
 		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
 	}
 	if _, exists := rawMap["apiToken"]; exists {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use LOKALISE_API_TOKEN")
+		return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use %s", lokalise.DefaultTokenEnvName)
 	}
 
 	var cfg lokalise.Config
@@ -411,12 +411,6 @@ func flagChanged(cmd *cobra.Command, name string) bool {
 }
 
 func writeLokaliseDownloadedSource(path string, content []byte, force bool) error {
-	if err := validateLokaliseDownloadSourcesOutputPath(path, force); err != nil {
-		return err
-	}
-	if path == "" || path == "-" {
-		return fmt.Errorf("lokalise download sources: output file path is required")
-	}
 	if dir := filepath.Dir(path); dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("lokalise download sources: mkdir output directory: %w", err)
