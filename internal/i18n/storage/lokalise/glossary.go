@@ -14,8 +14,10 @@ import (
 	"strings"
 )
 
-const glossaryCSVPageLimit = 500
-const glossaryLanguagePageLimit = 5000
+const (
+	glossaryCSVPageLimit      = 500
+	glossaryLanguagePageLimit = 5000
+)
 
 // Base columns for Lokalise's documented glossary CSV template.
 // Translation columns are added after these as <locale> and <locale>_description.
