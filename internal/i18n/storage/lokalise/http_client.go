@@ -3,14 +3,25 @@ package lokalise
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	lokaliseapi "github.com/lokalise/go-lokalise-api/v5"
 )
 
+const defaultBaseURL = "https://api.lokalise.com/api2"
+
 type HTTPClient struct {
+	// api serves the existing Lokalise key pull/push code paths.
 	api *lokaliseapi.Api
+	// apiToken is the single auth source for raw Lokalise API calls.
+	apiToken string
+	// baseURL and httpClient are kept for glossary endpoints that are called directly.
+	baseURL    string
+	httpClient *http.Client
 }
 
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
@@ -18,16 +29,68 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
+	httpClient := &http.Client{Timeout: timeout}
+	return NewHTTPClientWithBaseURL(cfg, cfg.APIBaseURL, httpClient)
+}
 
+func NewHTTPClientWithBaseURL(cfg Config, baseURL string, httpClient *http.Client) (*HTTPClient, error) {
+	if httpClient == nil {
+		return nil, fmt.Errorf("lokalise http client: client must not be nil")
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = defaultBaseURL
+	}
+	if err := validateBaseURL(baseURL); err != nil {
+		return nil, err
+	}
+
+	apiToken := strings.TrimSpace(cfg.APIToken)
+
+	// Keep the SDK initialized with the same base URL/timeout as the raw client
+	// so existing key sync and new glossary export behavior stay aligned.
 	api, err := lokaliseapi.New(
-		cfg.APIToken,
-		lokaliseapi.WithConnectionTimeout(timeout),
+		apiToken,
+		lokaliseapi.WithBaseURL(baseURL),
+		lokaliseapi.WithConnectionTimeout(httpClient.Timeout),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("lokalise client init: %w", err)
 	}
 
-	return &HTTPClient{api: api}, nil
+	return &HTTPClient{
+		api:        api,
+		apiToken:   apiToken,
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		httpClient: httpClient,
+	}, nil
+}
+
+func validateBaseURL(baseURL string) error {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil {
+		return fmt.Errorf("lokalise http client: invalid base URL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("lokalise http client: base URL must include scheme and host")
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("lokalise http client: base URL must not include userinfo, query, or fragment")
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()) {
+		return nil
+	}
+	return fmt.Errorf("lokalise http client: base URL must use https")
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func (c *HTTPClient) ListKeys(ctx context.Context, in ListKeysInput) ([]KeyTranslation, string, error) {

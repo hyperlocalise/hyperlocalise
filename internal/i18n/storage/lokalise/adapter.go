@@ -20,6 +20,7 @@ type Config struct {
 	ProjectID       string   `json:"projectID"`
 	APIToken        string   `json:"-"`
 	APITokenEnv     string   `json:"apiTokenEnv,omitempty"`
+	APIBaseURL      string   `json:"apiBaseURL,omitempty"`
 	SourceLanguage  string   `json:"sourceLanguage,omitempty"`
 	TargetLanguages []string `json:"targetLanguages,omitempty"`
 	TimeoutSeconds  int      `json:"timeoutSeconds,omitempty"`
