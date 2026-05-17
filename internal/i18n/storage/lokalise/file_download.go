@@ -49,8 +49,8 @@ func (c *HTTPClient) DownloadTranslationFiles(ctx context.Context, req Translati
 	if projectID == "" {
 		return TranslationFileDownloadResult{}, fmt.Errorf("lokalise translation download: project id is required")
 	}
-	locales := normalizeTranslationDownloadLanguages(req.TargetLanguages)
-	if len(locales) == 0 {
+	targetLocales := normalizeTranslationDownloadLanguages(req.TargetLanguages)
+	if len(targetLocales) == 0 {
 		return TranslationFileDownloadResult{}, fmt.Errorf("lokalise translation download: at least one target locale is required")
 	}
 	format := normalizeTranslationDownloadFormat(req.Format)
@@ -72,7 +72,7 @@ func (c *HTTPClient) DownloadTranslationFiles(ctx context.Context, req Translati
 		Format:            format,
 		OriginalFilenames: &originalFilenames,
 		BundleStructure:   bundleStructure,
-		FilterLangs:       locales,
+		FilterLangs:       targetLocales,
 	})
 	if err != nil {
 		return TranslationFileDownloadResult{}, fmt.Errorf("request lokalise translation download: %w", err)
@@ -85,7 +85,7 @@ func (c *HTTPClient) DownloadTranslationFiles(ctx context.Context, req Translati
 	if err != nil {
 		return TranslationFileDownloadResult{}, err
 	}
-	files, err := extractLokaliseTranslationBundle(payload, locales, format, bundleStructure)
+	files, err := extractLokaliseTranslationBundle(payload, targetLocales, format, bundleStructure)
 	if err != nil {
 		return TranslationFileDownloadResult{}, err
 	}
@@ -125,7 +125,7 @@ func (c *HTTPClient) downloadURL(ctx context.Context, rawURL string) ([]byte, er
 	return payload, nil
 }
 
-func extractLokaliseTranslationBundle(payload []byte, locales []string, format, bundleStructure string) ([]TranslationFile, error) {
+func extractLokaliseTranslationBundle(payload []byte, targetLocales []string, format, bundleStructure string) ([]TranslationFile, error) {
 	reader, err := zip.NewReader(bytes.NewReader(payload), int64(len(payload)))
 	if err != nil {
 		return nil, fmt.Errorf("read lokalise translation bundle: %w", err)
@@ -141,8 +141,8 @@ func extractLokaliseTranslationBundle(payload []byte, locales []string, format, 
 		return nil, fmt.Errorf("lokalise translation download: downloaded bundle did not contain files")
 	}
 
-	files := make([]TranslationFile, 0, len(locales))
-	for _, locale := range locales {
+	files := make([]TranslationFile, 0, len(targetLocales))
+	for _, locale := range targetLocales {
 		expectedName := renderLokaliseBundlePath(bundleStructure, locale, format)
 		file, ok := byName[expectedName]
 		if !ok {

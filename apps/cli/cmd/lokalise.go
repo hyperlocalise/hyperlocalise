@@ -270,13 +270,13 @@ func lokaliseProjectIDWithBranch(projectID, branch string) (string, error) {
 	return projectID + ":" + url.PathEscape(branch), nil
 }
 
-func lokaliseTranslationOutputPaths(output string, locales []string) ([]string, error) {
-	if len(locales) == 0 {
+func lokaliseTranslationOutputPaths(output string, targetLocales []string) ([]string, error) {
+	if len(targetLocales) == 0 {
 		return nil, nil
 	}
-	if len(locales) == 1 {
+	if len(targetLocales) == 1 {
 		if strings.Contains(output, "%locale%") {
-			return []string{strings.ReplaceAll(output, "%locale%", locales[0])}, nil
+			return []string{strings.ReplaceAll(output, "%locale%", targetLocales[0])}, nil
 		}
 		return []string{output}, nil
 	}
@@ -286,8 +286,8 @@ func lokaliseTranslationOutputPaths(output string, locales []string) ([]string, 
 	if !strings.Contains(output, "%locale%") {
 		return nil, fmt.Errorf("lokalise download translations: --output must include %%locale%% when downloading multiple target locales")
 	}
-	paths := make([]string, 0, len(locales))
-	for _, locale := range locales {
+	paths := make([]string, 0, len(targetLocales))
+	for _, locale := range targetLocales {
 		paths = append(paths, strings.ReplaceAll(output, "%locale%", locale))
 	}
 	return paths, nil
