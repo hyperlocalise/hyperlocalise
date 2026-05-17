@@ -19,7 +19,7 @@ type HTTPClient struct {
 	api *lokaliseapi.Api
 	// apiToken is the single auth source for raw Lokalise API calls.
 	apiToken string
-	// baseURL and httpClient are kept for glossary endpoints that are called directly.
+	// baseURL and httpClient are kept for endpoints and bundles called directly.
 	baseURL    string
 	httpClient *http.Client
 }

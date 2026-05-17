@@ -95,6 +95,11 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
 
+	return ResolveConfig(cfg)
+}
+
+// ResolveConfig applies Lokalise defaults and resolves token-based auth.
+func ResolveConfig(cfg Config) (Config, error) {
 	if strings.TrimSpace(cfg.APITokenEnv) == "" {
 		cfg.APITokenEnv = defaultTokenEnvName
 	}
@@ -119,6 +124,13 @@ func validateConfig(cfg Config) error {
 		return fmt.Errorf("lokalise config: projectID is required")
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
+		tokenEnv := strings.TrimSpace(cfg.APITokenEnv)
+		if tokenEnv == "" {
+			tokenEnv = defaultTokenEnvName
+		}
+		if tokenEnv != defaultTokenEnvName {
+			return fmt.Errorf("lokalise config: API token is required (%s or %s)", tokenEnv, defaultTokenEnvName)
+		}
 		return fmt.Errorf("lokalise config: API token is required (%s)", defaultTokenEnvName)
 	}
 	return nil

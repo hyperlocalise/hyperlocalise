@@ -1,0 +1,187 @@
+package lokalise
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func TestDownloadSourceFileFetchesBundle(t *testing.T) {
+	var exportCalled bool
+	var bundleCalled bool
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api2/projects/project-1/files/download":
+			exportCalled = true
+			w.Header().Set("Content-Type", "application/json")
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %s, want POST", r.Method)
+			}
+			if got := r.Header.Get("X-Api-Token"); got != "secret" {
+				t.Fatalf("unexpected auth header: %q", got)
+			}
+			var body struct {
+				Format            string   `json:"format"`
+				OriginalFilenames *bool    `json:"original_filenames"`
+				AllPlatforms      bool     `json:"all_platforms"`
+				FilterLangs       []string `json:"filter_langs"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode request body: %v", err)
+			}
+			if body.Format != "json" {
+				t.Fatalf("format = %q, want json", body.Format)
+			}
+			if body.OriginalFilenames == nil || !*body.OriginalFilenames {
+				t.Fatalf("expected original_filenames=true, got %#v", body.OriginalFilenames)
+			}
+			if !body.AllPlatforms {
+				t.Fatalf("expected all_platforms=true")
+			}
+			if len(body.FilterLangs) != 1 || body.FilterLangs[0] != "en" {
+				t.Fatalf("filter_langs = %#v, want [en]", body.FilterLangs)
+			}
+			_, _ = fmt.Fprintf(w, `{"project_id":"project-1","bundle_url":%q}`, server.URL+"/bundle/source.zip")
+		case "/bundle/source.zip":
+			bundleCalled = true
+			_, _ = w.Write([]byte("zip-bytes"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPClient(Config{
+		APIToken:       "secret",
+		APIBaseURL:     server.URL + "/api2/",
+		TimeoutSeconds: 1,
+	})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+
+	result, err := client.DownloadSourceFile(t.Context(), SourceDownloadInput{
+		ProjectID:    " project-1 ",
+		SourceLocale: " en ",
+		FileFormat:   " json ",
+	})
+	if err != nil {
+		t.Fatalf("download source file: %v", err)
+	}
+	if !exportCalled || !bundleCalled {
+		t.Fatalf("expected export and bundle requests, export=%t bundle=%t", exportCalled, bundleCalled)
+	}
+	if string(result.Content) != "zip-bytes" {
+		t.Fatalf("unexpected content: %q", string(result.Content))
+	}
+	if result.ProjectID != "project-1" || result.SourceLocale != "en" || result.Format != "json" {
+		t.Fatalf("unexpected result metadata: %+v", result)
+	}
+	if result.BundleURL != server.URL+"/bundle/source.zip" {
+		t.Fatalf("unexpected bundle URL: %q", result.BundleURL)
+	}
+}
+
+func TestDownloadSourceFileValidatesRequiredFields(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  Config
+		in   SourceDownloadInput
+		want string
+	}{
+		{name: "project", cfg: Config{APIToken: "secret", TimeoutSeconds: 1}, in: SourceDownloadInput{SourceLocale: "en", FileFormat: "json"}, want: "project id is required"},
+		{name: "token", cfg: Config{TimeoutSeconds: 1}, in: SourceDownloadInput{ProjectID: "project-1", SourceLocale: "en", FileFormat: "json"}, want: "api token is required"},
+		{name: "locale", cfg: Config{APIToken: "secret", TimeoutSeconds: 1}, in: SourceDownloadInput{ProjectID: "project-1", FileFormat: "json"}, want: "source locale is required"},
+		{name: "format", cfg: Config{APIToken: "secret", TimeoutSeconds: 1}, in: SourceDownloadInput{ProjectID: "project-1", SourceLocale: "en"}, want: "file format is required"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client, err := NewHTTPClient(tt.cfg)
+			if err != nil {
+				t.Fatalf("new http client: %v", err)
+			}
+			_, err = client.DownloadSourceFile(t.Context(), tt.in)
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("expected %q error, got %v", tt.want, err)
+			}
+		})
+	}
+}
+
+func TestDownloadSourceFileAPIError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPClient(Config{APIToken: "secret", APIBaseURL: server.URL + "/api2/", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+
+	_, err = client.DownloadSourceFile(t.Context(), SourceDownloadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FileFormat:   "json",
+	})
+	if err == nil || !strings.Contains(err.Error(), "request export bundle") {
+		t.Fatalf("expected API error, got %v", err)
+	}
+}
+
+func TestDownloadSourceFileEmptyBundleURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"project_id":"project-1","bundle_url":""}`))
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPClient(Config{APIToken: "secret", APIBaseURL: server.URL + "/api2/", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+
+	_, err = client.DownloadSourceFile(t.Context(), SourceDownloadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FileFormat:   "json",
+	})
+	if err == nil || !strings.Contains(err.Error(), "empty bundle URL") {
+		t.Fatalf("expected empty bundle URL error, got %v", err)
+	}
+}
+
+func TestDownloadSourceFileBundleError(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api2/projects/project-1/files/download":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, `{"project_id":"project-1","bundle_url":%q}`, server.URL+"/bundle/source.zip")
+		case "/bundle/source.zip":
+			http.Error(w, "missing bundle", http.StatusNotFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPClient(Config{APIToken: "secret", APIBaseURL: server.URL + "/api2/", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+
+	_, err = client.DownloadSourceFile(t.Context(), SourceDownloadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FileFormat:   "json",
+	})
+	if err == nil || !strings.Contains(err.Error(), "status 404") {
+		t.Fatalf("expected bundle status error, got %v", err)
+	}
+}
