@@ -149,6 +149,36 @@ func TestDownloadTranslationFilesErrorsWhenLocaleMissingFromBundle(t *testing.T)
 	}
 }
 
+func TestDownloadTranslationFilesErrorsWhenBundleTooLarge(t *testing.T) {
+	client, mux, baseURL, teardown := newLokaliseTranslationDownloadClientForTest(t)
+	defer teardown()
+
+	oldLimit := maxTranslationBundleBytes
+	maxTranslationBundleBytes = 4
+	defer func() {
+		maxTranslationBundleBytes = oldLimit
+	}()
+
+	mux.HandleFunc("/api2/projects/project-1/files/download", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"project_id": "project-1",
+			"bundle_url": baseURL + "/bundle.zip",
+		})
+	})
+	mux.HandleFunc("/bundle.zip", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("12345"))
+	})
+
+	_, err := client.DownloadTranslationFiles(context.Background(), TranslationFileDownloadRequest{
+		ProjectID:       "project-1",
+		TargetLanguages: []string{"fr"},
+		Format:          "json",
+	})
+	if err == nil || !strings.Contains(err.Error(), "bundle too large") {
+		t.Fatalf("error = %v, want bundle too large", err)
+	}
+}
+
 func newLokaliseTranslationDownloadClientForTest(t *testing.T) (*HTTPClient, *http.ServeMux, string, func()) {
 	t.Helper()
 	mux := http.NewServeMux()

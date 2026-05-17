@@ -15,6 +15,8 @@ import (
 
 const defaultTranslationBundleStructure = "%LANG_ISO%.%FORMAT%"
 
+var maxTranslationBundleBytes int64 = 256 << 20
+
 // TranslationFileDownloadRequest identifies a Lokalise file export.
 type TranslationFileDownloadRequest struct {
 	ProjectID       string
@@ -112,9 +114,12 @@ func (c *HTTPClient) downloadURL(ctx context.Context, rawURL string) ([]byte, er
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("download lokalise bundle: unexpected status %s", resp.Status)
 	}
-	payload, err := io.ReadAll(resp.Body)
+	payload, err := io.ReadAll(io.LimitReader(resp.Body, maxTranslationBundleBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read lokalise bundle: %w", err)
+	}
+	if int64(len(payload)) > maxTranslationBundleBytes {
+		return nil, fmt.Errorf("read lokalise bundle: bundle too large (max %d bytes)", maxTranslationBundleBytes)
 	}
 	return payload, nil
 }

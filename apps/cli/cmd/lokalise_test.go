@@ -227,6 +227,42 @@ func TestLokaliseDownloadTranslationsRejectsExistingOutputWithoutForce(t *testin
 	}
 }
 
+func TestLokaliseDownloadTranslationsForceOverwritesExistingOutput(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseTranslationDownloader
+	defer func() {
+		newLokaliseTranslationDownloader = oldFactory
+	}()
+	newLokaliseTranslationDownloader = func(lokalise.Config) (lokaliseTranslationDownloader, error) {
+		return &fakeLokaliseTranslationDownloader{
+			files: []lokalise.TranslationFile{{Locale: "fr", Name: "fr.json", Content: []byte(`{"hello":"Bonjour"}`)}},
+		}, nil
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "fr.json")
+	if err := os.WriteFile(outputPath, []byte("existing"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--output", outputPath, "--force"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download translations: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if got, want := string(content), `{"hello":"Bonjour"}`; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
 func TestLokaliseDownloadTranslationsRequiresInputs(t *testing.T) {
 	t.Chdir(t.TempDir())
 
@@ -242,6 +278,25 @@ func TestLokaliseDownloadTranslationsRequiresInputs(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--project-id") {
 		t.Fatalf("error = %v, want --project-id", err)
+	}
+}
+
+func TestLokaliseDownloadTranslationsRequiresTargetLocaleBeforeOptionalConfigError(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--project-id", "project-1", "--format", "json"})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "at least one --target-locale is required") {
+		t.Fatalf("error = %v, want target locale requirement", err)
+	}
+	if strings.Contains(err.Error(), "load config") {
+		t.Fatalf("error = %v, should not surface optional config load failure", err)
 	}
 }
 

@@ -184,10 +184,12 @@ func resolveLokaliseDownloadTranslationsConfig(cmd *cobra.Command, o lokaliseDow
 		return lokalise.Config{}, lokalise.TranslationFileDownloadRequest{}, nil, fmt.Errorf("lokalise download translations: --project-id is required unless --config points to a Lokalise storage config")
 	}
 
-	if strings.TrimSpace(o.configPath) != "" || cfg.ProjectID == "" || len(targets) == 0 {
+	configPath := strings.TrimSpace(o.configPath)
+	shouldLoadConfig := configPath != "" || cfg.ProjectID == "" || (len(targets) == 0 && defaultI18NConfigExists())
+	if shouldLoadConfig {
 		loaded, err := loadLokaliseStorageConfigForAction(o.configPath, "lokalise download translations")
 		if err != nil {
-			if strings.TrimSpace(o.configPath) != "" || cfg.ProjectID == "" || len(targets) == 0 {
+			if configPath != "" || cfg.ProjectID == "" {
 				return lokalise.Config{}, lokalise.TranslationFileDownloadRequest{}, nil, err
 			}
 		} else {
@@ -342,10 +344,6 @@ func writeLokaliseDownloadedFileAtomic(path string, content []byte, perm os.File
 		_ = file.Close()
 		return fmt.Errorf("lokalise download translations: write temp output file %q: %w", path, err)
 	}
-	if err := file.Chmod(perm); err != nil {
-		_ = file.Close()
-		return fmt.Errorf("lokalise download translations: chmod temp output file %q: %w", path, err)
-	}
 	if err := file.Sync(); err != nil {
 		_ = file.Close()
 		return fmt.Errorf("lokalise download translations: sync temp output file %q: %w", path, err)
@@ -357,6 +355,7 @@ func writeLokaliseDownloadedFileAtomic(path string, content []byte, perm os.File
 		return fmt.Errorf("lokalise download translations: replace output file %q: %w", path, err)
 	}
 	renamed = true
+	_ = os.Chmod(path, perm)
 	return nil
 }
 
