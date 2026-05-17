@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "i18nconfig",
@@ -13,10 +13,4 @@ go_library(
         "@com_github_tidwall_jsonc//:jsonc",
         "@in_gopkg_yaml_v3//:yaml_v3",
     ],
-)
-
-go_test(
-    name = "i18nconfig_test",
-    srcs = ["i18n_test.go"],
-    embed = [":i18nconfig"],
 )

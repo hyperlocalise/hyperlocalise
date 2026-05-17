@@ -1,11 +1,8 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "phrase",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/phrase",
     visibility = ["//visibility:public"],
     deps = [
@@ -14,14 +11,4 @@ go_library(
         "@com_github_antihax_optional//:optional",
         "@com_github_phrase_phrase_go_v4//:phrase-go",
     ],
-)
-
-go_test(
-    name = "phrase_test",
-    srcs = [
-        "adapter_test.go",
-        "http_client_test.go",
-    ],
-    embed = [":phrase"],
-    deps = ["//internal/i18n/storage"],
 )

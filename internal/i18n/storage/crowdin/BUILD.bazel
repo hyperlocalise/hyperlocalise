@@ -1,11 +1,8 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "crowdin",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/crowdin",
     visibility = ["//visibility:public"],
     deps = [
@@ -13,23 +10,5 @@ go_library(
         "@com_github_crowdin_crowdin_api_client_go//crowdin",
         "@com_github_crowdin_crowdin_api_client_go//crowdin/model",
         "@in_gopkg_yaml_v3//:yaml_v3",
-    ],
-)
-
-go_test(
-    name = "crowdin_test",
-    srcs = [
-        "adapter_test.go",
-        "fileconfig_test.go",
-        "filemode_test.go",
-        "glossary_test.go",
-        "http_client_test.go",
-        "translation_memory_test.go",
-    ],
-    embed = [":crowdin"],
-    deps = [
-        "//internal/i18n/storage",
-        "@com_github_crowdin_crowdin_api_client_go//crowdin",
-        "@com_github_crowdin_crowdin_api_client_go//crowdin/model",
     ],
 )

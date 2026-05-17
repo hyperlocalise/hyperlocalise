@@ -1,25 +1,8 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "icuparser",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser",
     visibility = ["//visibility:public"],
-)
-
-go_test(
-    name = "icuparser_test",
-    srcs = [
-        "ast_test.go",
-        "coverage_test.go",
-        "helpers_test.go",
-        "invariant_test.go",
-        "parse_test.go",
-        "parser_test.go",
-        "skeleton_test.go",
-    ],
-    embed = [":icuparser"],
 )

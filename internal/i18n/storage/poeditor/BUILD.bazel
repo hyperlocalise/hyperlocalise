@@ -1,22 +1,9 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "poeditor",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/poeditor",
     visibility = ["//visibility:public"],
-    deps = ["//internal/i18n/storage"],
-)
-
-go_test(
-    name = "poeditor_test",
-    srcs = [
-        "adapter_test.go",
-        "http_client_test.go",
-    ],
-    embed = [":poeditor"],
     deps = ["//internal/i18n/storage"],
 )

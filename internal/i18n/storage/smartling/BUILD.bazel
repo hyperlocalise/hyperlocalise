@@ -2,10 +2,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "smartling",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/smartling",
     visibility = ["//visibility:public"],
     deps = ["//internal/i18n/storage"],
@@ -15,5 +12,4 @@ go_test(
     name = "smartling_test",
     srcs = glob(["*_test.go"]),
     embed = [":smartling"],
-    deps = ["//internal/i18n/storage"],
 )

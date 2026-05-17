@@ -21,4 +21,4 @@
 ## 2026-05-25 - [Enhancement] Automatic Log Redaction in pino Logger
 **Vulnerability:** Accidental leakage of sensitive keys (API keys, tokens, passwords) and HTTP headers (Authorization, Cookie) into application logs when logging request/response bodies or authentication objects.
 **Learning:** Centralizing redaction at the logger level using `pino`'s built-in `redact` feature provides a failsafe against developer oversight when logging complex objects that might contain secrets.
-**Prevention:** Configure a global list of sensitive paths and wildcards (e.g., `*.password`, `headers['x-api-key']`) in the root logger to ensure consistent redaction across the entire application.
+**Prevention:** Configure a global list of sensitive paths and wildcards (e.g., `*.password`, `headers["x-api-key"]`) in the root logger to ensure consistent redaction across the entire application.

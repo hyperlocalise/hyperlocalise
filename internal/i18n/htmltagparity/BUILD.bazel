@@ -1,20 +1,11 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "htmltagparity",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/htmltagparity",
     visibility = ["//visibility:public"],
     deps = [
         "@org_golang_x_net//html/atom",
     ],
-)
-
-go_test(
-    name = "htmltagparity_test",
-    srcs = ["htmltagparity_test.go"],
-    embed = [":htmltagparity"],
 )

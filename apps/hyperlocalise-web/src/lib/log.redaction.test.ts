@@ -73,8 +73,6 @@ describe("Logger Redaction", () => {
 
     const parsed = JSON.parse(loggedData);
     expect(parsed.headers.authorization).toBe("[REDACTED]");
-    // Note: if dot notation is required, this might still fail if pino doesn't handle bracket notation
-    // But testing our actual config.
     expect(parsed.headers["x-api-key"]).toBe("[REDACTED]");
     expect(parsed.headers["content-type"]).toBe("application/json");
   });

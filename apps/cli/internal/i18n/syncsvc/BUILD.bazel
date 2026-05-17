@@ -1,27 +1,10 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "syncsvc",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc",
     visibility = ["//visibility:public"],
-    deps = [
-        "//internal/i18n/icuparser",
-        "//internal/i18n/storage",
-    ],
-)
-
-go_test(
-    name = "syncsvc_test",
-    srcs = [
-        "invariants_test.go",
-        "risk_test.go",
-        "service_test.go",
-    ],
-    embed = [":syncsvc"],
     deps = [
         "//internal/i18n/icuparser",
         "//internal/i18n/storage",

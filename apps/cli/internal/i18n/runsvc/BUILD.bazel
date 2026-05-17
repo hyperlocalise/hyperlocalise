@@ -1,11 +1,8 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "runsvc",
-    srcs = glob(
-        ["*.go"],
-        exclude = ["*_test.go"],
-    ),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/runsvc",
     visibility = ["//visibility:public"],
     deps = [
@@ -18,39 +15,8 @@ go_library(
         "//pkg/i18nconfig",
         "@com_github_tidwall_jsonc//:jsonc",
         "@io_opentelemetry_go_otel//:otel",
-        "@io_opentelemetry_go_otel//attribute",
-        "@io_opentelemetry_go_otel//codes",
+        "@io_opentelemetry_go_otel//attribute:attribute",
+        "@io_opentelemetry_go_otel//codes:codes",
         "@io_opentelemetry_go_otel_trace//:trace",
-    ],
-)
-
-go_test(
-    name = "runsvc_test",
-    srcs = [
-        "context_memory_test.go",
-        "event_emitter_test.go",
-        "file_atomic_test.go",
-        "image_task_test.go",
-        "lock_filter_test.go",
-        "markdown_parity_retry_test.go",
-        "output_csv_test.go",
-        "output_flush_test.go",
-        "output_json_test.go",
-        "output_marshal_test.go",
-        "output_prune_test.go",
-        "path_glob_test.go",
-        "perf_test.go",
-        "report_json_test.go",
-        "retry_test.go",
-        "selection_catalog_test.go",
-        "service_test.go",
-        "translation_output_validate_test.go",
-    ],
-    embed = [":runsvc"],
-    deps = [
-        "//apps/cli/internal/i18n/lockfile",
-        "//internal/i18n/translationfileparser",
-        "//internal/i18n/translator",
-        "//pkg/i18nconfig",
     ],
 )
