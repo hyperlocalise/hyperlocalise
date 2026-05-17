@@ -82,7 +82,6 @@ func newLokaliseDownloadCmd() *cobra.Command {
 
 func newLokaliseDownloadTranslationsCmd() *cobra.Command {
 	o := lokaliseDownloadTranslationsOptions{
-		tokenEnv:       "LOKALISE_API_TOKEN",
 		timeoutSeconds: 30,
 	}
 	cmd := &cobra.Command{
@@ -109,7 +108,7 @@ func newLokaliseDownloadTranslationsCmd() *cobra.Command {
 }
 
 func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadTranslationsOptions) error {
-	cfg, req, targets, err := resolveLokaliseDownloadTranslationsConfig(cmd, o, !o.dryRun)
+	cfg, req, targets, err := resolveLokaliseDownloadTranslationsConfig(o, !o.dryRun)
 	if err != nil {
 		return err
 	}
@@ -171,7 +170,7 @@ func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadT
 	return nil
 }
 
-func resolveLokaliseDownloadTranslationsConfig(cmd *cobra.Command, o lokaliseDownloadTranslationsOptions, requireAuth bool) (lokalise.Config, lokalise.TranslationFileDownloadRequest, []string, error) {
+func resolveLokaliseDownloadTranslationsConfig(o lokaliseDownloadTranslationsOptions, requireAuth bool) (lokalise.Config, lokalise.TranslationFileDownloadRequest, []string, error) {
 	cfg := lokalise.Config{
 		ProjectID:      strings.TrimSpace(o.projectID),
 		APITokenEnv:    strings.TrimSpace(o.tokenEnv),

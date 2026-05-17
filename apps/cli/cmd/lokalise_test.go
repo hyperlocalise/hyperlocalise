@@ -144,7 +144,7 @@ storage:
 		files: []lokalise.TranslationFile{{Locale: "fr", Name: "fr.json", Content: []byte(`{"hello":"Bonjour"}`)}},
 	}
 	newLokaliseTranslationDownloader = func(cfg lokalise.Config) (lokaliseTranslationDownloader, error) {
-		if cfg.ProjectID != "project-from-config" || cfg.APIToken != "secret" {
+		if cfg.ProjectID != "project-from-config" || cfg.APIToken != "secret" || cfg.APITokenEnv != "LOKALISE_TEST_TOKEN" {
 			t.Fatalf("config = %#v, want project/token from config", cfg)
 		}
 		return fake, nil
