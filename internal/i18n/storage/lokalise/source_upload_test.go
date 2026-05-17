@@ -188,6 +188,37 @@ func TestUploadSourceFileReturnsAPIError(t *testing.T) {
 	}
 }
 
+func TestUploadSourceFileRejectsLargeFile(t *testing.T) {
+	client, mux, teardown := newLokaliseUploadClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api2/projects/project-1/files/upload", func(http.ResponseWriter, *http.Request) {
+		t.Fatalf("upload endpoint should not be called for oversized files")
+	})
+
+	sourcePath := filepath.Join(t.TempDir(), "large.json")
+	file, err := os.Create(sourcePath)
+	if err != nil {
+		t.Fatalf("create source file: %v", err)
+	}
+	if err := file.Truncate(maxLokaliseUploadFileBytes + 1); err != nil {
+		_ = file.Close()
+		t.Fatalf("truncate source file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close source file: %v", err)
+	}
+
+	_, err = client.UploadSourceFile(context.Background(), SourceUploadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FilePath:     sourcePath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "exceeds maximum upload size") {
+		t.Fatalf("error = %v, want maximum upload size error", err)
+	}
+}
+
 func TestUploadSourceFileRequiresFormatWhenExtensionMissing(t *testing.T) {
 	client, _, teardown := newLokaliseUploadClientForTest(t)
 	defer teardown()

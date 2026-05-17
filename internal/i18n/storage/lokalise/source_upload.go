@@ -14,7 +14,10 @@ import (
 	"strings"
 )
 
-const maxLokaliseUploadResponseBody = 1 << 20
+const (
+	maxLokaliseUploadFileBytes    = 20 << 20
+	maxLokaliseUploadResponseBody = 1 << 20
+)
 
 // SourceUploadInput describes one Lokalise source file import.
 type SourceUploadInput struct {
@@ -81,6 +84,10 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 		return SourceUploadResult{}, err
 	}
 
+	info, statErr := os.Stat(in.FilePath)
+	if statErr == nil && info.Size() > maxLokaliseUploadFileBytes {
+		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
+	}
 	content, err := os.ReadFile(in.FilePath)
 	if err != nil {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: read source file %q: %w", in.FilePath, err)
