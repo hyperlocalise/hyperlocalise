@@ -88,9 +88,12 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 }
 
 func (c *HTTPClient) downloadBundle(ctx context.Context, bundleURL string) ([]byte, error) {
+	if c == nil {
+		return nil, fmt.Errorf("lokalise source download: http client is not configured")
+	}
 	httpClient := c.httpClient
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		return nil, fmt.Errorf("lokalise source download: http client is not configured")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bundleURL, nil)
 	if err != nil {

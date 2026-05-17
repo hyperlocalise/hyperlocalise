@@ -254,6 +254,24 @@ func TestDownloadBundleRequestErrorRedactsBundleURL(t *testing.T) {
 	}
 }
 
+func TestDownloadBundleRequiresConfiguredHTTPClient(t *testing.T) {
+	tests := []struct {
+		name   string
+		client *HTTPClient
+	}{
+		{name: "nil client"},
+		{name: "nil http client", client: &HTTPClient{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.client.downloadBundle(t.Context(), "https://example.invalid/source.zip")
+			if err == nil || !strings.Contains(err.Error(), "http client is not configured") {
+				t.Fatalf("expected configured client error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestDownloadSourceFileLargeBundleErrorUsesSmallLimit(t *testing.T) {
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
