@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/antihax/optional"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	phraseapi "github.com/phrase/phrase-go/v4"
 )
@@ -30,6 +31,19 @@ type HTTPClient struct {
 	baseURL      string
 	httpClient   *http.Client
 	phraseClient *phraseapi.APIClient
+}
+
+type LocaleListInput struct {
+	ProjectID string
+	APIToken  string
+	Branch    string
+}
+
+type LocaleRef struct {
+	ID      string
+	Name    string
+	Code    string
+	Default bool
 }
 
 func NewHTTPClient(cfg Config) (*HTTPClient, error) {
@@ -92,6 +106,65 @@ func newHTTPClient(baseURL string, client *http.Client) *HTTPClient {
 		baseURL:      baseURL,
 		httpClient:   client,
 		phraseClient: phraseapi.NewAPIClient(cfg),
+	}
+}
+
+func (c *HTTPClient) ListLocales(ctx context.Context, in LocaleListInput) ([]LocaleRef, error) {
+	if strings.TrimSpace(in.ProjectID) == "" {
+		return nil, fmt.Errorf("phrase locales list: project id is required")
+	}
+	if strings.TrimSpace(in.APIToken) == "" {
+		return nil, fmt.Errorf("phrase locales list: api token is required")
+	}
+
+	authCtx := context.WithValue(ctx, phraseapi.ContextAPIKey, phraseapi.APIKey{Key: strings.TrimSpace(in.APIToken), Prefix: "token"})
+	locales := make([]LocaleRef, 0)
+	for page := int32(1); ; page++ {
+		opts := phraseapi.LocalesListOpts{
+			Page:    optional.NewInt32(page),
+			PerPage: optional.NewInt32(defaultPageSize),
+		}
+		if branch := strings.TrimSpace(in.Branch); branch != "" {
+			opts.Branch = optional.NewString(branch)
+		}
+
+		items, err := c.listLocalesPage(authCtx, strings.TrimSpace(in.ProjectID), &opts)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			ref := LocaleRef{
+				ID:   strings.TrimSpace(item.Id),
+				Name: strings.TrimSpace(item.Name),
+				Code: strings.TrimSpace(item.Code),
+			}
+			if item.Default != nil {
+				ref.Default = *item.Default
+			}
+			locales = append(locales, ref)
+		}
+		if len(items) < defaultPageSize {
+			break
+		}
+	}
+	return locales, nil
+}
+
+func (c *HTTPClient) listLocalesPage(ctx context.Context, projectID string, opts *phraseapi.LocalesListOpts) ([]phraseapi.Locale, error) {
+	attempt := 0
+	for {
+		locales, resp, err := c.phraseClient.LocalesApi.LocalesList(ctx, projectID, opts)
+		if err == nil {
+			return locales, nil
+		}
+		if !shouldRetry(apiResponseHTTPResponse(resp), err) || attempt >= maxRetries {
+			return nil, phraseAPIError("GET", fmt.Sprintf("/projects/%s/locales", projectID), resp, err)
+		}
+		delay := retryDelay(attempt, apiResponseHTTPResponse(resp))
+		attempt++
+		if err := sleepWithContext(ctx, delay); err != nil {
+			return nil, err
+		}
 	}
 }
 

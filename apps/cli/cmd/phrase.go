@@ -16,6 +16,7 @@ import (
 )
 
 type phraseUploadSourcesOptions struct {
+	configPath         string
 	projectID          string
 	sourceLocale       string
 	files              []string
@@ -43,6 +44,7 @@ type phraseDownloadSourcesOptions struct {
 }
 
 type phraseDownloadTranslationsOptions struct {
+	configPath    string
 	projectID     string
 	targetLocales []string
 	format        string
@@ -92,10 +94,39 @@ func newPhraseCmd() *cobra.Command {
 		Use:   "phrase",
 		Short: "Phrase file workflow commands",
 	}
+	cmd.AddCommand(newPhraseConfigCmd())
 	cmd.AddCommand(newPhraseUploadCmd())
 	cmd.AddCommand(newPhraseDownloadCmd())
 	cmd.AddCommand(newPhraseGlossaryCmd())
 	cmd.AddCommand(newPhraseTranslationMemoryCmd())
+	return cmd
+}
+
+func newPhraseConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "config",
+		Short: "validate Phrase CLI config",
+	}
+	cmd.AddCommand(newPhraseConfigValidateCmd())
+	return cmd
+}
+
+func newPhraseConfigValidateCmd() *cobra.Command {
+	var configPath string
+	cmd := &cobra.Command{
+		Use:          "validate",
+		Short:        "validate .phrase.yml",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			cfg, resolvedPath, err := phrase.LoadCLIConfig(configPath)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "config=%s push_sources=%d pull_targets=%d file_format=%s host=%s\n", resolvedPath, len(cfg.PushSources), len(cfg.PullTargets), cfg.FileFormat, cfg.APIBaseURL)
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&configPath, "config", "", "path to .phrase.yml")
 	return cmd
 }
 
@@ -216,6 +247,7 @@ func newPhraseDownloadTranslationsCmd() *cobra.Command {
 			return executePhraseDownloadTranslations(cmd, o)
 		},
 	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to .phrase.yml")
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Phrase project ID")
 	cmd.Flags().StringSliceVarP(&o.targetLocales, "target-locale", "l", nil, "Phrase target locale ID(s) or name(s)")
 	cmd.Flags().StringVar(&o.format, "format", "", "Phrase file format, for example json, yml, or strings")
@@ -239,6 +271,7 @@ func newPhraseUploadSourcesCmd() *cobra.Command {
 			return executePhraseUploadSources(cmd, o)
 		},
 	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to .phrase.yml")
 	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Phrase project ID")
 	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "Phrase source locale ID or name")
 	cmd.Flags().StringArrayVarP(&o.files, "file", "f", nil, "source file path(s) to upload")
@@ -432,6 +465,9 @@ func executePhraseGlossaryDownload(cmd *cobra.Command, o phraseGlossaryDownloadO
 }
 
 func executePhraseUploadSources(cmd *cobra.Command, o phraseUploadSourcesOptions) error {
+	if shouldUsePhraseCLIConfig(o.configPath, phraseUploadSourcesHasManualFileConfig(o)) {
+		return executePhraseUploadSourcesFromConfig(cmd, o)
+	}
 	if strings.TrimSpace(o.projectID) == "" {
 		return fmt.Errorf("phrase upload sources: --project-id is required")
 	}
@@ -486,6 +522,9 @@ func executePhraseUploadSources(cmd *cobra.Command, o phraseUploadSourcesOptions
 }
 
 func executePhraseDownloadTranslations(cmd *cobra.Command, o phraseDownloadTranslationsOptions) error {
+	if shouldUsePhraseCLIConfig(o.configPath, phraseDownloadTranslationsHasManualFileConfig(o)) {
+		return executePhraseDownloadTranslationsFromConfig(cmd, o)
+	}
 	if strings.TrimSpace(o.projectID) == "" {
 		return fmt.Errorf("phrase download translations: --project-id is required")
 	}
@@ -618,6 +657,485 @@ func executePhraseDownloadSources(cmd *cobra.Command, o phraseDownloadSourcesOpt
 	}
 	_, err = fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", outputPath, len(result.Content), result.LocaleID, result.Format)
 	return err
+}
+
+type phraseUploadConfigTask struct {
+	input phrase.SourceUploadInput
+}
+
+type phraseDownloadConfigTask struct {
+	input  phrase.TranslationDownloadInput
+	output string
+}
+
+type phraseLocaleResolver func(projectID, branch string) ([]phrase.LocaleRef, error)
+
+func executePhraseUploadSourcesFromConfig(cmd *cobra.Command, o phraseUploadSourcesOptions) error {
+	cfg, resolvedPath, err := phrase.LoadCLIConfig(o.configPath)
+	if err != nil {
+		return err
+	}
+	if len(cfg.PushSources) == 0 {
+		return fmt.Errorf("phrase upload sources: config %s has no phrase.push.sources entries", resolvedPath)
+	}
+
+	var client *phrase.HTTPClient
+	var token string
+	if !o.dryRun {
+		token, err = phraseConfigAPIToken(cmd, cfg, o.tokenEnv, "phrase upload sources")
+		if err != nil {
+			return err
+		}
+		client, err = phrase.NewHTTPClientWithBaseURL(phrase.Config{}, phraseConfigAPIBaseURL(cmd, cfg, o.apiBaseURL), &http.Client{Timeout: 30 * time.Second})
+		if err != nil {
+			return err
+		}
+	}
+
+	localeCache := map[string][]phrase.LocaleRef{}
+	resolveLocales := func(projectID, branch string) ([]phrase.LocaleRef, error) {
+		if o.dryRun {
+			return nil, fmt.Errorf("phrase upload sources: phrase.push.sources[].params.locale_id or --source-locale is required for dry-run when file uses locale placeholders")
+		}
+		key := strings.TrimSpace(projectID) + "\x00" + strings.TrimSpace(branch)
+		if locales, ok := localeCache[key]; ok {
+			return locales, nil
+		}
+		locales, err := client.ListLocales(backgroundContext(), phrase.LocaleListInput{
+			ProjectID: strings.TrimSpace(projectID),
+			APIToken:  token,
+			Branch:    strings.TrimSpace(branch),
+		})
+		if err != nil {
+			return nil, err
+		}
+		localeCache[key] = locales
+		return locales, nil
+	}
+
+	tasks, err := phraseUploadTasksFromConfig(cmd, cfg, token, o, resolveLocales)
+	if err != nil {
+		return err
+	}
+	if o.dryRun {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=phrase-upload-sources config=%s sources=%d files=%d\n", resolvedPath, len(cfg.PushSources), len(tasks))
+		return err
+	}
+
+	processed := 0
+	for _, task := range tasks {
+		result, err := client.UploadSourceFile(backgroundContext(), task.input)
+		if err != nil {
+			return fmt.Errorf("phrase upload sources: %w", err)
+		}
+		processed++
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "uploaded file=%s upload_id=%s state=%s keys_created=%d keys_updated=%d translations_created=%d translations_updated=%d skipped=%d\n", task.input.FilePath, result.ID, result.State, result.Summary.TranslationKeysCreated, result.Summary.TranslationKeysUpdated, result.Summary.TranslationsCreated, result.Summary.TranslationsUpdated, result.Summary.TranslationKeysIgnored); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=phrase-upload-sources processed=%d skipped=0 warnings=0\n", processed)
+	return err
+}
+
+func executePhraseDownloadTranslationsFromConfig(cmd *cobra.Command, o phraseDownloadTranslationsOptions) error {
+	cfg, resolvedPath, err := phrase.LoadCLIConfig(o.configPath)
+	if err != nil {
+		return err
+	}
+	if len(cfg.PullTargets) == 0 {
+		return fmt.Errorf("phrase download translations: config %s has no phrase.pull.targets entries", resolvedPath)
+	}
+
+	var client *phrase.HTTPClient
+	var token string
+	if !o.dryRun {
+		token, err = phraseConfigAPIToken(cmd, cfg, o.tokenEnv, "phrase download translations")
+		if err != nil {
+			return err
+		}
+		client, err = phrase.NewHTTPClientWithBaseURL(phrase.Config{}, phraseConfigAPIBaseURL(cmd, cfg, o.apiBaseURL), &http.Client{Timeout: 30 * time.Second})
+		if err != nil {
+			return err
+		}
+	}
+
+	localeCache := map[string][]phrase.LocaleRef{}
+	resolveLocales := func(projectID, branch string) ([]phrase.LocaleRef, error) {
+		if o.dryRun {
+			return nil, fmt.Errorf("phrase download translations: phrase.pull.targets[].params.locale_id or --target-locale is required for dry-run when file uses locale placeholders")
+		}
+		key := strings.TrimSpace(projectID) + "\x00" + strings.TrimSpace(branch)
+		if locales, ok := localeCache[key]; ok {
+			return locales, nil
+		}
+		locales, err := client.ListLocales(backgroundContext(), phrase.LocaleListInput{
+			ProjectID: strings.TrimSpace(projectID),
+			APIToken:  token,
+			Branch:    strings.TrimSpace(branch),
+		})
+		if err != nil {
+			return nil, err
+		}
+		localeCache[key] = locales
+		return locales, nil
+	}
+
+	tasks, err := phraseDownloadTasksFromConfig(cmd, cfg, token, o, resolveLocales)
+	if err != nil {
+		return err
+	}
+	if o.dryRun {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=phrase-download-translations config=%s targets=%d files=%d\n", resolvedPath, len(cfg.PullTargets), len(tasks))
+		return err
+	}
+	if err := validatePhraseDownloadConfigOutputs(tasks, o.force); err != nil {
+		return err
+	}
+
+	writtenOutputs := make([]string, 0, len(tasks))
+	for _, task := range tasks {
+		result, err := client.DownloadTranslationFile(backgroundContext(), task.input)
+		if err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return fmt.Errorf("phrase download translations: %w", err)
+		}
+		if task.output == "" || task.output == "-" {
+			_, err := cmd.OutOrStdout().Write(result.Content)
+			return err
+		}
+		outputExisted := false
+		if _, err := os.Stat(task.output); err == nil {
+			outputExisted = true
+		}
+		if err := writePhraseDownloadedTranslation(task.output, result.Content, o.force); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return err
+		}
+		if !outputExisted {
+			writtenOutputs = append(writtenOutputs, task.output)
+		}
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", task.output, len(result.Content), result.LocaleID, result.Format); err != nil {
+			removePhraseDownloadedTranslationOutputs(writtenOutputs)
+			return err
+		}
+	}
+	return nil
+}
+
+func phraseUploadTasksFromConfig(cmd *cobra.Command, cfg phrase.CLIConfig, token string, o phraseUploadSourcesOptions, resolveLocales phraseLocaleResolver) ([]phraseUploadConfigTask, error) {
+	tasks := make([]phraseUploadConfigTask, 0)
+	for idx, source := range cfg.PushSources {
+		projectID := source.ProjectID
+		if cmd.Flags().Changed("project-id") {
+			projectID = strings.TrimSpace(o.projectID)
+		}
+		fileFormat := source.FileFormat
+		if cmd.Flags().Changed("format") {
+			fileFormat = strings.TrimSpace(o.format)
+		}
+		branch := source.Branch
+		if cmd.Flags().Changed("branch") {
+			branch = strings.TrimSpace(o.branch)
+		}
+		tags := source.Tags
+		if cmd.Flags().Changed("tag") {
+			tags = phrase.SplitCLITags(o.tags)
+		}
+		locales, err := phraseUploadSourceLocales(cmd, source, o, projectID, branch, resolveLocales)
+		if err != nil {
+			return nil, fmt.Errorf("phrase config: push.sources[%d]: %w", idx, err)
+		}
+		tagVariants, err := phraseConfigTagVariants(source.File, tags)
+		if err != nil {
+			return nil, fmt.Errorf("phrase config: push.sources[%d]: %w", idx, err)
+		}
+
+		for _, locale := range locales {
+			for _, tag := range tagVariants {
+				expanded, err := phrase.ExpandCLIFilePath(source.File, locale, tag, cfg.LocaleMapping)
+				if err != nil {
+					return nil, fmt.Errorf("phrase config: push.sources[%d]: %w", idx, err)
+				}
+				sourcePaths, err := expandPhraseConfigSourcePaths(phrase.ResolveCLIFilePath(cfg.BasePath, expanded))
+				if err != nil {
+					return nil, fmt.Errorf("phrase config: push.sources[%d]: %w", idx, err)
+				}
+				for _, sourcePath := range sourcePaths {
+					input := phrase.SourceUploadInput{
+						ProjectID:             projectID,
+						APIToken:              token,
+						LocaleID:              locale,
+						FilePath:              sourcePath,
+						FileFormat:            fileFormat,
+						Branch:                branch,
+						Tags:                  tags,
+						UpdateTranslations:    boolPtrValue(source.UpdateTranslations),
+						SkipUploadTags:        boolPtrValue(source.SkipUploadTags),
+						UpdateTranslationKeys: source.UpdateTranslationKeys,
+						UpdateDescriptions:    source.UpdateDescriptions,
+						SkipUnverification:    source.SkipUnverification,
+						FileEncoding:          source.FileEncoding,
+						LocaleMapping:         source.LocaleMapping,
+						FormatOptions:         source.FormatOptions,
+						Autotranslate:         source.Autotranslate,
+						MarkReviewed:          source.MarkReviewed,
+					}
+					if cmd.Flags().Changed("update-translations") {
+						input.UpdateTranslations = o.updateTranslations
+					}
+					if cmd.Flags().Changed("skip-upload-tags") {
+						input.SkipUploadTags = o.skipUploadTags
+					}
+					tasks = append(tasks, phraseUploadConfigTask{input: input})
+				}
+			}
+		}
+	}
+	return tasks, nil
+}
+
+func phraseDownloadTasksFromConfig(cmd *cobra.Command, cfg phrase.CLIConfig, token string, o phraseDownloadTranslationsOptions, resolveLocales phraseLocaleResolver) ([]phraseDownloadConfigTask, error) {
+	tasks := make([]phraseDownloadConfigTask, 0)
+	for idx, target := range cfg.PullTargets {
+		projectID := target.ProjectID
+		if cmd.Flags().Changed("project-id") {
+			projectID = strings.TrimSpace(o.projectID)
+		}
+		fileFormat := target.FileFormat
+		if cmd.Flags().Changed("format") {
+			fileFormat = strings.TrimSpace(o.format)
+		}
+		branch := target.Branch
+		if cmd.Flags().Changed("branch") {
+			branch = strings.TrimSpace(o.branch)
+		}
+		tags := target.Tags
+		if cmd.Flags().Changed("tag") {
+			tags = phrase.SplitCLITags(o.tags)
+		}
+		locales, err := phrasePullTargetLocales(cmd, target, o, projectID, branch, resolveLocales)
+		if err != nil {
+			return nil, fmt.Errorf("phrase config: pull.targets[%d]: %w", idx, err)
+		}
+		tagVariants, err := phraseConfigTagVariants(target.File, tags)
+		if err != nil {
+			return nil, fmt.Errorf("phrase config: pull.targets[%d]: %w", idx, err)
+		}
+		outputPattern := target.File
+		if cmd.Flags().Changed("output") {
+			outputPattern = strings.TrimSpace(o.output)
+		}
+
+		for _, locale := range locales {
+			for _, tag := range tagVariants {
+				output, err := phraseConfigOutputPath(cfg, outputPattern, locale, tag)
+				if err != nil {
+					return nil, fmt.Errorf("phrase config: pull.targets[%d]: %w", idx, err)
+				}
+				tasks = append(tasks, phraseDownloadConfigTask{
+					input: phrase.TranslationDownloadInput{
+						ProjectID:  projectID,
+						APIToken:   token,
+						LocaleID:   locale,
+						FileFormat: fileFormat,
+						Branch:     branch,
+						Tags:       tags,
+						DownloadOptions: phrase.DownloadOptions{
+							IncludeEmptyTranslations:      target.IncludeEmptyTranslations,
+							ExcludeEmptyZeroForms:         target.ExcludeEmptyZeroForms,
+							IncludeTranslatedKeys:         target.IncludeTranslatedKeys,
+							KeepNotranslateTags:           target.KeepNotranslateTags,
+							Encoding:                      target.Encoding,
+							IncludeUnverifiedTranslations: target.IncludeUnverifiedTranslations,
+							UseLastReviewedVersion:        target.UseLastReviewedVersion,
+							FallbackLocaleID:              target.FallbackLocaleID,
+							FormatOptions:                 target.FormatOptions,
+							SourceLocaleID:                target.SourceLocaleID,
+							TranslationKeyPrefix:          target.TranslationKeyPrefix,
+							FilterByPrefix:                target.FilterByPrefix,
+							UseLocaleFallback:             target.UseLocaleFallback,
+							SkipUnverifiedTranslations:    target.SkipUnverifiedTranslations,
+						},
+					},
+					output: output,
+				})
+			}
+		}
+	}
+	if err := validatePhraseDownloadConfigStdout(tasks); err != nil {
+		return nil, err
+	}
+	return tasks, nil
+}
+
+func shouldUsePhraseCLIConfig(configPath string, hasManualFileConfig bool) bool {
+	if strings.TrimSpace(configPath) != "" {
+		return true
+	}
+	if hasManualFileConfig {
+		return false
+	}
+	_, err := phrase.ResolveCLIConfigPath("")
+	return err == nil
+}
+
+func phraseUploadSourcesHasManualFileConfig(o phraseUploadSourcesOptions) bool {
+	return strings.TrimSpace(o.projectID) != "" || strings.TrimSpace(o.format) != "" || len(o.files) > 0
+}
+
+func phraseDownloadTranslationsHasManualFileConfig(o phraseDownloadTranslationsOptions) bool {
+	return strings.TrimSpace(o.projectID) != "" || strings.TrimSpace(o.format) != "" || strings.TrimSpace(o.output) != ""
+}
+
+func phraseConfigAPIToken(cmd *cobra.Command, cfg phrase.CLIConfig, tokenEnv, action string) (string, error) {
+	if cmd.Flags().Changed("token-env") {
+		return phraseAPIToken(action, tokenEnv)
+	}
+	return cfg.RequireAPIToken(action)
+}
+
+func phraseConfigAPIBaseURL(cmd *cobra.Command, cfg phrase.CLIConfig, apiBaseURL string) string {
+	if cmd.Flags().Changed("api-base-url") {
+		return strings.TrimSpace(apiBaseURL)
+	}
+	return cfg.APIBaseURL
+}
+
+func phraseUploadSourceLocales(cmd *cobra.Command, source phrase.CLIPushSource, o phraseUploadSourcesOptions, projectID, branch string, resolveLocales phraseLocaleResolver) ([]string, error) {
+	if cmd.Flags().Changed("source-locale") {
+		return []string{strings.TrimSpace(o.sourceLocale)}, nil
+	}
+	if strings.TrimSpace(source.LocaleID) != "" {
+		return []string{strings.TrimSpace(source.LocaleID)}, nil
+	}
+	refs, err := resolveLocales(projectID, branch)
+	if err != nil {
+		return nil, err
+	}
+	if phrase.HasLocalePlaceholder(source.File) {
+		return phraseLocaleNames(refs), nil
+	}
+	defaultLocale := defaultPhraseLocale(refs)
+	if defaultLocale == "" {
+		return nil, fmt.Errorf("params.locale_id or --source-locale is required")
+	}
+	return []string{defaultLocale}, nil
+}
+
+func phrasePullTargetLocales(cmd *cobra.Command, target phrase.CLIPullTarget, o phraseDownloadTranslationsOptions, projectID, branch string, resolveLocales phraseLocaleResolver) ([]string, error) {
+	if cmd.Flags().Changed("target-locale") {
+		locales := normalizePhraseLocales(o.targetLocales)
+		if len(locales) == 0 {
+			return nil, fmt.Errorf("at least one --target-locale is required")
+		}
+		return locales, nil
+	}
+	if strings.TrimSpace(target.LocaleID) != "" {
+		return []string{strings.TrimSpace(target.LocaleID)}, nil
+	}
+	refs, err := resolveLocales(projectID, branch)
+	if err != nil {
+		return nil, err
+	}
+	locales := phraseLocaleNames(refs)
+	if len(locales) == 0 {
+		return nil, fmt.Errorf("params.locale_id or --target-locale is required")
+	}
+	return locales, nil
+}
+
+func phraseLocaleNames(refs []phrase.LocaleRef) []string {
+	locales := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if value := phraseLocaleValue(ref); value != "" {
+			locales = append(locales, value)
+		}
+	}
+	return locales
+}
+
+func defaultPhraseLocale(refs []phrase.LocaleRef) string {
+	for _, ref := range refs {
+		if ref.Default {
+			return phraseLocaleValue(ref)
+		}
+	}
+	if len(refs) > 0 {
+		return phraseLocaleValue(refs[0])
+	}
+	return ""
+}
+
+func phraseLocaleValue(ref phrase.LocaleRef) string {
+	if strings.TrimSpace(ref.Name) != "" {
+		return strings.TrimSpace(ref.Name)
+	}
+	if strings.TrimSpace(ref.Code) != "" {
+		return strings.TrimSpace(ref.Code)
+	}
+	return strings.TrimSpace(ref.ID)
+}
+
+func phraseConfigTagVariants(pattern string, tags []string) ([]string, error) {
+	if !phrase.HasTagPlaceholder(pattern) {
+		return []string{""}, nil
+	}
+	if len(tags) == 0 {
+		return nil, fmt.Errorf("tag placeholder requires params.tags or --tag")
+	}
+	return tags, nil
+}
+
+func phraseConfigOutputPath(cfg phrase.CLIConfig, pattern, locale, tag string) (string, error) {
+	pattern = strings.ReplaceAll(pattern, "%locale%", locale)
+	expanded, err := phrase.ExpandCLIFilePath(pattern, locale, tag, cfg.LocaleMapping)
+	if err != nil {
+		return "", err
+	}
+	if expanded == "" || expanded == "-" {
+		return expanded, nil
+	}
+	return phrase.ResolveCLIFilePath(cfg.BasePath, expanded), nil
+}
+
+func expandPhraseConfigSourcePaths(pattern string) ([]string, error) {
+	if strings.ContainsAny(pattern, "*?[") {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("glob source file %q: %w", pattern, err)
+		}
+		if len(matches) == 0 {
+			return nil, fmt.Errorf("source pattern %q matched no files", pattern)
+		}
+		return validatePhraseSourceFiles(matches)
+	}
+	return validatePhraseSourceFiles([]string{pattern})
+}
+
+func validatePhraseDownloadConfigOutputs(tasks []phraseDownloadConfigTask, force bool) error {
+	for _, task := range tasks {
+		if err := validatePhraseDownloadTranslationsOutputPath(task.output, force); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePhraseDownloadConfigStdout(tasks []phraseDownloadConfigTask) error {
+	stdoutTasks := 0
+	for _, task := range tasks {
+		if task.output == "" || task.output == "-" {
+			stdoutTasks++
+		}
+	}
+	if stdoutTasks > 1 || (stdoutTasks == 1 && len(tasks) > 1) {
+		return fmt.Errorf("phrase download translations: config output must resolve to files when downloading multiple targets")
+	}
+	return nil
+}
+
+func boolPtrValue(value *bool) bool {
+	return value != nil && *value
 }
 
 func phraseAPIToken(action, tokenEnv string) (string, error) {

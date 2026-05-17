@@ -35,3 +35,38 @@ description: "Configure Phrase for remote translation synchronization."
 - token not found: export `PHRASE_API_TOKEN`
 - mode validation error: set `mode` to `strings` or `files`
 - file mode import failure: verify `fileFormat` matches your project settings
+
+## Phrase CLI config
+
+The file workflow commands can also read Phrase's `.phrase.yml` format:
+
+```yaml
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-uuid
+  file_format: json
+  host: https://api.phrase.com/v2
+  locale_mapping:
+    fr-FR: fr
+  push:
+    sources:
+      - file: ./locales/en.json
+        params:
+          locale_id: en-US
+          tags: app,source
+          update_translations: true
+  pull:
+    targets:
+      - file: ./locales/<locale_name>.json
+        params:
+          locale_id: fr-FR
+          include_unverified_translations: false
+```
+
+Supported commands:
+
+- `hyperlocalise phrase config validate --config .phrase.yml`
+- `hyperlocalise phrase upload sources --config .phrase.yml`
+- `hyperlocalise phrase download translations --config .phrase.yml`
+
+If `--config` is omitted, Hyperlocalise checks `PHRASEAPP_CONFIG`, then `.phrase.yml` in the current directory, then `$HOME/.phrase.yml`.
