@@ -1,13 +1,15 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   ArrowLeft01Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
+  EyeIcon,
   SparklesIcon,
+  ViewOffIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
@@ -22,7 +24,9 @@ import {
   FieldContent,
   FieldDescription,
   FieldError,
-  FieldTitle,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
@@ -117,6 +121,7 @@ function CreateWorkspaceStep({ organizationName }: { organizationName?: string |
     createWorkspaceAction,
     {},
   );
+  const organizationNameId = useId();
 
   if (organizationName) {
     return (
@@ -171,8 +176,9 @@ function CreateWorkspaceStep({ organizationName }: { organizationName?: string |
 
       <Field>
         <FieldContent>
-          <FieldTitle>Workspace name</FieldTitle>
+          <FieldLabel htmlFor={organizationNameId}>Workspace name</FieldLabel>
           <Input
+            id={organizationNameId}
             name="organizationName"
             placeholder="Acme localisation"
             defaultValue=""
@@ -206,10 +212,15 @@ function ProviderCredentialStep({
   const [selectedModel, setSelectedModel] = useState(
     providerSummary?.defaultModel ?? defaultModelByProvider[selectedProvider],
   );
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [state, formAction] = useActionState<SaveProviderActionState, FormData>(
     saveProviderCredentialAction,
     {},
   );
+
+  const modelFieldId = useId();
+  const apiKeyFieldId = useId();
 
   useEffect(() => {
     if (
@@ -217,7 +228,13 @@ function ProviderCredentialStep({
     ) {
       setSelectedModel(defaultModelByProvider[selectedProvider]);
     }
-  }, [selectedModel, selectedProvider]);
+  }, [selectedProvider, selectedModel]);
+
+  useEffect(() => {
+    // Reset key and visibility when the provider changes.
+    setApiKey("");
+    setShowApiKey(false);
+  }, [selectedProvider]);
 
   return (
     <div className="space-y-6">
@@ -255,44 +272,43 @@ function ProviderCredentialStep({
         <input type="hidden" name="provider" value={selectedProvider} />
         <input type="hidden" name="defaultModel" value={selectedModel} />
 
-        <Field>
-          <FieldContent>
-            <FieldTitle>Provider</FieldTitle>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
-                const isActive = provider === selectedProvider;
+        <FieldSet className="gap-2">
+          <FieldLegend variant="label">Provider</FieldLegend>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {Object.entries(llmProviderCatalog).map(([provider, providerConfig]) => {
+              const isActive = provider === selectedProvider;
 
-                return (
-                  <button
-                    key={provider}
-                    type="button"
-                    onClick={() => {
-                      setSelectedProvider(provider as LlmProvider);
-                      setSelectedModel(defaultModelByProvider[provider as LlmProvider]);
-                    }}
-                    className={cn(
-                      "rounded-3xl border px-4 py-4 text-left transition-colors",
-                      isActive
-                        ? "border-primary/40 bg-primary/10 text-foreground shadow-[0_12px_30px_rgba(79,180,141,0.12)]"
-                        : "border-border/70 bg-background/80 text-foreground hover:border-primary/25 hover:bg-primary/5",
-                    )}
-                  >
-                    <div className="text-sm font-medium">{providerConfig.label}</div>
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {providerConfig.models.length} curated models
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <FieldError>{state.fieldErrors?.provider}</FieldError>
-          </FieldContent>
-        </Field>
+              return (
+                <button
+                  key={provider}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProvider(provider as LlmProvider);
+                    setSelectedModel(defaultModelByProvider[provider as LlmProvider]);
+                  }}
+                  className={cn(
+                    "rounded-3xl border px-4 py-4 text-left transition-colors",
+                    isActive
+                      ? "border-primary/40 bg-primary/10 text-foreground shadow-[0_12px_30px_rgba(79,180,141,0.12)]"
+                      : "border-border/70 bg-background/80 text-foreground hover:border-primary/25 hover:bg-primary/5",
+                  )}
+                >
+                  <div className="text-sm font-medium">{providerConfig.label}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {providerConfig.models.length} curated models
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <FieldError>{state.fieldErrors?.provider}</FieldError>
+        </FieldSet>
 
         <Field>
           <FieldContent>
-            <FieldTitle>Default model</FieldTitle>
+            <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
             <select
+              id={modelFieldId}
               value={selectedModel}
               onChange={(event) => setSelectedModel(event.target.value)}
               className="h-10 w-full rounded-4xl border border-input bg-input/30 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -313,14 +329,32 @@ function ProviderCredentialStep({
 
         <Field>
           <FieldContent>
-            <FieldTitle>API key</FieldTitle>
-            <Input
-              name="apiKey"
-              type="password"
-              autoComplete="off"
-              placeholder={`Enter your ${llmProviderCatalog[selectedProvider].label} API key`}
-              aria-invalid={Boolean(state.fieldErrors?.apiKey)}
-            />
+            <FieldLabel htmlFor={apiKeyFieldId}>API key</FieldLabel>
+            <div className="relative">
+              <Input
+                id={apiKeyFieldId}
+                name="apiKey"
+                type={showApiKey ? "text" : "password"}
+                autoComplete="off"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={`Enter your ${llmProviderCatalog[selectedProvider].label} API key`}
+                aria-invalid={Boolean(state.fieldErrors?.apiKey)}
+                className="pe-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label={showApiKey ? "Hide API key" : "Show API key"}
+              >
+                <HugeiconsIcon
+                  icon={showApiKey ? ViewOffIcon : EyeIcon}
+                  size={16}
+                  strokeWidth={2}
+                />
+              </button>
+            </div>
             <FieldDescription>
               The key is encrypted at rest in Postgres and only decrypted inside server-only code
               paths.
