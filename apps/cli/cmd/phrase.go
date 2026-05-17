@@ -1037,11 +1037,14 @@ func phrasePullTargetLocales(cmd *cobra.Command, target phrase.CLIPullTarget, o 
 	if err != nil {
 		return nil, err
 	}
-	locales := phraseLocaleNames(refs)
-	if len(locales) == 0 {
+	if phrase.HasLocalePlaceholder(target.File) {
+		return phraseLocaleNames(refs), nil
+	}
+	defaultLocale := defaultPhraseLocale(refs)
+	if defaultLocale == "" {
 		return nil, fmt.Errorf("params.locale_id or --target-locale is required")
 	}
-	return locales, nil
+	return []string{defaultLocale}, nil
 }
 
 func phraseLocaleNames(refs []phrase.LocaleRef) []string {
