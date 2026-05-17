@@ -29,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -174,7 +175,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               chatRequestMutation.mutate();
             }
           }}
-          className="overflow-hidden rounded-[1.35rem] bg-muted text-foreground shadow-2xl shadow-black/10"
+          className="overflow-hidden rounded-[1.35rem] bg-muted text-foreground shadow-2xl shadow-black/10 transition-all focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
         >
           <label htmlFor="inbox-request" className="sr-only">
             Translation request
@@ -356,19 +357,29 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                type="submit"
-                disabled={!canSubmit}
-                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-                aria-label="Send translation request"
-              >
-                {chatRequestMutation.isPending ? (
-                  <Spinner className="text-primary-foreground" />
-                ) : (
-                  <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
-                )}
-                Send
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="submit"
+                      disabled={!canSubmit}
+                      className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                      aria-label="Send translation request"
+                    />
+                  }
+                >
+                  {chatRequestMutation.isPending ? (
+                    <Spinner className="text-primary-foreground" />
+                  ) : (
+                    <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
+                  )}
+                  Send
+                </TooltipTrigger>
+                <TooltipContent side="top" align="end">
+                  Send request
+                  <Kbd className="ms-2 bg-background/15 text-background">Enter</Kbd>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </form>
@@ -384,7 +395,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               <button
                 type="button"
                 onClick={() => setText(request.text)}
-                className="flex w-full items-start gap-3 px-4 py-3 text-left text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+                className="flex w-full items-start gap-3 px-4 py-3 text-left text-muted-foreground transition-colors outline-none hover:bg-muted/80 hover:text-foreground focus-visible:relative focus-visible:z-10 focus-visible:bg-muted/80 focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50"
               >
                 <HugeiconsIcon
                   icon={request.icon}
