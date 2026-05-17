@@ -17,6 +17,7 @@ type SourceDownloadInput struct {
 	ProjectID    string
 	SourceLocale string
 	FileFormat   string
+	AllPlatforms bool
 }
 
 // SourceDownloadResult is the normalized content returned by a Lokalise export.
@@ -50,12 +51,13 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 	}
 
 	originalFilenames := true
+	allPlatforms := in.AllPlatforms
 	filesSvc := c.api.Files()
 	filesSvc.SetContext(ctx)
 	resp, err := filesSvc.Download(projectID, lokaliseapi.FileDownload{
 		Format:            format,
 		OriginalFilenames: &originalFilenames,
-		AllPlatforms:      true,
+		AllPlatforms:      allPlatforms,
 		FilterLangs:       []string{sourceLocale},
 	})
 	if err != nil {

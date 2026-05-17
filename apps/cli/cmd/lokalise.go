@@ -39,6 +39,7 @@ type lokaliseDownloadSourcesOptions struct {
 	tokenEnv       string
 	apiBaseURL     string
 	timeoutSeconds int
+	allPlatforms   bool
 	force          bool
 	dryRun         bool
 }
@@ -96,6 +97,7 @@ func newLokaliseDownloadSourcesCmd() *cobra.Command {
 	cmd.Flags().StringVar(&o.tokenEnv, "token-env", "", "environment variable containing the Lokalise API token")
 	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Lokalise API base URL")
 	cmd.Flags().IntVar(&o.timeoutSeconds, "timeout-seconds", 0, "HTTP timeout in seconds")
+	cmd.Flags().BoolVar(&o.allPlatforms, "all-platforms", false, "include all Lokalise platforms in the export")
 	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
 	return cmd
@@ -195,6 +197,7 @@ func resolveLokaliseDownloadSourcesConfig(cmd *cobra.Command, o lokaliseDownload
 		ProjectID:    strings.TrimSpace(cfg.ProjectID),
 		SourceLocale: strings.TrimSpace(cfg.SourceLanguage),
 		FileFormat:   format,
+		AllPlatforms: o.allPlatforms,
 	}
 	return cfg, input, nil
 }

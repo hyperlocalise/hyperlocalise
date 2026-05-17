@@ -194,6 +194,35 @@ func TestLokaliseDownloadSourcesWritesStdout(t *testing.T) {
 	if fake.in.ProjectID != "project-1" || fake.in.SourceLocale != "en" || fake.in.FileFormat != "json" {
 		t.Fatalf("unexpected input: %+v", fake.in)
 	}
+	if fake.in.AllPlatforms {
+		t.Fatalf("all platforms should be opt-in, got input: %+v", fake.in)
+	}
+}
+
+func TestLokaliseDownloadSourcesAllPlatformsFlag(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en", Format: "json", Content: []byte("zip-bytes")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(lokalise.Config) (lokaliseSourceDownloader, error) {
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--all-platforms", "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download: %v", err)
+	}
+	if !fake.in.AllPlatforms {
+		t.Fatalf("expected all platforms input, got %+v", fake.in)
+	}
 }
 
 func TestLokaliseDownloadSourcesWritesOutputFile(t *testing.T) {
