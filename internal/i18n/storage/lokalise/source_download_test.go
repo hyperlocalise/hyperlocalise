@@ -84,9 +84,6 @@ func TestDownloadSourceFileFetchesBundle(t *testing.T) {
 	if result.ProjectID != "project-1" || result.SourceLocale != "en" || result.Format != "json" {
 		t.Fatalf("unexpected result metadata: %+v", result)
 	}
-	if result.BundleURL != server.URL+"/bundle/source.zip" {
-		t.Fatalf("unexpected bundle URL: %q", result.BundleURL)
-	}
 }
 
 func TestDownloadSourceFileDefaultsToSinglePlatform(t *testing.T) {

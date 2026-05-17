@@ -30,10 +30,7 @@ type SourceDownloadResult struct {
 	ProjectID    string
 	SourceLocale string
 	Format       string
-	// BundleURL holds the pre-signed download URL returned by Lokalise.
-	// It may contain credential query parameters; do not log or serialize this field.
-	BundleURL string
-	Content   []byte
+	Content      []byte
 }
 
 // DownloadSourceFile exports source-locale files from Lokalise and downloads the generated bundle.
@@ -84,7 +81,6 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 		ProjectID:    projectID,
 		SourceLocale: sourceLocale,
 		Format:       format,
-		BundleURL:    bundleURL,
 		Content:      content,
 	}, nil
 }
