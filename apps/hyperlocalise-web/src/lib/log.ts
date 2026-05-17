@@ -6,7 +6,6 @@ const isProduction = process.env.NODE_ENV === "production";
 
 /**
  * Sensitive keys that should be redacted from logs.
- * We use wildcards (*.key) to ensure these are caught at any depth in logged objects.
  */
 export const REDACTION_PATHS = [
   "apiKey",
