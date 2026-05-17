@@ -220,7 +220,7 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 	if err != nil {
 		return err
 	}
-	processed, skipped, warnings := 0, 0, 0
+	processed := 0
 	for _, file := range files {
 		result, err := client.UploadSourceFile(backgroundContext(), lokalise.SourceUploadInput{
 			ProjectID:           cfg.ProjectID,
@@ -243,7 +243,7 @@ func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOpt
 			return err
 		}
 	}
-	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-sources processed=%d skipped=%d warnings=%d\n", processed, skipped, warnings)
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "action=lokalise-upload-sources processed=%d\n", processed)
 	return err
 }
 

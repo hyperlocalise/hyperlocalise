@@ -85,7 +85,10 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	}
 
 	info, statErr := os.Stat(in.FilePath)
-	if statErr == nil && info.Size() > maxLokaliseUploadFileBytes {
+	if statErr != nil {
+		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: stat source file %q: %w", in.FilePath, statErr)
+	}
+	if info.Size() > maxLokaliseUploadFileBytes {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
 	}
 	content, err := os.ReadFile(in.FilePath)

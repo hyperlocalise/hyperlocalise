@@ -241,7 +241,7 @@ func TestLokaliseUploadSourcesUploadsFiles(t *testing.T) {
 	if !strings.Contains(out.String(), "uploaded file="+sourcePath+" process_id=proc-1 status=queued type=file-import") {
 		t.Fatalf("missing upload output: %q", out.String())
 	}
-	if !strings.Contains(out.String(), "action=lokalise-upload-sources processed=1 skipped=0 warnings=0") {
+	if !strings.Contains(out.String(), "action=lokalise-upload-sources processed=1") {
 		t.Fatalf("missing summary output: %q", out.String())
 	}
 	if len(fake.inputs) != 1 {
