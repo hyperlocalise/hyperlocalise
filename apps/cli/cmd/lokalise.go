@@ -467,7 +467,7 @@ func validateLokaliseDownloadSourcesOutputPath(path string, force bool) error {
 		if !force {
 			return fmt.Errorf("lokalise download sources: output file %q already exists; use --force to overwrite", path)
 		}
-	} else if err != nil && !os.IsNotExist(err) {
+	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("lokalise download sources: stat output file %q: %w", path, err)
 	}
 	return nil

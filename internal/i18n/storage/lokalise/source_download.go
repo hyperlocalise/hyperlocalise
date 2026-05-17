@@ -30,8 +30,10 @@ type SourceDownloadResult struct {
 	ProjectID    string
 	SourceLocale string
 	Format       string
-	BundleURL    string
-	Content      []byte
+	// BundleURL holds the pre-signed download URL returned by Lokalise.
+	// It may contain credential query parameters; do not log or serialize this field.
+	BundleURL string
+	Content   []byte
 }
 
 // DownloadSourceFile exports source-locale files from Lokalise and downloads the generated bundle.
