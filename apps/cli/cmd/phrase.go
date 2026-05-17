@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -1013,9 +1014,16 @@ func phraseUploadSourceLocales(cmd *cobra.Command, source phrase.CLIPushSource, 
 		return nil, err
 	}
 	if phrase.HasLocalePlaceholder(source.File) {
-		return phraseLocaleNames(refs), nil
+		locales, err := phraseLocaleNames(refs)
+		if err != nil {
+			return nil, err
+		}
+		return locales, nil
 	}
-	defaultLocale := defaultPhraseLocale(refs)
+	defaultLocale, err := defaultPhraseLocale(refs)
+	if err != nil {
+		return nil, err
+	}
 	if defaultLocale == "" {
 		return nil, fmt.Errorf("params.locale_id or --source-locale is required")
 	}
@@ -1038,35 +1046,61 @@ func phrasePullTargetLocales(cmd *cobra.Command, target phrase.CLIPullTarget, o 
 		return nil, err
 	}
 	if phrase.HasLocalePlaceholder(target.File) {
-		return phraseLocaleNames(refs), nil
+		locales, err := phraseLocaleNames(refs)
+		if err != nil {
+			return nil, err
+		}
+		return locales, nil
 	}
-	defaultLocale := defaultPhraseLocale(refs)
+	defaultLocale, err := defaultPhraseLocale(refs)
+	if err != nil {
+		return nil, err
+	}
 	if defaultLocale == "" {
 		return nil, fmt.Errorf("params.locale_id or --target-locale is required")
 	}
 	return []string{defaultLocale}, nil
 }
 
-func phraseLocaleNames(refs []phrase.LocaleRef) []string {
+func phraseLocaleNames(refs []phrase.LocaleRef) ([]string, error) {
 	locales := make([]string, 0, len(refs))
 	for _, ref := range refs {
-		if value := phraseLocaleValue(ref); value != "" {
-			locales = append(locales, value)
+		value := phraseLocaleValue(ref)
+		if value == "" {
+			continue
 		}
+		if err := validatePhraseLocaleValue(value); err != nil {
+			return nil, err
+		}
+		locales = append(locales, value)
 	}
-	return locales
+	return locales, nil
 }
 
-func defaultPhraseLocale(refs []phrase.LocaleRef) string {
+func defaultPhraseLocale(refs []phrase.LocaleRef) (string, error) {
 	for _, ref := range refs {
 		if ref.Default {
-			return phraseLocaleValue(ref)
+			value := phraseLocaleValue(ref)
+			if value == "" {
+				return "", nil
+			}
+			if err := validatePhraseLocaleValue(value); err != nil {
+				return "", err
+			}
+			return value, nil
 		}
 	}
 	if len(refs) > 0 {
-		return phraseLocaleValue(refs[0])
+		value := phraseLocaleValue(refs[0])
+		if value == "" {
+			return "", nil
+		}
+		if err := validatePhraseLocaleValue(value); err != nil {
+			return "", err
+		}
+		return value, nil
 	}
-	return ""
+	return "", nil
 }
 
 func phraseLocaleValue(ref phrase.LocaleRef) string {
@@ -1077,6 +1111,17 @@ func phraseLocaleValue(ref phrase.LocaleRef) string {
 		return strings.TrimSpace(ref.Code)
 	}
 	return strings.TrimSpace(ref.ID)
+}
+
+func validatePhraseLocaleValue(value string) error {
+	if strings.ContainsAny(value, "/\\") {
+		return fmt.Errorf("locale name %q contains path separator", value)
+	}
+	cleaned := filepath.Clean(value)
+	if slices.Contains(strings.Split(cleaned, string(filepath.Separator)), "..") {
+		return fmt.Errorf("locale name %q contains directory traversal", value)
+	}
+	return nil
 }
 
 func phraseConfigTagVariants(pattern string, tags []string) ([]string, error) {
