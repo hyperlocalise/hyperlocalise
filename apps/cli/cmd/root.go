@@ -41,6 +41,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(newVersionCmd(version)) // version subcommand
 	cmd.AddCommand(newInitCmd())           // init subcommand
 	cmd.AddCommand(newCrowdinCmd())        // crowdin compatibility subcommands
+	cmd.AddCommand(newLokaliseCmd())       // Lokalise workflow subcommands
 	cmd.AddCommand(newPhraseCmd())         // Phrase file workflow subcommands
 	cmd.AddCommand(newSmartlingCmd())      // Smartling compatibility subcommands
 	cmd.AddCommand(newSyncPushCmd())       // push shorthand
