@@ -198,6 +198,67 @@ func TestHTTPClientWriteGlossaryCSVFiltersLocaleColumns(t *testing.T) {
 	}
 }
 
+func TestHTTPClientWriteGlossaryCSVContinuesPastFullInvalidLanguagePage(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"items": []any{
+				map[string]any{
+					"id":   1,
+					"term": "Checkout",
+					"translations": []any{
+						map[string]any{"id": 11, "langId": 674, "translation": "Paiement"},
+					},
+				},
+			},
+		})
+	})
+	mux.HandleFunc("/projects/proj-1/languages", func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("page") {
+		case "1":
+			languages := make([]any, 0, glossaryLanguagePageLimit)
+			for i := 0; i < glossaryLanguagePageLimit; i++ {
+				languages = append(languages, map[string]any{"lang_id": 0, "lang_iso": ""})
+			}
+			writeLokaliseJSON(t, w, map[string]any{"languages": languages})
+		case "2":
+			writeLokaliseJSON(t, w, map[string]any{
+				"languages": []any{
+					map[string]any{"lang_id": 674, "lang_iso": "fr"},
+				},
+			})
+		default:
+			t.Fatalf("unexpected language page: %s", r.URL.Query().Get("page"))
+		}
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	_, err = client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, out)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	reader := csv.NewReader(strings.NewReader(out.String()))
+	reader.Comma = ';'
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatalf("read csv: %v", err)
+	}
+	wantHeader := []string{"term", "description", "casesensitive", "translatable", "Forbidden", "tags", "fr", "fr_description"}
+	wantRow := []string{"Checkout", "", "no", "no", "no", "", "Paiement", ""}
+	if got := records[0]; !equalLokaliseStrings(got, wantHeader) {
+		t.Fatalf("header = %#v, want %#v", got, wantHeader)
+	}
+	if got := records[1]; !equalLokaliseStrings(got, wantRow) {
+		t.Fatalf("row = %#v, want %#v", got, wantRow)
+	}
+}
+
 func TestHTTPClientWriteGlossaryCSVPaginates(t *testing.T) {
 	cursors := make([]string, 0, 2)
 	mux := http.NewServeMux()

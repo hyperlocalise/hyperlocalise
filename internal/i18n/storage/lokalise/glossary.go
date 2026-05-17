@@ -219,13 +219,12 @@ func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID stri
 		if len(languages) == 0 && len(resp.Data) > 0 {
 			languages = resp.Data
 		}
-		before := len(out)
 		for _, lang := range languages {
 			if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
 				out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
 			}
 		}
-		if len(languages) == 0 || len(languages) < glossaryLanguagePageLimit || len(out) == before {
+		if len(languages) == 0 || len(languages) < glossaryLanguagePageLimit {
 			break
 		}
 		page++
