@@ -66,6 +66,8 @@ describe("Logger Redaction", () => {
           authorization: "Bearer secret-token",
           "x-api-key": "secret-api-key",
           "content-type": "application/json",
+          cookie: "wos-session=secret-session",
+          "x-workos-signature": "secret-signature",
         },
       },
       "test headers",
@@ -75,5 +77,35 @@ describe("Logger Redaction", () => {
     expect(parsed.headers.authorization).toBe("[REDACTED]");
     expect(parsed.headers["x-api-key"]).toBe("[REDACTED]");
     expect(parsed.headers["content-type"]).toBe("application/json");
+    expect(parsed.headers.cookie).toBe("[REDACTED]");
+    expect(parsed.headers["x-workos-signature"]).toBe("[REDACTED]");
+  });
+
+  it("should redact top-level hyphenated keys", () => {
+    let loggedData = "";
+    const stream = {
+      write: (msg: string) => {
+        loggedData += msg;
+      },
+    };
+
+    const logger = pino(
+      {
+        redact: {
+          paths: REDACTION_PATHS,
+          censor: "[REDACTED]",
+        },
+      },
+      stream,
+    );
+
+    logger.info(
+      { "x-api-key": "top-level-key", "x-workos-signature": "sig" },
+      "test hyphenated keys",
+    );
+
+    const parsed = JSON.parse(loggedData);
+    expect(parsed["x-api-key"]).toBe("[REDACTED]");
+    expect(parsed["x-workos-signature"]).toBe("[REDACTED]");
   });
 });
