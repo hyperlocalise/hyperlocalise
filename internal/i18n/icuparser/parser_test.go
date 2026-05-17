@@ -36,7 +36,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "nested select plural",
 			msg:              "{gender, select, male {{count, plural, one {He has one} other {He has #}}} female {{count, plural, one {She has one} other {She has #}}} other {They have {count}}}",
-			wantPlaceholders: []string{"count", "count", "count", "count", "count"},
+			wantPlaceholders: []string{"count", "count", "count", "count", "count", "gender"},
 			wantICU: []BlockSignature{
 				{Arg: "count", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{0, 1}},
 				{Arg: "count", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{0, 1}},
