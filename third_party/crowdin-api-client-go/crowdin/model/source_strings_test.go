@@ -31,13 +31,18 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 			out:  "isIcu=1",
 		},
 		{
+			name: "with ExcludeLabelIDs",
+			opts: &SourceStringsListOptions{ExcludeLabelIDs: []int{4, 5}},
+			out:  "excludeLabelIds=4%2C5",
+		},
+		{
 			name: "with all options",
 			opts: &SourceStringsListOptions{
-				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3},
+				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3}, ExcludeLabelIDs: []int{4, 5},
 				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier",
 				IsIcu: toPtr(0),
 			},
-			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
+			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&excludeLabelIds=4%2C5&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
 		},
 	}
 

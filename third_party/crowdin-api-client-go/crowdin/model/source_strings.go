@@ -53,6 +53,9 @@ type SourceStringsListOptions struct {
 	// Filter strings by labelIds (Label Identifiers).
 	// Example: labelIds=1,2,3,4,5.
 	LabelIDs []int `json:"labelIds,omitempty"`
+	// Filter strings by excludeLabelIds (Exclude Label Identifiers).
+	// Example: excludeLabelIds=1,2,3,4,5.
+	ExcludeLabelIDs []int `json:"excludeLabelIds,omitempty"`
 	// File Identifier.
 	// Note: Can't be used with `directoryId` or `branchId` in same request.
 	FileID int `json:"fileId,omitempty"`
@@ -97,6 +100,9 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
+	}
+	if len(o.ExcludeLabelIDs) > 0 {
+		v.Add("excludeLabelIds", JoinSlice(o.ExcludeLabelIDs))
 	}
 	if o.FileID > 0 {
 		v.Add("fileId", fmt.Sprintf("%d", o.FileID))
