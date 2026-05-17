@@ -144,13 +144,6 @@ func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadT
 	if len(result.Files) != len(outputs) {
 		return fmt.Errorf("lokalise download translations: downloaded %d file(s), expected %d", len(result.Files), len(outputs))
 	}
-	if len(outputs) > 1 {
-		for _, output := range outputs {
-			if output == "" || output == "-" {
-				return fmt.Errorf("lokalise download translations: stdout output is only supported for one target locale")
-			}
-		}
-	}
 
 	writtenOutputs := make([]string, 0, len(outputs))
 	for idx, file := range result.Files {

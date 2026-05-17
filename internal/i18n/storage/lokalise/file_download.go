@@ -17,6 +17,7 @@ import (
 const defaultTranslationBundleStructure = "%LANG_ISO%.%FORMAT%"
 
 var maxTranslationBundleBytes int64 = 256 << 20
+var maxTranslationEntryBytes int64 = 32 << 20
 
 // TranslationFileDownloadRequest identifies a Lokalise file export.
 type TranslationFileDownloadRequest struct {
@@ -169,12 +170,12 @@ func readZipFile(file *zip.File) ([]byte, error) {
 	defer func() {
 		_ = reader.Close()
 	}()
-	content, err := io.ReadAll(io.LimitReader(reader, maxTranslationBundleBytes+1))
+	content, err := io.ReadAll(io.LimitReader(reader, maxTranslationEntryBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read lokalise bundle file %q: %w", file.Name, err)
 	}
-	if int64(len(content)) > maxTranslationBundleBytes {
-		return nil, fmt.Errorf("read lokalise bundle file %q: file too large (max %d bytes)", file.Name, maxTranslationBundleBytes)
+	if int64(len(content)) > maxTranslationEntryBytes {
+		return nil, fmt.Errorf("read lokalise bundle file %q: file too large (max %d bytes)", file.Name, maxTranslationEntryBytes)
 	}
 	return content, nil
 }

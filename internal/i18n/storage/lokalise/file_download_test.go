@@ -210,10 +210,10 @@ func TestDownloadTranslationFilesErrorsWhenBundleTooLarge(t *testing.T) {
 }
 
 func TestExtractTranslationBundleErrorsWhenEntryTooLarge(t *testing.T) {
-	oldLimit := maxTranslationBundleBytes
-	maxTranslationBundleBytes = 4
+	oldLimit := maxTranslationEntryBytes
+	maxTranslationEntryBytes = 4
 	defer func() {
-		maxTranslationBundleBytes = oldLimit
+		maxTranslationEntryBytes = oldLimit
 	}()
 
 	payload := lokaliseZipFixture(t, map[string]string{
