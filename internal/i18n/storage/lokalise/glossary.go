@@ -10,29 +10,22 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 )
 
 const glossaryCSVPageLimit = 500
+const glossaryLanguagePageLimit = 5000
 
-// Stable review/import schema for downloaded Lokalise glossary rows.
-// One source term can produce multiple rows when it has translations in multiple locales.
-var glossaryCSVHeader = []string{
-	"project_id",
-	"term_id",
-	"source_term",
+// Base columns for Lokalise's documented glossary CSV template.
+// Translation columns are added after these as <locale> and <locale>_description.
+var glossaryCSVBaseHeader = []string{
+	"term",
 	"description",
+	"casesensitive",
 	"translatable",
-	"forbidden",
-	"case_sensitive",
+	"Forbidden",
 	"tags",
-	"translation_locale",
-	"translated_term",
-	"translation_id",
-	"translation_language_id",
-	"translation_description",
-	"term_created_at",
-	"term_updated_at",
 }
 
 // GlossaryDownloadInput identifies the Lokalise project glossary to export.
@@ -72,6 +65,11 @@ type glossaryTermTranslation struct {
 	Description      string `json:"description"`
 }
 
+type projectLanguage struct {
+	LanguageID  int64  `json:"lang_id"`
+	LanguageISO string `json:"lang_iso"`
+}
+
 type glossaryTermsResponse struct {
 	Items           []glossaryTerm `json:"items"`
 	Data            []glossaryTerm `json:"data"`
@@ -84,15 +82,14 @@ type glossaryTermsResponse struct {
 }
 
 type projectLanguagesResponse struct {
-	Languages []struct {
-		LanguageID  int64  `json:"lang_id"`
-		LanguageISO string `json:"lang_iso"`
-	} `json:"languages"`
+	Languages []projectLanguage `json:"languages"`
+	Items     []projectLanguage `json:"items"`
+	Data      []projectLanguage `json:"data"`
 }
 
 // WriteGlossaryCSV is the storage-level flow used by the CLI:
 // validate inputs, download all glossary pages, enrich translation language IDs,
-// convert the terms into deterministic CSV rows, then stream them to the writer.
+// convert the terms into Lokalise-compatible semicolon CSV, then stream it to the writer.
 func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadInput, w io.Writer) (GlossaryDownloadResult, error) {
 	if c == nil || c.httpClient == nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: client is nil")
@@ -120,10 +117,12 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 			return GlossaryDownloadResult{}, err
 		}
 	}
-	rows := glossaryCSVRows(projectID, terms, languageByID, in.Locales)
+	locales := glossaryCSVLocales(terms, languageByID, in.Locales)
+	rows := glossaryCSVRows(terms, languageByID, locales)
 
 	writer := csv.NewWriter(w)
-	if err := writer.Write(glossaryCSVHeader); err != nil {
+	writer.Comma = ';'
+	if err := writer.Write(glossaryCSVHeader(locales)); err != nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("write lokalise glossary csv header: %w", err)
 	}
 	for _, row := range rows {
@@ -179,24 +178,39 @@ func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken 
 
 func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, apiToken string) (map[int64]string, error) {
 	// Some glossary translation payloads only contain lang_id. This lookup turns
-	// those IDs into stable locale strings for the CSV's translation_locale column.
-	endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/languages")
-	if err != nil {
-		return nil, fmt.Errorf("build project languages URL: %w", err)
-	}
-	q := endpoint.Query()
-	q.Set("limit", fmt.Sprintf("%d", glossaryCSVPageLimit))
-	endpoint.RawQuery = q.Encode()
-
-	var resp projectLanguagesResponse
-	if _, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), apiToken, &resp); err != nil {
-		return nil, fmt.Errorf("list lokalise project languages: %w", err)
-	}
-	out := make(map[int64]string, len(resp.Languages))
-	for _, lang := range resp.Languages {
-		if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
-			out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
+	// those IDs into stable locale strings for Lokalise's language columns.
+	out := map[int64]string{}
+	page := 1
+	for {
+		endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/languages")
+		if err != nil {
+			return nil, fmt.Errorf("build project languages URL: %w", err)
 		}
+		q := endpoint.Query()
+		q.Set("limit", fmt.Sprintf("%d", glossaryLanguagePageLimit))
+		q.Set("page", fmt.Sprintf("%d", page))
+		endpoint.RawQuery = q.Encode()
+
+		var resp projectLanguagesResponse
+		if _, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), apiToken, &resp); err != nil {
+			return nil, fmt.Errorf("list lokalise project languages: %w", err)
+		}
+		languages := resp.Languages
+		if len(languages) == 0 && len(resp.Items) > 0 {
+			languages = resp.Items
+		}
+		if len(languages) == 0 && len(resp.Data) > 0 {
+			languages = resp.Data
+		}
+		for _, lang := range languages {
+			if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
+				out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
+			}
+		}
+		if len(languages) < glossaryLanguagePageLimit {
+			break
+		}
+		page++
 	}
 	return out, nil
 }
@@ -237,18 +251,71 @@ func glossaryTermsHaveTranslations(terms []glossaryTerm) bool {
 	return false
 }
 
-func glossaryCSVRows(projectID string, terms []glossaryTerm, languageByID map[int64]string, locales []string) [][]string {
-	// CSV output must be deterministic for review/import workflows: normalize the
-	// optional locale filter, sort terms by source text, then sort translations by locale.
-	localeSet := make(map[string]struct{}, len(locales))
-	for _, value := range locales {
-		for _, part := range strings.Split(value, ",") {
-			if locale := strings.TrimSpace(part); locale != "" {
+func glossaryCSVHeader(locales []string) []string {
+	header := slices.Clone(glossaryCSVBaseHeader)
+	header = append(header, locales...)
+	for _, locale := range locales {
+		header = append(header, locale+"_description")
+	}
+	return header
+}
+
+func glossaryCSVLocales(terms []glossaryTerm, languageByID map[int64]string, requested []string) []string {
+	requestedLocales := splitGlossaryLocales(requested)
+	if len(requestedLocales) > 0 {
+		return normalizeGlossaryLocales(requestedLocales, languageByID)
+	}
+
+	localeSet := map[string]struct{}{}
+	for _, term := range terms {
+		for _, translation := range term.Translations {
+			if locale := glossaryTranslationLocale(translation, languageByID); locale != "" {
 				localeSet[locale] = struct{}{}
 			}
 		}
 	}
+	locales := make([]string, 0, len(localeSet))
+	for locale := range localeSet {
+		locales = append(locales, locale)
+	}
+	slices.Sort(locales)
+	return locales
+}
 
+func splitGlossaryLocales(values []string) []string {
+	locales := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if locale := strings.TrimSpace(part); locale != "" {
+				locales = append(locales, locale)
+			}
+		}
+	}
+	return locales
+}
+
+func normalizeGlossaryLocales(values []string, languageByID map[int64]string) []string {
+	locales := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		locale := value
+		if langID, err := strconv.ParseInt(value, 10, 64); err == nil {
+			if mapped := strings.TrimSpace(languageByID[langID]); mapped != "" {
+				locale = mapped
+			}
+		}
+		if _, ok := seen[locale]; ok {
+			continue
+		}
+		seen[locale] = struct{}{}
+		locales = append(locales, locale)
+	}
+	return locales
+}
+
+func glossaryCSVRows(terms []glossaryTerm, languageByID map[int64]string, locales []string) [][]string {
+	// CSV output must be deterministic for review/import workflows: one row per
+	// term, sorted by source text, with stable language and description columns.
 	sortedTerms := slices.Clone(terms)
 	slices.SortStableFunc(sortedTerms, func(left, right glossaryTerm) int {
 		if left.Term != right.Term {
@@ -259,61 +326,60 @@ func glossaryCSVRows(projectID string, terms []glossaryTerm, languageByID map[in
 
 	rows := make([][]string, 0, len(sortedTerms))
 	for _, term := range sortedTerms {
-		translations := slices.Clone(term.Translations)
-		slices.SortStableFunc(translations, func(left, right glossaryTermTranslation) int {
-			leftLocale := glossaryTranslationLocale(left, languageByID)
-			rightLocale := glossaryTranslationLocale(right, languageByID)
-			if leftLocale != rightLocale {
-				return cmp.Compare(leftLocale, rightLocale)
-			}
-			return cmp.Compare(left.ID, right.ID)
-		})
-		wroteTranslation := false
-		for _, translation := range translations {
-			locale := glossaryTranslationLocale(translation, languageByID)
-			if len(localeSet) > 0 {
-				if _, ok := localeSet[locale]; !ok {
-					if _, ok := localeSet[fmt.Sprintf("%d", glossaryTranslationLanguageID(translation))]; !ok {
-						continue
-					}
-				}
-			}
-			rows = append(rows, glossaryCSVRow(projectID, term, &translation, locale))
-			wroteTranslation = true
-		}
-		if !wroteTranslation && len(localeSet) == 0 {
-			rows = append(rows, glossaryCSVRow(projectID, term, nil, ""))
-		}
+		rows = append(rows, glossaryCSVRow(term, languageByID, locales))
 	}
 	return rows
 }
 
-func glossaryCSVRow(projectID string, term glossaryTerm, translation *glossaryTermTranslation, locale string) []string {
+func glossaryCSVRow(term glossaryTerm, languageByID map[int64]string, locales []string) []string {
 	row := []string{
-		projectID,
-		fmt.Sprintf("%d", term.ID),
 		term.Term,
 		term.Description,
-		fmt.Sprintf("%t", term.Translatable),
-		fmt.Sprintf("%t", term.Forbidden),
-		fmt.Sprintf("%t", term.CaseSensitive),
-		strings.Join(term.Tags, ";"),
-		"",
-		"",
-		"",
-		"",
-		"",
-		term.CreatedAt,
-		term.UpdatedAt,
+		lokaliseCSVBool(term.CaseSensitive),
+		lokaliseCSVBool(term.Translatable),
+		lokaliseCSVBool(term.Forbidden),
+		strings.Join(term.Tags, ","),
 	}
-	if translation != nil {
-		row[8] = locale
-		row[9] = translation.Translation
-		row[10] = fmt.Sprintf("%d", translation.ID)
-		row[11] = fmt.Sprintf("%d", glossaryTranslationLanguageID(*translation))
-		row[12] = translation.Description
+
+	translationByLocale := glossaryTranslationsByLocale(term.Translations, languageByID)
+	for _, locale := range locales {
+		row = append(row, translationByLocale[locale].Translation)
+	}
+	for _, locale := range locales {
+		row = append(row, translationByLocale[locale].Description)
 	}
 	return row
+}
+
+func glossaryTranslationsByLocale(translations []glossaryTermTranslation, languageByID map[int64]string) map[string]glossaryTermTranslation {
+	sortedTranslations := slices.Clone(translations)
+	slices.SortStableFunc(sortedTranslations, func(left, right glossaryTermTranslation) int {
+		leftLocale := glossaryTranslationLocale(left, languageByID)
+		rightLocale := glossaryTranslationLocale(right, languageByID)
+		if leftLocale != rightLocale {
+			return cmp.Compare(leftLocale, rightLocale)
+		}
+		return cmp.Compare(left.ID, right.ID)
+	})
+
+	out := map[string]glossaryTermTranslation{}
+	for _, translation := range sortedTranslations {
+		locale := glossaryTranslationLocale(translation, languageByID)
+		if locale == "" {
+			continue
+		}
+		if _, exists := out[locale]; !exists {
+			out[locale] = translation
+		}
+	}
+	return out
+}
+
+func lokaliseCSVBool(value bool) string {
+	if value {
+		return "yes"
+	}
+	return "no"
 }
 
 func glossaryTranslationLanguageID(translation glossaryTermTranslation) int64 {

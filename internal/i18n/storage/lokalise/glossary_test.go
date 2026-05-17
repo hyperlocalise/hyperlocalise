@@ -63,8 +63,8 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 		}
 		writeLokaliseJSON(t, w, map[string]any{
 			"languages": []any{
-				map[string]any{"lang_id": 674, "lang_iso": "fr-FR"},
-				map[string]any{"lang_id": 597, "lang_iso": "de-DE"},
+				map[string]any{"lang_id": 674, "lang_iso": "fr"},
+				map[string]any{"lang_id": 597, "lang_iso": "de_DE"},
 			},
 		})
 	})
@@ -76,36 +76,123 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := bytes.NewBuffer(nil)
-	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token", Locales: []string{"fr-FR"}}, out)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token"}, out)
 	if err != nil {
 		t.Fatalf("write glossary csv: %v", err)
 	}
-	if result.Terms != 2 || result.Rows != 1 {
-		t.Fatalf("result = %+v, want terms=2 rows=1", result)
+	if result.Terms != 2 || result.Rows != 2 {
+		t.Fatalf("result = %+v, want terms=2 rows=2", result)
 	}
-	records, err := csv.NewReader(strings.NewReader(out.String())).ReadAll()
+	reader := csv.NewReader(strings.NewReader(out.String()))
+	reader.Comma = ';'
+	records, err := reader.ReadAll()
 	if err != nil {
 		t.Fatalf("read csv: %v", err)
 	}
-	wantRow := []string{
-		"proj-1",
-		"1",
+	wantHeader := []string{
+		"term",
+		"description",
+		"casesensitive",
+		"translatable",
+		"Forbidden",
+		"tags",
+		"de_DE",
+		"fr",
+		"de_DE_description",
+		"fr_description",
+	}
+	wantCartRow := []string{
+		"Cart",
+		"Shopping cart",
+		"no",
+		"yes",
+		"no",
+		"commerce",
+		"Warenkorb",
+		"",
+		"German term",
+		"",
+	}
+	wantCheckoutRow := []string{
 		"Checkout",
 		"CTA",
-		"true",
-		"false",
-		"true",
-		"checkout;button",
-		"fr-FR",
+		"yes",
+		"yes",
+		"no",
+		"checkout,button",
+		"",
 		"Paiement",
-		"11",
-		"674",
+		"",
 		"French term",
-		"2024-02-01T00:00:00Z",
-		"2024-02-02T00:00:00Z",
 	}
-	if got := records[0]; !equalLokaliseStrings(got, glossaryCSVHeader) {
-		t.Fatalf("header = %#v, want %#v", got, glossaryCSVHeader)
+	if got := records[0]; !equalLokaliseStrings(got, wantHeader) {
+		t.Fatalf("header = %#v, want %#v", got, wantHeader)
+	}
+	if got := records[1]; !equalLokaliseStrings(got, wantCartRow) {
+		t.Fatalf("cart row = %#v, want %#v", got, wantCartRow)
+	}
+	if got := records[2]; !equalLokaliseStrings(got, wantCheckoutRow) {
+		t.Fatalf("checkout row = %#v, want %#v", got, wantCheckoutRow)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVFiltersLocaleColumns(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"items": []any{
+				map[string]any{
+					"id":            1,
+					"term":          "Checkout",
+					"description":   "CTA",
+					"translatable":  true,
+					"forbidden":     false,
+					"caseSensitive": true,
+					"translations": []any{
+						map[string]any{"id": 11, "langId": 674, "translation": "Paiement", "description": "French term"},
+						map[string]any{"id": 12, "langId": 597, "translation": "Kasse", "description": "German term"},
+					},
+				},
+			},
+		})
+	})
+	mux.HandleFunc("/projects/proj-1/languages", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"languages": []any{
+				map[string]any{"lang_id": 674, "lang_iso": "fr"},
+				map[string]any{"lang_id": 597, "lang_iso": "de_DE"},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{
+		ProjectID: "proj-1",
+		APIToken:  "token",
+		Locales:   []string{"fr"},
+	}, out)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if result.Terms != 1 || result.Rows != 1 {
+		t.Fatalf("result = %+v, want terms=1 rows=1", result)
+	}
+	reader := csv.NewReader(strings.NewReader(out.String()))
+	reader.Comma = ';'
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatalf("read csv: %v", err)
+	}
+	wantHeader := []string{"term", "description", "casesensitive", "translatable", "Forbidden", "tags", "fr", "fr_description"}
+	wantRow := []string{"Checkout", "CTA", "yes", "yes", "no", "", "Paiement", "French term"}
+	if got := records[0]; !equalLokaliseStrings(got, wantHeader) {
+		t.Fatalf("header = %#v, want %#v", got, wantHeader)
 	}
 	if got := records[1]; !equalLokaliseStrings(got, wantRow) {
 		t.Fatalf("row = %#v, want %#v", got, wantRow)
@@ -166,7 +253,7 @@ func TestHTTPClientWriteGlossaryCSVHandlesEmptyGlossary(t *testing.T) {
 	if result.Terms != 0 || result.Rows != 0 {
 		t.Fatalf("result = %+v, want zero", result)
 	}
-	if got, want := strings.TrimSpace(out.String()), strings.Join(glossaryCSVHeader, ","); got != want {
+	if got, want := strings.TrimSpace(out.String()), strings.Join(glossaryCSVBaseHeader, ";"); got != want {
 		t.Fatalf("csv = %q, want %q", got, want)
 	}
 }

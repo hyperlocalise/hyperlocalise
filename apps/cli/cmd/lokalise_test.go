@@ -46,7 +46,7 @@ func TestLokaliseGlossaryDownloadWritesCSVToStdout(t *testing.T) {
 	if strings.Join(fake.req.Locales, ",") != "fr" {
 		t.Fatalf("locales = %v, want fr", fake.req.Locales)
 	}
-	if got := out.String(); got != "project_id,term_id,source_term\nproj-1,1,Checkout\n" {
+	if got := out.String(); got != "term;description\nCheckout;CTA\n" {
 		t.Fatalf("output = %q", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestLokaliseGlossaryDownloadWritesCSVToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read output file: %v", err)
 	}
-	if got := string(content); !strings.Contains(got, "proj-1,1,Checkout") {
+	if got := string(content); !strings.Contains(got, "Checkout;CTA") {
 		t.Fatalf("unexpected file content: %q", got)
 	}
 	if !strings.Contains(out.String(), "terms=1 rows=1") {
@@ -149,7 +149,7 @@ func (f *fakeLokaliseGlossaryCSVWriter) WriteGlossaryCSV(_ context.Context, req 
 	if f.err != nil {
 		return lokalise.GlossaryDownloadResult{}, f.err
 	}
-	if _, err := io.WriteString(w, "project_id,term_id,source_term\n"+req.ProjectID+",1,Checkout\n"); err != nil {
+	if _, err := io.WriteString(w, "term;description\nCheckout;CTA\n"); err != nil {
 		return lokalise.GlossaryDownloadResult{}, err
 	}
 	return lokalise.GlossaryDownloadResult{Terms: 1, Rows: 1}, nil
