@@ -294,13 +294,10 @@ func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSour
 		if err != nil {
 			return lokalise.Config{}, "", fmt.Errorf("lokalise upload sources: %w", err)
 		}
-		return resolved, strings.TrimSpace(cfg.SourceLanguage), nil
+		return resolved, strings.TrimSpace(resolved.SourceLanguage), nil
 	}
 	if strings.TrimSpace(cfg.APITokenEnv) == "" {
 		cfg.APITokenEnv = defaultLokaliseAPITokenEnv
-	}
-	if cfg.TimeoutSeconds <= 0 {
-		cfg.TimeoutSeconds = o.timeoutSeconds
 	}
 	return cfg, strings.TrimSpace(cfg.SourceLanguage), nil
 }

@@ -101,10 +101,14 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 
 	var out lokaliseFileUploadResponse
 	path := fmt.Sprintf("/projects/%s/files/upload", lokaliseProjectPathSegment(in.ProjectID, in.Branch))
-	if err := c.doLokaliseUploadJSON(ctx, http.MethodPost, path, req, &out); err != nil {
+	meta, err := c.doLokaliseUploadJSON(ctx, http.MethodPost, path, req, &out)
+	if err != nil {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: %w", in.FilePath, err)
 	}
 	if strings.TrimSpace(out.Process.ID) == "" {
+		if meta.StatusCode == http.StatusFound {
+			return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: 302 queued response missing process id%s", in.FilePath, lokaliseUploadLocationSuffix(meta.Location))
+		}
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload %q: response missing process id", in.FilePath)
 	}
 	return SourceUploadResult{
@@ -115,14 +119,19 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	}, nil
 }
 
-func (c *HTTPClient) doLokaliseUploadJSON(ctx context.Context, method, path string, payload any, out any) error {
+type lokaliseUploadHTTPMeta struct {
+	StatusCode int
+	Location   string
+}
+
+func (c *HTTPClient) doLokaliseUploadJSON(ctx context.Context, method, path string, payload any, out any) (lokaliseUploadHTTPMeta, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return lokaliseUploadHTTPMeta{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, bytes.NewReader(body))
 	if err != nil {
-		return err
+		return lokaliseUploadHTTPMeta{}, err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
@@ -130,27 +139,51 @@ func (c *HTTPClient) doLokaliseUploadJSON(ctx context.Context, method, path stri
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		return lokaliseUploadHTTPMeta{}, err
 	}
 	defer func() {
 		_ = resp.Body.Close()
 	}()
+	meta := lokaliseUploadHTTPMeta{
+		StatusCode: resp.StatusCode,
+		Location:   strings.TrimSpace(resp.Header.Get("Location")),
+	}
 	if !isLokaliseUploadSuccessStatus(resp.StatusCode) {
 		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("lokalise API %s %s failed: status=%d body=%s", method, path, resp.StatusCode, strings.TrimSpace(string(raw)))
+		return meta, fmt.Errorf("lokalise API %s %s failed: status=%d body=%s", method, path, resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 	if out == nil {
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxLokaliseUploadResponseBody))
-		return nil
+		return meta, nil
+	}
+	if resp.StatusCode == http.StatusFound {
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, maxLokaliseUploadResponseBody))
+		if err != nil {
+			return meta, fmt.Errorf("read lokalise API 302 response: %w", err)
+		}
+		if strings.TrimSpace(string(raw)) == "" {
+			return meta, fmt.Errorf("lokalise API %s %s returned 302 without JSON queued process body%s", method, path, lokaliseUploadLocationSuffix(meta.Location))
+		}
+		if err := json.NewDecoder(bytes.NewReader(raw)).Decode(out); err != nil {
+			return meta, fmt.Errorf("decode lokalise API 302 queued response%s: %w", lokaliseUploadLocationSuffix(meta.Location), err)
+		}
+		return meta, nil
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxLokaliseUploadResponseBody)).Decode(out); err != nil {
-		return fmt.Errorf("decode lokalise API response: %w", err)
+		return meta, fmt.Errorf("decode lokalise API response: %w", err)
 	}
-	return nil
+	return meta, nil
 }
 
 func isLokaliseUploadSuccessStatus(status int) bool {
-	return status >= 200 && status < 300 || status == http.StatusFound
+	return (status >= 200 && status < 300) || status == http.StatusFound
+}
+
+func lokaliseUploadLocationSuffix(location string) string {
+	if strings.TrimSpace(location) == "" {
+		return ""
+	}
+	return " location=" + strings.TrimSpace(location)
 }
 
 func resolveLokaliseUploadFormat(path, override string) (string, error) {

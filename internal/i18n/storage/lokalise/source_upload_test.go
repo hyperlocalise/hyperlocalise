@@ -141,6 +141,30 @@ func TestUploadSourceFileAcceptsAlreadyQueuedResponse(t *testing.T) {
 	}
 }
 
+func TestUploadSourceFileReportsRedirectWithoutProcessBody(t *testing.T) {
+	client, mux, teardown := newLokaliseUploadClientForTest(t)
+	defer teardown()
+
+	sourcePath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	mux.HandleFunc("/api2/projects/project-1/files/upload", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", "/api2/projects/project-1/processes/proc-queued")
+		w.WriteHeader(http.StatusFound)
+	})
+
+	_, err := client.UploadSourceFile(context.Background(), SourceUploadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FilePath:     sourcePath,
+	})
+	if err == nil || !strings.Contains(err.Error(), "302") || !strings.Contains(err.Error(), "location=/api2/projects/project-1/processes/proc-queued") {
+		t.Fatalf("error = %v, want 302 redirect location", err)
+	}
+}
+
 func TestUploadSourceFileReturnsAPIError(t *testing.T) {
 	client, mux, teardown := newLokaliseUploadClientForTest(t)
 	defer teardown()
