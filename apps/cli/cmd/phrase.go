@@ -1087,7 +1087,7 @@ func phraseConfigTagVariants(pattern string, tags []string) ([]string, error) {
 }
 
 func phraseConfigOutputPath(cfg phrase.CLIConfig, pattern, locale, tag string) (string, error) {
-	pattern = strings.ReplaceAll(pattern, "%locale%", locale)
+	pattern = strings.ReplaceAll(pattern, "%locale%", phrase.LocaleNameForPath(locale, cfg.LocaleMapping))
 	expanded, err := phrase.ExpandCLIFilePath(pattern, locale, tag, cfg.LocaleMapping)
 	if err != nil {
 		return "", err
