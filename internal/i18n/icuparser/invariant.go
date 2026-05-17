@@ -316,7 +316,7 @@ func isASCIIDigit(b byte) bool {
 }
 
 func isPlaceholderFirstRune(r rune) bool {
-	return isASCIILetter(r) || r == '_' || r == '$'
+	return isASCIILetter(r) || isASCIIDigitRune(r) || r == '_' || r == '$'
 }
 
 func isPlaceholderSubsequentRune(r rune) bool {
