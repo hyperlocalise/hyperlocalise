@@ -263,6 +263,81 @@ func TestLokaliseDownloadTranslationsForceOverwritesExistingOutput(t *testing.T)
 	}
 }
 
+func TestLokaliseDownloadTranslationsForceRemovesOverwrittenOutputOnLaterFailure(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	dir := t.TempDir()
+	frPath := filepath.Join(dir, "fr.json")
+	dePath := filepath.Join(dir, "de.json")
+	if err := os.WriteFile(frPath, []byte("existing"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	oldFactory := newLokaliseTranslationDownloader
+	defer func() {
+		newLokaliseTranslationDownloader = oldFactory
+	}()
+	newLokaliseTranslationDownloader = func(lokalise.Config) (lokaliseTranslationDownloader, error) {
+		return &fakeLokaliseTranslationDownloader{
+			files: []lokalise.TranslationFile{
+				{Locale: "fr", Name: "fr.json", Content: []byte(`{"hello":"Bonjour"}`)},
+				{Locale: "de", Name: "de.json", Content: []byte(`{"hello":"Hallo"}`)},
+			},
+			beforeReturn: func() {
+				if err := os.Mkdir(dePath, 0o755); err != nil {
+					t.Fatalf("create conflicting output directory: %v", err)
+				}
+			},
+		}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--project-id", "project-1", "--target-locale", "fr,de", "--format", "json", "--output", filepath.Join(dir, "%locale%.json"), "--force"})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "is a directory") {
+		t.Fatalf("error = %v, want later output write failure", err)
+	}
+	if _, err := os.Stat(frPath); !os.IsNotExist(err) {
+		t.Fatalf("fr output should be removed after partial failure, stat err = %v", err)
+	}
+}
+
+func TestLokaliseDownloadTranslationsPrintsAPIWarning(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_API_TOKEN", "secret")
+
+	oldFactory := newLokaliseTranslationDownloader
+	defer func() {
+		newLokaliseTranslationDownloader = oldFactory
+	}()
+	newLokaliseTranslationDownloader = func(lokalise.Config) (lokaliseTranslationDownloader, error) {
+		return &fakeLokaliseTranslationDownloader{
+			files:   []lokalise.TranslationFile{{Locale: "fr", Name: "fr.json", Content: []byte(`{"hello":"Bonjour"}`)}},
+			warning: "some translations are incomplete",
+		}, nil
+	}
+
+	outputPath := filepath.Join(t.TempDir(), "fr.json")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--project-id", "project-1", "--target-locale", "fr", "--format", "json", "--output", outputPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download translations: %v", err)
+	}
+	if got := errOut.String(); !strings.Contains(got, "warning: some translations are incomplete") {
+		t.Fatalf("stderr = %q, want API warning", got)
+	}
+}
+
 func TestLokaliseDownloadTranslationsRequiresInputs(t *testing.T) {
 	t.Chdir(t.TempDir())
 
@@ -443,9 +518,11 @@ func (f *fakeLokaliseGlossaryCSVWriter) WriteGlossaryCSV(_ context.Context, req 
 }
 
 type fakeLokaliseTranslationDownloader struct {
-	req   lokalise.TranslationFileDownloadRequest
-	files []lokalise.TranslationFile
-	err   error
+	req          lokalise.TranslationFileDownloadRequest
+	files        []lokalise.TranslationFile
+	warning      string
+	beforeReturn func()
+	err          error
 }
 
 func (f *fakeLokaliseTranslationDownloader) DownloadTranslationFiles(_ context.Context, req lokalise.TranslationFileDownloadRequest) (lokalise.TranslationFileDownloadResult, error) {
@@ -453,5 +530,11 @@ func (f *fakeLokaliseTranslationDownloader) DownloadTranslationFiles(_ context.C
 	if f.err != nil {
 		return lokalise.TranslationFileDownloadResult{}, f.err
 	}
-	return lokalise.TranslationFileDownloadResult{Files: append([]lokalise.TranslationFile(nil), f.files...)}, nil
+	if f.beforeReturn != nil {
+		f.beforeReturn()
+	}
+	return lokalise.TranslationFileDownloadResult{
+		Files:   append([]lokalise.TranslationFile(nil), f.files...),
+		Warning: f.warning,
+	}, nil
 }

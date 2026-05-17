@@ -149,24 +149,26 @@ func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadT
 	for idx, file := range result.Files {
 		output := outputs[idx]
 		if output == "" || output == "-" {
-			_, err := cmd.OutOrStdout().Write(file.Content)
-			return err
-		}
-		outputExisted := false
-		if _, err := os.Stat(output); err == nil {
-			outputExisted = true
+			if _, err := cmd.OutOrStdout().Write(file.Content); err != nil {
+				return err
+			}
+			if result.Warning != "" {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", result.Warning)
+			}
+			return nil
 		}
 		if err := writeLokaliseDownloadedTranslation(output, file.Content, o.force); err != nil {
 			removeLokaliseDownloadedOutputs(writtenOutputs)
 			return err
 		}
-		if !outputExisted {
-			writtenOutputs = append(writtenOutputs, output)
-		}
+		writtenOutputs = append(writtenOutputs, output)
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", output, len(file.Content), file.Locale, req.Format); err != nil {
 			removeLokaliseDownloadedOutputs(writtenOutputs)
 			return err
 		}
+	}
+	if result.Warning != "" {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", result.Warning)
 	}
 	return nil
 }
