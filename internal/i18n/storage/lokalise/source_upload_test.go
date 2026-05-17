@@ -114,6 +114,38 @@ func TestUploadSourceFileUsesFormatOverride(t *testing.T) {
 	}
 }
 
+func TestUploadSourceFileOmitsEmptyTags(t *testing.T) {
+	client, mux, teardown := newLokaliseUploadClientForTest(t)
+	defer teardown()
+
+	sourcePath := filepath.Join(t.TempDir(), "en.json")
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	mux.HandleFunc("/api2/projects/project-1/files/upload", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if _, exists := body["tags"]; exists {
+			t.Fatalf("tags should be omitted when empty, got body: %#v", body)
+		}
+		w.WriteHeader(http.StatusAccepted)
+		_ = json.NewEncoder(w).Encode(map[string]any{"process": map[string]any{"process_id": "proc-no-tags", "status": "queued"}})
+	})
+
+	_, err := client.UploadSourceFile(context.Background(), SourceUploadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FilePath:     sourcePath,
+		Tags:         []string{"", " , "},
+	})
+	if err != nil {
+		t.Fatalf("upload source file: %v", err)
+	}
+}
+
 func TestUploadSourceFileAcceptsAlreadyQueuedResponse(t *testing.T) {
 	client, mux, teardown := newLokaliseUploadClientForTest(t)
 	defer teardown()

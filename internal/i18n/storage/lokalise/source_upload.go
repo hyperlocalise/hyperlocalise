@@ -239,5 +239,8 @@ func normalizeLokaliseUploadTags(tags []string) []string {
 			out = append(out, trimmed)
 		}
 	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
