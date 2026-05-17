@@ -14,15 +14,23 @@ import (
 
 // SourceUploadInput describes one Phrase source file upload.
 type SourceUploadInput struct {
-	ProjectID          string
-	APIToken           string
-	LocaleID           string
-	FilePath           string
-	FileFormat         string
-	Branch             string
-	Tags               []string
-	UpdateTranslations bool
-	SkipUploadTags     bool
+	ProjectID             string
+	APIToken              string
+	LocaleID              string
+	FilePath              string
+	FileFormat            string
+	Branch                string
+	Tags                  []string
+	UpdateTranslations    bool
+	SkipUploadTags        bool
+	UpdateTranslationKeys *bool
+	UpdateDescriptions    *bool
+	SkipUnverification    *bool
+	FileEncoding          string
+	LocaleMapping         map[string]any
+	FormatOptions         map[string]any
+	Autotranslate         *bool
+	MarkReviewed          *bool
 }
 
 // SourceUploadSummary contains Phrase's upload summary counters.
@@ -73,6 +81,30 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 	}
 	if in.SkipUploadTags {
 		opts.SkipUploadTags = optional.NewBool(true)
+	}
+	if in.UpdateTranslationKeys != nil {
+		opts.UpdateTranslationKeys = optional.NewBool(*in.UpdateTranslationKeys)
+	}
+	if in.UpdateDescriptions != nil {
+		opts.UpdateDescriptions = optional.NewBool(*in.UpdateDescriptions)
+	}
+	if in.SkipUnverification != nil {
+		opts.SkipUnverification = optional.NewBool(*in.SkipUnverification)
+	}
+	if fileEncoding := strings.TrimSpace(in.FileEncoding); fileEncoding != "" {
+		opts.FileEncoding = optional.NewString(fileEncoding)
+	}
+	if len(in.LocaleMapping) > 0 {
+		opts.LocaleMapping = optional.NewInterface(in.LocaleMapping)
+	}
+	if len(in.FormatOptions) > 0 {
+		opts.FormatOptions = optional.NewInterface(in.FormatOptions)
+	}
+	if in.Autotranslate != nil {
+		opts.Autotranslate = optional.NewBool(*in.Autotranslate)
+	}
+	if in.MarkReviewed != nil {
+		opts.MarkReviewed = optional.NewBool(*in.MarkReviewed)
 	}
 
 	upload, err := c.uploadSourceFile(ctx, strings.TrimSpace(in.APIToken), strings.TrimSpace(in.ProjectID), in.FilePath, strings.TrimSpace(in.FileFormat), strings.TrimSpace(in.LocaleID), &opts)

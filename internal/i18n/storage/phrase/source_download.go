@@ -19,6 +19,7 @@ type SourceDownloadInput struct {
 	FileFormat string
 	Branch     string
 	Tags       []string
+	DownloadOptions
 }
 
 // SourceDownloadResult is the normalized content returned by a Phrase locale download.
@@ -36,6 +37,25 @@ type TranslationDownloadInput struct {
 	FileFormat string
 	Branch     string
 	Tags       []string
+	DownloadOptions
+}
+
+// DownloadOptions mirrors the Phrase locale download params that the CLI config can pass through.
+type DownloadOptions struct {
+	IncludeEmptyTranslations      *bool
+	ExcludeEmptyZeroForms         *bool
+	IncludeTranslatedKeys         *bool
+	KeepNotranslateTags           *bool
+	Encoding                      string
+	IncludeUnverifiedTranslations *bool
+	UseLastReviewedVersion        *bool
+	FallbackLocaleID              string
+	FormatOptions                 map[string]any
+	SourceLocaleID                string
+	TranslationKeyPrefix          string
+	FilterByPrefix                *bool
+	UseLocaleFallback             *bool
+	SkipUnverifiedTranslations    *bool
 }
 
 // TranslationDownloadResult is the normalized content returned by a Phrase target locale download.
@@ -69,6 +89,7 @@ func (c *HTTPClient) DownloadSourceFile(ctx context.Context, in SourceDownloadIn
 	if tags := joinTrimmed(in.Tags); tags != "" {
 		opts.Tags = optional.NewString(tags)
 	}
+	applyLocaleDownloadOptions(&opts, in.DownloadOptions)
 
 	content, err := c.downloadSourceFile(ctx, strings.TrimSpace(in.APIToken), strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.LocaleID), &opts)
 	if err != nil {
@@ -105,6 +126,7 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in Translation
 	if tags := joinTrimmed(in.Tags); tags != "" {
 		opts.Tags = optional.NewString(tags)
 	}
+	applyLocaleDownloadOptions(&opts, in.DownloadOptions)
 
 	content, err := c.downloadSourceFile(ctx, strings.TrimSpace(in.APIToken), strings.TrimSpace(in.ProjectID), strings.TrimSpace(in.LocaleID), &opts)
 	if err != nil {
@@ -115,6 +137,54 @@ func (c *HTTPClient) DownloadTranslationFile(ctx context.Context, in Translation
 		Format:   strings.TrimSpace(in.FileFormat),
 		Content:  content,
 	}, nil
+}
+
+func applyLocaleDownloadOptions(opts *phraseapi.LocaleDownloadOpts, in DownloadOptions) {
+	if opts == nil {
+		return
+	}
+	if in.IncludeEmptyTranslations != nil {
+		opts.IncludeEmptyTranslations = optional.NewBool(*in.IncludeEmptyTranslations)
+	}
+	if in.ExcludeEmptyZeroForms != nil {
+		opts.ExcludeEmptyZeroForms = optional.NewBool(*in.ExcludeEmptyZeroForms)
+	}
+	if in.IncludeTranslatedKeys != nil {
+		opts.IncludeTranslatedKeys = optional.NewBool(*in.IncludeTranslatedKeys)
+	}
+	if in.KeepNotranslateTags != nil {
+		opts.KeepNotranslateTags = optional.NewBool(*in.KeepNotranslateTags)
+	}
+	if encoding := strings.TrimSpace(in.Encoding); encoding != "" {
+		opts.Encoding = optional.NewString(encoding)
+	}
+	if in.IncludeUnverifiedTranslations != nil {
+		opts.IncludeUnverifiedTranslations = optional.NewBool(*in.IncludeUnverifiedTranslations)
+	}
+	if in.UseLastReviewedVersion != nil {
+		opts.UseLastReviewedVersion = optional.NewBool(*in.UseLastReviewedVersion)
+	}
+	if fallbackLocaleID := strings.TrimSpace(in.FallbackLocaleID); fallbackLocaleID != "" {
+		opts.FallbackLocaleId = optional.NewString(fallbackLocaleID)
+	}
+	if len(in.FormatOptions) > 0 {
+		opts.FormatOptions = optional.NewInterface(in.FormatOptions)
+	}
+	if sourceLocaleID := strings.TrimSpace(in.SourceLocaleID); sourceLocaleID != "" {
+		opts.SourceLocaleId = optional.NewString(sourceLocaleID)
+	}
+	if translationKeyPrefix := strings.TrimSpace(in.TranslationKeyPrefix); translationKeyPrefix != "" {
+		opts.TranslationKeyPrefix = optional.NewString(translationKeyPrefix)
+	}
+	if in.FilterByPrefix != nil {
+		opts.FilterByPrefix = optional.NewBool(*in.FilterByPrefix)
+	}
+	if in.UseLocaleFallback != nil {
+		opts.UseLocaleFallback = optional.NewBool(*in.UseLocaleFallback)
+	}
+	if in.SkipUnverifiedTranslations != nil {
+		opts.SkipUnverifiedTranslations = optional.NewBool(*in.SkipUnverifiedTranslations)
+	}
 }
 
 func (c *HTTPClient) downloadSourceFile(ctx context.Context, token, projectID, localeID string, opts *phraseapi.LocaleDownloadOpts) ([]byte, error) {
