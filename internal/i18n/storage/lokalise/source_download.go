@@ -141,7 +141,7 @@ func bundleRequestErrorMessage(err error) string {
 		}
 		return "request failed"
 	}
-	return "request failed"
+	return err.Error()
 }
 
 func readLimitedBundleBody(body io.Reader, maxBytes int64) ([]byte, error) {

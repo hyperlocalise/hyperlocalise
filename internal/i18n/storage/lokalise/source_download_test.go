@@ -246,6 +246,9 @@ func TestDownloadBundleRequestErrorRedactsBundleURL(t *testing.T) {
 	if !strings.Contains(err.Error(), "GET bundle URL") {
 		t.Fatalf("expected generic bundle URL label, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "connection failed") {
+		t.Fatalf("expected transport error detail, got %v", err)
+	}
 	if strings.Contains(err.Error(), "example.invalid") || strings.Contains(err.Error(), "X-Goog-Signature") || strings.Contains(err.Error(), "secret-signature") {
 		t.Fatalf("request error leaked signed URL: %v", err)
 	}
