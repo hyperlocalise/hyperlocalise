@@ -179,6 +179,23 @@ func TestDownloadTranslationFilesErrorsWhenBundleTooLarge(t *testing.T) {
 	}
 }
 
+func TestExtractTranslationBundleErrorsWhenEntryTooLarge(t *testing.T) {
+	oldLimit := maxTranslationBundleBytes
+	maxTranslationBundleBytes = 4
+	defer func() {
+		maxTranslationBundleBytes = oldLimit
+	}()
+
+	payload := lokaliseZipFixture(t, map[string]string{
+		"fr.json": "12345",
+	})
+
+	_, err := extractLokaliseTranslationBundle(payload, []string{"fr"}, "json", defaultTranslationBundleStructure)
+	if err == nil || !strings.Contains(err.Error(), "file too large") {
+		t.Fatalf("error = %v, want file too large", err)
+	}
+}
+
 func newLokaliseTranslationDownloadClientForTest(t *testing.T) (*HTTPClient, *http.ServeMux, string, func()) {
 	t.Helper()
 	mux := http.NewServeMux()

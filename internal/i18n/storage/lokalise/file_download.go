@@ -168,9 +168,12 @@ func readZipFile(file *zip.File) ([]byte, error) {
 	defer func() {
 		_ = reader.Close()
 	}()
-	content, err := io.ReadAll(reader)
+	content, err := io.ReadAll(io.LimitReader(reader, maxTranslationBundleBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read lokalise bundle file %q: %w", file.Name, err)
+	}
+	if int64(len(content)) > maxTranslationBundleBytes {
+		return nil, fmt.Errorf("read lokalise bundle file %q: file too large (max %d bytes)", file.Name, maxTranslationBundleBytes)
 	}
 	return content, nil
 }
