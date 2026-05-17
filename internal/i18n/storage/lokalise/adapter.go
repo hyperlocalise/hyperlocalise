@@ -88,8 +88,10 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
-	if _, exists := rawMap["apiToken"]; exists {
-		return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultTokenEnvName)
+	for key := range rawMap {
+		if strings.EqualFold(key, "apiToken") {
+			return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultTokenEnvName)
+		}
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)

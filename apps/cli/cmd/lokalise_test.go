@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -162,7 +163,7 @@ func TestLokaliseUploadSourcesDryRunValidatesFiles(t *testing.T) {
 }
 
 func TestLokaliseUploadSourcesRequiresFile(t *testing.T) {
-	t.Setenv("LOKALISE_API_TOKEN", "secret")
+	t.Setenv("LOKALISE_API_TOKEN", "")
 
 	cmd := newRootCmd("")
 	cmd.SetArgs([]string{"lokalise", "upload", "sources", "--project-id", "project-1", "--source-locale", "en"})
@@ -173,6 +174,13 @@ func TestLokaliseUploadSourcesRequiresFile(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "at least one --file is required") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDecodeLokaliseStorageConfigRejectsInlineTokenCasing(t *testing.T) {
+	_, err := decodeLokaliseStorageConfig(json.RawMessage(`{"projectID":"project-1","APIToken":"inline"}`))
+	if err == nil || !strings.Contains(err.Error(), "apiToken is not supported") {
+		t.Fatalf("expected inline token rejection, got %v", err)
 	}
 }
 

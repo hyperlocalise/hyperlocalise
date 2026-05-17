@@ -199,11 +199,11 @@ func newLokaliseGlossaryDownloadCmd() *cobra.Command {
 }
 
 func executeLokaliseUploadSources(cmd *cobra.Command, o lokaliseUploadSourcesOptions) error {
-	cfg, sourceLocale, err := resolveLokaliseUploadSourcesConfig(cmd, o, !o.dryRun)
+	files, err := validateLokaliseSourceFiles(o.files, o.format)
 	if err != nil {
 		return err
 	}
-	files, err := validateLokaliseSourceFiles(o.files, o.format)
+	cfg, sourceLocale, err := resolveLokaliseUploadSourcesConfig(cmd, o, !o.dryRun)
 	if err != nil {
 		return err
 	}
@@ -310,8 +310,10 @@ func decodeLokaliseStorageConfig(raw json.RawMessage) (lokalise.Config, error) {
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
 	}
-	if _, exists := rawMap["apiToken"]; exists {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultLokaliseAPITokenEnv)
+	for key := range rawMap {
+		if strings.EqualFold(key, "apiToken") {
+			return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultLokaliseAPITokenEnv)
+		}
 	}
 
 	var cfg lokalise.Config
