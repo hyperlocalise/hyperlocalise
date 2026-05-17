@@ -21,9 +21,12 @@ func TestUploadSourceFilePostsBase64Payload(t *testing.T) {
 		t.Fatalf("write source file: %v", err)
 	}
 
-	mux.HandleFunc("/api2/projects/project-1:feature%2Fnew-release/files/upload", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api2/projects/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if got, want := r.URL.EscapedPath(), "/api2/projects/project-1:feature%2Fnew-release/files/upload"; got != want {
+			t.Fatalf("path = %q, want %q", got, want)
 		}
 		if got := r.Header.Get("X-Api-Token"); got != "secret" {
 			t.Fatalf("X-Api-Token = %q, want secret", got)

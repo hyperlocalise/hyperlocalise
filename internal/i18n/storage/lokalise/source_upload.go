@@ -84,16 +84,26 @@ func (c *HTTPClient) UploadSourceFile(ctx context.Context, in SourceUploadInput)
 		return SourceUploadResult{}, err
 	}
 
-	info, statErr := os.Stat(in.FilePath)
+	file, statErr := os.Open(in.FilePath)
+	if statErr != nil {
+		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: open source file %q: %w", in.FilePath, statErr)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	info, statErr := file.Stat()
 	if statErr != nil {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: stat source file %q: %w", in.FilePath, statErr)
 	}
 	if info.Size() > maxLokaliseUploadFileBytes {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
 	}
-	content, err := os.ReadFile(in.FilePath)
+	content, err := io.ReadAll(io.LimitReader(file, maxLokaliseUploadFileBytes+1))
 	if err != nil {
 		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: read source file %q: %w", in.FilePath, err)
+	}
+	if len(content) > maxLokaliseUploadFileBytes {
+		return SourceUploadResult{}, fmt.Errorf("lokalise source upload: source file %q exceeds maximum upload size (%d bytes)", in.FilePath, maxLokaliseUploadFileBytes)
 	}
 	req := lokaliseFileUploadRequest{
 		Data:                base64.StdEncoding.EncodeToString(content),
