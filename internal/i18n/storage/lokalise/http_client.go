@@ -19,7 +19,7 @@ type HTTPClient struct {
 	api *lokaliseapi.Api
 	// apiToken is the single auth source for raw Lokalise API calls.
 	apiToken string
-	// baseURL and httpClient are kept for glossary endpoints that are called directly.
+	// baseURL and httpClient are kept for glossary and file endpoints that are called directly.
 	baseURL    string
 	httpClient *http.Client
 }
@@ -29,13 +29,25 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	httpClient := &http.Client{Timeout: timeout}
+	httpClient := &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
 	return NewHTTPClientWithBaseURL(cfg, cfg.APIBaseURL, httpClient)
 }
 
 func NewHTTPClientWithBaseURL(cfg Config, baseURL string, httpClient *http.Client) (*HTTPClient, error) {
 	if httpClient == nil {
 		return nil, fmt.Errorf("lokalise http client: client must not be nil")
+	}
+	if httpClient.CheckRedirect == nil {
+		cloned := *httpClient
+		cloned.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		httpClient = &cloned
 	}
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultBaseURL
@@ -47,7 +59,7 @@ func NewHTTPClientWithBaseURL(cfg Config, baseURL string, httpClient *http.Clien
 	apiToken := strings.TrimSpace(cfg.APIToken)
 
 	// Keep the SDK initialized with the same base URL/timeout as the raw client
-	// so existing key sync and new glossary export behavior stay aligned.
+	// so existing key sync, glossary export, and file upload behavior stay aligned.
 	api, err := lokaliseapi.New(
 		apiToken,
 		lokaliseapi.WithBaseURL(baseURL),

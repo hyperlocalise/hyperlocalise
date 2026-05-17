@@ -95,6 +95,11 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
 
+	return ResolveConfig(cfg)
+}
+
+// ResolveConfig applies Lokalise defaults and validates required auth fields.
+func ResolveConfig(cfg Config) (Config, error) {
 	if strings.TrimSpace(cfg.APITokenEnv) == "" {
 		cfg.APITokenEnv = defaultTokenEnvName
 	}
