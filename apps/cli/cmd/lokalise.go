@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -213,7 +212,7 @@ func loadLokaliseDownloadSourcesStorageConfig(configPath string) (lokalise.Confi
 	if !strings.EqualFold(strings.TrimSpace(cfg.Storage.Adapter), lokalise.AdapterName) {
 		return lokalise.Config{}, fmt.Errorf("lokalise download sources: storage.adapter must be %q", lokalise.AdapterName)
 	}
-	parsed, err := decodeLokaliseStorageConfig(cfg.Storage.Config)
+	parsed, err := lokalise.DecodeConfig(cfg.Storage.Config)
 	if err != nil {
 		return lokalise.Config{}, fmt.Errorf("lokalise download sources: %w", err)
 	}
@@ -387,25 +386,6 @@ func loadLokaliseStorageConfig(configPath string) (lokalise.Config, error) {
 		return lokalise.Config{}, fmt.Errorf("lokalise glossary download: %w", err)
 	}
 	return parsed, nil
-}
-
-func decodeLokaliseStorageConfig(raw json.RawMessage) (lokalise.Config, error) {
-	if len(raw) == 0 {
-		return lokalise.Config{}, nil
-	}
-	var rawMap map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &rawMap); err != nil {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
-	}
-	if _, exists := rawMap["apiToken"]; exists {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use %s", lokalise.DefaultTokenEnvName)
-	}
-
-	var cfg lokalise.Config
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
-	}
-	return cfg, nil
 }
 
 func flagChanged(cmd *cobra.Command, name string) bool {

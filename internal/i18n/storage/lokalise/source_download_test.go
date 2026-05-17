@@ -2,6 +2,7 @@ package lokalise
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -202,7 +203,7 @@ func TestDownloadSourceFileBundleError(t *testing.T) {
 		switch r.URL.Path {
 		case "/api2/projects/project-1/files/download":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = fmt.Fprintf(w, `{"project_id":"project-1","bundle_url":%q}`, server.URL+"/bundle/source.zip")
+			_, _ = fmt.Fprintf(w, `{"project_id":"project-1","bundle_url":%q}`, server.URL+"/bundle/source.zip?X-Amz-Signature=secret-signature")
 		case "/bundle/source.zip":
 			http.Error(w, "missing bundle", http.StatusNotFound)
 		default:
@@ -223,6 +224,30 @@ func TestDownloadSourceFileBundleError(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "status 404") {
 		t.Fatalf("expected bundle status error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "X-Amz-Signature") || strings.Contains(err.Error(), "secret-signature") || strings.Contains(err.Error(), server.URL) {
+		t.Fatalf("bundle error leaked signed URL: %v", err)
+	}
+}
+
+func TestDownloadBundleRequestErrorRedactsBundleURL(t *testing.T) {
+	client := &HTTPClient{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return nil, errors.New("connection failed")
+			}),
+		},
+	}
+
+	_, err := client.downloadBundle(t.Context(), "https://example.invalid/source.zip?X-Goog-Signature=secret-signature")
+	if err == nil {
+		t.Fatalf("expected request error")
+	}
+	if !strings.Contains(err.Error(), "GET bundle URL") {
+		t.Fatalf("expected generic bundle URL label, got %v", err)
+	}
+	if strings.Contains(err.Error(), "example.invalid") || strings.Contains(err.Error(), "X-Goog-Signature") || strings.Contains(err.Error(), "secret-signature") {
+		t.Fatalf("request error leaked signed URL: %v", err)
 	}
 }
 
@@ -257,6 +282,12 @@ func TestDownloadSourceFileLargeBundleErrorUsesSmallLimit(t *testing.T) {
 		!strings.Contains(err.Error(), fmt.Sprintf("exceeds %d byte limit", maxSourceDownloadErrorBodyBytes)) {
 		t.Fatalf("expected small error body limit, got %v", err)
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func TestReadLimitedBundleBodyRejectsOversizedResponse(t *testing.T) {

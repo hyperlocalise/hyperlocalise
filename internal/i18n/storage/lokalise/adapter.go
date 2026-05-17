@@ -86,6 +86,20 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 	if len(raw) == 0 {
 		return cfg, fmt.Errorf("lokalise config: must not be empty")
 	}
+	cfg, err := DecodeConfig(raw)
+	if err != nil {
+		return cfg, err
+	}
+
+	return ResolveConfig(cfg)
+}
+
+// DecodeConfig decodes Lokalise storage config without resolving environment auth.
+func DecodeConfig(raw json.RawMessage) (Config, error) {
+	var cfg Config
+	if len(raw) == 0 {
+		return cfg, nil
+	}
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
@@ -96,8 +110,7 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
-
-	return ResolveConfig(cfg)
+	return cfg, nil
 }
 
 // ResolveConfig applies Lokalise defaults and resolves token-based auth.

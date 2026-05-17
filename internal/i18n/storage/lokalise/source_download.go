@@ -2,9 +2,11 @@ package lokalise
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	lokaliseapi "github.com/lokalise/go-lokalise-api/v5"
@@ -92,12 +94,12 @@ func (c *HTTPClient) downloadBundle(ctx context.Context, bundleURL string) ([]by
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, bundleURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("build bundle request: %w", err)
+		return nil, fmt.Errorf("build bundle request for bundle URL: invalid URL")
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GET %s: %w", bundleURL, err)
+		return nil, fmt.Errorf("GET bundle URL: %s", bundleRequestErrorMessage(err))
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -111,13 +113,13 @@ func (c *HTTPClient) downloadBundle(ctx context.Context, bundleURL string) ([]by
 	content, readErr := readLimitedBundleBody(resp.Body, readLimit)
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		if readErr != nil {
-			return nil, fmt.Errorf("GET %s: status %d and read error: %w", bundleURL, resp.StatusCode, readErr)
+			return nil, fmt.Errorf("GET bundle URL: status %d and read error: %w", resp.StatusCode, readErr)
 		}
 		detail := strings.TrimSpace(string(content))
 		if detail == "" {
-			return nil, fmt.Errorf("GET %s: status %d", bundleURL, resp.StatusCode)
+			return nil, fmt.Errorf("GET bundle URL: status %d", resp.StatusCode)
 		}
-		return nil, fmt.Errorf("GET %s: status %d: %s", bundleURL, resp.StatusCode, detail)
+		return nil, fmt.Errorf("GET bundle URL: status %d: %s", resp.StatusCode, detail)
 	}
 	if readErr != nil {
 		return nil, fmt.Errorf("read bundle response: %w", readErr)
@@ -126,6 +128,20 @@ func (c *HTTPClient) downloadBundle(ctx context.Context, bundleURL string) ([]by
 		return nil, fmt.Errorf("empty bundle response")
 	}
 	return content, nil
+}
+
+func bundleRequestErrorMessage(err error) string {
+	if err == nil {
+		return "request failed"
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		if urlErr.Err != nil {
+			return urlErr.Err.Error()
+		}
+		return "request failed"
+	}
+	return "request failed"
 }
 
 func readLimitedBundleBody(body io.Reader, maxBytes int64) ([]byte, error) {
