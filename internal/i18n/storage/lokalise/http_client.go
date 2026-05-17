@@ -29,25 +29,13 @@ func NewHTTPClient(cfg Config) (*HTTPClient, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
 	}
-	httpClient := &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	httpClient := &http.Client{Timeout: timeout}
 	return NewHTTPClientWithBaseURL(cfg, cfg.APIBaseURL, httpClient)
 }
 
 func NewHTTPClientWithBaseURL(cfg Config, baseURL string, httpClient *http.Client) (*HTTPClient, error) {
 	if httpClient == nil {
 		return nil, fmt.Errorf("lokalise http client: client must not be nil")
-	}
-	if httpClient.CheckRedirect == nil {
-		cloned := *httpClient
-		cloned.CheckRedirect = func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
-		httpClient = &cloned
 	}
 	if strings.TrimSpace(baseURL) == "" {
 		baseURL = defaultBaseURL

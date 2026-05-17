@@ -202,7 +202,7 @@ func TestUploadSourceFileRequiresFormatWhenExtensionMissing(t *testing.T) {
 		SourceLocale: "en",
 		FilePath:     sourcePath,
 	})
-	if err == nil || !strings.Contains(err.Error(), "use --format") {
+	if err == nil || !strings.Contains(err.Error(), "no file extension and no format override provided") {
 		t.Fatalf("error = %v, want format hint", err)
 	}
 }

@@ -137,7 +137,7 @@ func (c *HTTPClient) doLokaliseUploadJSON(ctx context.Context, method, path stri
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Api-Token", strings.TrimSpace(c.apiToken))
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := lokaliseUploadHTTPClient(c.httpClient).Do(req)
 	if err != nil {
 		return lokaliseUploadHTTPMeta{}, err
 	}
@@ -186,13 +186,21 @@ func lokaliseUploadLocationSuffix(location string) string {
 	return " location=" + strings.TrimSpace(location)
 }
 
+func lokaliseUploadHTTPClient(client *http.Client) *http.Client {
+	cloned := *client
+	cloned.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return &cloned
+}
+
 func resolveLokaliseUploadFormat(path, override string) (string, error) {
 	if trimmed := strings.TrimSpace(override); trimmed != "" {
 		return strings.TrimPrefix(strings.ToLower(trimmed), "."), nil
 	}
 	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
 	if ext == "" {
-		return "", fmt.Errorf("lokalise source upload: could not determine file format for %q; use --format", path)
+		return "", fmt.Errorf("lokalise source upload: could not determine file format for %q: no file extension and no format override provided", path)
 	}
 	return ext, nil
 }
