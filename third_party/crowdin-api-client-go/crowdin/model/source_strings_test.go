@@ -26,12 +26,18 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 			out:  "denormalizePlaceholders=0",
 		},
 		{
+			name: "with IsIcu = 1",
+			opts: &SourceStringsListOptions{IsIcu: toPtr(1)},
+			out:  "isIcu=1",
+		},
+		{
 			name: "with all options",
 			opts: &SourceStringsListOptions{
 				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3},
 				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier",
+				IsIcu: toPtr(0),
 			},
-			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&fileId=1&filter=text&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
+			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
 		},
 	}
 
@@ -134,6 +140,11 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 		{
 			name:  "valid request",
 			req:   &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name", FileID: 1},
+			valid: true,
+		},
+		{
+			name:  "valid request with MasterStringID",
+			req:   &SourceStringsAddRequest{Text: "Duplicate text", FileID: 1, MasterStringID: toPtr(123)},
 			valid: true,
 		},
 		{

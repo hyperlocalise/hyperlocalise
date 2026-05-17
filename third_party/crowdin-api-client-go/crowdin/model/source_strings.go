@@ -69,6 +69,8 @@ type SourceStringsListOptions struct {
 	// Note: Can be used only with `denormalizePlaceholders`, `offset` and
 	// `limit` in same request.
 	CroQL string `json:"croql,omitempty"`
+	// Filter strings by isIcu. Enum: 0, 1.
+	IsIcu *int `json:"isIcu,omitempty"`
 	// Filter strings by `identifier`, `text` or `context`.
 	Filter string `json:"filter,omitempty"`
 	// Specify field to be the target of filtering. It can be one scope or
@@ -89,6 +91,9 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
 		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+	}
+	if o.IsIcu != nil && (*o.IsIcu == 0 || *o.IsIcu == 1) {
+		v.Add("isIcu", fmt.Sprintf("%d", *o.IsIcu))
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
@@ -161,6 +166,8 @@ type SourceStringsAddRequest struct {
 	Identifier string `json:"identifier,omitempty"`
 	// Use to provide additional information for better source text understanding.
 	Context string `json:"context,omitempty"`
+	// Master string identifier.
+	MasterStringID *int `json:"masterStringId,omitempty"`
 	// Defines whether to make string unavailable for translation. Default: false.
 	IsHidden *bool `json:"isHidden,omitempty"`
 	// Defines whether string is ICU.
