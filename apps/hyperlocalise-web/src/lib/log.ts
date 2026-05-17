@@ -34,8 +34,8 @@ export const REDACTION_PATHS = [
   "*.x-workos-signature",
   "headers.authorization",
   "headers.cookie",
-  "headers.x-api-key",
-  "headers.x-workos-signature",
+  'headers["x-api-key"]',
+  'headers["x-workos-signature"]',
 ];
 
 const root = pino({
