@@ -15,7 +15,9 @@ import (
 const defaultBaseURL = "https://api.lokalise.com/api2"
 
 type HTTPClient struct {
-	api        *lokaliseapi.Api
+	// api serves the existing Lokalise key pull/push code paths.
+	api *lokaliseapi.Api
+	// baseURL and httpClient are kept for glossary endpoints that are called directly.
 	baseURL    string
 	httpClient *http.Client
 }
@@ -40,6 +42,8 @@ func NewHTTPClientWithBaseURL(cfg Config, baseURL string, httpClient *http.Clien
 		return nil, err
 	}
 
+	// Keep the SDK initialized with the same base URL/timeout as the raw client
+	// so existing key sync and new glossary export behavior stay aligned.
 	api, err := lokaliseapi.New(
 		cfg.APIToken,
 		lokaliseapi.WithBaseURL(baseURL),

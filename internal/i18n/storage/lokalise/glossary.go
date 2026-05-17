@@ -15,6 +15,8 @@ import (
 
 const glossaryCSVPageLimit = 500
 
+// Stable review/import schema for downloaded Lokalise glossary rows.
+// One source term can produce multiple rows when it has translations in multiple locales.
 var glossaryCSVHeader = []string{
 	"project_id",
 	"term_id",
@@ -88,7 +90,9 @@ type projectLanguagesResponse struct {
 	} `json:"languages"`
 }
 
-// WriteGlossaryCSV downloads Lokalise glossary terms and writes them as stable CSV.
+// WriteGlossaryCSV is the storage-level flow used by the CLI:
+// validate inputs, download all glossary pages, enrich translation language IDs,
+// convert the terms into deterministic CSV rows, then stream them to the writer.
 func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadInput, w io.Writer) (GlossaryDownloadResult, error) {
 	if c == nil || c.httpClient == nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: client is nil")
@@ -135,6 +139,8 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 }
 
 func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken string) ([]glossaryTerm, error) {
+	// Lokalise glossaries are project-scoped. The API returns terms page by page,
+	// so this loop follows the cursor until Lokalise stops returning one.
 	terms := make([]glossaryTerm, 0)
 	cursor := ""
 	for {
@@ -172,6 +178,8 @@ func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken 
 }
 
 func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, apiToken string) (map[int64]string, error) {
+	// Some glossary translation payloads only contain lang_id. This lookup turns
+	// those IDs into stable locale strings for the CSV's translation_locale column.
 	endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/languages")
 	if err != nil {
 		return nil, fmt.Errorf("build project languages URL: %w", err)
@@ -194,6 +202,8 @@ func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, api
 }
 
 func (c *HTTPClient) doLokaliseJSON(ctx context.Context, method, endpoint, apiToken string, out any) (string, error) {
+	// The official SDK is still used for existing key sync flows. Glossary export
+	// uses raw HTTP here because this endpoint is not covered by the SDK shape used in this repo.
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
@@ -228,6 +238,8 @@ func glossaryTermsHaveTranslations(terms []glossaryTerm) bool {
 }
 
 func glossaryCSVRows(projectID string, terms []glossaryTerm, languageByID map[int64]string, locales []string) [][]string {
+	// CSV output must be deterministic for review/import workflows: normalize the
+	// optional locale filter, sort terms by source text, then sort translations by locale.
 	localeSet := make(map[string]struct{}, len(locales))
 	for _, value := range locales {
 		for _, part := range strings.Split(value, ",") {

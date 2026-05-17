@@ -13,6 +13,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Flow for `hyperlocalise lokalise glossary download`:
+// 1. Cobra parses flags into lokaliseGlossaryDownloadOptions.
+// 2. resolveLokaliseGlossaryConfig combines flags, optional i18n.yml storage config, and env auth.
+// 3. The command chooses stdout or a temporary output file.
+// 4. storage/lokalise downloads glossary terms and writes stable CSV.
+// 5. The temp file is renamed only after success, preserving existing output on API/write errors.
 type lokaliseGlossaryDownloadOptions struct {
 	configPath     string
 	projectID      string
@@ -69,6 +75,7 @@ func newLokaliseGlossaryDownloadCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			var closeOut func() error
 			var tempPath string
+			// File output goes through a temp file so a failed download cannot leave a partial CSV.
 			if outputPath != "" && outputPath != "-" {
 				file, err := os.CreateTemp(filepath.Dir(outputPath), "."+filepath.Base(outputPath)+".*.tmp")
 				if err != nil {
@@ -120,6 +127,9 @@ func newLokaliseGlossaryDownloadCmd() *cobra.Command {
 	return cmd
 }
 
+// resolveLokaliseGlossaryConfig keeps the command non-interactive:
+// explicit flags win, otherwise the command may reuse an existing Lokalise storage block in i18n.yml,
+// and the token is resolved from --token-env or LOKALISE_API_TOKEN.
 func resolveLokaliseGlossaryConfig(o lokaliseGlossaryDownloadOptions) (lokalise.Config, error) {
 	cfg := lokalise.Config{
 		ProjectID:      strings.TrimSpace(o.projectID),
