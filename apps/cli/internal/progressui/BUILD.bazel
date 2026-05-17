@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "progressui",
@@ -6,12 +6,22 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/progressui",
     visibility = ["//visibility:public"],
     deps = [
+        "@com_github_mattn_go_isatty//:go-isatty",
         "@land_charm_bubbles_v2//progress",
         "@land_charm_bubbles_v2//spinner",
         "@land_charm_bubbles_v2//stopwatch",
         "@land_charm_bubbletea_v2//:bubbletea",
         "@land_charm_lipgloss_v2//:lipgloss",
         "@land_charm_log_v2//:log",
-        "@com_github_mattn_go_isatty//:go-isatty",
+    ],
+)
+
+go_test(
+    name = "progressui_test",
+    srcs = ["renderer_test.go"],
+    embed = [":progressui"],
+    deps = [
+        "@land_charm_bubbles_v2//spinner",
+        "@land_charm_bubbletea_v2//:bubbletea",
     ],
 )

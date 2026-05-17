@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "envloader",
@@ -6,4 +6,10 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/envloader",
     visibility = ["//visibility:public"],
     deps = ["@com_github_subosito_gotenv//:gotenv"],
+)
+
+go_test(
+    name = "envloader_test",
+    srcs = ["loader_test.go"],
+    embed = [":envloader"],
 )

@@ -1,9 +1,16 @@
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_binary(
     name = "cli",
-    srcs = ["main.go"],
+    embed = [":cli_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "cli_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli",
+    visibility = ["//visibility:private"],
     deps = [
         "//apps/cli/cmd",
         "//apps/cli/internal/cliotel",

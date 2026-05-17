@@ -1,9 +1,16 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "storageregistry",
     srcs = ["registry.go"],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storageregistry",
     visibility = ["//visibility:public"],
+    deps = ["//internal/i18n/storage"],
+)
+
+go_test(
+    name = "storageregistry_test",
+    srcs = ["registry_test.go"],
+    embed = [":storageregistry"],
     deps = ["//internal/i18n/storage"],
 )

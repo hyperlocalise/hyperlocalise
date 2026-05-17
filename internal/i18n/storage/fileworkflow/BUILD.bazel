@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "fileworkflow",
+    srcs = ["workflow.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/fileworkflow",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "fileworkflow_test",
+    srcs = ["workflow_test.go"],
+    embed = [":fileworkflow"],
+)

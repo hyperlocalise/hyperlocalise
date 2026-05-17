@@ -1,9 +1,22 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "lilt",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lilt",
     visibility = ["//visibility:public"],
+    deps = ["//internal/i18n/storage"],
+)
+
+go_test(
+    name = "lilt_test",
+    srcs = [
+        "adapter_test.go",
+        "http_client_test.go",
+    ],
+    embed = [":lilt"],
     deps = ["//internal/i18n/storage"],
 )

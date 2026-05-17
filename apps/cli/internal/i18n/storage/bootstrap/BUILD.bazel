@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "bootstrap",
@@ -14,4 +14,11 @@ go_library(
         "//internal/i18n/storage/poeditor",
         "//internal/i18n/storage/smartling",
     ],
+)
+
+go_test(
+    name = "bootstrap_test",
+    srcs = ["bootstrap_test.go"],
+    embed = [":bootstrap"],
+    deps = ["//apps/cli/internal/i18n/storageregistry"],
 )

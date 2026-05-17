@@ -1,10 +1,30 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "evalsvc",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/evalsvc",
     visibility = ["//visibility:public"],
+    deps = [
+        "//apps/cli/internal/i18n/evalset",
+        "//apps/cli/internal/i18n/evalsvc/scoring",
+        "//internal/i18n/translator",
+    ],
+)
+
+go_test(
+    name = "evalsvc_test",
+    srcs = [
+        "assertion_judge_test.go",
+        "context_sanitize_test.go",
+        "llm_judge_test.go",
+        "perf_test.go",
+        "service_test.go",
+    ],
+    embed = [":evalsvc"],
     deps = [
         "//apps/cli/internal/i18n/evalset",
         "//apps/cli/internal/i18n/evalsvc/scoring",

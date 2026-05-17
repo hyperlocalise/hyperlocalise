@@ -1,15 +1,35 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "translator",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translator",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_openai_openai_go_v3//:openai-go",
         "@com_github_openai_openai_go_v3//option",
         "@io_opentelemetry_go_otel//:otel",
-        "@io_opentelemetry_go_otel//attribute:attribute",
-        "@io_opentelemetry_go_otel//codes:codes",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//codes",
+    ],
+)
+
+go_test(
+    name = "translator_test",
+    srcs = [
+        "bootstrap_test.go",
+        "debug_log_test.go",
+        "prompts_test.go",
+        "provider_bedrock_test.go",
+        "translator_test.go",
+        "usage_test.go",
+    ],
+    embed = [":translator"],
+    deps = [
+        "@com_github_openai_openai_go_v3//:openai-go",
+        "@com_github_openai_openai_go_v3//option",
     ],
 )

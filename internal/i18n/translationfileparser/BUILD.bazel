@@ -1,8 +1,11 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "translationfileparser",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser",
     visibility = ["//visibility:public"],
     deps = [
@@ -14,4 +17,31 @@ go_library(
         "@com_github_yuin_goldmark//text",
         "@org_golang_x_net//html",
     ],
+)
+
+go_test(
+    name = "translationfileparser_test",
+    srcs = [
+        "arb_parser_test.go",
+        "chunk_test.go",
+        "csv_parser_test.go",
+        "html_parser_test.go",
+        "json_parser_test.go",
+        "jsonc_parser_test.go",
+        "liquid_benchmark_test.go",
+        "liquid_corpus_test.go",
+        "liquid_parser_test.go",
+        "markdown_ast_parity_test.go",
+        "markdown_internal_placeholders_test.go",
+        "markdown_mdx_cst_test.go",
+        "markdown_parser_test.go",
+        "markdown_segment_heuristics_test.go",
+        "po_parser_test.go",
+        "strategy_test.go",
+        "strings_parser_test.go",
+        "stringsdict_parser_test.go",
+        "xliff_parser_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    embed = [":translationfileparser"],
 )
