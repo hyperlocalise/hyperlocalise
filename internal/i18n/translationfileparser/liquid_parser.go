@@ -71,9 +71,8 @@ type LiquidRenderDiagnostics struct {
 }
 
 type liquidDocument struct {
-	htmlDoc            htmlDocument
-	liquidPlaceholders map[string]string
-	liquidReplacer     *strings.Replacer
+	htmlDoc        htmlDocument
+	liquidReplacer *strings.Replacer
 }
 
 // MarshalLiquid reconstructs a Liquid template with translated values applied.
@@ -149,7 +148,7 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 		if part.key == "" {
 			continue
 		}
-		if !liquidPartHasTranslatableText(*part, liquidPlaceholders) {
+		if !liquidPartHasTranslatableText(*part) {
 			part.literal = renderLiquidSourcePart(*part, liquidReplacer)
 			part.key = ""
 			part.source = ""
@@ -165,9 +164,8 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 	}
 
 	return liquidDocument{
-		htmlDoc:            htmlDoc,
-		liquidPlaceholders: liquidPlaceholders,
-		liquidReplacer:     liquidReplacer,
+		htmlDoc:        htmlDoc,
+		liquidReplacer: liquidReplacer,
 	}, entries, nil
 }
 
@@ -353,7 +351,7 @@ func findLiquidSkippedBlockEnd(input string, from int, tagName string) (int, boo
 	return from + loc[1], true
 }
 
-func liquidPartHasTranslatableText(part htmlPart, liquidPlaceholders map[string]string) bool {
+func liquidPartHasTranslatableText(part htmlPart) bool {
 	// Optimization: instead of removing each placeholder via strings.ReplaceAll in a loop
 	// (which causes O(N*M) allocations), we skip any text between sentinel delimiters.
 	inPlaceholder := false
