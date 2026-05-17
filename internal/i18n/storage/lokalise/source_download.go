@@ -10,7 +10,10 @@ import (
 	lokaliseapi "github.com/lokalise/go-lokalise-api/v5"
 )
 
-const maxSourceDownloadBundleBytes int64 = 512 * 1024 * 1024
+const (
+	maxSourceDownloadBundleBytes    int64 = 512 * 1024 * 1024
+	maxSourceDownloadErrorBodyBytes int64 = 64 * 1024
+)
 
 // SourceDownloadInput describes one Lokalise source-locale file export.
 type SourceDownloadInput struct {
@@ -100,7 +103,12 @@ func (c *HTTPClient) downloadBundle(ctx context.Context, bundleURL string) ([]by
 		_ = resp.Body.Close()
 	}()
 
-	content, readErr := readLimitedBundleBody(resp.Body, maxSourceDownloadBundleBytes)
+	readLimit := maxSourceDownloadBundleBytes
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		readLimit = maxSourceDownloadErrorBodyBytes
+	}
+
+	content, readErr := readLimitedBundleBody(resp.Body, readLimit)
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		if readErr != nil {
 			return nil, fmt.Errorf("GET %s: status %d and read error: %w", bundleURL, resp.StatusCode, readErr)

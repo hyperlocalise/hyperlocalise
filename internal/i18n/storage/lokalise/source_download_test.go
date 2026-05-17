@@ -226,6 +226,39 @@ func TestDownloadSourceFileBundleError(t *testing.T) {
 	}
 }
 
+func TestDownloadSourceFileLargeBundleErrorUsesSmallLimit(t *testing.T) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api2/projects/project-1/files/download":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = fmt.Fprintf(w, `{"project_id":"project-1","bundle_url":%q}`, server.URL+"/bundle/source.zip")
+		case "/bundle/source.zip":
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(strings.Repeat("x", int(maxSourceDownloadErrorBodyBytes)+1)))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	client, err := NewHTTPClient(Config{APIToken: "secret", APIBaseURL: server.URL + "/api2/", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatalf("new http client: %v", err)
+	}
+
+	_, err = client.DownloadSourceFile(t.Context(), SourceDownloadInput{
+		ProjectID:    "project-1",
+		SourceLocale: "en",
+		FileFormat:   "json",
+	})
+	if err == nil ||
+		!strings.Contains(err.Error(), "status 403") ||
+		!strings.Contains(err.Error(), fmt.Sprintf("exceeds %d byte limit", maxSourceDownloadErrorBodyBytes)) {
+		t.Fatalf("expected small error body limit, got %v", err)
+	}
+}
+
 func TestReadLimitedBundleBodyRejectsOversizedResponse(t *testing.T) {
 	content, err := readLimitedBundleBody(strings.NewReader("abcdef"), 5)
 	if err == nil || !strings.Contains(err.Error(), "exceeds 5 byte limit") {
