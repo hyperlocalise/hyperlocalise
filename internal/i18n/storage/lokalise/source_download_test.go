@@ -185,3 +185,18 @@ func TestDownloadSourceFileBundleError(t *testing.T) {
 		t.Fatalf("expected bundle status error, got %v", err)
 	}
 }
+
+func TestReadLimitedBundleBodyRejectsOversizedResponse(t *testing.T) {
+	content, err := readLimitedBundleBody(strings.NewReader("abcdef"), 5)
+	if err == nil || !strings.Contains(err.Error(), "exceeds 5 byte limit") {
+		t.Fatalf("expected size limit error, got content=%q err=%v", string(content), err)
+	}
+
+	content, err = readLimitedBundleBody(strings.NewReader("abcde"), 5)
+	if err != nil {
+		t.Fatalf("read limited body at limit: %v", err)
+	}
+	if string(content) != "abcde" {
+		t.Fatalf("content = %q, want abcde", string(content))
+	}
+}
