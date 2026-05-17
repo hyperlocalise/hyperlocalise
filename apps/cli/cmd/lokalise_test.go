@@ -40,8 +40,8 @@ func TestLokaliseGlossaryDownloadWritesCSVToStdout(t *testing.T) {
 	if gotCfg.ProjectID != "proj-1" || gotCfg.APIToken != "secret" {
 		t.Fatalf("config = %+v, want project/token resolved", gotCfg)
 	}
-	if fake.req.ProjectID != "proj-1" || fake.req.APIToken != "secret" {
-		t.Fatalf("request = %+v, want project/token", fake.req)
+	if fake.req.ProjectID != "proj-1" {
+		t.Fatalf("request = %+v, want project", fake.req)
 	}
 	if strings.Join(fake.req.Locales, ",") != "fr" {
 		t.Fatalf("locales = %v, want fr", fake.req.Locales)

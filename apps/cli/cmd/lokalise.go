@@ -88,7 +88,6 @@ func newLokaliseGlossaryDownloadCmd() *cobra.Command {
 
 			result, err := client.WriteGlossaryCSV(backgroundContext(), lokalise.GlossaryDownloadInput{
 				ProjectID: cfg.ProjectID,
-				APIToken:  cfg.APIToken,
 				Locales:   o.languages,
 			}, out)
 			if closeOut != nil {

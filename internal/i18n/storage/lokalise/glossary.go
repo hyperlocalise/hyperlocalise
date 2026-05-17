@@ -17,6 +17,9 @@ import (
 const (
 	glossaryCSVPageLimit      = 500
 	glossaryLanguagePageLimit = 5000
+	lokaliseMaxGlossaryPages  = 10000
+	lokaliseMaxLanguagePages  = 10000
+	lokaliseMaxJSONBodyBytes  = 10 * 1024 * 1024
 )
 
 // Base columns for Lokalise's documented glossary CSV template.
@@ -33,7 +36,6 @@ var glossaryCSVBaseHeader = []string{
 // GlossaryDownloadInput identifies the Lokalise project glossary to export.
 type GlossaryDownloadInput struct {
 	ProjectID string
-	APIToken  string
 	Locales   []string
 }
 
@@ -100,21 +102,20 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 	if projectID == "" {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: project id is required")
 	}
-	apiToken := strings.TrimSpace(in.APIToken)
-	if apiToken == "" {
+	if strings.TrimSpace(c.apiToken) == "" {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: api token is required")
 	}
 	if w == nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: writer is nil")
 	}
 
-	terms, err := c.listGlossaryTerms(ctx, projectID, apiToken)
+	terms, err := c.listGlossaryTerms(ctx, projectID)
 	if err != nil {
 		return GlossaryDownloadResult{}, err
 	}
 	languageByID := map[int64]string{}
 	if glossaryTermsHaveTranslations(terms) {
-		languageByID, err = c.listProjectLanguageISOs(ctx, projectID, apiToken)
+		languageByID, err = c.listProjectLanguageISOs(ctx, projectID)
 		if err != nil {
 			return GlossaryDownloadResult{}, err
 		}
@@ -139,12 +140,16 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 	return GlossaryDownloadResult{Terms: len(terms), Rows: len(rows)}, nil
 }
 
-func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken string) ([]glossaryTerm, error) {
+func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID string) ([]glossaryTerm, error) {
 	// Lokalise glossaries are project-scoped. The API returns terms page by page,
 	// so this loop follows the cursor until Lokalise stops returning one.
 	terms := make([]glossaryTerm, 0)
 	cursor := ""
-	for {
+	seenCursors := map[string]struct{}{}
+	for pageNum := 0; ; pageNum++ {
+		if pageNum >= lokaliseMaxGlossaryPages {
+			return nil, fmt.Errorf("lokalise glossary terms pagination exceeded %d pages", lokaliseMaxGlossaryPages)
+		}
 		endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/glossary-terms")
 		if err != nil {
 			return nil, fmt.Errorf("build glossary terms URL: %w", err)
@@ -157,13 +162,16 @@ func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken 
 		endpoint.RawQuery = q.Encode()
 
 		var page glossaryTermsResponse
-		nextCursor, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), apiToken, &page)
+		nextCursor, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), &page)
 		if err != nil {
 			return nil, fmt.Errorf("list lokalise glossary terms: %w", err)
 		}
 		pageItems := page.Items
 		if len(pageItems) == 0 && len(page.Data) > 0 {
 			pageItems = page.Data
+		}
+		if len(pageItems) == 0 {
+			break
 		}
 		terms = append(terms, pageItems...)
 
@@ -173,17 +181,24 @@ func (c *HTTPClient) listGlossaryTerms(ctx context.Context, projectID, apiToken 
 		if nextCursor == "" {
 			break
 		}
+		if _, ok := seenCursors[nextCursor]; ok {
+			return nil, fmt.Errorf("lokalise glossary terms pagination repeated cursor %q", nextCursor)
+		}
+		seenCursors[nextCursor] = struct{}{}
 		cursor = nextCursor
 	}
 	return terms, nil
 }
 
-func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, apiToken string) (map[int64]string, error) {
+func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID string) (map[int64]string, error) {
 	// Some glossary translation payloads only contain lang_id. This lookup turns
 	// those IDs into stable locale strings for Lokalise's language columns.
 	out := map[int64]string{}
 	page := 1
 	for {
+		if page > lokaliseMaxLanguagePages {
+			return nil, fmt.Errorf("lokalise project languages pagination exceeded %d pages", lokaliseMaxLanguagePages)
+		}
 		endpoint, err := url.Parse(c.baseURL + "/projects/" + url.PathEscape(projectID) + "/languages")
 		if err != nil {
 			return nil, fmt.Errorf("build project languages URL: %w", err)
@@ -194,7 +209,7 @@ func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, api
 		endpoint.RawQuery = q.Encode()
 
 		var resp projectLanguagesResponse
-		if _, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), apiToken, &resp); err != nil {
+		if _, err := c.doLokaliseJSON(ctx, http.MethodGet, endpoint.String(), &resp); err != nil {
 			return nil, fmt.Errorf("list lokalise project languages: %w", err)
 		}
 		languages := resp.Languages
@@ -204,12 +219,13 @@ func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, api
 		if len(languages) == 0 && len(resp.Data) > 0 {
 			languages = resp.Data
 		}
+		before := len(out)
 		for _, lang := range languages {
 			if lang.LanguageID > 0 && strings.TrimSpace(lang.LanguageISO) != "" {
 				out[lang.LanguageID] = strings.TrimSpace(lang.LanguageISO)
 			}
 		}
-		if len(languages) < glossaryLanguagePageLimit {
+		if len(languages) == 0 || len(languages) < glossaryLanguagePageLimit || len(out) == before {
 			break
 		}
 		page++
@@ -217,14 +233,14 @@ func (c *HTTPClient) listProjectLanguageISOs(ctx context.Context, projectID, api
 	return out, nil
 }
 
-func (c *HTTPClient) doLokaliseJSON(ctx context.Context, method, endpoint, apiToken string, out any) (string, error) {
+func (c *HTTPClient) doLokaliseJSON(ctx context.Context, method, endpoint string, out any) (string, error) {
 	// The official SDK is still used for existing key sync flows. Glossary export
 	// uses raw HTTP here because this endpoint is not covered by the SDK shape used in this repo.
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("X-Api-Token", apiToken)
+	req.Header.Set("X-Api-Token", c.apiToken)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -238,7 +254,7 @@ func (c *HTTPClient) doLokaliseJSON(ctx context.Context, method, endpoint, apiTo
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, lokaliseMaxJSONBodyBytes)).Decode(out); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
 	return strings.TrimSpace(resp.Header.Get("X-Pagination-Next-Cursor")), nil

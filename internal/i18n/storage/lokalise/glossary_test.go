@@ -76,7 +76,7 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := bytes.NewBuffer(nil)
-	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token"}, out)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, out)
 	if err != nil {
 		t.Fatalf("write glossary csv: %v", err)
 	}
@@ -174,7 +174,6 @@ func TestHTTPClientWriteGlossaryCSVFiltersLocaleColumns(t *testing.T) {
 	out := bytes.NewBuffer(nil)
 	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{
 		ProjectID: "proj-1",
-		APIToken:  "token",
 		Locales:   []string{"fr"},
 	}, out)
 	if err != nil {
@@ -221,7 +220,7 @@ func TestHTTPClientWriteGlossaryCSVPaginates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token"}, io.Discard)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, io.Discard)
 	if err != nil {
 		t.Fatalf("write glossary csv: %v", err)
 	}
@@ -230,6 +229,52 @@ func TestHTTPClientWriteGlossaryCSVPaginates(t *testing.T) {
 	}
 	if result.Terms != 2 || result.Rows != 2 {
 		t.Fatalf("result = %+v, want terms=2 rows=2", result)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVStopsOnEmptyCursorPage(t *testing.T) {
+	calls := 0
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.Header().Set("X-Pagination-Next-Cursor", "next-forever")
+		writeLokaliseJSON(t, w, map[string]any{"items": []any{}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, io.Discard)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1", calls)
+	}
+	if result.Terms != 0 || result.Rows != 0 {
+		t.Fatalf("result = %+v, want zero", result)
+	}
+}
+
+func TestHTTPClientWriteGlossaryCSVRejectsRepeatedCursor(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Pagination-Next-Cursor", "repeat")
+		writeLokaliseJSON(t, w, map[string]any{"items": []any{map[string]any{"id": 1, "term": "Checkout"}}})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "repeated cursor") {
+		t.Fatalf("expected repeated cursor error, got %v", err)
 	}
 }
 
@@ -246,7 +291,7 @@ func TestHTTPClientWriteGlossaryCSVHandlesEmptyGlossary(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := bytes.NewBuffer(nil)
-	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token"}, out)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, out)
 	if err != nil {
 		t.Fatalf("write glossary csv: %v", err)
 	}
@@ -270,7 +315,7 @@ func TestHTTPClientWriteGlossaryCSVAPIError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1", APIToken: "token"}, bytes.NewBuffer(nil))
+	_, err = client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, bytes.NewBuffer(nil))
 	if err == nil {
 		t.Fatalf("expected API error")
 	}
