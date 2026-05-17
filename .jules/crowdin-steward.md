@@ -35,3 +35,9 @@
 **Learning:** Crowdin API v2 for Glossaries and Translation Memories includes a `description` field for both, and Translation Memories also support a `groupId` field in both responses and addition requests. These fields were missing from the Go SDK models, preventing users from fully managing these resources, especially in Enterprise environments where resource organization into groups is common.
 
 **Action:** Added `Description` field to `Glossary` and `GlossaryAddRequest` in `model/glossaries.go`. Added `Description` and `GroupID` fields to `TranslationMemory`, and `GroupID` (*int) to `TranslationMemoryAddRequest` in `model/translation_memory.go`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization.
+
+## 2026-05-17 - Improve SourceString parity for masterStringId, isIcu, and excludeLabelIds
+
+**Learning:** The Crowdin Source Strings API v2 supports adding duplicate strings by specifying a `masterStringId` and filtering strings by their ICU status (`isIcu`) or by excluding specific labels (`excludeLabelIds`). These parameters were missing from the SDK's `SourceStringsAddRequest` and `SourceStringsListOptions`.
+
+**Action:** Added `MasterStringID` (*int) to `SourceStringsAddRequest`. Added `IsIcu` (*int) and `ExcludeLabelIDs` ([]int) to `SourceStringsListOptions`. Updated `SourceStringsListOptions.Values()` to correctly encode these parameters in query strings. Verified with updated unit tests in `source_strings_test.go`.
