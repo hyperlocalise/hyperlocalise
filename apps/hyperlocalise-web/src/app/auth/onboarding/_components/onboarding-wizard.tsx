@@ -212,6 +212,7 @@ function ProviderCredentialStep({
   const [selectedModel, setSelectedModel] = useState(
     providerSummary?.defaultModel ?? defaultModelByProvider[selectedProvider],
   );
+  const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [state, formAction] = useActionState<SaveProviderActionState, FormData>(
     saveProviderCredentialAction,
@@ -227,9 +228,13 @@ function ProviderCredentialStep({
     ) {
       setSelectedModel(defaultModelByProvider[selectedProvider]);
     }
-    // Always hide API key when provider changes to prevent "wrong-provider" value visibility risk.
-    setShowApiKey(false);
   }, [selectedProvider, selectedModel]);
+
+  useEffect(() => {
+    // Reset key and visibility when the provider changes.
+    setApiKey("");
+    setShowApiKey(false);
+  }, [selectedProvider]);
 
   return (
     <div className="space-y-6">
@@ -331,6 +336,8 @@ function ProviderCredentialStep({
                 name="apiKey"
                 type={showApiKey ? "text" : "password"}
                 autoComplete="off"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
                 placeholder={`Enter your ${llmProviderCatalog[selectedProvider].label} API key`}
                 aria-invalid={Boolean(state.fieldErrors?.apiKey)}
                 className="pe-10"
