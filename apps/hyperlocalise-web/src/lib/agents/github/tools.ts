@@ -49,7 +49,11 @@ export function createGitHubFixTools({ event, queue }: CreateGitHubFixToolInput)
         try {
           result = await queue.enqueue(event);
         } catch (error) {
-          await releaseGitHubAgentRequestClaim(claim.requestId);
+          try {
+            await releaseGitHubAgentRequestClaim(claim.requestId);
+          } catch {
+            // Don't mask the original queue error if release fails
+          }
           throw error;
         }
         await markGitHubAgentRequestEnqueued({
