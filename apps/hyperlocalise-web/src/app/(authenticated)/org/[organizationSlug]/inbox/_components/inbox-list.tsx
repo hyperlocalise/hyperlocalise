@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
@@ -46,24 +47,38 @@ export const InboxList = memo(function InboxList({
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Filter inbox"
-          >
-            <HugeiconsIcon icon={FilterMailIcon} strokeWidth={1.8} className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Inbox display settings"
-          >
-            <HugeiconsIcon icon={PreferenceHorizontalIcon} strokeWidth={1.8} className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Filter inbox"
+                />
+              }
+            >
+              <HugeiconsIcon icon={FilterMailIcon} strokeWidth={1.8} className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Filter inbox</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Inbox display settings"
+                />
+              }
+            >
+              <HugeiconsIcon icon={PreferenceHorizontalIcon} strokeWidth={1.8} className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Inbox display settings</TooltipContent>
+          </Tooltip>
         </div>
       </header>
 
