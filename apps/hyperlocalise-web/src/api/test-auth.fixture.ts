@@ -104,6 +104,9 @@ export function createAuthTestFixture() {
   }
 
   async function createLocalWorkosIdentity(identity = createWorkosIdentity()) {
+    createdWorkosUserIds.add(identity.user.workosUserId);
+    createdWorkosOrganizationIds.add(identity.organization.workosOrganizationId);
+
     const { user, organization, membership } = await syncWorkosIdentity(db, identity);
 
     return {
