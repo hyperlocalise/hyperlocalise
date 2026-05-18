@@ -62,9 +62,8 @@ describe("glossaryRoutes", () => {
     const response = await client.api.glossary.$get({ query: { limit: "50", offset: "0" } });
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({
-      error: "unauthorized",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("lists glossaries for the current organization", async () => {
@@ -149,8 +148,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "invalid_glossary_payload",
+      message: expect.any(String),
     });
   });
 
@@ -170,9 +171,8 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("allows admin to create a glossary", async () => {
@@ -248,8 +248,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(emptyResponse.status).toBe(400);
-    await expect(emptyResponse.json()).resolves.toEqual({
+    const emptyResponseBody = await emptyResponse.json();
+    expect(emptyResponseBody).toMatchObject({
       error: "invalid_glossary_payload",
+      message: expect.any(String),
     });
 
     const invalidNameResponse = await client.api.glossary[":glossaryId"].$patch(
@@ -265,8 +267,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(invalidNameResponse.status).toBe(400);
-    await expect(invalidNameResponse.json()).resolves.toEqual({
+    const invalidNameResponseBody = await invalidNameResponse.json();
+    expect(invalidNameResponseBody).toMatchObject({
       error: "invalid_glossary_payload",
+      message: expect.any(String),
     });
   });
 
@@ -286,8 +290,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "glossary_not_found",
+      message: expect.any(String),
     });
   });
 
@@ -310,8 +316,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "glossary_not_found",
+      message: expect.any(String),
     });
   });
 
@@ -334,9 +342,8 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("returns 404 when a glossary does not exist", async () => {
@@ -351,8 +358,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "glossary_not_found",
+      message: expect.any(String),
     });
   });
 
@@ -400,8 +409,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "glossary_not_found",
+      message: expect.any(String),
     });
 
     const fetchResponse = await client.api.glossary[":glossaryId"].$get(
@@ -428,8 +439,10 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "glossary_not_found",
+      message: expect.any(String),
     });
   });
 
@@ -449,8 +462,7 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 });

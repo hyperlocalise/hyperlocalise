@@ -133,7 +133,11 @@ describe("publicJobRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: "source_file_not_found" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
+      error: "source_file_not_found",
+      message: expect.any(String),
+    });
     expect(enqueueJob).not.toHaveBeenCalled();
   });
 });

@@ -1,24 +1,26 @@
 import { and, eq } from "drizzle-orm";
 
+import {
+  forbiddenResponse as sharedForbiddenResponse,
+  notFoundResponse,
+  validationErrorResponse,
+  type JsonContext,
+} from "@/api/errors";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
 const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
-export function invalidProjectPayloadResponse(c: {
-  json(body: { error: string }, status: 400): Response;
-}) {
-  return c.json({ error: "invalid_project_payload" }, 400);
+export function invalidProjectPayloadResponse(c: { json: JsonContext["json"] }) {
+  return validationErrorResponse(c, "invalid_project_payload", "Invalid project payload");
 }
 
-export function projectNotFoundResponse(c: {
-  json(body: { error: string }, status: 404): Response;
-}) {
-  return c.json({ error: "project_not_found" }, 404);
+export function projectNotFoundResponse(c: { json: JsonContext["json"] }) {
+  return notFoundResponse(c, "project_not_found", "Project not found");
 }
 
-export function forbiddenResponse(c: { json(body: { error: string }, status: 403): Response }) {
-  return c.json({ error: "forbidden" }, 403);
+export function forbiddenResponse(c: { json: JsonContext["json"] }) {
+  return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
 export function isProjectMutationAllowed(role: ApiAuthContext["membership"]["role"]) {

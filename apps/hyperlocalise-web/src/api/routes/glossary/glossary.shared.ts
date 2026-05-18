@@ -1,24 +1,27 @@
 import { and, eq } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { forbiddenResponse, notFoundResponse, validationErrorResponse } from "@/api/errors";
 import { schema } from "@/lib/database";
 
 const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidGlossaryPayloadResponse(c: {
-  json(body: { error: string }, status: 400): Response;
+  json: Parameters<typeof validationErrorResponse>[0]["json"];
 }) {
-  return c.json({ error: "invalid_glossary_payload" }, 400);
+  return validationErrorResponse(c, "invalid_glossary_payload", "Invalid glossary payload");
 }
 
 export function glossaryNotFoundResponse(c: {
-  json(body: { error: string }, status: 404): Response;
+  json: Parameters<typeof notFoundResponse>[0]["json"];
 }) {
-  return c.json({ error: "glossary_not_found" }, 404);
+  return notFoundResponse(c, "glossary_not_found", "Glossary not found");
 }
 
-export function forbiddenResponse(c: { json(body: { error: string }, status: 403): Response }) {
-  return c.json({ error: "forbidden" }, 403);
+export function glossaryForbiddenResponse(c: {
+  json: Parameters<typeof forbiddenResponse>[0]["json"];
+}) {
+  return forbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
 export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {

@@ -48,9 +48,8 @@ describe("authRoutes", () => {
     const response = await client.api.auth.context.$get();
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({
-      error: "unauthorized",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("ignores forged auth headers without a session", async () => {
@@ -70,9 +69,8 @@ describe("authRoutes", () => {
     );
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({
-      error: "unauthorized",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("resolves auth from the first-party session", async () => {

@@ -70,7 +70,8 @@ describe("file download route", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: "not_found" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "not_found", message: expect.any(String) });
   });
 
   it("returns 404 when the file belongs to another organization", async () => {

@@ -56,9 +56,8 @@ describe("projectRoutes", () => {
     const response = await client.api.project.$get();
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({
-      error: "unauthorized",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("lists projects for the current organization", async () => {
@@ -135,8 +134,10 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "invalid_project_payload",
+      message: expect.any(String),
     });
   });
 
@@ -156,9 +157,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("returns a project by id", async () => {
@@ -222,8 +222,10 @@ describe("projectRoutes", () => {
     );
 
     expect(emptyResponse.status).toBe(400);
-    await expect(emptyResponse.json()).resolves.toEqual({
+    const emptyResponseBody = await emptyResponse.json();
+    expect(emptyResponseBody).toMatchObject({
       error: "invalid_project_payload",
+      message: expect.any(String),
     });
 
     const invalidNameResponse = await client.api.project[":projectId"].$patch(
@@ -239,8 +241,10 @@ describe("projectRoutes", () => {
     );
 
     expect(invalidNameResponse.status).toBe(400);
-    await expect(invalidNameResponse.json()).resolves.toEqual({
+    const invalidNameResponseBody = await invalidNameResponse.json();
+    expect(invalidNameResponseBody).toMatchObject({
       error: "invalid_project_payload",
+      message: expect.any(String),
     });
   });
 
@@ -260,9 +264,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 
   it("returns 404 when another organization updates a project", async () => {
@@ -284,9 +287,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 
   it("returns 403 when a member updates a project", async () => {
@@ -308,9 +310,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("returns 404 when a project does not exist", async () => {
@@ -325,9 +326,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 
   it("deletes an existing project", async () => {
@@ -374,9 +374,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
 
     const fetchResponse = await client.api.project[":projectId"].$get(
       {
@@ -402,9 +401,8 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 
   it("returns 403 when a member deletes a project", async () => {
@@ -423,8 +421,7 @@ describe("projectRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 });

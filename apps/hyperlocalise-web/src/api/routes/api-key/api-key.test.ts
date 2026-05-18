@@ -184,7 +184,8 @@ describe("apiKeyRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 });
 
@@ -297,7 +298,8 @@ describe("publicJobRoutes", () => {
     });
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "unauthorized" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("returns 401 with a revoked API key", async () => {
@@ -335,7 +337,8 @@ describe("publicJobRoutes", () => {
     );
 
     expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "unauthorized" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
   it("returns 403 when API key lacks jobs:write permission", async () => {
@@ -375,7 +378,8 @@ describe("publicJobRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("returns 404 for a job in another organization", async () => {
@@ -441,6 +445,11 @@ describe("publicJobRoutes", () => {
     );
 
     expect(getResponse.status).toBe(404);
-    await expect(getResponse.json()).resolves.toEqual({ error: "job_not_found" });
+    const notFoundBody = (await getResponse.json()) as unknown as {
+      error: string;
+      message?: string;
+    };
+    expect(notFoundBody.error).toBe("job_not_found");
+    expect(notFoundBody.message).toBeDefined();
   });
 });

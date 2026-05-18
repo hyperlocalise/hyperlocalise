@@ -5,6 +5,13 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+  validationErrorResponse,
+} from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
@@ -66,43 +73,6 @@ const jobWithProjectSelect = {
   ...jobSelect,
   projectName: schema.projects.name,
 };
-
-function invalidJobPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_job_payload" }, 400);
-}
-
-function invalidJobQueryResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_job_query" }, 400);
-}
-
-function jobNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "job_not_found" }, 404);
-}
-
-function jobQueueUnavailableResponse(c: { json(body: { error: string }, status: 503): Response }) {
-  return c.json({ error: "job_queue_unavailable" }, 503);
-}
-
-function jobActionUnavailableResponse(c: { json(body: { error: string }, status: 409): Response }) {
-  return c.json({ error: "job_action_unavailable" }, 409);
-}
-
-function sourceFileNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "source_file_not_found" }, 404);
-}
-
-function unsupportedSourceFileFormatResponse(c: {
-  json(body: { error: string }, status: 400): Response;
-}) {
-  return c.json({ error: "unsupported_source_file_format" }, 400);
-}
-
-function sourceFileFormatMismatchResponse(
-  c: { json(body: { error: string; expectedFileFormat: string }, status: 400): Response },
-  expectedFileFormat: string,
-) {
-  return c.json({ error: "source_file_format_mismatch", expectedFileFormat }, 400);
-}
 
 async function getOwnedJob(projectId: string, jobId: string) {
   const [job] = await db
@@ -190,7 +160,7 @@ const validateJobParams = validator("param", (value, c) => {
   const parsed = jobParamsSchema.safeParse(value);
 
   if (!parsed.success) {
-    return jobNotFoundResponse(c);
+    return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
   return parsed.data;
@@ -200,7 +170,7 @@ const validateWorkspaceJobParams = validator("param", (value, c) => {
   const parsed = workspaceJobParamsSchema.safeParse(value);
 
   if (!parsed.success) {
-    return jobNotFoundResponse(c);
+    return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
   return parsed.data;
@@ -210,7 +180,12 @@ const validateCreateJobBody = validator("json", (value, c) => {
   const parsed = createJobBodySchema.safeParse(value);
 
   if (!parsed.success) {
-    return invalidJobPayloadResponse(c);
+    return validationErrorResponse(
+      c,
+      "invalid_job_payload",
+      "Invalid job payload",
+      parsed.error.issues,
+    );
   }
 
   return parsed.data;
@@ -220,7 +195,12 @@ const validateJobListQuery = validator("query", (value, c) => {
   const parsed = jobListQuerySchema.safeParse(value);
 
   if (!parsed.success) {
-    return invalidJobQueryResponse(c);
+    return validationErrorResponse(
+      c,
+      "invalid_job_query",
+      "Invalid job query parameters",
+      parsed.error.issues,
+    );
   }
 
   return parsed.data;
@@ -288,16 +268,27 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         });
 
         if (!sourceFile) {
-          return sourceFileNotFoundResponse(c);
+          return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
         const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
-          return unsupportedSourceFileFormatResponse(c);
+          return badRequestResponse(
+            c,
+            "unsupported_source_file_format",
+            "Unsupported source file format",
+          );
         }
 
         if (inferredFileFormat !== payload.fileInput.fileFormat) {
-          return sourceFileFormatMismatchResponse(c, inferredFileFormat);
+          return badRequestResponse(
+            c,
+            "source_file_format_mismatch",
+            "Source file format does not match the requested format",
+            {
+              expectedFileFormat: inferredFileFormat,
+            },
+          );
         }
       }
 
@@ -343,7 +334,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           })
           .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
 
-        return jobQueueUnavailableResponse(c);
+        return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
       }
 
       const createdJob = await getOwnedJob(params.projectId, job.id);
@@ -364,7 +355,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const job = await getOwnedJob(params.projectId, params.jobId);
 
       if (!job) {
-        return jobNotFoundResponse(c);
+        return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
       return c.json({ job }, 200);
@@ -398,7 +389,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         .limit(1);
 
       if (!job) {
-        return jobNotFoundResponse(c);
+        return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
       return c.json({ job }, 200);
@@ -476,7 +467,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         .limit(1);
 
       if (!job) {
-        return jobNotFoundResponse(c);
+        return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
       return c.json({ job }, 200);
@@ -518,11 +509,13 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           )
           .limit(1);
 
-        return existingJob ? jobActionUnavailableResponse(c) : jobNotFoundResponse(c);
+        return existingJob
+          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
+          : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
       if (!job.projectId || !job.type) {
-        return jobActionUnavailableResponse(c);
+        return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
       const projectId = job.projectId;
@@ -559,7 +552,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       });
 
       if (!retriedJob) {
-        return jobActionUnavailableResponse(c);
+        return conflictResponse(c, "job_action_unavailable", "Job action is not available");
       }
 
       try {
@@ -592,7 +585,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             .where(eq(schema.translationJobDetails.jobId, params.jobId));
         });
 
-        return jobQueueUnavailableResponse(c);
+        return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
       }
 
       const [updatedJob] = await db
@@ -674,7 +667,9 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           )
           .limit(1);
 
-        return existingJob ? jobActionUnavailableResponse(c) : jobNotFoundResponse(c);
+        return existingJob
+          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
+          : notFoundResponse(c, "job_not_found", "Job not found");
       }
 
       const [job] = await db

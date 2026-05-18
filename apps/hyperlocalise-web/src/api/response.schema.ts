@@ -112,20 +112,15 @@ export function apiErrorResponse(
   code: string,
   message?: string,
   details?: unknown,
-  extra?: Record<string, unknown>,
-): Response {
-  const body: Record<string, unknown> = { error: code };
-  if (message !== undefined) body.message = message;
-  if (details !== undefined) body.details = details;
-  if (extra !== undefined) {
-    for (const [key, value] of Object.entries(extra)) {
-      if (key === "error" || key === "message" || key === "details") {
-        throw new Error(`apiErrorResponse: reserved key "${key}" cannot be used in extra`);
-      }
-      body[key] = value;
-    }
-  }
-  return c.json(body, status);
+) {
+  return c.json(
+    {
+      error: code,
+      ...(message !== undefined ? { message } : {}),
+      ...(details !== undefined ? { details } : {}),
+    },
+    status,
+  );
 }
 
 export function badRequestResponse(
