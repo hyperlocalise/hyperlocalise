@@ -27,6 +27,22 @@ export async function ensureGithubRepositoryTables() {
       ON github_installations (github_installation_id);
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS github_installation_states (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        nonce text NOT NULL,
+        organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
+        user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
+        expires_at timestamp with time zone NOT NULL,
+        consumed_at timestamp with time zone,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS github_installation_states_nonce_key
+      ON github_installation_states (nonce);
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS github_installation_repositories (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
         organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,

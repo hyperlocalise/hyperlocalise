@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, count, eq, ilike, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
@@ -6,7 +8,11 @@ import { z } from "zod";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { getGitHubStateSecret, signGitHubState } from "@/lib/agents/github/oauth-state";
+import {
+  GITHUB_STATE_TTL_MS,
+  getGitHubStateSecret,
+  signGitHubState,
+} from "@/lib/agents/github/oauth-state";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 
 function isAdminRole(role: string): boolean {
@@ -97,11 +103,19 @@ export function createGithubInstallationRoutes() {
       }
 
       const slug = c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+      const nonce = randomUUID();
       const timestamp = Date.now();
-      const payload = `${slug}:${timestamp}`;
+      const payload = `${slug}:${timestamp}:${nonce}`;
       const secret = getGitHubStateSecret();
       const signature = await signGitHubState(payload, secret);
       const state = `${payload}:${signature}`;
+
+      await db.insert(schema.githubInstallationStates).values({
+        nonce,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        expiresAt: new Date(timestamp + GITHUB_STATE_TTL_MS),
+      });
 
       // TODO: support custom GitHub App URLs (e.g. GitHub Enterprise).
       const url = new URL(`https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`);

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { getGitHubApp } from "@/lib/agents/github/app";
@@ -14,6 +15,10 @@ type GitHubCallbackPageProps = {
     state?: string;
   }>;
 };
+
+function isAdminRole(role: string): boolean {
+  return role === "owner" || role === "admin";
+}
 
 export default async function GitHubCallbackPage({ searchParams }: GitHubCallbackPageProps) {
   const params = await searchParams;
@@ -39,6 +44,34 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
   const org = orgs[0];
   if (!org) {
     redirect("/dashboard?error=organization_not_found");
+  }
+
+  const auth = await resolveApiAuthContextFromSession({ organizationSlug: verified.slug });
+  if (!auth || auth.organization.localOrganizationId !== org.id) {
+    redirect("/dashboard?error=unauthorized");
+  }
+
+  if (!isAdminRole(auth.membership.role)) {
+    redirect("/dashboard?error=forbidden");
+  }
+
+  const now = new Date();
+  const consumedStates = await db
+    .update(schema.githubInstallationStates)
+    .set({ consumedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(schema.githubInstallationStates.nonce, verified.nonce),
+        eq(schema.githubInstallationStates.organizationId, org.id),
+        eq(schema.githubInstallationStates.userId, auth.user.localUserId),
+        gt(schema.githubInstallationStates.expiresAt, now),
+        isNull(schema.githubInstallationStates.consumedAt),
+      ),
+    )
+    .returning({ id: schema.githubInstallationStates.id });
+
+  if (consumedStates.length === 0) {
+    redirect("/dashboard?error=invalid_state");
   }
 
   let accountLogin: string | null = null;
