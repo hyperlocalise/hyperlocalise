@@ -65,6 +65,14 @@ func TestDecodeConfigRejectsInlineToken(t *testing.T) {
 	}
 }
 
+func TestParseConfigRejectsInlineTokenCasing(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "env-token")
+	_, err := ParseConfig(json.RawMessage(`{"projectID":"123","APIToken":"inline"}`))
+	if err == nil || !strings.Contains(err.Error(), "apiToken is not supported") {
+		t.Fatalf("expected inline token rejection, got %v", err)
+	}
+}
+
 func TestDecodeConfigDoesNotResolveToken(t *testing.T) {
 	t.Setenv("LOKALISE_API_TOKEN", "env-token")
 	cfg, err := DecodeConfig(json.RawMessage(`{"projectID":"123"}`))

@@ -118,3 +118,31 @@ func TestSelectArgumentInPlaceholders(t *testing.T) {
 		t.Errorf("expected 'gender' in placeholders, got %v", inv.Placeholders)
 	}
 }
+
+func TestNumericPlaceholderInPlaceholders(t *testing.T) {
+	// Numeric ICU arguments (e.g. {0}, {1}) MUST be included in the invariant's
+	// Placeholder list for tool parity.
+	msg := "{0} and {1}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	found0 := false
+	found1 := false
+	for _, p := range inv.Placeholders {
+		if p == "0" {
+			found0 = true
+		}
+		if p == "1" {
+			found1 = true
+		}
+	}
+
+	if !found0 {
+		t.Errorf("expected '0' in placeholders, got %v", inv.Placeholders)
+	}
+	if !found1 {
+		t.Errorf("expected '1' in placeholders, got %v", inv.Placeholders)
+	}
+}

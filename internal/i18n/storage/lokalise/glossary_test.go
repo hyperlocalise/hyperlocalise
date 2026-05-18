@@ -136,6 +136,36 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 	}
 }
 
+func TestHTTPClientWriteGlossaryCSVFollowsRedirects(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/redirected/glossary-terms", http.StatusFound)
+	})
+	mux.HandleFunc("/redirected/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"items": []any{},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	result, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, out)
+	if err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if result.Terms != 0 || result.Rows != 0 {
+		t.Fatalf("result = %+v, want empty glossary", result)
+	}
+	if got := out.String(); !strings.Contains(got, "term;description;casesensitive;translatable;Forbidden;tags") {
+		t.Fatalf("output = %q, want base header", got)
+	}
+}
+
 func TestHTTPClientWriteGlossaryCSVFiltersLocaleColumns(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {

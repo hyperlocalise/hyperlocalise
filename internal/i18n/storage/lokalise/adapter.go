@@ -103,8 +103,10 @@ func DecodeConfig(raw json.RawMessage) (Config, error) {
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
-	if _, exists := rawMap["apiToken"]; exists {
-		return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", DefaultTokenEnvName)
+	for key := range rawMap {
+		if strings.EqualFold(key, "apiToken") {
+			return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", DefaultTokenEnvName)
+		}
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
@@ -112,7 +114,7 @@ func DecodeConfig(raw json.RawMessage) (Config, error) {
 	return cfg, nil
 }
 
-// ResolveConfig applies Lokalise defaults and resolves token-based auth.
+// ResolveConfig applies Lokalise defaults, resolves token-based auth, and validates required fields.
 func ResolveConfig(cfg Config) (Config, error) {
 	if strings.TrimSpace(cfg.APITokenEnv) == "" {
 		cfg.APITokenEnv = DefaultTokenEnvName
