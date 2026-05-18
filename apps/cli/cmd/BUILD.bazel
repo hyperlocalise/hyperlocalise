@@ -72,5 +72,7 @@ go_test(
         "@land_charm_bubbletea_v2//:bubbletea",
         "@com_github_masterminds_semver_v3//:semver",
         "@com_github_spf13_cobra//:cobra",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
     ],
 )

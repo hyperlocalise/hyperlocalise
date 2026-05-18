@@ -18,6 +18,7 @@ require (
 	github.com/openai/openai-go/v3 v3.35.0
 	github.com/phrase/phrase-go/v4 v4.25.0
 	github.com/spf13/cobra v1.10.2
+	github.com/stretchr/testify v1.11.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
 	github.com/yuin/goldmark v1.8.2
@@ -222,7 +223,6 @@ require (
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
 	github.com/stbenjam/no-sprintf-host-port v0.3.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetafro/godot v1.5.6 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect

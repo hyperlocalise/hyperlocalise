@@ -28,6 +28,8 @@ import { app } from "@/api/app";
 import { ensureGithubRepositoryTables } from "@/api/routes/github-test-fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
+import { verifyGitHubState } from "@/lib/agents/github/oauth-state";
 
 const client = testClient(app);
 const fixture = createProjectTestFixture(client);
@@ -175,6 +177,41 @@ describe("githubInstallationRoutes", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("creates an install URL with a persisted user-bound state", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+    if (!auth) {
+      throw new Error("missing auth context");
+    }
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "install-url"
+    ].$get({ param: { organizationSlug } }, { headers });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { url: string };
+    const url = new URL(body.url);
+    const state = url.searchParams.get("state");
+    expect(state).toBeTruthy();
+    const verified = await verifyGitHubState(state ?? "", env.GITHUB_OAUTH_STATE_SECRET ?? "");
+    expect(verified).toMatchObject({ slug: organizationSlug });
+
+    const states = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(
+        eq(schema.githubInstallationStates.organizationId, auth.organization.localOrganizationId),
+      );
+    expect(states).toHaveLength(1);
+    expect(states[0]).toMatchObject({
+      nonce: verified?.nonce,
+      userId: auth.user.localUserId,
+      consumedAt: null,
+    });
   });
 
   it("allows admins to trigger repository sync", async () => {

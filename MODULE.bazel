@@ -27,6 +27,7 @@ use_repo(
     "com_github_openai_openai_go_v3",
     "com_github_phrase_phrase_go_v4",
     "com_github_spf13_cobra",
+    "com_github_stretchr_testify",
     "com_github_subosito_gotenv",
     "com_github_tidwall_jsonc",
     "com_github_yuin_goldmark",

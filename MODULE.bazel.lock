@@ -60,8 +60,8 @@
     "https://bcr.bazel.build/modules/gazelle/0.33.0/MODULE.bazel": "a13a0f279b462b784fb8dd52a4074526c4a2afe70e114c7d09066097a46b3350",
     "https://bcr.bazel.build/modules/gazelle/0.34.0/MODULE.bazel": "abdd8ce4d70978933209db92e436deb3a8b737859e9354fb5fd11fb5c2004c8a",
     "https://bcr.bazel.build/modules/gazelle/0.36.0/MODULE.bazel": "e375d5d6e9a6ca59b0cb38b0540bc9a05b6aa926d322f2de268ad267a2ee74c0",
-    "https://bcr.bazel.build/modules/gazelle/0.50.0/MODULE.bazel": "5dce69aa1d7b5bc85d1e1cfe61f0a9a27426c46425ec1d064685f941a5977329",
-    "https://bcr.bazel.build/modules/gazelle/0.50.0/source.json": "3cadcd284172c4274dc44c71b571f08ec4f22b28d5e9ad2708347c6e6c3a41b9",
+    "https://bcr.bazel.build/modules/gazelle/0.51.0/MODULE.bazel": "74610189cc04e27cc2cc286eaffb98c9b43fe59fdf2980b086922eea79f4a236",
+    "https://bcr.bazel.build/modules/gazelle/0.51.0/source.json": "d69adfa4f68bbdce6a93a4a4b518cb4ee2fd5051366e4a33d3b7b42d749d0ae1",
     "https://bcr.bazel.build/modules/google_benchmark/1.8.2/MODULE.bazel": "a70cf1bba851000ba93b58ae2f6d76490a9feb74192e57ab8e8ff13c34ec50cb",
     "https://bcr.bazel.build/modules/googletest/1.11.0/MODULE.bazel": "3a83f095183f66345ca86aa13c58b59f9f94a2f81999c093d4eeaa2d262d12f4",
     "https://bcr.bazel.build/modules/googletest/1.14.0.bcr.1/MODULE.bazel": "22c31a561553727960057361aa33bf20fb2e98584bc4fec007906e27053f80c6",
@@ -213,7 +213,7 @@
   "moduleExtensions": {
     "@@rules_kotlin+//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
       "general": {
-        "bzlTransitiveDigest": "ABI1D/sbS1ovwaW/kHDoj8nnXjQ0oKU9fzmzEG4iT8o=",
+        "bzlTransitiveDigest": "Ga4z8lQy1YQ5rAMy+dOl0dqcCEBnYNCXku8x3YQmDZI=",
         "usagesDigest": "QI2z8ZUR+mqtbwsf2fLqYdJAkPOHdOV+tF2yVAUgRzw=",
         "recordedInputs": [
           "REPO_MAPPING:rules_kotlin+,bazel_tools bazel_tools"
@@ -270,7 +270,7 @@
     },
     "@@rules_python+//python/extensions:config.bzl%config": {
       "general": {
-        "bzlTransitiveDigest": "2hLgIvNVTLgxus0ZuXtleBe70intCfo0cHs8qvt6cdM=",
+        "bzlTransitiveDigest": "iibnRYgg8LpcfmH7EAnVwYePC3jsVaJ6Id8XxUjSZps=",
         "usagesDigest": "ZVSXMAGpD+xzVNPuvF1IoLBkty7TROO0+akMapt1pAg=",
         "recordedInputs": [
           "REPO_MAPPING:rules_python+,bazel_tools bazel_tools",

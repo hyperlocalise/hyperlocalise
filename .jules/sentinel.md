@@ -17,3 +17,8 @@
 **Vulnerability:** The Liquid and HTML parsers allowed translated segments to include raw HTML tags that were not present in the source. Since these parsers use placeholders for all original markup, any tag found in a translation segment (before placeholder expansion) is an unauthorized injection.
 **Learning:** Even when a parser correctly "protects" original markup with placeholders, it must also verify that no *new* markup is introduced in the "clean" text returned by translators.
 **Prevention:** Apply a `containsHTMLTag` check to all translated segments during the rendering phase. If any unauthorized tags are detected, fall back to the source text to prevent potential XSS.
+
+## 2026-05-25 - [Enhancement] Automatic Log Redaction in pino Logger
+**Vulnerability:** Accidental leakage of sensitive keys (API keys, tokens, passwords) and HTTP headers (Authorization, Cookie) into application logs when logging request/response bodies or authentication objects.
+**Learning:** Centralizing redaction at the logger level using `pino`'s built-in `redact` feature provides a failsafe against developer oversight when logging complex objects that might contain secrets.
+**Prevention:** Configure a global list of sensitive paths and wildcards (e.g., `*.password`, `headers["x-api-key"]`) in the root logger to ensure consistent redaction across the entire application.

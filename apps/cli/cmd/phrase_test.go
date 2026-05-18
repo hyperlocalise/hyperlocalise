@@ -162,6 +162,96 @@ func TestPhraseUploadSourcesUploadsToPhraseAPI(t *testing.T) {
 	}
 }
 
+func TestPhraseUploadSourcesUsesPhraseConfig(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "locales", "en.json")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir locales: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	t.Setenv("PHRASE_ACCESS_TOKEN", "secret")
+
+	var sawUpload bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/projects/project-1/uploads" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "token secret" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatalf("parse multipart form: %v", err)
+		}
+		if got := r.FormValue("locale_id"); got != "en-US" {
+			t.Fatalf("locale_id = %q, want en-US", got)
+		}
+		if got := r.FormValue("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.FormValue("tags"); got != "app,source" {
+			t.Fatalf("tags = %q, want app,source", got)
+		}
+		if got := r.FormValue("update_translations"); got != "true" {
+			t.Fatalf("update_translations = %q, want true", got)
+		}
+		if got := r.FormValue("update_translation_keys"); got != "false" {
+			t.Fatalf("update_translation_keys = %q, want false", got)
+		}
+		if got := r.FormValue("skip_upload_tags"); got != "true" {
+			t.Fatalf("skip_upload_tags = %q, want true", got)
+		}
+		sawUpload = true
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":       "upload-1",
+			"filename": "en.json",
+			"format":   "json",
+			"state":    "success",
+			"summary": map[string]int{
+				"translation_keys_created": 1,
+			},
+		})
+	}))
+	defer server.Close()
+
+	configPath := filepath.Join(dir, ".phrase.yml")
+	if err := os.WriteFile(configPath, []byte(`
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-1
+  file_format: json
+  host: `+server.URL+`
+  push:
+    sources:
+      - file: ./locales/en.json
+        params:
+          locale_id: en-US
+          tags: app,source
+          update_translations: true
+          update_translation_keys: false
+          skip_upload_tags: true
+`), 0o644); err != nil {
+		t.Fatalf("write phrase config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "upload", "sources", "--config", configPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase upload: %v", err)
+	}
+	if !sawUpload {
+		t.Fatalf("expected upload request")
+	}
+	if !strings.Contains(out.String(), "uploaded file="+sourcePath) || !strings.Contains(out.String(), "processed=1") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
 func TestPhraseDownloadSourcesDryRun(t *testing.T) {
 	cmd := newRootCmd("")
 	out := bytes.NewBuffer(nil)
@@ -401,6 +491,77 @@ func TestPhraseDownloadTranslationsWritesOutputFile(t *testing.T) {
 		t.Fatalf("unexpected file content: %q", string(content))
 	}
 	if !strings.Contains(out.String(), "downloaded file="+outputPath) || !strings.Contains(out.String(), "locale=fr") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestPhraseDownloadTranslationsUsesPhraseConfig(t *testing.T) {
+	t.Setenv("PHRASE_ACCESS_TOKEN", "secret")
+	dir := t.TempDir()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/projects/project-1/locales/fr-FR/download" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "token secret" {
+			t.Fatalf("unexpected auth header: %q", r.Header.Get("Authorization"))
+		}
+		if got := r.URL.Query().Get("file_format"); got != "json" {
+			t.Fatalf("file_format = %q, want json", got)
+		}
+		if got := r.URL.Query().Get("tags"); got != "app,reviewed" {
+			t.Fatalf("tags = %q, want app,reviewed", got)
+		}
+		if got := r.URL.Query().Get("include_unverified_translations"); got != "false" {
+			t.Fatalf("include_unverified_translations = %q, want false", got)
+		}
+		if got := r.URL.Query().Get("include_empty_translations"); got != "true" {
+			t.Fatalf("include_empty_translations = %q, want true", got)
+		}
+		_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+	}))
+	defer server.Close()
+
+	configPath := filepath.Join(dir, ".phrase.yml")
+	if err := os.WriteFile(configPath, []byte(`
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-1
+  file_format: json
+  host: `+server.URL+`
+  locale_mapping:
+    fr-FR: fr
+  pull:
+    targets:
+      - file: ./locales/<locale_name>.json
+        params:
+          locale_id: fr-FR
+          tags:
+            - app
+            - reviewed
+          include_unverified_translations: false
+          include_empty_translations: true
+`), 0o644); err != nil {
+		t.Fatalf("write phrase config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--config", configPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute phrase translation download: %v", err)
+	}
+	outputPath := filepath.Join(dir, "locales", "fr.json")
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "downloaded file="+outputPath) || !strings.Contains(out.String(), "locale=fr-FR") {
 		t.Fatalf("unexpected output: %q", out.String())
 	}
 }

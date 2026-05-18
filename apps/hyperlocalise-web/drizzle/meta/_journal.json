@@ -29,6 +29,13 @@
       "when": 1778634260042,
       "tag": "0003_nifty_lila_cheney",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779062533310,
+      "tag": "0004_omniscient_cammi",
+      "breakpoints": true
     }
   ]
 }

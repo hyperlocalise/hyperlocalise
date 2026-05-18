@@ -10,5 +10,6 @@ go_library(
         "//internal/i18n/storage",
         "@com_github_antihax_optional//:optional",
         "@com_github_phrase_phrase_go_v4//:phrase-go",
+        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )

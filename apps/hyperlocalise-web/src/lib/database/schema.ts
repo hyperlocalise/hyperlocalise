@@ -586,6 +586,32 @@ export const githubInstallations = pgTable(
   ],
 );
 
+export const githubInstallationStates = pgTable(
+  "github_installation_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    nonce: text("nonce").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_installation_states_nonce_key").on(table.nonce),
+    index("idx_github_installation_states_org_user").on(table.organizationId, table.userId),
+    index("idx_github_installation_states_expires_at").on(table.expiresAt),
+  ],
+);
+
 export const githubInstallationRepositories = pgTable(
   "github_installation_repositories",
   {
