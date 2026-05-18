@@ -25,10 +25,22 @@ describe("github fix committable changed paths", () => {
         "?? .hyperlocalise/fix-report.json",
         "?? .hyperlocalise/scoped-check-report.json",
         " M locales/en.json",
-      ].join("\0"),
+      ].join("\0") + "\0",
     );
 
     expect(paths).toEqual(["locales/en.json"]);
+  });
+
+  it("skips the original path entry for staged renames", () => {
+    const paths = getCommittableChangedPaths("R  new.json\0old.json\0");
+
+    expect(paths).toEqual(["new.json"]);
+  });
+
+  it("skips the original path entry for staged copies", () => {
+    const paths = getCommittableChangedPaths("C  copied.json\0source.json\0");
+
+    expect(paths).toEqual(["copied.json"]);
   });
 
   it("returns no committable paths for report-only output", () => {
