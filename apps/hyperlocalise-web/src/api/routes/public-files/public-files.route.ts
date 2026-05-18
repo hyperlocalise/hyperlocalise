@@ -12,6 +12,8 @@ import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-stora
 import { createStoredFile } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
+import { payloadTooLargeResponse } from "@/api/response.schema";
+
 import { uploadBodySchema, fileParamsSchema, maxPublicUploadBytes } from "./public-files.schema";
 import {
   invalidFilePayloadResponse,
@@ -41,7 +43,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
       requireApiKeyPermission("files:write"),
       bodyLimit({
         maxSize: maxPublicUploadBytes,
-        onError: (c) => c.json({ error: "file_upload_too_large" }, 413),
+        onError: (c) => payloadTooLargeResponse(c, "file_upload_too_large"),
       }),
       async (c) => {
         const body = await c.req.parseBody({ all: true });

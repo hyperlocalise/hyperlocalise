@@ -70,7 +70,9 @@ describe("publicFileRoutes", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "unsupported_translation_source_file",
-      filename: "Dockerfile",
+      details: {
+        filename: "Dockerfile",
+      },
     });
   });
 });
