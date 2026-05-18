@@ -17,6 +17,16 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Prefer route-local handlers instead of Rails-style controller functions. Define the handler inline where the path is declared so `c.req.param()` and other route types infer correctly.
 - Split larger APIs into route modules and mount them with `app.route(...)`.
 - Keep the root API app in [`src/api/app.ts`](src/api/app.ts). If a test or feature needs an app instance, import the factory or app from there instead of constructing a separate ad hoc `new Hono()` shape in the test file.
+- Compose [`src/api/app.ts`](src/api/app.ts) through named router groups for the API boundary they serve: internal/MCP, auth, legacy app routes, org-scoped app routes, public `/v1` routes, and webhooks. Keep the Next.js catch-all handler in `src/app/api/[[...route]]/route.ts` as the single adapter to the Hono app.
+
+## Route Folder Conventions
+
+- Keep the current `<resource>.route.ts` naming. Use it for the route factory and route-local handlers.
+- Put params, query, body, and response schemas in `<resource>.schema.ts`.
+- Add `<resource>.fixture.ts` only for thin typed helpers used by route tests.
+- Use `<resource>.test.ts` or `<resource>.route.test.ts` for route behavior tests, matching the existing folder convention nearby.
+- Do not add `<resource>.controller.ts` by default. Extract a controller only when a route handler becomes large enough that route-local code is harder to read, and keep request validation and Hono response shaping in the route file.
+- Keep using plain `Hono` route modules for now. Do not introduce `OpenAPIHono` or `createRoute` unless the route is becoming a stable public contract that needs generated OpenAPI metadata and the dependency/typing tradeoff is handled in the same change.
 
 ## Middleware
 
