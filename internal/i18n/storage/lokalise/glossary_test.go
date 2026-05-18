@@ -84,7 +84,6 @@ func TestHTTPClientWriteGlossaryCSV(t *testing.T) {
 		t.Fatalf("result = %+v, want terms=2 rows=2", result)
 	}
 	reader := csv.NewReader(strings.NewReader(out.String()))
-	reader.Comma = ';'
 	records, err := reader.ReadAll()
 	if err != nil {
 		t.Fatalf("read csv: %v", err)
@@ -183,7 +182,6 @@ func TestHTTPClientWriteGlossaryCSVFiltersLocaleColumns(t *testing.T) {
 		t.Fatalf("result = %+v, want terms=1 rows=1", result)
 	}
 	reader := csv.NewReader(strings.NewReader(out.String()))
-	reader.Comma = ';'
 	records, err := reader.ReadAll()
 	if err != nil {
 		t.Fatalf("read csv: %v", err)
@@ -244,7 +242,6 @@ func TestHTTPClientWriteGlossaryCSVContinuesPastFullInvalidLanguagePage(t *testi
 		t.Fatalf("write glossary csv: %v", err)
 	}
 	reader := csv.NewReader(strings.NewReader(out.String()))
-	reader.Comma = ';'
 	records, err := reader.ReadAll()
 	if err != nil {
 		t.Fatalf("read csv: %v", err)
@@ -359,7 +356,7 @@ func TestHTTPClientWriteGlossaryCSVHandlesEmptyGlossary(t *testing.T) {
 	if result.Terms != 0 || result.Rows != 0 {
 		t.Fatalf("result = %+v, want zero", result)
 	}
-	if got, want := strings.TrimSpace(out.String()), strings.Join(glossaryCSVBaseHeader, ";"); got != want {
+	if got, want := strings.TrimSpace(out.String()), strings.Join(glossaryCSVBaseHeader, ","); got != want {
 		t.Fatalf("csv = %q, want %q", got, want)
 	}
 }
