@@ -3,17 +3,14 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { Hono } from "hono";
 import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { app } from "@/api/app";
+import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
-import { createWorkspaceJobRoutes } from "./job.route";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
-import { createProjectRoutes } from "./project.route";
 import type { ProjectResponse } from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -32,15 +29,8 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-function createJobRouteTestApp(jobQueue: JobQueue<TranslationJobEventData>) {
-  return new Hono()
-    .basePath("/api")
-    .route("/project", createProjectRoutes({ jobQueue }))
-    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes({ jobQueue }));
-}
-
-const client = testClient(createJobRouteTestApp(createInlineTestJobQueue()));
-const appClient = testClient(app);
+const client = testClient(createApp({ jobQueue: createInlineTestJobQueue() }));
+const appClient = client;
 const projectFixture = createProjectTestFixture(client);
 const {
   authHeadersFor,
@@ -565,10 +555,12 @@ describe("jobRoutes", () => {
   it("retries a stale queued translation job from workspace job details", async () => {
     const queuedEvents: TranslationJobEventData[] = [];
     const retryClient = testClient(
-      createJobRouteTestApp({
-        async enqueue(event) {
-          queuedEvents.push(event);
-          return { ids: [`run_${event.jobId}`] };
+      createApp({
+        jobQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [`run_${event.jobId}`] };
+          },
         },
       }),
     );
@@ -634,10 +626,12 @@ describe("jobRoutes", () => {
   it("does not clear details or enqueue when a retryable job is claimed concurrently", async () => {
     const queuedEvents: TranslationJobEventData[] = [];
     const retryClient = testClient(
-      createJobRouteTestApp({
-        async enqueue(event) {
-          queuedEvents.push(event);
-          return { ids: [`run_${event.jobId}`] };
+      createApp({
+        jobQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [`run_${event.jobId}`] };
+          },
         },
       }),
     );
@@ -965,9 +959,11 @@ describe("jobRoutes", () => {
 
   it("keeps the inserted job when queueing fails", async () => {
     const failingClient = testClient(
-      createJobRouteTestApp({
-        async enqueue() {
-          throw new Error("queue down");
+      createApp({
+        jobQueue: {
+          async enqueue() {
+            throw new Error("queue down");
+          },
         },
       }),
     );

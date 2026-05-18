@@ -2,7 +2,6 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { Hono } from "hono";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -10,7 +9,6 @@ import { app } from "@/api/app";
 import { db } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
-import { createProjectRoutes } from "./project.route";
 import type { ProjectResponse, ProjectsResponse } from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -21,9 +19,8 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
 
-const projectRouteApp = new Hono().basePath("/api").route("/project", createProjectRoutes());
-const client = testClient(projectRouteApp);
-const appClient = testClient(app);
+const client = testClient(app);
+const appClient = client;
 const projectFixture = createProjectTestFixture(client);
 const { authHeadersFor, createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   projectFixture;
