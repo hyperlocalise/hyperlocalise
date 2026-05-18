@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import {
   apiKeyAuthMiddleware,
@@ -12,74 +11,19 @@ import {
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
-import {
-  inferSupportedFileTranslationFileFormat,
-  supportedFileTranslationFileFormats,
-} from "@/lib/translation/file-formats";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
-const createPublicJobBodySchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("string"),
-    projectId: z.string().trim().min(1),
-    stringInput: z.object({
-      sourceText: z.string().trim().min(1).max(100_000),
-      sourceLocale: z.string().trim().min(1).max(32),
-      targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
-      metadata: z.record(z.string(), z.string()).optional(),
-      context: z.string().max(20_000).optional(),
-      maxLength: z.number().int().positive().max(100_000).optional(),
-    }),
-  }),
-  z.object({
-    type: z.literal("file"),
-    projectId: z.string().trim().min(1),
-    fileInput: z.object({
-      sourceFileId: z.string().trim().min(1),
-      fileFormat: z.enum(supportedFileTranslationFileFormats),
-      sourceLocale: z.string().trim().min(1).max(32),
-      targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
-      metadata: z.record(z.string(), z.string()).optional(),
-    }),
-  }),
-]);
-
-const jobIdParamsSchema = z.object({
-  jobId: z.string().trim().min(1),
-});
-
-function invalidJobPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_job_payload" }, 400);
-}
-
-function jobNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "job_not_found" }, 404);
-}
-
-function sourceFileNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "source_file_not_found" }, 404);
-}
-
-function unsupportedSourceFileFormatResponse(c: {
-  json(body: { error: string }, status: 400): Response;
-}) {
-  return c.json({ error: "unsupported_source_file_format" }, 400);
-}
-
-function sourceFileFormatMismatchResponse(
-  c: { json(body: { error: string; expectedFileFormat: string }, status: 400): Response },
-  expectedFileFormat: string,
-) {
-  return c.json({ error: "source_file_format_mismatch", expectedFileFormat }, 400);
-}
-
-function jobQueueUnavailableResponse(c: { json(body: { error: string }, status: 503): Response }) {
-  return c.json({ error: "job_queue_unavailable" }, 503);
-}
-
-function projectNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "project_not_found" }, 404);
-}
+import { createPublicJobBodySchema, jobIdParamsSchema } from "./public-jobs.schema";
+import {
+  invalidJobPayloadResponse,
+  jobNotFoundResponse,
+  sourceFileNotFoundResponse,
+  unsupportedSourceFileFormatResponse,
+  sourceFileFormatMismatchResponse,
+  jobQueueUnavailableResponse,
+  projectNotFoundResponse,
+} from "./public-jobs.shared";
 
 const validateCreateJobBody = validator("json", (value, c) => {
   const parsed = createPublicJobBodySchema.safeParse(value);

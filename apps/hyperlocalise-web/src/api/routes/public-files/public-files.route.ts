@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { z } from "zod";
 
 import {
   apiKeyAuthMiddleware,
@@ -13,23 +12,13 @@ import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-stora
 import { createStoredFile } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
-const maxPublicUploadBytes = 25 * 1024 * 1024;
-
-const uploadBodySchema = z.object({
-  projectId: z.string().trim().min(1),
-  sourcePath: z.string().trim().min(1).max(2048).optional(),
-  sourceHash: z.string().trim().min(1).max(256).optional(),
-  commitSha: z.string().trim().min(1).max(256).optional(),
-  workflowRunId: z.string().trim().min(1).max(256).optional(),
-});
-
-const fileParamsSchema = z.object({
-  fileId: z.string().trim().min(1),
-});
-
-type CreatePublicFileRoutesOptions = {
-  fileStorageAdapter?: FileStorageAdapter;
-};
+import { uploadBodySchema, fileParamsSchema, maxPublicUploadBytes } from "./public-files.schema";
+import {
+  invalidFilePayloadResponse,
+  projectNotFoundResponse,
+  fileNotFoundResponse,
+  unsupportedFileResponse,
+} from "./public-files.shared";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : undefined;
@@ -40,24 +29,9 @@ function asFile(value: unknown) {
   return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
 }
 
-function invalidPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_file_payload" }, 400);
-}
-
-function projectNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "project_not_found" }, 404);
-}
-
-function fileNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "file_not_found" }, 404);
-}
-
-function unsupportedFileResponse(
-  c: { json(body: { error: string; filename: string }, status: 400): Response },
-  filename: string,
-) {
-  return c.json({ error: "unsupported_translation_source_file", filename }, 400);
-}
+type CreatePublicFileRoutesOptions = {
+  fileStorageAdapter?: FileStorageAdapter;
+};
 
 export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
@@ -80,12 +54,12 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         });
 
         if (!parsed.success) {
-          return invalidPayloadResponse(c);
+          return invalidFilePayloadResponse(c);
         }
 
         const file = asFile(body.file);
         if (!file) {
-          return invalidPayloadResponse(c);
+          return invalidFilePayloadResponse(c);
         }
 
         if (!inferSupportedFileTranslationFileFormat(file.name)) {

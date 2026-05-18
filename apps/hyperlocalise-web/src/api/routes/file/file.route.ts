@@ -1,20 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { z } from "zod";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 
-const fileParamsSchema = z.object({
-  organizationSlug: z.string().trim().min(1),
-  fileId: z.string().trim().min(1),
-});
-
-function notFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "not_found" }, 404);
-}
+import { fileParamsSchema } from "./file.schema";
+import { fileNotFoundResponse } from "./file.shared";
 
 type CreateFileRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
@@ -26,7 +19,7 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
     .get("/:fileId", async (c) => {
       const parsed = fileParamsSchema.safeParse(c.req.param());
       if (!parsed.success) {
-        return notFoundResponse(c);
+        return fileNotFoundResponse(c);
       }
 
       const { fileId } = parsed.data;
@@ -47,14 +40,14 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         .limit(1);
 
       if (!file) {
-        return notFoundResponse(c);
+        return fileNotFoundResponse(c);
       }
 
       const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
       const storedObject = await adapter.get({ keyOrUrl: file.storageKey });
 
       if (!storedObject) {
-        return notFoundResponse(c);
+        return fileNotFoundResponse(c);
       }
 
       c.header(
