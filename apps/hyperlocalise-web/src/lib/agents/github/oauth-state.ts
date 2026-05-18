@@ -2,6 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
 
+export const GITHUB_STATE_TTL_MS = 60 * 60 * 1000;
+
 async function importHmacKey(secret: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   return crypto.subtle.importKey(
@@ -23,14 +25,14 @@ export async function signGitHubState(payload: string, secret: string): Promise<
 export async function verifyGitHubState(
   state: string,
   secret: string,
-): Promise<{ slug: string; timestamp: number } | null> {
+): Promise<{ slug: string; timestamp: number; nonce: string } | null> {
   const parts = state.split(":");
-  if (parts.length !== 3) return null;
+  if (parts.length !== 4) return null;
 
-  const [slug, timestampStr, providedSignature] = parts;
-  if (!slug || !timestampStr || !providedSignature) return null;
+  const [slug, timestampStr, nonce, providedSignature] = parts;
+  if (!slug || !timestampStr || !nonce || !providedSignature) return null;
 
-  const payload = `${slug}:${timestampStr}`;
+  const payload = `${slug}:${timestampStr}:${nonce}`;
   const expectedSignature = await signGitHubState(payload, secret);
   const enc = new TextEncoder();
   const providedBytes = enc.encode(providedSignature);
@@ -41,10 +43,9 @@ export async function verifyGitHubState(
   const timestamp = Number.parseInt(timestampStr, 10);
   if (!Number.isFinite(timestamp)) return null;
 
-  // Expire states after 1 hour.
-  if (Date.now() - timestamp > 60 * 60 * 1000) return null;
+  if (Date.now() - timestamp > GITHUB_STATE_TTL_MS) return null;
 
-  return { slug, timestamp };
+  return { slug, timestamp, nonce };
 }
 
 export function getGitHubStateSecret(): string {

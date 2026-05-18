@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 
+import { isAdminRole } from "@/api/auth/roles";
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { getGitHubApp } from "@/lib/agents/github/app";
@@ -15,6 +17,8 @@ type GitHubCallbackPageProps = {
   }>;
 };
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default async function GitHubCallbackPage({ searchParams }: GitHubCallbackPageProps) {
   const params = await searchParams;
   const installationId = params.installation_id;
@@ -24,21 +28,67 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     redirect("/dashboard?error=missing_callback_params");
   }
 
+  if (!/^\d+$/.test(installationId)) {
+    redirect("/dashboard?error=missing_callback_params");
+  }
+
+  if (!env.GITHUB_APP_ID) {
+    redirect("/dashboard?error=github_app_not_configured");
+  }
+
   const secret = getGitHubStateSecret();
   const verified = await verifyGitHubState(stateParam, secret);
   if (!verified) {
     redirect("/dashboard?error=invalid_state");
   }
 
-  const orgs = await db
+  let [org] = await db
     .select()
     .from(schema.organizations)
     .where(eq(schema.organizations.slug, verified.slug))
     .limit(1);
 
-  const org = orgs[0];
+  if (!org && uuidRegex.test(verified.slug)) {
+    [org] = await db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, verified.slug))
+      .limit(1);
+  }
+
   if (!org) {
     redirect("/dashboard?error=organization_not_found");
+  }
+
+  const auth = await resolveApiAuthContextFromSession(
+    org.slug ? { organizationSlug: org.slug } : {},
+  );
+  const authOrganization = auth?.organizations.find((item) => item.localOrganizationId === org.id);
+  if (!auth || !authOrganization) {
+    redirect("/dashboard?error=unauthorized");
+  }
+
+  if (!isAdminRole(authOrganization.membership.role)) {
+    redirect("/dashboard?error=forbidden");
+  }
+
+  const now = new Date();
+  const consumedStates = await db
+    .update(schema.githubInstallationStates)
+    .set({ consumedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(schema.githubInstallationStates.nonce, verified.nonce),
+        eq(schema.githubInstallationStates.organizationId, org.id),
+        eq(schema.githubInstallationStates.userId, auth.user.localUserId),
+        gt(schema.githubInstallationStates.expiresAt, now),
+        isNull(schema.githubInstallationStates.consumedAt),
+      ),
+    )
+    .returning({ id: schema.githubInstallationStates.id });
+
+  if (consumedStates.length === 0) {
+    redirect("/dashboard?error=invalid_state");
   }
 
   let accountLogin: string | null = null;
@@ -54,10 +104,6 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     accountType = account?.type ?? null;
   } catch {
     // Ignore errors fetching details; we can still store the basic record.
-  }
-
-  if (!env.GITHUB_APP_ID) {
-    redirect("/dashboard?error=github_app_not_configured");
   }
 
   const githubInstallationId = installationId;
