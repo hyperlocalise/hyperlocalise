@@ -94,7 +94,7 @@ export type ApiErrorCode =
 // ---------------------------------------------------------------------------
 
 /** Context type accepted by the helper functions below. */
-type JsonContext = {
+export type JsonContext = {
   json(body: Record<string, unknown>, status: number): Response;
 };
 
@@ -117,7 +117,14 @@ export function apiErrorResponse(
   const body: Record<string, unknown> = { error: code };
   if (message !== undefined) body.message = message;
   if (details !== undefined) body.details = details;
-  if (extra !== undefined) Object.assign(body, extra);
+  if (extra !== undefined) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (key === "error" || key === "message" || key === "details") {
+        throw new Error(`apiErrorResponse: reserved key "${key}" cannot be used in extra`);
+      }
+      body[key] = value;
+    }
+  }
   return c.json(body, status);
 }
 

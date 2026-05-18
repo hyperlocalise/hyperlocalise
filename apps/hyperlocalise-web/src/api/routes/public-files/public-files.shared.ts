@@ -1,28 +1,19 @@
-import { apiErrorResponse, badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import { badRequestResponse, JsonContext, notFoundResponse } from "@/api/response.schema";
 
-export function invalidFilePayloadResponse(c: {
-  json(body: Record<string, unknown>, status: number): Response;
-}) {
+export function invalidFilePayloadResponse(c: JsonContext) {
   return badRequestResponse(c, "invalid_file_payload");
 }
 
-export function projectNotFoundResponse(c: {
-  json(body: Record<string, unknown>, status: number): Response;
-}) {
+export function projectNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "project_not_found");
 }
 
-export function fileNotFoundResponse(c: {
-  json(body: Record<string, unknown>, status: number): Response;
-}) {
+export function fileNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "file_not_found");
 }
 
-export function unsupportedFileResponse(
-  c: { json(body: Record<string, unknown>, status: number): Response },
-  filename: string,
-) {
-  return apiErrorResponse(c, 400, "unsupported_translation_source_file", undefined, undefined, {
+export function unsupportedFileResponse(c: JsonContext, filename: string) {
+  return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
     filename,
   });
 }
