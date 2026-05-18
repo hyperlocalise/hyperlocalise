@@ -93,7 +93,7 @@ type projectLanguagesResponse struct {
 
 // WriteGlossaryCSV is the storage-level flow used by the CLI:
 // validate inputs, download all glossary pages, enrich translation language IDs,
-// convert the terms into Lokalise-compatible semicolon CSV, then stream it to the writer.
+// convert the terms into stable glossary CSV, then stream it to the writer.
 func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadInput, w io.Writer) (GlossaryDownloadResult, error) {
 	if c == nil || c.httpClient == nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("lokalise glossary download: client is nil")
@@ -124,7 +124,6 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 	rows := glossaryCSVRows(terms, languageByID, locales)
 
 	writer := csv.NewWriter(w)
-	writer.Comma = ';'
 	if err := writer.Write(glossaryCSVHeader(locales)); err != nil {
 		return GlossaryDownloadResult{}, fmt.Errorf("write lokalise glossary csv header: %w", err)
 	}
