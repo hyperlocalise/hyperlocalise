@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
+import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
-import { createAuthTestFixture } from "../auth.fixture";
 
 type CreateProjectInput = Partial<{
   name: string;
@@ -33,24 +33,7 @@ export function createProjectTestFixture(client?: any) {
   }
 
   async function createStoredProjectFixture() {
-    const identity = authFixture.createWorkosIdentity();
-
-    const [organization] = await db
-      .insert(schema.organizations)
-      .values({
-        workosOrganizationId: identity.organization.workosOrganizationId,
-        name: identity.organization.name,
-        slug: identity.organization.slug ?? null,
-      })
-      .returning();
-
-    const [user] = await db
-      .insert(schema.users)
-      .values({
-        workosUserId: identity.user.workosUserId,
-        email: identity.user.email,
-      })
-      .returning();
+    const { identity, organization, user } = await authFixture.createLocalWorkosIdentity();
 
     const [project] = await db
       .insert(schema.projects)
