@@ -14,8 +14,10 @@ vi.mock("@/api/auth/workos-session", () => ({
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import { generateApiKey, hashApiKey, getApiKeyPrefix } from "@/lib/api-keys";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+
+import { createApiKeyTestFixture } from "./api-key.fixture";
+import type { ApiKeyResponse } from "./api-key.schema";
 import { createProjectTestFixture } from "../project/project.fixture";
 
 function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
@@ -32,41 +34,16 @@ const client = testClient(
   }),
 );
 
+const apiKeyFixture = createApiKeyTestFixture(client);
 const projectFixture = createProjectTestFixture(client);
 const {
-  cleanup,
-  createProjectViaApi,
   createWorkosIdentity,
   createWorkosIdentityForOrganization,
   authHeadersFor,
-} = projectFixture;
-
-async function insertApiKey(params: {
-  organizationId: string;
-  name: string;
-  createdByUserId?: string;
-  permissions?: string[];
-  revokedAt?: Date;
-}) {
-  const plainKey = generateApiKey();
-  const keyHash = hashApiKey(plainKey);
-  const keyPrefix = getApiKeyPrefix(plainKey);
-
-  const [apiKey] = await db
-    .insert(schema.organizationApiKeys)
-    .values({
-      organizationId: params.organizationId,
-      name: params.name,
-      keyHash,
-      keyPrefix,
-      permissions: params.permissions ?? ["jobs:read", "jobs:write", "files:read", "files:write"],
-      createdByUserId: params.createdByUserId ?? null,
-      revokedAt: params.revokedAt ?? null,
-    })
-    .returning();
-
-  return { plainKey, apiKey };
-}
+  createApiKeyViaApi,
+  insertApiKey,
+} = apiKeyFixture;
+const { createProjectViaApi } = projectFixture;
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -74,28 +51,17 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
-  await cleanup();
+  await apiKeyFixture.cleanup();
+  await projectFixture.cleanup();
 });
 
 describe("apiKeyRoutes", () => {
   it("creates an API key for owner", async () => {
     const identity = createWorkosIdentity();
-    await authHeadersFor(identity);
-
-    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$post(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        json: { name: "Production Key" },
-      },
-      {
-        headers: await authHeadersFor(identity),
-      },
-    );
+    const response = await createApiKeyViaApi(identity, { name: "Production Key" });
 
     expect(response.status).toBe(201);
-    const body = (await response.json()) as {
-      apiKey: { id: string; name: string; key: string; keyPrefix: string };
-    };
+    const body = (await response.json()) as ApiKeyResponse;
     expect(body.apiKey.name).toBe("Production Key");
     expect(body.apiKey.key).toMatch(/^hl_/);
     expect(body.apiKey.keyPrefix).toBe(body.apiKey.key.slice(0, 8));
@@ -105,14 +71,7 @@ describe("apiKeyRoutes", () => {
     const identity = createWorkosIdentity();
     const headers = await authHeadersFor(identity);
 
-    // Create a key first
-    await client.api.orgs[":organizationSlug"]["api-keys"].$post(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        json: { name: "List Key" },
-      },
-      { headers },
-    );
+    await createApiKeyViaApi(identity, { name: "List Key" });
 
     const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
       {
@@ -132,17 +91,9 @@ describe("apiKeyRoutes", () => {
     const identity = createWorkosIdentity();
     const headers = await authHeadersFor(identity);
 
-    const createResponse = await client.api.orgs[":organizationSlug"]["api-keys"].$post(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        json: { name: "To Revoke" },
-      },
-      { headers },
-    );
+    const createResponse = await createApiKeyViaApi(identity, { name: "To Revoke" });
 
-    const createBody = (await createResponse.json()) as {
-      apiKey: { id: string };
-    };
+    const createBody = (await createResponse.json()) as ApiKeyResponse;
 
     const deleteResponse = await client.api.orgs[":organizationSlug"]["api-keys"][
       ":apiKeyId"

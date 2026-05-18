@@ -1,9 +1,8 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
-  assertProviderCredentialAdmin,
   deleteOrganizationProviderCredential,
   getOrganizationProviderCredentialSummary,
   revealOrganizationProviderCredential,
@@ -14,10 +13,14 @@ import {
   revealProviderCredentialBodySchema,
   updateProviderCredentialBodySchema,
 } from "./provider-credential.schema";
-
-function invalidProviderCredentialPayloadResponse(c: Context) {
-  return c.json({ error: "invalid_provider_credential_payload" as const }, 400);
-}
+import {
+  forbiddenResponse,
+  invalidProviderCredentialPayloadResponse,
+  invalidProviderModelResponse,
+  isProviderCredentialMutationAllowed,
+  providerCredentialNotFoundResponse,
+  providerValidationFailedResponse,
+} from "./provider-credential.shared";
 
 const validateUpdateProviderCredentialBody = validator("json", (value, c) => {
   const parsed = updateProviderCredentialBodySchema.safeParse(value);
@@ -48,10 +51,8 @@ export function createProviderCredentialRoutes() {
       return c.json({ providerCredential }, 200);
     })
     .put("/", validateUpdateProviderCredentialBody, async (c) => {
-      try {
-        assertProviderCredentialAdmin(c.var.auth.membership.role);
-      } catch {
-        return c.json({ error: "forbidden" as const }, 403);
+      if (!isProviderCredentialMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -70,16 +71,10 @@ export function createProviderCredentialRoutes() {
         const message = error instanceof Error ? error.message : "provider_validation_failed";
 
         if (message === "unsupported_provider_model") {
-          return c.json({ error: "invalid_provider_model" as const }, 400);
+          return invalidProviderModelResponse(c);
         }
 
-        return c.json(
-          {
-            error: "provider_validation_failed" as const,
-            message,
-          },
-          422,
-        );
+        return providerValidationFailedResponse(c, message);
       }
     })
     .post("/reveal", validateRevealProviderCredentialBody, async (c) => {
@@ -90,13 +85,13 @@ export function createProviderCredentialRoutes() {
         });
 
         if (!revealedCredential) {
-          return c.json({ error: "provider_credential_not_found" as const }, 404);
+          return providerCredentialNotFoundResponse(c);
         }
 
         return c.json({ providerCredential: revealedCredential }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" as const }, 403);
+          return forbiddenResponse(c);
         }
 
         throw error;
@@ -110,13 +105,13 @@ export function createProviderCredentialRoutes() {
         });
 
         if (!deleted) {
-          return c.json({ error: "provider_credential_not_found" as const }, 404);
+          return providerCredentialNotFoundResponse(c);
         }
 
         return c.body(null, 204);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" as const }, 403);
+          return forbiddenResponse(c);
         }
 
         throw error;

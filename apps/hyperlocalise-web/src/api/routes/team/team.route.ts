@@ -1,83 +1,31 @@
 import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { workosAuthMiddleware, type AuthVariables, type ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { TeamMembershipRole } from "@/lib/database/types";
 
-const teamRoleSchema = z.enum(["manager", "member"]);
-const createTeamBodySchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  slug: z
-    .string()
-    .trim()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9-]+$/)
-    .optional(),
-});
-const updateTeamBodySchema = createTeamBodySchema
-  .partial()
-  .refine((value) => value.name !== undefined || value.slug !== undefined);
-const addTeamMemberBodySchema = z.object({
-  workosUserId: z.string().trim().min(1),
-  role: teamRoleSchema.optional(),
-});
-const teamIdParamsSchema = z.object({
-  teamId: z.string().uuid(),
-});
-const teamMemberParamsSchema = z.object({
-  teamId: z.string().uuid(),
-  workosUserId: z.string().min(1),
-});
-
-function slugifyTeamName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
-}
-
-function forbiddenResponse(c: { json(body: { error: string }, status: 403): Response }) {
-  return c.json({ error: "forbidden" }, 403);
-}
-
-function teamNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "team_not_found" }, 404);
-}
-
-function invalidTeamPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_team_payload" }, 400);
-}
-
-function teamSlugAlreadyExistsResponse(c: {
-  json(body: { error: string }, status: 409): Response;
-}) {
-  return c.json({ error: "team_slug_already_exists" }, 409);
-}
-
-function isUniqueViolation(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  if ("code" in error && error.code === "23505") {
-    return true;
-  }
-
-  const cause = "cause" in error ? error.cause : undefined;
-  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
-}
-
-function isOrganizationAdmin(auth: ApiAuthContext) {
-  return auth.membership.role === "owner" || auth.membership.role === "admin";
-}
+import {
+  addTeamMemberBodySchema,
+  createTeamBodySchema,
+  teamIdParamsSchema,
+  teamMemberParamsSchema,
+  updateTeamBodySchema,
+} from "./team.schema";
+import {
+  forbiddenResponse,
+  invalidTeamPayloadResponse,
+  isTeamMutationAllowed,
+  isUniqueViolation,
+  organizationMemberNotFoundResponse,
+  slugifyTeamName,
+  teamNotFoundResponse,
+  teamSlugAlreadyExistsResponse,
+} from "./team.shared";
 
 async function getVisibleTeamIds(auth: ApiAuthContext) {
-  if (isOrganizationAdmin(auth)) {
+  if (isTeamMutationAllowed(auth)) {
     const teams = await db
       .select({ id: schema.teams.id })
       .from(schema.teams)
@@ -126,7 +74,7 @@ async function getAccessibleTeam(
     return null;
   }
 
-  if (isOrganizationAdmin(auth)) {
+  if (isTeamMutationAllowed(auth)) {
     return team;
   }
 
@@ -221,7 +169,7 @@ export function createTeamRoutes() {
       return c.json({ teams }, 200);
     })
     .post("/", validateCreateTeamBody, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
+      if (!isTeamMutationAllowed(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -276,7 +224,7 @@ export function createTeamRoutes() {
       return c.json({ team: { ...team, members } }, 200);
     })
     .patch("/:teamId", validateTeamParams, validateUpdateTeamBody, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
+      if (!isTeamMutationAllowed(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -311,7 +259,7 @@ export function createTeamRoutes() {
       }
     })
     .post("/:teamId/members", validateTeamParams, validateAddTeamMemberBody, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
+      if (!isTeamMutationAllowed(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -346,7 +294,7 @@ export function createTeamRoutes() {
         .limit(1);
 
       if (!user) {
-        return c.json({ error: "organization_member_not_found" }, 404);
+        return organizationMemberNotFoundResponse(c);
       }
 
       const [teamMembership] =
@@ -404,7 +352,7 @@ export function createTeamRoutes() {
       );
     })
     .delete("/:teamId/members/:workosUserId", validateTeamMemberParams, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
+      if (!isTeamMutationAllowed(c.var.auth)) {
         return forbiddenResponse(c);
       }
 

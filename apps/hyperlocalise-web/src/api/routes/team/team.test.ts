@@ -5,7 +5,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
-import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+
+import { createTeamTestFixture } from "./team.fixture";
+import type { TeamResponse } from "./team.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -16,7 +18,7 @@ vi.mock("@/api/auth/workos-session", () => ({
 }));
 
 const client = testClient(app);
-const fixture = createProjectTestFixture(client);
+const fixture = createTeamTestFixture(client);
 
 describe("teamRoutes", () => {
   beforeAll(async () => {
@@ -32,17 +34,7 @@ describe("teamRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Platform",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const createResponse = await fixture.createTeamViaApi(identity, { name: "Platform" });
 
     expect(createResponse.status).toBe(201);
     await expect(createResponse.json()).resolves.toMatchObject({
@@ -69,17 +61,7 @@ describe("teamRoutes", () => {
 
   it("blocks org members from creating teams", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
-    const response = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        json: {
-          name: "Support",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const response = await fixture.createTeamViaApi(identity, { name: "Support" });
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
@@ -91,55 +73,23 @@ describe("teamRoutes", () => {
     const identity = fixture.createWorkosIdentity();
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const firstCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Platform",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const firstCreateResponse = await fixture.createTeamViaApi(identity, { name: "Platform" });
 
     expect(firstCreateResponse.status).toBe(201);
 
-    const duplicateCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Platform",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const duplicateCreateResponse = await fixture.createTeamViaApi(identity, { name: "Platform" });
 
     expect(duplicateCreateResponse.status).toBe(409);
     await expect(duplicateCreateResponse.json()).resolves.toEqual({
       error: "team_slug_already_exists",
     });
 
-    const secondCreateResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Operations",
-          slug: "operations",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const secondCreateResponse = await fixture.createTeamViaApi(identity, {
+      name: "Operations",
+      slug: "operations",
+    });
 
-    const secondCreateBody = (await secondCreateResponse.json()) as {
-      team: {
-        id: string;
-      };
-    };
+    const secondCreateBody = (await secondCreateResponse.json()) as TeamResponse;
 
     const duplicatePatchResponse = await client.api.orgs[":organizationSlug"].teams[
       ":teamId"
@@ -165,23 +115,9 @@ describe("teamRoutes", () => {
     const identity = fixture.createWorkosIdentity();
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Platform",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const createResponse = await fixture.createTeamViaApi(identity, { name: "Platform" });
 
-    const createBody = (await createResponse.json()) as {
-      team: {
-        id: string;
-      };
-    };
+    const createBody = (await createResponse.json()) as TeamResponse;
 
     const patchResponse = await client.api.orgs[":organizationSlug"].teams[":teamId"].$patch(
       {
@@ -210,23 +146,9 @@ describe("teamRoutes", () => {
     const adminIdentity = fixture.createWorkosIdentity();
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Localization",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(adminIdentity),
-      },
-    );
+    const createResponse = await fixture.createTeamViaApi(adminIdentity, { name: "Localization" });
 
-    const createBody = (await createResponse.json()) as {
-      team: {
-        id: string;
-      };
-    };
+    const createBody = (await createResponse.json()) as TeamResponse;
 
     const sameOrgMember = fixture.createWorkosIdentityForOrganization(
       adminIdentity.organization,
@@ -290,23 +212,9 @@ describe("teamRoutes", () => {
     const adminIdentity = fixture.createWorkosIdentity();
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Localization",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(adminIdentity),
-      },
-    );
+    const createResponse = await fixture.createTeamViaApi(adminIdentity, { name: "Localization" });
 
-    const createBody = (await createResponse.json()) as {
-      team: {
-        id: string;
-      };
-    };
+    const createBody = (await createResponse.json()) as TeamResponse;
 
     const sameOrgManager = fixture.createWorkosIdentityForOrganization(
       adminIdentity.organization,
@@ -358,23 +266,9 @@ describe("teamRoutes", () => {
     const adminIdentity = fixture.createWorkosIdentity();
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"].teams.$post(
-      {
-        param: { organizationSlug },
-        json: {
-          name: "Localization",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(adminIdentity),
-      },
-    );
+    const createResponse = await fixture.createTeamViaApi(adminIdentity, { name: "Localization" });
 
-    const createBody = (await createResponse.json()) as {
-      team: {
-        id: string;
-      };
-    };
+    const createBody = (await createResponse.json()) as TeamResponse;
 
     const otherOrgUser = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(otherOrgUser);

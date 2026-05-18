@@ -5,8 +5,9 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
+
+import { createProviderCredentialTestFixture } from "./provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -17,7 +18,7 @@ vi.mock("@/api/auth/workos-session", () => ({
 }));
 
 const client = testClient(app);
-const fixture = createProjectTestFixture(client);
+const fixture = createProviderCredentialTestFixture(client);
 
 describe("providerCredentialRoutes", () => {
   beforeAll(async () => {
@@ -37,20 +38,11 @@ describe("providerCredentialRoutes", () => {
     );
 
     const identity = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const response = await client.api.orgs[":organizationSlug"]["provider-credential"].$put(
-      {
-        param: { organizationSlug },
-        json: {
-          provider: "openai",
-          apiKey: "sk-live-provider-key",
-          defaultModel: "gpt-4.1-mini",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const response = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-live-provider-key",
+      defaultModel: "gpt-4.1-mini",
+    });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
@@ -78,21 +70,11 @@ describe("providerCredentialRoutes", () => {
 
   it("blocks org members from managing provider credentials", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const response = await client.api.orgs[":organizationSlug"]["provider-credential"].$put(
-      {
-        param: { organizationSlug },
-        json: {
-          provider: "openai",
-          apiKey: "sk-member-key",
-          defaultModel: "gpt-4.1-mini",
-        },
-      },
-      {
-        headers: await fixture.authHeadersFor(identity),
-      },
-    );
+    const response = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-member-key",
+      defaultModel: "gpt-4.1-mini",
+    });
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
@@ -110,17 +92,11 @@ describe("providerCredentialRoutes", () => {
     const organizationSlug = identity.organization.slug ?? "missing-slug";
     const headers = await fixture.authHeadersFor(identity);
 
-    await client.api.orgs[":organizationSlug"]["provider-credential"].$put(
-      {
-        param: { organizationSlug },
-        json: {
-          provider: "openai",
-          apiKey: "sk-reveal-provider-key",
-          defaultModel: "gpt-4.1-mini",
-        },
-      },
-      { headers },
-    );
+    await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-reveal-provider-key",
+      defaultModel: "gpt-4.1-mini",
+    });
 
     const revealResponse = await client.api.orgs[":organizationSlug"]["provider-credential"][
       "reveal"

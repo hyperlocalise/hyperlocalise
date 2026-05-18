@@ -1,34 +1,28 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { forbiddenResponse, notFoundResponse, validationErrorResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/api-keys";
 
-const defaultApiKeyPermissions = ["jobs:read", "jobs:write", "files:read", "files:write"] as const;
-
-const createApiKeyBodySchema = z.object({
-  name: z.string().trim().min(1).max(128),
-  permissions: z.array(z.enum(["jobs:read", "jobs:write", "files:read", "files:write"])).optional(),
-});
-
-const apiKeyIdParamsSchema = z.object({
-  organizationSlug: z.string().trim().min(1),
-  apiKeyId: z.string().trim().min(1),
-});
+import {
+  apiKeyIdParamsSchema,
+  createApiKeyBodySchema,
+  defaultApiKeyPermissions,
+} from "./api-key.schema";
+import {
+  apiKeyNotFoundResponse,
+  forbiddenResponse,
+  invalidApiKeyPayloadResponse,
+  isApiKeyMutationAllowed,
+  ownedApiKeyWhere,
+} from "./api-key.shared";
 
 const validateCreateApiKeyBody = validator("json", (value, c) => {
   const parsed = createApiKeyBodySchema.safeParse(value);
   if (!parsed.success) {
-    return validationErrorResponse(
-      c,
-      "invalid_api_key_payload",
-      "Invalid API key payload",
-      parsed.error.issues,
-    );
+    return invalidApiKeyPayloadResponse(c);
   }
   return parsed.data;
 });
@@ -36,7 +30,7 @@ const validateCreateApiKeyBody = validator("json", (value, c) => {
 const validateApiKeyIdParams = validator("param", (value, c) => {
   const parsed = apiKeyIdParamsSchema.safeParse(value);
   if (!parsed.success) {
-    return notFoundResponse(c, "api_key_not_found", "API key not found");
+    return apiKeyNotFoundResponse(c);
   }
   return parsed.data;
 });
@@ -67,9 +61,8 @@ export function createApiKeyRoutes() {
       return c.json({ apiKeys: keys }, 200);
     })
     .post("/", validateCreateApiKeyBody, async (c) => {
-      // Only owners and admins can create API keys
-      if (!["owner", "admin"].includes(c.var.auth.membership.role)) {
-        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
+      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -98,41 +91,25 @@ export function createApiKeyRoutes() {
       return c.json({ apiKey: { ...apiKey, key: plainKey } }, 201);
     })
     .delete("/:apiKeyId", validateApiKeyIdParams, async (c) => {
-      if (!["owner", "admin"].includes(c.var.auth.membership.role)) {
-        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
+      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
       const [existing] = await db
         .select({ id: schema.organizationApiKeys.id })
         .from(schema.organizationApiKeys)
-        .where(
-          and(
-            eq(schema.organizationApiKeys.id, params.apiKeyId),
-            eq(
-              schema.organizationApiKeys.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-          ),
-        )
+        .where(ownedApiKeyWhere(c.var.auth, params.apiKeyId))
         .limit(1);
 
       if (!existing) {
-        return notFoundResponse(c, "api_key_not_found", "API key not found");
+        return apiKeyNotFoundResponse(c);
       }
 
       await db
         .update(schema.organizationApiKeys)
         .set({ revokedAt: new Date() })
-        .where(
-          and(
-            eq(schema.organizationApiKeys.id, params.apiKeyId),
-            eq(
-              schema.organizationApiKeys.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-          ),
-        );
+        .where(ownedApiKeyWhere(c.var.auth, params.apiKeyId));
 
       return c.body(null, 204);
     });
