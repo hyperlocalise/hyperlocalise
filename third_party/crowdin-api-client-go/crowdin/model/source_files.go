@@ -79,8 +79,8 @@ func (o *DirectoryListOptions) Values() (url.Values, bool) {
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
 	}
-	if recursion, ok := o.Recursion.(string); ok {
-		v.Add("recursion", recursion)
+	if o.Recursion != nil {
+		v.Add("recursion", fmt.Sprintf("%v", o.Recursion))
 	}
 
 	return v, len(v) > 0
@@ -138,6 +138,7 @@ type File struct {
 	Path        string  `json:"path"`
 	Status      string  `json:"status"`
 	Fields      any     `json:"fields,omitempty"`
+	IsReadOnly  *bool   `json:"isReadOnly,omitempty"`
 
 	RevisionID             int            `json:"revisionId"`
 	Priority               string         `json:"priority"`
@@ -206,8 +207,8 @@ func (o *FileListOptions) Values() (url.Values, bool) {
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
 	}
-	if recursion, ok := o.Recursion.(string); ok {
-		v.Add("recursion", recursion)
+	if o.Recursion != nil {
+		v.Add("recursion", fmt.Sprintf("%v", o.Recursion))
 	}
 
 	return v, len(v) > 0
@@ -477,10 +478,14 @@ type FileUpdateRestoreRequest struct {
 	ImportOptions FileImportOptions `json:"importOptions,omitempty"`
 	// File export options.
 	ExportOptions FileExportOptions `json:"exportOptions,omitempty"`
+	// Set Target Languages the file should not be translated into.
+	ExcludedTargetLanguages []string `json:"excludedTargetLanguages,omitempty"`
 	// Attach labels to updated strings.
 	AttachLabelIDs []int `json:"attachLabelIds,omitempty"`
 	// Detach labels from updated strings.
 	DetachLabelIDs []int `json:"detachLabelIds,omitempty"`
+	// Fields.
+	Fields map[string]any `json:"fields,omitempty"`
 	// Enable to replace context, that have been modified in Crowdin.
 	// Default: false.
 	ReplaceModifiedContext *bool `json:"replaceModifiedContext,omitempty"`
