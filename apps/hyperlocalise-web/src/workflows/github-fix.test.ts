@@ -48,4 +48,12 @@ describe("github fix committable changed paths", () => {
 
     expect(paths).toEqual([]);
   });
+
+  it("consumes original path entries when filtered renames target reports", () => {
+    const paths = getCommittableChangedPaths(
+      "R  .hyperlocalise/fix-report.json\0old.json\0 M locales/en.json\0",
+    );
+
+    expect(paths).toEqual(["locales/en.json"]);
+  });
 });
