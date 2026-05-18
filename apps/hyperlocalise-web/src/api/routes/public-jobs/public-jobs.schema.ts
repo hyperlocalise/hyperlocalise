@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
+import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
@@ -20,7 +20,7 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
     projectId: z.string().trim().min(1),
     fileInput: z.object({
       sourceFileId: z.string().trim().min(1),
-      fileFormat: z.enum(supportedTranslationFileFormats),
+      fileFormat: z.enum(supportedFileTranslationFileFormats),
       sourceLocale: z.string().trim().min(1).max(32),
       targetLocales: z.array(z.string().trim().min(1).max(32)).min(1),
       metadata: z.record(z.string(), z.string()).optional(),
