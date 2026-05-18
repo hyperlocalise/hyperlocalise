@@ -24,9 +24,23 @@ func TestDirectoryListOptionsValues(t *testing.T) {
 			name: "with all options",
 			opts: &DirectoryListOptions{
 				OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
-				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10},
+				Filter: "filter", Recursion: "true", ListOptions: ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority",
+			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority&recursion=true",
+		},
+		{
+			name: "with recursion as bool",
+			opts: &DirectoryListOptions{
+				Recursion: true,
+			},
+			out: "recursion=true",
+		},
+		{
+			name: "with recursion as int",
+			opts: &DirectoryListOptions{
+				Recursion: 1,
+			},
+			out: "recursion=1",
 		},
 	}
 
@@ -102,9 +116,16 @@ func TestFileListOptionsValues(t *testing.T) {
 			name: "with all options",
 			opts: &FileListOptions{
 				OrderBy: "createdAt desc,name,priority", BranchID: 1, DirectoryID: 2,
-				Filter: "filter", ListOptions: ListOptions{Offset: 1, Limit: 10},
+				Filter: "filter", Recursion: "true", ListOptions: ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority",
+			out: "branchId=1&directoryId=2&filter=filter&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cpriority&recursion=true",
+		},
+		{
+			name: "with recursion as bool",
+			opts: &FileListOptions{
+				Recursion: false,
+			},
+			out: "recursion=false",
 		},
 	}
 

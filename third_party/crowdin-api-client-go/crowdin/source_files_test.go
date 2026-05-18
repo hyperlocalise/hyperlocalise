@@ -380,7 +380,8 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 							"key_2": 2,
 							"key_3": true,
 							"key_4": ["en", "uk"]
-						}
+						},
+						"isReadOnly": false
 					}
 				},
 				{
@@ -442,6 +443,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 				"key_3": true,
 				"key_4": []interface{}{"en", "uk"},
 			},
+			IsReadOnly: ToPtr(false),
 		},
 		{
 			ID:          45,
@@ -570,7 +572,8 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 				"status": "active",
 				"fields": {
 					"fieldSlug": "fieldValue"
-				}
+				},
+				"isReadOnly": true
 			}
 		}`)
 	})
@@ -590,6 +593,7 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 		Path:        "/directory1/directory2/filename.extension",
 		Status:      "active",
 		Fields:      map[string]any{"fieldSlug": "fieldValue"},
+		IsReadOnly:  ToPtr(true),
 	}
 	assert.Equal(t, expected, file)
 	assert.NotNil(t, resp)
@@ -758,8 +762,12 @@ func TestSourceFilesService_UpdateFile(t *testing.T) {
 			"exportOptions": {
 				"exportPattern": "/localization/%locale%/new_file_name"
 			},
+			"excludedTargetLanguages": ["en", "uk"],
 			"attachLabelIds": [1],
 			"detachLabelIds": [2],
+			"fields": {
+				"key": "value"
+			},
 			"replaceModifiedContext": false
 		}`
 		testJSONBody(t, r, expectedReqBody)
@@ -781,9 +789,11 @@ func TestSourceFilesService_UpdateFile(t *testing.T) {
 		ExportOptions: &model.GeneralFileExportOptions{
 			ExportPattern: "/localization/%locale%/new_file_name",
 		},
-		AttachLabelIDs:         []int{1},
-		DetachLabelIDs:         []int{2},
-		ReplaceModifiedContext: ToPtr(false),
+		ExcludedTargetLanguages: []string{"en", "uk"},
+		AttachLabelIDs:          []int{1},
+		DetachLabelIDs:          []int{2},
+		Fields:                  map[string]any{"key": "value"},
+		ReplaceModifiedContext:  ToPtr(false),
 	}
 	file, resp, err := client.SourceFiles.UpdateOrRestoreFile(context.Background(), 1, 2, req)
 	require.NoError(t, err)
