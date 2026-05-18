@@ -649,6 +649,42 @@ export const githubInstallationRepositories = pgTable(
   ],
 );
 
+export const githubAgentRequests = pgTable(
+  "github_agent_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    requestKind: text("request_kind").notNull(),
+    githubInstallationId: bigintText("github_installation_id").notNull(),
+    repositoryFullName: text("repository_full_name").notNull(),
+    pullRequestNumber: integer("pull_request_number").notNull(),
+    commentId: bigintText("comment_id").notNull(),
+    scopeType: text("scope_type").notNull(),
+    scopeKey: text("scope_key").notNull(),
+    status: text("status").notNull().default("claimed"),
+    workflowRunIds: jsonb("workflow_run_ids").$type<string[]>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_agent_requests_idempotency_key").on(
+      table.requestKind,
+      table.githubInstallationId,
+      table.repositoryFullName,
+      table.pullRequestNumber,
+      table.commentId,
+      table.scopeKey,
+    ),
+    index("idx_github_agent_requests_installation_repo").on(
+      table.githubInstallationId,
+      table.repositoryFullName,
+    ),
+    index("idx_github_agent_requests_created_at").on(table.createdAt),
+  ],
+);
+
 export const connectors = pgTable(
   "connectors",
   {

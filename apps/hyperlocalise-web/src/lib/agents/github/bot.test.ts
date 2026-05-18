@@ -7,17 +7,31 @@ const {
   createHyperlocaliseAgentMock,
   createInteractionMock,
   findInteractionBySourceThreadIdMock,
+  buildGitHubFixRequestInputMock,
+  claimGitHubAgentRequestMock,
   loadMessagesMock,
+  markGitHubAgentRequestEnqueuedMock,
   selectMock,
 } = vi.hoisted(() => ({
   addInteractionMessageMock: vi.fn(),
   agentGenerateMock: vi.fn(),
+  buildGitHubFixRequestInputMock: vi.fn((event: unknown) => ({
+    requestKind: "fix",
+    githubInstallationId: "54321",
+    repositoryFullName: "owner/repo",
+    pullRequestNumber: 42,
+    commentId: "123",
+    scopeType: "review_comment",
+    scopeKey: JSON.stringify(event),
+  })),
+  claimGitHubAgentRequestMock: vi.fn(),
   createHyperlocaliseAgentMock: vi.fn((_settings: unknown) => ({
     generate: agentGenerateMock,
   })),
   createInteractionMock: vi.fn(),
   findInteractionBySourceThreadIdMock: vi.fn(),
   loadMessagesMock: vi.fn(async () => [{ role: "user", content: "@hyperlocalise fix" }]),
+  markGitHubAgentRequestEnqueuedMock: vi.fn(),
   selectMock: vi.fn(),
 }));
 
@@ -44,6 +58,12 @@ vi.mock("@/lib/interactions", () => ({
   addInteractionMessage: addInteractionMessageMock,
   createInteraction: createInteractionMock,
   findInteractionBySourceThreadId: findInteractionBySourceThreadIdMock,
+}));
+
+vi.mock("@/lib/agents/github/request-idempotency", () => ({
+  buildGitHubFixRequestInput: buildGitHubFixRequestInputMock,
+  claimGitHubAgentRequest: claimGitHubAgentRequestMock,
+  markGitHubAgentRequestEnqueued: markGitHubAgentRequestEnqueuedMock,
 }));
 
 vi.mock("@/lib/agents/runtime/state", () => ({
@@ -129,7 +149,12 @@ describe("GitHub command routing", () => {
     mockOrganizationLookup("org_123");
     agentGenerateMock.mockResolvedValue({ text: "Queued the fix workflow." });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_123" });
+    claimGitHubAgentRequestMock.mockResolvedValue({
+      alreadyQueued: false,
+      requestId: "request_123",
+    });
     findInteractionBySourceThreadIdMock.mockResolvedValue(null);
+    markGitHubAgentRequestEnqueuedMock.mockResolvedValue(undefined);
     createInteractionMock.mockResolvedValue({
       id: "interaction_123",
       title: "owner/repo#42",
@@ -219,6 +244,29 @@ describe("GitHub command routing", () => {
         }),
       }),
     );
+    expect(buildGitHubFixRequestInputMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        repositoryFullName: "owner/repo",
+        pullRequestNumber: 42,
+        trigger: expect.objectContaining({ commentId: 123 }),
+        scope: expect.objectContaining({
+          type: "review_comment",
+          locale: "vi",
+        }),
+      }),
+    );
+    expect(claimGitHubAgentRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestKind: "fix",
+        githubInstallationId: "54321",
+        repositoryFullName: "owner/repo",
+        pullRequestNumber: 42,
+      }),
+    );
+    expect(markGitHubAgentRequestEnqueuedMock).toHaveBeenCalledWith({
+      requestId: "request_123",
+      workflowRunIds: ["run_123"],
+    });
     expect(addReactionMock).toHaveBeenCalledWith(thread.id, "comment_123", expect.anything());
     expect(setStateMock).toHaveBeenCalledWith({
       lastFixEvent: expect.objectContaining({
@@ -231,5 +279,40 @@ describe("GitHub command routing", () => {
       text: "@hyperlocalise fix vi",
     });
     expect(posts).toEqual(["Queued the fix workflow."]);
+  });
+
+  it("does not enqueue again when the persistent GitHub fix claim already exists", async () => {
+    const { posts, thread } = createThread();
+    const queue = { enqueue: vi.fn(async () => ({ ids: ["run_new"] })) };
+    claimGitHubAgentRequestMock.mockResolvedValueOnce({
+      alreadyQueued: true,
+      requestId: "request_123",
+      workflowRunIds: ["run_existing"],
+    });
+    createHyperlocaliseAgentMock.mockImplementationOnce((settings: unknown) => {
+      const { tools } = settings as {
+        tools: {
+          enqueueGitHubFix: { execute?: (input: Record<string, never>) => Promise<unknown> };
+        };
+      };
+      return {
+        generate: vi.fn(async () => {
+          const toolResult = await tools.enqueueGitHubFix.execute?.({});
+          expect(toolResult).toEqual(
+            expect.objectContaining({
+              alreadyQueued: true,
+              workflowRunIds: ["run_existing"],
+            }),
+          );
+          return { text: "This fix request is already queued." };
+        }),
+      };
+    });
+
+    await handleMention(thread, createMessage(), { queue });
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(markGitHubAgentRequestEnqueuedMock).not.toHaveBeenCalled();
+    expect(posts).toEqual(["This fix request is already queued."]);
   });
 });

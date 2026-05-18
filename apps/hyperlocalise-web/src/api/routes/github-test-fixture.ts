@@ -64,6 +64,33 @@ export async function ensureGithubRepositoryTables() {
       CREATE UNIQUE INDEX IF NOT EXISTS github_installation_repositories_installation_repository_key
       ON github_installation_repositories (github_installation_id, github_repository_id);
     `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS github_agent_requests (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        request_kind text NOT NULL,
+        github_installation_id bigint NOT NULL,
+        repository_full_name text NOT NULL,
+        pull_request_number integer NOT NULL,
+        comment_id bigint NOT NULL,
+        scope_type text NOT NULL,
+        scope_key text NOT NULL,
+        status text DEFAULT 'claimed' NOT NULL,
+        workflow_run_ids jsonb,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      );
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS github_agent_requests_idempotency_key
+      ON github_agent_requests (
+        request_kind,
+        github_installation_id,
+        repository_full_name,
+        pull_request_number,
+        comment_id,
+        scope_key
+      );
+    `);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
