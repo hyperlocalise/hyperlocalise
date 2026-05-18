@@ -5,32 +5,51 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { redirectMock, getGitHubAppMock, syncInstallationRepositoriesMock } = vi.hoisted(() => ({
-  redirectMock: vi.fn((location: string) => {
-    throw new Error(`redirect:${location}`);
-  }),
-  getGitHubAppMock: vi.fn(() => ({
-    octokit: {
-      rest: {
-        apps: {
-          getInstallation: vi.fn(async () => ({
-            data: {
-              account: {
-                login: "hyperlocalise",
-                type: "Organization",
+const { redirectMock, getGitHubAppMock, syncInstallationRepositoriesMock, envOverrides } =
+  vi.hoisted(() => ({
+    redirectMock: vi.fn((location: string) => {
+      throw new Error(`redirect:${location}`);
+    }),
+    getGitHubAppMock: vi.fn(() => ({
+      octokit: {
+        rest: {
+          apps: {
+            getInstallation: vi.fn(async () => ({
+              data: {
+                account: {
+                  login: "hyperlocalise",
+                  type: "Organization",
+                },
               },
-            },
-          })),
+            })),
+          },
         },
       },
-    },
-  })),
-  syncInstallationRepositoriesMock: vi.fn(async () => []),
-}));
+    })),
+    syncInstallationRepositoriesMock: vi.fn(async () => []),
+    envOverrides: {} as Record<string, string | undefined>,
+  }));
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
+
+vi.mock("@/lib/env", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/env")>();
+
+  return {
+    ...original,
+    env: new Proxy(original.env, {
+      get(target, prop, receiver) {
+        if (typeof prop === "string" && prop in envOverrides) {
+          return envOverrides[prop];
+        }
+
+        return Reflect.get(target, prop, receiver);
+      },
+    }),
+  };
+});
 
 vi.mock("@/lib/agents/github/app", () => ({
   getGitHubApp: getGitHubAppMock,
@@ -103,6 +122,7 @@ describe("GitHubCallbackPage", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
+    delete envOverrides.GITHUB_APP_ID;
     await fixture.cleanup();
   });
 
@@ -177,6 +197,39 @@ describe("GitHubCallbackPage", () => {
     const { nonce, state } = await createCallbackState({ role: "member" });
 
     await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?error=forbidden");
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
+      .limit(1);
+    expect(stateRecord?.consumedAt).toBeNull();
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid installation id before consuming state", async () => {
+    const { nonce, state } = await createCallbackState({ role: "admin" });
+
+    await expect(runCallback(state, "notanumber")).rejects.toThrow(
+      "redirect:/dashboard?error=missing_callback_params",
+    );
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
+      .limit(1);
+    expect(stateRecord?.consumedAt).toBeNull();
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing GitHub app configuration before consuming state", async () => {
+    envOverrides.GITHUB_APP_ID = undefined;
+    const { nonce, state } = await createCallbackState({ role: "admin" });
+
+    await expect(runCallback(state)).rejects.toThrow(
+      "redirect:/dashboard?error=github_app_not_configured",
+    );
 
     const [stateRecord] = await db
       .select()

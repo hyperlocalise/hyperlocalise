@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { and, eq, gt, isNull } from "drizzle-orm";
 
+import { isAdminRole } from "@/api/auth/roles";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -16,10 +17,6 @@ type GitHubCallbackPageProps = {
   }>;
 };
 
-function isAdminRole(role: string): boolean {
-  return role === "owner" || role === "admin";
-}
-
 export default async function GitHubCallbackPage({ searchParams }: GitHubCallbackPageProps) {
   const params = await searchParams;
   const installationId = params.installation_id;
@@ -27,6 +24,14 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
 
   if (!installationId || !stateParam) {
     redirect("/dashboard?error=missing_callback_params");
+  }
+
+  if (!/^\d+$/.test(installationId)) {
+    redirect("/dashboard?error=missing_callback_params");
+  }
+
+  if (!env.GITHUB_APP_ID) {
+    redirect("/dashboard?error=github_app_not_configured");
   }
 
   const secret = getGitHubStateSecret();
@@ -87,10 +92,6 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     accountType = account?.type ?? null;
   } catch {
     // Ignore errors fetching details; we can still store the basic record.
-  }
-
-  if (!env.GITHUB_APP_ID) {
-    redirect("/dashboard?error=github_app_not_configured");
   }
 
   const githubInstallationId = installationId;

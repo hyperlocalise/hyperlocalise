@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
+import { isAdminRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -14,10 +15,6 @@ import {
   signGitHubState,
 } from "@/lib/agents/github/oauth-state";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
-
-function isAdminRole(role: string): boolean {
-  return role === "owner" || role === "admin";
-}
 
 const updateRepositoriesSchema = z.object({
   enabledRepositoryIds: z.array(z.string().regex(/^\d+$/)).default([]),
