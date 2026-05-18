@@ -46,9 +46,9 @@ export function createApp(options: CreateAppOptions = {}) {
 
   return new Hono()
     .use("*", secureHeaders())
+    .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .basePath("/api")
     .route("/", createMcpRoutes())
     .route("/auth", authRoutes)
     .route("/auth/slack", createSlackOAuthRoutes())
