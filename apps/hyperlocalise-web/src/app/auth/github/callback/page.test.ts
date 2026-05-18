@@ -78,16 +78,20 @@ const fixture = createProjectTestFixture();
 async function createCallbackState(options?: {
   consumed?: boolean;
   dbExpired?: boolean;
+  nullSlug?: boolean;
   role?: "owner" | "admin" | "member";
 }) {
   const identity = fixture.createWorkosIdentityWithRole(options?.role ?? "owner");
+  if (options?.nullSlug) {
+    delete identity.organization.slug;
+  }
   await fixture.authHeadersFor(identity);
   const auth = globalThis.__testApiAuthContext;
   if (!auth) {
     throw new Error("missing auth context");
   }
 
-  const slug = identity.organization.slug ?? "missing-slug";
+  const slug = auth.organization.slug ?? auth.organization.localOrganizationId;
   const nonce = randomUUID();
   const timestamp = Date.now();
   const payload = `${slug}:${timestamp}:${nonce}`;
@@ -143,6 +147,38 @@ describe("GitHubCallbackPage", () => {
       githubAppId: "123",
       accountLogin: "hyperlocalise",
       accountType: "Organization",
+    });
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
+      .limit(1);
+    expect(stateRecord?.consumedAt).toBeInstanceOf(Date);
+    expect(syncInstallationRepositoriesMock).toHaveBeenCalledWith({
+      organizationId: auth.organization.localOrganizationId,
+      githubInstallationId: "123456",
+    });
+  });
+
+  it("persists an installation when the signed state uses a null-slug organization id", async () => {
+    const { auth, nonce, slug, state } = await createCallbackState({
+      nullSlug: true,
+      role: "admin",
+    });
+
+    await expect(runCallback(state)).rejects.toThrow(
+      `redirect:/org/${slug}/settings?github_connected=1`,
+    );
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId))
+      .limit(1);
+    expect(installation).toMatchObject({
+      githubInstallationId: "123456",
+      githubAppId: "123",
     });
 
     const [stateRecord] = await db

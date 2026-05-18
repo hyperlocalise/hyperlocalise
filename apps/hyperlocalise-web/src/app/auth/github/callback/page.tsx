@@ -17,6 +17,8 @@ type GitHubCallbackPageProps = {
   }>;
 };
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default async function GitHubCallbackPage({ searchParams }: GitHubCallbackPageProps) {
   const params = await searchParams;
   const installationId = params.installation_id;
@@ -40,23 +42,33 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     redirect("/dashboard?error=invalid_state");
   }
 
-  const orgs = await db
+  let [org] = await db
     .select()
     .from(schema.organizations)
     .where(eq(schema.organizations.slug, verified.slug))
     .limit(1);
 
-  const org = orgs[0];
+  if (!org && uuidRegex.test(verified.slug)) {
+    [org] = await db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, verified.slug))
+      .limit(1);
+  }
+
   if (!org) {
     redirect("/dashboard?error=organization_not_found");
   }
 
-  const auth = await resolveApiAuthContextFromSession({ organizationSlug: verified.slug });
-  if (!auth || auth.organization.localOrganizationId !== org.id) {
+  const auth = await resolveApiAuthContextFromSession(
+    org.slug ? { organizationSlug: org.slug } : {},
+  );
+  const authOrganization = auth?.organizations.find((item) => item.localOrganizationId === org.id);
+  if (!auth || !authOrganization) {
     redirect("/dashboard?error=unauthorized");
   }
 
-  if (!isAdminRole(auth.membership.role)) {
+  if (!isAdminRole(authOrganization.membership.role)) {
     redirect("/dashboard?error=forbidden");
   }
 
