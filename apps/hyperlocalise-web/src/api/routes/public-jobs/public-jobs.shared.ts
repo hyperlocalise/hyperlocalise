@@ -1,40 +1,51 @@
+import {
+  apiErrorResponse,
+  badRequestResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+
 export function invalidJobPayloadResponse(c: {
-  json(body: { error: string }, status: 400): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "invalid_job_payload" }, 400);
+  return badRequestResponse(c, "invalid_job_payload");
 }
 
-export function jobNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "job_not_found" }, 404);
+export function jobNotFoundResponse(c: {
+  json(body: Record<string, unknown>, status: number): Response;
+}) {
+  return notFoundResponse(c, "job_not_found");
 }
 
 export function sourceFileNotFoundResponse(c: {
-  json(body: { error: string }, status: 404): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "source_file_not_found" }, 404);
+  return notFoundResponse(c, "source_file_not_found");
 }
 
 export function unsupportedSourceFileFormatResponse(c: {
-  json(body: { error: string }, status: 400): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "unsupported_source_file_format" }, 400);
+  return badRequestResponse(c, "unsupported_source_file_format");
 }
 
 export function sourceFileFormatMismatchResponse(
-  c: { json(body: { error: string; expectedFileFormat: string }, status: 400): Response },
+  c: { json(body: Record<string, unknown>, status: number): Response },
   expectedFileFormat: string,
 ) {
-  return c.json({ error: "source_file_format_mismatch", expectedFileFormat }, 400);
+  return apiErrorResponse(c, 400, "source_file_format_mismatch", undefined, undefined, {
+    expectedFileFormat,
+  });
 }
 
 export function jobQueueUnavailableResponse(c: {
-  json(body: { error: string }, status: 503): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "job_queue_unavailable" }, 503);
+  return serviceUnavailableResponse(c, "job_queue_unavailable");
 }
 
 export function projectNotFoundResponse(c: {
-  json(body: { error: string }, status: 404): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "project_not_found" }, 404);
+  return notFoundResponse(c, "project_not_found");
 }

@@ -1,22 +1,28 @@
+import { apiErrorResponse, badRequestResponse, notFoundResponse } from "@/api/response.schema";
+
 export function invalidFilePayloadResponse(c: {
-  json(body: { error: string }, status: 400): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "invalid_file_payload" }, 400);
+  return badRequestResponse(c, "invalid_file_payload");
 }
 
 export function projectNotFoundResponse(c: {
-  json(body: { error: string }, status: 404): Response;
+  json(body: Record<string, unknown>, status: number): Response;
 }) {
-  return c.json({ error: "project_not_found" }, 404);
+  return notFoundResponse(c, "project_not_found");
 }
 
-export function fileNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "file_not_found" }, 404);
+export function fileNotFoundResponse(c: {
+  json(body: Record<string, unknown>, status: number): Response;
+}) {
+  return notFoundResponse(c, "file_not_found");
 }
 
 export function unsupportedFileResponse(
-  c: { json(body: { error: string; filename: string }, status: 400): Response },
+  c: { json(body: Record<string, unknown>, status: number): Response },
   filename: string,
 ) {
-  return c.json({ error: "unsupported_translation_source_file", filename }, 400);
+  return apiErrorResponse(c, 400, "unsupported_translation_source_file", undefined, undefined, {
+    filename,
+  });
 }

@@ -31,6 +31,63 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 <!-- END:hono-agent-rules -->
 
+# API Response Conventions
+
+New JSON routes must follow the conventions below. Shared schemas and helpers live in [`src/api/response.schema.ts`](src/api/response.schema.ts).
+
+## Success envelopes (JSON routes)
+
+Return a **resource-keyed envelope**. The top-level key is the singular or plural name of the resource:
+
+```ts
+// Single resource
+c.json({ project: projectRecord }, 200);
+
+// Collection
+c.json({ projects: projectRecords }, 200);
+
+// Public API shape with selected fields
+c.json({ job: { id: job.id, status: job.status } }, 201);
+```
+
+Do **not** use a generic `{ data }` envelope for new routes. The `/api/v1/*` public API already exposes resource-keyed shapes; a future move to `{ data, status }` would require a new API version.
+
+Use the helper `successEnvelopeSchema("resourceKey", resourceSchema)` from `response.schema.ts` when you need a Zod schema for a success body.
+
+## Error envelopes (JSON routes)
+
+Every JSON error response must match this shape:
+
+```ts
+{
+  error:   "machine_readable_code",  // required, snake_case, stable contract
+  message?: "Human-readable text",    // optional but recommended for new routes
+  details?: { ... }                   // optional structured context
+}
+```
+
+Clients should branch on `error`. `message` is for debugging and may change without notice.
+
+Import helpers from `response.schema.ts` instead of defining ad-hoc error functions:
+
+```ts
+import { notFoundResponse, badRequestResponse } from "@/api/response.schema";
+
+// in a handler:
+return notFoundResponse(c, "project_not_found");
+return badRequestResponse(c, "invalid_project_payload", "Name is required");
+```
+
+## Exceptions (non-JSON or non-envelope responses)
+
+These response types are intentionally outside the standard envelope:
+
+1. **File downloads** – return the raw body with `Content-Disposition` and the correct `Content-Type`. No JSON envelope.
+2. **204 No Content** – return `c.body(null, 204)` for successful DELETE operations. No body at all.
+3. **Health checks** – may return a minimal shape such as `{ ok: boolean }` because they are consumed by load-balancer probes.
+4. **Webhook acknowledgements** – return whatever the external provider expects (often a bare 200/204 or `{ ok: true }`). These are not part of the public REST contract.
+5. **Server-Sent Events / streaming** – body is an event stream, not JSON.
+
 # Drizzle Migrations
 
 - Do not hand-write SQL files in `drizzle/` or edit `drizzle/meta/` snapshots by hand.
