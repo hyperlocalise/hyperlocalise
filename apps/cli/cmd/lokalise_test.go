@@ -200,6 +200,26 @@ func TestLokaliseDownloadTranslationsDryRunDoesNotRequireToken(t *testing.T) {
 	}
 }
 
+func TestLokaliseDownloadTranslationsDryRunWithConfigDoesNotRequireToken(t *testing.T) {
+	t.Setenv("LOKALISE_CONFIG_TOKEN", "")
+	t.Setenv("LOKALISE_API_TOKEN", "")
+
+	configPath := writeLokaliseDownloadConfig(t)
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "translations", "--config", configPath, "--target-locale", "fr-FR", "--format", "json", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute dry-run with config: %v", err)
+	}
+	output := out.String()
+	if !strings.Contains(output, "project_id=cfg-project") || !strings.Contains(output, "target_locales=fr-FR") {
+		t.Fatalf("dry-run output = %q", output)
+	}
+}
+
 func TestLokaliseDownloadTranslationsRejectsExistingOutputWithoutForce(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("LOKALISE_API_TOKEN", "secret")

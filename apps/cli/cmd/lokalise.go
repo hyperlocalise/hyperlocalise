@@ -896,7 +896,7 @@ func loadLokaliseStorageConfigForAction(configPath string, action string) (lokal
 	if !strings.EqualFold(strings.TrimSpace(cfg.Storage.Adapter), lokalise.AdapterName) {
 		return lokalise.Config{}, fmt.Errorf("%s: storage.adapter must be %q", action, lokalise.AdapterName)
 	}
-	parsed, err := lokalise.ParseConfig(cfg.Storage.Config)
+	parsed, err := lokalise.DecodeConfig(cfg.Storage.Config)
 	if err != nil {
 		return lokalise.Config{}, fmt.Errorf("%s: %w", action, err)
 	}
