@@ -4,6 +4,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import type { Glossary } from "@/lib/database/types";
 
 import {
   createGlossaryBodySchema,
@@ -15,7 +16,7 @@ import {
   type UpdateGlossaryBody,
 } from "./glossary.schema";
 import {
-  glossaryForbiddenResponse,
+  forbiddenResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryMutationAllowed,
   ownedGlossaryWhere,
@@ -23,10 +24,14 @@ import {
 } from "./glossary.shared";
 
 type GlossaryStore = {
-  list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<unknown>;
-  create(auth: ApiAuthContext, payload: CreateGlossaryBody): Promise<unknown>;
-  getById(auth: ApiAuthContext, glossaryId: string): Promise<unknown>;
-  update(auth: ApiAuthContext, glossaryId: string, payload: UpdateGlossaryBody): Promise<unknown>;
+  list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<Glossary[]>;
+  create(auth: ApiAuthContext, payload: CreateGlossaryBody): Promise<Glossary>;
+  getById(auth: ApiAuthContext, glossaryId: string): Promise<Glossary | null>;
+  update(
+    auth: ApiAuthContext,
+    glossaryId: string,
+    payload: UpdateGlossaryBody,
+  ): Promise<Glossary | null>;
   delete(auth: ApiAuthContext, glossaryId: string): Promise<boolean>;
 };
 
@@ -135,7 +140,7 @@ export function createGlossaryRoutes() {
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return glossaryForbiddenResponse(c);
+        return forbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -154,7 +159,7 @@ export function createGlossaryRoutes() {
     })
     .patch("/:glossaryId", validateGlossaryParams, validateUpdateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return glossaryForbiddenResponse(c);
+        return forbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -169,7 +174,7 @@ export function createGlossaryRoutes() {
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return glossaryForbiddenResponse(c);
+        return forbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -182,3 +187,5 @@ export function createGlossaryRoutes() {
       return c.body(null, 204);
     });
 }
+
+export const glossaryRoutes = createGlossaryRoutes();

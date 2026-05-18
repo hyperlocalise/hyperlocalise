@@ -9,6 +9,7 @@ import { app } from "@/api/app";
 import { db } from "@/lib/database";
 
 import { createGlossaryTestFixture } from "./glossary.fixture";
+import type { GlossaryResponse, GlossariesResponse } from "./glossary.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -23,30 +24,10 @@ function generateNonExistentUuid(): string {
 }
 
 const client = testClient(app);
+const appClient = client;
 const glossaryFixture = createGlossaryTestFixture(client);
 const { authHeadersFor, createGlossaryViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   glossaryFixture;
-
-type GlossaryRecord = {
-  id: string;
-  organizationId: string;
-  createdByUserId: string | null;
-  name: string;
-  description: string;
-  sourceLocale: string;
-  targetLocale: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type GlossaryResponse = {
-  glossary: GlossaryRecord;
-};
-
-type GlossariesResponse = {
-  glossaries: GlossaryRecord[];
-};
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -64,6 +45,34 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
+  });
+
+  it("keeps glossary routes mounted at legacy and org-scoped app paths", async () => {
+    const identity = createWorkosIdentity();
+    await createGlossaryViaApi(identity, { name: "Mounted Glossary" });
+    const headers = await authHeadersFor(identity);
+
+    const legacyResponse = await appClient.api.glossary.$get(
+      { query: { limit: "50", offset: "0" } },
+      { headers },
+    );
+    expect(legacyResponse.status).toBe(200);
+    await expect(legacyResponse.json()).resolves.toMatchObject({
+      glossaries: [expect.objectContaining({ name: "Mounted Glossary" })],
+    });
+
+    const orgScopedResponse = await appClient.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(orgScopedResponse.status).toBe(200);
+    await expect(orgScopedResponse.json()).resolves.toMatchObject({
+      glossaries: [expect.objectContaining({ name: "Mounted Glossary" })],
+    });
   });
 
   it("lists glossaries for the current organization", async () => {

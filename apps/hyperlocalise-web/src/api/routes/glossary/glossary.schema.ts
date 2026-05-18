@@ -60,7 +60,31 @@ export const updateGlossaryBodySchema = z
     },
   );
 
+export const glossaryRecordSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  createdByUserId: z.string().nullable(),
+  name: z.string(),
+  description: z.string(),
+  sourceLocale: z.string(),
+  targetLocale: z.string(),
+  status: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const glossaryResponseSchema = z.object({
+  glossary: glossaryRecordSchema,
+});
+
+export const glossariesResponseSchema = z.object({
+  glossaries: z.array(glossaryRecordSchema),
+});
+
 export type GlossaryIdParams = z.infer<typeof glossaryIdParamsSchema>;
 export type ListGlossaryQuery = z.infer<typeof listGlossaryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
+export type GlossaryRecord = z.infer<typeof glossaryRecordSchema>;
+export type GlossaryResponse = z.infer<typeof glossaryResponseSchema>;
+export type GlossariesResponse = z.infer<typeof glossariesResponseSchema>;
