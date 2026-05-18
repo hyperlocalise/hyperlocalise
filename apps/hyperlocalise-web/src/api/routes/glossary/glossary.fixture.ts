@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
+import { cleanupWorkosTestRecords } from "../test-cleanup";
 
 type CreateGlossaryInput = Partial<{
   name: string;
@@ -181,15 +182,10 @@ export function createGlossaryTestFixture(client?: any) {
   async function cleanup() {
     globalThis.__testApiAuthContext = undefined;
 
-    for (const workosOrganizationId of createdWorkosOrganizationIds) {
-      await db
-        .delete(schema.organizations)
-        .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId));
-    }
-
-    for (const workosUserId of createdWorkosUserIds) {
-      await db.delete(schema.users).where(eq(schema.users.workosUserId, workosUserId));
-    }
+    await cleanupWorkosTestRecords({
+      workosOrganizationIds: createdWorkosOrganizationIds,
+      workosUserIds: createdWorkosUserIds,
+    });
 
     createdWorkosOrganizationIds.clear();
     createdWorkosUserIds.clear();

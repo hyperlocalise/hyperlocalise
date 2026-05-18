@@ -68,49 +68,8 @@ async function insertApiKey(params: {
   return { plainKey, apiKey };
 }
 
-async function ensureOrganizationApiKeysTestSchema() {
-  await db.$client.query(`
-    CREATE TABLE IF NOT EXISTS organization_api_keys (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
-      name text NOT NULL,
-      key_hash text NOT NULL,
-      key_prefix text NOT NULL,
-      permissions jsonb DEFAULT '["jobs:read", "jobs:write", "files:read", "files:write"]'::jsonb NOT NULL,
-      created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
-      last_used_at timestamp with time zone,
-      revoked_at timestamp with time zone,
-      created_at timestamp with time zone DEFAULT now() NOT NULL,
-      updated_at timestamp with time zone DEFAULT now() NOT NULL
-    )
-  `);
-  await db.$client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS organization_api_keys_key_hash_key ON organization_api_keys USING btree (key_hash)
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_organization_api_keys_org ON organization_api_keys USING btree (organization_id)
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_organization_api_keys_created_at ON organization_api_keys USING btree (created_at)
-  `);
-
-  // Ensure jobs table has the api_key_id column for tests
-  await db.$client.query(`
-    DO $$
-    BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'jobs' AND column_name = 'api_key_id'
-      ) THEN
-        ALTER TABLE jobs ADD COLUMN api_key_id uuid;
-      END IF;
-    END $$;
-  `);
-}
-
 beforeAll(async () => {
   await db.$client.query("select 1");
-  await ensureOrganizationApiKeysTestSchema();
 });
 
 afterEach(async () => {

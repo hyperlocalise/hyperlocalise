@@ -21,42 +21,6 @@ const fixture = createProjectTestFixture(client);
 describe("teamRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await db.$client.query(`
-      DO $$
-      BEGIN
-        CREATE TYPE team_membership_role AS ENUM ('manager', 'member');
-      EXCEPTION
-        WHEN duplicate_object THEN NULL;
-      END $$;
-    `);
-    await db.$client.query(`
-      CREATE TABLE IF NOT EXISTS teams (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-        organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
-        slug text NOT NULL,
-        name text NOT NULL,
-        created_at timestamp with time zone DEFAULT now() NOT NULL,
-        updated_at timestamp with time zone DEFAULT now() NOT NULL
-      );
-    `);
-    await db.$client.query(`
-      CREATE TABLE IF NOT EXISTS team_memberships (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-        team_id uuid NOT NULL REFERENCES teams(id) ON DELETE cascade,
-        user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
-        role team_membership_role DEFAULT 'member' NOT NULL,
-        created_at timestamp with time zone DEFAULT now() NOT NULL,
-        updated_at timestamp with time zone DEFAULT now() NOT NULL
-      );
-    `);
-    await db.$client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS teams_org_slug_key
-      ON teams (organization_id, slug);
-    `);
-    await db.$client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS team_memberships_team_user_key
-      ON team_memberships (team_id, user_id);
-    `);
   });
 
   afterEach(async () => {
