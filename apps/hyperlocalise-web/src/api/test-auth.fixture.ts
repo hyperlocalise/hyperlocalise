@@ -103,6 +103,17 @@ export function createAuthTestFixture() {
     };
   }
 
+  async function createLocalWorkosIdentity(identity = createWorkosIdentity()) {
+    const { user, organization, membership } = await syncWorkosIdentity(db, identity);
+
+    return {
+      identity,
+      membership,
+      organization,
+      user,
+    };
+  }
+
   async function getLocalUserId(workosUserId: string) {
     const [user] = await db
       .select({ id: schema.users.id })
@@ -132,6 +143,7 @@ export function createAuthTestFixture() {
   return {
     authHeadersFor,
     cleanup,
+    createLocalWorkosIdentity,
     createWorkosIdentity,
     createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole,
