@@ -49,49 +49,78 @@ export function createApp(options: CreateAppOptions = {}) {
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createMcpRoutes())
-    .route("/auth", authRoutes)
-    .route("/auth/slack", createSlackOAuthRoutes())
-    .route("/glossary", createGlossaryRoutes())
-    .route("/orgs/:organizationSlug/glossaries", createGlossaryRoutes())
-    .route("/health", healthRoutes)
-    .route("/project", createProjectRoutes({ ...options, jobQueue }))
-    .route("/orgs/:organizationSlug/projects", createProjectRoutes({ ...options, jobQueue }))
-    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes({ jobQueue }))
-    .route("/orgs/:organizationSlug/provider-credential", createProviderCredentialRoutes())
-    .route("/orgs/:organizationSlug/agent-email", createAgentEmailRoutes())
-    .route("/orgs/:organizationSlug/agent-slack", createAgentSlackRoutes())
-    .route("/orgs/:organizationSlug/teams", createTeamRoutes())
-    .route(
-      "/orgs/:organizationSlug/files",
-      createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    )
-    .route("/orgs/:organizationSlug/conversations", createConversationRoutes())
-    .route(
-      "/orgs/:organizationSlug/chat-requests",
-      createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    )
-    .route("/orgs/:organizationSlug/github-installation", createGithubInstallationRoutes())
-    .route("/orgs/:organizationSlug/api-keys", createApiKeyRoutes())
-    .route("/v1/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
-    .route("/v1/jobs", createPublicJobRoutes({ ...options, jobQueue }))
-    .route(
-      "/webhooks/github",
-      createGithubWebhookRoutes({
-        githubFixQueue: options.githubFixQueue,
-        githubWebhookHandler: options.githubWebhookHandler,
-      }),
-    )
-    .route("/webhooks/workos", workosWebhookRoutes)
-    .route(
-      "/webhooks/resend",
-      createResendWebhookRoutes({
-        emailAgentTaskQueue: options.emailAgentTaskQueue,
-      }),
-    )
-    .route("/webhooks/slack", createSlackWebhookRoutes());
+    .route("/", createInternalRoutes())
+    .route("/auth", createAuthRoutes())
+    .route("/", createLegacyAppRoutes({ ...options, jobQueue }))
+    .route("/orgs/:organizationSlug", createOrgScopedAppRoutes({ ...options, jobQueue }))
+    .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route("/webhooks", createWebhookRoutes(options));
 }
 
 export const app = createApp();
 
 export type AppType = typeof app;
+
+function createInternalRoutes() {
+  return new Hono().route("/", createMcpRoutes()).route("/health", healthRoutes);
+}
+
+function createAuthRoutes() {
+  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
+}
+
+function createLegacyAppRoutes(
+  options: CreateAppOptions & { jobQueue: JobQueue<TranslationJobEventData> },
+) {
+  return new Hono()
+    .route("/glossary", createGlossaryRoutes())
+    .route("/project", createProjectRoutes(options));
+}
+
+function createOrgScopedAppRoutes(
+  options: CreateAppOptions & { jobQueue: JobQueue<TranslationJobEventData> },
+) {
+  return new Hono()
+    .route("/glossaries", createGlossaryRoutes())
+    .route("/projects", createProjectRoutes(options))
+    .route("/jobs", createWorkspaceJobRoutes({ jobQueue: options.jobQueue }))
+    .route("/provider-credential", createProviderCredentialRoutes())
+    .route("/agent-email", createAgentEmailRoutes())
+    .route("/agent-slack", createAgentSlackRoutes())
+    .route("/teams", createTeamRoutes())
+    .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route("/conversations", createConversationRoutes())
+    .route(
+      "/chat-requests",
+      createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
+    .route("/github-installation", createGithubInstallationRoutes())
+    .route("/api-keys", createApiKeyRoutes());
+}
+
+function createPublicApiRoutes(
+  options: CreateAppOptions & { jobQueue: JobQueue<TranslationJobEventData> },
+) {
+  return new Hono()
+    .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
+    .route("/jobs", createPublicJobRoutes(options));
+}
+
+function createWebhookRoutes(options: CreateAppOptions) {
+  return new Hono()
+    .route(
+      "/github",
+      createGithubWebhookRoutes({
+        githubFixQueue: options.githubFixQueue,
+        githubWebhookHandler: options.githubWebhookHandler,
+      }),
+    )
+    .route("/workos", workosWebhookRoutes)
+    .route(
+      "/resend",
+      createResendWebhookRoutes({
+        emailAgentTaskQueue: options.emailAgentTaskQueue,
+      }),
+    )
+    .route("/slack", createSlackWebhookRoutes());
+}
