@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 
+import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 
 export type ApiKeyAuthVariables = {
@@ -26,7 +27,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
     const apiKey = c.req.header("x-api-key");
 
     if (!apiKey) {
-      return c.json({ error: "unauthorized" }, 401);
+      return unauthorizedResponse(c, "unauthorized", "API key is required");
     }
 
     const keyHash = hashApiKey(apiKey);
@@ -43,7 +44,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       .limit(1);
 
     if (!keyRecord || keyRecord.revokedAt) {
-      return c.json({ error: "unauthorized" }, 401);
+      return unauthorizedResponse(c, "unauthorized", "Invalid or revoked API key");
     }
 
     // Update lastUsedAt asynchronously — don't block the request.
@@ -72,11 +73,11 @@ export function requireApiKeyPermission(permission: string) {
     const auth = c.get("auth");
 
     if (!auth) {
-      return c.json({ error: "unauthorized" }, 401);
+      return unauthorizedResponse(c, "unauthorized", "Authentication required");
     }
 
     if (!auth.apiKey.permissions.includes(permission)) {
-      return c.json({ error: "forbidden" }, 403);
+      return forbiddenResponse(c, "forbidden", `Missing required permission: ${permission}`);
     }
 
     await next();

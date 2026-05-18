@@ -1,9 +1,12 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { config as loadDotenv } from "dotenv";
 import { defineConfig } from "vite-plus";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+loadDotenv({ path: path.join(rootDir, ".env") });
 
 export default defineConfig({
   fmt: {

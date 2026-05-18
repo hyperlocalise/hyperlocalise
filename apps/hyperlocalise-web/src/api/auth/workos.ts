@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
+import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 
@@ -80,13 +81,6 @@ export interface AuthVariables {
   auth: ApiAuthContext;
 }
 
-const authErrorResponses = new Map([
-  ["missing_auth_context", { status: 401, body: { error: "unauthorized" as const } }],
-  [
-    "organization_access_denied",
-    { status: 403, body: { error: "organization_access_denied" as const } },
-  ],
-]);
 export function createWorkosAuthMiddleware() {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
@@ -109,12 +103,18 @@ export function createWorkosAuthMiddleware() {
       c.set("auth", authFromSession);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
-      const mapped = authErrorResponses.get(message);
-      if (!mapped) {
-        throw error;
+
+      if (message === "missing_auth_context") {
+        return unauthorizedResponse(c, "unauthorized", "Authentication required");
       }
 
-      return c.json(mapped.body, mapped.status as 401 | 403);
+      if (message === "organization_access_denied") {
+        return forbiddenResponse(c, "organization_access_denied", "Organization access denied");
+      }
+
+      // Re-throw genuinely unexpected errors so the centralized onError
+      // handler can log them and return a safe generic response.
+      throw error;
     }
 
     await next();

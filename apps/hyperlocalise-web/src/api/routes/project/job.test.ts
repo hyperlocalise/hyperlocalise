@@ -657,7 +657,11 @@ describe("jobRoutes", () => {
       );
 
       expect(response.status).toBe(409);
-      await expect(response.json()).resolves.toEqual({ error: "job_action_unavailable" });
+      const responseBody = await response.json();
+      expect(responseBody).toMatchObject({
+        error: "job_action_unavailable",
+        message: expect.any(String),
+      });
       expect(queuedEvents).toEqual([]);
 
       const [details] = await db
@@ -754,9 +758,8 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "forbidden",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
   });
 
   it("returns 404 when another organization fetches a job", async () => {
@@ -788,9 +791,8 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
-      error: "project_not_found",
-    });
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 
   it("returns 400 for an invalid create payload", async () => {
@@ -816,8 +818,10 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "invalid_job_payload",
+      message: expect.any(String),
     });
   });
 
@@ -893,8 +897,10 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "unsupported_source_file_format",
+      message: expect.any(String),
     });
   });
 
@@ -922,8 +928,10 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "source_file_not_found",
+      message: expect.any(String),
     });
   });
 
@@ -970,8 +978,10 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
       error: "job_queue_unavailable",
+      message: expect.any(String),
     });
 
     const jobs = await db

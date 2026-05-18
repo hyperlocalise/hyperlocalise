@@ -15,7 +15,7 @@ import {
   type UpdateGlossaryBody,
 } from "./glossary.schema";
 import {
-  forbiddenResponse,
+  glossaryForbiddenResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryMutationAllowed,
   ownedGlossaryWhere,
@@ -135,7 +135,7 @@ export function createGlossaryRoutes() {
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return glossaryForbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -154,7 +154,7 @@ export function createGlossaryRoutes() {
     })
     .patch("/:glossaryId", validateGlossaryParams, validateUpdateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return glossaryForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -169,7 +169,7 @@ export function createGlossaryRoutes() {
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return glossaryForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");

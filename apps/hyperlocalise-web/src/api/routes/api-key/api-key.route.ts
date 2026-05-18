@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
+import { z } from "zod";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { forbiddenResponse, notFoundResponse, validationErrorResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/api-keys";
-import { z } from "zod";
 
 const defaultApiKeyPermissions = ["jobs:read", "jobs:write", "files:read", "files:write"] as const;
 
@@ -19,18 +20,15 @@ const apiKeyIdParamsSchema = z.object({
   apiKeyId: z.string().trim().min(1),
 });
 
-function invalidPayloadResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_api_key_payload" }, 400);
-}
-
-function apiKeyNotFoundResponse(c: { json(body: { error: string }, status: 404): Response }) {
-  return c.json({ error: "api_key_not_found" }, 404);
-}
-
 const validateCreateApiKeyBody = validator("json", (value, c) => {
   const parsed = createApiKeyBodySchema.safeParse(value);
   if (!parsed.success) {
-    return invalidPayloadResponse(c);
+    return validationErrorResponse(
+      c,
+      "invalid_api_key_payload",
+      "Invalid API key payload",
+      parsed.error.issues,
+    );
   }
   return parsed.data;
 });
@@ -38,7 +36,7 @@ const validateCreateApiKeyBody = validator("json", (value, c) => {
 const validateApiKeyIdParams = validator("param", (value, c) => {
   const parsed = apiKeyIdParamsSchema.safeParse(value);
   if (!parsed.success) {
-    return apiKeyNotFoundResponse(c);
+    return notFoundResponse(c, "api_key_not_found", "API key not found");
   }
   return parsed.data;
 });
@@ -71,7 +69,7 @@ export function createApiKeyRoutes() {
     .post("/", validateCreateApiKeyBody, async (c) => {
       // Only owners and admins can create API keys
       if (!["owner", "admin"].includes(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
+        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
       }
 
       const payload = c.req.valid("json");
@@ -101,7 +99,7 @@ export function createApiKeyRoutes() {
     })
     .delete("/:apiKeyId", validateApiKeyIdParams, async (c) => {
       if (!["owner", "admin"].includes(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
+        return forbiddenResponse(c, "forbidden", "Insufficient permissions");
       }
 
       const params = c.req.valid("param");
@@ -120,7 +118,7 @@ export function createApiKeyRoutes() {
         .limit(1);
 
       if (!existing) {
-        return apiKeyNotFoundResponse(c);
+        return notFoundResponse(c, "api_key_not_found", "API key not found");
       }
 
       await db

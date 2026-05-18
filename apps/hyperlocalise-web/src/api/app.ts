@@ -8,6 +8,7 @@ import type {
   JobQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
+import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
@@ -46,6 +47,8 @@ export function createApp(options: CreateAppOptions = {}) {
   return new Hono()
     .use("*", secureHeaders())
     .basePath("/api")
+    .onError(handleUnexpectedError)
+    .notFound(notFoundHandler)
     .route("/", createMcpRoutes())
     .route("/auth", authRoutes)
     .route("/auth/slack", createSlackOAuthRoutes())
