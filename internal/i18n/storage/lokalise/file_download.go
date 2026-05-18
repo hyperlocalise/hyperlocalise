@@ -16,8 +16,10 @@ import (
 
 const defaultTranslationBundleStructure = "%LANG_ISO%.%FORMAT%"
 
-var maxTranslationBundleBytes int64 = 256 << 20
-var maxTranslationEntryBytes int64 = 32 << 20
+var (
+	maxTranslationBundleBytes int64 = 256 << 20
+	maxTranslationEntryBytes  int64 = 32 << 20
+)
 
 // TranslationFileDownloadRequest identifies a Lokalise file export.
 type TranslationFileDownloadRequest struct {
