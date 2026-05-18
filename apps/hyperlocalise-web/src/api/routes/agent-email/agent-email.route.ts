@@ -3,7 +3,6 @@ import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
@@ -11,9 +10,7 @@ import { assertProviderCredentialAdmin } from "@/lib/providers/organization-prov
 
 const inboundEmailDomain = "inbox.hyperlocalise.com";
 
-const updateEmailAgentBodySchema = z.object({
-  enabled: z.boolean(),
-});
+import { updateEmailAgentBodySchema } from "./agent-email.schema";
 
 function normalizeSlug(value: string | null | undefined) {
   const normalized = (value ?? "")

@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth";
@@ -10,9 +9,7 @@ import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
-const updateSlackAgentBodySchema = z.object({
-  enabled: z.boolean(),
-});
+import { updateSlackAgentBodySchema } from "./agent-slack.schema";
 
 const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   const parsed = updateSlackAgentBodySchema.safeParse(value);

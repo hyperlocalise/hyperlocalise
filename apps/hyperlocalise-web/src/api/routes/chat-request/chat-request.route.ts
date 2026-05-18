@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
@@ -10,10 +9,7 @@ import { createStoredFile } from "@/lib/file-storage/records";
 import { addInteractionMessage, createInteraction } from "@/lib/interactions";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
-const chatRequestBodySchema = z.object({
-  text: z.string().trim().min(1).max(10000),
-  projectId: z.string().optional(),
-});
+import { chatRequestBodySchema, multipartChatRequestSchema } from "./chat-request.schema";
 
 const validateChatRequestBody = validator("json", (value, c) => {
   const parsed = chatRequestBodySchema.safeParse(value);
@@ -25,11 +21,6 @@ const validateChatRequestBody = validator("json", (value, c) => {
 
 const maxChatUploadBytes = 25 * 1024 * 1024;
 const maxChatUploadFiles = 5;
-
-const multipartChatRequestSchema = z.object({
-  text: z.string().trim().max(10000).default(""),
-  projectId: z.string().trim().min(1).optional(),
-});
 
 type CreateChatRequestRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;

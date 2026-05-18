@@ -1,6 +1,5 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { z } from "zod";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
@@ -11,9 +10,7 @@ import {
 import { db, schema } from "@/lib/database";
 import { addInteractionMessage } from "@/lib/interactions";
 
-const conversationIdParamsSchema = z.object({
-  conversationId: z.uuid(),
-});
+import { conversationIdParamsSchema } from "./conversation.schema";
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()

@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { and, count, eq, ilike, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import { isAdminRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -16,13 +15,7 @@ import {
 } from "@/lib/agents/github/oauth-state";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 
-const updateRepositoriesSchema = z.object({
-  enabledRepositoryIds: z.array(z.string().regex(/^\d+$/)).default([]),
-});
-
-const searchRepositoriesSchema = z.object({
-  q: z.string().optional(),
-});
+import { searchRepositoriesSchema, updateRepositoriesSchema } from "./github-installation.schema";
 
 const validateRepositorySearch = validator("query", (value) => {
   const parsed = searchRepositoriesSchema.safeParse(value);
