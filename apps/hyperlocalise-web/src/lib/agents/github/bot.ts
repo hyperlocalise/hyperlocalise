@@ -49,6 +49,7 @@ function buildGitHubFixInstructions(event: GitHubFixRequestedEventData) {
     "The GitHub command router already validated this request.",
     "Call enqueueGitHubFix exactly once before replying.",
     "After the tool succeeds, tell the user the fix workflow has been queued.",
+    "If the tool returns alreadyQueued, tell the user this fix request is already queued.",
     "",
     `Repository: ${event.repositoryFullName}`,
     `Pull request: #${event.pullRequestNumber}`,

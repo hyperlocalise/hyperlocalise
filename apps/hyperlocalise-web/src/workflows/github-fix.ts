@@ -1,6 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { getInstallationOctokit } from "@/lib/agents/github/app";
+import { deleteGitHubAgentRequestForEvent } from "@/lib/agents/github/request-idempotency";
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -344,54 +345,58 @@ function formatFixSummary(input: {
 export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
   "use workflow";
 
-  const pr = await getPullRequestMetadata(event);
-  if (!pr.canPush) {
-    await postPullRequestComment(
-      event,
-      "## Hyperlocalise fix skipped\n\nI do not have permission to push to this PR branch.",
-    );
-    return;
-  }
-
-  const { sandboxId, token } = await createFixSandbox(event, pr.headBranch);
   try {
-    await prepareSandbox(sandboxId, event, token);
-    const fix = await runFixCommand(sandboxId, event);
-    if ("skipped" in fix) {
-      await postPullRequestComment(event, `## Hyperlocalise fix skipped\n\n${fix.reason}`);
+    const pr = await getPullRequestMetadata(event);
+    if (!pr.canPush) {
+      await postPullRequestComment(
+        event,
+        "## Hyperlocalise fix skipped\n\nI do not have permission to push to this PR branch.",
+      );
       return;
     }
-    if (fix.exitCode !== 0) {
+
+    const { sandboxId, token } = await createFixSandbox(event, pr.headBranch);
+    try {
+      await prepareSandbox(sandboxId, event, token);
+      const fix = await runFixCommand(sandboxId, event);
+      if ("skipped" in fix) {
+        await postPullRequestComment(event, `## Hyperlocalise fix skipped\n\n${fix.reason}`);
+        return;
+      }
+      if (fix.exitCode !== 0) {
+        await postPullRequestComment(
+          event,
+          formatFixSummary({
+            changed: false,
+            command: fix.command,
+            exitCode: fix.exitCode,
+            output: fix.output,
+          }),
+        );
+        return;
+      }
+
+      const changedPaths = await getSandboxChangedPaths(sandboxId);
+      if (changedPaths.length > 0) {
+        await commitAndPush(sandboxId, pr.headBranch, changedPaths);
+      }
       await postPullRequestComment(
         event,
         formatFixSummary({
-          changed: false,
+          changed: changedPaths.length > 0,
           command: fix.command,
           exitCode: fix.exitCode,
           output: fix.output,
         }),
       );
-      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await postPullRequestComment(event, `## Hyperlocalise fix failed\n\n${message}`);
+      throw error;
+    } finally {
+      await stopFixSandbox(sandboxId);
     }
-
-    const changedPaths = await getSandboxChangedPaths(sandboxId);
-    if (changedPaths.length > 0) {
-      await commitAndPush(sandboxId, pr.headBranch, changedPaths);
-    }
-    await postPullRequestComment(
-      event,
-      formatFixSummary({
-        changed: changedPaths.length > 0,
-        command: fix.command,
-        exitCode: fix.exitCode,
-        output: fix.output,
-      }),
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await postPullRequestComment(event, `## Hyperlocalise fix failed\n\n${message}`);
-    throw error;
   } finally {
-    await stopFixSandbox(sandboxId);
+    await deleteGitHubAgentRequestForEvent(event);
   }
 }

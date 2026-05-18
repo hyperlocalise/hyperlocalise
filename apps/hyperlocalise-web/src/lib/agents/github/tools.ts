@@ -2,6 +2,12 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import type { GitHubFixQueue, GitHubFixRequestedEventData } from "@/lib/workflow/types";
+import {
+  buildGitHubFixRequestInput,
+  claimGitHubAgentRequest,
+  markGitHubAgentRequestEnqueued,
+  releaseGitHubAgentRequestClaim,
+} from "@/lib/agents/github/request-idempotency";
 
 type CreateGitHubFixToolInput = {
   event: GitHubFixRequestedEventData;
@@ -26,8 +32,35 @@ export function createGitHubFixTools({ event, queue }: CreateGitHubFixToolInput)
           };
         }
 
+        const claim = await claimGitHubAgentRequest(buildGitHubFixRequestInput(event));
+        if (claim.alreadyQueued) {
+          enqueued = true;
+          return {
+            success: true,
+            alreadyQueued: true,
+            workflowRunIds: claim.workflowRunIds,
+            repository: event.repositoryFullName,
+            pullRequestNumber: event.pullRequestNumber,
+            scope: event.scope.type,
+          };
+        }
+
+        let result: Awaited<ReturnType<GitHubFixQueue["enqueue"]>>;
+        try {
+          result = await queue.enqueue(event);
+        } catch (error) {
+          try {
+            await releaseGitHubAgentRequestClaim(claim.requestId);
+          } catch {
+            // Don't mask the original queue error if release fails
+          }
+          throw error;
+        }
+        await markGitHubAgentRequestEnqueued({
+          requestId: claim.requestId,
+          workflowRunIds: result.ids,
+        });
         enqueued = true;
-        const result = await queue.enqueue(event);
 
         return {
           success: true,
