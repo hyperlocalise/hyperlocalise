@@ -58,6 +58,32 @@ func TestParseConfigRejectsInlineToken(t *testing.T) {
 	}
 }
 
+func TestDecodeConfigRejectsInlineToken(t *testing.T) {
+	_, err := DecodeConfig(json.RawMessage(`{"projectID":"123","apiToken":"inline"}`))
+	if err == nil || !strings.Contains(err.Error(), "apiToken is not supported") {
+		t.Fatalf("expected inline token rejection, got %v", err)
+	}
+}
+
+func TestParseConfigRejectsInlineTokenCasing(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "env-token")
+	_, err := ParseConfig(json.RawMessage(`{"projectID":"123","APIToken":"inline"}`))
+	if err == nil || !strings.Contains(err.Error(), "apiToken is not supported") {
+		t.Fatalf("expected inline token rejection, got %v", err)
+	}
+}
+
+func TestDecodeConfigDoesNotResolveToken(t *testing.T) {
+	t.Setenv("LOKALISE_API_TOKEN", "env-token")
+	cfg, err := DecodeConfig(json.RawMessage(`{"projectID":"123"}`))
+	if err != nil {
+		t.Fatalf("decode config: %v", err)
+	}
+	if cfg.APIToken != "" {
+		t.Fatalf("DecodeConfig should not resolve auth token, got %q", cfg.APIToken)
+	}
+}
+
 func TestAdapterPullMapsKeyContextLanguage(t *testing.T) {
 	client := &fakeClient{
 		keys: []KeyTranslation{

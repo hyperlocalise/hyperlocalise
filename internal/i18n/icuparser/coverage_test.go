@@ -128,7 +128,7 @@ func TestInvariantHelpersEdgeCases(t *testing.T) {
 	if !slicesEqual([]int{1}, []int{1}) || slicesEqual([]int{1}, []int{2}) || slicesEqual([]int{1}, []int{1, 1}) {
 		t.Fatal("slicesEqual broken")
 	}
-	if isPlaceholderName("") || isPlaceholderName("9bad") || isPlaceholderName("a b") {
+	if isPlaceholderName("") || isPlaceholderName("*bad") || isPlaceholderName("a b") {
 		t.Fatal("isPlaceholderName should reject")
 	}
 }

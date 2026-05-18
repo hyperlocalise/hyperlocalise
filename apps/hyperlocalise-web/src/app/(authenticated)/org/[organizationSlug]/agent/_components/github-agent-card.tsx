@@ -349,7 +349,8 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search repositories"
-                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/3 px-9 text-sm text-foreground outline-none placeholder:text-foreground/32 focus:border-foreground/20"
+                    aria-label="Search repositories"
+                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/3 px-9 text-sm text-foreground transition-all outline-none placeholder:text-foreground/32 focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50"
                   />
                 </div>
                 <Button
