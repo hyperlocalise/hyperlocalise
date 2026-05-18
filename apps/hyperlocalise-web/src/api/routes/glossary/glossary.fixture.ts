@@ -1,6 +1,8 @@
+import type { AppType } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { testClient } from "hono/testing";
 
 type CreateGlossaryInput = Partial<{
   name: string;
@@ -9,7 +11,9 @@ type CreateGlossaryInput = Partial<{
   targetLocale: string;
 }>;
 
-export function createGlossaryTestFixture(client?: any) {
+type Client = ReturnType<typeof testClient<AppType>>;
+
+export function createGlossaryTestFixture(client?: Client) {
   const authFixture = createAuthTestFixture();
 
   async function createGlossaryViaApi(identity: WorkosAuthIdentity, input?: CreateGlossaryInput) {

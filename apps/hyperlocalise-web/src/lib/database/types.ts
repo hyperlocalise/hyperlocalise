@@ -1,5 +1,6 @@
 import type {
   githubInstallations,
+  glossaries,
   jobs,
   jobKindEnum,
   jobStatusEnum,
@@ -20,6 +21,9 @@ import type {
   connectors,
   tmsLinks,
 } from "@/lib/database/schema";
+
+export type Glossary = typeof glossaries.$inferSelect;
+export type NewGlossary = typeof glossaries.$inferInsert;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;

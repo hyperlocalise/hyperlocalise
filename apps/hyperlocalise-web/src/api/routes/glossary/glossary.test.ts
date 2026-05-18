@@ -27,27 +27,6 @@ const glossaryFixture = createGlossaryTestFixture(client);
 const { authHeadersFor, createGlossaryViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   glossaryFixture;
 
-type GlossaryRecord = {
-  id: string;
-  organizationId: string;
-  createdByUserId: string | null;
-  name: string;
-  description: string;
-  sourceLocale: string;
-  targetLocale: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type GlossaryResponse = {
-  glossary: GlossaryRecord;
-};
-
-type GlossariesResponse = {
-  glossaries: GlossaryRecord[];
-};
-
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
@@ -64,6 +43,34 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
+  });
+
+  it("keeps glossary routes mounted at legacy and org-scoped app paths", async () => {
+    const identity = createWorkosIdentity();
+    await createGlossaryViaApi(identity, { name: "Mounted Glossary" });
+    const headers = await authHeadersFor(identity);
+
+    const legacyResponse = await client.api.glossary.$get(
+      { query: { limit: "50", offset: "0" } },
+      { headers },
+    );
+    expect(legacyResponse.status).toBe(200);
+    await expect(legacyResponse.json()).resolves.toMatchObject({
+      glossaries: [expect.objectContaining({ name: "Mounted Glossary" })],
+    });
+
+    const orgScopedResponse = await client.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(orgScopedResponse.status).toBe(200);
+    await expect(orgScopedResponse.json()).resolves.toMatchObject({
+      glossaries: [expect.objectContaining({ name: "Mounted Glossary" })],
+    });
   });
 
   it("lists glossaries for the current organization", async () => {
@@ -83,7 +90,8 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as GlossariesResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossaries).toHaveLength(2);
     expect(body.glossaries.map((glossary) => glossary.name)).toEqual([
       "Glossary Two",
@@ -102,7 +110,8 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(201);
 
-    const body = (await response.json()) as GlossaryResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossary.id).toBeDefined();
     expect(body.glossary.name).toBe("Marketing Terms");
     expect(body.glossary.description).toBe("Marketing terminology list");
@@ -127,7 +136,8 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(201);
 
-    const body = (await response.json()) as GlossaryResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossary.name).toBe("Test Glossary");
     expect(body.glossary.description).toBe("");
   });
@@ -183,14 +193,16 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(201);
 
-    const body = (await response.json()) as GlossaryResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossary.name).toBe("Admin Created Glossary");
   });
 
   it("returns a glossary by id", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(identity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const response = await client.api.glossary[":glossaryId"].$get(
       {
@@ -203,7 +215,8 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as GlossaryResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossary.id).toBe(createdBody.glossary.id);
     expect(body.glossary.name).toBe("Marketing Glossary");
   });
@@ -211,7 +224,8 @@ describe("glossaryRoutes", () => {
   it("updates an existing glossary", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(identity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const response = await client.api.glossary[":glossaryId"].$patch(
       {
@@ -227,7 +241,8 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(200);
 
-    const body = (await response.json()) as GlossaryResponse;
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.glossary.id).toBe(createdBody.glossary.id);
     expect(body.glossary.name).toBe("Updated Glossary Name");
   });
@@ -235,7 +250,8 @@ describe("glossaryRoutes", () => {
   it("returns 400 for invalid patch payloads", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(identity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const emptyResponse = await client.api.glossary[":glossaryId"].$patch(
       {
@@ -277,7 +293,8 @@ describe("glossaryRoutes", () => {
   it("returns 404 when another organization fetches a glossary", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(ownerIdentity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
     const response = await client.api.glossary[":glossaryId"].$get(
@@ -300,7 +317,8 @@ describe("glossaryRoutes", () => {
   it("returns 404 when another organization updates a glossary", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(ownerIdentity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
     const response = await client.api.glossary[":glossaryId"].$patch(
@@ -326,7 +344,8 @@ describe("glossaryRoutes", () => {
   it("returns 403 when a member updates a glossary", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(ownerIdentity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const memberIdentity = createWorkosIdentityWithRole("member");
     const response = await client.api.glossary[":glossaryId"].$patch(
@@ -368,7 +387,8 @@ describe("glossaryRoutes", () => {
   it("deletes an existing glossary", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(identity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const response = await client.api.glossary[":glossaryId"].$delete(
       {
@@ -396,7 +416,8 @@ describe("glossaryRoutes", () => {
   it("returns 404 when another organization deletes a glossary", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(ownerIdentity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
     const response = await client.api.glossary[":glossaryId"].$delete(
@@ -449,7 +470,8 @@ describe("glossaryRoutes", () => {
   it("returns 403 when a member deletes a glossary", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createGlossaryViaApi(ownerIdentity);
-    const createdBody = (await createdResponse.json()) as GlossaryResponse;
+    const createdBody = await createdResponse.json();
+    if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const memberIdentity = createWorkosIdentityWithRole("member");
     const response = await client.api.glossary[":glossaryId"].$delete(

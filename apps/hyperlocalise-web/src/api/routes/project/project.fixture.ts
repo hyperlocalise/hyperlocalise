@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
+import type { AppType } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { testClient } from "hono/testing";
 
 type CreateProjectInput = Partial<{
   name: string;
@@ -10,7 +12,9 @@ type CreateProjectInput = Partial<{
   translationContext: string;
 }>;
 
-export function createProjectTestFixture(client?: any) {
+type Client = ReturnType<typeof testClient<AppType>>;
+
+export function createProjectTestFixture(client?: Client) {
   const authFixture = createAuthTestFixture();
 
   async function createProjectViaApi(identity: WorkosAuthIdentity, input?: CreateProjectInput) {
