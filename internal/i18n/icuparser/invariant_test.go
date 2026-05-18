@@ -149,49 +149,30 @@ func TestNumericPlaceholderInPlaceholders(t *testing.T) {
 
 func TestHasDuplicatePounds(t *testing.T) {
 	tests := []struct {
-		name   string
-		blocks []BlockSignature
-		want   bool
+		name string
+		msg  string
+		want bool
 	}{
-		{
-			name:   "no blocks",
-			blocks: []BlockSignature{},
-			want:   false,
-		},
-		{
-			name:   "blocks with no pounds",
-			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: nil}},
-			want:   false,
-		},
-		{
-			name:   "blocks with zero pounds",
-			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{0}}},
-			want:   false,
-		},
-		{
-			name:   "blocks with single pounds",
-			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 1}}},
-			want:   false,
-		},
-		{
-			name:   "block with duplicate pounds",
-			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{2}}},
-			want:   true,
-		},
-		{
-			name: "multiple blocks, one with duplicate pounds",
-			blocks: []BlockSignature{
-				{Arg: "n1", Type: "plural", Options: []string{"one"}, Pounds: []int{1}},
-				{Arg: "n2", Type: "plural", Options: []string{"one"}, Pounds: []int{2}},
-			},
-			want: true,
-		},
+		{"no blocks", "plain text", false},
+		{"no pounds", "{n, plural, one {item} other {items}}", false},
+		{"single pounds", "{n, plural, one {# item} other {# items}}", false},
+		{"duplicate pounds", "{n, plural, one {## items} other {items}}", true},
+		{"duplicate in other branch", "{n, plural, one {#} other {##}}", true},
+		{"multiple blocks, one duplicate", "{n1, plural, one {#}}{n2, plural, one {##}}", true},
+		{"nested duplicate", "{n1, plural, one {{n2, plural, other {##}}}}", true},
+		{"select block", "{gender, select, male {he} female {she} other {they}}", false},
+		{"selectordinal duplicate", "{n, selectordinal, one {##st} other {#th}}", true},
+		{"mustache placeholder", "Hello {{name}}", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := HasDuplicatePounds(tt.blocks); got != tt.want {
-				t.Errorf("HasDuplicatePounds() = %v, want %v", got, tt.want)
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant(%q) failed: %v", tt.msg, err)
+			}
+			if got := HasDuplicatePounds(inv.ICUBlocks); got != tt.want {
+				t.Errorf("HasDuplicatePounds() = %v, want %v for %q", got, tt.want, tt.msg)
 			}
 		})
 	}
