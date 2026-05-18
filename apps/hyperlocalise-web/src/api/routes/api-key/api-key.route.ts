@@ -22,7 +22,7 @@ import {
 const validateCreateApiKeyBody = validator("json", (value, c) => {
   const parsed = createApiKeyBodySchema.safeParse(value);
   if (!parsed.success) {
-    return invalidApiKeyPayloadResponse(c);
+    return invalidApiKeyPayloadResponse(c, parsed.error.issues);
   }
   return parsed.data;
 });

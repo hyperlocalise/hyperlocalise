@@ -46,6 +46,6 @@ export function isUniqueViolation(error: unknown) {
   return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
 }
 
-export function isTeamMutationAllowed(auth: ApiAuthContext) {
+export function isOrganizationAdmin(auth: ApiAuthContext) {
   return auth.membership.role === "owner" || auth.membership.role === "admin";
 }

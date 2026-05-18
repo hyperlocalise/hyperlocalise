@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { z } from "zod";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
@@ -11,8 +12,11 @@ import { schema } from "@/lib/database";
 
 const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
-export function invalidApiKeyPayloadResponse(c: { json: JsonContext["json"] }) {
-  return validationErrorResponse(c, "invalid_api_key_payload", "Invalid API key payload");
+export function invalidApiKeyPayloadResponse(
+  c: { json: JsonContext["json"] },
+  issues?: z.ZodIssue[],
+) {
+  return validationErrorResponse(c, "invalid_api_key_payload", "Invalid API key payload", issues);
 }
 
 export function apiKeyNotFoundResponse(c: { json: JsonContext["json"] }) {

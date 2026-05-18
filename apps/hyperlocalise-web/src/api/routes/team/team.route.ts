@@ -16,7 +16,7 @@ import {
 import {
   forbiddenResponse,
   invalidTeamPayloadResponse,
-  isTeamMutationAllowed,
+  isOrganizationAdmin,
   isUniqueViolation,
   organizationMemberNotFoundResponse,
   slugifyTeamName,
@@ -25,7 +25,7 @@ import {
 } from "./team.shared";
 
 async function getVisibleTeamIds(auth: ApiAuthContext) {
-  if (isTeamMutationAllowed(auth)) {
+  if (isOrganizationAdmin(auth)) {
     const teams = await db
       .select({ id: schema.teams.id })
       .from(schema.teams)
@@ -74,7 +74,7 @@ async function getAccessibleTeam(
     return null;
   }
 
-  if (isTeamMutationAllowed(auth)) {
+  if (isOrganizationAdmin(auth)) {
     return team;
   }
 
@@ -169,7 +169,7 @@ export function createTeamRoutes() {
       return c.json({ teams }, 200);
     })
     .post("/", validateCreateTeamBody, async (c) => {
-      if (!isTeamMutationAllowed(c.var.auth)) {
+      if (!isOrganizationAdmin(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -224,7 +224,7 @@ export function createTeamRoutes() {
       return c.json({ team: { ...team, members } }, 200);
     })
     .patch("/:teamId", validateTeamParams, validateUpdateTeamBody, async (c) => {
-      if (!isTeamMutationAllowed(c.var.auth)) {
+      if (!isOrganizationAdmin(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -259,7 +259,7 @@ export function createTeamRoutes() {
       }
     })
     .post("/:teamId/members", validateTeamParams, validateAddTeamMemberBody, async (c) => {
-      if (!isTeamMutationAllowed(c.var.auth)) {
+      if (!isOrganizationAdmin(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
@@ -352,7 +352,7 @@ export function createTeamRoutes() {
       );
     })
     .delete("/:teamId/members/:workosUserId", validateTeamMemberParams, async (c) => {
-      if (!isTeamMutationAllowed(c.var.auth)) {
+      if (!isOrganizationAdmin(c.var.auth)) {
         return forbiddenResponse(c);
       }
 
