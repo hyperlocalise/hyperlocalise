@@ -242,21 +242,61 @@ async function runFixCommand(
   };
 }
 
-async function hasUncommittedChanges(sandboxId: string): Promise<boolean> {
+async function getSandboxChangedPaths(sandboxId: string): Promise<string[]> {
   "use step";
 
-  const result = await runSandboxCommand(sandboxId, "git", ["status", "--porcelain"]);
+  const result = await runSandboxCommand(sandboxId, "git", [
+    "status",
+    "--porcelain=v1",
+    "-z",
+    "--untracked-files=all",
+  ]);
   if (result.exitCode !== 0) {
     throw new Error(`git status failed: ${result.output}`);
   }
-  return result.output.trim().length > 0;
+  return getCommittableChangedPaths(result.output);
 }
 
-async function commitAndPush(sandboxId: string, headBranch: string): Promise<void> {
+export function getCommittableChangedPaths(statusOutput: string): string[] {
+  const paths: string[] = [];
+  const entries = statusOutput.split("\0");
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (!entry) {
+      continue;
+    }
+
+    const status = entry.slice(0, 2);
+    const path = entry.slice(3);
+    const isRenameOrCopy = status[0] === "R" || status[0] === "C";
+    if (!path || status === "!!" || isInternalReportPath(path)) {
+      if (isRenameOrCopy) {
+        index += 1;
+      }
+      continue;
+    }
+
+    paths.push(path);
+    if (isRenameOrCopy) {
+      index += 1;
+    }
+  }
+  return paths;
+}
+
+function isInternalReportPath(path: string): boolean {
+  return path === ".hyperlocalise" || path.startsWith(".hyperlocalise/");
+}
+
+async function commitAndPush(
+  sandboxId: string,
+  headBranch: string,
+  changedPaths: string[],
+): Promise<void> {
   "use step";
 
   for (const [command, args] of [
-    ["git", ["add", "-u"]],
+    ["git", ["add", "--", ...changedPaths]],
     ["git", ["commit", "-m", "fix(i18n): apply hyperlocalise fixes"]],
     ["git", ["push", "origin", headBranch]],
   ] satisfies Array<[string, string[]]>) {
@@ -334,14 +374,14 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
       return;
     }
 
-    const changed = await hasUncommittedChanges(sandboxId);
-    if (changed) {
-      await commitAndPush(sandboxId, pr.headBranch);
+    const changedPaths = await getSandboxChangedPaths(sandboxId);
+    if (changedPaths.length > 0) {
+      await commitAndPush(sandboxId, pr.headBranch, changedPaths);
     }
     await postPullRequestComment(
       event,
       formatFixSummary({
-        changed,
+        changed: changedPaths.length > 0,
         command: fix.command,
         exitCode: fix.exitCode,
         output: fix.output,
