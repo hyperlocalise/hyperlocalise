@@ -3,13 +3,18 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
+import { Hono } from "hono";
 import { testClient } from "hono/testing";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createApp } from "@/api/app";
+import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
+import { createWorkspaceJobRoutes } from "./job.route";
+import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
+import { createProjectRoutes } from "./project.route";
+import type { ProjectResponse } from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -27,11 +32,15 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-const client = testClient(
-  createApp({
-    jobQueue: createInlineTestJobQueue(),
-  }),
-);
+function createJobRouteTestApp(jobQueue: JobQueue<TranslationJobEventData>) {
+  return new Hono()
+    .basePath("/api")
+    .route("/project", createProjectRoutes({ jobQueue }))
+    .route("/orgs/:organizationSlug/jobs", createWorkspaceJobRoutes({ jobQueue }));
+}
+
+const client = testClient(createJobRouteTestApp(createInlineTestJobQueue()));
+const appClient = testClient(app);
 const projectFixture = createProjectTestFixture(client);
 const {
   authHeadersFor,
@@ -41,29 +50,6 @@ const {
   createWorkosIdentityForOrganization,
   getLocalUserId,
 } = projectFixture;
-
-type ProjectResponse = {
-  project: {
-    id: string;
-  };
-};
-
-type JobRecord = {
-  id: string;
-  projectId: string | null;
-  createdByUserId: string | null;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
-  type: "string" | "file" | null;
-  status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-  inputPayload: Record<string, unknown>;
-  outcomeKind: string | null;
-  outcomePayload: Record<string, unknown> | null;
-  lastError: string | null;
-  workflowRunId: string | null;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string | null;
-};
 
 async function insertJob(params: {
   projectId: string;
@@ -203,6 +189,52 @@ afterEach(async () => {
 });
 
 describe("jobRoutes", () => {
+  it("keeps job routes mounted at nested project and workspace app paths", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const localUserId = await getLocalUserId(identity.user.workosUserId);
+    const job = await insertJob({
+      projectId: project.id,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Mounted job",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    const headers = await authHeadersFor(identity);
+
+    const nestedResponse = await appClient.api.project[":projectId"].jobs[":jobId"].$get(
+      {
+        param: { projectId: project.id, jobId: job.id },
+      },
+      { headers },
+    );
+
+    expect(nestedResponse.status).toBe(200);
+    await expect(nestedResponse.json()).resolves.toMatchObject({
+      job: expect.objectContaining({ id: job.id }),
+    });
+
+    const workspaceResponse = await appClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+      },
+      { headers },
+    );
+
+    expect(workspaceResponse.status).toBe(200);
+    await expect(workspaceResponse.json()).resolves.toMatchObject({
+      job: expect.objectContaining({ id: job.id, projectName: expect.any(String) }),
+    });
+  });
+
   it("creates a queued string job", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -407,7 +439,7 @@ describe("jobRoutes", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { jobs: Array<JobRecord & { projectName: string }> };
+    const body = (await response.json()) as { jobs: WorkspaceJobRecord[] };
     expect(body.jobs).toHaveLength(1);
     expect(body.jobs[0]?.createdByUserId).toBe(localUserId);
     expect(body.jobs[0]?.projectName).toEqual(expect.any(String));
@@ -533,12 +565,10 @@ describe("jobRoutes", () => {
   it("retries a stale queued translation job from workspace job details", async () => {
     const queuedEvents: TranslationJobEventData[] = [];
     const retryClient = testClient(
-      createApp({
-        jobQueue: {
-          async enqueue(event) {
-            queuedEvents.push(event);
-            return { ids: [`run_${event.jobId}`] };
-          },
+      createJobRouteTestApp({
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [`run_${event.jobId}`] };
         },
       }),
     );
@@ -604,12 +634,10 @@ describe("jobRoutes", () => {
   it("does not clear details or enqueue when a retryable job is claimed concurrently", async () => {
     const queuedEvents: TranslationJobEventData[] = [];
     const retryClient = testClient(
-      createApp({
-        jobQueue: {
-          async enqueue(event) {
-            queuedEvents.push(event);
-            return { ids: [`run_${event.jobId}`] };
-          },
+      createJobRouteTestApp({
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [`run_${event.jobId}`] };
         },
       }),
     );
@@ -937,11 +965,9 @@ describe("jobRoutes", () => {
 
   it("keeps the inserted job when queueing fails", async () => {
     const failingClient = testClient(
-      createApp({
-        jobQueue: {
-          async enqueue() {
-            throw new Error("queue down");
-          },
+      createJobRouteTestApp({
+        async enqueue() {
+          throw new Error("queue down");
         },
       }),
     );

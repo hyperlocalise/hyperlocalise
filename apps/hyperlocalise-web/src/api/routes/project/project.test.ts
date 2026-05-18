@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { Hono } from "hono";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -9,6 +10,8 @@ import { app } from "@/api/app";
 import { db } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
+import { createProjectRoutes } from "./project.route";
+import type { ProjectResponse, ProjectsResponse } from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -18,29 +21,12 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
 
-const client = testClient(app);
+const projectRouteApp = new Hono().basePath("/api").route("/project", createProjectRoutes());
+const client = testClient(projectRouteApp);
+const appClient = testClient(app);
 const projectFixture = createProjectTestFixture(client);
 const { authHeadersFor, createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   projectFixture;
-
-type ProjectRecord = {
-  id: string;
-  organizationId: string;
-  createdByUserId: string | null;
-  name: string;
-  description: string;
-  translationContext: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ProjectResponse = {
-  project: ProjectRecord;
-};
-
-type ProjectsResponse = {
-  projects: ProjectRecord[];
-};
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -58,6 +44,30 @@ describe("projectRoutes", () => {
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
+  });
+
+  it("keeps project routes mounted at legacy and org-scoped app paths", async () => {
+    const identity = createWorkosIdentity();
+    await createProjectViaApi(identity, { name: "Mounted Project" });
+    const headers = await authHeadersFor(identity);
+
+    const legacyResponse = await appClient.api.project.$get({}, { headers });
+    expect(legacyResponse.status).toBe(200);
+    await expect(legacyResponse.json()).resolves.toMatchObject({
+      projects: [expect.objectContaining({ name: "Mounted Project" })],
+    });
+
+    const orgScopedResponse = await appClient.api.orgs[":organizationSlug"].projects.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+      },
+      { headers },
+    );
+
+    expect(orgScopedResponse.status).toBe(200);
+    await expect(orgScopedResponse.json()).resolves.toMatchObject({
+      projects: [expect.objectContaining({ name: "Mounted Project" })],
+    });
   });
 
   it("lists projects for the current organization", async () => {
