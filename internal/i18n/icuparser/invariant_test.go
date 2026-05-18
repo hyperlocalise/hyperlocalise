@@ -146,3 +146,53 @@ func TestNumericPlaceholderInPlaceholders(t *testing.T) {
 		t.Errorf("expected '1' in placeholders, got %v", inv.Placeholders)
 	}
 }
+
+func TestHasDuplicatePounds(t *testing.T) {
+	tests := []struct {
+		name   string
+		blocks []BlockSignature
+		want   bool
+	}{
+		{
+			name:   "no blocks",
+			blocks: []BlockSignature{},
+			want:   false,
+		},
+		{
+			name:   "blocks with no pounds",
+			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: nil}},
+			want:   false,
+		},
+		{
+			name:   "blocks with zero pounds",
+			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{0}}},
+			want:   false,
+		},
+		{
+			name:   "blocks with single pounds",
+			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 1}}},
+			want:   false,
+		},
+		{
+			name:   "block with duplicate pounds",
+			blocks: []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}, Pounds: []int{2}}},
+			want:   true,
+		},
+		{
+			name: "multiple blocks, one with duplicate pounds",
+			blocks: []BlockSignature{
+				{Arg: "n1", Type: "plural", Options: []string{"one"}, Pounds: []int{1}},
+				{Arg: "n2", Type: "plural", Options: []string{"one"}, Pounds: []int{2}},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HasDuplicatePounds(tt.blocks); got != tt.want {
+				t.Errorf("HasDuplicatePounds() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
