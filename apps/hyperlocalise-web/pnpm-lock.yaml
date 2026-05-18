@@ -13,11 +13,11 @@ importers:
   .:
     dependencies:
       '@ai-sdk/openai':
-        specifier: 3.0.63
-        version: 3.0.63(zod@4.4.3)
+        specifier: 3.0.64
+        version: 3.0.64(zod@4.4.3)
       '@ai-sdk/react':
         specifier: ^3.0.176
-        version: 3.0.184(react@19.2.6)(zod@4.4.3)
+        version: 3.0.185(react@19.2.6)(zod@4.4.3)
       '@base-ui/react':
         specifier: 1.4.1
         version: 1.4.1(@date-fns/tz@1.4.1)(@types/react@19.2.14)(date-fns@4.1.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -50,7 +50,7 @@ importers:
         version: 1.2.2(@types/react@19.2.14)(react@19.2.6)
       '@rive-app/react-webgl2':
         specifier: ^4.28.3
-        version: 4.28.4(react@19.2.6)
+        version: 4.28.5(react@19.2.6)
       '@streamdown/cjk':
         specifier: ^1.0.3
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2)(react@19.2.6)(unified@11.0.5)
@@ -79,14 +79,14 @@ importers:
         specifier: 1.10.2
         version: 1.10.2
       '@workos-inc/authkit-nextjs':
-        specifier: 4.0.1
-        version: 4.0.1(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
+        specifier: 4.1.0
+        version: 4.1.0(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
       '@xyflow/react':
         specifier: ^12.10.2
         version: 12.10.2(@types/react@19.2.14)(immer@11.1.4)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ai:
-        specifier: 6.0.182
-        version: 6.0.182(zod@4.4.3)
+        specifier: 6.0.183
+        version: 6.0.183(zod@4.4.3)
       ansi-to-react:
         specifier: ^6.2.6
         version: 6.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -247,14 +247,14 @@ importers:
 
 packages:
 
-  '@ai-sdk/gateway@3.0.114':
-    resolution: {integrity: sha512-MqkZ5sd+qiq6RgIxELkoFQXg2/JwK+WCMaot7U+rtrZpWJl3fSyYvc28SC03b256o4F7OXjQtdjTqs81B2w+dA==}
+  '@ai-sdk/gateway@3.0.115':
+    resolution: {integrity: sha512-xonmGfN9pt54WdKqMzWe68BRYS3rsYvraBzioyA0gfNcecHs8Ir5qk/X8grJSyZ95hghjWiOphrK6bAc11E6SA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@3.0.63':
-    resolution: {integrity: sha512-4yY/m8a57MNNVoJCsXuNblKf6BO4yuAuLKRX4tzSNffBEBSp1FlcWdPE0Z4FkqUeS0AJhYSSqp0GIiA/cIcDNA==}
+  '@ai-sdk/openai@3.0.64':
+    resolution: {integrity: sha512-epO4iS6QwktaY2PF6uBcPnDTJ3BxPOfsGS7/OEtBe3GtNj7C8h8gMDVtIe5K8W16HNDbn0tbR4dcQfpfs+XVFg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -269,8 +269,8 @@ packages:
     resolution: {integrity: sha512-Q3BZ27qfpYqnCYGvE3vt+Qi6LGOF9R5Nmzn+9JoM1lCRsD9mYaIhfJLkSunN48nfGXJ6n+XNV0J/XVpqGQl7Dw==}
     engines: {node: '>=18'}
 
-  '@ai-sdk/react@3.0.184':
-    resolution: {integrity: sha512-k8fQ11U3+lKzUCkiitevuH0MF++b7QPX7zrPRfXfNayLRZwrwvNuqXifB/6iIyQpSLNCfzhkqG117FW2EXCI5w==}
+  '@ai-sdk/react@3.0.185':
+    resolution: {integrity: sha512-FmGY7zbUi0bYArwwlRVwjK/rc8VdemlwUpm+rAYLcgaA4+wsXoXZKRRkiCKHLjbw0JCbgRJ7c/wv5J7Jnt5zdw==}
     engines: {node: '>=18'}
     peerDependencies:
       react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
@@ -334,6 +334,7 @@ packages:
   '@aws-sdk/core@3.974.10':
     resolution: {integrity: sha512-ZGFFlYynBR78Y/F8b/7y4i4sgW/iGwJSjoM7AZo5Et6vyr4/L0bunN+uzKMsvecCZyqcPp4RRK7Rs17l0kMujg==}
     engines: {node: '>=20.0.0'}
+    deprecated: Deprecated due to an error deserialization bug in JSON 1.0 protocol services, see https://github.com/aws/aws-sdk-js-v3/pull/8031. Newer version available.
 
   '@aws-sdk/core@3.974.3':
     resolution: {integrity: sha512-W3aJJm2clu8OmsrwMOMnfof13O6LGnbknnZIQeSRbxjqKah2nVvkjbUBBZVhWrt08KC69H7WsINTdrxC/2SXQw==}
@@ -2429,13 +2430,13 @@ packages:
       react-redux:
         optional: true
 
-  '@rive-app/react-webgl2@4.28.4':
-    resolution: {integrity: sha512-OeUAmHQjhqYza2zcpd7wctF3JxBNLCPQORYRIlZkGN1Tzcy7XF4ctyy7d0SAObW2vfS7+NWcTf9owoCzx5uehQ==}
+  '@rive-app/react-webgl2@4.28.5':
+    resolution: {integrity: sha512-ieNHpANoaHD6R6m33jtJfjIQB37PpDo9RkbjlkpaZbvHSn9c2ZpKsD3vUlndKOpwl+6cA97JXJuPfs0LbkZ9AA==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
 
-  '@rive-app/webgl2@2.37.6':
-    resolution: {integrity: sha512-ZvUgD8yleilzqu0DuQF2r9bFOk+id1cmgSE/4QayyNGlqUTgANcKs2Ft78F27qeGLO06SE589ugrdgZLtL4kbw==}
+  '@rive-app/webgl2@2.37.7':
+    resolution: {integrity: sha512-UBhiWn9Ujjsl7H98pv5WKvUvhh79xd2IkFhT6BvK0Z3rFC6ikqDZ9odUokwhmQa8xoaJT3rDL9t5aq4wlqBrsQ==}
 
   '@rolldown/binding-android-arm64@1.0.0-rc.12':
     resolution: {integrity: sha512-pv1y2Fv0JybcykuiiD3qBOBdz6RteYojRFY1d+b95WVuzx211CRh+ytI/+9iVyWQ6koTh5dawe4S/yRfOFjgaA==}
@@ -3655,8 +3656,8 @@ packages:
     peerDependencies:
       zod: 4.3.6
 
-  '@workos-inc/authkit-nextjs@4.0.1':
-    resolution: {integrity: sha512-lSpvQCzazHz1iBS2gtT3o4NQRiman3CjOAvSbU50KeoSYddx/z0hc73WDL9TC+UNTIZ7R7/KBc2BrOrWJ/MiVQ==}
+  '@workos-inc/authkit-nextjs@4.1.0':
+    resolution: {integrity: sha512-cQ+2s+Bllgx7lFKrqKNQeeYkICkcTDzBfy7X+N377NYYJ8uyrLsAlBL3jre3I693ADZ92gHieqLMitd9F7Rviw==}
     engines: {node: '>=22.11.0'}
     peerDependencies:
       next: ^13.5.9 || ^14.2.26 || ^15.2.3 || ^16
@@ -3666,10 +3667,6 @@ packages:
   '@workos-inc/node@8.11.1':
     resolution: {integrity: sha512-kfuyMZBrbNgT8HSQo/Wz3v/OBh0J4M/KCrWu7We30xMdpd0hD4anvZrrLbuRowx93SSytzaKHRvVn88Ads1naA==}
     engines: {node: '>=20.15.0'}
-
-  '@workos-inc/node@9.1.0':
-    resolution: {integrity: sha512-moaQsCqnRqJS3AYMrST70lChSt3KI8J81C+PMNg0h67u5OqbHBVGZi8tEUVxughBfoQaRGgqgV+r/iFyWFFSPg==}
-    engines: {node: '>=22.11.0'}
 
   '@workos-inc/node@9.3.0':
     resolution: {integrity: sha512-QFNl3ixF59L+vlTWPE5ix2EKhxJTVb5aALcA14PqB1zHpnGi4wC5i+YTyUJ08u4xw8e36MpZsvkDRoqsDpt+5w==}
@@ -3757,8 +3754,8 @@ packages:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
 
-  ai@6.0.182:
-    resolution: {integrity: sha512-ooJdziFjYrYRcsCx107roqA8gDTI3P82nUfroNWIhVvwrkYzEN3W1l50YK+XNqkUew8AiimaW0/SLBewRXMuHQ==}
+  ai@6.0.183:
+    resolution: {integrity: sha512-7pJ03j/XFbkdW6wadPWNCvNpFoxPwShEkzuACEvKBNeL+P5EbHrffh12Qzn1gdEO8Wunk1kkM37XX12bGQokUg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -7605,14 +7602,14 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/gateway@3.0.114(zod@4.4.3)':
+  '@ai-sdk/gateway@3.0.115(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/openai@3.0.63(zod@4.4.3)':
+  '@ai-sdk/openai@3.0.64(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
@@ -7629,10 +7626,10 @@ snapshots:
     dependencies:
       json-schema: 0.4.0
 
-  '@ai-sdk/react@3.0.184(react@19.2.6)(zod@4.4.3)':
+  '@ai-sdk/react@3.0.185(react@19.2.6)(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
-      ai: 6.0.182(zod@4.4.3)
+      ai: 6.0.183(zod@4.4.3)
       react: 19.2.6
       swr: 2.4.1(react@19.2.6)
       throttleit: 2.1.0
@@ -9688,12 +9685,12 @@ snapshots:
       react: 19.2.6
       react-redux: 9.2.0(@types/react@19.2.14)(react@19.2.6)(redux@5.0.1)
 
-  '@rive-app/react-webgl2@4.28.4(react@19.2.6)':
+  '@rive-app/react-webgl2@4.28.5(react@19.2.6)':
     dependencies:
-      '@rive-app/webgl2': 2.37.6
+      '@rive-app/webgl2': 2.37.7
       react: 19.2.6
 
-  '@rive-app/webgl2@2.37.6': {}
+  '@rive-app/webgl2@2.37.7': {}
 
   '@rolldown/binding-android-arm64@1.0.0-rc.12':
     optional: true
@@ -11049,10 +11046,10 @@ snapshots:
       ulid: 3.0.2
       zod: 4.3.6
 
-  '@workos-inc/authkit-nextjs@4.0.1(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)':
+  '@workos-inc/authkit-nextjs@4.1.0(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)':
     dependencies:
       '@sindresorhus/fnv1a': 3.1.0
-      '@workos-inc/node': 9.1.0
+      '@workos-inc/node': 9.3.0
       iron-session: 8.0.4
       jose: 5.10.0
       next: 16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -11064,10 +11061,6 @@ snapshots:
       - typescript
 
   '@workos-inc/node@8.11.1':
-    dependencies:
-      eventemitter3: 5.0.4
-
-  '@workos-inc/node@9.1.0':
     dependencies:
       eventemitter3: 5.0.4
 
@@ -11231,9 +11224,9 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ai@6.0.182(zod@4.4.3):
+  ai@6.0.183(zod@4.4.3):
     dependencies:
-      '@ai-sdk/gateway': 3.0.114(zod@4.4.3)
+      '@ai-sdk/gateway': 3.0.115(zod@4.4.3)
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
       '@opentelemetry/api': 1.9.1

@@ -11,7 +11,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@ai-sdk/openai": "3.0.63",
+    "@ai-sdk/openai": "3.0.64",
     "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "1.4.1",
     "@chat-adapter/github": "4.28.1",
@@ -33,9 +33,9 @@
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.3.3",
     "@vercel/sandbox": "1.10.2",
-    "@workos-inc/authkit-nextjs": "4.0.1",
+    "@workos-inc/authkit-nextjs": "4.1.0",
     "@xyflow/react": "^12.10.2",
-    "ai": "6.0.182",
+    "ai": "6.0.183",
     "ansi-to-react": "^6.2.6",
     "chat": "4.28.1",
     "class-variance-authority": "0.7.1",
