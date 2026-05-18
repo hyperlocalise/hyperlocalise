@@ -2,12 +2,12 @@ import "dotenv/config";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { FileStorageAdapter, PutStoredObjectInput } from "@/lib/file-storage";
 import { createProjectTestFixture } from "../project/project.fixture";
+import { createMemoryFileStorageAdapter, ensureStoredFilesTestSchema } from "../file/file.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -17,33 +17,15 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
 
-function createMemoryFileStorageAdapter(): FileStorageAdapter {
-  return {
-    provider: "vercel_blob",
-    async put(input: PutStoredObjectInput) {
-      return {
-        provider: "vercel_blob",
-        key: input.key,
-        url: `https://blob.example/${input.key}`,
-        downloadUrl: `https://blob.example/${input.key}?download=1`,
-        contentType: input.contentType,
-        etag: "test-etag",
-      };
-    },
-    async get() {
-      return null;
-    },
-    async delete() {},
-    async getSignedUrl() {
-      return null;
-    },
-  };
-}
-
 const app = createApp({ fileStorageAdapter: createMemoryFileStorageAdapter() });
 const client = testClient(app);
 const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
   createProjectTestFixture(client);
+
+beforeAll(async () => {
+  await db.$client.query("select 1");
+  await ensureStoredFilesTestSchema();
+});
 
 afterEach(async () => {
   vi.clearAllMocks();
