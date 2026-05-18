@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { TypedResponse } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 /**
  * ---------------------------------------------------------------------------
@@ -95,7 +97,16 @@ export type ApiErrorCode =
 
 /** Context type accepted by the helper functions below. */
 export type JsonContext = {
-  json(body: Record<string, unknown>, status: number): Response;
+  json<T extends object, U extends ContentfulStatusCode>(
+    body: T,
+    status: U,
+  ): Response & TypedResponse<T, U, "json">;
+};
+
+export type ApiErrorResponseBody<Code extends string = string, Details = unknown> = {
+  error: Code;
+  message?: string;
+  details?: Details;
 };
 
 /**
@@ -106,13 +117,13 @@ export type JsonContext = {
  * responses that pre-date the `{ error, message, details }` convention.
  * New routes should prefer nesting extra context inside `details`.
  */
-export function apiErrorResponse(
+export function apiErrorResponse<S extends ContentfulStatusCode, Code extends string>(
   c: JsonContext,
-  status: number,
-  code: string,
+  status: S,
+  code: Code,
   message?: string,
   details?: unknown,
-) {
+): Response & TypedResponse<ApiErrorResponseBody<Code>, S, "json"> {
   return c.json(
     {
       error: code,
@@ -128,7 +139,7 @@ export function badRequestResponse(
   code = "bad_request",
   message?: string,
   details?: unknown,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 400, "json"> {
   return apiErrorResponse(c, 400, code, message, details);
 }
 
@@ -136,15 +147,23 @@ export function unauthorizedResponse(
   c: JsonContext,
   code = "unauthorized",
   message?: string,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 401, "json"> {
   return apiErrorResponse(c, 401, code, message);
 }
 
-export function forbiddenResponse(c: JsonContext, code = "forbidden", message?: string): Response {
+export function forbiddenResponse(
+  c: JsonContext,
+  code = "forbidden",
+  message?: string,
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 403, "json"> {
   return apiErrorResponse(c, 403, code, message);
 }
 
-export function notFoundResponse(c: JsonContext, code = "not_found", message?: string): Response {
+export function notFoundResponse(
+  c: JsonContext,
+  code = "not_found",
+  message?: string,
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 404, "json"> {
   return apiErrorResponse(c, 404, code, message);
 }
 
@@ -153,7 +172,7 @@ export function conflictResponse(
   code = "resource_conflict",
   message?: string,
   details?: unknown,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 409, "json"> {
   return apiErrorResponse(c, 409, code, message, details);
 }
 
@@ -161,7 +180,7 @@ export function payloadTooLargeResponse(
   c: JsonContext,
   code = "payload_too_large",
   message?: string,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 413, "json"> {
   return apiErrorResponse(c, 413, code, message);
 }
 
@@ -169,7 +188,7 @@ export function tooManyRequestsResponse(
   c: JsonContext,
   code = "rate_limited",
   message?: string,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 429, "json"> {
   return apiErrorResponse(c, 429, code, message);
 }
 
@@ -177,7 +196,7 @@ export function internalErrorResponse(
   c: JsonContext,
   code = "internal_error",
   message?: string,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 500, "json"> {
   return apiErrorResponse(c, 500, code, message);
 }
 
@@ -185,7 +204,7 @@ export function serviceUnavailableResponse(
   c: JsonContext,
   code = "service_unavailable",
   message?: string,
-): Response {
+): Response & TypedResponse<ApiErrorResponseBody<typeof code>, 503, "json"> {
   return apiErrorResponse(c, 503, code, message);
 }
 

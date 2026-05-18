@@ -281,13 +281,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         }
 
         if (inferredFileFormat !== payload.fileInput.fileFormat) {
-          return badRequestResponse(
-            c,
-            "source_file_format_mismatch",
-            "Source file format does not match the requested format",
+          return c.json(
             {
+              error: "source_file_format_mismatch",
+              message: "Source file format does not match the requested format",
               expectedFileFormat: inferredFileFormat,
             },
+            400,
           );
         }
       }

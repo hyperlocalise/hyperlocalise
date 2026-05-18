@@ -2,6 +2,8 @@ import type { Context } from "hono";
 import { validator } from "hono/validator";
 import type { z } from "zod";
 
+import { createLogger } from "@/lib/log";
+
 import {
   badRequestResponse,
   internalErrorResponse,
@@ -10,6 +12,8 @@ import {
 } from "./response.schema";
 
 export * from "./response.schema";
+
+const logger = createLogger("api-errors");
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -78,7 +82,7 @@ export function handleUnexpectedError(err: Error, c: Context): Response {
   }
 
   // Log the full error for observability; return a safe message to the client.
-  console.error("Unhandled API error:", err);
+  logger.error({ error: err.message, stack: err.stack }, "Unhandled API error");
 
   return internalErrorResponse(
     c as unknown as JsonContext,
