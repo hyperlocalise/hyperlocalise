@@ -72,6 +72,17 @@ describe("GitHub agent request idempotency", () => {
     });
   });
 
+  it("does not treat a claimed request as already queued", async () => {
+    const request = buildGitHubFixRequestInput(createEvent());
+
+    const first = await claimGitHubAgentRequest(request);
+    expect(first.alreadyQueued).toBe(false);
+
+    await expect(claimGitHubAgentRequest(request)).rejects.toThrow(
+      "GitHub agent request is claimed but not enqueued",
+    );
+  });
+
   it("allows a different comment, scope, or request kind to claim a new request", async () => {
     const first = await claimGitHubAgentRequest(buildGitHubFixRequestInput(createEvent()));
     const differentComment = await claimGitHubAgentRequest(
@@ -110,5 +121,20 @@ describe("GitHub agent request idempotency", () => {
     expect(differentComment.alreadyQueued).toBe(false);
     expect(differentScope.alreadyQueued).toBe(false);
     expect(differentKind.alreadyQueued).toBe(false);
+  });
+
+  it("uses a numeric fallback comment id when webhook ids are missing", () => {
+    const request = buildGitHubFixRequestInput(
+      createEvent({
+        trigger: {
+          event: "pull_request_review_comment",
+          action: "created",
+          deliveryId: null,
+          commentId: null,
+        },
+      }),
+    );
+
+    expect(request.commentId).toBe("0");
   });
 });

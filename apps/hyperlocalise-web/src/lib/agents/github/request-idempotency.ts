@@ -41,7 +41,7 @@ function buildFixScopeKey(event: GitHubFixRequestedEventData) {
 }
 
 function buildCommentId(event: GitHubFixRequestedEventData) {
-  return String(event.trigger.commentId ?? event.trigger.deliveryId ?? "unknown");
+  return String(event.trigger.commentId ?? event.trigger.deliveryId ?? 0);
 }
 
 export function buildGitHubFixRequestInput(
@@ -83,6 +83,7 @@ export async function claimGitHubAgentRequest(
   const [existing] = await db
     .select({
       id: schema.githubAgentRequests.id,
+      status: schema.githubAgentRequests.status,
       workflowRunIds: schema.githubAgentRequests.workflowRunIds,
     })
     .from(schema.githubAgentRequests)
@@ -102,11 +103,26 @@ export async function claimGitHubAgentRequest(
     throw new Error("failed to read claimed GitHub agent request");
   }
 
+  if (existing.status !== "enqueued") {
+    throw new Error("GitHub agent request is claimed but not enqueued");
+  }
+
   return {
     alreadyQueued: true,
     requestId: existing.id,
     workflowRunIds: existing.workflowRunIds ?? [],
   };
+}
+
+export async function releaseGitHubAgentRequestClaim(requestId: string) {
+  await db
+    .delete(schema.githubAgentRequests)
+    .where(
+      and(
+        eq(schema.githubAgentRequests.id, requestId),
+        eq(schema.githubAgentRequests.status, "claimed"),
+      ),
+    );
 }
 
 export async function markGitHubAgentRequestEnqueued(input: {

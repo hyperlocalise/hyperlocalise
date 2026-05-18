@@ -6,6 +6,7 @@ import {
   buildGitHubFixRequestInput,
   claimGitHubAgentRequest,
   markGitHubAgentRequestEnqueued,
+  releaseGitHubAgentRequestClaim,
 } from "@/lib/agents/github/request-idempotency";
 
 type CreateGitHubFixToolInput = {
@@ -31,9 +32,9 @@ export function createGitHubFixTools({ event, queue }: CreateGitHubFixToolInput)
           };
         }
 
-        enqueued = true;
         const claim = await claimGitHubAgentRequest(buildGitHubFixRequestInput(event));
         if (claim.alreadyQueued) {
+          enqueued = true;
           return {
             success: true,
             alreadyQueued: true,
@@ -44,11 +45,18 @@ export function createGitHubFixTools({ event, queue }: CreateGitHubFixToolInput)
           };
         }
 
-        const result = await queue.enqueue(event);
+        let result: Awaited<ReturnType<GitHubFixQueue["enqueue"]>>;
+        try {
+          result = await queue.enqueue(event);
+        } catch (error) {
+          await releaseGitHubAgentRequestClaim(claim.requestId);
+          throw error;
+        }
         await markGitHubAgentRequestEnqueued({
           requestId: claim.requestId,
           workflowRunIds: result.ids,
         });
+        enqueued = true;
 
         return {
           success: true,

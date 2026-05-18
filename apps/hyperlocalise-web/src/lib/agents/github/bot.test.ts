@@ -11,6 +11,7 @@ const {
   claimGitHubAgentRequestMock,
   loadMessagesMock,
   markGitHubAgentRequestEnqueuedMock,
+  releaseGitHubAgentRequestClaimMock,
   selectMock,
 } = vi.hoisted(() => ({
   addInteractionMessageMock: vi.fn(),
@@ -32,6 +33,7 @@ const {
   findInteractionBySourceThreadIdMock: vi.fn(),
   loadMessagesMock: vi.fn(async () => [{ role: "user", content: "@hyperlocalise fix" }]),
   markGitHubAgentRequestEnqueuedMock: vi.fn(),
+  releaseGitHubAgentRequestClaimMock: vi.fn(),
   selectMock: vi.fn(),
 }));
 
@@ -64,6 +66,7 @@ vi.mock("@/lib/agents/github/request-idempotency", () => ({
   buildGitHubFixRequestInput: buildGitHubFixRequestInputMock,
   claimGitHubAgentRequest: claimGitHubAgentRequestMock,
   markGitHubAgentRequestEnqueued: markGitHubAgentRequestEnqueuedMock,
+  releaseGitHubAgentRequestClaim: releaseGitHubAgentRequestClaimMock,
 }));
 
 vi.mock("@/lib/agents/runtime/state", () => ({
@@ -314,5 +317,46 @@ describe("GitHub command routing", () => {
     expect(queue.enqueue).not.toHaveBeenCalled();
     expect(markGitHubAgentRequestEnqueuedMock).not.toHaveBeenCalled();
     expect(posts).toEqual(["This fix request is already queued."]);
+  });
+
+  it("does not set the in-memory enqueue guard when queueing fails", async () => {
+    const { posts, thread } = createThread();
+    const queueError = new Error("queue unavailable");
+    const queue = {
+      enqueue: vi
+        .fn()
+        .mockRejectedValueOnce(queueError)
+        .mockResolvedValueOnce({ ids: ["run_retry"] }),
+    };
+    createHyperlocaliseAgentMock.mockImplementationOnce((settings: unknown) => {
+      const { tools } = settings as {
+        tools: {
+          enqueueGitHubFix: { execute?: (input: Record<string, never>) => Promise<unknown> };
+        };
+      };
+      return {
+        generate: vi.fn(async () => {
+          await expect(tools.enqueueGitHubFix.execute?.({})).rejects.toThrow("queue unavailable");
+          const toolResult = await tools.enqueueGitHubFix.execute?.({});
+          expect(toolResult).toEqual(
+            expect.objectContaining({
+              workflowRunIds: ["run_retry"],
+            }),
+          );
+          return { text: "Queued the fix workflow." };
+        }),
+      };
+    });
+
+    await handleMention(thread, createMessage(), { queue });
+
+    expect(claimGitHubAgentRequestMock).toHaveBeenCalledTimes(2);
+    expect(queue.enqueue).toHaveBeenCalledTimes(2);
+    expect(releaseGitHubAgentRequestClaimMock).toHaveBeenCalledWith("request_123");
+    expect(markGitHubAgentRequestEnqueuedMock).toHaveBeenCalledWith({
+      requestId: "request_123",
+      workflowRunIds: ["run_retry"],
+    });
+    expect(posts).toEqual(["Queued the fix workflow."]);
   });
 });
