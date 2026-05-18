@@ -8,9 +8,9 @@ import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
-const inboundEmailDomain = "inbox.hyperlocalise.com";
-
 import { updateEmailAgentBodySchema } from "./agent-email.schema";
+
+const inboundEmailDomain = "inbox.hyperlocalise.com";
 
 function normalizeSlug(value: string | null | undefined) {
   const normalized = (value ?? "")
