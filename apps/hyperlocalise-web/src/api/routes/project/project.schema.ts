@@ -26,6 +26,28 @@ export const updateProjectBodySchema = z
     },
   );
 
+export const projectRecordSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  createdByUserId: z.string().nullable(),
+  name: z.string(),
+  description: z.string(),
+  translationContext: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const projectResponseSchema = z.object({
+  project: projectRecordSchema,
+});
+
+export const projectsResponseSchema = z.object({
+  projects: z.array(projectRecordSchema),
+});
+
 export type ProjectIdParams = z.infer<typeof projectIdParamsSchema>;
 export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
+export type ProjectRecord = z.infer<typeof projectRecordSchema>;
+export type ProjectResponse = z.infer<typeof projectResponseSchema>;
+export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
