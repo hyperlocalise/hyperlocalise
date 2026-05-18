@@ -69,8 +69,8 @@ export const glossaryRecordSchema = z.object({
   sourceLocale: z.string(),
   targetLocale: z.string(),
   status: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export const glossaryResponseSchema = z.object({

@@ -7,7 +7,7 @@ import {
   type JsonContext,
 } from "@/api/errors";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { db, schema } from "@/lib/database";
+import { schema } from "@/lib/database";
 
 const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
@@ -32,14 +32,4 @@ export function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
     eq(schema.glossaries.id, glossaryId),
     eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
   );
-}
-
-export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string) {
-  const [glossary] = await db
-    .select({ id: schema.glossaries.id })
-    .from(schema.glossaries)
-    .where(ownedGlossaryWhere(auth, glossaryId))
-    .limit(1);
-
-  return glossary ?? null;
 }

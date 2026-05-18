@@ -187,5 +187,3 @@ export function createGlossaryRoutes() {
       return c.body(null, 204);
     });
 }
-
-export const glossaryRoutes = createGlossaryRoutes();
