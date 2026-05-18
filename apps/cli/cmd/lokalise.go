@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +31,20 @@ type lokaliseGlossaryDownloadOptions struct {
 	timeoutSeconds int
 }
 
+type lokaliseDownloadSourcesOptions struct {
+	configPath     string
+	projectID      string
+	sourceLocale   string
+	format         string
+	output         string
+	tokenEnv       string
+	apiBaseURL     string
+	timeoutSeconds int
+	allPlatforms   bool
+	force          bool
+	dryRun         bool
+}
+
 type lokaliseUploadSourcesOptions struct {
 	configPath          string
 	projectID           string
@@ -55,11 +68,19 @@ type lokaliseGlossaryCSVWriter interface {
 	WriteGlossaryCSV(context.Context, lokalise.GlossaryDownloadInput, io.Writer) (lokalise.GlossaryDownloadResult, error)
 }
 
+type lokaliseSourceDownloader interface {
+	DownloadSourceFile(context.Context, lokalise.SourceDownloadInput) (lokalise.SourceDownloadResult, error)
+}
+
 type lokaliseSourceUploader interface {
 	UploadSourceFile(context.Context, lokalise.SourceUploadInput) (lokalise.SourceUploadResult, error)
 }
 
 var newLokaliseGlossaryCSVWriter = func(cfg lokalise.Config) (lokaliseGlossaryCSVWriter, error) {
+	return lokalise.NewHTTPClient(cfg)
+}
+
+var newLokaliseSourceDownloader = func(cfg lokalise.Config) (lokaliseSourceDownloader, error) {
 	return lokalise.NewHTTPClient(cfg)
 }
 
@@ -72,9 +93,160 @@ func newLokaliseCmd() *cobra.Command {
 		Use:   "lokalise",
 		Short: "Lokalise workflow commands",
 	}
+	cmd.AddCommand(newLokaliseDownloadCmd())
 	cmd.AddCommand(newLokaliseGlossaryCmd())
 	cmd.AddCommand(newLokaliseUploadCmd())
 	return cmd
+}
+
+func newLokaliseDownloadCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "download",
+		Short: "download files from Lokalise",
+	}
+	cmd.AddCommand(newLokaliseDownloadSourcesCmd())
+	return cmd
+}
+
+func newLokaliseDownloadSourcesCmd() *cobra.Command {
+	o := lokaliseDownloadSourcesOptions{}
+	cmd := &cobra.Command{
+		Use:          "sources",
+		Short:        "download source files from Lokalise",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executeLokaliseDownloadSources(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n.yml with storage.adapter=lokalise")
+	cmd.Flags().StringVar(&o.projectID, "project-id", "", "Lokalise project ID; overrides storage.config.projectID")
+	cmd.Flags().StringVar(&o.sourceLocale, "source-locale", "", "Lokalise source language ISO to export")
+	cmd.Flags().StringVar(&o.format, "format", "", "Lokalise file format to export")
+	cmd.Flags().StringVarP(&o.output, "output", "o", "", "output bundle path; omit or use - for stdout")
+	cmd.Flags().StringVar(&o.tokenEnv, "token-env", "", "environment variable containing the Lokalise API token")
+	cmd.Flags().StringVar(&o.apiBaseURL, "api-base-url", "", "Lokalise API base URL")
+	cmd.Flags().IntVar(&o.timeoutSeconds, "timeout-seconds", 0, "HTTP timeout in seconds")
+	cmd.Flags().BoolVar(&o.allPlatforms, "all-platforms", false, "include all Lokalise platforms in the export")
+	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
+	return cmd
+}
+
+func executeLokaliseDownloadSources(cmd *cobra.Command, o lokaliseDownloadSourcesOptions) error {
+	cfg, input, err := resolveLokaliseDownloadSourcesConfig(cmd, o, !o.dryRun)
+	if err != nil {
+		return err
+	}
+
+	outputPath := strings.TrimSpace(o.output)
+	if o.dryRun {
+		destination := outputPath
+		if destination == "" {
+			destination = "-"
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=lokalise-download-sources project_id=%s source_locale=%s format=%s output=%s\n", input.ProjectID, input.SourceLocale, input.FileFormat, destination)
+		return err
+	}
+	if err := validateLokaliseDownloadSourcesOutputPath(outputPath, o.force); err != nil {
+		return err
+	}
+
+	client, err := newLokaliseSourceDownloader(cfg)
+	if err != nil {
+		return err
+	}
+	result, err := client.DownloadSourceFile(backgroundContext(), input)
+	if err != nil {
+		return fmt.Errorf("lokalise download sources: %w", err)
+	}
+
+	if outputPath == "" || outputPath == "-" {
+		_, err := cmd.OutOrStdout().Write(result.Content)
+		return err
+	}
+	if err := writeLokaliseDownloadedSource(outputPath, result.Content, o.force); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", outputPath, len(result.Content), result.SourceLocale, result.Format)
+	return err
+}
+
+func resolveLokaliseDownloadSourcesConfig(cmd *cobra.Command, o lokaliseDownloadSourcesOptions, requireAuth bool) (lokalise.Config, lokalise.SourceDownloadInput, error) {
+	cfg := lokalise.Config{
+		ProjectID:      strings.TrimSpace(o.projectID),
+		APITokenEnv:    strings.TrimSpace(o.tokenEnv),
+		APIBaseURL:     strings.TrimSpace(o.apiBaseURL),
+		SourceLanguage: strings.TrimSpace(o.sourceLocale),
+		TimeoutSeconds: o.timeoutSeconds,
+	}
+
+	if strings.TrimSpace(o.configPath) != "" {
+		loaded, err := loadLokaliseDownloadSourcesStorageConfig(o.configPath)
+		if err != nil {
+			return lokalise.Config{}, lokalise.SourceDownloadInput{}, err
+		}
+		if !lokaliseFlagChanged(cmd, "project-id") && cfg.ProjectID == "" {
+			cfg.ProjectID = loaded.ProjectID
+		}
+		if !lokaliseFlagChanged(cmd, "token-env") && cfg.APITokenEnv == "" {
+			cfg.APITokenEnv = loaded.APITokenEnv
+		}
+		if !lokaliseFlagChanged(cmd, "api-base-url") && cfg.APIBaseURL == "" {
+			cfg.APIBaseURL = loaded.APIBaseURL
+		}
+		if !lokaliseFlagChanged(cmd, "timeout-seconds") && cfg.TimeoutSeconds <= 0 {
+			cfg.TimeoutSeconds = loaded.TimeoutSeconds
+		}
+		if !lokaliseFlagChanged(cmd, "source-locale") && cfg.SourceLanguage == "" {
+			cfg.SourceLanguage = loaded.SourceLanguage
+		}
+		// Config.APIToken is json:"-"; ResolveConfig fills it from the environment when auth is required.
+	}
+
+	format := strings.TrimSpace(o.format)
+	if strings.TrimSpace(cfg.ProjectID) == "" {
+		return lokalise.Config{}, lokalise.SourceDownloadInput{}, fmt.Errorf("lokalise download sources: --project-id is required (or projectID in --config)")
+	}
+	if strings.TrimSpace(cfg.SourceLanguage) == "" {
+		return lokalise.Config{}, lokalise.SourceDownloadInput{}, fmt.Errorf("lokalise download sources: --source-locale is required (or sourceLanguage in --config)")
+	}
+	if format == "" {
+		return lokalise.Config{}, lokalise.SourceDownloadInput{}, fmt.Errorf("lokalise download sources: --format is required")
+	}
+
+	if requireAuth {
+		resolved, err := lokalise.ResolveConfig(cfg)
+		if err != nil {
+			return lokalise.Config{}, lokalise.SourceDownloadInput{}, fmt.Errorf("lokalise download sources: %w", err)
+		}
+		cfg = resolved
+	}
+
+	input := lokalise.SourceDownloadInput{
+		ProjectID:    strings.TrimSpace(cfg.ProjectID),
+		SourceLocale: strings.TrimSpace(cfg.SourceLanguage),
+		FileFormat:   format,
+		AllPlatforms: o.allPlatforms,
+	}
+	return cfg, input, nil
+}
+
+func loadLokaliseDownloadSourcesStorageConfig(configPath string) (lokalise.Config, error) {
+	cfg, err := i18nconfig.Load(configPath)
+	if err != nil {
+		return lokalise.Config{}, fmt.Errorf("lokalise download sources: load config: %w", err)
+	}
+	if cfg.Storage == nil {
+		return lokalise.Config{}, fmt.Errorf("lokalise download sources: storage config is required")
+	}
+	if !strings.EqualFold(strings.TrimSpace(cfg.Storage.Adapter), lokalise.AdapterName) {
+		return lokalise.Config{}, fmt.Errorf("lokalise download sources: storage.adapter must be %q", lokalise.AdapterName)
+	}
+	parsed, err := lokalise.DecodeConfig(cfg.Storage.Config)
+	if err != nil {
+		return lokalise.Config{}, fmt.Errorf("lokalise download sources: %w", err)
+	}
+	return parsed, nil
 }
 
 func newLokaliseGlossaryCmd() *cobra.Command {
@@ -260,9 +432,9 @@ func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSour
 		if !strings.EqualFold(strings.TrimSpace(loaded.Storage.Adapter), lokalise.AdapterName) {
 			return lokalise.Config{}, "", fmt.Errorf("lokalise upload sources: --config storage.adapter must be %q", lokalise.AdapterName)
 		}
-		decoded, err := decodeLokaliseStorageConfig(loaded.Storage.Config)
+		decoded, err := lokalise.DecodeConfig(loaded.Storage.Config)
 		if err != nil {
-			return lokalise.Config{}, "", err
+			return lokalise.Config{}, "", fmt.Errorf("lokalise upload sources: %w", err)
 		}
 		cfg = decoded
 	}
@@ -300,27 +472,6 @@ func resolveLokaliseUploadSourcesConfig(cmd *cobra.Command, o lokaliseUploadSour
 		cfg.APITokenEnv = defaultLokaliseAPITokenEnv
 	}
 	return cfg, strings.TrimSpace(cfg.SourceLanguage), nil
-}
-
-func decodeLokaliseStorageConfig(raw json.RawMessage) (lokalise.Config, error) {
-	if len(raw) == 0 {
-		return lokalise.Config{}, nil
-	}
-	var rawMap map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &rawMap); err != nil {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
-	}
-	for key := range rawMap {
-		if strings.EqualFold(key, "apiToken") {
-			return lokalise.Config{}, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultLokaliseAPITokenEnv)
-		}
-	}
-
-	var cfg lokalise.Config
-	if err := json.Unmarshal(raw, &cfg); err != nil {
-		return lokalise.Config{}, fmt.Errorf("lokalise config: decode: %w", err)
-	}
-	return cfg, nil
 }
 
 func validateLokaliseSourceFiles(paths []string, format string) ([]string, error) {
@@ -389,16 +540,16 @@ func resolveLokaliseGlossaryConfig(o lokaliseGlossaryDownloadOptions) (lokalise.
 		return lokalise.Config{}, fmt.Errorf("lokalise glossary download: --project-id is required unless --config points to a Lokalise storage config")
 	}
 	if cfg.APITokenEnv == "" {
-		cfg.APITokenEnv = "LOKALISE_API_TOKEN"
+		cfg.APITokenEnv = lokalise.DefaultTokenEnvName
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
 		token := strings.TrimSpace(os.Getenv(cfg.APITokenEnv))
-		if token == "" && cfg.APITokenEnv != "LOKALISE_API_TOKEN" {
-			token = strings.TrimSpace(os.Getenv("LOKALISE_API_TOKEN"))
+		if token == "" && cfg.APITokenEnv != lokalise.DefaultTokenEnvName {
+			token = strings.TrimSpace(os.Getenv(lokalise.DefaultTokenEnvName))
 		}
 		if token == "" {
-			if cfg.APITokenEnv != "LOKALISE_API_TOKEN" {
-				return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s or LOKALISE_API_TOKEN)", cfg.APITokenEnv)
+			if cfg.APITokenEnv != lokalise.DefaultTokenEnvName {
+				return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s or %s)", cfg.APITokenEnv, lokalise.DefaultTokenEnvName)
 			}
 			return lokalise.Config{}, fmt.Errorf("lokalise glossary download: API token is required (%s)", cfg.APITokenEnv)
 		}
@@ -440,4 +591,84 @@ func loadLokaliseStorageConfig(configPath string) (lokalise.Config, error) {
 func lokaliseFlagChanged(cmd *cobra.Command, name string) bool {
 	flag := cmd.Flags().Lookup(name)
 	return flag != nil && flag.Changed
+}
+
+func writeLokaliseDownloadedSource(path string, content []byte, force bool) error {
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("lokalise download sources: mkdir output directory: %w", err)
+		}
+	}
+	if force {
+		return writeLokaliseDownloadedFileAtomic("lokalise download sources", path, content, 0o644)
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		if os.IsExist(err) {
+			return fmt.Errorf("lokalise download sources: output file %q already exists; use --force to overwrite", path)
+		}
+		return fmt.Errorf("lokalise download sources: open output file %q: %w", path, err)
+	}
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return fmt.Errorf("lokalise download sources: write output file %q: %w", path, err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return fmt.Errorf("lokalise download sources: close output file %q: %w", path, err)
+	}
+	return nil
+}
+
+func writeLokaliseDownloadedFileAtomic(action, path string, content []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	file, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("%s: create temp output file %q: %w", action, path, err)
+	}
+	tempPath := file.Name()
+	renamed := false
+	defer func() {
+		if !renamed {
+			_ = os.Remove(tempPath)
+		}
+	}()
+	if _, err := file.Write(content); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("%s: write temp output file %q: %w", action, path, err)
+	}
+	if err := file.Chmod(perm); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("%s: chmod temp output file %q: %w", action, path, err)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("%s: sync temp output file %q: %w", action, path, err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("%s: close temp output file %q: %w", action, path, err)
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("%s: replace output file %q: %w", action, path, err)
+	}
+	renamed = true
+	return nil
+}
+
+func validateLokaliseDownloadSourcesOutputPath(path string, force bool) error {
+	if path == "" || path == "-" {
+		return nil
+	}
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("lokalise download sources: output file %q is a directory", path)
+		}
+		if !force {
+			return fmt.Errorf("lokalise download sources: output file %q already exists; use --force to overwrite", path)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("lokalise download sources: stat output file %q: %w", path, err)
+	}
+	return nil
 }

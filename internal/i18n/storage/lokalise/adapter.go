@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	AdapterName         = "lokalise"
-	defaultTokenEnvName = "LOKALISE_API_TOKEN"
+	AdapterName = "lokalise"
+	// DefaultTokenEnvName is the fallback environment variable for Lokalise API tokens.
+	DefaultTokenEnvName = "LOKALISE_API_TOKEN"
 )
 
 type Config struct {
@@ -84,31 +85,44 @@ func ParseConfig(raw json.RawMessage) (Config, error) {
 	if len(raw) == 0 {
 		return cfg, fmt.Errorf("lokalise config: must not be empty")
 	}
+	cfg, err := DecodeConfig(raw)
+	if err != nil {
+		return cfg, err
+	}
+
+	return ResolveConfig(cfg)
+}
+
+// DecodeConfig decodes Lokalise storage config without resolving environment auth.
+func DecodeConfig(raw json.RawMessage) (Config, error) {
+	var cfg Config
+	if len(raw) == 0 {
+		return cfg, nil
+	}
 	var rawMap map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &rawMap); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
 	for key := range rawMap {
 		if strings.EqualFold(key, "apiToken") {
-			return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", defaultTokenEnvName)
+			return cfg, fmt.Errorf("lokalise config: apiToken is not supported; use %s", DefaultTokenEnvName)
 		}
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return cfg, fmt.Errorf("lokalise config: decode: %w", err)
 	}
-
-	return ResolveConfig(cfg)
+	return cfg, nil
 }
 
-// ResolveConfig applies Lokalise defaults and validates required auth fields.
+// ResolveConfig applies Lokalise defaults, resolves token-based auth, and validates required fields.
 func ResolveConfig(cfg Config) (Config, error) {
 	if strings.TrimSpace(cfg.APITokenEnv) == "" {
-		cfg.APITokenEnv = defaultTokenEnvName
+		cfg.APITokenEnv = DefaultTokenEnvName
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
 		cfg.APIToken = os.Getenv(cfg.APITokenEnv)
-		if strings.TrimSpace(cfg.APIToken) == "" && cfg.APITokenEnv != defaultTokenEnvName {
-			cfg.APIToken = os.Getenv(defaultTokenEnvName)
+		if strings.TrimSpace(cfg.APIToken) == "" && cfg.APITokenEnv != DefaultTokenEnvName {
+			cfg.APIToken = os.Getenv(DefaultTokenEnvName)
 		}
 	}
 	if cfg.TimeoutSeconds <= 0 {
@@ -126,7 +140,14 @@ func validateConfig(cfg Config) error {
 		return fmt.Errorf("lokalise config: projectID is required")
 	}
 	if strings.TrimSpace(cfg.APIToken) == "" {
-		return fmt.Errorf("lokalise config: API token is required (%s)", defaultTokenEnvName)
+		tokenEnv := strings.TrimSpace(cfg.APITokenEnv)
+		if tokenEnv == "" {
+			tokenEnv = DefaultTokenEnvName
+		}
+		if tokenEnv != DefaultTokenEnvName {
+			return fmt.Errorf("lokalise config: API token is required (%s or %s)", tokenEnv, DefaultTokenEnvName)
+		}
+		return fmt.Errorf("lokalise config: API token is required (%s)", DefaultTokenEnvName)
 	}
 	return nil
 }

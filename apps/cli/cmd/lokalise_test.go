@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -141,6 +142,231 @@ func TestLokaliseGlossaryDownloadRequiresProjectIDOrConfig(t *testing.T) {
 	}
 }
 
+func TestLokaliseDownloadSourcesDryRun(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--output", "source.zip", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download dry-run: %v", err)
+	}
+	output := out.String()
+	if !strings.Contains(output, "dry-run action=lokalise-download-sources") ||
+		!strings.Contains(output, "project_id=project-1") ||
+		!strings.Contains(output, "source_locale=en") ||
+		!strings.Contains(output, "output=source.zip") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+}
+
+func TestLokaliseDownloadSourcesWritesStdout(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en", Format: "json", Content: []byte("zip-bytes")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(cfg lokalise.Config) (lokaliseSourceDownloader, error) {
+		if cfg.ProjectID != "project-1" || cfg.APIToken != "secret" {
+			t.Fatalf("unexpected config: %+v", cfg)
+		}
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download: %v", err)
+	}
+	if got := out.String(); got != "zip-bytes" {
+		t.Fatalf("unexpected stdout content: %q", got)
+	}
+	if !fake.called {
+		t.Fatalf("expected downloader to be called")
+	}
+	if fake.in.ProjectID != "project-1" || fake.in.SourceLocale != "en" || fake.in.FileFormat != "json" {
+		t.Fatalf("unexpected input: %+v", fake.in)
+	}
+	if fake.in.AllPlatforms {
+		t.Fatalf("all platforms should be opt-in, got input: %+v", fake.in)
+	}
+}
+
+func TestLokaliseDownloadSourcesAllPlatformsFlag(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en", Format: "json", Content: []byte("zip-bytes")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(lokalise.Config) (lokaliseSourceDownloader, error) {
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--all-platforms", "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download: %v", err)
+	}
+	if !fake.in.AllPlatforms {
+		t.Fatalf("expected all platforms input, got %+v", fake.in)
+	}
+}
+
+func TestLokaliseDownloadSourcesWritesOutputFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en", Format: "json", Content: []byte("zip-bytes")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(lokalise.Config) (lokaliseSourceDownloader, error) {
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	outputPath := filepath.Join(t.TempDir(), "downloads", "source.zip")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--output", outputPath, "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != "zip-bytes" {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "downloaded file="+outputPath) || !strings.Contains(out.String(), "bytes=9") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestLokaliseDownloadSourcesRefusesOverwriteWithoutForce(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	outputPath := filepath.Join(t.TempDir(), "source.zip")
+	if err := os.WriteFile(outputPath, []byte("old"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+
+	fake := &fakeLokaliseSourceDownloader{}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(lokalise.Config) (lokaliseSourceDownloader, error) {
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--output", outputPath, "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected overwrite error")
+	}
+	if !strings.Contains(err.Error(), "already exists; use --force to overwrite") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fake.called {
+		t.Fatalf("downloader should not be called when output already exists")
+	}
+}
+
+func TestLokaliseDownloadSourcesForceOverwritesOutputFile(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_TEST_TOKEN", "secret")
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en", Format: "json", Content: []byte("new")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(lokalise.Config) (lokaliseSourceDownloader, error) {
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	outputPath := filepath.Join(t.TempDir(), "source.zip")
+	if err := os.WriteFile(outputPath, []byte("old"), 0o644); err != nil {
+		t.Fatalf("write existing output: %v", err)
+	}
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--output", outputPath, "--force", "--token-env", "LOKALISE_TEST_TOKEN"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download with force: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != "new" {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+}
+
+func TestLokaliseDownloadSourcesUsesConfig(t *testing.T) {
+	t.Setenv("LOKALISE_CONFIG_TOKEN", "cfg-secret")
+	configPath := writeLokaliseDownloadConfig(t)
+	outputPath := filepath.Join(t.TempDir(), "source.zip")
+
+	fake := &fakeLokaliseSourceDownloader{
+		result: lokalise.SourceDownloadResult{SourceLocale: "en-US", Format: "json", Content: []byte("zip-bytes")},
+	}
+	oldFactory := newLokaliseSourceDownloader
+	newLokaliseSourceDownloader = func(cfg lokalise.Config) (lokaliseSourceDownloader, error) {
+		if cfg.ProjectID != "cfg-project" || cfg.SourceLanguage != "en-US" || cfg.APIToken != "cfg-secret" || cfg.APIBaseURL != "https://example.invalid/api2" || cfg.TimeoutSeconds != 7 {
+			t.Fatalf("unexpected config: %+v", cfg)
+		}
+		return fake, nil
+	}
+	defer func() { newLokaliseSourceDownloader = oldFactory }()
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--config", configPath, "--format", "json", "--output", outputPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute lokalise download from config: %v", err)
+	}
+	if fake.in.ProjectID != "cfg-project" || fake.in.SourceLocale != "en-US" {
+		t.Fatalf("unexpected input: %+v", fake.in)
+	}
+}
+
+func TestLokaliseDownloadSourcesTokenErrorListsFallback(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("LOKALISE_CUSTOM_TOKEN", "")
+	t.Setenv("LOKALISE_API_TOKEN", "")
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"lokalise", "download", "sources", "--project-id", "project-1", "--source-locale", "en", "--format", "json", "--token-env", "LOKALISE_CUSTOM_TOKEN"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected missing token error")
+	}
+	if !strings.Contains(err.Error(), "LOKALISE_CUSTOM_TOKEN or LOKALISE_API_TOKEN") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestLokaliseUploadSourcesDryRunValidatesFiles(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "en.json")
@@ -177,8 +403,8 @@ func TestLokaliseUploadSourcesRequiresFile(t *testing.T) {
 	}
 }
 
-func TestDecodeLokaliseStorageConfigRejectsInlineTokenCasing(t *testing.T) {
-	_, err := decodeLokaliseStorageConfig(json.RawMessage(`{"projectID":"project-1","APIToken":"inline"}`))
+func TestLokaliseDecodeConfigRejectsInlineTokenCasing(t *testing.T) {
+	_, err := lokalise.DecodeConfig(json.RawMessage(`{"projectID":"project-1","APIToken":"inline"}`))
 	if err == nil || !strings.Contains(err.Error(), "apiToken is not supported") {
 		t.Fatalf("expected inline token rejection, got %v", err)
 	}
@@ -365,6 +591,77 @@ func (f *fakeLokaliseGlossaryCSVWriter) WriteGlossaryCSV(_ context.Context, req 
 		return lokalise.GlossaryDownloadResult{}, err
 	}
 	return lokalise.GlossaryDownloadResult{Terms: 1, Rows: 1}, nil
+}
+
+type fakeLokaliseSourceDownloader struct {
+	result lokalise.SourceDownloadResult
+	err    error
+	in     lokalise.SourceDownloadInput
+	called bool
+}
+
+func (f *fakeLokaliseSourceDownloader) DownloadSourceFile(_ context.Context, in lokalise.SourceDownloadInput) (lokalise.SourceDownloadResult, error) {
+	f.called = true
+	f.in = in
+	if f.err != nil {
+		return lokalise.SourceDownloadResult{}, f.err
+	}
+	return f.result, nil
+}
+
+func writeLokaliseDownloadConfig(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	sourceDir := filepath.Join(dir, "lang")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "en-US.json"), []byte(`{"hello":"Hello"}`), 0o644); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	content := fmt.Sprintf(`{
+  "locales": {
+    "source": "en-US",
+    "targets": ["fr-FR"]
+  },
+  "buckets": {
+    "json": {
+      "files": [
+        {"from": %q, "to": %q}
+      ]
+    }
+  },
+  "groups": {
+    "default": {
+      "targets": ["fr-FR"],
+      "buckets": ["json"]
+    }
+  },
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "prompt": "Translate."
+      }
+    }
+  },
+  "storage": {
+    "adapter": "lokalise",
+    "config": {
+      "projectID": "cfg-project",
+      "apiTokenEnv": "LOKALISE_CONFIG_TOKEN",
+      "apiBaseURL": "https://example.invalid/api2",
+      "sourceLanguage": "en-US",
+      "timeoutSeconds": 7
+    }
+  }
+}`, "lang/en-US.json", "lang/fr-FR.json")
+	path := filepath.Join(dir, "i18n.jsonc")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	return path
 }
 
 type fakeLokaliseSourceUploader struct {
