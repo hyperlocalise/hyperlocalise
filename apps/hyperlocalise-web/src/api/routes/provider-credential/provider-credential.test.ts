@@ -22,37 +22,6 @@ const fixture = createProjectTestFixture(client);
 describe("providerCredentialRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await db.$client.query(`
-      DO $$
-      BEGIN
-        CREATE TYPE llm_provider AS ENUM ('openai', 'anthropic', 'gemini', 'groq', 'mistral');
-      EXCEPTION
-        WHEN duplicate_object THEN NULL;
-      END $$;
-    `);
-    await db.$client.query(`
-      CREATE TABLE IF NOT EXISTS organization_llm_provider_credentials (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-        organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
-        created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
-        updated_by_user_id uuid REFERENCES users(id) ON DELETE set null,
-        provider llm_provider NOT NULL,
-        default_model text NOT NULL,
-        masked_api_key_suffix text NOT NULL,
-        encryption_algorithm text NOT NULL,
-        ciphertext text NOT NULL,
-        iv text NOT NULL,
-        auth_tag text NOT NULL,
-        key_version integer DEFAULT 1 NOT NULL,
-        last_validated_at timestamp with time zone NOT NULL,
-        created_at timestamp with time zone DEFAULT now() NOT NULL,
-        updated_at timestamp with time zone DEFAULT now() NOT NULL
-      );
-    `);
-    await db.$client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS organization_llm_provider_credentials_org_key
-      ON organization_llm_provider_credentials (organization_id);
-    `);
   });
 
   afterEach(async () => {

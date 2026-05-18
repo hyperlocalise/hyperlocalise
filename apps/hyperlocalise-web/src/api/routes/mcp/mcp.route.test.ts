@@ -54,85 +54,6 @@ async function refreshToken(refreshToken: string) {
   });
 }
 
-async function ensureMcpSessionTable() {
-  await db.$client.query(`
-    CREATE TABLE IF NOT EXISTS mcp_sessions (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-      user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
-      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
-      scope text DEFAULT 'mcp' NOT NULL,
-      access_token_hash text NOT NULL,
-      refresh_token_hash text NOT NULL,
-      workos_access_token_encrypted text,
-      workos_refresh_token_encrypted text,
-      expires_at timestamp with time zone NOT NULL,
-      refresh_expires_at timestamp with time zone NOT NULL,
-      revoked_at timestamp with time zone,
-      created_at timestamp with time zone DEFAULT now() NOT NULL,
-      updated_at timestamp with time zone DEFAULT now() NOT NULL
-    );
-  `);
-  await db.$client.query(`
-    ALTER TABLE mcp_sessions
-    ADD COLUMN IF NOT EXISTS scope text DEFAULT 'mcp' NOT NULL;
-  `);
-  await db.$client.query(`
-    ALTER TABLE mcp_sessions
-    ADD COLUMN IF NOT EXISTS workos_access_token_encrypted text;
-  `);
-  await db.$client.query(`
-    ALTER TABLE mcp_sessions
-    ADD COLUMN IF NOT EXISTS workos_refresh_token_encrypted text;
-  `);
-  await db.$client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS mcp_sessions_access_token_hash_key
-    ON mcp_sessions (access_token_hash);
-  `);
-  await db.$client.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS mcp_sessions_refresh_token_hash_key
-    ON mcp_sessions (refresh_token_hash);
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_user_id
-    ON mcp_sessions (user_id);
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_organization_id
-    ON mcp_sessions (organization_id);
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_mcp_sessions_expires_at
-    ON mcp_sessions (expires_at);
-  `);
-  await db.$client.query(`
-    CREATE TABLE IF NOT EXISTS mcp_oauth_clients (
-      client_id text PRIMARY KEY NOT NULL,
-      client_name text,
-      redirect_uris jsonb NOT NULL,
-      grant_types jsonb DEFAULT '["authorization_code", "refresh_token"]'::jsonb NOT NULL,
-      response_types jsonb DEFAULT '["code"]'::jsonb NOT NULL,
-      scope text DEFAULT 'mcp' NOT NULL,
-      created_at timestamp with time zone DEFAULT now() NOT NULL,
-      updated_at timestamp with time zone DEFAULT now() NOT NULL
-    );
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_mcp_oauth_clients_created_at
-    ON mcp_oauth_clients (created_at);
-  `);
-  await db.$client.query(`
-    CREATE TABLE IF NOT EXISTS used_authorization_codes (
-      code_hash text PRIMARY KEY NOT NULL,
-      expires_at timestamp with time zone NOT NULL,
-      created_at timestamp with time zone DEFAULT now() NOT NULL
-    );
-  `);
-  await db.$client.query(`
-    CREATE INDEX IF NOT EXISTS idx_used_authorization_codes_expires_at
-    ON used_authorization_codes (expires_at);
-  `);
-}
-
 function setMcpAuthEnabled(value: boolean) {
   Object.defineProperty(env, "MCP_AUTH_ENABLED", {
     configurable: true,
@@ -143,7 +64,6 @@ function setMcpAuthEnabled(value: boolean) {
 describe("mcpRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await ensureMcpSessionTable();
   });
 
   afterEach(async () => {

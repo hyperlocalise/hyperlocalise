@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
@@ -196,60 +196,6 @@ async function insertStoredSourceFile(params: {
 
   return file;
 }
-
-async function ensureStoredFilesTestSchema() {
-  await db.$client.query(`
-    DO $$
-    BEGIN
-      CREATE TYPE stored_file_role AS ENUM ('source', 'output', 'reference', 'asset');
-    EXCEPTION
-      WHEN duplicate_object THEN null;
-    END $$;
-  `);
-  await db.$client.query(`
-    DO $$
-    BEGIN
-      CREATE TYPE stored_file_source_kind AS ENUM (
-        'chat_upload',
-        'email_attachment',
-        'job_output',
-        'repository_file',
-        'tms_file'
-      );
-    EXCEPTION
-      WHEN duplicate_object THEN null;
-    END $$;
-  `);
-  await db.$client.query(`
-    CREATE TABLE IF NOT EXISTS stored_files (
-      id text PRIMARY KEY NOT NULL,
-      organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE cascade,
-      project_id text REFERENCES projects(id) ON DELETE set null,
-      created_by_user_id uuid REFERENCES users(id) ON DELETE set null,
-      role stored_file_role NOT NULL,
-      source_kind stored_file_source_kind NOT NULL,
-      source_interaction_id uuid REFERENCES interactions(id) ON DELETE set null,
-      source_job_id text REFERENCES jobs(id) ON DELETE set null,
-      storage_provider text NOT NULL,
-      storage_key text NOT NULL,
-      storage_url text NOT NULL,
-      download_url text,
-      filename text NOT NULL,
-      content_type text NOT NULL,
-      byte_size integer NOT NULL,
-      sha256 text NOT NULL,
-      etag text,
-      metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
-      created_at timestamp with time zone DEFAULT now() NOT NULL,
-      updated_at timestamp with time zone DEFAULT now() NOT NULL
-    )
-  `);
-}
-
-beforeAll(async () => {
-  await db.$client.query("select 1");
-  await ensureStoredFilesTestSchema();
-});
 
 afterEach(async () => {
   vi.clearAllMocks();
