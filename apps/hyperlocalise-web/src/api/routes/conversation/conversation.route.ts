@@ -2,7 +2,6 @@ import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
-import { z } from "zod";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
@@ -13,16 +12,7 @@ import { createStoredFile } from "@/lib/file-storage/records";
 import { addInteractionMessage } from "@/lib/interactions";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
-
-const conversationIdParamsSchema = z.object({
-  conversationId: z.uuid(),
-});
-
-const listConversationsQuerySchema = z.object({
-  status: z.enum(["active", "archived"]).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
-  cursor: z.string().optional(),
-});
+import { conversationIdParamsSchema, listConversationsQuerySchema } from "./conversation.schema";
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
