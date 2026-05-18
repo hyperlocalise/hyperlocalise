@@ -1,10 +1,21 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "lokalise",
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lokalise",
     visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/locales",
+        "//internal/i18n/storage",
+        "@com_github_lokalise_go_lokalise_api_v5//:go-lokalise-api",
+    ],
+)
+
+go_test(
+    name = "lokalise_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":lokalise"],
     deps = [
         "//internal/i18n/storage",
         "@com_github_lokalise_go_lokalise_api_v5//:go-lokalise-api",
