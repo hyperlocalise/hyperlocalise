@@ -1,10 +1,19 @@
 import { db } from "@/lib/database";
 
-async function idsForWorkosIds(table: "organizations" | "users", column: string, values: string[]) {
+type QueryClient = {
+  query<T>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
+};
+
+async function idsForWorkosIds(
+  client: QueryClient,
+  table: "organizations" | "users",
+  column: string,
+  values: string[],
+) {
   if (values.length === 0) return [];
 
-  const result = await db.$client.query<{ id: string }>(
-    `SELECT id FROM ${table} WHERE ${column} = ANY($1::text[])`,
+  const result = await client.query<{ id: string }>(
+    `SELECT id FROM ${table} WHERE ${column} = ANY($1::text[]) FOR UPDATE`,
     [values],
   );
 
@@ -18,17 +27,18 @@ export async function cleanupWorkosTestRecords(input: {
   const workosOrganizationIds = [...input.workosOrganizationIds];
   const workosUserIds = [...input.workosUserIds];
 
-  const organizationIds = await idsForWorkosIds(
-    "organizations",
-    "workos_organization_id",
-    workosOrganizationIds,
-  );
-  const userIds = await idsForWorkosIds("users", "workos_user_id", workosUserIds);
-
   const client = await db.$client.connect();
 
   try {
     await client.query("BEGIN");
+
+    const organizationIds = await idsForWorkosIds(
+      client,
+      "organizations",
+      "workos_organization_id",
+      workosOrganizationIds,
+    );
+    const userIds = await idsForWorkosIds(client, "users", "workos_user_id", workosUserIds);
 
     if (organizationIds.length > 0) {
       const orgParams = [organizationIds];

@@ -25,7 +25,6 @@ vi.mock("@/api/auth/workos-session", () => ({
 }));
 
 import { app } from "@/api/app";
-import { ensureGithubRepositoryTables } from "@/api/routes/github-test-fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -83,7 +82,6 @@ async function createInstallationFixture(role: "owner" | "admin" | "member" = "o
 describe("githubInstallationRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await ensureGithubRepositoryTables();
   });
 
   afterEach(async () => {

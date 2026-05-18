@@ -3,7 +3,6 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { ensureGithubRepositoryTables } from "@/api/routes/github-test-fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { createGithubWebhookRoutes } from "./github-webhook";
@@ -44,7 +43,6 @@ async function createStoredGithubInstallation(enabled: boolean) {
 describe("githubWebhookRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await ensureGithubRepositoryTables();
   });
 
   afterEach(async () => {

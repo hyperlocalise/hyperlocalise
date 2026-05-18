@@ -3,7 +3,6 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { ensureGithubRepositoryTables } from "@/api/routes/github-test-fixture";
 import { db, schema } from "@/lib/database";
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
@@ -47,7 +46,6 @@ function createEvent(
 describe("GitHub agent request idempotency", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await ensureGithubRepositoryTables();
   });
 
   afterEach(async () => {

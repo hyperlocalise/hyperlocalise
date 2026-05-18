@@ -63,7 +63,6 @@ vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: vi.fn(() => globalThis.__testApiAuthContext ?? null),
 }));
 
-import { ensureGithubRepositoryTables } from "@/api/routes/github-test-fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import {
   GITHUB_STATE_TTL_MS,
@@ -121,7 +120,6 @@ async function runCallback(state: string, installationId = "123456") {
 describe("GitHubCallbackPage", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
-    await ensureGithubRepositoryTables();
   });
 
   afterEach(async () => {
