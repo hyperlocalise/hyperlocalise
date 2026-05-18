@@ -321,7 +321,7 @@ func htmlSegmentKey(segment string, occurrences map[string]int) string {
 }
 
 // expandHTMLPlaceholders replaces sentinel tokens in rendered with their original
-// tag bytes. Tokens are expanded longest-first to avoid partial-prefix collisions.
+// tag bytes.
 func expandHTMLPlaceholders(rendered string, placeholders map[string]string) string {
 	if len(placeholders) == 0 {
 		return rendered
@@ -335,7 +335,8 @@ func expandHTMLPlaceholders(rendered string, placeholders map[string]string) str
 
 	// BOLT OPTIMIZATION: Use strings.Replacer for single-pass replacement of all placeholders.
 	// Sentinel tokens (\x1eHLHTPH_..._\x1f) have fixed length and do not collide,
-	// so sorting keys by length is unnecessary.
+	// and strings.Replacer internally handles overlapping matches by preferring
+	// the longest match at any position, so sorting keys by length is unnecessary.
 	oldnew := make([]string, 0, len(placeholders)*2)
 	for ph, original := range placeholders {
 		oldnew = append(oldnew, ph, original)
