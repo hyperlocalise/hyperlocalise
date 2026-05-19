@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hyperlocalise Web
 
-## Getting Started
+This is the Hyperlocalise web application. It lives in `apps/hyperlocalise-web`
+inside the monorepo and runs as a Next.js app with the Vite+ toolchain.
 
-First, run the development server:
+Use `vp` for package management, local development, checks, and tests. Do not
+run `npm`, `pnpm`, `yarn`, `npx`, or direct Vitest/Oxlint commands in this app.
+
+## Setup
+
+From `apps/hyperlocalise-web`, install dependencies with Vite+:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+vp install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Start the local development server:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+vp dev
+```
 
-## Learn More
+By default, the app is available at `http://localhost:3000`. If that port is in
+use, pass a different one:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+vp dev --port 3001
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Validation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Run the Vite+ checks before sending web changes for review:
 
-## Deploy on Vercel
+```bash
+vp check --fix
+vp test
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`vp check --fix` formats, lints, and type-checks the app. `vp test` runs the
+JavaScript test suite through the Vite+ bundled test runner.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Useful Paths
+
+- `src/app/`: Next.js app routes and pages
+- `src/api/`: Hono API routes mounted through the Next.js API adapter
+- `src/lib/database/`: Drizzle schema and database helpers
+- `drizzle/`: generated migrations and metadata
+- `vite.config.ts`: Vite+ configuration for formatting, linting, tests, and
+  path aliases
+
+For database schema changes, edit `src/lib/database/schema.ts`, then run
+`vp run db:generate` and commit the generated migration files together with the
+schema update.

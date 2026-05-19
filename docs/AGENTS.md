@@ -1,36 +1,42 @@
-> **First-time setup**: Customize this file for your project. Prompt the user to customize this file for their project.
-> For Mintlify product knowledge (components, configuration, writing standards),
-> install the Mintlify skill: `npx skills add https://mintlify.com/docs`
+# Documentation Agent Instructions
 
-# Documentation project instructions
+This directory is the Mintlify documentation site for Hyperlocalise.
 
-## About this project
+## Project Context
 
-- This is a documentation site built on [Mintlify](https://mintlify.com)
-- Pages are MDX files with YAML frontmatter
-- Configuration lives in `docs.json`
-- Run `mint dev` to preview locally
-- Run `mint broken-links` to check links
+- Write for Hyperlocalise users and contributors.
+- Pages are MDX files with YAML frontmatter.
+- Site configuration and navigation live in `docs.json`.
+- English source docs live directly under `docs/`.
+- Localized docs live under `docs/zh-CN/` and `docs/vi-VN/`.
 
-## Terminology
+## Local Workflow
 
-<!-- Add product-specific terms and preferred usage -->
-<!-- Example: Use "workspace" not "project", "member" not "user" -->
+Run Mintlify commands from the `docs` directory:
 
-## Style preferences
+```bash
+mint dev
+mint broken-links
+```
 
-<!-- Add any project-specific style rules below -->
+Use `mint dev` to preview pages locally at `http://localhost:3000`. Use
+`mint broken-links` when a change touches navigation, page slugs, or links.
 
-- Use active voice and second person ("you")
-- Keep sentences concise — one idea per sentence
-- Use sentence case for headings
-- Bold for UI elements: Click **Settings**
-- Code formatting for file names, commands, paths, and code references
+## Writing Style
 
-## Content boundaries
+- Use active voice and second person.
+- Prefer short sentences with one idea each.
+- Put the user's goal before implementation details.
+- Use sentence case for headings.
+- Use backticks for commands, paths, filenames, configuration keys, and code.
+- Use bold only for visible UI labels, such as **Settings**.
+- Keep examples runnable and aligned with the current CLI behavior.
 
-<!-- Define what should and shouldn't be documented -->
-<!-- Example: Don't document internal admin features -->
+## Content Boundaries
 
-- Unless the user explicitly asks for localized documentation updates, only edit the default English docs under `docs/`.
-- Do not modify files under locale directories such as `docs/zh-CN/` or `docs/vi-VN/` for routine docs cleanup or copy changes.
+- Edit only the default English docs unless the user asks for localized docs.
+- Do not modify files under `docs/zh-CN/` or `docs/vi-VN/` during routine docs
+  cleanup or copy changes.
+- Keep Mintlify component usage consistent with the surrounding page.
+- Update `docs.json` in the same change when you add, remove, rename, or move a
+  page.
