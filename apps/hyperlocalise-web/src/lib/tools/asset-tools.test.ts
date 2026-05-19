@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 vi.hoisted(() => {
@@ -14,7 +14,7 @@ import { normalizeTranslationMemorySourceText } from "@/lib/translation/normaliz
 
 import { createQueryGlossaryTool, createQueryTranslationMemoryTool } from "./asset-tools";
 
-const createdWorkosOrganizationIds = new Set<string>();
+const createdOrganizationIds = new Set<string>();
 
 type GlossarySearchResult = Awaited<
   ReturnType<NonNullable<ReturnType<typeof createQueryGlossaryTool>["execute"]>>
@@ -27,7 +27,6 @@ type MemorySearchResult = Awaited<
 async function createOrganization() {
   const suffix = randomUUID();
   const workosOrganizationId = `org_${suffix}`;
-  createdWorkosOrganizationIds.add(workosOrganizationId);
 
   const [organization] = await db
     .insert(schema.organizations)
@@ -37,6 +36,8 @@ async function createOrganization() {
       slug: `asset-tool-org-${suffix}`,
     })
     .returning();
+
+  createdOrganizationIds.add(organization.id);
 
   return organization;
 }
@@ -182,13 +183,47 @@ async function executeMemorySearch(input: {
 }
 
 afterEach(async () => {
-  for (const workosOrganizationId of createdWorkosOrganizationIds) {
-    await db
-      .delete(schema.organizations)
-      .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId));
+  const organizationIds = [...createdOrganizationIds];
+  if (organizationIds.length === 0) {
+    return;
   }
 
-  createdWorkosOrganizationIds.clear();
+  const glossaries = await db
+    .select({ id: schema.glossaries.id })
+    .from(schema.glossaries)
+    .where(inArray(schema.glossaries.organizationId, organizationIds));
+  const memories = await db
+    .select({ id: schema.memories.id })
+    .from(schema.memories)
+    .where(inArray(schema.memories.organizationId, organizationIds));
+
+  await db
+    .delete(schema.projectGlossaries)
+    .where(inArray(schema.projectGlossaries.organizationId, organizationIds));
+  await db
+    .delete(schema.projectMemories)
+    .where(inArray(schema.projectMemories.organizationId, organizationIds));
+
+  const glossaryIds = glossaries.map((glossary) => glossary.id);
+  if (glossaryIds.length > 0) {
+    await db
+      .delete(schema.glossaryTerms)
+      .where(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
+  }
+
+  const memoryIds = memories.map((memory) => memory.id);
+  if (memoryIds.length > 0) {
+    await db.delete(schema.memoryEntries).where(inArray(schema.memoryEntries.memoryId, memoryIds));
+  }
+
+  await db.delete(schema.projects).where(inArray(schema.projects.organizationId, organizationIds));
+  await db
+    .delete(schema.glossaries)
+    .where(inArray(schema.glossaries.organizationId, organizationIds));
+  await db.delete(schema.memories).where(inArray(schema.memories.organizationId, organizationIds));
+  await db.delete(schema.organizations).where(inArray(schema.organizations.id, organizationIds));
+
+  createdOrganizationIds.clear();
 });
 
 describe("createQueryGlossaryTool", () => {
@@ -270,6 +305,35 @@ describe("createQueryTranslationMemoryTool", () => {
     const result = await executeMemorySearch({
       organizationId: currentOrganization.id,
       sourceText: "Start checkout",
+    });
+
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]).toMatchObject({
+      sourceText: "Start checkout",
+      targetText: "Commencer le paiement",
+    });
+  });
+
+  it("does not return fuzzy memory matches from another organization", async () => {
+    const currentOrganization = await createOrganization();
+    const otherOrganization = await createOrganization();
+
+    await createMemoryWithEntry({
+      organizationId: currentOrganization.id,
+      name: "Current Fuzzy Memory",
+      sourceText: "Start checkout",
+      targetText: "Commencer le paiement",
+    });
+    await createMemoryWithEntry({
+      organizationId: otherOrganization.id,
+      name: "Other Fuzzy Memory",
+      sourceText: "Start checkout",
+      targetText: "Commencer la caisse",
+    });
+
+    const result = await executeMemorySearch({
+      organizationId: currentOrganization.id,
+      sourceText: "checkout",
     });
 
     expect(result.matches).toHaveLength(1);
