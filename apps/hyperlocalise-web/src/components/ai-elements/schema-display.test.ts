@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SchemaDisplay, SchemaDisplayPath } from "./schema-display";

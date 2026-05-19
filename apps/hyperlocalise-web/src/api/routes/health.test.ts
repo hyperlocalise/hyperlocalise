@@ -1,5 +1,5 @@
 import { testClient } from "hono/testing";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 async function createClient(isHealthy: boolean) {
   vi.resetModules();
