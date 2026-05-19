@@ -51,17 +51,17 @@ type PublicJobOutputFile = {
   filename: string;
 };
 
+function hasValue(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
 function isPublicJobOutputFile(value: unknown): value is PublicJobOutputFile {
   if (!value || typeof value !== "object") {
     return false;
   }
 
   const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.fileId === "string" &&
-    typeof candidate.locale === "string" &&
-    typeof candidate.filename === "string"
-  );
+  return hasValue(candidate.fileId) && hasValue(candidate.locale) && hasValue(candidate.filename);
 }
 
 function publicJobOutputFiles(input: {

@@ -190,4 +190,32 @@ describe("publicJobRoutes", () => {
     expect(body.job).not.toHaveProperty("workflowRunId");
     expect(body.job).not.toHaveProperty("outcomePayload");
   });
+
+  it("does not expose malformed file output metadata as a valid contract", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const job = await insertCompletedPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      outputFiles: [
+        {
+          fileId: "",
+          locale: "fr-FR",
+          filename: "source.fr-FR.xliff",
+        },
+      ],
+    });
+
+    const response = await client.api.v1.jobs[":jobId"].$get(
+      {
+        param: {
+          jobId: job.id,
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: { outputFiles: unknown } };
+    expect(body.job.outputFiles).toBeNull();
+  });
 });

@@ -102,41 +102,42 @@ export async function insertCompletedPublicFileJob(params: {
   apiKeyId?: string;
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
 }) {
-  const id = `job_${randomUUID()}`;
+  return db.transaction(async (tx) => {
+    const id = `job_${randomUUID()}`;
+    const [job] = await tx
+      .insert(schema.jobs)
+      .values({
+        id,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        kind: "translation",
+        status: "succeeded",
+        inputPayload: {
+          sourceFileId: "file_source",
+          fileFormat: "xliff",
+          sourceLocale: "en-US",
+          targetLocales: params.outputFiles.map((file) => file.locale),
+        },
+        outcomePayload: {
+          outputFiles: params.outputFiles,
+        },
+        apiKeyId: params.apiKeyId ?? null,
+        completedAt: new Date(),
+      })
+      .returning();
 
-  const [job] = await db
-    .insert(schema.jobs)
-    .values({
-      id,
-      organizationId: params.organizationId,
-      projectId: params.projectId,
-      kind: "translation",
-      status: "succeeded",
-      inputPayload: {
-        sourceFileId: "file_source",
-        fileFormat: "xliff",
-        sourceLocale: "en-US",
-        targetLocales: params.outputFiles.map((file) => file.locale),
-      },
-      outcomePayload: {
-        outputFiles: params.outputFiles,
-      },
-      apiKeyId: params.apiKeyId ?? null,
-      completedAt: new Date(),
-    })
-    .returning();
+    if (!job) {
+      throw new Error("job insert failed");
+    }
 
-  await db.insert(schema.translationJobDetails).values({
-    jobId: id,
-    type: "file",
-    outcomeKind: "file_result",
+    await tx.insert(schema.translationJobDetails).values({
+      jobId: id,
+      type: "file",
+      outcomeKind: "file_result",
+    });
+
+    return job;
   });
-
-  if (!job) {
-    throw new Error("job insert failed");
-  }
-
-  return job;
 }
 
 export async function cleanupPublicApiFixture() {
