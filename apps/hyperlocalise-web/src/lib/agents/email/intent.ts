@@ -19,6 +19,17 @@ type CreateEmailRequestInterpreterOptions = {
   model: LanguageModel;
 };
 
+const maxEmailIntentSubjectChars = 500;
+const maxEmailIntentBodyChars = 12_000;
+const maxEmailIntentOutputTokens = 1_000;
+
+function truncateForIntent(value: string, maxChars: number) {
+  if (value.length <= maxChars) {
+    return value;
+  }
+  return `${value.slice(0, maxChars)}\n[truncated]`;
+}
+
 export function normalizeLocale(locale: string | null) {
   const value = locale?.trim().replaceAll("_", "-");
   if (!value) {
@@ -78,10 +89,10 @@ function buildIntentPrompt(input: { subject: string; text: string }) {
     "Put translation preferences in instructions, such as tone, formality, audience, terminology, or style constraints.",
     "Do not include attachment handling, greetings, or unrelated email text in instructions.",
     "",
-    `Subject: ${input.subject || "(none)"}`,
+    `Subject: ${truncateForIntent(input.subject, maxEmailIntentSubjectChars) || "(none)"}`,
     "",
     "Body:",
-    input.text || "(none)",
+    truncateForIntent(input.text, maxEmailIntentBodyChars) || "(none)",
   ].join("\n");
 }
 
@@ -96,6 +107,7 @@ export function createEmailRequestInterpreter({ model }: CreateEmailRequestInter
         "You are a precise email intake parser for a localization agent. Return only structured data.",
       prompt: buildIntentPrompt(input),
       temperature: 0,
+      maxOutputTokens: maxEmailIntentOutputTokens,
     });
 
     return normalizeEmailRequestIntent(output);
@@ -113,7 +125,7 @@ function buildClarificationPrompt(input: { text: string }) {
     "Put translation preferences in instructions, such as tone, formality, audience, terminology, or style constraints.",
     "",
     "User reply:",
-    input.text || "(none)",
+    truncateForIntent(input.text, maxEmailIntentBodyChars) || "(none)",
   ].join("\n");
 }
 
@@ -128,6 +140,7 @@ export function createClarificationInterpreter({ model }: CreateEmailRequestInte
         "You are a precise email intake parser for a localization agent. This is a clarification reply. Return only structured data.",
       prompt: buildClarificationPrompt(input),
       temperature: 0,
+      maxOutputTokens: maxEmailIntentOutputTokens,
     });
 
     return normalizeEmailRequestIntent(output);

@@ -11,6 +11,7 @@ const {
   claimGitHubAgentRequestMock,
   loadMessagesMock,
   markGitHubAgentRequestEnqueuedMock,
+  getInstallationOctokitMock,
   releaseGitHubAgentRequestClaimMock,
   selectMock,
 } = vi.hoisted(() => ({
@@ -33,6 +34,15 @@ const {
   findInteractionBySourceThreadIdMock: vi.fn(),
   loadMessagesMock: vi.fn(async () => [{ role: "user", content: "@hyperlocalise fix" }]),
   markGitHubAgentRequestEnqueuedMock: vi.fn(),
+  getInstallationOctokitMock: vi.fn(async () => ({
+    rest: {
+      repos: {
+        getCollaboratorPermissionLevel: vi.fn(async () => ({
+          data: { permission: "write" },
+        })),
+      },
+    },
+  })),
   releaseGitHubAgentRequestClaimMock: vi.fn(),
   selectMock: vi.fn(),
 }));
@@ -67,6 +77,10 @@ vi.mock("@/lib/agents/github/request-idempotency", () => ({
   claimGitHubAgentRequest: claimGitHubAgentRequestMock,
   markGitHubAgentRequestEnqueued: markGitHubAgentRequestEnqueuedMock,
   releaseGitHubAgentRequestClaim: releaseGitHubAgentRequestClaimMock,
+}));
+
+vi.mock("@/lib/agents/github/app", () => ({
+  getInstallationOctokit: getInstallationOctokitMock,
 }));
 
 vi.mock("@/lib/agents/runtime/state", () => ({
@@ -198,6 +212,28 @@ describe("GitHub command routing", () => {
     expect(queue.enqueue).not.toHaveBeenCalled();
     expect(posts).toEqual([
       "I can only run `@hyperlocalise fix` from pull request comments or inline pull request review comments.",
+    ]);
+  });
+
+  it("denies fix commands when collaborator permission lookup fails", async () => {
+    const { posts, thread } = createThread();
+    const queue = { enqueue: vi.fn() };
+    getInstallationOctokitMock.mockResolvedValueOnce({
+      rest: {
+        repos: {
+          getCollaboratorPermissionLevel: vi.fn(async () => {
+            throw Object.assign(new Error("not found"), { status: 404 });
+          }),
+        },
+      },
+    });
+
+    await handleMention(thread, createMessage(), { queue });
+
+    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      "I can only run `@hyperlocalise fix` for repository collaborators with write access.",
     ]);
   });
 

@@ -80,6 +80,7 @@ async function findStoredInstallation(githubInstallationId: string) {
 }
 
 async function isRepositoryEnabled(input: {
+  organizationId: string;
   githubInstallationId: string;
   githubRepositoryId: string;
 }) {
@@ -88,6 +89,7 @@ async function isRepositoryEnabled(input: {
     .from(schema.githubInstallationRepositories)
     .where(
       and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
         eq(schema.githubInstallationRepositories.githubInstallationId, input.githubInstallationId),
         eq(schema.githubInstallationRepositories.githubRepositoryId, input.githubRepositoryId),
         eq(schema.githubInstallationRepositories.enabled, true),
@@ -231,6 +233,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
     }
 
     const enabled = await isRepositoryEnabled({
+      organizationId: installation.organizationId,
       githubInstallationId: installation.githubInstallationId,
       githubRepositoryId: String(payload.repository.id),
     });

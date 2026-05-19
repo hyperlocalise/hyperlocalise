@@ -7,6 +7,10 @@ import { z } from "zod";
 import { schema } from "@/lib/database";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
 import {
+  maxTranslationMetadataEntries,
+  maxTranslationTargetLocales,
+} from "@/api/routes/project/job.schema";
+import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
@@ -191,10 +195,17 @@ export function createTranslationJobTool(ctx: ToolContext) {
       sourceLocale: z
         .string()
         .describe('BCP-47 source locale tag, or "auto" when the source locale is unknown.'),
-      targetLocales: z.array(z.string()).min(1).describe("List of BCP-47 target locale tags."),
+      targetLocales: z
+        .array(z.string().trim().min(1).max(32))
+        .min(1)
+        .max(maxTranslationTargetLocales)
+        .describe("List of BCP-47 target locale tags."),
       context: z.string().optional().describe("Optional job-level translation context."),
       metadata: z
-        .record(z.string(), z.string())
+        .record(z.string().max(100), z.string().max(1000))
+        .refine((metadata) => Object.keys(metadata).length <= maxTranslationMetadataEntries, {
+          message: `metadata must contain at most ${maxTranslationMetadataEntries} entries`,
+        })
         .optional()
         .describe("Optional key-value metadata."),
       maxLength: z

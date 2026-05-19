@@ -17,6 +17,7 @@ export function buildFixEvent(input: {
   raw: GitHubRawMessage;
   command: HyperlocaliseFixCommand;
   installationId: number;
+  requesterLogin: string;
 }): GitHubFixRequestedEventData | null {
   const repo = splitRepository(input.raw.repository.full_name);
   if (!repo) {
@@ -43,6 +44,7 @@ export function buildFixEvent(input: {
         action: "created",
         deliveryId: String(input.raw.comment.id),
         commentId: input.raw.comment.id,
+        requesterLogin: input.requesterLogin,
       },
       scope: { type: "pull_request" },
     };
@@ -55,6 +57,7 @@ export function buildFixEvent(input: {
       action: "created",
       deliveryId: String(input.raw.comment.id),
       commentId: input.raw.comment.id,
+      requesterLogin: input.requesterLogin,
     },
     scope: {
       type: "review_comment",

@@ -20,6 +20,7 @@ function buildFixEvent(scope: GitHubFixRequestedEventData["scope"]): GitHubFixRe
       action: "created",
       deliveryId: "delivery-1",
       commentId: 456,
+      requesterLogin: "octocat",
     },
     scope,
   };

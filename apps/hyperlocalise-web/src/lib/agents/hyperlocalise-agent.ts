@@ -16,6 +16,7 @@ import type { ToolContext } from "@/lib/tools/types";
 
 export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
 export const hyperlocaliseAgentStepLimit = 5;
+export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 
@@ -174,6 +175,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     prepareStep,
     toolChoice,
     onFinish,
+    maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
   });
 }

@@ -654,24 +654,30 @@ func (d markdownDocument) render(values map[string]string) ([]byte, MarkdownRend
 			continue
 		}
 		if v, ok := values[part.key]; ok {
-			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags))
+			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags, false))
 			continue
 		}
-		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags))
+		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags, true))
 	}
 	return []byte(b.String()), diags
 }
 
 func renderMarkdownPart(part markdownPart, translated string) string {
-	return renderMarkdownPartWithDiagnostics(part, translated, nil)
+	return renderMarkdownPartWithDiagnostics(part, translated, nil, false)
 }
 
-func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, diags *MarkdownRenderDiagnostics) string {
+func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, diags *MarkdownRenderDiagnostics, trustedFallback bool) string {
 	rendered := preserveChunkBoundaryWhitespace(part.source, translated)
 	if part.yamlPlain && yamlPlainScalarNeedsQuotes(rendered) {
 		rendered = yamlDoubleQuoteScalar(rendered)
 	}
 	rendered = normalizeMarkdownTableRowBoundaries(part, rendered)
+	if !trustedFallback && containsHTMLTag(rendered) {
+		if diags != nil && part.key != "" {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+		}
+		return expandMarkdownPlaceholders(part.source, part.placeholders)
+	}
 	if len(part.placeholders) == 0 {
 		return rendered
 	}
@@ -1062,7 +1068,7 @@ func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 		}
 
 		if v, ok := values[part.key]; ok {
-			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags))
+			b.WriteString(renderMarkdownPartWithDiagnostics(part, v, &diags, false))
 			sourceCtxIdx++
 			continue
 		}
@@ -1071,7 +1077,7 @@ func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 		// This avoids injecting fallback text into non-translatable structural segments.
 		if _, ok := sourceEntries[part.key]; ok && sourceCtxIdx < len(sourceContexts) {
 			if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
-				b.WriteString(renderMarkdownPartWithDiagnostics(part, fallback, &diags))
+				b.WriteString(renderMarkdownPartWithDiagnostics(part, fallback, &diags, true))
 				sourceCtxIdx++
 				continue
 			}
@@ -1079,7 +1085,7 @@ func MarshalMarkdownWithTargetFallbackDiagnostics(sourceTemplate, targetTemplate
 		if sourceCtxIdx < len(sourceContexts) {
 			sourceCtxIdx++
 		}
-		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags))
+		b.WriteString(renderMarkdownPartWithDiagnostics(part, part.source, &diags, true))
 	}
 
 	return []byte(b.String()), diags
@@ -1169,7 +1175,7 @@ func alignMarkdownFallback(sourceDoc markdownDocument, sourceEntries map[string]
 		// This avoids injecting fallback text into non-translatable structural segments.
 		if _, ok := sourceEntries[part.key]; ok && sourceCtxIdx < len(sourceContexts) {
 			if fallback, ok := takeFallback(sourceContexts[sourceCtxIdx]); ok {
-				aligned[part.key] = renderMarkdownPart(part, fallback)
+				aligned[part.key] = renderMarkdownPartWithDiagnostics(part, fallback, nil, true)
 				sourceCtxIdx++
 				continue
 			}

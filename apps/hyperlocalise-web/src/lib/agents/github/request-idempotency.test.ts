@@ -29,6 +29,7 @@ function createEvent(
       action: "created",
       deliveryId: "delivery_123",
       commentId: 123,
+      requesterLogin: "octocat",
     },
     scope: {
       type: "review_comment",
@@ -95,6 +96,7 @@ describe("GitHub agent request idempotency", () => {
             action: "created",
             deliveryId: "delivery_456",
             commentId: 456,
+            requesterLogin: "octocat",
           },
         }),
       ),
@@ -133,6 +135,7 @@ describe("GitHub agent request idempotency", () => {
           action: "created",
           deliveryId: null,
           commentId: null,
+          requesterLogin: "octocat",
         },
       }),
     );
@@ -148,6 +151,7 @@ describe("GitHub agent request idempotency", () => {
           action: "created",
           deliveryId: "delivery_abc123",
           commentId: null,
+          requesterLogin: "octocat",
         },
       }),
     );

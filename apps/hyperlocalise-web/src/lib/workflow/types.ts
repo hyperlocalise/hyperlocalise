@@ -53,6 +53,7 @@ export type GitHubFixRequestedEventData = {
     action: string;
     deliveryId: string | null;
     commentId: number | null;
+    requesterLogin: string;
   };
   scope: GitHubFixScope;
 };

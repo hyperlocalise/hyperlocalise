@@ -23,7 +23,7 @@ function normalizeSlug(value: string | null | undefined) {
 }
 
 function generateInboundAlias(slug: string) {
-  return `${normalizeSlug(slug)}-${randomBytes(3).toString("hex")}`;
+  return `${normalizeSlug(slug)}-${randomBytes(16).toString("hex")}`;
 }
 
 function asInboundAddress(alias: string | null, enabled: boolean) {
@@ -32,6 +32,10 @@ function asInboundAddress(alias: string | null, enabled: boolean) {
   }
 
   return `${alias}@${inboundEmailDomain}`;
+}
+
+function isWeakInboundAlias(alias: string | null | undefined) {
+  return Boolean(alias && /-[0-9a-f]{6}$/i.test(alias));
 }
 
 const validateUpdateEmailAgentBody = validator("json", (value, c) => {
@@ -67,7 +71,7 @@ async function ensureInboundAlias(input: {
   const existing = await getEmailConnector(input.organizationId);
   if (existing) {
     const config = existing.config as { inboundEmailAlias?: string };
-    if (config.inboundEmailAlias) {
+    if (config.inboundEmailAlias && !isWeakInboundAlias(config.inboundEmailAlias)) {
       return existing;
     }
   }
@@ -117,10 +121,18 @@ export function createAgentEmailRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      const connector = await getEmailConnector(c.var.auth.organization.localOrganizationId);
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      let connector = await getEmailConnector(organizationId);
 
       const enabled = connector?.enabled ?? false;
-      const config = (connector?.config ?? {}) as { inboundEmailAlias?: string };
+      let config = (connector?.config ?? {}) as { inboundEmailAlias?: string };
+      if (enabled && isWeakInboundAlias(config.inboundEmailAlias)) {
+        connector = await ensureInboundAlias({
+          organizationId,
+          organizationSlug: c.var.auth.organization.slug,
+        });
+        config = (connector.config ?? {}) as { inboundEmailAlias?: string };
+      }
 
       return c.json(
         {

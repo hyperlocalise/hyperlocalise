@@ -232,9 +232,23 @@ export function createGithubInstallationRoutes() {
         }
       }
 
-      await db
-        .delete(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.id, installation.id));
+      await db.transaction(async (tx) => {
+        await tx
+          .delete(schema.githubInstallationRepositories)
+          .where(
+            and(
+              eq(schema.githubInstallationRepositories.organizationId, organizationId),
+              eq(
+                schema.githubInstallationRepositories.githubInstallationId,
+                installation.githubInstallationId,
+              ),
+            ),
+          );
+
+        await tx
+          .delete(schema.githubInstallations)
+          .where(eq(schema.githubInstallations.id, installation.id));
+      });
 
       return c.body(null, 204);
     });

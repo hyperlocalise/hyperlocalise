@@ -14,6 +14,8 @@ import {
 } from "@/lib/translation/string-job-executor";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
+const maxContextSearchTerms = 50;
+
 type ClaimTranslationJobInput = {
   event: TranslationJobEventData;
   runId: string;
@@ -94,6 +96,7 @@ function buildTsQuery(input: string): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
+    .slice(0, maxContextSearchTerms)
     .map((word) => `${word}:*`)
     .join(" & ");
 }

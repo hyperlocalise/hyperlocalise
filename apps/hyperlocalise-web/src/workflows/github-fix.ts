@@ -68,6 +68,55 @@ async function getPullRequestMetadata(
   };
 }
 
+async function requesterCanRunFix(event: GitHubFixRequestedEventData): Promise<boolean> {
+  "use step";
+
+  let data: { permission?: string };
+  try {
+    const octokit = await getInstallationOctokit(event.installationId);
+    ({ data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
+      owner: event.repositoryOwner,
+      repo: event.repositoryName,
+      username: event.trigger.requesterLogin,
+    }));
+  } catch (error) {
+    if (isPermissionLookupDenial(error)) {
+      return false;
+    }
+    throw error;
+  }
+
+  return (
+    data.permission === "admin" || data.permission === "maintain" || data.permission === "write"
+  );
+}
+
+function isPermissionLookupDenial(error: unknown) {
+  if (typeof error !== "object" || error === null || !("status" in error)) {
+    return false;
+  }
+  const status = error.status;
+  if (status === 404) {
+    return true;
+  }
+  if (status !== 403) {
+    return false;
+  }
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  const response =
+    "response" in error && typeof error.response === "object" && error.response !== null
+      ? error.response
+      : null;
+  const headers =
+    response && "headers" in response && typeof response.headers === "object"
+      ? response.headers
+      : null;
+  const rateLimitRemaining =
+    headers && "x-ratelimit-remaining" in headers ? headers["x-ratelimit-remaining"] : null;
+
+  return rateLimitRemaining !== "0" && !/rate limit/i.test(message);
+}
+
 function shortSha(value: string): string {
   return value.slice(0, 12);
 }
@@ -380,6 +429,14 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
 
   try {
     const pr = await getPullRequestMetadata(event);
+    if (!(await requesterCanRunFix(event))) {
+      await postPullRequestComment(
+        event,
+        "## Hyperlocalise fix skipped\n\nOnly repository collaborators with write access can run `@hyperlocalise fix`.",
+      );
+      return;
+    }
+
     if (!pr.canPush) {
       await postPullRequestComment(
         event,

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import {
   removeWorkosMembership,
@@ -223,37 +224,46 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
   }
 }
 
-export const workosWebhookRoutes = new Hono().post("/", async (c) => {
-  if (!env.WORKOS_WEBHOOK_SECRET) {
-    return c.json({ error: "workos_not_configured" }, 503);
-  }
+const maxWorkosWebhookBytes = 256 * 1024;
 
-  const body = await c.req.text();
+export const workosWebhookRoutes = new Hono().post(
+  "/",
+  bodyLimit({
+    maxSize: maxWorkosWebhookBytes,
+    onError: (c) => c.json({ error: "payload_too_large" }, 413),
+  }),
+  async (c) => {
+    if (!env.WORKOS_WEBHOOK_SECRET) {
+      return c.json({ error: "workos_not_configured" }, 503);
+    }
 
-  const isValid = verifyWorkosWebhookSignature({
-    body,
-    signatureHeader: c.req.header("workos-signature"),
-    secret: env.WORKOS_WEBHOOK_SECRET,
-  });
+    const body = await c.req.text();
 
-  if (!isValid) {
-    return c.json({ error: "invalid_signature" }, 401);
-  }
+    const isValid = verifyWorkosWebhookSignature({
+      body,
+      signatureHeader: c.req.header("workos-signature"),
+      secret: env.WORKOS_WEBHOOK_SECRET,
+    });
 
-  let parsedJson: unknown;
-  try {
-    parsedJson = JSON.parse(body);
-  } catch {
-    return c.json({ error: "invalid_json" }, 400);
-  }
+    if (!isValid) {
+      return c.json({ error: "invalid_signature" }, 401);
+    }
 
-  const parseResult = workosWebhookEventSchema.safeParse(parsedJson);
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(body);
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
 
-  if (!parseResult.success) {
-    return c.json({ error: "invalid_payload" }, 400);
-  }
+    const parseResult = workosWebhookEventSchema.safeParse(parsedJson);
 
-  await handleWorkosEvent(parseResult.data);
+    if (!parseResult.success) {
+      return c.json({ error: "invalid_payload" }, 400);
+    }
 
-  return c.json({ ok: true }, 200);
-});
+    await handleWorkosEvent(parseResult.data);
+
+    return c.json({ ok: true }, 200);
+  },
+);
