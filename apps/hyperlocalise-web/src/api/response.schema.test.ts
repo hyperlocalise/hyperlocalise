@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { testClient } from "hono/testing";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vite-plus/test";
 
 import { notFoundResponse } from "./response.schema";
 
