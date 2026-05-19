@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -12,21 +13,30 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/gobwas/glob"
 	"github.com/spf13/cobra"
 )
 
 type extractOptions struct {
-	prefixID bool
+	flatten        bool
+	ignorePatterns []string
+	outFile        string
+	prefixID       bool
 }
 
 type extractMessage struct {
 	ID             string `json:"id"`
 	DefaultMessage string `json:"defaultMessage"`
-	Description    string `json:"description"`
+	Description    string `json:"description,omitempty"`
 
 	sourceLine int
 	sourcePath string
 	sourcePos  int
+}
+
+type extractCatalogMessage struct {
+	DefaultMessage string `json:"defaultMessage"`
+	Description    string `json:"description,omitempty"`
 }
 
 type extractObjectProperty struct {
@@ -51,19 +61,59 @@ func newExtractCmd() *cobra.Command {
 				return err
 			}
 
-			enc := json.NewEncoder(cmd.OutOrStdout())
-			enc.SetIndent("", "  ")
-			if err := enc.Encode(messages); err != nil {
-				return fmt.Errorf("write extract output: %w", err)
-			}
-
-			return nil
+			return writeExtractOutput(cmd, messages, o)
 		},
 	}
 
+	cmd.Flags().BoolVar(&o.flatten, "flatten", false, "hoist ICU selectors so plural/select branches contain full sentences")
+	cmd.Flags().StringArrayVar(&o.ignorePatterns, "ignore", nil, "glob pattern(s) to exclude from extraction")
+	cmd.Flags().StringVar(&o.outFile, "out-file", "", "write extracted messages to a JSON file")
 	cmd.Flags().BoolVar(&o.prefixID, "prefix-id", false, "prefix message ids with the normalized source filename")
 
 	return cmd
+}
+
+func writeExtractOutput(cmd *cobra.Command, messages []extractMessage, options extractOptions) error {
+	payload := buildExtractCatalog(messages)
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(payload); err != nil {
+		return fmt.Errorf("encode extract output: %w", err)
+	}
+
+	outFile := strings.TrimSpace(options.outFile)
+	if options.outFile != "" {
+		if outFile == "" {
+			return fmt.Errorf("extract out-file cannot be empty")
+		}
+		if err := os.MkdirAll(filepath.Dir(outFile), 0o755); err != nil {
+			return fmt.Errorf("create extract output directory: %w", err)
+		}
+		if err := os.WriteFile(outFile, buf.Bytes(), 0o644); err != nil {
+			return fmt.Errorf("write extract output file %q: %w", outFile, err)
+		}
+		return nil
+	}
+
+	if _, err := cmd.OutOrStdout().Write(buf.Bytes()); err != nil {
+		return fmt.Errorf("write extract output: %w", err)
+	}
+
+	return nil
+}
+
+func buildExtractCatalog(messages []extractMessage) map[string]extractCatalogMessage {
+	catalog := make(map[string]extractCatalogMessage, len(messages))
+	for _, message := range messages {
+		catalog[message.ID] = extractCatalogMessage{
+			DefaultMessage: message.DefaultMessage,
+			Description:    message.Description,
+		}
+	}
+
+	return catalog
 }
 
 func runExtract(paths []string, options extractOptions) ([]extractMessage, error) {
@@ -71,7 +121,7 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 		paths = []string{"."}
 	}
 
-	files, err := resolveExtractFiles(paths)
+	files, err := resolveExtractFiles(paths, options.ignorePatterns)
 	if err != nil {
 		return nil, err
 	}
@@ -96,6 +146,11 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 				fileMessages[i].ID = prefix + "." + fileMessages[i].ID
 			}
 		}
+		if options.flatten {
+			if err := flattenExtractMessages(fileMessages); err != nil {
+				return nil, fmt.Errorf("flatten %q: %w", file, err)
+			}
+		}
 
 		messages = append(messages, fileMessages...)
 	}
@@ -110,7 +165,12 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 	return messages, nil
 }
 
-func resolveExtractFiles(paths []string) ([]string, error) {
+func resolveExtractFiles(paths, ignorePatterns []string) ([]string, error) {
+	ignores, err := compileExtractGlobPatterns(ignorePatterns)
+	if err != nil {
+		return nil, err
+	}
+
 	seen := make(map[string]struct{})
 	files := make([]string, 0)
 
@@ -125,7 +185,7 @@ func resolveExtractFiles(paths []string) ([]string, error) {
 			return nil, err
 		}
 		for _, match := range matches {
-			if err := appendExtractFiles(&files, seen, match); err != nil {
+			if err := appendExtractFiles(&files, seen, match, ignores); err != nil {
 				return nil, err
 			}
 		}
@@ -141,8 +201,29 @@ func expandExtractPath(path string) ([]string, error) {
 		return []string{path}, nil
 	}
 
-	matches, err := filepath.Glob(path)
+	pattern, err := compileExtractGlobPattern(path)
 	if err != nil {
+		return nil, fmt.Errorf("expand glob %q: %w", path, err)
+	}
+	root := extractGlobWalkRoot(pattern.raw)
+	matches := make([]string, 0)
+	err = filepath.WalkDir(root, func(current string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() && current != root && shouldSkipExtractDir(entry.Name()) {
+			return filepath.SkipDir
+		}
+		if pattern.matchesPath(current, false) {
+			matches = append(matches, current)
+		}
+
+		return nil
+	})
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("glob %q matched no files", path)
+		}
 		return nil, fmt.Errorf("expand glob %q: %w", path, err)
 	}
 	if len(matches) == 0 {
@@ -152,13 +233,13 @@ func expandExtractPath(path string) ([]string, error) {
 	return matches, nil
 }
 
-func appendExtractFiles(files *[]string, seen map[string]struct{}, path string) error {
+func appendExtractFiles(files *[]string, seen map[string]struct{}, path string, ignores []extractGlobPattern) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("stat %q: %w", path, err)
 	}
 	if !info.IsDir() {
-		appendExtractFile(files, seen, path)
+		appendExtractFile(files, seen, path, ignores)
 		return nil
 	}
 
@@ -173,16 +254,20 @@ func appendExtractFiles(files *[]string, seen map[string]struct{}, path string) 
 			return nil
 		}
 
-		appendExtractFile(files, seen, current)
+		appendExtractFile(files, seen, current, ignores)
 
 		return nil
 	})
 }
 
-func appendExtractFile(files *[]string, seen map[string]struct{}, path string) {
+func appendExtractFile(files *[]string, seen map[string]struct{}, path string, ignores []extractGlobPattern) {
 	if !isExtractSourceFile(path) {
 		return
 	}
+	if matchesExtractGlobPatterns(ignores, path, true) {
+		return
+	}
+
 	clean := filepath.Clean(path)
 	if _, ok := seen[clean]; ok {
 		return
@@ -211,7 +296,137 @@ func shouldSkipExtractDir(name string) bool {
 }
 
 func hasGlobMeta(path string) bool {
-	return strings.ContainsAny(path, "*?[")
+	return strings.ContainsAny(path, "*?[{")
+}
+
+type extractGlobPattern struct {
+	raw      string
+	matchers []glob.Glob
+}
+
+func compileExtractGlobPatterns(patterns []string) ([]extractGlobPattern, error) {
+	out := make([]extractGlobPattern, 0, len(patterns))
+	for _, raw := range patterns {
+		pattern, err := compileExtractGlobPattern(raw)
+		if err != nil {
+			return nil, fmt.Errorf("compile ignore glob %q: %w", raw, err)
+		}
+		out = append(out, pattern)
+	}
+
+	return out, nil
+}
+
+func compileExtractGlobPattern(raw string) (extractGlobPattern, error) {
+	pattern := normalizeExtractGlobPattern(raw)
+	if pattern == "" {
+		return extractGlobPattern{}, fmt.Errorf("pattern cannot be empty")
+	}
+
+	alternates := extractGlobAlternates(pattern)
+	matchers := make([]glob.Glob, 0, len(alternates))
+	for _, alternate := range alternates {
+		matcher, err := glob.Compile(alternate, '/')
+		if err != nil {
+			return extractGlobPattern{}, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	return extractGlobPattern{raw: pattern, matchers: matchers}, nil
+}
+
+func normalizeExtractGlobPattern(pattern string) string {
+	normalized := filepath.ToSlash(strings.TrimSpace(pattern))
+	for strings.HasPrefix(normalized, "./") {
+		normalized = strings.TrimPrefix(normalized, "./")
+	}
+
+	return normalized
+}
+
+func extractGlobAlternates(pattern string) []string {
+	seen := map[string]struct{}{pattern: {}}
+	alternates := []string{pattern}
+	for i := 0; i < len(alternates); i++ {
+		current := alternates[i]
+		for searchStart := 0; searchStart <= len(current); {
+			index := strings.Index(current[searchStart:], "**/")
+			if index < 0 {
+				break
+			}
+			index += searchStart
+			alternate := current[:index] + current[index+3:]
+			if _, ok := seen[alternate]; !ok && alternate != "" {
+				seen[alternate] = struct{}{}
+				alternates = append(alternates, alternate)
+			}
+			searchStart = index + 3
+		}
+	}
+
+	return alternates
+}
+
+func extractGlobWalkRoot(pattern string) string {
+	parts := strings.Split(pattern, "/")
+	rootParts := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if hasGlobMeta(part) {
+			break
+		}
+		rootParts = append(rootParts, part)
+	}
+	if len(rootParts) == 0 {
+		if filepath.IsAbs(pattern) {
+			return string(filepath.Separator)
+		}
+		return "."
+	}
+	root := filepath.FromSlash(strings.Join(rootParts, "/"))
+	if root == "" {
+		return string(filepath.Separator)
+	}
+
+	return root
+}
+
+func matchesExtractGlobPatterns(patterns []extractGlobPattern, path string, includeBase bool) bool {
+	for _, pattern := range patterns {
+		if pattern.matchesPath(path, includeBase) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (p extractGlobPattern) matchesPath(path string, includeBase bool) bool {
+	for _, candidate := range extractGlobMatchCandidates(path, includeBase) {
+		for _, matcher := range p.matchers {
+			if matcher.Match(candidate) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func extractGlobMatchCandidates(path string, includeBase bool) []string {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	candidates := []string{clean}
+	if rel, err := filepath.Rel(".", path); err == nil {
+		candidates = append(candidates, filepath.ToSlash(filepath.Clean(rel)))
+	}
+	if strings.HasPrefix(clean, "./") {
+		candidates = append(candidates, strings.TrimPrefix(clean, "./"))
+	}
+	if includeBase {
+		candidates = append(candidates, filepath.Base(path))
+	}
+
+	return candidates
 }
 
 func extractMessagesFromReactIntlSource(src, file string) ([]extractMessage, error) {
