@@ -227,6 +227,7 @@ export function createGithubInstallationRoutes() {
             (error.status === 404 || error.status === 410)
           )
         ) {
+          console.error("GitHub installation revocation failed", error);
           return c.json({ error: "github_installation_revoke_failed" }, 502);
         }
       }

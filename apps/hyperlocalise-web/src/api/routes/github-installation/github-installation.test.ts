@@ -267,9 +267,7 @@ describe("githubInstallationRoutes", () => {
     const [installation] = await db
       .select()
       .from(schema.githubInstallations)
-      .where(
-        eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId),
-      );
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
     expect(installation).toBeUndefined();
   });
 
@@ -287,9 +285,25 @@ describe("githubInstallationRoutes", () => {
     const [installation] = await db
       .select()
       .from(schema.githubInstallations)
-      .where(
-        eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId),
-      );
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installation).toBeUndefined();
+  });
+
+  it("cleans up local state when GitHub returns 410 Gone", async () => {
+    deleteInstallationMock.mockRejectedValueOnce({ status: 410 });
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].$delete(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
     expect(installation).toBeUndefined();
   });
 
@@ -310,9 +324,7 @@ describe("githubInstallationRoutes", () => {
     const [installation] = await db
       .select()
       .from(schema.githubInstallations)
-      .where(
-        eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId),
-      );
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
     expect(installation).toBeDefined();
   });
 });
