@@ -11,8 +11,10 @@ export function sanitizeReturnTo(value: string | null | undefined, fallback = "/
   }
 
   // Prevent redirect loops by avoiding sensitive auth routes.
+  // We check the path part of the URL (before ? or #) to avoid bypasses.
+  const urlPath = value.split(/[?#]/)[0];
   const isRestricted = RESTRICTED_PATHS.some(
-    (path) => value === path || value.startsWith(`${path}?`) || value.startsWith(`${path}/`),
+    (path) => urlPath === path || urlPath.startsWith(`${path}/`),
   );
 
   if (isRestricted) {

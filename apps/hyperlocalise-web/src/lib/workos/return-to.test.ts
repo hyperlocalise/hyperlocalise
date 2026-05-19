@@ -31,8 +31,9 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/auth/github/callback")).toBe("/dashboard");
   });
 
-  it("should return the fallback if the value starts with a restricted auth path followed by ? or /", () => {
+  it("should return the fallback if the value starts with a restricted auth path followed by ?, #, or /", () => {
     expect(sanitizeReturnTo("/auth/sign-in?foo=bar")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/sign-in#section")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/callback/extra")).toBe("/dashboard");
   });
 
