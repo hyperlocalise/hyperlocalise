@@ -97,7 +97,7 @@ describe("publicFileRoutes", () => {
           eq(schema.repositorySourceFiles.projectId, project.id),
           eq(schema.repositorySourceFiles.sourcePath, "content/en/home.md"),
         ),
-    );
+      );
     expect(sourceFiles).toHaveLength(1);
     const sourceFile = sourceFiles[0];
     if (!sourceFile) {

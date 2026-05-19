@@ -267,13 +267,13 @@ export function createTranslationJobTool(ctx: ToolContext) {
 
       const sourceFileVersionId =
         input.type === "file"
-          ? (
+          ? ((
               await getRepositorySourceFileVersionForStoredFile({
                 organizationId: ctx.organizationId,
                 projectId: ctx.projectId,
                 fileId: input.sourceFileId,
               })
-            )?.id ?? null
+            )?.id ?? null)
           : null;
 
       const inputPayload =
