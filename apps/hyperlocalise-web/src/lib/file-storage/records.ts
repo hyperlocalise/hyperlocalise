@@ -66,6 +66,10 @@ export function safePathPart(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function normalizeSourcePath(value: string) {
+  return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+/g, "/");
+}
+
 function bytesFromContent(content: Buffer | Uint8Array | ArrayBuffer) {
   if (Buffer.isBuffer(content)) {
     return content;
@@ -196,12 +200,14 @@ async function createRepositorySourceFileVersionWithDb(
     throw new Error("Repository source files must belong to a project.");
   }
 
+  const sourcePath = normalizeSourcePath(input.sourcePath);
+
   const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
     .values({
       organizationId: input.storedFile.organizationId,
       projectId,
-      sourcePath: input.sourcePath,
+      sourcePath,
     })
     .onConflictDoUpdate({
       target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
@@ -219,7 +225,7 @@ async function createRepositorySourceFileVersionWithDb(
       repositorySourceFileId: sourceFile.id,
       organizationId: input.storedFile.organizationId,
       projectId,
-      sourcePath: input.sourcePath,
+      sourcePath,
       storedFileId: input.storedFile.id,
       sourceHash: input.sourceHash ?? input.storedFile.sha256,
       commitSha: input.commitSha ?? null,
@@ -234,7 +240,7 @@ async function createRepositorySourceFileVersionWithDb(
         repositorySourceFileId: sourceFile.id,
         organizationId: input.storedFile.organizationId,
         projectId,
-        sourcePath: input.sourcePath,
+        sourcePath,
         sourceHash: input.sourceHash ?? input.storedFile.sha256,
         commitSha: input.commitSha ?? null,
         workflowRunId: input.workflowRunId ?? null,
