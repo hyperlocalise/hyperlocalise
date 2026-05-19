@@ -98,7 +98,7 @@ export function getScopedFixPreflightSkip(
 
 async function createFixSandbox(
   event: GitHubFixRequestedEventData,
-  headBranch: string,
+  revision: string,
 ): Promise<{ sandboxId: string; token: string }> {
   "use step";
 
@@ -108,7 +108,7 @@ async function createFixSandbox(
     source: {
       depth: 1,
       password: token,
-      revision: headBranch,
+      revision,
       type: "git",
       url: `https://github.com/${event.repositoryFullName}.git`,
       username: "x-access-token",
@@ -396,7 +396,7 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
       return;
     }
 
-    const { sandboxId, token } = await createFixSandbox(event, pr.headBranch);
+    const { sandboxId, token } = await createFixSandbox(event, pr.headSha);
     try {
       await prepareSandbox(sandboxId, event, token);
       const fix = await runFixCommand(sandboxId, event);

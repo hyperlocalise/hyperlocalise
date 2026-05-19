@@ -99,6 +99,27 @@ describe("github fix scoped preflight", () => {
     });
   });
 
+  it("skips scoped fixes when the reviewed commit cannot be verified", () => {
+    const skip = getScopedFixPreflightSkip(
+      buildFixEvent({
+        type: "review_comment",
+        path: "locales/en.json",
+        line: 12,
+        originalLine: 12,
+        side: "RIGHT",
+        commitSha: null,
+        locale: "fr",
+      }),
+      { headSha: "2222222222222222222222222222222222222222" },
+    );
+
+    expect(skip).toEqual({
+      skipped: true,
+      reason:
+        "I could not verify which commit this inline comment was made against, so I skipped the scoped fix. Comment `@hyperlocalise fix` on the PR conversation to run a broad fix.",
+    });
+  });
+
   it("allows scoped fixes when the reviewed commit is still the PR head", () => {
     const skip = getScopedFixPreflightSkip(
       buildFixEvent({
