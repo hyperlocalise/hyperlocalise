@@ -7,6 +7,9 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 const { syncInstallationRepositoriesMock } = vi.hoisted(() => ({
   syncInstallationRepositoriesMock: vi.fn(async () => []),
 }));
+const { deleteInstallationMock } = vi.hoisted(() => ({
+  deleteInstallationMock: vi.fn(async () => ({ status: 204 })),
+}));
 
 vi.mock("@/lib/agents/github/repositories", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/github/repositories")>();
@@ -15,6 +18,13 @@ vi.mock("@/lib/agents/github/repositories", async (importOriginal) => {
     syncInstallationRepositories: syncInstallationRepositoriesMock,
   };
 });
+vi.mock("@/lib/agents/github/app", () => ({
+  getGitHubApp: () => ({
+    octokit: {
+      request: deleteInstallationMock,
+    },
+  }),
+}));
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -236,5 +246,85 @@ describe("githubInstallationRoutes", () => {
       organizationId: globalThis.__testApiAuthContext?.organization.localOrganizationId,
       githubInstallationId: "987654",
     });
+  });
+
+  it("revokes the GitHub App installation and removes local state", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].$delete(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+    expect(deleteInstallationMock).toHaveBeenCalledWith(
+      "DELETE /app/installations/{installation_id}",
+      {
+        installation_id: 987654,
+      },
+    );
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installation).toBeUndefined();
+  });
+
+  it("cleans up local state when GitHub installation is already removed", async () => {
+    deleteInstallationMock.mockRejectedValueOnce({ status: 404 });
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].$delete(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installation).toBeUndefined();
+  });
+
+  it("cleans up local state when GitHub returns 410 Gone", async () => {
+    deleteInstallationMock.mockRejectedValueOnce({ status: 410 });
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].$delete(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(204);
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installation).toBeUndefined();
+  });
+
+  it("does not remove local state when remote revocation fails", async () => {
+    deleteInstallationMock.mockRejectedValueOnce({ status: 500 });
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].$delete(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "github_installation_revoke_failed",
+    });
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installation).toBeDefined();
   });
 });
