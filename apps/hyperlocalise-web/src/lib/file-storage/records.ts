@@ -27,6 +27,7 @@ type StoredFileScopeInput = {
   organizationId: string;
   projectId?: string | null;
   fileId: string;
+  db?: DbSelectClient;
 };
 
 type RepositorySourceFileVersionInput = {
@@ -42,6 +43,8 @@ type RepositorySourceFileVersionInput = {
 };
 
 type DbInsertClient = Pick<typeof db, "insert">;
+type DbSelectClient = Pick<typeof db, "select">;
+type DbReadWriteClient = DbInsertClient & DbSelectClient;
 
 export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
@@ -146,6 +149,7 @@ export async function createStoredFile(input: CreateStoredFileInput) {
 }
 
 export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
+  const dbClient = input.db ?? db;
   const filters: SQL[] = [
     eq(schema.storedFiles.id, input.fileId),
     eq(schema.storedFiles.organizationId, input.organizationId),
@@ -161,7 +165,7 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
     }
   }
 
-  const [file] = await db
+  const [file] = await dbClient
     .select()
     .from(schema.storedFiles)
     .where(and(...filters))
@@ -249,7 +253,8 @@ async function createRepositorySourceFileVersionWithDb(
 }
 
 export async function getRepositorySourceFileVersionForStoredFile(input: StoredFileScopeInput) {
-  const [version] = await db
+  const dbClient = input.db ?? db;
+  const [version] = await dbClient
     .select()
     .from(schema.repositorySourceFileVersions)
     .where(
@@ -260,6 +265,13 @@ export async function getRepositorySourceFileVersionForStoredFile(input: StoredF
     )
     .limit(1);
 
+  return version ?? null;
+}
+
+export async function ensureRepositorySourceFileVersionForStoredFile(
+  input: StoredFileScopeInput & { db: DbReadWriteClient },
+) {
+  const version = await getRepositorySourceFileVersionForStoredFile(input);
   if (version) {
     return version;
   }
@@ -275,6 +287,7 @@ export async function getRepositorySourceFileVersionForStoredFile(input: StoredF
   }
 
   return createRepositorySourceFileVersion({
+    db: input.db,
     storedFile: file,
     sourcePath,
     sourceHash: stringMetadata(file.metadata, "sourceHash"),

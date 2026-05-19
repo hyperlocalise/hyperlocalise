@@ -11,7 +11,7 @@ import {
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
 import {
-  getRepositorySourceFileVersionForStoredFile,
+  ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
@@ -116,7 +116,6 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
-      let sourceFileVersionId: string | null = null;
 
       if (payload.type === "file") {
         const sourceFile = await getStoredFileForJobScope({
@@ -137,17 +136,20 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         if (inferredFileFormat !== payload.fileInput.fileFormat) {
           return sourceFileFormatMismatchResponse(c, inferredFileFormat);
         }
-
-        const sourceFileVersion = await getRepositorySourceFileVersionForStoredFile({
-          organizationId,
-          projectId: payload.projectId,
-          fileId: payload.fileInput.sourceFileId,
-        });
-        sourceFileVersionId = sourceFileVersion?.id ?? null;
       }
 
       const jobId = `job_${randomUUID()}`;
       const [job] = await db.transaction(async (tx) => {
+        const sourceFileVersion =
+          payload.type === "file"
+            ? await ensureRepositorySourceFileVersionForStoredFile({
+                db: tx,
+                organizationId,
+                projectId: payload.projectId,
+                fileId: payload.fileInput.sourceFileId,
+              })
+            : null;
+
         const [createdJob] = await tx
           .insert(schema.jobs)
           .values({
@@ -166,7 +168,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           .values({
             jobId,
             type: payload.type,
-            sourceFileVersionId,
+            sourceFileVersionId: sourceFileVersion?.id ?? null,
           })
           .returning();
 

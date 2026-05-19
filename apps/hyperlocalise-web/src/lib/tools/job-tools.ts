@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { schema } from "@/lib/database";
 import {
-  getRepositorySourceFileVersionForStoredFile,
+  ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
 import {
@@ -267,16 +267,6 @@ export function createTranslationJobTool(ctx: ToolContext) {
         }
       }
 
-      const sourceFileVersionId = sourceFileId
-        ? ((
-            await getRepositorySourceFileVersionForStoredFile({
-              organizationId: ctx.organizationId,
-              projectId: ctx.projectId,
-              fileId: sourceFileId,
-            })
-          )?.id ?? null)
-        : null;
-
       const inputPayload =
         input.type === "string"
           ? {
@@ -296,6 +286,15 @@ export function createTranslationJobTool(ctx: ToolContext) {
             };
 
       const job = await ctx.db.transaction(async (tx) => {
+        const sourceFileVersion = sourceFileId
+          ? await ensureRepositorySourceFileVersionForStoredFile({
+              db: tx,
+              organizationId: ctx.organizationId,
+              projectId: ctx.projectId,
+              fileId: sourceFileId,
+            })
+          : null;
+
         const [createdJob] = await tx
           .insert(schema.jobs)
           .values(
@@ -313,7 +312,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         await tx.insert(schema.translationJobDetails).values({
           jobId: createdJob.id,
           type: input.type,
-          sourceFileVersionId,
+          sourceFileVersionId: sourceFileVersion?.id ?? null,
         });
 
         return createdJob;
