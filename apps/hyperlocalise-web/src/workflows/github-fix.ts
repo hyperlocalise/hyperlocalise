@@ -35,6 +35,11 @@ type InstallationAuth = {
   token: string;
 };
 
+type ScopedFixSkip = {
+  skipped: true;
+  reason: string;
+};
+
 const fixableFindingTypes = new Set([
   "not_localized",
   "whitespace_only",
@@ -63,9 +68,37 @@ async function getPullRequestMetadata(
   };
 }
 
+function shortSha(value: string): string {
+  return value.slice(0, 12);
+}
+
+export function getScopedFixPreflightSkip(
+  event: GitHubFixRequestedEventData,
+  pr: Pick<PullRequestMetadata, "headSha">,
+): ScopedFixSkip | null {
+  if (event.scope.type !== "review_comment") {
+    return null;
+  }
+  if (!event.scope.commitSha) {
+    return {
+      skipped: true,
+      reason:
+        "I could not verify which commit this inline comment was made against, so I skipped the scoped fix. Comment `@hyperlocalise fix` on the PR conversation to run a broad fix.",
+    };
+  }
+  if (event.scope.commitSha === pr.headSha) {
+    return null;
+  }
+
+  return {
+    skipped: true,
+    reason: `This inline comment was made against commit \`${shortSha(event.scope.commitSha)}\`, but the PR head is now \`${shortSha(pr.headSha)}\`. I skipped the scoped fix so it does not target the wrong line or translation entry. Comment \`@hyperlocalise fix\` on the PR conversation to run a broad fix on the current head.`,
+  };
+}
+
 async function createFixSandbox(
   event: GitHubFixRequestedEventData,
-  headBranch: string,
+  revision: string,
 ): Promise<{ sandboxId: string; token: string }> {
   "use step";
 
@@ -75,7 +108,7 @@ async function createFixSandbox(
     source: {
       depth: 1,
       password: token,
-      revision: headBranch,
+      revision,
       type: "git",
       url: `https://github.com/${event.repositoryFullName}.git`,
       username: "x-access-token",
@@ -299,7 +332,7 @@ async function commitAndPush(
   for (const [command, args] of [
     ["git", ["add", "--", ...changedPaths]],
     ["git", ["commit", "-m", "fix(i18n): apply hyperlocalise fixes"]],
-    ["git", ["push", "origin", headBranch]],
+    ["git", ["push", "origin", `HEAD:refs/heads/${headBranch}`]],
   ] satisfies Array<[string, string[]]>) {
     const result = await runSandboxCommand(sandboxId, command, args);
     if (result.exitCode !== 0) {
@@ -354,8 +387,16 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
       );
       return;
     }
+    const scopedPreflight = getScopedFixPreflightSkip(event, pr);
+    if (scopedPreflight) {
+      await postPullRequestComment(
+        event,
+        `## Hyperlocalise fix skipped\n\n${scopedPreflight.reason}`,
+      );
+      return;
+    }
 
-    const { sandboxId, token } = await createFixSandbox(event, pr.headBranch);
+    const { sandboxId, token } = await createFixSandbox(event, pr.headSha);
     try {
       await prepareSandbox(sandboxId, event, token);
       const fix = await runFixCommand(sandboxId, event);
