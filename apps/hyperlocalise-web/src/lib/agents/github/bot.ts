@@ -21,6 +21,7 @@ import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow
 
 import { parseFixCommand } from "./commands";
 import { buildFixEvent } from "./events";
+import { requesterCanRunFix } from "./permissions";
 import { createGitHubFixTools } from "./tools";
 
 type GitHubBotOptions = {
@@ -83,10 +84,18 @@ export async function handleMention(
     raw: message.raw as GitHubRawMessage,
     command,
     installationId: Number.parseInt(githubInstallationId, 10),
+    requesterLogin: message.author.userId,
   });
   if (!event) {
     await thread.post(
       "I can only run `@hyperlocalise fix` from pull request comments or inline pull request review comments.",
+    );
+    return;
+  }
+
+  if (!(await requesterCanRunFix(event))) {
+    await thread.post(
+      "I can only run `@hyperlocalise fix` for repository collaborators with write access.",
     );
     return;
   }

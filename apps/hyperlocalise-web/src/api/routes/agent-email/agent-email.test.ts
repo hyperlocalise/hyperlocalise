@@ -7,6 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
+import { resolveInboundEmailOrganization } from "@/lib/agents/email/organizations";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -73,7 +74,7 @@ describe("agentEmailRoutes", () => {
 
     expect(enableBody.emailAgent.enabled).toBe(true);
     expect(enableBody.emailAgent.inboundEmailAddress).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{6}@inbox\.hyperlocalise\.com$/,
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
     );
 
     const authContext = globalThis.__testApiAuthContext;
@@ -93,7 +94,7 @@ describe("agentEmailRoutes", () => {
 
     expect(connector?.enabled).toBe(true);
     expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
-      /^example-org-[a-f0-9-]+-[a-f0-9]{6}$/,
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
 
     const disableResponse = await client.api.orgs[":organizationSlug"]["agent-email"].$patch(
@@ -121,6 +122,97 @@ describe("agentEmailRoutes", () => {
 
     expect(reenableBody.emailAgent.inboundEmailAddress).toBe(
       enableBody.emailAgent.inboundEmailAddress,
+    );
+  });
+
+  it("rotates an existing enabled weak inbound email alias", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext;
+    const organizationId = authContext?.organization.localOrganizationId ?? "";
+
+    await db.insert(schema.connectors).values({
+      organizationId,
+      kind: "email",
+      enabled: true,
+      config: { inboundEmailAlias: "example-org-abcdef" },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-email"].$get(
+      {
+        param: { organizationSlug },
+      },
+      {
+        headers,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.emailAgent.enabled).toBe(true);
+    expect(body.emailAgent.inboundEmailAddress).toMatch(
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
+    );
+    expect(body.emailAgent.inboundEmailAddress).not.toBe(
+      "example-org-abcdef@inbox.hyperlocalise.com",
+    );
+
+    const [connector] = await db
+      .select({ enabled: schema.connectors.enabled, config: schema.connectors.config })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, organizationId),
+          eq(schema.connectors.kind, "email"),
+        ),
+      )
+      .limit(1);
+
+    expect(connector?.enabled).toBe(true);
+    expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
+    );
+  });
+
+  it("rotates a matching weak alias during inbound email organization resolution", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext;
+    const organizationId = authContext?.organization.localOrganizationId ?? "";
+    const userId = authContext?.user.localUserId ?? "";
+
+    await db.insert(schema.connectors).values({
+      organizationId,
+      kind: "email",
+      enabled: true,
+      config: { inboundEmailAlias: "example-org-abcdef" },
+    });
+
+    const resolved = await resolveInboundEmailOrganization({
+      senderUserId: userId,
+      recipientAddresses: ["Example <example-org-abcdef@inbox.hyperlocalise.com>"],
+    });
+
+    expect(resolved?.id).toBe(organizationId);
+    expect(resolved?.inboundEmailAddress).toMatch(
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
+    );
+    expect(resolved?.inboundEmailAddress).not.toBe("example-org-abcdef@inbox.hyperlocalise.com");
+
+    const [connector] = await db
+      .select({ config: schema.connectors.config })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, organizationId),
+          eq(schema.connectors.kind, "email"),
+        ),
+      )
+      .limit(1);
+
+    expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
+      /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
   });
 

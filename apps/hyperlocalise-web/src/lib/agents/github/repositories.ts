@@ -126,6 +126,15 @@ export async function syncInstallationRepositories(input: {
     .map((repository) => normalizeGitHubRepository(repository))
     .filter((repository): repository is GitHubRepositorySyncRecord => repository !== null);
 
+  await db
+    .delete(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.githubInstallationId, input.githubInstallationId),
+        sql`${schema.githubInstallationRepositories.organizationId} <> ${input.organizationId}`,
+      ),
+    );
+
   await upsertGitHubInstallationRepositories({
     organizationId: input.organizationId,
     githubInstallationId: input.githubInstallationId,

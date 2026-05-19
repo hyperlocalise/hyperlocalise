@@ -103,7 +103,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     accountLogin = account?.login ?? null;
     accountType = account?.type ?? null;
   } catch {
-    // Ignore errors fetching details; we can still store the basic record.
+    redirect("/dashboard?error=github_installation_invalid");
   }
 
   const githubInstallationId = installationId;

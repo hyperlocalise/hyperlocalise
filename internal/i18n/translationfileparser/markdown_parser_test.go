@@ -272,6 +272,59 @@ func TestMarshalMarkdownPreservesInlineRawHTMLTags(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownRejectsIntroducedRawHTML(t *testing.T) {
+	template := []byte("Translate this paragraph safely.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var key string
+	for k := range entries {
+		key = k
+		break
+	}
+
+	output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{
+		key: `Traduire ce paragraphe. <img src=x onerror=alert(1)>`,
+	}, false)
+	if string(output) != string(template) {
+		t.Fatalf("expected source markdown fallback for introduced raw HTML, got %q", string(output))
+	}
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+}
+
+func TestMarshalMarkdownRejectsIntroducedRawHTMLWithPlaceholders(t *testing.T) {
+	template := []byte("Read [the docs](https://example.com/docs) before continuing.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	translated := strings.Replace(value, "before continuing", "avant de continuer", 1)
+	translated += ` <img src=x onerror=alert(1)>`
+
+	output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: translated}, false)
+	if string(output) != string(template) {
+		t.Fatalf("expected source markdown fallback for introduced raw HTML, got %q", string(output))
+	}
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+}
+
 func TestMarshalMarkdownLeavesUnclosedMultiBacktickSpanLiteral(t *testing.T) {
 	template := []byte("Document ``unfinished span safely.\n")
 

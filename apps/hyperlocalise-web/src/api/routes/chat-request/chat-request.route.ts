@@ -1,9 +1,11 @@
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
+import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { addInteractionMessage, createInteraction } from "@/lib/interactions";
@@ -54,6 +56,25 @@ function tooManyTranslationSourceFilesResponse(c: {
   return c.json({ error: "too_many_translation_source_files", maxFiles: maxChatUploadFiles }, 400);
 }
 
+async function validateProjectForOrganization(
+  projectId: string | undefined,
+  organizationId: string,
+) {
+  if (!projectId) {
+    return true;
+  }
+
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(
+      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+    )
+    .limit(1);
+
+  return Boolean(project);
+}
+
 export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -90,6 +111,11 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
         }
 
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
+        const projectIsValid = await validateProjectForOrganization(parsed.data.projectId, orgId);
+        if (!projectIsValid) {
+          return invalidChatRequestResponse(c);
+        }
+
         const messageText = parsed.data.text || "Please translate the attached source file.";
         const title = messageText.slice(0, 120);
         const conversation = await createInteraction({
@@ -145,6 +171,10 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
     .post("/", validateChatRequestBody, async (c) => {
       const body = c.req.valid("json");
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
+      const projectIsValid = await validateProjectForOrganization(body.projectId, orgId);
+      if (!projectIsValid) {
+        return invalidChatRequestResponse(c);
+      }
 
       const title = body.text.slice(0, 120);
       const conversation = await createInteraction({

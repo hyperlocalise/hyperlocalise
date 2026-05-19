@@ -82,6 +82,58 @@ describe("chat request uploads", () => {
     ]);
   });
 
+  it("rejects upload requests linked to another organization's project", async () => {
+    const identity = createWorkosIdentity();
+    const otherIdentity = createWorkosIdentity();
+    const otherProjectResponse = await createProjectViaApi(otherIdentity);
+    const otherProjectBody = (await otherProjectResponse.json()) as { project: { id: string } };
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate this to fr-FR");
+    formData.set("projectId", otherProjectBody.project.id);
+    formData.append(
+      "files",
+      new File([JSON.stringify({ hello: "Hello" })], "source.json", {
+        type: "application/json",
+      }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${identity.organization.slug}/chat-requests/upload`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_chat_request" });
+  });
+
+  it("rejects JSON chat requests linked to another organization's project", async () => {
+    const identity = createWorkosIdentity();
+    const otherIdentity = createWorkosIdentity();
+    const otherProjectResponse = await createProjectViaApi(otherIdentity);
+    const otherProjectBody = (await otherProjectResponse.json()) as { project: { id: string } };
+    const headers = await authHeadersFor(identity);
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/chat-requests`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        text: "Translate this",
+        projectId: otherProjectBody.project.id,
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_chat_request" });
+  });
+
   it("rejects unsupported translation source files", async () => {
     const identity = createWorkosIdentity();
     const headers = await authHeadersFor(identity);

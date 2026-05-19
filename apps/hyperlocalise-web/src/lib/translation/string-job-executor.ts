@@ -23,6 +23,12 @@ const stringTranslationOutputSchema = z.object({
   ),
 });
 
+function estimateMaxOutputTokens(input: StringTranslationJobInput) {
+  const sourceBudget = Math.ceil(input.sourceText.length / 2);
+  const localeBudget = input.targetLocales.length * 256;
+  return Math.min(16_000, Math.max(1_000, sourceBudget + localeBudget));
+}
+
 export type StringTranslationJobResult = z.infer<typeof stringTranslationOutputSchema>;
 
 export type StringTranslationGeneratorInput = {
@@ -214,6 +220,7 @@ export function createStringTranslationGenerator({
       system: buildSystemPrompt(input),
       prompt: buildPrompt(input),
       temperature: 0,
+      maxOutputTokens: estimateMaxOutputTokens(input.jobInput),
     });
 
     return normalizeTranslations(input.jobInput, output);

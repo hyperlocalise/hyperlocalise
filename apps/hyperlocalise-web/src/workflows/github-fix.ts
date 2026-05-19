@@ -1,6 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { getInstallationOctokit } from "@/lib/agents/github/app";
+import { requesterCanRunFix } from "@/lib/agents/github/permissions";
 import { deleteGitHubAgentRequestForEvent } from "@/lib/agents/github/request-idempotency";
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
@@ -379,6 +380,14 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
   "use workflow";
 
   try {
+    if (!(await requesterCanRunFix(event))) {
+      await postPullRequestComment(
+        event,
+        "## Hyperlocalise fix skipped\n\nOnly repository collaborators with write access can run `@hyperlocalise fix`.",
+      );
+      return;
+    }
+
     const pr = await getPullRequestMetadata(event);
     if (!pr.canPush) {
       await postPullRequestComment(
