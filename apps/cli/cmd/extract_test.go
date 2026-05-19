@@ -193,6 +193,14 @@ export const message = defineMessage({
 	}
 }
 
+func TestUnescapeJavaScriptStringSupportsHighByteHexEscapes(t *testing.T) {
+	got := []byte(unescapeJavaScriptString(`\x7F\x80\xA0\xFF`))
+	want := []byte{0x7f, 0x80, 0xa0, 0xff}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("unescaped bytes = %v, want %v", got, want)
+	}
+}
+
 func TestRootHelpIncludesExtractCommand(t *testing.T) {
 	cmd := newRootCmd("")
 	b := bytes.NewBufferString("")

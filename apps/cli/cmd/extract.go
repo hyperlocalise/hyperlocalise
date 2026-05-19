@@ -828,7 +828,7 @@ func writeUnicodeEscape(b *strings.Builder, raw string, index int) int {
 func writeHexEscape(b *strings.Builder, raw string, index int) int {
 	if index+2 < len(raw) {
 		hex := raw[index+1 : index+3]
-		if value, err := strconv.ParseInt(hex, 16, 8); err == nil {
+		if value, err := strconv.ParseUint(hex, 16, 8); err == nil {
 			b.WriteByte(byte(value))
 			return index + 2
 		}
