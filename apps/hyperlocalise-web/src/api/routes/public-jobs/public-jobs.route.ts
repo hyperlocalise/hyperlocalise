@@ -45,6 +45,50 @@ type CreatePublicJobRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
 };
 
+type PublicJobOutputFile = {
+  fileId: string;
+  locale: string;
+  filename: string;
+};
+
+function isPublicJobOutputFile(value: unknown): value is PublicJobOutputFile {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.fileId === "string" &&
+    typeof candidate.locale === "string" &&
+    typeof candidate.filename === "string"
+  );
+}
+
+function publicJobOutputFiles(input: {
+  type: string | null;
+  outcomeKind: string | null;
+  outcomePayload: unknown;
+}) {
+  if (input.type !== "file" || input.outcomeKind !== "file_result") {
+    return null;
+  }
+
+  if (!input.outcomePayload || typeof input.outcomePayload !== "object") {
+    return null;
+  }
+
+  const outputFiles = (input.outcomePayload as Record<string, unknown>).outputFiles;
+  if (!Array.isArray(outputFiles) || !outputFiles.every(isPublicJobOutputFile)) {
+    return null;
+  }
+
+  return outputFiles.map((outputFile) => ({
+    fileId: outputFile.fileId,
+    locale: outputFile.locale,
+    filename: outputFile.filename,
+  }));
+}
+
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
@@ -176,7 +220,22 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         return jobNotFoundResponse(c);
       }
 
-      return c.json({ job }, 200);
+      return c.json(
+        {
+          job: {
+            id: job.id,
+            projectId: job.projectId,
+            type: job.type,
+            status: job.status,
+            createdAt: job.createdAt,
+            updatedAt: job.updatedAt,
+            completedAt: job.completedAt,
+            lastError: job.lastError,
+            outputFiles: publicJobOutputFiles(job),
+          },
+        },
+        200,
+      );
     })
     .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
       const params = c.req.valid("param");

@@ -96,6 +96,49 @@ export async function insertStoredSourceFile(params: {
   return file;
 }
 
+export async function insertCompletedPublicFileJob(params: {
+  projectId: string;
+  organizationId: string;
+  apiKeyId?: string;
+  outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
+}) {
+  const id = `job_${randomUUID()}`;
+
+  const [job] = await db
+    .insert(schema.jobs)
+    .values({
+      id,
+      organizationId: params.organizationId,
+      projectId: params.projectId,
+      kind: "translation",
+      status: "succeeded",
+      inputPayload: {
+        sourceFileId: "file_source",
+        fileFormat: "xliff",
+        sourceLocale: "en-US",
+        targetLocales: params.outputFiles.map((file) => file.locale),
+      },
+      outcomePayload: {
+        outputFiles: params.outputFiles,
+      },
+      apiKeyId: params.apiKeyId ?? null,
+      completedAt: new Date(),
+    })
+    .returning();
+
+  await db.insert(schema.translationJobDetails).values({
+    jobId: id,
+    type: "file",
+    outcomeKind: "file_result",
+  });
+
+  if (!job) {
+    throw new Error("job insert failed");
+  }
+
+  return job;
+}
+
 export async function cleanupPublicApiFixture() {
   for (const workosOrganizationId of createdWorkosOrganizationIds) {
     await db
