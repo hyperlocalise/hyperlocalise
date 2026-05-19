@@ -6,15 +6,7 @@ import { schema } from "@/lib/database";
 import type { ToolContext } from "./types";
 
 /**
- * TODO: Resolve or archive the interaction's inbox item.
- *
- * PRODUCT.md requirement: "The interaction records the result, and the inbox item remains open,
- * resolved, or archived."
- *
- * Implementation plan:
- * 1. Accept `status`: "active" | "archived" (or add "resolved" to the `inboxStatusEnum`).
- * 2. Update `inboxItems.status` for the current interaction.
- * 3. Return the new status.
+ * Marks the current interaction's inbox item as active or archived.
  *
  * Example usage: user says "That's all I needed, thanks."
  */

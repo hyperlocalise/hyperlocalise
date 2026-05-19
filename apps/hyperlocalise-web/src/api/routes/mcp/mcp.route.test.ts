@@ -216,7 +216,6 @@ describe("mcpRoutes", () => {
     await expect(response.json()).resolves.toEqual({ error: "invalid_client" });
   });
 
-  // TODO: Re-enable after diagnosing the CI-only 500 during MCP authorization code exchange.
   it("exchanges a PKCE-bound authorization code for persisted MCP tokens", async () => {
     const identity = fixture.createWorkosIdentity();
     await fixture.authHeadersFor(identity);
