@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Run Hyperlocalise action
         id: hyperlocalise
@@ -68,10 +68,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Bazelisk
-        uses: bazelbuild/setup-bazelisk@v3
+        uses: bazelbuild/setup-bazelisk@6ecf4fd8b7d1f9721785f1dd656a689acf9add47 # v3
 
       - name: Configure BuildBuddy
         id: buildbuddy
@@ -106,7 +106,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap

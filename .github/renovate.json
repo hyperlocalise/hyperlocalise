@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "automerge": false,
   "schedule": ["before 8am on Monday"],
   "minimumReleaseAge": "3 days",
