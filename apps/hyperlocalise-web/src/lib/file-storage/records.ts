@@ -20,6 +20,7 @@ type CreateStoredFileInput = {
   content: Buffer | Uint8Array | ArrayBuffer;
   metadata?: Record<string, unknown>;
   adapter?: FileStorageAdapter;
+  db?: DbInsertClient;
 };
 
 type StoredFileScopeInput = {
@@ -37,7 +38,10 @@ type RepositorySourceFileVersionInput = {
   uploadedByUserId?: string | null;
   uploadedByApiKeyId?: string | null;
   uploadSurface?: string | null;
+  db?: DbInsertClient;
 };
+
+type DbInsertClient = Pick<typeof db, "insert">;
 
 export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
@@ -105,7 +109,8 @@ export async function createStoredFile(input: CreateStoredFileInput) {
   });
 
   try {
-    const [file] = await db
+    const dbClient = input.db ?? db;
+    const [file] = await dbClient
       .insert(schema.storedFiles)
       .values({
         id,
@@ -171,15 +176,27 @@ function stringMetadata(metadata: Record<string, unknown>, key: string) {
 }
 
 export async function createRepositorySourceFileVersion(input: RepositorySourceFileVersionInput) {
-  if (!input.storedFile.projectId) {
+  if (input.db) {
+    return createRepositorySourceFileVersionWithDb(input, input.db);
+  }
+
+  return db.transaction((tx) => createRepositorySourceFileVersionWithDb(input, tx));
+}
+
+async function createRepositorySourceFileVersionWithDb(
+  input: RepositorySourceFileVersionInput,
+  dbClient: DbInsertClient,
+) {
+  const projectId = input.storedFile.projectId;
+  if (!projectId) {
     throw new Error("Repository source files must belong to a project.");
   }
 
-  const [sourceFile] = await db
+  const [sourceFile] = await dbClient
     .insert(schema.repositorySourceFiles)
     .values({
       organizationId: input.storedFile.organizationId,
-      projectId: input.storedFile.projectId,
+      projectId,
       sourcePath: input.sourcePath,
     })
     .onConflictDoUpdate({
@@ -192,12 +209,12 @@ export async function createRepositorySourceFileVersion(input: RepositorySourceF
     throw new Error("Failed to create repository source file: no row returned.");
   }
 
-  const [version] = await db
+  const [version] = await dbClient
     .insert(schema.repositorySourceFileVersions)
     .values({
       repositorySourceFileId: sourceFile.id,
       organizationId: input.storedFile.organizationId,
-      projectId: input.storedFile.projectId,
+      projectId,
       sourcePath: input.sourcePath,
       storedFileId: input.storedFile.id,
       sourceHash: input.sourceHash ?? input.storedFile.sha256,
@@ -212,7 +229,7 @@ export async function createRepositorySourceFileVersion(input: RepositorySourceF
       set: {
         repositorySourceFileId: sourceFile.id,
         organizationId: input.storedFile.organizationId,
-        projectId: input.storedFile.projectId,
+        projectId,
         sourcePath: input.sourcePath,
         sourceHash: input.sourceHash ?? input.storedFile.sha256,
         commitSha: input.commitSha ?? null,
