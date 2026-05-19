@@ -9,6 +9,8 @@ import type {
   mcpSessions,
   organizationApiKeys,
   organizationLlmProviderCredentials,
+  repositorySourceFiles,
+  repositorySourceFileVersions,
   translationJobDetails,
   organizationMembershipRoleEnum,
   teamMembershipRoleEnum,
@@ -34,6 +36,10 @@ export type JobKind = (typeof jobKindEnum.enumValues)[number];
 export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
 export type TranslationJobDetails = typeof translationJobDetails.$inferSelect;
 export type NewTranslationJobDetails = typeof translationJobDetails.$inferInsert;
+export type RepositorySourceFile = typeof repositorySourceFiles.$inferSelect;
+export type NewRepositorySourceFile = typeof repositorySourceFiles.$inferInsert;
+export type RepositorySourceFileVersion = typeof repositorySourceFileVersions.$inferSelect;
+export type NewRepositorySourceFileVersion = typeof repositorySourceFileVersions.$inferInsert;
 export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.enumValues)[number];
 export type LlmProvider = (typeof llmProviderEnum.enumValues)[number];
 export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;

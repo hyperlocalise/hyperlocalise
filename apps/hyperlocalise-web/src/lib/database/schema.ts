@@ -920,11 +920,16 @@ export const translationJobDetails = pgTable(
       .references(() => jobs.id, { onDelete: "cascade" }),
     // Translation subtype; string jobs are supported first, file jobs can follow.
     type: translationJobTypeEnum("type").notNull(),
+    sourceFileVersionId: uuid("source_file_version_id").references(
+      () => repositorySourceFileVersions.id,
+      { onDelete: "set null" },
+    ),
     // Describes the shape of a successful translation result or terminal error payload.
     outcomeKind: translationJobOutcomeKindEnum("outcome_kind"),
   },
   (table) => [
     index("idx_translation_job_details_type").on(table.type),
+    index("idx_translation_job_details_source_file_version").on(table.sourceFileVersionId),
     index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
   ],
 );
@@ -1100,5 +1105,73 @@ export const storedFiles = pgTable(
     index("idx_stored_files_source_interaction").on(table.sourceInteractionId),
     index("idx_stored_files_source_job").on(table.sourceJobId),
     index("idx_stored_files_org_role").on(table.organizationId, table.role),
+  ],
+);
+
+export const repositorySourceFiles = pgTable(
+  "repository_source_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sourcePath: text("source_path").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("repository_source_files_project_path_key").on(table.projectId, table.sourcePath),
+    index("idx_repository_source_files_org_project").on(table.organizationId, table.projectId),
+  ],
+);
+
+export const repositorySourceFileVersions = pgTable(
+  "repository_source_file_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    repositorySourceFileId: uuid("repository_source_file_id")
+      .notNull()
+      .references(() => repositorySourceFiles.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    sourcePath: text("source_path").notNull(),
+    storedFileId: text("stored_file_id")
+      .notNull()
+      .references(() => storedFiles.id, { onDelete: "cascade" }),
+    sourceHash: text("source_hash"),
+    commitSha: text("commit_sha"),
+    workflowRunId: text("workflow_run_id"),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    uploadedByApiKeyId: uuid("uploaded_by_api_key_id").references(() => organizationApiKeys.id, {
+      onDelete: "set null",
+    }),
+    uploadSurface: text("upload_surface"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("repository_source_file_versions_stored_file_key").on(table.storedFileId),
+    index("idx_repository_source_file_versions_file_created").on(
+      table.repositorySourceFileId,
+      table.createdAt,
+    ),
+    index("idx_repository_source_file_versions_project_path_created").on(
+      table.projectId,
+      table.sourcePath,
+      table.createdAt,
+    ),
+    index("idx_repository_source_file_versions_workflow_run").on(table.workflowRunId),
+    index("idx_repository_source_file_versions_api_key").on(table.uploadedByApiKeyId),
   ],
 );

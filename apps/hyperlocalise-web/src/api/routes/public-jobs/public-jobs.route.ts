@@ -10,7 +10,10 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
-import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  ensureRepositorySourceFileVersionForStoredFile,
+  getStoredFileForJobScope,
+} from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -137,6 +140,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
 
       const jobId = `job_${randomUUID()}`;
       const [job] = await db.transaction(async (tx) => {
+        const sourceFileVersion =
+          payload.type === "file"
+            ? await ensureRepositorySourceFileVersionForStoredFile({
+                db: tx,
+                organizationId,
+                projectId: payload.projectId,
+                fileId: payload.fileInput.sourceFileId,
+              })
+            : null;
+
         const [createdJob] = await tx
           .insert(schema.jobs)
           .values({
@@ -155,6 +168,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           .values({
             jobId,
             type: payload.type,
+            sourceFileVersionId: sourceFileVersion?.id ?? null,
           })
           .returning();
 

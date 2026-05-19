@@ -5,7 +5,10 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  ensureRepositorySourceFileVersionForStoredFile,
+  getStoredFileForJobScope,
+} from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
@@ -224,8 +227,10 @@ export function createTranslationJobTool(ctx: ToolContext) {
         return { success: false, error: "sourceText is required for string translation jobs." };
       }
 
+      const sourceFileId = input.type === "file" ? input.sourceFileId?.trim() : undefined;
+
       if (input.type === "file") {
-        if (!input.sourceFileId?.trim()) {
+        if (!sourceFileId) {
           return { success: false, error: "sourceFileId is required for file translation jobs." };
         }
 
@@ -236,7 +241,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         const sourceFile = await getStoredFileForJobScope({
           organizationId: ctx.organizationId,
           projectId: ctx.projectId,
-          fileId: input.sourceFileId,
+          fileId: sourceFileId,
         });
 
         if (!sourceFile) {
@@ -273,7 +278,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
               maxLength: input.maxLength,
             }
           : {
-              sourceFileId: input.sourceFileId,
+              sourceFileId,
               fileFormat: input.fileFormat,
               sourceLocale: input.sourceLocale,
               targetLocales: input.targetLocales,
@@ -281,6 +286,15 @@ export function createTranslationJobTool(ctx: ToolContext) {
             };
 
       const job = await ctx.db.transaction(async (tx) => {
+        const sourceFileVersion = sourceFileId
+          ? await ensureRepositorySourceFileVersionForStoredFile({
+              db: tx,
+              organizationId: ctx.organizationId,
+              projectId: ctx.projectId,
+              fileId: sourceFileId,
+            })
+          : null;
+
         const [createdJob] = await tx
           .insert(schema.jobs)
           .values(
@@ -298,6 +312,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         await tx.insert(schema.translationJobDetails).values({
           jobId: createdJob.id,
           type: input.type,
+          sourceFileVersionId: sourceFileVersion?.id ?? null,
         });
 
         return createdJob;

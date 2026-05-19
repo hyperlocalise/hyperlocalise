@@ -20,13 +20,31 @@ type CreateStoredFileInput = {
   content: Buffer | Uint8Array | ArrayBuffer;
   metadata?: Record<string, unknown>;
   adapter?: FileStorageAdapter;
+  db?: DbInsertClient;
 };
 
 type StoredFileScopeInput = {
   organizationId: string;
   projectId?: string | null;
   fileId: string;
+  db?: DbSelectClient;
 };
+
+type RepositorySourceFileVersionInput = {
+  storedFile: typeof schema.storedFiles.$inferSelect;
+  sourcePath: string;
+  sourceHash?: string | null;
+  commitSha?: string | null;
+  workflowRunId?: string | null;
+  uploadedByUserId?: string | null;
+  uploadedByApiKeyId?: string | null;
+  uploadSurface?: string | null;
+  db?: DbInsertClient;
+};
+
+type DbInsertClient = Pick<typeof db, "insert">;
+type DbSelectClient = Pick<typeof db, "select">;
+type DbReadWriteClient = DbInsertClient & DbSelectClient;
 
 export function createStoredFileId() {
   return `file_${crypto.randomUUID()}`;
@@ -94,7 +112,8 @@ export async function createStoredFile(input: CreateStoredFileInput) {
   });
 
   try {
-    const [file] = await db
+    const dbClient = input.db ?? db;
+    const [file] = await dbClient
       .insert(schema.storedFiles)
       .values({
         id,
@@ -130,6 +149,7 @@ export async function createStoredFile(input: CreateStoredFileInput) {
 }
 
 export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
+  const dbClient = input.db ?? db;
   const filters: SQL[] = [
     eq(schema.storedFiles.id, input.fileId),
     eq(schema.storedFiles.organizationId, input.organizationId),
@@ -145,11 +165,135 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
     }
   }
 
-  const [file] = await db
+  const [file] = await dbClient
     .select()
     .from(schema.storedFiles)
     .where(and(...filters))
     .limit(1);
 
   return file ?? null;
+}
+
+function stringMetadata(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+export async function createRepositorySourceFileVersion(input: RepositorySourceFileVersionInput) {
+  if (input.db) {
+    return createRepositorySourceFileVersionWithDb(input, input.db);
+  }
+
+  return db.transaction((tx) => createRepositorySourceFileVersionWithDb(input, tx));
+}
+
+async function createRepositorySourceFileVersionWithDb(
+  input: RepositorySourceFileVersionInput,
+  dbClient: DbInsertClient,
+) {
+  const projectId = input.storedFile.projectId;
+  if (!projectId) {
+    throw new Error("Repository source files must belong to a project.");
+  }
+
+  const [sourceFile] = await dbClient
+    .insert(schema.repositorySourceFiles)
+    .values({
+      organizationId: input.storedFile.organizationId,
+      projectId,
+      sourcePath: input.sourcePath,
+    })
+    .onConflictDoUpdate({
+      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      set: { updatedAt: new Date() },
+    })
+    .returning();
+
+  if (!sourceFile) {
+    throw new Error("Failed to create repository source file: no row returned.");
+  }
+
+  const [version] = await dbClient
+    .insert(schema.repositorySourceFileVersions)
+    .values({
+      repositorySourceFileId: sourceFile.id,
+      organizationId: input.storedFile.organizationId,
+      projectId,
+      sourcePath: input.sourcePath,
+      storedFileId: input.storedFile.id,
+      sourceHash: input.sourceHash ?? input.storedFile.sha256,
+      commitSha: input.commitSha ?? null,
+      workflowRunId: input.workflowRunId ?? null,
+      uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
+      uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
+      uploadSurface: input.uploadSurface ?? null,
+    })
+    .onConflictDoUpdate({
+      target: schema.repositorySourceFileVersions.storedFileId,
+      set: {
+        repositorySourceFileId: sourceFile.id,
+        organizationId: input.storedFile.organizationId,
+        projectId,
+        sourcePath: input.sourcePath,
+        sourceHash: input.sourceHash ?? input.storedFile.sha256,
+        commitSha: input.commitSha ?? null,
+        workflowRunId: input.workflowRunId ?? null,
+        uploadedByUserId: input.uploadedByUserId ?? input.storedFile.createdByUserId,
+        uploadedByApiKeyId: input.uploadedByApiKeyId ?? null,
+        uploadSurface: input.uploadSurface ?? null,
+      },
+    })
+    .returning();
+
+  if (!version) {
+    throw new Error("Failed to create repository source file version: no row returned.");
+  }
+
+  return version;
+}
+
+export async function getRepositorySourceFileVersionForStoredFile(input: StoredFileScopeInput) {
+  const dbClient = input.db ?? db;
+  const [version] = await dbClient
+    .select()
+    .from(schema.repositorySourceFileVersions)
+    .where(
+      and(
+        eq(schema.repositorySourceFileVersions.storedFileId, input.fileId),
+        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  return version ?? null;
+}
+
+export async function ensureRepositorySourceFileVersionForStoredFile(
+  input: StoredFileScopeInput & { db: DbReadWriteClient },
+) {
+  const version = await getRepositorySourceFileVersionForStoredFile(input);
+  if (version) {
+    return version;
+  }
+
+  const file = await getStoredFileForJobScope(input);
+  if (!file || file.sourceKind !== "repository_file" || !file.projectId) {
+    return null;
+  }
+
+  const sourcePath = stringMetadata(file.metadata, "sourcePath");
+  if (!sourcePath) {
+    return null;
+  }
+
+  return createRepositorySourceFileVersion({
+    db: input.db,
+    storedFile: file,
+    sourcePath,
+    sourceHash: stringMetadata(file.metadata, "sourceHash"),
+    commitSha: stringMetadata(file.metadata, "commitSha"),
+    workflowRunId: stringMetadata(file.metadata, "workflowRunId"),
+    uploadedByUserId: file.createdByUserId,
+    uploadSurface: stringMetadata(file.metadata, "uploadSurface"),
+  });
 }

@@ -9,7 +9,7 @@ import {
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { payloadTooLargeResponse } from "@/api/response.schema";
@@ -84,28 +84,55 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           return projectNotFoundResponse(c);
         }
 
-        const storedFile = await createStoredFile({
-          organizationId,
-          projectId: project.id,
-          role: "source",
-          sourceKind: "repository_file",
-          filename: file.name,
-          contentType: file.type || "application/octet-stream",
-          content: await file.arrayBuffer(),
-          metadata: {
-            sourcePath: parsed.data.sourcePath,
-            sourceHash: parsed.data.sourceHash,
-            commitSha: parsed.data.commitSha,
-            workflowRunId: parsed.data.workflowRunId,
-            uploadSurface: "public_api",
-          },
-          adapter: options.fileStorageAdapter,
-        });
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
+
+        const { storedFile, version } = await db
+          .transaction(async (tx) => {
+            uploadedFile = await createStoredFile({
+              organizationId,
+              projectId: project.id,
+              role: "source",
+              sourceKind: "repository_file",
+              filename: file.name,
+              contentType: file.type || "application/octet-stream",
+              content: await file.arrayBuffer(),
+              metadata: {
+                sourcePath: parsed.data.sourcePath,
+                sourceHash: parsed.data.sourceHash,
+                commitSha: parsed.data.commitSha,
+                workflowRunId: parsed.data.workflowRunId,
+                uploadSurface: "public_api",
+              },
+              adapter,
+              db: tx,
+            });
+
+            const version = await createRepositorySourceFileVersion({
+              storedFile: uploadedFile,
+              sourcePath: parsed.data.sourcePath,
+              sourceHash: parsed.data.sourceHash,
+              commitSha: parsed.data.commitSha,
+              workflowRunId: parsed.data.workflowRunId,
+              uploadedByApiKeyId: c.var.auth.apiKey.id,
+              uploadSurface: "public_api",
+              db: tx,
+            });
+
+            return { storedFile: uploadedFile, version };
+          })
+          .catch(async (error) => {
+            if (uploadedFile) {
+              await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => {});
+            }
+            throw error;
+          });
 
         return c.json(
           {
             file: {
               id: storedFile.id,
+              sourceFileVersionId: version.id,
               filename: storedFile.filename,
               contentType: storedFile.contentType,
               byteSize: storedFile.byteSize,
