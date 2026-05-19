@@ -48,6 +48,7 @@ func newRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(newSyncPullCmd())       // pull shorthand
 	cmd.AddCommand(newSyncCmd())           // sync subcommands
 	cmd.AddCommand(newRunCmd())            // run subcommand
+	cmd.AddCommand(newExtractCmd())        // extract subcommand
 	cmd.AddCommand(newCheckCmd())          // check subcommand
 	cmd.AddCommand(newFixCmd())            // fix subcommand
 	cmd.AddCommand(newEvalCmd())           // eval subcommands
