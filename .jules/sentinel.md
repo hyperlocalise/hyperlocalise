@@ -22,3 +22,8 @@
 **Vulnerability:** Accidental leakage of sensitive keys (API keys, tokens, passwords) and HTTP headers (Authorization, Cookie) into application logs when logging request/response bodies or authentication objects.
 **Learning:** Centralizing redaction at the logger level using `pino`'s built-in `redact` feature provides a failsafe against developer oversight when logging complex objects that might contain secrets.
 **Prevention:** Configure a global list of sensitive paths and wildcards (e.g., `*.password`, `headers["x-api-key"]`) in the root logger to ensure consistent redaction across the entire application.
+
+## 2026-05-30 - [Enhancement] Restricting Internal Redirect Targets
+**Vulnerability:** The `sanitizeReturnTo` utility prevented external open redirects but allowed redirecting back to sensitive internal authentication routes (e.g., `/auth/sign-in`, `/auth/callback`). This could be exploited to create redirect loops or target sensitive callback logic.
+**Learning:** Redirect sanitizers must account for internal "restricted" paths that, while technically local, should never be the destination of a `returnTo` parameter to avoid auth flow abuse.
+**Prevention:** Maintain a centralized blacklist of restricted authentication paths within the URL sanitizer and ensure it is used by all login/session redirection logic.
