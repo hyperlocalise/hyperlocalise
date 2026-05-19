@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { createProjectTestFixture } from "../project/project.fixture";
-import { createMemoryFileStorageAdapter, ensureStoredFilesTestSchema } from "../file/file.fixture";
+import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -24,7 +24,6 @@ const { authHeadersFor, cleanup, createProjectViaApi, createWorkosIdentity } =
 
 beforeAll(async () => {
   await db.$client.query("select 1");
-  await ensureStoredFilesTestSchema();
 });
 
 afterEach(async () => {

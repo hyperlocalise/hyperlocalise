@@ -5,7 +5,10 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  getRepositorySourceFileVersionForStoredFile,
+  getStoredFileForJobScope,
+} from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
@@ -262,6 +265,17 @@ export function createTranslationJobTool(ctx: ToolContext) {
         }
       }
 
+      const sourceFileVersionId =
+        input.type === "file"
+          ? (
+              await getRepositorySourceFileVersionForStoredFile({
+                organizationId: ctx.organizationId,
+                projectId: ctx.projectId,
+                fileId: input.sourceFileId,
+              })
+            )?.id ?? null
+          : null;
+
       const inputPayload =
         input.type === "string"
           ? {
@@ -298,6 +312,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         await tx.insert(schema.translationJobDetails).values({
           jobId: createdJob.id,
           type: input.type,
+          sourceFileVersionId,
         });
 
         return createdJob;

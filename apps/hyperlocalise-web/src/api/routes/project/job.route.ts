@@ -13,7 +13,10 @@ import {
   validationErrorResponse,
 } from "@/api/errors";
 import { db, schema } from "@/lib/database";
-import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import {
+  getRepositorySourceFileVersionForStoredFile,
+  getStoredFileForJobScope,
+} from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -259,6 +262,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      let sourceFileVersionId: string | null = null;
 
       if (payload.type === "file") {
         const sourceFile = await getStoredFileForJobScope({
@@ -290,6 +294,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             400,
           );
         }
+
+        const sourceFileVersion = await getRepositorySourceFileVersionForStoredFile({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          fileId: payload.fileInput.sourceFileId,
+        });
+        sourceFileVersionId = sourceFileVersion?.id ?? null;
       }
 
       const jobId = `job_${randomUUID()}`;
@@ -312,6 +323,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           .values({
             jobId,
             type: payload.type,
+            sourceFileVersionId,
           })
           .returning();
 

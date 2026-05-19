@@ -6,7 +6,7 @@ import { createApp } from "@/api/app";
 import { db } from "@/lib/database";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { createProjectTestFixture } from "../project/project.fixture";
-import { createMemoryFileStorageAdapter, ensureStoredFilesTestSchema } from "./file.fixture";
+import { createMemoryFileStorageAdapter } from "./file.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -22,7 +22,6 @@ const { authHeadersFor, cleanup, createWorkosIdentity } = createProjectTestFixtu
 
 beforeAll(async () => {
   await db.$client.query("select 1");
-  await ensureStoredFilesTestSchema();
 });
 
 afterEach(async () => {

@@ -1,10 +1,11 @@
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import {
@@ -12,7 +13,6 @@ import {
   insertStoredSourceFile,
   insertCompletedPublicFileJob,
   cleanupPublicApiFixture,
-  ensurePublicJobsTestSchema,
 } from "./public-jobs.fixture";
 
 const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
@@ -29,7 +29,6 @@ const client = testClient(
 
 beforeAll(async () => {
   await db.$client.query("select 1");
-  await ensurePublicJobsTestSchema();
 });
 
 afterEach(async () => {
@@ -111,6 +110,62 @@ describe("publicJobRoutes", () => {
       jobId: body.job.id,
       projectId: project.id,
       type: "file",
+    });
+  });
+
+  it("associates repository file jobs with the source file version", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      filename: "source.xliff",
+      contentType: "application/xliff+xml",
+      sourceKind: "repository_file",
+      metadata: {
+        sourcePath: "locales/en/source.xliff",
+        sourceHash: "sha256:legacy",
+        commitSha: "abc123",
+        workflowRunId: "run_legacy",
+        uploadSurface: "public_api",
+      },
+    });
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "file",
+          projectId: project.id,
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "xliff",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [details] = await db
+      .select({
+        sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
+      })
+      .from(schema.translationJobDetails)
+      .where(eq(schema.translationJobDetails.jobId, body.job.id));
+    expect(details?.sourceFileVersionId).toEqual(expect.any(String));
+
+    const [version] = await db
+      .select()
+      .from(schema.repositorySourceFileVersions)
+      .where(eq(schema.repositorySourceFileVersions.id, details?.sourceFileVersionId ?? ""));
+    expect(version).toMatchObject({
+      storedFileId: sourceFile.id,
+      sourcePath: "locales/en/source.xliff",
+      sourceHash: "sha256:legacy",
+      commitSha: "abc123",
+      workflowRunId: "run_legacy",
     });
   });
 

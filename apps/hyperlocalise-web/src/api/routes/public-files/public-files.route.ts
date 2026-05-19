@@ -9,7 +9,7 @@ import {
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { payloadTooLargeResponse } from "@/api/response.schema";
@@ -102,10 +102,21 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
           adapter: options.fileStorageAdapter,
         });
 
+        const version = await createRepositorySourceFileVersion({
+          storedFile,
+          sourcePath: parsed.data.sourcePath,
+          sourceHash: parsed.data.sourceHash,
+          commitSha: parsed.data.commitSha,
+          workflowRunId: parsed.data.workflowRunId,
+          uploadedByApiKeyId: c.var.auth.apiKey.id,
+          uploadSurface: "public_api",
+        });
+
         return c.json(
           {
             file: {
               id: storedFile.id,
+              sourceFileVersionId: version.id,
               filename: storedFile.filename,
               contentType: storedFile.contentType,
               byteSize: storedFile.byteSize,
