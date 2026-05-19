@@ -13,9 +13,9 @@ description: "提交源文件到 Hyperlocalise 翻译任务。"
 hyperlocalise sync push [--config <path>] [flags]
 ```
 
-## 安全的默认行为
+## 默认行为
 
-`sync push` 默认为试运行模式。
+`sync push` 默认会提交源文件并创建 Hyperlocalise 作业。需要预览报告且不上传文件或创建作业时，请使用 `--dry-run`。
 
 在实际推送过程中，Hyperlocalise 会从`i18n.yml`读取已配置的源文件，将每个源文件上传到公开的 Hyperlocalise API，创建文件翻译任务，并写出任务清单。请将此清单用作 GitHub Actions 产物，以供后续的`sync pull`任务使用。
 
@@ -33,11 +33,11 @@ hyperlocalise sync push [--config <path>] [flags]
 ## 示例
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
+hyperlocalise sync push --locale es-ES --manifest .hyperlocalise/jobs.json
 ```
 
 ```bash
-hl push --locale es-ES --dry-run=false
+hl push --locale es-ES
 ```
 
 ## 备注

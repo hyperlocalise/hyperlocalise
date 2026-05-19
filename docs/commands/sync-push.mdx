@@ -13,9 +13,9 @@ The public jobs API contract may evolve while CI workflows stabilize.
 hyperlocalise sync push [--config <path>] [flags]
 ```
 
-## Safe default behavior
+## Default behavior
 
-`sync push` defaults to dry-run mode.
+`sync push` submits source files and creates Hyperlocalise jobs by default. Use `--dry-run` when you want to preview the report without uploading files or creating jobs.
 
 During a real push, Hyperlocalise reads configured source files from `i18n.yml`, uploads each source file to the public Hyperlocalise API, creates file translation jobs, and writes a jobs manifest. Use this manifest as a GitHub Actions artifact for a later `sync pull` job.
 
@@ -26,18 +26,18 @@ During a real push, Hyperlocalise reads configured source files from `i18n.yml`,
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
 - `--manifest`: path to the jobs manifest
-- `--dry-run`: preview only (default `true`)
+- `--dry-run`: preview only
 - `--output`: `text`, `json`, or `markdown`
 - `--force-conflicts`: not supported for Hyperlocalise job sync
 
 ## Example
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
+hyperlocalise sync push --locale es-ES --manifest .hyperlocalise/jobs.json
 ```
 
 ```bash
-hl push --locale es-ES --dry-run=false
+hl push --locale es-ES
 ```
 
 ## Notes

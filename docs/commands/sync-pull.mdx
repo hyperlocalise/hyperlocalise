@@ -13,11 +13,11 @@ The public jobs API contract may evolve while CI workflows stabilize.
 hyperlocalise sync pull [--config <path>] [flags]
 ```
 
-## Safe default behavior
+## Default behavior
 
-`sync pull` defaults to dry-run mode. Start by reviewing the report, then rerun with `--dry-run=false`.
+`sync pull` applies completed job outputs by default. Use `--dry-run` when you want to preview the report without writing files.
 
-`sync pull` reads a complete jobs manifest, polls the public Hyperlocalise API by job ID, downloads successful output files, and writes them to the target paths resolved by `i18n.yml`.
+`sync pull` reads a complete jobs manifest, polls the public Hyperlocalise API by job ID until each pending job finishes or the configured timeout expires, downloads successful output files, and writes them to the target paths resolved by `i18n.yml`.
 
 The manifest is usually passed from a `sync push` GitHub Actions job to a `sync pull` job with `actions/upload-artifact` and `actions/download-artifact`.
 
@@ -26,25 +26,24 @@ The manifest is usually passed from a `sync push` GitHub Actions job to a `sync 
 - `--config`: config path
 - `--locale`: target locale(s), repeatable
 - `--manifest`: path to the jobs manifest
-- `--wait`: wait for queued or running jobs to finish
 - `--timeout`: maximum wait time, for example `20m`
-- `--dry-run`: preview only (default `true`)
+- `--dry-run`: preview only
 - `--output`: `text`, `json`, or `markdown`
 
 ## Example
 
 ```bash
-hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --timeout 20m
 ```
 
 ```bash
-hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
+hl pull --manifest .hyperlocalise/jobs.json
 ```
 
 ## Notes
 
 - `sync pull` rejects manifests with `complete: false`.
-- Without `--wait`, queued or running jobs cause a non-zero exit.
+- Timeout errors include pending job IDs, source paths, target locales, and status when available.
 - Output files are mapped by locale to the target paths captured in the manifest.
 - Provider-specific TMS commands such as `crowdin` and `phrase` keep their own config and behavior.
 

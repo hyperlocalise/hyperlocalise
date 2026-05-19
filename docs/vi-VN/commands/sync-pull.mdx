@@ -13,11 +13,11 @@ Hợp đồng API việc làm công khai có thể phát triển trong khi các 
 hyperlocalise sync pull [--config <path>] [flags]
 ```
 
-## Hành vi mặc định an toàn
+## Hành vi mặc định
 
-`sync pull` mặc định ở chế độ chạy thử. Hãy bắt đầu bằng cách xem lại báo cáo, rồi chạy lại với `--dry-run=false`.
+`sync pull` mặc định áp dụng các đầu ra của tác vụ đã hoàn tất. Dùng `--dry-run` khi bạn muốn xem trước báo cáo mà không ghi tệp.
 
-`sync pull` đọc một manifest công việc hoàn chỉnh, thăm dò API Hyperlocalise công khai theo ID công việc, tải xuống các tệp đầu ra thành công và ghi chúng vào các đường dẫn đích được phân giải bởi `i18n.yml`.
+`sync pull` đọc một manifest công việc hoàn chỉnh, thăm dò API Hyperlocalise công khai theo ID công việc cho đến khi từng công việc đang chờ hoàn tất hoặc hết thời gian chờ đã cấu hình, tải xuống các tệp đầu ra thành công và ghi chúng vào các đường dẫn đích được phân giải bởi `i18n.yml`.
 
 Manifest thường được truyền từ một công việc GitHub Actions `sync push` sang một công việc `sync pull` với `actions/upload-artifact` và `actions/download-artifact`.
 
@@ -26,25 +26,24 @@ Manifest thường được truyền từ một công việc GitHub Actions `syn
 - `--config`: đường dẫn cấu hình
 - `--locale`: ngôn ngữ mục tiêu, có thể lặp lại
 - `--manifest`: đường dẫn đến tệp manifest của các công việc
-- `--wait`: chờ các công việc đang xếp hàng hoặc đang chạy hoàn tất
 - `--timeout`: thời gian chờ tối đa, ví dụ `20m`
-- `--dry-run`: chỉ xem trước (mặc định `true`)
+- `--dry-run`: chỉ xem trước
 - `--output`: `text`, `json`, hoặc `markdown`
 
 ## Ví dụ
 
 ```bash
-hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --timeout 20m
 ```
 
 ```bash
-hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
+hl pull --manifest .hyperlocalise/jobs.json
 ```
 
 ## Ghi chú
 
 - `sync pull` từ chối các manifest có `complete: false`.
-- Không có `--wait`, các công việc đang xếp hàng hoặc đang chạy sẽ gây ra mã thoát khác 0.
+- Lỗi hết thời gian chờ bao gồm ID công việc đang chờ, đường dẫn nguồn, ngôn ngữ mục tiêu và trạng thái khi có.
 - Các tệp đầu ra được ánh xạ theo ngôn ngữ sang các đường dẫn đích được ghi lại trong tệp kê khai.
 - Các lệnh TMS cụ thể theo nhà cung cấp như `crowdin` và `phrase` giữ nguyên cấu hình và hành vi riêng của chúng.
 

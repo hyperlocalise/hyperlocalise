@@ -9,7 +9,6 @@ import (
 
 func newSyncPullCmd() *cobra.Command {
 	o := defaultSyncCommonOptions()
-	var wait bool
 	var timeout time.Duration
 
 	cmd := &cobra.Command{
@@ -22,7 +21,7 @@ func newSyncPullCmd() *cobra.Command {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}
 
-			report, err := runHyperlocalisePull(backgroundContext(), rt, o, wait, timeout)
+			report, err := runHyperlocalisePull(backgroundContext(), rt, o, timeout)
 			if writeErr := writeHyperlocalisePullReport(cmd.OutOrStdout(), report, o.output); writeErr != nil {
 				return fmt.Errorf("write sync pull report: %w", writeErr)
 			}
@@ -35,7 +34,6 @@ func newSyncPullCmd() *cobra.Command {
 	}
 
 	addSyncCommonFlags(cmd, &o)
-	cmd.Flags().BoolVar(&wait, "wait", wait, "wait for queued or running Hyperlocalise jobs to finish")
 	cmd.Flags().DurationVar(&timeout, "timeout", 0, "maximum time to wait for jobs, for example 20m")
 	return cmd
 }
