@@ -109,11 +109,16 @@ describe("publicFileRoutes", () => {
       .from(schema.repositorySourceFileVersions)
       .where(eq(schema.repositorySourceFileVersions.repositorySourceFileId, sourceFile.id));
     expect(versions).toHaveLength(2);
-    expect(versions.map((version) => version.sourceHash).sort()).toEqual([
-      "sha256:first",
-      "sha256:second",
-    ]);
-    expect(versions.map((version) => version.workflowRunId).sort()).toEqual(["run_1", "run_2"]);
+    expect(
+      versions
+        .map((version) => version.sourceHash)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    ).toEqual(["sha256:first", "sha256:second"]);
+    expect(
+      versions
+        .map((version) => version.workflowRunId)
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    ).toEqual(["run_1", "run_2"]);
     expect(new Set(versions.map((version) => version.storedFileId)).size).toBe(2);
   });
 

@@ -227,8 +227,10 @@ export function createTranslationJobTool(ctx: ToolContext) {
         return { success: false, error: "sourceText is required for string translation jobs." };
       }
 
+      const sourceFileId = input.type === "file" ? input.sourceFileId?.trim() : undefined;
+
       if (input.type === "file") {
-        if (!input.sourceFileId?.trim()) {
+        if (!sourceFileId) {
           return { success: false, error: "sourceFileId is required for file translation jobs." };
         }
 
@@ -239,7 +241,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         const sourceFile = await getStoredFileForJobScope({
           organizationId: ctx.organizationId,
           projectId: ctx.projectId,
-          fileId: input.sourceFileId,
+          fileId: sourceFileId,
         });
 
         if (!sourceFile) {
@@ -265,16 +267,15 @@ export function createTranslationJobTool(ctx: ToolContext) {
         }
       }
 
-      const sourceFileVersionId =
-        input.type === "file"
-          ? ((
-              await getRepositorySourceFileVersionForStoredFile({
-                organizationId: ctx.organizationId,
-                projectId: ctx.projectId,
-                fileId: input.sourceFileId,
-              })
-            )?.id ?? null)
-          : null;
+      const sourceFileVersionId = sourceFileId
+        ? ((
+            await getRepositorySourceFileVersionForStoredFile({
+              organizationId: ctx.organizationId,
+              projectId: ctx.projectId,
+              fileId: sourceFileId,
+            })
+          )?.id ?? null)
+        : null;
 
       const inputPayload =
         input.type === "string"
@@ -287,7 +288,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
               maxLength: input.maxLength,
             }
           : {
-              sourceFileId: input.sourceFileId,
+              sourceFileId,
               fileFormat: input.fileFormat,
               sourceLocale: input.sourceLocale,
               targetLocales: input.targetLocales,
