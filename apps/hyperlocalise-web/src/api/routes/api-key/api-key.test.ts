@@ -87,6 +87,51 @@ describe("apiKeyRoutes", () => {
     );
   });
 
+  it("returns 200 when an admin lists API keys", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
+
+    await createApiKeyViaApi(ownerIdentity, { name: "Admin Visible Key" });
+
+    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
+      {
+        param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
+      },
+      {
+        headers: await authHeadersFor(adminIdentity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { apiKeys: Array<{ name: string }> };
+    expect(body.apiKeys).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Admin Visible Key" })]),
+    );
+  });
+
+  it("returns 403 when a member lists API keys", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+
+    await createApiKeyViaApi(ownerIdentity, { name: "Hidden Key" });
+
+    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
+      {
+        param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
+      },
+      {
+        headers: await authHeadersFor(memberIdentity),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+  });
+
   it("revokes an API key", async () => {
     const identity = createWorkosIdentity();
     const headers = await authHeadersFor(identity);

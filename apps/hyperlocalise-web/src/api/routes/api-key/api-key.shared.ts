@@ -10,7 +10,7 @@ import {
 } from "@/api/errors";
 import { schema } from "@/lib/database";
 
-const allowedMutationRoles = new Set<string>(["owner", "admin"]);
+const allowedAdminActionRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidApiKeyPayloadResponse(
   c: { json: JsonContext["json"] },
@@ -27,8 +27,8 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-export function isApiKeyMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return allowedMutationRoles.has(role);
+export function isApiKeyAdminActionAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return allowedAdminActionRoles.has(role);
 }
 
 export function ownedApiKeyWhere(auth: ApiAuthContext, apiKeyId: string) {
