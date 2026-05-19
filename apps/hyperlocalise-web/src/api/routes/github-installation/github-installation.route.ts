@@ -13,6 +13,7 @@ import {
   getGitHubStateSecret,
   signGitHubState,
 } from "@/lib/agents/github/oauth-state";
+import { getGitHubApp } from "@/lib/agents/github/app";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 
 import { searchRepositoriesSchema, updateRepositoriesSchema } from "./github-installation.schema";
@@ -199,22 +200,40 @@ export function createGithubInstallationRoutes() {
         return c.json({ error: "forbidden" }, 403);
       }
 
-      const deleted = await db
-        .delete(schema.githubInstallations)
-        .where(
-          eq(
-            schema.githubInstallations.organizationId,
-            c.var.auth.organization.localOrganizationId,
-          ),
-        )
-        .returning({ id: schema.githubInstallations.id });
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const [installation] = await db
+        .select({
+          id: schema.githubInstallations.id,
+          githubInstallationId: schema.githubInstallations.githubInstallationId,
+        })
+        .from(schema.githubInstallations)
+        .where(eq(schema.githubInstallations.organizationId, organizationId))
+        .limit(1);
 
-      if (deleted.length === 0) {
+      if (!installation) {
         return c.json({ error: "github_installation_not_found" }, 404);
       }
 
-      // TODO: call GitHub API to delete the app installation if we want to
-      // fully revoke access rather than just unlinking the local record.
+      try {
+        await getGitHubApp().octokit.request("DELETE /app/installations/{installation_id}", {
+          installation_id: Number.parseInt(installation.githubInstallationId, 10),
+        });
+      } catch (error) {
+        if (
+          !(
+            typeof error === "object" &&
+            error !== null &&
+            "status" in error &&
+            (error.status === 404 || error.status === 410)
+          )
+        ) {
+          return c.json({ error: "github_installation_revoke_failed" }, 502);
+        }
+      }
+
+      await db
+        .delete(schema.githubInstallations)
+        .where(eq(schema.githubInstallations.id, installation.id));
 
       return c.body(null, 204);
     });
