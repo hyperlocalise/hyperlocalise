@@ -2,7 +2,6 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { z } from "zod";
 
 import {
   removeWorkosMembership,
@@ -13,13 +12,7 @@ import {
 import { env } from "@/lib/env";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-
-const webhookEventSchema = z.object({
-  event: z.string().min(1),
-  data: z.record(z.string(), z.unknown()),
-});
-
-type WorkosWebhookEvent = z.infer<typeof webhookEventSchema>;
+import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
 
 type ParsedSignature = {
   timestamp: string;
@@ -254,7 +247,7 @@ export const workosWebhookRoutes = new Hono().post("/", async (c) => {
     return c.json({ error: "invalid_json" }, 400);
   }
 
-  const parseResult = webhookEventSchema.safeParse(parsedJson);
+  const parseResult = workosWebhookEventSchema.safeParse(parsedJson);
 
   if (!parseResult.success) {
     return c.json({ error: "invalid_payload" }, 400);

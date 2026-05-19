@@ -5,7 +5,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
-import { createGithubWebhookRoutes } from "./github-webhook";
+import { createGithubWebhookRoutes } from "./github-webhook.route";
 
 const fixture = createProjectTestFixture();
 
