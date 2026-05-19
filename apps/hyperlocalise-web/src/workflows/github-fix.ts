@@ -332,7 +332,7 @@ async function commitAndPush(
   for (const [command, args] of [
     ["git", ["add", "--", ...changedPaths]],
     ["git", ["commit", "-m", "fix(i18n): apply hyperlocalise fixes"]],
-    ["git", ["push", "origin", headBranch]],
+    ["git", ["push", "origin", `HEAD:refs/heads/${headBranch}`]],
   ] satisfies Array<[string, string[]]>) {
     const result = await runSandboxCommand(sandboxId, command, args);
     if (result.exitCode !== 0) {
