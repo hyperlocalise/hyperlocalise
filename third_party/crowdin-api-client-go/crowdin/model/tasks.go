@@ -108,6 +108,8 @@ type TasksListOptions struct {
 	Status []TaskStatus `json:"status,omitempty"`
 	// List tasks for specified assignee.
 	AssigneeID int `json:"assigneeId,omitempty"`
+	// List tasks for specified workflow step.
+	WorkflowStepID int `json:"workflowStepId,omitempty"`
 
 	ListOptions
 }
@@ -129,6 +131,9 @@ func (o *TasksListOptions) Values() (url.Values, bool) {
 	}
 	if o.AssigneeID > 0 {
 		v.Add("assigneeId", fmt.Sprintf("%d", o.AssigneeID))
+	}
+	if o.WorkflowStepID > 0 {
+		v.Add("workflowStepId", fmt.Sprintf("%d", o.WorkflowStepID))
 	}
 
 	return v, len(v) > 0

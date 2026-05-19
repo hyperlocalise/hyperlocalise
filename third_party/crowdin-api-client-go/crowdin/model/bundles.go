@@ -92,6 +92,7 @@ type BundleExport struct {
 	UpdatedAt  string `json:"updatedAt"`
 	StartedAt  string `json:"startedAt"`
 	FinishedAt string `json:"finishedAt"`
+	ETA        string `json:"eta,omitempty"`
 }
 
 // BundleExportResponse defines the structure of a response

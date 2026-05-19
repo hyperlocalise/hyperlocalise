@@ -348,6 +348,7 @@ func TestBundlesService_Export(t *testing.T) {
 		UpdatedAt:  "2023-09-23T11:26:54+00:00",
 		StartedAt:  "2023-09-23T11:26:54+00:00",
 		FinishedAt: "2023-09-23T11:26:54+00:00",
+		ETA:        "1 second",
 	}
 	assert.Equal(t, expected, export)
 }
@@ -435,6 +436,7 @@ func TestBundlesService_CheckExportStatus(t *testing.T) {
 		UpdatedAt:  "2023-09-23T11:26:54+00:00",
 		StartedAt:  "2023-09-23T11:26:54+00:00",
 		FinishedAt: "2023-09-23T11:26:54+00:00",
+		ETA:        "1 second",
 	}
 	assert.Equal(t, expected, status)
 }

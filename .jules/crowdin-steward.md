@@ -47,3 +47,9 @@
 **Learning:** The Crowdin Files API v2 returns `isReadOnly` for both files and directories, and file updates support `excludedTargetLanguages` and `fields`. Additionally, the `recursion` parameter in list operations is documented as `any` but was only handled as `string` in the SDK, causing issues when passed as `bool` or `int`.
 
 **Action:** Added `IsReadOnly` (*bool) to the `File` model and `ExcludedTargetLanguages` ([]string) and `Fields` (map[string]any) to `FileUpdateRestoreRequest`. Updated `DirectoryListOptions` and `FileListOptions` to handle `Recursion` using `fmt.Sprintf("%v", ...)` to support all common types. Verified with updated contract tests in `source_files_test.go` and `model/source_files_test.go`.
+
+## 2026-06-19 - Improve Bundle and Task model parity for ETA and workflowStepId
+
+**Learning:** The Crowdin Bundles API v2 returns an `eta` field in bundle export responses, and the Tasks API supports filtering by `workflowStepId` via query parameters. These were missing from the Go SDK models and request options.
+
+**Action:** Added `ETA` to the `BundleExport` model in `model/bundles.go`. Added `WorkflowStepID` to `TasksListOptions` and updated its `Values()` method in `model/tasks.go` to encode it. Updated contract tests in `bundles_test.go` and `tasks_test.go` to verify parity.

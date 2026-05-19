@@ -257,6 +257,13 @@ func TestTasksService_List(t *testing.T) {
 			},
 			want: "?assigneeId=123&limit=25&offset=10&orderBy=createdAt+desc%2Ctitle&status=todo%2Cin_progress",
 		},
+		{
+			name: "with workflowStepId",
+			options: &model.TasksListOptions{
+				WorkflowStepID: 10,
+			},
+			want: "?workflowStepId=10",
+		},
 	}
 
 	client, mux, teardown := setupClient()
