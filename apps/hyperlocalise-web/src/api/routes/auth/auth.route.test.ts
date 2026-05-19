@@ -160,6 +160,63 @@ describe("authRoutes", () => {
     });
   });
 
+
+  it("passes route organizationSlug to session auth resolution for org-scoped routes", async () => {
+    const activeOrganization = {
+      workosOrganizationId: "org_123",
+      localOrganizationId: "local_org_123",
+      name: "Example Org",
+      slug: "example-org",
+      membership: {
+        workosMembershipId: "membership_123",
+        role: "owner" as const,
+      },
+    };
+
+    const authContext: ApiAuthContext = {
+      user: {
+        workosUserId: "user_123",
+        localUserId: "local_user_123",
+        email: "user@example.com",
+      },
+      organizations: [activeOrganization],
+      organization: activeOrganization,
+      activeOrganization,
+      membership: {
+        workosMembershipId: "membership_123",
+        role: "owner",
+      },
+      activeTeam: null,
+    };
+
+    const client = await createClient({ sessionAuthContext: authContext });
+
+    await client.api.orgs[":organizationSlug"].projects.$get(
+      { param: { organizationSlug: "target-org" } },
+      { headers: { cookie: "wos-session=test" } },
+    );
+
+    expect(resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationSlug: "target-org" }),
+    );
+  });
+
+  it("returns 403 for org-scoped routes when requested organization slug is not accessible", async () => {
+    const client = await createClient();
+    resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(new Error("organization_access_denied"));
+
+    const response = await client.api.orgs[":organizationSlug"].projects.$get(
+      { param: { organizationSlug: "forbidden-org" } },
+      { headers: { cookie: "wos-session=test" } },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "organization_access_denied",
+      message: expect.any(String),
+    });
+  });
+
   it("does not remap downstream errors from the session auth path", async () => {
     const activeOrganization = {
       workosOrganizationId: "org_123",
