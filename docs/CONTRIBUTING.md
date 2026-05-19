@@ -1,34 +1,55 @@
-> **Customize this file**: Tailor this template to your project by noting specific contribution types you're looking for, adding a Code of Conduct, or adjusting the writing guidelines to match your style.
+# Contribute to the Documentation
 
-# Contribute to the documentation
+Thanks for improving the Hyperlocalise docs. These docs explain how to install,
+configure, and operate Hyperlocalise, plus how to contribute to the project.
 
-Thank you for your interest in contributing to our documentation! This guide will help you get started.
+## What to Edit
 
-## How to contribute
+- Update English docs under `docs/` for routine fixes and new content.
+- Update `docs.json` when you add, move, rename, or remove a page.
+- Leave `docs/zh-CN/` and `docs/vi-VN/` unchanged unless you are explicitly
+  updating localized content.
+- Keep product behavior, command flags, and examples aligned with the CLI and
+  web app code.
 
-### Option 1: Edit directly on GitHub
+## Local Development
 
-1. Navigate to the page you want to edit
-2. Click the "Edit this file" button (the pencil icon)
-3. Make your changes and submit a pull request
+1. Install the Mintlify CLI:
 
-### Option 2: Local development
+   ```bash
+   npm i -g mint
+   ```
 
-1. Fork and clone this repository
-2. Install the Mintlify CLI: `npm i -g mint`
-3. Create a branch for your changes
-4. Make changes
-5. Navigate to the docs directory and run `mint dev`
-6. Preview your changes at `http://localhost:3000`
-7. Commit your changes and submit a pull request
+2. Run the preview server from the `docs` directory:
 
-For more details on local development, see our [development guide](development.mdx).
+   ```bash
+   mint dev
+   ```
 
-## Writing guidelines
+3. Open `http://localhost:3000` and review the changed pages.
 
-- **Use active voice**: "Run the command" not "The command should be run"
-- **Address the reader directly**: Use "you" instead of "the user"
-- **Keep sentences concise**: Aim for one idea per sentence
-- **Lead with the goal**: Start instructions with what the user wants to accomplish
-- **Use consistent terminology**: Don't alternate between synonyms for the same concept
-- **Include examples**: Show, don't just tell
+4. Check links when the change touches navigation or cross-page references:
+
+   ```bash
+   mint broken-links
+   ```
+
+For broader repository setup, see `contributing/development.mdx`.
+
+## Writing Guidelines
+
+- Use active voice: "Run the command" instead of "The command should be run."
+- Address the reader directly with "you."
+- Keep sentences concise, with one idea per sentence.
+- Lead with the user's goal before explaining details.
+- Use consistent terms for the same concept.
+- Include examples for commands, configuration, and expected output.
+- Use sentence case for headings.
+- Format commands, paths, filenames, keys, and code values with backticks.
+- Bold UI labels only when referring to visible interface text.
+
+## Pull Requests
+
+Before opening a pull request, preview the docs locally and run the repository
+validation requested for your change. Keep documentation-only pull requests
+focused on the affected pages and navigation updates.
