@@ -7,17 +7,29 @@ func NormalizeList(values []string) []string {
 	normalized := make([]string, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
-		for _, part := range strings.Split(value, ",") {
+		s := value
+		for {
+			var part string
+			idx := strings.IndexByte(s, ',')
+			if idx < 0 {
+				part = s
+			} else {
+				part = s[:idx]
+			}
+
 			trimmed := strings.TrimSpace(part)
-			if trimmed == "" {
-				continue
+			if trimmed != "" {
+				key := strings.ToLower(trimmed)
+				if _, ok := seen[key]; !ok {
+					seen[key] = struct{}{}
+					normalized = append(normalized, trimmed)
+				}
 			}
-			key := strings.ToLower(trimmed)
-			if _, ok := seen[key]; ok {
-				continue
+
+			if idx < 0 {
+				break
 			}
-			seen[key] = struct{}{}
-			normalized = append(normalized, trimmed)
+			s = s[idx+1:]
 		}
 	}
 	return normalized
