@@ -35,3 +35,9 @@
 **Learning:** Crowdin API v2 for Glossaries and Translation Memories includes a `description` field for both, and Translation Memories also support a `groupId` field in both responses and addition requests. These fields were missing from the Go SDK models, preventing users from fully managing these resources, especially in Enterprise environments where resource organization into groups is common.
 
 **Action:** Added `Description` field to `Glossary` and `GlossaryAddRequest` in `model/glossaries.go`. Added `Description` and `GroupID` fields to `TranslationMemory`, and `GroupID` (*int) to `TranslationMemoryAddRequest` in `model/translation_memory.go`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization.
+
+## 2026-06-19 - Add WebURL and improve Recursion parameter parity
+
+**Learning:** Several standard fields were missing from the Source Files and Branches models. Most resources in the Crowdin API v2 include a `webUrl` field, which was absent from `Branch`, `Directory`, and `File` response models. Additionally, the `recursion` query parameter in file and directory list operations is often documented as an integer (0 or 1), but the SDK only supported string values.
+
+**Action:** Added `WebURL` field to `Branch`, `Directory`, and `File` structs. Updated `DirectoryListOptions.Values()` and `FileListOptions.Values()` to handle `Recursion` as `string`, `int`, or `bool` (mapping booleans to "1" or "0"). Updated contract tests in `branches_test.go` and `source_files_test.go` to verify parity.

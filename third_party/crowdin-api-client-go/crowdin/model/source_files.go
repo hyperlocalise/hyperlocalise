@@ -18,6 +18,7 @@ type Directory struct {
 	Path          string `json:"path"`
 	IsReadOnly    *bool  `json:"isReadOnly,omitempty"`
 	Priority      string `json:"priority"`
+	WebURL        string `json:"webUrl"`
 	CreatedAt     string `json:"createdAt"`
 	UpdatedAt     string `json:"updatedAt"`
 }
@@ -79,8 +80,19 @@ func (o *DirectoryListOptions) Values() (url.Values, bool) {
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
 	}
-	if recursion, ok := o.Recursion.(string); ok {
-		v.Add("recursion", recursion)
+	if o.Recursion != nil {
+		switch r := o.Recursion.(type) {
+		case string:
+			v.Add("recursion", r)
+		case int:
+			v.Add("recursion", fmt.Sprintf("%d", r))
+		case bool:
+			if r {
+				v.Add("recursion", "1")
+			} else {
+				v.Add("recursion", "0")
+			}
+		}
 	}
 
 	return v, len(v) > 0
@@ -137,6 +149,7 @@ type File struct {
 	Type        string  `json:"type"`
 	Path        string  `json:"path"`
 	Status      string  `json:"status"`
+	WebURL      string  `json:"webUrl"`
 	Fields      any     `json:"fields,omitempty"`
 
 	RevisionID             int            `json:"revisionId"`
@@ -206,8 +219,19 @@ func (o *FileListOptions) Values() (url.Values, bool) {
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
 	}
-	if recursion, ok := o.Recursion.(string); ok {
-		v.Add("recursion", recursion)
+	if o.Recursion != nil {
+		switch r := o.Recursion.(type) {
+		case string:
+			v.Add("recursion", r)
+		case int:
+			v.Add("recursion", fmt.Sprintf("%d", r))
+		case bool:
+			if r {
+				v.Add("recursion", "1")
+			} else {
+				v.Add("recursion", "0")
+			}
+		}
 	}
 
 	return v, len(v) > 0

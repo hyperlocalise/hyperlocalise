@@ -35,6 +35,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 						"path": "/main",
 						"isReadOnly": true,
 						"priority": "normal",
+						"webUrl": "https://crowdin.com/project/test/settings/files#4",
 						"createdAt": "2024-04-18T14:14:00+00:00",
 						"updatedAt": "2024-04-18T14:14:00+00:00"
 					}
@@ -62,6 +63,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 			Path:          "/main",
 			IsReadOnly:    ToPtr(true),
 			Priority:      "normal",
+			WebURL:        "https://crowdin.com/project/test/settings/files#4",
 			CreatedAt:     "2024-04-18T14:14:00+00:00",
 			UpdatedAt:     "2024-04-18T14:14:00+00:00",
 		},
@@ -91,7 +93,7 @@ func TestDirectory_MarshalJSON_IsReadOnly(t *testing.T) {
 	b, err := json.Marshal(directory)
 	require.NoError(t, err)
 
-	assert.JSONEq(t, `{"id":0,"projectId":0,"name":"","title":"","exportPattern":"","path":"","isReadOnly":false,"priority":"","createdAt":"","updatedAt":""}`, string(b))
+	assert.JSONEq(t, `{"id":0,"projectId":0,"name":"","title":"","exportPattern":"","path":"","isReadOnly":false,"priority":"","webUrl":"","createdAt":"","updatedAt":""}`, string(b))
 
 	directory.IsReadOnly = nil
 	b, err = json.Marshal(directory)
@@ -140,6 +142,20 @@ func TestSourceFilesService_ListDirectories_WithQueryParams(t *testing.T) {
 			},
 			expect: "?branchId=1&directoryId=2&filter=name&limit=25&offset=10&orderBy=createdAt+desc%2Cname%2Cid&recursion=true",
 		},
+		{
+			name: "With recursion as int",
+			opts: &model.DirectoryListOptions{
+				Recursion: 1,
+			},
+			expect: "?recursion=1",
+		},
+		{
+			name: "With recursion as bool",
+			opts: &model.DirectoryListOptions{
+				Recursion: true,
+			},
+			expect: "?recursion=1",
+		},
 	}
 
 	for i, tt := range cases {
@@ -178,6 +194,7 @@ func TestSourceFilesService_GetDirectory(t *testing.T) {
 				"exportPattern": "/localization/%locale%/file_name",
 				"path": "/main",
 				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/test/settings/files#2",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
 			}
@@ -197,6 +214,7 @@ func TestSourceFilesService_GetDirectory(t *testing.T) {
 		ExportPattern: "/localization/%locale%/file_name",
 		Path:          "/main",
 		Priority:      "normal",
+		WebURL:        "https://crowdin.com/project/test/settings/files#2",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
 	}
@@ -227,6 +245,7 @@ func TestSourceFilesService_AddDirectory(t *testing.T) {
 				"exportPattern": "/localization/%locale%/new_file_name",
 				"path": "/new_directory",
 				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/test/settings/files#5",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
 			}
@@ -253,6 +272,7 @@ func TestSourceFilesService_AddDirectory(t *testing.T) {
 		ExportPattern: "/localization/%locale%/new_file_name",
 		Path:          "/new_directory",
 		Priority:      "normal",
+		WebURL:        "https://crowdin.com/project/test/settings/files#5",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
 	}
@@ -299,6 +319,7 @@ func TestSourceFilesService_EditDirectory(t *testing.T) {
 				"exportPattern": "/localization/%locale%/file_name",
 				"path": "/main",
 				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/test/settings/files#4",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
 			}
@@ -325,6 +346,7 @@ func TestSourceFilesService_EditDirectory(t *testing.T) {
 		ExportPattern: "/localization/%locale%/file_name",
 		Path:          "/main",
 		Priority:      "normal",
+		WebURL:        "https://crowdin.com/project/test/settings/files#4",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
 	}
@@ -375,6 +397,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 						"type": "xliff",
 						"path": "/directory1/directory2/filename.extension",
 						"status": "active",
+						"webUrl": "https://crowdin.com/project/test/settings/files#44",
 						"fields": {
 							"key_1": "value_1",
 							"key_2": 2,
@@ -395,6 +418,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 						"type": "xliff",
 						"path": "/directory1/directory2/filename.extension",
 						"status": "active",
+						"webUrl": "https://crowdin.com/project/test/settings/files#45",
 						"fields": []
 					}
 				},
@@ -410,6 +434,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 						"type": "xliff",
 						"path": "/directory1/directory2/filename.extension",
 						"status": "active",
+						"webUrl": "https://crowdin.com/project/test/settings/files#46",
 						"fields": {}
 					}
 				}
@@ -436,6 +461,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 			Type:        "xliff",
 			Path:        "/directory1/directory2/filename.extension",
 			Status:      "active",
+			WebURL:      "https://crowdin.com/project/test/settings/files#44",
 			Fields: map[string]any{
 				"key_1": "value_1",
 				"key_2": float64(2),
@@ -454,6 +480,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 			Type:        "xliff",
 			Path:        "/directory1/directory2/filename.extension",
 			Status:      "active",
+			WebURL:      "https://crowdin.com/project/test/settings/files#45",
 			Fields:      []any{},
 		},
 		{
@@ -467,6 +494,7 @@ func TestSourceFilesService_ListFiles(t *testing.T) {
 			Type:        "xliff",
 			Path:        "/directory1/directory2/filename.extension",
 			Status:      "active",
+			WebURL:      "https://crowdin.com/project/test/settings/files#46",
 			Fields:      map[string]any{},
 		},
 	}
@@ -529,6 +557,20 @@ func TestSourceFilesService_ListFiles_WithQueryParams(t *testing.T) {
 			},
 			expect: "?branchId=1&directoryId=2&filter=name&limit=25&offset=10&orderBy=createdAt+desc%2Cname%2Cid&recursion=true",
 		},
+		{
+			name: "With recursion as int",
+			opts: &model.FileListOptions{
+				Recursion: 1,
+			},
+			expect: "?recursion=1",
+		},
+		{
+			name: "With recursion as bool",
+			opts: &model.FileListOptions{
+				Recursion: true,
+			},
+			expect: "?recursion=1",
+		},
 	}
 
 	for i, tt := range cases {
@@ -568,6 +610,7 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 				"type": "xliff",
 				"path": "/directory1/directory2/filename.extension",
 				"status": "active",
+				"webUrl": "https://crowdin.com/project/test/settings/files#44",
 				"fields": {
 					"fieldSlug": "fieldValue"
 				}
@@ -589,6 +632,7 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 		Type:        "xliff",
 		Path:        "/directory1/directory2/filename.extension",
 		Status:      "active",
+		WebURL:      "https://crowdin.com/project/test/settings/files#44",
 		Fields:      map[string]any{"fieldSlug": "fieldValue"},
 	}
 	assert.Equal(t, expected, file)
