@@ -140,3 +140,63 @@ func TestHyperlocalisePullTimeoutIncludesPendingJobDetails(t *testing.T) {
 		}
 	}
 }
+
+func TestParseHyperlocaliseFileOutcomeUsesPublicOutputFiles(t *testing.T) {
+	outcome, err := parseHyperlocaliseFileOutcome(hyperlocaliseJob{
+		ID: "job-1",
+		OutputFiles: jsonRaw(`[
+			{"fileId":"file-fr","locale":"fr-FR","filename":"messages.fr-FR.json"}
+		]`),
+	})
+	if err != nil {
+		t.Fatalf("parse outcome: %v", err)
+	}
+
+	if len(outcome.OutputFiles) != 1 {
+		t.Fatalf("output files = %d, want 1", len(outcome.OutputFiles))
+	}
+	got := outcome.OutputFiles[0]
+	if got.FileID != "file-fr" || got.Locale != "fr-FR" || got.Filename != "messages.fr-FR.json" {
+		t.Fatalf("output file = %#v", got)
+	}
+}
+
+func TestParseHyperlocaliseFileOutcomeReportsMissingPayload(t *testing.T) {
+	_, err := parseHyperlocaliseFileOutcome(hyperlocaliseJob{ID: "job-1"})
+	if err == nil {
+		t.Fatalf("expected missing payload error")
+	}
+	if !strings.Contains(err.Error(), "job-1 has no output payload") {
+		t.Fatalf("error = %q", err)
+	}
+}
+
+func TestParseHyperlocaliseFileOutcomeReportsEmptyOutputFiles(t *testing.T) {
+	_, err := parseHyperlocaliseFileOutcome(hyperlocaliseJob{
+		ID:             "job-1",
+		OutcomePayload: jsonRaw(`{"outputFiles":[]}`),
+	})
+	if err == nil {
+		t.Fatalf("expected empty output files error")
+	}
+	if !strings.Contains(err.Error(), "job-1 has no output files") {
+		t.Fatalf("error = %q", err)
+	}
+}
+
+func TestParseHyperlocaliseFileOutcomeReportsMalformedOutputPayload(t *testing.T) {
+	_, err := parseHyperlocaliseFileOutcome(hyperlocaliseJob{
+		ID:             "job-1",
+		OutcomePayload: jsonRaw(`{"outputFiles":[{"fileId":"file-fr","locale":"fr-FR"}]}`),
+	})
+	if err == nil {
+		t.Fatalf("expected malformed output payload error")
+	}
+	if !strings.Contains(err.Error(), "output file 1 is missing filename") {
+		t.Fatalf("error = %q", err)
+	}
+}
+
+func jsonRaw(value string) []byte {
+	return []byte(value)
+}

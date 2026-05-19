@@ -10,6 +10,7 @@ import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   createPublicApiFixture,
   insertStoredSourceFile,
+  insertCompletedPublicFileJob,
   cleanupPublicApiFixture,
   ensurePublicJobsTestSchema,
 } from "./public-jobs.fixture";
@@ -139,5 +140,82 @@ describe("publicJobRoutes", () => {
       message: expect.any(String),
     });
     expect(enqueueJob).not.toHaveBeenCalled();
+  });
+
+  it("returns the file output contract needed by sync pull", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const job = await insertCompletedPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      outputFiles: [
+        {
+          fileId: "file_output_fr",
+          locale: "fr-FR",
+          filename: "source.fr-FR.xliff",
+        },
+      ],
+    });
+
+    const response = await client.api.v1.jobs[":jobId"].$get(
+      {
+        param: {
+          jobId: job.id,
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: Record<string, unknown> };
+    expect(body).toEqual({
+      job: {
+        id: job.id,
+        projectId: project.id,
+        type: "file",
+        status: "succeeded",
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        completedAt: expect.any(String),
+        lastError: null,
+        outputFiles: [
+          {
+            fileId: "file_output_fr",
+            locale: "fr-FR",
+            filename: "source.fr-FR.xliff",
+          },
+        ],
+      },
+    });
+    expect(body.job).not.toHaveProperty("inputPayload");
+    expect(body.job).not.toHaveProperty("workflowRunId");
+    expect(body.job).not.toHaveProperty("outcomePayload");
+  });
+
+  it("does not expose malformed file output metadata as a valid contract", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const job = await insertCompletedPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      outputFiles: [
+        {
+          fileId: "",
+          locale: "fr-FR",
+          filename: "source.fr-FR.xliff",
+        },
+      ],
+    });
+
+    const response = await client.api.v1.jobs[":jobId"].$get(
+      {
+        param: {
+          jobId: job.id,
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: { outputFiles: unknown } };
+    expect(body.job.outputFiles).toBeNull();
   });
 });

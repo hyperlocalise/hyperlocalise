@@ -128,6 +128,7 @@ type hyperlocaliseJob struct {
 	ID             string          `json:"id"`
 	Status         string          `json:"status"`
 	LastError      string          `json:"lastError"`
+	OutputFiles    json.RawMessage `json:"outputFiles"`
 	OutcomePayload json.RawMessage `json:"outcomePayload"`
 }
 
@@ -682,18 +683,63 @@ func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, conte
 }
 
 func parseHyperlocaliseFileOutcome(job hyperlocaliseJob) (hyperlocaliseFileJobOutcome, error) {
+	if rawJSONPresent(job.OutputFiles) {
+		outputFiles, err := parseHyperlocaliseOutputFiles(job.ID, job.OutputFiles)
+		if err != nil {
+			return hyperlocaliseFileJobOutcome{}, err
+		}
+		return hyperlocaliseFileJobOutcome{OutputFiles: outputFiles}, nil
+	}
+
 	if len(job.OutcomePayload) == 0 || string(job.OutcomePayload) == "null" {
 		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("hyperlocalise job %s has no output payload", job.ID)
 	}
 
-	var outcome hyperlocaliseFileJobOutcome
-	if err := json.Unmarshal(job.OutcomePayload, &outcome); err != nil {
+	var rawOutcome struct {
+		OutputFiles json.RawMessage `json:"outputFiles"`
+	}
+	if err := json.Unmarshal(job.OutcomePayload, &rawOutcome); err != nil {
 		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("decode output payload for job %s: %w", job.ID, err)
 	}
-	if len(outcome.OutputFiles) == 0 {
+	if !rawJSONPresent(rawOutcome.OutputFiles) {
 		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("hyperlocalise job %s has no output files", job.ID)
 	}
-	return outcome, nil
+
+	outputFiles, err := parseHyperlocaliseOutputFiles(job.ID, rawOutcome.OutputFiles)
+	if err != nil {
+		return hyperlocaliseFileJobOutcome{}, err
+	}
+	return hyperlocaliseFileJobOutcome{OutputFiles: outputFiles}, nil
+}
+
+func rawJSONPresent(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
+func parseHyperlocaliseOutputFiles(jobID string, raw json.RawMessage) ([]hyperlocaliseOutputFile, error) {
+	var outputFiles []hyperlocaliseOutputFile
+	if err := json.Unmarshal(raw, &outputFiles); err != nil {
+		return nil, fmt.Errorf("decode output files for job %s: %w", jobID, err)
+	}
+	if len(outputFiles) == 0 {
+		return nil, fmt.Errorf("hyperlocalise job %s has no output files", jobID)
+	}
+	for index, outputFile := range outputFiles {
+		var missing []string
+		if strings.TrimSpace(outputFile.FileID) == "" {
+			missing = append(missing, "fileId")
+		}
+		if strings.TrimSpace(outputFile.Locale) == "" {
+			missing = append(missing, "locale")
+		}
+		if strings.TrimSpace(outputFile.Filename) == "" {
+			missing = append(missing, "filename")
+		}
+		if len(missing) > 0 {
+			return nil, fmt.Errorf("hyperlocalise job %s output file %d is missing %s", jobID, index+1, strings.Join(missing, ", "))
+		}
+	}
+	return outputFiles, nil
 }
 
 func writeHyperlocaliseManifest(path string, manifest hyperlocaliseSyncManifest) error {
