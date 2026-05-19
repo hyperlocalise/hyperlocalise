@@ -15,7 +15,7 @@ import {
   apiKeyNotFoundResponse,
   forbiddenResponse,
   invalidApiKeyPayloadResponse,
-  isApiKeyMutationAllowed,
+  isApiKeyAdminActionAllowed,
   ownedApiKeyWhere,
 } from "./api-key.shared";
 
@@ -39,7 +39,7 @@ export function createApiKeyRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+      if (!isApiKeyAdminActionAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -65,7 +65,7 @@ export function createApiKeyRoutes() {
       return c.json({ apiKeys: keys }, 200);
     })
     .post("/", validateCreateApiKeyBody, async (c) => {
-      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+      if (!isApiKeyAdminActionAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -95,7 +95,7 @@ export function createApiKeyRoutes() {
       return c.json({ apiKey: { ...apiKey, key: plainKey } }, 201);
     })
     .delete("/:apiKeyId", validateApiKeyIdParams, async (c) => {
-      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+      if (!isApiKeyAdminActionAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
