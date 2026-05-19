@@ -16,7 +16,6 @@ type syncCommonOptions struct {
 
 func defaultSyncCommonOptions() syncCommonOptions {
 	return syncCommonOptions{
-		dryRun: true,
 		output: "text",
 	}
 }

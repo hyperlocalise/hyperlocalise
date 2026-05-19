@@ -13,9 +13,9 @@ Hợp đồng API việc làm công khai có thể thay đổi trong khi các qu
 hyperlocalise sync push [--config <path>] [flags]
 ```
 
-## Hành vi mặc định an toàn
+## Hành vi mặc định
 
-`sync push` mặc định ở chế độ chạy thử.
+`sync push` mặc định gửi tệp nguồn và tạo công việc Hyperlocalise. Dùng `--dry-run` khi bạn muốn xem trước báo cáo mà không tải tệp lên hoặc tạo công việc.
 
 Trong một lần push thực sự, Hyperlocalise đọc các tệp nguồn đã được cấu hình từ `i18n.yml`, tải từng tệp nguồn lên API công khai của Hyperlocalise, tạo các tác vụ dịch tệp, và ghi một bản kê khai tác vụ. Hãy dùng bản kê khai này làm artifact của GitHub Actions cho một job `sync pull` sau đó.
 
@@ -33,11 +33,11 @@ Trong một lần push thực sự, Hyperlocalise đọc các tệp nguồn đã
 ## Ví dụ
 
 ```bash
-hyperlocalise sync push --locale es-ES --dry-run=false --manifest .hyperlocalise/jobs.json
+hyperlocalise sync push --locale es-ES --manifest .hyperlocalise/jobs.json
 ```
 
 ```bash
-hl push --locale es-ES --dry-run=false
+hl push --locale es-ES
 ```
 
 ## Ghi chú

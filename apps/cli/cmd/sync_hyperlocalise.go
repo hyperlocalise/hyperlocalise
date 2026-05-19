@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -259,7 +260,7 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	return report, nil
 }
 
-func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, wait bool, timeout time.Duration) (hyperlocalisePullReport, error) {
+func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, timeout time.Duration) (hyperlocalisePullReport, error) {
 	manifest, err := readHyperlocaliseManifest(rt.manifestPath)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
@@ -284,9 +285,13 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	}
 
 	deadline := time.Now().Add(timeout)
-	for _, manifestJob := range manifest.Jobs {
-		job, err := waitForHyperlocaliseJob(ctx, rt.client, manifestJob.JobID, wait, deadline)
+	for i, manifestJob := range manifest.Jobs {
+		job, err := waitForHyperlocaliseJob(ctx, rt.client, manifestJob, deadline)
 		if err != nil {
+			var timeoutErr *hyperlocaliseJobTimeoutError
+			if errors.As(err, &timeoutErr) {
+				return report, fmt.Errorf("timed out waiting for hyperlocalise jobs: %s", describePendingHyperlocaliseJobs(manifest.Jobs[i:], manifestJob.JobID, timeoutErr.Status))
+			}
 			return report, err
 		}
 
@@ -319,7 +324,16 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	return report, nil
 }
 
-func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient, jobID string, wait bool, deadline time.Time) (hyperlocaliseJob, error) {
+type hyperlocaliseJobTimeoutError struct {
+	Status string
+}
+
+func (e *hyperlocaliseJobTimeoutError) Error() string {
+	return "timed out waiting for hyperlocalise job"
+}
+
+func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient, manifestJob hyperlocaliseManifestJob, deadline time.Time) (hyperlocaliseJob, error) {
+	jobID := manifestJob.JobID
 	for {
 		job, err := client.getJob(ctx, jobID)
 		if err != nil {
@@ -335,11 +349,8 @@ func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient
 			}
 			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s", jobID, job.Status)
 		case "queued", "running", "waiting_for_review":
-			if !wait {
-				return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s is %s; rerun with --wait or pull later", jobID, job.Status)
-			}
 			if time.Now().After(deadline) {
-				return hyperlocaliseJob{}, fmt.Errorf("timed out waiting for hyperlocalise job %s", jobID)
+				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: job.Status}
 			}
 			select {
 			case <-ctx.Done():
@@ -350,6 +361,38 @@ func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient
 			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s has unknown status %q", jobID, job.Status)
 		}
 	}
+}
+
+func describePendingHyperlocaliseJobs(manifestJobs []hyperlocaliseManifestJob, statusJobID, status string) string {
+	descriptions := make([]string, 0, len(manifestJobs))
+	for _, manifestJob := range manifestJobs {
+		jobStatus := ""
+		if manifestJob.JobID == statusJobID {
+			jobStatus = status
+		}
+		descriptions = append(descriptions, describePendingHyperlocaliseJob(manifestJob, jobStatus))
+	}
+	return strings.Join(descriptions, "; ")
+}
+
+func describePendingHyperlocaliseJob(manifestJob hyperlocaliseManifestJob, status string) string {
+	var parts []string
+	if jobID := strings.TrimSpace(manifestJob.JobID); jobID != "" {
+		parts = append(parts, "job_id="+jobID)
+	}
+	if sourcePath := strings.TrimSpace(manifestJob.SourcePath); sourcePath != "" {
+		parts = append(parts, "source_path="+sourcePath)
+	}
+	if len(manifestJob.TargetLocales) > 0 {
+		parts = append(parts, "target_locales="+strings.Join(manifestJob.TargetLocales, ","))
+	}
+	if status = strings.TrimSpace(status); status != "" {
+		parts = append(parts, "status="+status)
+	}
+	if len(parts) == 0 {
+		return "unknown pending job"
+	}
+	return strings.Join(parts, " ")
 }
 
 func newHyperlocaliseManifest(rt *hyperlocaliseSyncRuntime) hyperlocaliseSyncManifest {

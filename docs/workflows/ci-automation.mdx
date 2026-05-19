@@ -28,16 +28,16 @@ hyperlocalise status --output csv
 
 Store CSV as a build artifact for trend tracking.
 
-### 3. Sync conflict gate
+### 3. Sync preview gate
 
-`sync pull` and `sync push` default to `--dry-run=true`, which is a safe CI baseline.
+`sync pull` and `sync push` apply changes by default. Add `--dry-run` for non-mutating CI preview jobs.
 
 ```bash
-hyperlocalise sync pull --output json --dry-run=true
-hyperlocalise sync push --output json --dry-run=true
+hyperlocalise sync pull --output json --dry-run
+hyperlocalise sync push --output json --dry-run
 ```
 
-Use `--dry-run=false` only in jobs that are explicitly authorized to write local files or remote systems.
+Run without `--dry-run` only in jobs that are explicitly authorized to write local files or remote systems.
 
 ## Scheduled sync job examples
 
@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --dry-run
 ```
 
 To apply remote changes to local files in CI, switch to:
 
 ```bash
-go run ./apps/cli sync pull --output json --dry-run=false
+go run ./apps/cli sync pull --output json
 ```
 
 ### Scheduled push sync (write-enabled, active)
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json --dry-run=false
+      - run: go run ./apps/cli sync push --output json
 ```
 
 For a non-mutating validation pass, use:
 
 ```bash
-go run ./apps/cli sync push --output json --dry-run=true
+go run ./apps/cli sync push --output json --dry-run
 ```
 
 For write-enabled jobs, prefer protected environments, approval gates, and least-privilege service credentials.

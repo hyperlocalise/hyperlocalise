@@ -28,16 +28,16 @@ hyperlocalise status --output csv
 
 Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.
 
-### 3. Cổng xung đột đồng bộ
+### 3. Cổng xem trước đồng bộ
 
-`sync pull` và `sync push` mặc định là `--dry-run=true`, đây là một đường cơ sở CI an toàn.
+`sync pull` và `sync push` mặc định áp dụng thay đổi. Thêm `--dry-run` cho các tác vụ xem trước CI không làm thay đổi.
 
 ```bash
-hyperlocalise sync pull --output json --dry-run=true
-hyperlocalise sync push --output json --dry-run=true
+hyperlocalise sync pull --output json --dry-run
+hyperlocalise sync push --output json --dry-run
 ```
 
-Chỉ sử dụng `--dry-run=false` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
+Chỉ bỏ `--dry-run` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
 
 ## Ví dụ về tác vụ đồng bộ theo lịch
 
@@ -66,13 +66,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --dry-run=true
+      - run: go run ./apps/cli sync pull --output json --dry-run
 ```
 
 Để áp dụng các thay đổi từ xa vào các tệp cục bộ trong CI, chuyển sang:
 
 ```bash
-go run ./apps/cli sync pull --output json --dry-run=false
+go run ./apps/cli sync pull --output json
 ```
 
 ### Đồng bộ đẩy theo lịch trình (đã bật ghi, đang hoạt động)
@@ -99,13 +99,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json --dry-run=false
+      - run: go run ./apps/cli sync push --output json
 ```
 
 Đối với một lần kiểm tra xác thực không làm thay đổi, hãy sử dụng:
 
 ```bash
-go run ./apps/cli sync push --output json --dry-run=true
+go run ./apps/cli sync push --output json --dry-run
 ```
 
 Đối với các công việc có quyền ghi, hãy ưu tiên các môi trường được bảo vệ, các cổng phê duyệt và thông tin xác thực dịch vụ theo nguyên tắc đặc quyền tối thiểu.

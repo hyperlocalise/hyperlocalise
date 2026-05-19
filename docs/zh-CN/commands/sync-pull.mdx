@@ -13,11 +13,11 @@ description: "将已完成的 Hyperlocalise 作业输出拉取到本地文件。
 hyperlocalise sync pull [--config <path>] [flags]
 ```
 
-## 安全的默认行为
+## 默认行为
 
-`sync pull` 默认为 dry-run 模式。请先查看报告，然后使用 `--dry-run=false` 重新运行。
+`sync pull` 默认会应用已完成的作业输出。需要只预览报告且不写入文件时，请使用 `--dry-run`。
 
-`sync pull` 读取完整的作业清单，按作业 ID 轮询公开的 Hyperlocalise API，下载成功的输出文件，并将它们写入由 `i18n.yml` 解析出的目标路径。
+`sync pull` 读取完整的作业清单，按作业 ID 轮询公开的 Hyperlocalise API，直到每个待处理作业完成或达到配置的超时时间，然后下载成功的输出文件，并将它们写入由 `i18n.yml` 解析出的目标路径。
 
 清单通常会从一个 `sync push` GitHub Actions 作业传递到一个 `sync pull` 作业，使用 `actions/upload-artifact` 和 `actions/download-artifact`。
 
@@ -26,25 +26,24 @@ hyperlocalise sync pull [--config <path>] [flags]
 - `--config`: 配置路径
 - `--locale`：目标语言环境，可重复
 - `--manifest`：作业清单路径
-- `--wait`：等待队列中或正在运行的作业完成
 - `--timeout`：最大等待时间，例如 `20m`
-- `--dry-run`：仅预览（默认`true`）
+- `--dry-run`：仅预览
 - `--output`：`text`、`json`或`markdown`
 
 ## 示例
 
 ```bash
-hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --wait --timeout 20m --dry-run=false
+hyperlocalise sync pull --manifest .hyperlocalise/jobs.json --timeout 20m
 ```
 
 ```bash
-hl pull --manifest .hyperlocalise/jobs.json --dry-run=false
+hl pull --manifest .hyperlocalise/jobs.json
 ```
 
 ## 备注
 
 - `sync pull` 拒绝包含 `complete: false` 的清单。
-- 如果没有`--wait`，排队中或正在运行的作业会导致非零退出。
+- 超时错误会尽可能包含待处理作业 ID、源路径、目标语言环境和状态。
 - 输出文件会按语言区域映射到清单中捕获的目标路径。
 - 特定于提供商的 TMS 命令，例如 `crowdin` 和 `phrase`，保留各自的配置和行为。
 
