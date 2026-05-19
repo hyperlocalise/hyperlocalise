@@ -1,6 +1,6 @@
 projectname?=hyperlocalise
 version?=$(shell git describe --abbrev=0 --tags 2>/dev/null || echo dev)
-golangci_lint_version?=v2.12.1
+golangci_lint_version?=v2.12.2
 gobin?=$(shell go env GOPATH)/bin
 golangci_lint_bin?=$(gobin)/golangci-lint
 fmt_go_files:=$(filter-out %.pb.go,$(shell git ls-files '*.go' | while read -r f; do [ -f "$$f" ] && printf '%s\n' "$$f"; done))
