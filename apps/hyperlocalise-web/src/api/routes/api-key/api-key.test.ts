@@ -87,6 +87,29 @@ describe("apiKeyRoutes", () => {
     );
   });
 
+  it("returns 403 when a member lists API keys", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+
+    await createApiKeyViaApi(ownerIdentity, { name: "Hidden Key" });
+
+    const response = await client.api.orgs[":organizationSlug"]["api-keys"].$get(
+      {
+        param: { organizationSlug: ownerIdentity.organization.slug ?? "missing-slug" },
+      },
+      {
+        headers: await authHeadersFor(memberIdentity),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+  });
+
   it("revokes an API key", async () => {
     const identity = createWorkosIdentity();
     const headers = await authHeadersFor(identity);

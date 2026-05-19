@@ -39,6 +39,10 @@ export function createApiKeyRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isApiKeyMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const keys = await db
         .select({
           id: schema.organizationApiKeys.id,
