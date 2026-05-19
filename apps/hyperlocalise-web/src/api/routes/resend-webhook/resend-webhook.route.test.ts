@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { createResendWebhookRoutes } from "./resend-webhook";
+import { createResendWebhookRoutes } from "./resend-webhook.route";
 
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),

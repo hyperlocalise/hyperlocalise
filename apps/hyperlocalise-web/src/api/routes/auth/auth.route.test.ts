@@ -4,8 +4,8 @@ import { testClient } from "hono/testing";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createWorkosAuthMiddleware } from "../auth/workos";
-import type { ApiAuthContext } from "../auth/workos";
+import { createWorkosAuthMiddleware } from "../../auth/workos";
+import type { ApiAuthContext } from "../../auth/workos";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(),
@@ -18,7 +18,7 @@ async function createClient(
 ) {
   vi.resetModules();
 
-  vi.doMock("./health", async () => {
+  vi.doMock("../health", async () => {
     const { Hono } = await import("hono");
 
     return {
@@ -32,7 +32,7 @@ async function createClient(
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
   }));
 
-  const { app } = await import("../app");
+  const { app } = await import("../../app");
 
   return testClient(app);
 }
@@ -40,7 +40,7 @@ async function createClient(
 describe("authRoutes", () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock("./health");
+    vi.doUnmock("../health");
   });
 
   it("returns 401 when auth context is missing", async () => {

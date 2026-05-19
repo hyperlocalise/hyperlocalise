@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
-import { getSlackRedirectUri } from "@/api/routes/slack-oauth";
+import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
 import { createSlackState, getSlackStateSecret } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";

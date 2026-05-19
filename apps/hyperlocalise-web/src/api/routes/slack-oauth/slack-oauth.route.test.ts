@@ -7,7 +7,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { createSlackState as createSignedSlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { createSlackOAuthRoutes } from "./slack-oauth";
+import { createSlackOAuthRoutes } from "./slack-oauth.route";
 
 const mocks = vi.hoisted(() => ({
   getSlackBot: vi.fn(),

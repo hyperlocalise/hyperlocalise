@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { workosAuthMiddleware, type AuthVariables } from "../auth/workos";
+import { workosAuthMiddleware, type AuthVariables } from "../../auth/workos";
 
 export const authRoutes = new Hono<{ Variables: AuthVariables }>()
   .use("*", workosAuthMiddleware)

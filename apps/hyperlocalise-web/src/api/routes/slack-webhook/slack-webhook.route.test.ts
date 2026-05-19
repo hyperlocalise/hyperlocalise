@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { createSlackWebhookRoutes } from "./slack-webhook";
+import { createSlackWebhookRoutes } from "./slack-webhook.route";
 
 const fixture = createProjectTestFixture();
 
