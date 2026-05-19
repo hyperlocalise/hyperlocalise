@@ -35,6 +35,11 @@ type InstallationAuth = {
   token: string;
 };
 
+type ScopedFixSkip = {
+  skipped: true;
+  reason: string;
+};
+
 const fixableFindingTypes = new Set([
   "not_localized",
   "whitespace_only",
@@ -60,6 +65,34 @@ async function getPullRequestMetadata(
     headBranch: pr.head.ref,
     headSha: pr.head.sha,
     canPush: pr.head.repo?.full_name === event.repositoryFullName,
+  };
+}
+
+function shortSha(value: string): string {
+  return value.slice(0, 12);
+}
+
+export function getScopedFixPreflightSkip(
+  event: GitHubFixRequestedEventData,
+  pr: Pick<PullRequestMetadata, "headSha">,
+): ScopedFixSkip | null {
+  if (event.scope.type !== "review_comment") {
+    return null;
+  }
+  if (!event.scope.commitSha) {
+    return {
+      skipped: true,
+      reason:
+        "I could not verify which commit this inline comment was made against, so I skipped the scoped fix. Comment `@hyperlocalise fix` on the PR conversation to run a broad fix.",
+    };
+  }
+  if (event.scope.commitSha === pr.headSha) {
+    return null;
+  }
+
+  return {
+    skipped: true,
+    reason: `This inline comment was made against commit \`${shortSha(event.scope.commitSha)}\`, but the PR head is now \`${shortSha(pr.headSha)}\`. I skipped the scoped fix so it does not target the wrong line or translation entry. Comment \`@hyperlocalise fix\` on the PR conversation to run a broad fix on the current head.`,
   };
 }
 
@@ -351,6 +384,14 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
       await postPullRequestComment(
         event,
         "## Hyperlocalise fix skipped\n\nI do not have permission to push to this PR branch.",
+      );
+      return;
+    }
+    const scopedPreflight = getScopedFixPreflightSkip(event, pr);
+    if (scopedPreflight) {
+      await postPullRequestComment(
+        event,
+        `## Hyperlocalise fix skipped\n\n${scopedPreflight.reason}`,
       );
       return;
     }
