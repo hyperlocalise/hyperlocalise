@@ -24,6 +24,22 @@ function buildTsQuery(input: string): string {
   return sanitized;
 }
 
+async function projectBelongsToOrganization(
+  db: ToolContext["db"],
+  organizationId: string,
+  projectId: string,
+) {
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(
+      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+    )
+    .limit(1);
+
+  return Boolean(project);
+}
+
 /**
  * Search glossary terms for a given source text and locale pair.
  *
@@ -56,10 +72,20 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
 
       let glossaryIds: string[] | undefined;
       if (projectId) {
+        const ownsProject = await projectBelongsToOrganization(db, ctx.organizationId, projectId);
+        if (!ownsProject) {
+          return { terms: [] };
+        }
+
         const attached = await db
           .select({ glossaryId: schema.projectGlossaries.glossaryId })
           .from(schema.projectGlossaries)
-          .where(eq(schema.projectGlossaries.projectId, projectId));
+          .where(
+            and(
+              eq(schema.projectGlossaries.projectId, projectId),
+              eq(schema.projectGlossaries.organizationId, ctx.organizationId),
+            ),
+          );
         glossaryIds = attached.map((a) => a.glossaryId);
         if (glossaryIds.length === 0) {
           return { terms: [] };
@@ -68,6 +94,7 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
 
       const conditions = [
         sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+        eq(schema.glossaries.organizationId, ctx.organizationId),
         eq(schema.glossaries.sourceLocale, sourceLocale),
         eq(schema.glossaries.targetLocale, targetLocale),
         eq(schema.glossaries.status, "active"),
@@ -142,10 +169,20 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
 
       let memoryIds: string[] | undefined;
       if (projectId) {
+        const ownsProject = await projectBelongsToOrganization(db, ctx.organizationId, projectId);
+        if (!ownsProject) {
+          return { matches: [] };
+        }
+
         const attached = await db
           .select({ memoryId: schema.projectMemories.memoryId })
           .from(schema.projectMemories)
-          .where(eq(schema.projectMemories.projectId, projectId));
+          .where(
+            and(
+              eq(schema.projectMemories.projectId, projectId),
+              eq(schema.projectMemories.organizationId, ctx.organizationId),
+            ),
+          );
         memoryIds = attached.map((a) => a.memoryId);
         if (memoryIds.length === 0) {
           return { matches: [] };
@@ -158,6 +195,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
         eq(schema.memoryEntries.sourceLocale, sourceLocale),
         eq(schema.memoryEntries.targetLocale, targetLocale),
         eq(schema.memoryEntries.reviewStatus, "approved"),
+        eq(schema.memories.organizationId, ctx.organizationId),
       ];
       if (memoryIds) {
         exactConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
@@ -174,6 +212,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
           provenance: schema.memoryEntries.provenance,
         })
         .from(schema.memoryEntries)
+        .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(and(...exactConditions))
         .limit(limit);
 
@@ -194,6 +233,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
         eq(schema.memoryEntries.sourceLocale, sourceLocale),
         eq(schema.memoryEntries.targetLocale, targetLocale),
         eq(schema.memoryEntries.reviewStatus, "approved"),
+        eq(schema.memories.organizationId, ctx.organizationId),
       ];
       if (memoryIds) {
         fuzzyConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
@@ -213,6 +253,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
           ),
         })
         .from(schema.memoryEntries)
+        .innerJoin(schema.memories, eq(schema.memoryEntries.memoryId, schema.memories.id))
         .where(and(...fuzzyConditions))
         .orderBy(desc(sql`rank`))
         .limit(limit);
