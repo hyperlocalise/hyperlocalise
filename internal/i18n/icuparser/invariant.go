@@ -269,31 +269,16 @@ func uniqueStrings(values []string) []string {
 	}
 	sorted := append([]string(nil), values...)
 	slices.Sort(sorted)
-	out := make([]string, 0, len(sorted))
-	var last string
-	for i, value := range sorted {
-		if i == 0 || value != last {
-			out = append(out, value)
-			last = value
-		}
-	}
-	return out
+	return slices.Compact(sorted)
 }
 
 func slicesEqual[T comparable](a, b []T) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(a, b)
 }
 
 func isPlaceholderName(s string) bool {
-	s = strings.TrimSpace(s)
+	// BOLT OPTIMIZATION: Internal callers (readIdentifierLike, normalizeMustachePlaceholders)
+	// already provide trimmed strings, so we skip TrimSpace here.
 	if s == "" {
 		return false
 	}

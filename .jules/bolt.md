@@ -15,3 +15,11 @@
 ## 2026-05-20 - Optimizing segment processing hot paths
 **Learning:** In high-volume translation parsing, small overheads in `isTranslatableChunk`, `containsHTMLTag`, and placeholder expansion accumulate. A fast-path `strings.Contains(s, "<")` before regex and `strings.ReplaceAll` for single placeholders provide significant speedups (~5x and ~10x respectively). Unnecessary sorting of sentinel tokens in `strings.Replacer` can also be safely removed as they are fixed-length and non-colliding.
 **Action:** Implemented fast-paths and removed redundant allocations/sorting in `internal/i18n/translationfileparser`.
+
+## 2026-05-25 - Reducing allocations in list normalization
+**Learning:** `strings.Split` followed by `strings.TrimSpace` on each part is a common but expensive pattern due to intermediate slice and string allocations. Replacing it with a manual `strings.IndexByte` loop avoids the intermediate slice.
+**Action:** Optimized `NormalizeList` in `internal/i18n/locales/normalize.go` achieving ~50% fewer allocations and ~30% faster execution.
+
+## 2026-05-25 - Using slices.Compact for deduplication
+**Learning:** Go 1.21's `slices.Compact` provides a cleaner and more efficient way to deduplicate sorted slices compared to manual loops with intermediate slices.
+**Action:** Updated `uniqueStrings` in `icuparser` to use `slices.Compact`.

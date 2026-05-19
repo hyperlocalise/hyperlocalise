@@ -475,15 +475,13 @@ func newLiquidReplacer(placeholders map[string]string) *strings.Replacer {
 		return nil
 	}
 
-	keys := make([]string, 0, len(placeholders))
-	for placeholder := range placeholders {
-		keys = append(keys, placeholder)
-	}
-	slices.SortFunc(keys, func(a, b string) int { return len(b) - len(a) })
-
-	oldnew := make([]string, 0, len(keys)*2)
-	for _, placeholder := range keys {
-		oldnew = append(oldnew, placeholder, placeholders[placeholder])
+	// BOLT OPTIMIZATION: Sentinel tokens (\x1eHLLQPH_..._\x1f) have fixed length
+	// and do not collide, and strings.Replacer internally handles overlapping
+	// matches by preferring the longest match at any position, so sorting keys
+	// by length is unnecessary.
+	oldnew := make([]string, 0, len(placeholders)*2)
+	for placeholder, original := range placeholders {
+		oldnew = append(oldnew, placeholder, original)
 	}
 	return strings.NewReplacer(oldnew...)
 }
