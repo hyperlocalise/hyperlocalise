@@ -11,6 +11,7 @@ import {
   createSearchRepoFilesTool,
   redact,
   type I18NConfigSummary,
+  type RepoSearchMatch,
   type RepoToolContext,
 } from "./repo-tools";
 
@@ -124,6 +125,18 @@ describe("createSearchRepoFilesTool", () => {
     const result = await t.execute!({ pattern: "func", maxResults: 1 }, toolCallInfo);
     expect(result).toMatchObject({ success: true, truncated: true });
     expect((result as { matches: unknown[] }).matches).toHaveLength(1);
+  });
+
+  it("redacts secrets in matched lines", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/config.yaml": "api_token: abcdefghijklmnopqrstuvwxyz12345\n",
+    });
+    const t = createSearchRepoFilesTool(ctx);
+    const result = await t.execute!({ pattern: "api_token" }, toolCallInfo);
+    const matches = (result as { matches: RepoSearchMatch[] }).matches;
+    expect(matches).toHaveLength(1);
+    expect(matches[0].line).toBe("api_token: ***REDACTED***");
+    expect(matches[0].line).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
   });
 });
 

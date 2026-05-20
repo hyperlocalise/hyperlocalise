@@ -220,7 +220,7 @@ export function createSearchRepoFilesTool(ctx: RepoToolContext) {
 
         const filePath = line.slice(0, colonIdx);
         const lineNum = Number(line.slice(colonIdx + 1, colonIdx2));
-        const content = line.slice(colonIdx2 + 1);
+        const content = redact(line.slice(colonIdx2 + 1));
 
         matches.push({ path: filePath, lineNum, line: content });
       }
