@@ -1167,32 +1167,42 @@ export const PromptInputSubmit = ({
   );
 
   const finalTooltip = useMemo(() => {
-    if (tooltip) return tooltip;
     if (canStop) return { content: "Stop", shortcut: "Esc" };
     if (status === "submitted") return { content: "Sending..." };
     if (status === "streaming") return { content: "Generating..." };
     if (status === "error") return { content: "Error" };
+    if (tooltip) return tooltip;
     return { content: "Submit", shortcut: "Enter" };
   }, [tooltip, canStop, status]);
 
   const finalIcon = useMemo(() => {
-    if (children) return children;
     if (status === "submitted") return <Spinner />;
     if (status === "streaming") return canStop ? <SquareIcon className="size-4" /> : <Spinner />;
     if (status === "error") return <XIcon className="size-4" />;
-    return <CornerDownLeftIcon className="size-4" />;
+    return children ?? <CornerDownLeftIcon className="size-4" />;
   }, [children, status, canStop]);
 
   return (
     <PromptInputTooltip tooltip={finalTooltip}>
       <InputGroupButton
-        aria-label={canStop ? "Stop" : isGenerating ? "Generating" : "Submit"}
         className={cn(className)}
         onClick={handleClick}
         size={size}
         type={canStop ? "button" : "submit"}
         variant={variant}
+        disabled={props.disabled || (isGenerating && !canStop)}
         {...props}
+        aria-label={
+          canStop
+            ? "Stop"
+            : status === "submitted"
+              ? "Sending"
+              : status === "streaming"
+                ? "Generating"
+                : status === "error"
+                  ? "Error"
+                  : (props["aria-label"] ?? "Submit")
+        }
       >
         {finalIcon}
       </InputGroupButton>
