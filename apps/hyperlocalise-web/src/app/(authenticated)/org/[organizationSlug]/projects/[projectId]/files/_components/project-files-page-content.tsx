@@ -17,33 +17,16 @@ import {
   type Tone,
 } from "../../../../_components/workspace-resource-shared";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
-
-type ApiFile = {
-  sourcePath: string;
-  sourceHash: string | null;
-  commitSha: string | null;
-  workflowRunId: string | null;
-  uploadedAt: string;
-  storedFileId: string;
-  metadata: Record<string, unknown>;
-  filename: string;
-  byteSize: number;
-  latestJob: {
-    id: string;
-    status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-    createdAt: string;
-    type: "string" | "file";
-  } | null;
-};
+import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
 type TreeNode = {
   name: string;
   path: string;
   children: TreeNode[];
-  file?: ApiFile;
+  file?: ProjectFileRecord;
 };
 
-function jobTone(status: NonNullable<ApiFile["latestJob"]>["status"]): Tone {
+function jobTone(status: NonNullable<ProjectFileRecord["latestJob"]>["status"]): Tone {
   switch (status) {
     case "succeeded":
       return "safe";
@@ -57,30 +40,31 @@ function jobTone(status: NonNullable<ApiFile["latestJob"]>["status"]): Tone {
   }
 }
 
-function buildTree(files: ApiFile[]): TreeNode {
+function buildTree(files: ProjectFileRecord[]): TreeNode {
   const root: TreeNode = { name: "", path: "", children: [] };
+  const nodeMap = new Map<string, TreeNode>([["", root]]);
 
   for (const file of files) {
     const parts = file.sourcePath.split("/").filter(Boolean);
-    let current = root;
+    let parentPath = "";
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      const path = parts.slice(0, i + 1).join("/");
-      const existing = current.children.find((c) => c.name === part);
+      const path = parentPath ? `${parentPath}/${part}` : part;
+      let node = nodeMap.get(path);
 
-      if (existing) {
-        current = existing;
-      } else {
-        const node: TreeNode = {
+      if (!node) {
+        node = {
           name: part,
           path,
           children: [],
           file: i === parts.length - 1 ? file : undefined,
         };
-        current.children.push(node);
-        current = node;
+        nodeMap.set(path, node);
+        nodeMap.get(parentPath)!.children.push(node);
       }
+
+      parentPath = path;
     }
   }
 
@@ -175,7 +159,7 @@ export function ProjectFilesPageContent({
         throw new Error(`Failed to load files (${response.status})`);
       }
       const body = await response.json();
-      return body.files as ApiFile[];
+      return body.files as ProjectFileRecord[];
     },
   });
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -151,7 +151,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      const versions = await db
+      const versionsSubquery = db
         .select({
           versionId: schema.repositorySourceFileVersions.id,
           sourcePath: schema.repositorySourceFileVersions.sourcePath,
@@ -163,6 +163,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           metadata: schema.storedFiles.metadata,
           filename: schema.storedFiles.filename,
           byteSize: schema.storedFiles.byteSize,
+          rowNumber:
+            sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.repositorySourceFileVersions.sourcePath} ORDER BY ${schema.repositorySourceFileVersions.createdAt} DESC)`.as(
+              "rn",
+            ),
         })
         .from(schema.repositorySourceFileVersions)
         .innerJoin(
@@ -177,19 +181,25 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             eq(schema.storedFiles.organizationId, c.var.auth.organization.localOrganizationId),
           ),
         )
-        .orderBy(
-          schema.repositorySourceFileVersions.sourcePath,
-          desc(schema.repositorySourceFileVersions.createdAt),
-        );
+        .as("versions_sq");
 
-      const latestByPath = new Map<string, (typeof versions)[number]>();
-      for (const v of versions) {
-        if (!latestByPath.has(v.sourcePath)) {
-          latestByPath.set(v.sourcePath, v);
-        }
-      }
+      const versions = await db
+        .select({
+          versionId: versionsSubquery.versionId,
+          sourcePath: versionsSubquery.sourcePath,
+          sourceHash: versionsSubquery.sourceHash,
+          commitSha: versionsSubquery.commitSha,
+          workflowRunId: versionsSubquery.workflowRunId,
+          uploadedAt: versionsSubquery.uploadedAt,
+          storedFileId: versionsSubquery.storedFileId,
+          metadata: versionsSubquery.metadata,
+          filename: versionsSubquery.filename,
+          byteSize: versionsSubquery.byteSize,
+        })
+        .from(versionsSubquery)
+        .where(eq(versionsSubquery.rowNumber, 1));
 
-      const versionIds = Array.from(latestByPath.values()).map((v) => v.versionId);
+      const versionIds = versions.map((v) => v.versionId);
 
       const latestJobs = new Map<
         string,
@@ -202,13 +212,17 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       >();
 
       if (versionIds.length > 0) {
-        const jobs = await db
+        const jobsSubquery = db
           .select({
             versionId: schema.translationJobDetails.sourceFileVersionId,
             jobId: schema.jobs.id,
             jobStatus: schema.jobs.status,
             jobCreatedAt: schema.jobs.createdAt,
             jobType: schema.translationJobDetails.type,
+            rowNumber:
+              sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.translationJobDetails.sourceFileVersionId} ORDER BY ${schema.jobs.createdAt} DESC)`.as(
+                "rn",
+              ),
           })
           .from(schema.jobs)
           .innerJoin(
@@ -221,16 +235,27 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
             ),
           )
-          .orderBy(desc(schema.jobs.createdAt));
+          .as("jobs_sq");
+
+        const jobs = await db
+          .select({
+            versionId: jobsSubquery.versionId,
+            jobId: jobsSubquery.jobId,
+            jobStatus: jobsSubquery.jobStatus,
+            jobCreatedAt: jobsSubquery.jobCreatedAt,
+            jobType: jobsSubquery.jobType,
+          })
+          .from(jobsSubquery)
+          .where(eq(jobsSubquery.rowNumber, 1));
 
         for (const j of jobs) {
-          if (j.versionId && !latestJobs.has(j.versionId)) {
+          if (j.versionId) {
             latestJobs.set(j.versionId, j);
           }
         }
       }
 
-      const files = Array.from(latestByPath.values()).map((v) => {
+      const files = versions.map((v) => {
         const job = latestJobs.get(v.versionId);
         return {
           sourcePath: v.sourcePath,
