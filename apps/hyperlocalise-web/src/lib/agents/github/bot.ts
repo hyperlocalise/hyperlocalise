@@ -9,6 +9,10 @@ import {
 } from "@/lib/agents/hyperlocalise-agent";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import {
+  buildRepoTmsGitHubContextInstructions,
+  resolveGitHubRepoTmsGitHubContext,
+} from "@/lib/agents/repo-tms-context";
 import { env } from "@/lib/env";
 import {
   addInteractionMessage,
@@ -100,6 +104,15 @@ export async function handleMention(
     return;
   }
 
+  const githubContextResolution = await resolveGitHubRepoTmsGitHubContext({
+    raw: message.raw as GitHubRawMessage,
+    installationId: Number.parseInt(githubInstallationId, 10),
+  });
+  if (githubContextResolution.status === "unresolved") {
+    await thread.post(githubContextResolution.followUp);
+    return;
+  }
+
   // Conversation tracking
   let conversationId: string | undefined;
   try {
@@ -146,7 +159,14 @@ export async function handleMention(
     projectId: null,
     tools,
     activeTools: ["enqueueGitHubFix"],
-    additionalInstructions: buildGitHubFixInstructions(event),
+    additionalInstructions: [
+      buildGitHubFixInstructions(event),
+      githubContextResolution.status === "resolved"
+        ? buildRepoTmsGitHubContextInstructions(githubContextResolution.context)
+        : null,
+    ]
+      .filter((instruction): instruction is string => instruction !== null)
+      .join("\n\n"),
     prepareStep: ({ stepNumber }) => {
       if (stepNumber === 0) {
         return {
