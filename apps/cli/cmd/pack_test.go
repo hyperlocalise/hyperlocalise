@@ -58,6 +58,13 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
     "defaultMessage": "Dashboard",
     "description": "Main dashboard heading"
   },
+  "src.components.hero.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Hero heading"
+  },
+  "src.components.app-header.button.label": {
+    "defaultMessage": "Save settings"
+  },
   "src.components.app-header.cta": {
     "defaultMessage": "Create project"
   }
@@ -76,6 +83,80 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
 	want := map[string][]string{
 		"Create project": {"cta"},
 		"Dashboard":      {"title"},
+		"Save settings":  {"button.label"},
+	}
+	assertPackOutput(t, got, want)
+}
+
+func TestPackCommandStripsPrefixIDAtFilenameBoundary(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writePackTestFile(t, filepath.Join(dir, "src", "components", "AppHeader.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function AppHeader() {
+  return (
+    <>
+      <FormattedMessage id="button.label" defaultMessage="Save settings" />
+      <FormattedMessage id="title" defaultMessage="Dashboard" />
+    </>
+  );
+}
+`)
+	writePackTestFile(t, filepath.Join(dir, "src", "components", "Hero.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function Hero() {
+  return <FormattedMessage id="button.label" defaultMessage="Start trial" />;
+}
+`)
+	writePackTestFile(t, filepath.Join(dir, "src", "foo.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function Foo() {
+  return <FormattedMessage id="bar.baz" defaultMessage="Ambiguous" />;
+}
+`)
+	writePackTestFile(t, filepath.Join(dir, "src", "foo", "Bar.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function Bar() {
+  return <FormattedMessage id="unrelated" defaultMessage="Other" />;
+}
+`)
+
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.button.label": {
+    "defaultMessage": "Save settings"
+  },
+  "src.components.hero.button.label": {
+    "defaultMessage": "Start trial"
+  },
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.foo.bar.baz": {
+    "defaultMessage": "Ambiguous"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackTestOutput(t, out.Bytes())
+	want := map[string][]string{
+		"Ambiguous":     {"bar.baz"},
+		"Dashboard":     {"title"},
+		"Save settings": {"button.label"},
+		"Start trial":   {"button.label"},
 	}
 	assertPackOutput(t, got, want)
 }
