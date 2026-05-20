@@ -39,10 +39,10 @@ const SENSITIVE_ENV_PREFIXES = [
 
 // Regex for token-like key=value patterns.
 const TOKEN_PATTERN =
-  /(\b[a-z0-9_]*(?:token|key|secret|password|api_key|apikey|auth)[a-z0-9_]*\s*[:=]\s*)([a-zA-Z0-9_\-.]{20,})/gi;
+  /(\b[a-z0-9_]*(?:token|key|secret|password|api_key|apikey|auth)[a-z0-9_]*\s*[:=]\s*)([a-zA-Z0-9_\-./+]{20,})/gi;
 
 // Regex for Bearer tokens.
-const BEARER_PATTERN = /(Bearer\s+)([a-zA-Z0-9_\-.]{20,})/gi;
+const BEARER_PATTERN = /(Bearer\s+)([a-zA-Z0-9_\-./+]{20,})/gi;
 
 export type RepoToolContext = {
   bash: Bash;
@@ -190,6 +190,14 @@ export function createSearchRepoFilesTool(ctx: RepoToolContext) {
         ],
       });
 
+      if (result.exitCode >= 2) {
+        return {
+          success: false,
+          error: redact(result.stderr || "Search command failed"),
+          matches: [],
+          truncated: false,
+        };
+      }
       if (result.exitCode !== 0 && result.stdout === "") {
         return {
           success: true,
@@ -464,7 +472,9 @@ export function buildHlArgs(input: {
   const flagKeys = Object.keys(input.flags ?? {}).sort();
   for (const k of flagKeys) {
     validateFlag(k);
-    args.push("--" + k + "=" + input.flags![k]);
+    const v = input.flags![k];
+    validateValue(v);
+    args.push("--" + k + "=" + v);
   }
 
   return args;
@@ -476,6 +486,12 @@ function validateFlag(name: string): void {
   }
   if (name.includes("$") || name.includes("`")) {
     throw new Error(`Flag "${name}" contains invalid characters`);
+  }
+}
+
+function validateValue(value: string): void {
+  if (value.includes("$") || value.includes("`")) {
+    throw new Error(`Flag value contains invalid characters`);
   }
 }
 
