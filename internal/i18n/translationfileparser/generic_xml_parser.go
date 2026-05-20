@@ -161,6 +161,11 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 			if name == "" {
 				return genericXMLDocument{}, fmt.Errorf("generic XML parser: element with empty local name is not supported")
 			}
+			attrKey := genericXMLKeyAttr(token.Attr)
+			metadataElement := isGenericXMLMetadataElement(name)
+			if metadataElement && attrKey != "" && isGenericXMLKeyedMetadataConflict(name) {
+				return genericXMLDocument{}, fmt.Errorf("generic XML parser: metadata element <%s> has key/id/name attribute %q; rename the element or remove the key-like attribute", name, attrKey)
+			}
 			if rootName == "" {
 				rootName = name
 				if isGenericXMLSpecializedRoot(rootName) {
@@ -188,7 +193,7 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 			}
 			ownKey := ""
 			if len(stack) > 0 {
-				ownKey = genericXMLKeyAttr(token.Attr)
+				ownKey = attrKey
 			}
 			keyPath := parentKeyPath
 			if ownKey != "" {
@@ -200,7 +205,7 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				path:         path,
 				keyPath:      keyPath,
 				ownKey:       ownKey,
-				inMetadata:   parentMetadata || isGenericXMLMetadataElement(name),
+				inMetadata:   parentMetadata || metadataElement,
 				contentStart: tokenEnd,
 			})
 		case xml.EndElement:
@@ -465,7 +470,9 @@ func genericXMLKeyAttr(attrs []xml.Attr) string {
 	for _, wanted := range []string{"key", "id", "name"} {
 		for _, attr := range attrs {
 			if strings.EqualFold(attr.Name.Local, wanted) {
-				return strings.TrimSpace(attr.Value)
+				if v := strings.TrimSpace(attr.Value); v != "" {
+					return v
+				}
 			}
 		}
 	}
@@ -475,6 +482,15 @@ func genericXMLKeyAttr(attrs []xml.Attr) string {
 func isGenericXMLMetadataElement(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "meta", "metadata", "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment", "resheader", "assembly":
+		return true
+	default:
+		return false
+	}
+}
+
+func isGenericXMLKeyedMetadataConflict(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
 		return true
 	default:
 		return false

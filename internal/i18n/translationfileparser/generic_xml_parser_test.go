@@ -56,6 +56,21 @@ func TestGenericXMLParserParsesResxStyleDataValues(t *testing.T) {
 	}
 }
 
+func TestGenericXMLParserFallsBackPastEmptyKeyAttributes(t *testing.T) {
+	content := []byte(`<locale><data key="" name="home.title">Welcome home</data></locale>`)
+
+	got, err := GenericXMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse empty key fallback: %v", err)
+	}
+	if got["home.title"] != "Welcome home" {
+		t.Fatalf("expected name attribute used after empty key, got %#v", got)
+	}
+	if _, ok := got["data"]; ok {
+		t.Fatalf("empty key attribute should not force path-based key: %#v", got)
+	}
+}
+
 func TestGenericXMLParserKeepsNamedChildElementsUnderKeyedParent(t *testing.T) {
 	content := []byte(`<locale><section id="home"><message>Welcome</message><label>Start now</label></section></locale>`)
 
@@ -193,5 +208,12 @@ func TestGenericXMLParserRejectsNoEntries(t *testing.T) {
 	_, err := GenericXMLParser{}.Parse([]byte(`<locale><metadata><note>Only metadata</note></metadata></locale>`))
 	if err == nil || !strings.Contains(err.Error(), "no translatable XML text entries") {
 		t.Fatalf("expected no entries error, got %v", err)
+	}
+}
+
+func TestGenericXMLParserRejectsKeyedMetadataElements(t *testing.T) {
+	_, err := GenericXMLParser{}.Parse([]byte(`<locale><comment key="checkout.note">Visible note</comment></locale>`))
+	if err == nil || !strings.Contains(err.Error(), "metadata element <comment>") || !strings.Contains(err.Error(), "key/id/name") {
+		t.Fatalf("expected keyed metadata error, got %v", err)
 	}
 }
