@@ -110,6 +110,24 @@ describe("hyperlocalise agent core", () => {
     ).toEqual({ kind: "translation" });
   });
 
+  it("does not treat standalone run plus hl as repo/TMS intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Run a translation job in HL",
+      }),
+    ).toEqual({ kind: "translation" });
+  });
+
+  it("classifies explicit repo run requests as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Run the repo checks",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+  });
+
   it("converts interaction rows to model messages", () => {
     expect(
       toModelMessages([

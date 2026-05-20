@@ -63,8 +63,9 @@ export type RepoTmsGitHubContextDependencies = {
   }) => Promise<PullRequestDetails | null>;
 };
 
-const githubPullRequestUrlPattern =
-  /https?:\/\/(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)/gi;
+export const githubPullRequestUrlPatternSource = String.raw`https?:\/\/(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/pull\/(\d+)(?=[/?#\s>|)\].,;:!?]|$)`;
+
+const githubPullRequestUrlPattern = new RegExp(githubPullRequestUrlPatternSource, "gi");
 const githubRepositoryUrlPattern =
   /https?:\/\/(?:www\.)?github\.com\/([A-Za-z0-9-]+)\/([A-Za-z0-9_.-]+)(?=[/?#\s>|)\].,;:!?]|$)/gi;
 const githubRepositoryFullNamePattern =
@@ -698,5 +699,5 @@ function isGitHubAccessFailure(error: unknown) {
     return false;
   }
 
-  return error.status === 403 || error.status === 404;
+  return error.status === 401 || error.status === 403 || error.status === 404;
 }

@@ -14,6 +14,8 @@ import { env } from "@/lib/env";
 import { buildTools } from "@/lib/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
 
+import { githubPullRequestUrlPatternSource } from "./repo-tms-context";
+
 export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
 export const hyperlocaliseAgentStepLimit = 5;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
@@ -102,8 +104,7 @@ const intentToolsets = {
   general: undefined,
 } satisfies Record<HyperlocaliseAgentIntentKind, string[] | undefined>;
 
-const githubPullRequestUrlPattern =
-  /https?:\/\/(?:www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/\d+(?=[/?#\s>|)\].,;:!?]|$)/i;
+const githubPullRequestUrlPattern = new RegExp(githubPullRequestUrlPatternSource, "i");
 
 export function classifyHyperlocaliseAgentIntent(input: {
   text: string;
@@ -172,10 +173,11 @@ function isRepoTmsPullRequestIntent(text: string) {
 
 function isRepoTmsRepositoryIntent(text: string) {
   const repoSubject = /\b(?:repo|repository|github|hl|hyperlocalise)\b/i.test(text);
-  const repoAction = /\b(?:check|fix|review|scan|inspect|sync|extract|run|analy[sz]e)\b/i.test(
+  const repoAction = /\b(?:checks?|fix|review|scan|inspect|sync|extract|analy[sz]e)\b/i.test(text);
+  const repoRunAction = /\brun\s+(?:the\s+)?(?:repo|repository|github|hl|hyperlocalise)\b/i.test(
     text,
   );
-  return repoSubject && repoAction;
+  return repoSubject && (repoAction || repoRunAction);
 }
 
 export function getHyperlocaliseAgentModel() {

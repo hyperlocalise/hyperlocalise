@@ -1,8 +1,17 @@
 import type { GitHubRawMessage } from "@chat-adapter/github";
 import { describe, expect, it, vi } from "vite-plus/test";
 
+const { getInstallationOctokitMock } = vi.hoisted(() => ({
+  getInstallationOctokitMock: vi.fn(),
+}));
+
+vi.mock("./github/app", () => ({
+  getInstallationOctokit: getInstallationOctokitMock,
+}));
+
 import {
   buildRepoTmsGitHubContextInstructions,
+  defaultRepoTmsGitHubContextDependencies,
   extractGitHubPullRequestReferences,
   extractGitHubRepositoryFullNameReferences,
   resolveGitHubRepoTmsGitHubContext,
@@ -325,6 +334,36 @@ describe("resolveGitHubRepoTmsGitHubContext", () => {
         reason: "The GitHub App installation could not access the pull request.",
       },
       followUp: expect.stringContaining("I can't access this pull request"),
+    });
+  });
+});
+
+describe("defaultRepoTmsGitHubContextDependencies.loadPullRequest", () => {
+  it("returns null when GitHub returns unauthorized for pull request access", async () => {
+    const unauthorizedError = Object.assign(new Error("Bad credentials"), { status: 401 });
+    const pullsGet = vi.fn(async () => {
+      throw unauthorizedError;
+    });
+    getInstallationOctokitMock.mockResolvedValueOnce({
+      rest: {
+        pulls: {
+          get: pullsGet,
+        },
+      },
+    });
+
+    await expect(
+      defaultRepoTmsGitHubContextDependencies.loadPullRequest({
+        installationId: 54321,
+        repositoryFullName: "acme/web",
+        pullRequestNumber: 42,
+      }),
+    ).resolves.toBeNull();
+
+    expect(pullsGet).toHaveBeenCalledWith({
+      owner: "acme",
+      repo: "web",
+      pull_number: 42,
     });
   });
 });
