@@ -65,9 +65,11 @@ func detectYAMLIndent(template []byte, fallback int) int {
 	}
 
 	minIndent := 0
+	inBlockScalar := false
+	blockIndent := 0
 	for _, line := range bytes.Split(template, []byte{'\n'}) {
 		trimmed := bytes.TrimSpace(line)
-		if len(trimmed) == 0 || bytes.HasPrefix(trimmed, []byte("#")) {
+		if len(trimmed) == 0 {
 			continue
 		}
 
@@ -75,6 +77,24 @@ func detectYAMLIndent(template []byte, fallback int) int {
 		for indent < len(line) && line[indent] == ' ' {
 			indent++
 		}
+
+		if inBlockScalar {
+			if indent > blockIndent {
+				continue
+			}
+			inBlockScalar = false
+		}
+
+		if bytes.HasPrefix(trimmed, []byte("#")) {
+			continue
+		}
+
+		trimmed = bytes.TrimRight(trimmed, " \t")
+		if bytes.HasSuffix(trimmed, []byte("|")) || bytes.HasSuffix(trimmed, []byte(">")) {
+			inBlockScalar = true
+			blockIndent = indent
+		}
+
 		if indent == 0 {
 			continue
 		}

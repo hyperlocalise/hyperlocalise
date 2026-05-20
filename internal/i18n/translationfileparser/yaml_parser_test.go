@@ -233,6 +233,12 @@ func TestDetectYAMLIndent(t *testing.T) {
 			want:     4,
 		},
 		{
+			name:     "block scalar content ignored",
+			template: "description: |\n  Body text\nhome:\n    title: Welcome\n",
+			fallback: 2,
+			want:     4,
+		},
+		{
 			name:     "flat template uses fallback",
 			template: "hello: Hello\ncta: Start\n",
 			fallback: 2,
