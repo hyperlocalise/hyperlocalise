@@ -89,6 +89,13 @@ func detectYAMLIndent(template []byte, fallback int) int {
 			continue
 		}
 
+		// Skip lines that are unlikely to be YAML mapping keys, such as
+		// plain scalar continuation lines.
+		if !bytes.Contains(trimmed, []byte(": ")) && !bytes.HasSuffix(trimmed, []byte(":")) &&
+			!bytes.HasPrefix(trimmed, []byte("- ")) && !bytes.Equal(trimmed, []byte("-")) {
+			continue
+		}
+
 		trimmed = bytes.TrimRight(trimmed, " \t")
 		if isYAMLBlockScalarLine(trimmed) {
 			inBlockScalar = true
