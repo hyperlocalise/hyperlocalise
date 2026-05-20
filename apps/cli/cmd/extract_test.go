@@ -110,6 +110,105 @@ export function AppHeader() {
 	}
 }
 
+func TestExtractCommandExtractsDefineMessagesWithComputedKeys(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "DeleteAccount.tsx"), `
+import { defineMessages } from "react-intl";
+
+enum UserDeleteReason {
+  Leaving_current_role = "Leaving_current_role",
+  Switching_to_another_product = "Switching_to_another_product",
+}
+
+const DELETE_REASON_LABELS = defineMessages({
+  [UserDeleteReason.Leaving_current_role]: {
+    id: '8+RXxBclvz',
+    defaultMessage: 'Leaving current role',
+    description: 'Account deletion survey: reason option',
+  },
+  [UserDeleteReason.Switching_to_another_product]: {
+    id: '5faw+pEI3P',
+    defaultMessage: 'Switching to another product',
+    description: 'Account deletion survey: reason option',
+  },
+});
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if got, want := len(catalog), 2; got != want {
+		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
+	}
+	if got, want := catalog["8+RXxBclvz"].DefaultMessage, "Leaving current role"; got != want {
+		t.Fatalf("computed-key message defaultMessage = %q, want %q", got, want)
+	}
+	if got, want := catalog["5faw+pEI3P"].Description, "Account deletion survey: reason option"; got != want {
+		t.Fatalf("computed-key message description = %q, want %q", got, want)
+	}
+}
+
+func TestExtractCommandGeneratesFormatJSIDForMissingID(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "DocumentPreview.tsx"), `
+import { defineMessages, FormattedMessage } from "react-intl";
+
+const messages = defineMessages({
+  title: {
+    defaultMessage: 'Document preview \u2014 {documentName}',
+    description:
+      'Dialog title for previewing a generated document with the document name appended',
+  },
+});
+
+export function DocumentPreview() {
+  return (
+    <FormattedMessage
+      defaultMessage="Open document"
+      description="Button label for opening the generated document preview"
+    />
+  );
+}
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	got, ok := catalog["OVx7L4"]
+	if !ok {
+		t.Fatalf("missing generated FormatJS id OVx7L4 in output=%s", out.String())
+	}
+	if got.DefaultMessage != "Document preview \u2014 {documentName}" {
+		t.Fatalf("generated-id defaultMessage = %q", got.DefaultMessage)
+	}
+	if got.Description != "Dialog title for previewing a generated document with the document name appended" {
+		t.Fatalf("generated-id description = %q", got.Description)
+	}
+
+	jsxID := generatedFormatJSMessageID("Open document", "Button label for opening the generated document preview")
+	if _, ok := catalog[jsxID]; !ok {
+		t.Fatalf("missing generated JSX id %q in output=%s", jsxID, out.String())
+	}
+}
+
 func TestExtractCommandDoesNotEscapeRichTextTagsInJSON(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
