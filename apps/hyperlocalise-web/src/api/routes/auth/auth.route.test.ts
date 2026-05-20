@@ -14,6 +14,7 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
 async function createClient(
   options: {
     sessionAuthContext?: ApiAuthContext | null;
+    mockProjectRoutes?: boolean;
   } = {},
 ) {
   vi.resetModules();
@@ -25,6 +26,18 @@ async function createClient(
       healthRoutes: new Hono().get("/", (c) => c.json({ ok: true }, 200)),
     };
   });
+
+  if (options.mockProjectRoutes) {
+    vi.doMock("../project/project.route", async () => {
+      const { Hono } = await import("hono");
+      const { workosAuthMiddleware } = await import("@/api/auth/workos");
+
+      return {
+        createProjectRoutes: () =>
+          new Hono().use("*", workosAuthMiddleware).get("/", (c) => c.json({ projects: [] }, 200)),
+      };
+    });
+  }
 
   resolveApiAuthContextFromSessionMock.mockResolvedValue(options.sessionAuthContext ?? null);
 
@@ -41,6 +54,8 @@ describe("authRoutes", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("../health");
+    vi.doUnmock("../project/project.route");
+    resolveApiAuthContextFromSessionMock.mockClear();
   });
 
   it("returns 401 when auth context is missing", async () => {
@@ -160,7 +175,6 @@ describe("authRoutes", () => {
     });
   });
 
-
   it("passes route organizationSlug to session auth resolution for org-scoped routes", async () => {
     const activeOrganization = {
       workosOrganizationId: "org_123",
@@ -189,21 +203,24 @@ describe("authRoutes", () => {
       activeTeam: null,
     };
 
-    const client = await createClient({ sessionAuthContext: authContext });
+    const client = await createClient({ sessionAuthContext: authContext, mockProjectRoutes: true });
 
-    await client.api.orgs[":organizationSlug"].projects.$get(
+    const response = await client.api.orgs[":organizationSlug"].projects.$get(
       { param: { organizationSlug: "target-org" } },
       { headers: { cookie: "wos-session=test" } },
     );
 
-    expect(resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith(
+    expect(response.status).toBe(200);
+    expect(resolveApiAuthContextFromSessionMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ organizationSlug: "target-org" }),
     );
   });
 
   it("returns 403 for org-scoped routes when requested organization slug is not accessible", async () => {
     const client = await createClient();
-    resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(new Error("organization_access_denied"));
+    resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
+      new Error("organization_access_denied"),
+    );
 
     const response = await client.api.orgs[":organizationSlug"].projects.$get(
       { param: { organizationSlug: "forbidden-org" } },
