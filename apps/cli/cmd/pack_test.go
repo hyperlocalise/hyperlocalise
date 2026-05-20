@@ -65,6 +65,9 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
   "src.components.app-header.button.label": {
     "defaultMessage": "Save settings"
   },
+  "src.components.app-header.my-button.label": {
+    "defaultMessage": "Save button label"
+  },
   "src.components.app-header.cta": {
     "defaultMessage": "Create project"
   }
@@ -81,9 +84,10 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
 
 	got := decodePackTestOutput(t, out.Bytes())
 	want := map[string][]string{
-		"Create project": {"cta"},
-		"Dashboard":      {"title"},
-		"Save settings":  {"button.label"},
+		"Create project":    {"cta"},
+		"Dashboard":         {"title"},
+		"Save button label": {"my-button.label"},
+		"Save settings":     {"button.label"},
 	}
 	assertPackOutput(t, got, want)
 }

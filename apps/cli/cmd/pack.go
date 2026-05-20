@@ -170,7 +170,7 @@ func stripPackPrefixID(id string, indexes ...packPrefixIndex) string {
 
 func stripPackHyphenatedPrefixID(id string) (string, bool) {
 	parts := strings.Split(id, ".")
-	for i := len(parts) - 2; i >= 0; i-- {
+	for i := 0; i <= len(parts)-2; i++ {
 		if strings.Contains(parts[i], "-") {
 			return strings.Join(parts[i+1:], "."), true
 		}
