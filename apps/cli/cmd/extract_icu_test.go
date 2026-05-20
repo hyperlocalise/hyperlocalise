@@ -53,6 +53,11 @@ func TestFlattenExtractICUMessage(t *testing.T) {
 			want: "{count,plural,offset:1 =0{Invite nobody.}one{Invite {name}.}other{Invite {name} and # others.}}",
 		},
 		{
+			name: "typed arguments use compact commas in flattened selectors",
+			in:   "Total {amount, number} due {dueDate, date, medium} for {count, plural, one{one item} other{# items}}.",
+			want: "{count,plural,one{Total {amount,number} due {dueDate,date,medium} for one item.}other{Total {amount,number} due {dueDate,date,medium} for # items.}}",
+		},
+		{
 			name: "unsupported custom formatter stays unchanged",
 			in:   "You waited {count, plural, one{{duration, duration} day} other{{duration, duration} days}}.",
 			want: "You waited {count, plural, one{{duration, duration} day} other{{duration, duration} days}}.",

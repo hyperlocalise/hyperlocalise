@@ -191,10 +191,10 @@ func writeExtractICUArgument(b *strings.Builder, value string) {
 func writeExtractICUTypedArgument(b *strings.Builder, value, kind, style string) {
 	b.WriteByte('{')
 	b.WriteString(value)
-	b.WriteString(", ")
+	b.WriteByte(',')
 	b.WriteString(kind)
 	if style != "" {
-		b.WriteString(", ")
+		b.WriteByte(',')
 		b.WriteString(style)
 	}
 	b.WriteByte('}')
