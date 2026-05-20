@@ -6,6 +6,8 @@ vi.mock("workflow", () => ({
 
 const {
   authMock,
+  buildHyperlocaliseAgentInstructionsMock,
+  buildToolsMock,
   createMock,
   generateMock,
   getInstallationOctokitMock,
@@ -14,6 +16,8 @@ const {
   toolLoopAgentCtor,
 } = vi.hoisted(() => {
   const authMock = vi.fn(async () => ({ token: "installation-token" }));
+  const buildHyperlocaliseAgentInstructionsMock = vi.fn(() => "sys");
+  const buildToolsMock = vi.fn(() => ({}));
   const stopMock = vi.fn();
   const createMock = vi.fn(async () => ({ sandboxId: "sbx_1" }));
   const getMock = vi.fn(async () => ({ stop: stopMock }));
@@ -25,6 +29,8 @@ const {
 
   return {
     authMock,
+    buildHyperlocaliseAgentInstructionsMock,
+    buildToolsMock,
     createMock,
     generateMock,
     getInstallationOctokitMock,
@@ -44,10 +50,10 @@ vi.mock("@/lib/agents/github/app", () => ({
 
 vi.mock("@/lib/agents/hyperlocalise-agent", () => ({
   getHyperlocaliseAgentModel: vi.fn(() => ({ modelId: "x" })),
-  buildHyperlocaliseAgentInstructions: vi.fn(() => "sys"),
+  buildHyperlocaliseAgentInstructions: buildHyperlocaliseAgentInstructionsMock,
 }));
 
-vi.mock("@/lib/tools/registry", () => ({ buildTools: vi.fn(() => ({})) }));
+vi.mock("@/lib/tools/registry", () => ({ buildTools: buildToolsMock }));
 
 import { repoTmsAgentWorkflow } from "./repo-tms-agent";
 
@@ -124,6 +130,31 @@ describe("repoTmsAgentWorkflow", () => {
 
     expect(shouldStop({ steps: Array.from({ length: 19 }) })).toBe(false);
     expect(shouldStop({ steps: Array.from({ length: 20 }) })).toBe(true);
+  });
+
+  it("uses member permissions when the task actor role is unresolved", async () => {
+    await repoTmsAgentWorkflow(baseTask as never);
+
+    expect(buildToolsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "task_1",
+        organizationId: "org_1",
+        membershipRole: "member",
+        projectId: null,
+      }),
+    );
+  });
+
+  it.each([
+    ["slack", "slack"],
+    ["github", "github"],
+    ["chat_ui", "web"],
+  ] as const)("maps %s tasks to %s agent instructions", async (source, surface) => {
+    await repoTmsAgentWorkflow({ ...baseTask, source } as never);
+
+    expect(buildHyperlocaliseAgentInstructionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ surface }),
+    );
   });
 
   it("captures failures from tool execution", async () => {

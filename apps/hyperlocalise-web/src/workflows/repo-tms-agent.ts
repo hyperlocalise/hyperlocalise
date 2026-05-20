@@ -73,7 +73,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
     const toolContext: ToolContext = {
       conversationId: task.id,
       organizationId: task.organizationId,
-      membershipRole: "owner",
+      membershipRole: "member",
       projectId: task.projectId,
       db,
     };
@@ -84,7 +84,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       tools,
       stopWhen: [(step) => step.steps.length >= agentStepLimit],
       instructions: buildHyperlocaliseAgentInstructions({
-        surface: "github",
+        surface: task.source === "slack" ? "slack" : task.source === "github" ? "github" : "web",
         projectId: task.projectId,
         additionalInstructions: sandboxId
           ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
