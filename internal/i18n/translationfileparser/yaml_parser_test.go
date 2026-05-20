@@ -82,6 +82,16 @@ func TestYAMLParserRejectsQuotedNullRoot(t *testing.T) {
 	}
 }
 
+func TestYAMLParserRootMappingKeyErrorNamesRoot(t *testing.T) {
+	_, err := (YAMLParser{}).Parse([]byte("? [hello]\n: Bonjour\n"))
+	if err == nil {
+		t.Fatalf("expected non-scalar mapping key error")
+	}
+	if !strings.Contains(err.Error(), `under "(root)"`) {
+		t.Fatalf("expected root label in error, got: %v", err)
+	}
+}
+
 func TestYAMLParserRejectsAmbiguousMappingKeys(t *testing.T) {
 	tests := []struct {
 		name    string

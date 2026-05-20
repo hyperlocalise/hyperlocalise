@@ -104,7 +104,6 @@ func rewriteYAMLNode(node *yaml.Node, prefix string, values map[string]string) e
 		}
 		if replacement, ok := values[prefix]; ok {
 			node.Value = replacement
-			node.Tag = "!!str"
 		}
 		return nil
 	case yaml.AliasNode:

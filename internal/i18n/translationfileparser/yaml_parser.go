@@ -121,17 +121,25 @@ func flattenYAMLSequence(out map[string]string, prefix string, node *yaml.Node) 
 }
 
 func yamlMappingKey(node *yaml.Node, parent string) (string, error) {
+	label := yamlMappingParentLabel(parent)
 	if node.Kind != yaml.ScalarNode {
-		return "", fmt.Errorf("yaml mapping under %q must use scalar string keys, got %s", parent, yamlNodeKindName(node.Kind))
+		return "", fmt.Errorf("yaml mapping under %q must use scalar string keys, got %s", label, yamlNodeKindName(node.Kind))
 	}
 	key := strings.TrimSpace(node.Value)
 	if key == "" {
-		return "", fmt.Errorf("yaml mapping under %q has an empty key", parent)
+		return "", fmt.Errorf("yaml mapping under %q has an empty key", label)
 	}
 	if strings.ContainsAny(key, ".[]") {
-		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", parent, key)
+		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", label, key)
 	}
 	return key, nil
+}
+
+func yamlMappingParentLabel(parent string) string {
+	if parent == "" {
+		return "(root)"
+	}
+	return parent
 }
 
 func yamlNodeKindName(kind yaml.Kind) string {
