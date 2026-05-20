@@ -6,10 +6,10 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
-import type { ProjectResponse, ProjectsResponse } from "./project.schema";
+import type { ProjectResponse, ProjectsResponse, ProjectFilesResponse } from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -430,5 +430,96 @@ describe("projectRoutes", () => {
     expect(response.status).toBe(403);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+  });
+
+  it("lists repository source files for a project", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    const [storedFile] = await db
+      .insert(schema.storedFiles)
+      .values({
+        id: `file_${randomUUID()}`,
+        organizationId: createdBody.project.organizationId,
+        projectId,
+        role: "source",
+        sourceKind: "repository_file",
+        storageProvider: "vercel_blob",
+        storageKey: `test/${projectId}/en.json`,
+        storageUrl: `https://example.com/${projectId}/en.json`,
+        filename: "en.json",
+        contentType: "application/json",
+        byteSize: 120,
+        sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        metadata: { sourcePath: "src/locale/en.json", sourceHash: "abc123" },
+      })
+      .returning();
+
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: createdBody.project.organizationId,
+        projectId,
+        sourcePath: "src/locale/en.json",
+      })
+      .returning();
+
+    await db.insert(schema.repositorySourceFileVersions).values({
+      repositorySourceFileId: sourceFile.id,
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      sourcePath: "src/locale/en.json",
+      storedFileId: storedFile.id,
+      sourceHash: "abc123",
+      commitSha: "deadbeef",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files).toHaveLength(1);
+    expect(body.files[0]).toMatchObject({
+      sourcePath: "src/locale/en.json",
+      sourceHash: "abc123",
+      commitSha: "deadbeef",
+      storedFileId: storedFile.id,
+      filename: "en.json",
+      byteSize: 120,
+      latestJob: null,
+    });
+    expect(body.files[0].metadata).toMatchObject({ sourcePath: "src/locale/en.json", sourceHash: "abc123" });
+  });
+
+  it("returns 404 when another organization fetches project files", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(ownerIdentity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+
+    const otherIdentity = createWorkosIdentity();
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: {
+          organizationSlug: otherIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
+      },
+      {
+        headers: await authHeadersFor(otherIdentity),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
   });
 });
