@@ -146,5 +146,9 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     // Admins can refresh repositories from the GitHub agent settings card.
   }
 
-  redirect(`/org/${verified.slug}/settings?github_connected=1`);
+  const redirectPath = org.slug
+    ? `/org/${org.slug}/settings?github_connected=1`
+    : "/dashboard?github_connected=1";
+
+  redirect(redirectPath);
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Add01Icon, Delete02Icon, Edit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ export function ProjectsTable({
   projectsQuery,
   isSavingProject,
   isDeletingProject,
+  organizationSlug,
   onCreateProject,
   onEditProject,
   onDeleteProject,
@@ -21,6 +23,7 @@ export function ProjectsTable({
   projectsQuery: UseQueryResult<ProjectListRow[], Error>;
   isSavingProject: boolean;
   isDeletingProject: boolean;
+  organizationSlug: string;
   onCreateProject: () => void;
   onEditProject: (project: ProjectListRow) => void;
   onDeleteProject: (project: ProjectListRow) => void;
@@ -71,17 +74,20 @@ export function ProjectsTable({
           {projects.map((project) => (
             <article
               key={project.id}
-              className="min-w-0 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4 transition-colors hover:border-foreground/14 hover:bg-foreground/4"
+              className="group min-w-0 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4 transition-colors hover:border-foreground/14 hover:bg-foreground/4"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground md:text-base">
+                <Link
+                  href={`/org/${organizationSlug}/projects/${project.id}/files`}
+                  className="min-w-0 flex-1"
+                >
+                  <TypographyH3 className="min-w-0 truncate text-base font-medium text-foreground md:text-base group-hover:text-foreground/80">
                     {project.name}
                   </TypographyH3>
                   <TypographyP className="mt-1 truncate text-xs text-foreground/36">
                     {project.id}
                   </TypographyP>
-                </div>
+                </Link>
 
                 <div className="flex shrink-0 items-center gap-1">
                   <Tooltip>
@@ -131,20 +137,22 @@ export function ProjectsTable({
                 </div>
               </div>
 
-              <dl className="mt-8 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Created
-                  </dt>
-                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.created}</dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Updated
-                  </dt>
-                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.updated}</dd>
-                </div>
-              </dl>
+              <Link href={`/org/${organizationSlug}/projects/${project.id}/files`}>
+                <dl className="mt-8 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Created
+                    </dt>
+                    <dd className="mt-1 truncate text-sm text-foreground/54">{project.created}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Updated
+                    </dt>
+                    <dd className="mt-1 truncate text-sm text-foreground/54">{project.updated}</dd>
+                  </div>
+                </dl>
+              </Link>
             </article>
           ))}
         </div>

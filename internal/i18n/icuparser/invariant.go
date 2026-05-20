@@ -1,9 +1,9 @@
 package icuparser
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -32,17 +32,18 @@ func ParseInvariant(s string) (Invariant, error) {
 	inv := Invariant{}
 	collectInvariantFromElements(elems, &inv, "")
 
-	sort.Strings(inv.Placeholders)
-	sort.Slice(inv.ICUBlocks, func(i, j int) bool {
-		if inv.ICUBlocks[i].Arg != inv.ICUBlocks[j].Arg {
-			return inv.ICUBlocks[i].Arg < inv.ICUBlocks[j].Arg
+	slices.Sort(inv.Placeholders)
+	slices.SortFunc(inv.ICUBlocks, func(a, b BlockSignature) int {
+		if c := cmp.Compare(a.Arg, b.Arg); c != 0 {
+			return c
 		}
-		if inv.ICUBlocks[i].Type != inv.ICUBlocks[j].Type {
-			return inv.ICUBlocks[i].Type < inv.ICUBlocks[j].Type
+		if c := cmp.Compare(a.Type, b.Type); c != 0 {
+			return c
 		}
-		left := strings.Join(inv.ICUBlocks[i].Options, "\x00") + "|" + formatPoundCounts(inv.ICUBlocks[i].Pounds)
-		right := strings.Join(inv.ICUBlocks[j].Options, "\x00") + "|" + formatPoundCounts(inv.ICUBlocks[j].Pounds)
-		return left < right
+		if c := slices.Compare(a.Options, b.Options); c != 0 {
+			return c
+		}
+		return slices.Compare(a.Pounds, b.Pounds)
 	})
 	return inv, nil
 }
@@ -194,7 +195,7 @@ func sortedSelectors(opts []SelectOption) []string {
 	for _, o := range opts {
 		out = append(out, o.Selector)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -207,8 +208,8 @@ func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
 	for _, o := range opts {
 		sigs = append(sigs, optionSig{selector: o.Selector, pounds: countPounds(o.Value)})
 	}
-	sort.Slice(sigs, func(i, j int) bool {
-		return sigs[i].selector < sigs[j].selector
+	slices.SortFunc(sigs, func(a, b optionSig) int {
+		return cmp.Compare(a.selector, b.selector)
 	})
 	selectors := make([]string, 0, len(sigs))
 	pounds := make([]int, 0, len(sigs))
@@ -250,17 +251,6 @@ func hasNonZeroPounds(values []int) bool {
 		}
 	}
 	return false
-}
-
-func formatPoundCounts(values []int) string {
-	if len(values) == 0 {
-		return ""
-	}
-	parts := make([]string, len(values))
-	for i, v := range values {
-		parts[i] = fmt.Sprintf("%d", v)
-	}
-	return strings.Join(parts, ",")
 }
 
 func uniqueStrings(values []string) []string {
