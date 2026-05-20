@@ -31,6 +31,9 @@ func (s *Service) marshalYAMLTargetWithFallback(path, sourcePath string, values 
 	targetTemplate, err := s.readFile(path)
 	if err == nil {
 		targetEntries, parseErr := (translationfileparser.YAMLParser{}).Parse(targetTemplate)
+		// YAML falls back to the source template when the target is missing
+		// expected keys, unlike JSON's marshal-error-only fallback. The source
+		// file is the canonical structure for newly added locale keys.
 		if parseErr != nil || !hasYAMLTargetKeys(targetEntries, allowedValues) {
 			sourceTemplate, srcErr := s.readFile(sourcePath)
 			if srcErr != nil {

@@ -153,6 +153,10 @@ func pruneYAMLMappingStringFields(node *yaml.Node, prefix string, allowed map[st
 			}
 		case yaml.MappingNode:
 			keep = pruneYAMLMappingStringFields(valueNode, nextKey, allowed)
+		case yaml.SequenceNode:
+			// Keep sequence-valued keys as a whole; pruning individual entries
+			// would shift indexes and make subsequent writes unstable.
+			keep = true
 		}
 		if keep {
 			pruned = append(pruned, keyNode, valueNode)
