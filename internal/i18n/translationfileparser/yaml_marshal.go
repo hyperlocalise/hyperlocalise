@@ -90,8 +90,7 @@ func detectYAMLIndent(template []byte, fallback int) int {
 		}
 
 		trimmed = bytes.TrimRight(trimmed, " \t")
-		stripped := bytes.TrimRight(trimmed, "-+0123456789")
-		if bytes.HasSuffix(stripped, []byte("|")) || bytes.HasSuffix(stripped, []byte(">")) {
+		if isYAMLBlockScalarLine(trimmed) {
 			inBlockScalar = true
 			blockIndent = indent
 		}
@@ -107,6 +106,17 @@ func detectYAMLIndent(template []byte, fallback int) int {
 		return minIndent
 	}
 	return fallback
+}
+
+func isYAMLBlockScalarLine(line []byte) bool {
+	separator := bytes.LastIndex(line, []byte(": "))
+	if separator == -1 {
+		return false
+	}
+
+	indicator := line[separator+2:]
+	stripped := bytes.TrimRight(indicator, "-+0123456789")
+	return bytes.Equal(stripped, []byte("|")) || bytes.Equal(stripped, []byte(">"))
 }
 
 func pruneYAMLMappingStringFields(node *yaml.Node, prefix string, allowed map[string]struct{}) bool {

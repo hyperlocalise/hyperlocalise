@@ -251,6 +251,12 @@ func TestDetectYAMLIndent(t *testing.T) {
 			want:     4,
 		},
 		{
+			name:     "plain scalar ending pipe does not start block scalar",
+			template: "label: pipe |\n  continuation\nhome:\n    title: Welcome\n",
+			fallback: 4,
+			want:     2,
+		},
+		{
 			name:     "flat template uses fallback",
 			template: "hello: Hello\ncta: Start\n",
 			fallback: 2,
