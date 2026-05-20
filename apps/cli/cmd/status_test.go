@@ -299,6 +299,49 @@ func TestStatusCommandBucketFilterUsesLocalstoreNamespace(t *testing.T) {
 	}
 }
 
+func TestStatusCommandReadsYAMLFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.yml")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.yml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("hello: Hello\n"), 0o600); err != nil {
+		t.Fatalf("write source yaml: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("hello: Bonjour\n"), 0o600); err != nil {
+		t.Fatalf("write target yaml: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "strings.yml")) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "hello") || !strings.Contains(got, "translated") {
+		t.Fatalf("expected YAML status output, got: %s", got)
+	}
+}
+
 func TestStatusCommandMarkdownIdenticalSegmentIsSourceMatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

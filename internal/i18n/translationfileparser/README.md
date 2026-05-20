@@ -6,6 +6,7 @@
 
 - `.json` via `JSONParser`
 - `.jsonc` via `JSONCParser`
+- `.yaml` / `.yml` via `YAMLParser`
 - `.arb` via `ARBParser` (Flutter Application Resource Bundle)
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
@@ -18,7 +19,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, XLIFF, PO, Apple Strings, Markdown/MDX, CSV, Liquid, and HTML parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -36,6 +37,16 @@
 - Accepts JSON with `//` and `/* ... */` comments plus trailing commas.
 - Produces the same flattened dotted-key output shape as the JSON parser.
 - Non-string leaf values are rejected.
+
+### YAML/YML
+
+- Accepts mapping-shaped YAML locale files.
+- Nested mappings are flattened with dotted keys, and sequences are flattened with `[index]` keys.
+  - Example: `home: { title: Accueil }` -> `home.title=Accueil`
+  - Example: `steps: [One, Two]` -> `steps[0]=One`, `steps[1]=Two`
+- ICU plural/select messages and placeholders are treated as ordinary string values.
+- Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected with clear errors.
+- `MarshalYAML(template, values)` rewrites only existing string leaves. It preserves key order and comments carried by `yaml.v3` nodes where possible, but YAML formatting and scalar style may be normalized during writeback.
 
 ### ARB
 

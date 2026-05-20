@@ -10,6 +10,8 @@ describe("translation file formats", () => {
   it("infers structured translation formats from supported extensions", () => {
     expect(inferSupportedTranslationFileFormat("messages.json")).toBe("json");
     expect(inferSupportedTranslationFileFormat("messages.jsonc")).toBe("jsonc");
+    expect(inferSupportedTranslationFileFormat("messages.yaml")).toBe("yaml");
+    expect(inferSupportedTranslationFileFormat("messages.yml")).toBe("yaml");
     expect(inferSupportedTranslationFileFormat("app.arb")).toBe("arb");
     expect(inferSupportedTranslationFileFormat("copy.xlf")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");

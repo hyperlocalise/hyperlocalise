@@ -26,11 +26,13 @@ type Strategy struct {
 	parsersByExt map[string]Parser
 }
 
-// NewDefaultStrategy returns a strategy preconfigured for JSON and XLIFF files.
+// NewDefaultStrategy returns a strategy preconfigured for supported locale file formats.
 func NewDefaultStrategy() *Strategy {
 	s := &Strategy{parsersByExt: map[string]Parser{}}
 	s.Register(".json", JSONParser{})
 	s.Register(".jsonc", JSONCParser{})
+	s.Register(".yaml", YAMLParser{})
+	s.Register(".yml", YAMLParser{})
 	s.Register(".arb", ARBParser{})
 	s.Register(".xlf", XLIFFParser{})
 	s.Register(".xlif", XLIFFParser{})

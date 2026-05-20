@@ -24,8 +24,10 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 `run` can read source and target files with these extensions:
 
 - `.json`
+- `.jsonc`
+- `.yaml` and `.yml`
 - `.arb`
-- `.xlf` and `.xliff`
+- `.xlf`, `.xlif`, and `.xliff`
 - `.po`
 - `.html`
 - `.liquid`
@@ -42,6 +44,8 @@ For JSON (`.json`), `run` supports:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
 In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+
+For YAML/YML (`.yaml`, `.yml`), `run` supports mapping-shaped locale files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silent corruption.
 
 For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
 

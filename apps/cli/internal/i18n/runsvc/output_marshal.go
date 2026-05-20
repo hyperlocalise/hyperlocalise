@@ -20,6 +20,9 @@ func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
 		return content, nil, err
+	case ".yaml", ".yml":
+		content, err := s.marshalYAMLTargetWithFallback(path, sourcePath, values, pruneKeys)
+		return content, nil, err
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
