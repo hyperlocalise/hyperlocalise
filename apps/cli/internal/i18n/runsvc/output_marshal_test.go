@@ -36,6 +36,23 @@ func TestMarshalTemplateBasedTargetUnsupportedExtension(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetRejectsNonAndroidXMLPath(t *testing.T) {
+	svc := newTestService()
+	sourcePath := filepath.Join(t.TempDir(), "messages.xml")
+	targetPath := filepath.Join(t.TempDir(), "messages.fr.xml")
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(`<resources><string name="hello">Hello</string></resources>`), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	if err == nil || !strings.Contains(err.Error(), "unsupported target file extension") {
+		t.Fatalf("expected unsupported XML path error, got %v", err)
+	}
+}
+
 func TestLoadTemplateFallback(t *testing.T) {
 	svc := newTestService()
 	t.Run("prefer target", func(t *testing.T) {

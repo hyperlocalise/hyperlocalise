@@ -110,6 +110,9 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return content, nil
 	case ".xml":
+		if !translationfileparser.IsAndroidStringResourcePath(sourcePath) {
+			return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
+		}
 		content, err := translationfileparser.MarshalAndroidXMLResources(template, values)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)

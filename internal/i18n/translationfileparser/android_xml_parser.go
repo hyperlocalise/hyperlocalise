@@ -30,7 +30,6 @@ type androidPluralState struct {
 	name      string
 	itemCount int
 	hasOther  bool
-	translate bool
 	startLine int
 }
 
@@ -183,14 +182,12 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 				}
 			}
 
-			if depth == 2 && plural != nil && token.Name.Local == "plurals" {
-				if plural.translate {
-					if plural.itemCount == 0 {
-						return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, plural.startLine)
-					}
-					if !plural.hasOther {
-						return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, plural.startLine)
-					}
+			if capture == nil && depth == 2 && plural != nil && token.Name.Local == "plurals" {
+				if plural.itemCount == 0 {
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must contain at least one <item>", plural.name, plural.startLine)
+				}
+				if !plural.hasOther {
+					return androidResourceDocument{}, fmt.Errorf("android resources: <plurals name=%q> at line %d must include an item with quantity=\"other\"", plural.name, plural.startLine)
 				}
 				plural = nil
 			}
@@ -231,16 +228,13 @@ func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.Sta
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, &androidPluralState{name: name, translate: true, startLine: lineNumberAt(text, int(decoder.InputOffset()))}, nil
+		return nil, &androidPluralState{name: name, startLine: lineNumberAt(text, int(decoder.InputOffset()))}, nil
 	default:
 		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, lineNumberAt(text, int(decoder.InputOffset())))
 	}
 }
 
 func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}) (*androidValueCapture, error) {
-	if !plural.translate {
-		return nil, nil
-	}
 	if token.Name.Local != "item" {
 		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, lineNumberAt(text, int(decoder.InputOffset())))
 	}
