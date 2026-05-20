@@ -40,10 +40,10 @@ func ParseInvariant(s string) (Invariant, error) {
 		if c := cmp.Compare(a.Type, b.Type); c != 0 {
 			return c
 		}
-	if c := slices.Compare(a.Options, b.Options); c != 0 {
-		return c
-	}
-	return slices.Compare(a.Pounds, b.Pounds) // numeric comparison; differs from old string-based order for counts ≥ 10
+		if c := slices.Compare(a.Options, b.Options); c != 0 {
+			return c
+		}
+		return slices.Compare(a.Pounds, b.Pounds)
 	})
 	return inv, nil
 }
