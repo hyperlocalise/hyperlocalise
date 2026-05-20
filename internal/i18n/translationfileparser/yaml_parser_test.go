@@ -206,3 +206,45 @@ func TestMarshalYAMLMatchesTemplateIndent(t *testing.T) {
 		t.Fatalf("expected 8-space sequence indent, got:\n%s", output)
 	}
 }
+
+func TestDetectYAMLIndent(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		fallback int
+		want     int
+	}{
+		{
+			name:     "two space mapping",
+			template: "home:\n  title: Welcome\n",
+			fallback: 4,
+			want:     2,
+		},
+		{
+			name:     "four space mapping",
+			template: "home:\n    title: Welcome\n",
+			fallback: 2,
+			want:     4,
+		},
+		{
+			name:     "comments and blank lines ignored",
+			template: "# comment\n\nhome:\n    title: Welcome\n",
+			fallback: 2,
+			want:     4,
+		},
+		{
+			name:     "flat template uses fallback",
+			template: "hello: Hello\ncta: Start\n",
+			fallback: 2,
+			want:     2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := detectYAMLIndent([]byte(tt.template), tt.fallback); got != tt.want {
+				t.Fatalf("detectYAMLIndent() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}

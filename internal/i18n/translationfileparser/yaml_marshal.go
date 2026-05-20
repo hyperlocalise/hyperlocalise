@@ -8,14 +8,17 @@ import (
 )
 
 // MarshalYAML rewrites string leaves in a YAML locale template while keeping
-// existing key order and comments carried by yaml.Node where possible.
+// existing key order and comments carried by yaml.Node where possible. Output
+// is re-encoded by yaml.v3 using the template's detected space indentation,
+// falling back to 2 spaces when the template has no nested indentation.
 func MarshalYAML(template []byte, values map[string]string) ([]byte, error) {
 	return marshalYAML(template, values, nil)
 }
 
 // MarshalYAMLWithPrune rewrites YAML string leaves and removes mapping string
 // leaves that are not present in pruneKeys. Sequence entries are not pruned so
-// indexes stay stable, matching JSON array writeback behavior.
+// indexes stay stable, matching JSON array writeback behavior. Output uses the
+// same indentation detection as MarshalYAML.
 func MarshalYAMLWithPrune(template []byte, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
 	return marshalYAML(template, values, pruneKeys)
 }
