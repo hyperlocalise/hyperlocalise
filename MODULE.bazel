@@ -19,6 +19,7 @@ use_repo(
     "com_github_crowdin_crowdin_api_client_go",
     "com_github_daixiang0_gci",
     "com_github_go_critic_go_critic",
+    "com_github_gobwas_glob",
     "com_github_golangci_golangci_lint_v2",
     "com_github_invopop_jsonschema",
     "com_github_lokalise_go_lokalise_api_v5",

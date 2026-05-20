@@ -62,34 +62,24 @@ export function AppHeader() {
 		t.Fatalf("execute extract command: %v", err)
 	}
 
-	var messages []extractMessage
-	if err := json.Unmarshal(out.Bytes(), &messages); err != nil {
-		t.Fatalf("decode extract output: %v\noutput=%s", err, out.String())
-	}
-
-	got := extractTestMessageMap(messages)
-	want := map[string]extractMessage{
+	got := decodeExtractTestCatalog(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
 		"app.header.title": {
-			ID:             "app.header.title",
 			DefaultMessage: "Dashboard",
 			Description:    "Main dashboard heading",
 		},
 		"app.header.cta": {
-			ID:             "app.header.cta",
 			DefaultMessage: "Create project",
 		},
 		"app.header.subtitle": {
-			ID:             "app.header.subtitle",
 			DefaultMessage: "Translate files without drama",
 			Description:    "Subheading copy",
 		},
 		"app.header.refresh": {
-			ID:             "app.header.refresh",
 			DefaultMessage: "Refresh",
 			Description:    "Refresh button label",
 		},
 		"app.header.empty": {
-			ID:             "app.header.empty",
 			DefaultMessage: "No projects yet",
 			Description:    "Empty project list text",
 		},
@@ -103,8 +93,7 @@ export function AppHeader() {
 		if !ok {
 			t.Fatalf("missing message %q in output=%s", id, out.String())
 		}
-		if gotMessage.ID != wantMessage.ID ||
-			gotMessage.DefaultMessage != wantMessage.DefaultMessage ||
+		if gotMessage.DefaultMessage != wantMessage.DefaultMessage ||
 			gotMessage.Description != wantMessage.Description {
 			t.Fatalf("message %q = %#v, want %#v", id, gotMessage, wantMessage)
 		}
@@ -112,6 +101,12 @@ export function AppHeader() {
 
 	if strings.Contains(out.String(), sourcePath) {
 		t.Fatalf("output should not include source metadata: %s", out.String())
+	}
+	if strings.Contains(out.String(), `"description": ""`) {
+		t.Fatalf("output should omit empty descriptions: %s", out.String())
+	}
+	if strings.Contains(out.String(), `"id":`) {
+		t.Fatalf("formatjs catalog should use ids as keys: %s", out.String())
 	}
 }
 
@@ -137,15 +132,133 @@ export function AppHeader() {
 		t.Fatalf("execute extract command: %v", err)
 	}
 
-	var messages []extractMessage
-	if err := json.Unmarshal(out.Bytes(), &messages); err != nil {
-		t.Fatalf("decode extract output: %v\noutput=%s", err, out.String())
-	}
-	if got, want := len(messages), 1; got != want {
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if got, want := len(catalog), 1; got != want {
 		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
 	}
-	if got, want := messages[0].ID, "src.components.app-header.title"; got != want {
-		t.Fatalf("prefixed id = %q, want %q", got, want)
+	if _, ok := catalog["src.components.app-header.title"]; !ok {
+		t.Fatalf("missing prefixed id in output=%s", out.String())
+	}
+}
+
+func TestExtractCommandWritesFormatJSCatalogWithCompatibleFlags(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), `
+import { defineMessage, FormattedMessage } from "react-intl";
+
+export const title = defineMessage({
+  id: "app.title",
+  defaultMessage: "I have {count, plural, one{a dog} other{many dogs}}",
+});
+
+export function App() {
+  return <FormattedMessage id="app.cta" defaultMessage="Create project" description="Primary CTA" />;
+}
+`)
+	writeExtractTestFile(t, filepath.Join(dir, "src", "components", "Nested.tsx"), `
+import { defineMessage } from "react-intl";
+
+export const nested = defineMessage({
+  id: "app.nested",
+  defaultMessage: "Nested",
+});
+`)
+	writeExtractTestFile(t, filepath.Join(dir, "src", "components", "Nested.test.tsx"), `
+import { defineMessage } from "react-intl";
+
+export const hidden = defineMessage({
+  id: "app.hidden",
+  defaultMessage: "Hidden",
+});
+`)
+	writeExtractTestFile(t, filepath.Join(dir, "src", "types.d.ts"), `
+export const message: { id: "app.types"; defaultMessage: "Types" };
+`)
+
+	outPath := filepath.Join(dir, "src", "locales", "en", "messages.json")
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{
+		"src/**/*.{ts,tsx}",
+		"--ignore=**/*.d.ts",
+		"--ignore=**/*.test.{ts,tsx}",
+		"--out-file", outPath,
+		"--flatten",
+	})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected out-file mode to keep stdout empty, got %q", out.String())
+	}
+
+	content, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read extract output file: %v", err)
+	}
+	if strings.Contains(string(content), `"description": ""`) {
+		t.Fatalf("output should omit empty descriptions: %s", string(content))
+	}
+	if strings.Contains(string(content), `"id":`) {
+		t.Fatalf("formatjs catalog should use ids as keys: %s", string(content))
+	}
+
+	var catalog map[string]map[string]string
+	if err := json.Unmarshal(content, &catalog); err != nil {
+		t.Fatalf("decode formatjs catalog: %v\noutput=%s", err, string(content))
+	}
+	if got, want := catalog["app.title"]["defaultMessage"], "{count, plural, one{I have a dog} other{I have many dogs}}"; got != want {
+		t.Fatalf("app.title defaultMessage = %q, want %q", got, want)
+	}
+	if _, ok := catalog["app.title"]["description"]; ok {
+		t.Fatalf("app.title should not include empty description: %#v", catalog["app.title"])
+	}
+	if got, want := catalog["app.cta"]["description"], "Primary CTA"; got != want {
+		t.Fatalf("app.cta description = %q, want %q", got, want)
+	}
+	if got, want := catalog["app.nested"]["defaultMessage"], "Nested"; got != want {
+		t.Fatalf("app.nested defaultMessage = %q, want %q", got, want)
+	}
+	if _, ok := catalog["app.hidden"]; ok {
+		t.Fatalf("ignored test file message should not be present: %#v", catalog)
+	}
+}
+
+func TestExtractCommandFlattenHoistsICUSelectorsInStdoutCatalog(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), `
+import { defineMessage } from "react-intl";
+
+export const title = defineMessage({
+  id: "app.title",
+  defaultMessage: "You have {count, plural, one{one project} other{# projects}}.",
+});
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src", "--flatten"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if got, want := len(catalog), 1; got != want {
+		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
+	}
+	if got, want := catalog["app.title"].DefaultMessage, "{count, plural, one{You have one project.} other{You have # projects.}}"; got != want {
+		t.Fatalf("flattened defaultMessage = %q, want %q", got, want)
+	}
+	if strings.Contains(out.String(), `"id":`) {
+		t.Fatalf("formatjs catalog should use ids as keys: %s", out.String())
 	}
 }
 
@@ -181,15 +294,12 @@ export const message = defineMessage({
 		t.Fatalf("execute extract command: %v", err)
 	}
 
-	var messages []extractMessage
-	if err := json.Unmarshal(out.Bytes(), &messages); err != nil {
-		t.Fatalf("decode extract output: %v\noutput=%s", err, out.String())
-	}
-	if got, want := len(messages), 1; got != want {
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if got, want := len(catalog), 1; got != want {
 		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
 	}
-	if got, want := messages[0].ID, "visible"; got != want {
-		t.Fatalf("id = %q, want %q", got, want)
+	if _, ok := catalog["visible"]; !ok {
+		t.Fatalf("missing visible message in output=%s", out.String())
 	}
 }
 
@@ -228,11 +338,13 @@ func writeExtractTestFile(t *testing.T, path, content string) {
 	}
 }
 
-func extractTestMessageMap(messages []extractMessage) map[string]extractMessage {
-	byID := make(map[string]extractMessage, len(messages))
-	for _, message := range messages {
-		byID[message.ID] = message
+func decodeExtractTestCatalog(t *testing.T, content []byte) map[string]extractCatalogMessage {
+	t.Helper()
+
+	var catalog map[string]extractCatalogMessage
+	if err := json.Unmarshal(content, &catalog); err != nil {
+		t.Fatalf("decode extract output: %v\noutput=%s", err, string(content))
 	}
 
-	return byID
+	return catalog
 }
