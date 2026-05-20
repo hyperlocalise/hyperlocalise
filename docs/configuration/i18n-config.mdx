@@ -64,7 +64,7 @@ buckets:
         to: locales/[locale].xml
 ```
 
-XML entries must be text-only leaf elements keyed by `key`, `id`, or `name`, or nested path-shaped leaves. Android `<resources>` files and mixed-content XML are not handled by the generic XML parser.
+XML entries must be text-only leaf elements keyed by `key`, `id`, or `name`, or nested path-shaped leaves. Android `<resources>` files, mixed-content XML, and CDATA-preserving writeback are not handled by the generic XML parser.
 
 
 ### CSV file mapping patterns

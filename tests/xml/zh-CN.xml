@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<locale code="zh-CN">
+<locale locale="zh-CN">
   <!-- Generic XML sample for CLI status/check/run smoke tests. -->
   <metadata>
     <owner>Localization</owner>

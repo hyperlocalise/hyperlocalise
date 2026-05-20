@@ -353,7 +353,7 @@ func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int) []genericX
 
 func isGenericXMLLocaleAttrName(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "xml:lang", "lang", "locale", "language", "code":
+	case "xml:lang", "lang", "locale", "language":
 		return true
 	default:
 		return false

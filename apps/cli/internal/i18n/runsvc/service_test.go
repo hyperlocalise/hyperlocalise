@@ -3926,7 +3926,7 @@ func TestMarshalGenericXMLTargetRewritesSourceLocaleAttributeOnFirstRun(t *testi
 	sourcePath := "/tmp/source.xml"
 	targetPath := "/tmp/out.xml"
 	source := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<locale code="en-US" xml:lang="en">
+<locale locale="en-US" xml:lang="en">
   <message key="hello">Hello</message>
 </locale>`)
 	svc.readFile = func(path string) ([]byte, error) {
@@ -3945,7 +3945,7 @@ func TestMarshalGenericXMLTargetRewritesSourceLocaleAttributeOnFirstRun(t *testi
 	}
 	out := string(content)
 	for _, want := range []string{
-		`code="fr-FR"`,
+		`locale="fr-FR"`,
 		`xml:lang="fr"`,
 		`<message key="hello">Bonjour</message>`,
 	} {

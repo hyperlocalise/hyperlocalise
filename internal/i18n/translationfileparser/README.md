@@ -113,6 +113,7 @@
   - Example: `<data name="home.title"><value>Welcome</value></data>` -> `home.title=Welcome`
 - Comments, attributes, and metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved.
 - Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.
+- CDATA values can be parsed, but changed translations are written back as escaped XML text rather than preserving the CDATA wrapper.
 - `MarshalGenericXML(template, values)` preserves the template structure and replaces only supported text leaf content.
 
 ## Minimal usage
