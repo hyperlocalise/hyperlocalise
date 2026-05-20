@@ -64,6 +64,9 @@ func (p GenericXMLParser) Parse(content []byte) (map[string]string, error) {
 	return out, nil
 }
 
+// MarshalGenericXML renders translated generic XML values into template.
+// values must contain decoded plain text, not pre-escaped XML strings; XML
+// escaping is applied while rendering.
 func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
@@ -72,6 +75,10 @@ func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error
 	return doc.render(values, "", ""), nil
 }
 
+// MarshalGenericXMLWithTargetLocale renders translated generic XML values into
+// template and rewrites matching root locale attributes to targetLocale.
+// values must contain decoded plain text, not pre-escaped XML strings; XML
+// escaping is applied while rendering.
 func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
@@ -159,7 +166,7 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				if isGenericXMLSpecializedRoot(rootName) {
 					return genericXMLDocument{}, fmt.Errorf("generic XML parser: <%s> files require a specialized parser and are not supported as generic XML", rootName)
 				}
-				doc.rootLocaleAttrs = genericXMLRootLocaleAttrs(text[tokenStart:tokenEnd], tokenStart)
+				doc.rootLocaleAttrs = genericXMLRootLocaleAttrs(text[tokenStart:tokenEnd], tokenStart, token.Attr)
 			}
 			if len(stack) > 0 {
 				stack[len(stack)-1].hasElementChild = true
@@ -227,6 +234,8 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				continue
 			}
 
+			// Preserve leaf text exactly as authored. Surrounding indentation inside
+			// a text-only leaf is part of sourceValue and the replacement span.
 			value := frame.value.String()
 			if !isTranslatableChunk(value) {
 				stack = stack[:len(stack)-1]
@@ -293,36 +302,64 @@ func genericXMLResolvedKey(frame *genericXMLFrame) string {
 	return strings.Join(frame.path, ".")
 }
 
-func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int) []genericXMLLocaleAttr {
-	attrs := []genericXMLLocaleAttr{}
-	for i := 0; i < len(rawStartTag); {
-		switch rawStartTag[i] {
-		case '"', '\'':
-			next := strings.IndexByte(rawStartTag[i+1:], rawStartTag[i])
-			if next < 0 {
-				return attrs
-			}
-			i += next + 2
-			continue
-		case '<', '/', '>', '?', '!':
-			i++
+func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int, decodedAttrs []xml.Attr) []genericXMLLocaleAttr {
+	localeAttrs := []genericXMLLocaleAttr{}
+	searchFrom := 0
+	for _, attr := range decodedAttrs {
+		name := genericXMLLocaleRawAttrName(attr.Name)
+		if !isGenericXMLLocaleAttrName(name) {
 			continue
 		}
 
-		if !isGenericXMLAttrNameStart(rawStartTag[i]) {
-			i++
+		valueStart, valueEnd, ok := genericXMLAttrValueSpan(rawStartTag, name, searchFrom)
+		if !ok {
+			valueStart, valueEnd, ok = genericXMLAttrValueSpan(rawStartTag, name, 0)
+		}
+		if !ok {
+			continue
+		}
+		localeAttrs = append(localeAttrs, genericXMLLocaleAttr{
+			valueStart: absoluteStart + valueStart,
+			valueEnd:   absoluteStart + valueEnd,
+			value:      attr.Value,
+		})
+		searchFrom = valueEnd
+	}
+	return localeAttrs
+}
+
+func genericXMLLocaleRawAttrName(name xml.Name) string {
+	if strings.EqualFold(name.Local, "lang") && (name.Space == "xml" || name.Space == "http://www.w3.org/XML/1998/namespace") {
+		return "xml:lang"
+	}
+	if name.Space != "" {
+		return ""
+	}
+	return name.Local
+}
+
+func genericXMLAttrValueSpan(rawStartTag, attrName string, from int) (int, int, bool) {
+	if attrName == "" || from >= len(rawStartTag) {
+		return 0, 0, false
+	}
+	for searchFrom := max(from, 0); searchFrom < len(rawStartTag); {
+		offset := strings.Index(rawStartTag[searchFrom:], attrName)
+		if offset < 0 {
+			return 0, 0, false
+		}
+		nameStart := searchFrom + offset
+		nameEnd := nameStart + len(attrName)
+		if genericXMLInsideQuotedValue(rawStartTag, nameStart) || !genericXMLAttrNameBoundaryBefore(rawStartTag, nameStart) || !genericXMLAttrNameBoundaryAfter(rawStartTag, nameEnd) {
+			searchFrom = nameEnd
 			continue
 		}
 
-		nameStart := i
-		for i < len(rawStartTag) && isGenericXMLAttrNameChar(rawStartTag[i]) {
-			i++
-		}
-		name := rawStartTag[nameStart:i]
+		i := nameEnd
 		for i < len(rawStartTag) && isXMLWhitespace(rawStartTag[i]) {
 			i++
 		}
 		if i >= len(rawStartTag) || rawStartTag[i] != '=' {
+			searchFrom = nameEnd
 			continue
 		}
 		i++
@@ -330,25 +367,42 @@ func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int) []genericX
 			i++
 		}
 		if i >= len(rawStartTag) || (rawStartTag[i] != '"' && rawStartTag[i] != '\'') {
+			searchFrom = nameEnd
 			continue
 		}
 		quote := rawStartTag[i]
 		valueStart := i + 1
 		valueLen := strings.IndexByte(rawStartTag[valueStart:], quote)
 		if valueLen < 0 {
-			return attrs
+			return 0, 0, false
 		}
-		valueEnd := valueStart + valueLen
-		if isGenericXMLLocaleAttrName(name) {
-			attrs = append(attrs, genericXMLLocaleAttr{
-				valueStart: absoluteStart + valueStart,
-				valueEnd:   absoluteStart + valueEnd,
-				value:      rawStartTag[valueStart:valueEnd],
-			})
-		}
-		i = valueEnd + 1
+		return valueStart, valueStart + valueLen, true
 	}
-	return attrs
+	return 0, 0, false
+}
+
+func genericXMLInsideQuotedValue(s string, offset int) bool {
+	var quote byte
+	for i := 0; i < offset; i++ {
+		if quote != 0 {
+			if s[i] == quote {
+				quote = 0
+			}
+			continue
+		}
+		if s[i] == '"' || s[i] == '\'' {
+			quote = s[i]
+		}
+	}
+	return quote != 0
+}
+
+func genericXMLAttrNameBoundaryBefore(s string, offset int) bool {
+	return offset > 0 && isXMLWhitespace(s[offset-1])
+}
+
+func genericXMLAttrNameBoundaryAfter(s string, offset int) bool {
+	return offset < len(s) && (s[offset] == '=' || isXMLWhitespace(s[offset]))
 }
 
 func isGenericXMLLocaleAttrName(name string) bool {
@@ -358,14 +412,6 @@ func isGenericXMLLocaleAttrName(name string) bool {
 	default:
 		return false
 	}
-}
-
-func isGenericXMLAttrNameStart(ch byte) bool {
-	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_' || ch == ':'
-}
-
-func isGenericXMLAttrNameChar(ch byte) bool {
-	return isGenericXMLAttrNameStart(ch) || (ch >= '0' && ch <= '9') || ch == '-' || ch == '.'
 }
 
 func isXMLWhitespace(ch byte) bool {

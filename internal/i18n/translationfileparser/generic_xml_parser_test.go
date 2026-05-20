@@ -105,7 +105,7 @@ func TestMarshalGenericXMLPreservesStructureAndReplacesOnlyText(t *testing.T) {
 
 func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<locale title='from code="en" to fr' code="en-US" xml:lang="en" language='en-US' locale="en_US" data-code="keep">
+<locale title='from code="en" xml:lang="en" locale="en_US" to fr' code="en-US" xml:lang="en" language='en-US' locale="en_US" data-code="keep">
   <message key="hello">Hello</message>
 </locale>`)
 
@@ -119,7 +119,7 @@ func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *test
 		`xml:lang="fr"`,
 		`language='fr-FR'`,
 		`locale="fr_FR"`,
-		`title='from code="en" to fr'`,
+		`title='from code="en" xml:lang="en" locale="en_US" to fr'`,
 		`data-code="keep"`,
 		`<message key="hello">Bonjour</message>`,
 	} {
