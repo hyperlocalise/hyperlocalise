@@ -28,9 +28,6 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 	if len(bytes.TrimSpace(template)) == 0 {
 		return nil, fmt.Errorf("yaml decode: empty YAML document")
 	}
-	if _, err := (YAMLParser{}).Parse(template); err != nil {
-		return nil, fmt.Errorf("yaml validate template: %w", err)
-	}
 	if err := yaml.Unmarshal(template, &doc); err != nil {
 		return nil, fmt.Errorf("yaml decode: %w", err)
 	}
@@ -41,6 +38,9 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 	}
 	if root.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("yaml root must be mapping, got %s", yamlNodeKindName(root.Kind))
+	}
+	if err := validateYAMLMarshalTemplate(root); err != nil {
+		return nil, fmt.Errorf("yaml validate template: %w", err)
 	}
 	if pruneKeys != nil {
 		pruneYAMLMappingStringFields(root, "", pruneKeys)
@@ -60,6 +60,11 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 		return nil, fmt.Errorf("yaml encode: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+func validateYAMLMarshalTemplate(root *yaml.Node) error {
+	entries := make(map[string]string)
+	return flattenYAMLNode(entries, "", root)
 }
 
 func detectYAMLIndent(template []byte, fallback int) int {
