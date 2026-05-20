@@ -147,7 +147,7 @@ func TestRunDryRunGenericXMLReportsConfiguredEntries(t *testing.T) {
 		t.Fatalf("create source dir: %v", err)
 	}
 	source := `<?xml version="1.0" encoding="UTF-8"?>
-<locale code="en-US">
+<locale locale="en-US">
   <section id="home">
     <string name="title">Welcome back, {name}</string>
   </section>
