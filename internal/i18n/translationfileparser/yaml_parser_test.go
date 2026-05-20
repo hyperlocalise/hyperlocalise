@@ -187,3 +187,22 @@ func TestMarshalYAMLDeterministic(t *testing.T) {
 		t.Fatalf("marshal output is not deterministic:\nfirst=%s\nsecond=%s", first, second)
 	}
 }
+
+func TestMarshalYAMLMatchesTemplateIndent(t *testing.T) {
+	template := []byte("home:\n    title: Welcome\n    steps:\n        - Choose plan\n        - Confirm\n")
+
+	got, err := MarshalYAML(template, map[string]string{
+		"home.title": "Accueil",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	output := string(got)
+	if !strings.Contains(output, "\n    title: Accueil\n") {
+		t.Fatalf("expected 4-space mapping indent, got:\n%s", output)
+	}
+	if !strings.Contains(output, "\n        - Choose plan\n") {
+		t.Fatalf("expected 8-space sequence indent, got:\n%s", output)
+	}
+}

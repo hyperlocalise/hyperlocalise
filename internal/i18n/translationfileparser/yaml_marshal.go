@@ -45,7 +45,7 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 
 	var out bytes.Buffer
 	encoder := yaml.NewEncoder(&out)
-	encoder.SetIndent(2)
+	encoder.SetIndent(detectYAMLIndent(template, 2))
 	if err := encoder.Encode(&doc); err != nil {
 		_ = encoder.Close()
 		return nil, fmt.Errorf("yaml encode: %w", err)
@@ -54,6 +54,35 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 		return nil, fmt.Errorf("yaml encode: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+func detectYAMLIndent(template []byte, fallback int) int {
+	if fallback <= 0 {
+		fallback = 2
+	}
+
+	minIndent := 0
+	for _, line := range bytes.Split(template, []byte{'\n'}) {
+		trimmed := bytes.TrimSpace(line)
+		if len(trimmed) == 0 || bytes.HasPrefix(trimmed, []byte("#")) {
+			continue
+		}
+
+		indent := 0
+		for indent < len(line) && line[indent] == ' ' {
+			indent++
+		}
+		if indent == 0 {
+			continue
+		}
+		if minIndent == 0 || indent < minIndent {
+			minIndent = indent
+		}
+	}
+	if minIndent > 0 {
+		return minIndent
+	}
+	return fallback
 }
 
 func pruneYAMLMappingStringFields(node *yaml.Node, prefix string, allowed map[string]struct{}) bool {
