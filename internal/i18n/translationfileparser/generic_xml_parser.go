@@ -15,7 +15,6 @@ type GenericXMLParser struct{}
 type genericXMLEntry struct {
 	key         string
 	sourceValue string
-	valueRaw    string
 	valueStart  int
 	valueEnd    int
 }
@@ -244,7 +243,6 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 			doc.entries = append(doc.entries, genericXMLEntry{
 				key:         key,
 				sourceValue: value,
-				valueRaw:    text[frame.contentStart:tokenStart],
 				valueStart:  frame.contentStart,
 				valueEnd:    tokenStart,
 			})
@@ -395,7 +393,9 @@ func genericXMLLocaleAttrMatchesSource(attrValue, sourceLocale string) bool {
 		}
 		return strings.EqualFold(attr, base)
 	}
-	return false
+	attrNorm := strings.ReplaceAll(attr, "_", "-")
+	sourceNorm := strings.ReplaceAll(source, "_", "-")
+	return strings.EqualFold(attrNorm, sourceNorm)
 }
 
 func genericXMLTargetLocaleForAttr(attrValue, targetLocale string) string {
@@ -405,6 +405,12 @@ func genericXMLTargetLocaleForAttr(attrValue, targetLocale string) string {
 		if idx := strings.IndexAny(target, "-_"); idx >= 0 {
 			return target[:idx]
 		}
+	}
+	if strings.Contains(attr, "_") && !strings.Contains(attr, "-") {
+		return strings.ReplaceAll(target, "-", "_")
+	}
+	if strings.Contains(attr, "-") && !strings.Contains(attr, "_") {
+		return strings.ReplaceAll(target, "_", "-")
 	}
 	return target
 }
