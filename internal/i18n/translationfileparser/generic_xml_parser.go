@@ -72,7 +72,7 @@ func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	return doc.render(values, "", ""), nil
+	return doc.render(values, "", "")
 }
 
 // MarshalGenericXMLWithTargetLocale renders translated generic XML values into
@@ -84,14 +84,17 @@ func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string
 	if err != nil {
 		return nil, err
 	}
-	return doc.render(values, sourceLocale, targetLocale), nil
+	return doc.render(values, sourceLocale, targetLocale)
 }
 
-func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) []byte {
+func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
 	replacements := make([]genericXMLReplacement, 0, len(d.entries)+len(d.rootLocaleAttrs))
 	for _, entry := range d.entries {
 		if translated, ok := values[entry.key]; ok {
 			if translated != entry.sourceValue {
+				if containsXMLTextEntityReference(translated) {
+					return nil, fmt.Errorf("generic XML parser: translated value for key %q contains XML entity references; provide decoded plain text instead", entry.key)
+				}
 				replacements = append(replacements, genericXMLReplacement{
 					start: entry.valueStart,
 					end:   entry.valueEnd,
@@ -116,7 +119,7 @@ func (d genericXMLDocument) render(values map[string]string, sourceLocale, targe
 	}
 
 	if len(replacements) == 0 {
-		return []byte(d.template)
+		return []byte(d.template), nil
 	}
 
 	sort.Slice(replacements, func(i, j int) bool { return replacements[i].start < replacements[j].start })
@@ -132,7 +135,7 @@ func (d genericXMLDocument) render(values map[string]string, sourceLocale, targe
 		cursor = replacement.end
 	}
 	b.WriteString(d.template[cursor:])
-	return []byte(b.String())
+	return []byte(b.String()), nil
 }
 
 func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
@@ -316,10 +319,9 @@ func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int, decodedAtt
 			continue
 		}
 
+		// encoding/xml preserves attribute order, so the raw lookup advances
+		// monotonically and never retries from the beginning of the start tag.
 		valueStart, valueEnd, ok := genericXMLAttrValueSpan(rawStartTag, name, searchFrom)
-		if !ok {
-			valueStart, valueEnd, ok = genericXMLAttrValueSpan(rawStartTag, name, 0)
-		}
 		if !ok {
 			continue
 		}

@@ -180,6 +180,15 @@ func TestMarshalGenericXMLPreservesRawEntityWhenValueUnchanged(t *testing.T) {
 	}
 }
 
+func TestMarshalGenericXMLRejectsPreEscapedTranslatedValues(t *testing.T) {
+	template := []byte(`<locale><message key="terms">Terms &amp; conditions</message></locale>`)
+
+	_, err := MarshalGenericXML(template, map[string]string{"terms": "Conditions &amp; terms"})
+	if err == nil || !strings.Contains(err.Error(), `key "terms"`) || !strings.Contains(err.Error(), "decoded plain text") {
+		t.Fatalf("expected pre-escaped value error, got %v", err)
+	}
+}
+
 func TestGenericXMLParserRejectsSpecializedAndroidResources(t *testing.T) {
 	_, err := GenericXMLParser{}.Parse([]byte(`<resources><string name="app_name">App</string></resources>`))
 	if err == nil || !strings.Contains(err.Error(), "<resources>") {
