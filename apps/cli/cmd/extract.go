@@ -779,7 +779,11 @@ func extractReactIntlJSXMessages(src, file string) ([]extractMessage, error) {
 }
 
 func generatedFormatJSMessageID(defaultMessage, description string) string {
-	sum := sha512.Sum512([]byte(defaultMessage + "#" + description))
+	content := defaultMessage
+	if description != "" {
+		content = defaultMessage + "#" + description
+	}
+	sum := sha512.Sum512([]byte(content))
 	return base64.StdEncoding.EncodeToString(sum[:])[:6]
 }
 

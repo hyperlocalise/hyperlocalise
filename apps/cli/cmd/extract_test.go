@@ -170,6 +170,9 @@ const messages = defineMessages({
     description:
       'Dialog title for previewing a generated document with the document name appended',
   },
+  save: {
+    defaultMessage: 'Save document',
+  },
 });
 
 export function DocumentPreview() {
@@ -178,6 +181,7 @@ export function DocumentPreview() {
       defaultMessage="Open document"
       description="Button label for opening the generated document preview"
     />
+    <FormattedMessage defaultMessage="Close preview" />
   );
 }
 `)
@@ -202,10 +206,20 @@ export function DocumentPreview() {
 	if got.Description != "Dialog title for previewing a generated document with the document name appended" {
 		t.Fatalf("generated-id description = %q", got.Description)
 	}
+	if got, ok := catalog["cBUY8d"]; !ok {
+		t.Fatalf("missing generated FormatJS id cBUY8d for descriptor without description in output=%s", out.String())
+	} else if got.DefaultMessage != "Save document" {
+		t.Fatalf("generated-id defaultMessage = %q", got.DefaultMessage)
+	}
 
 	jsxID := generatedFormatJSMessageID("Open document", "Button label for opening the generated document preview")
 	if _, ok := catalog[jsxID]; !ok {
 		t.Fatalf("missing generated JSX id %q in output=%s", jsxID, out.String())
+	}
+	if got, ok := catalog["8jAKYt"]; !ok {
+		t.Fatalf("missing generated JSX id 8jAKYt for message without description in output=%s", out.String())
+	} else if got.DefaultMessage != "Close preview" {
+		t.Fatalf("generated JSX defaultMessage = %q", got.DefaultMessage)
 	}
 }
 
