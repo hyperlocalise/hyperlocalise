@@ -167,6 +167,9 @@ export function createSearchRepoFilesTool(ctx: RepoToolContext) {
         args: [
           "-r",
           "-n",
+          "-F",
+          "--exclude-dir=node_modules",
+          "--exclude-dir=.git",
           "--include=*.go",
           "--include=*.ts",
           "--include=*.tsx",

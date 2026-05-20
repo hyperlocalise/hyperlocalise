@@ -350,4 +350,16 @@ describe("buildHlArgs", () => {
       "not allowed",
     );
   });
+
+  it("rejects $ in flag value", () => {
+    expect(() => buildHlArgs({ subcommand: "check", flags: { format: "$json" } })).toThrow(
+      "invalid characters",
+    );
+  });
+
+  it("rejects backtick in flag value", () => {
+    expect(() => buildHlArgs({ subcommand: "check", flags: { format: "`json`" } })).toThrow(
+      "invalid characters",
+    );
+  });
 });
