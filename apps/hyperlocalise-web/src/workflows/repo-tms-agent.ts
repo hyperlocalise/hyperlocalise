@@ -3,7 +3,10 @@ import { Sandbox } from "@vercel/sandbox";
 import { getWorkflowMetadata } from "workflow";
 
 import type { RepoTmsAgentTask } from "@/lib/agents/repo-tms-task";
-import { buildHyperlocaliseAgentInstructions, getHyperlocaliseAgentModel } from "@/lib/agents/hyperlocalise-agent";
+import {
+  buildHyperlocaliseAgentInstructions,
+  getHyperlocaliseAgentModel,
+} from "@/lib/agents/hyperlocalise-agent";
 import type { ToolContext } from "@/lib/tools/types";
 import { buildTools } from "@/lib/tools/registry";
 import { db } from "@/lib/database";
