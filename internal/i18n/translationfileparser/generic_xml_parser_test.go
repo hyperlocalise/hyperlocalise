@@ -105,7 +105,7 @@ func TestMarshalGenericXMLPreservesStructureAndReplacesOnlyText(t *testing.T) {
 
 func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<locale code="en-US" xml:lang="en" data-code="keep">
+<locale title='from code="en" to fr' code="en-US" xml:lang="en" language='en-US' data-code="keep">
   <message key="hello">Hello</message>
 </locale>`)
 
@@ -117,6 +117,8 @@ func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *test
 	for _, want := range []string{
 		`code="fr-FR"`,
 		`xml:lang="fr"`,
+		`language='fr-FR'`,
+		`title='from code="en" to fr'`,
 		`data-code="keep"`,
 		`<message key="hello">Bonjour</message>`,
 	} {
@@ -135,6 +137,18 @@ func TestMarshalGenericXMLWithTargetLocalePreservesExistingTargetLocale(t *testi
 	}
 	if got := string(out); !strings.Contains(got, `code="fr-FR"`) {
 		t.Fatalf("expected existing target locale preserved, got %q", got)
+	}
+}
+
+func TestMarshalGenericXMLLeavesTemplateUnchangedWithoutValues(t *testing.T) {
+	template := []byte(`<locale code="en-US"><message key="terms">Terms &amp; conditions</message></locale>`)
+
+	out, err := MarshalGenericXML(template, nil)
+	if err != nil {
+		t.Fatalf("marshal generic xml without values: %v", err)
+	}
+	if got := string(out); got != string(template) {
+		t.Fatalf("expected unchanged template\nwant: %s\n got: %s", template, got)
 	}
 }
 
