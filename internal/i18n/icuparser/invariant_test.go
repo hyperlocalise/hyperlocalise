@@ -188,6 +188,29 @@ func TestParseInvariantSorting(t *testing.T) {
 	}
 }
 
+func TestParseInvariantSortsByPoundsNumeric(t *testing.T) {
+	// Two blocks with identical Arg, Type, and Options must be sorted by
+	// Pounds using numeric (not string) comparison. With string comparison,
+	// "10" < "9", so the block with 10 pounds would incorrectly sort first.
+	msg := "{n, plural, other {##########}} {n, plural, other {#########}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	if len(inv.ICUBlocks) != 2 {
+		t.Fatalf("expected 2 ICU blocks, got %d", len(inv.ICUBlocks))
+	}
+
+	// Numeric ordering: 9 < 10, so the block with 9 pounds must come first.
+	if inv.ICUBlocks[0].Pounds[0] != 9 {
+		t.Errorf("expected first block to have 9 pounds, got %d", inv.ICUBlocks[0].Pounds[0])
+	}
+	if inv.ICUBlocks[1].Pounds[0] != 10 {
+		t.Errorf("expected second block to have 10 pounds, got %d", inv.ICUBlocks[1].Pounds[0])
+	}
+}
+
 func TestCountPoundsNestedPlurals(t *testing.T) {
 	// Inside the "one" branch of c1, there is one # (for c1) and a nested c2 plural.
 	// The # inside the c2 plural MUST NOT be counted towards c1's pound count,
