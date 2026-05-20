@@ -45,6 +45,7 @@
   - Example: `home: { title: Accueil }` -> `home.title=Accueil`
   - Example: `steps: [One, Two]` -> `steps[0]=One`, `steps[1]=Two`
 - ICU plural/select messages and placeholders are treated as ordinary string values.
+- Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened dotted/index paths.
 - Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected with clear errors.
 - `MarshalYAML(template, values)` rewrites only existing string leaves. It preserves key order and comments carried by `yaml.v3` nodes where possible, but YAML formatting and scalar style may be normalized during writeback.
 

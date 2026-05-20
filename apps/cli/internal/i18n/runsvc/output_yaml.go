@@ -30,7 +30,8 @@ func (s *Service) marshalYAMLTargetWithFallback(path, sourcePath string, values 
 	allowedValues := allowedYAMLTargetValues(values, pruneKeys)
 	targetTemplate, err := s.readFile(path)
 	if err == nil {
-		if targetEntries, parseErr := (translationfileparser.YAMLParser{}).Parse(targetTemplate); parseErr == nil && !hasYAMLTargetKeys(targetEntries, allowedValues) {
+		targetEntries, parseErr := (translationfileparser.YAMLParser{}).Parse(targetTemplate)
+		if parseErr != nil || !hasYAMLTargetKeys(targetEntries, allowedValues) {
 			sourceTemplate, srcErr := s.readFile(sourcePath)
 			if srcErr != nil {
 				return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, srcErr)

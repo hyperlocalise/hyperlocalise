@@ -128,6 +128,9 @@ func yamlMappingKey(node *yaml.Node, parent string) (string, error) {
 	if key == "" {
 		return "", fmt.Errorf("yaml mapping under %q has an empty key", parent)
 	}
+	if strings.ContainsAny(key, ".[]") {
+		return "", fmt.Errorf("yaml mapping under %q has unsupported key %q: keys cannot contain '.', '[' or ']'", parent, key)
+	}
 	return key, nil
 }
 

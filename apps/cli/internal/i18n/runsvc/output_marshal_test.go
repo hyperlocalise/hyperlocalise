@@ -297,6 +297,31 @@ func TestMarshalTargetFileYAMLFallsBackToSourceTemplate(t *testing.T) {
 	}
 }
 
+func TestMarshalTargetFileYAMLFallsBackWhenTargetHasDuplicateKeys(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\nhello: Ancien\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml duplicate-key fallback: %v", err)
+	}
+	if got := strings.Count(string(content), "hello:"); got != 1 {
+		t.Fatalf("expected source-template fallback to remove duplicate key, got %d hello keys in: %s", got, content)
+	}
+	if !strings.Contains(string(content), "hello: Bonjour") {
+		t.Fatalf("expected translated source-template fallback content, got: %s", content)
+	}
+}
+
 func TestMarshalTargetFileYAMLFallsBackWhenTargetMissesNewSourceKey(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {

@@ -54,7 +54,7 @@ Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}
 
 Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, and `.csv`.
 
-YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
+YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
 
 ```yaml
 buckets:

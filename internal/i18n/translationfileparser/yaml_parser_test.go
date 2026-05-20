@@ -72,6 +72,29 @@ func TestYAMLParserRejectsUnsupportedScalar(t *testing.T) {
 	}
 }
 
+func TestYAMLParserRejectsAmbiguousMappingKeys(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{name: "dot", content: `"home.title": Welcome`},
+		{name: "open bracket", content: `"steps[0": Welcome`},
+		{name: "close bracket", content: `"steps]": Welcome`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := (YAMLParser{}).Parse([]byte(tt.content + "\n"))
+			if err == nil {
+				t.Fatalf("expected ambiguous key error")
+			}
+			if !strings.Contains(err.Error(), "keys cannot contain") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestYAMLParserRejectsAliases(t *testing.T) {
 	_, err := (YAMLParser{}).Parse([]byte("hello: &hello Hello\ncopy: *hello\n"))
 	if err == nil {
