@@ -66,10 +66,14 @@ vi.mock("@/lib/agents/hyperlocalise-agent", () => {
     }));
 });
 
-vi.mock("@/lib/agents/repo-tms-context", () => ({
-  buildRepoTmsGitHubContextInstructions: buildRepoTmsGitHubContextInstructionsMock,
-  resolveSlackRepoTmsGitHubContext: resolveSlackRepoTmsGitHubContextMock,
-}));
+vi.mock("@/lib/agents/repo-tms-context", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/agents/repo-tms-context")>();
+  return {
+    ...original,
+    buildRepoTmsGitHubContextInstructions: buildRepoTmsGitHubContextInstructionsMock,
+    resolveSlackRepoTmsGitHubContext: resolveSlackRepoTmsGitHubContextMock,
+  };
+});
 
 vi.mock("@ai-sdk/openai", () => ({
   openai: vi.fn(() => "mock-model"),
