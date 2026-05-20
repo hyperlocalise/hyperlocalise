@@ -358,6 +358,9 @@ func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return hyperlocaliseJob{}, ctxErr
 			}
+			if errors.Is(err, context.DeadlineExceeded) {
+				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
+			}
 			return hyperlocaliseJob{}, err
 		}
 
@@ -446,6 +449,9 @@ func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hy
 	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
 }
 
+// planHyperlocaliseFilesWithOptions builds the file plan for push or pull.
+// When hashSources is false, source files are not hashed (used for pull-without-manifest
+// where the CLI queries the API for the latest completed job instead).
 func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
