@@ -90,7 +90,8 @@ func detectYAMLIndent(template []byte, fallback int) int {
 		}
 
 		trimmed = bytes.TrimRight(trimmed, " \t")
-		if bytes.HasSuffix(trimmed, []byte("|")) || bytes.HasSuffix(trimmed, []byte(">")) {
+		stripped := bytes.TrimRight(trimmed, "-+0123456789")
+		if bytes.HasSuffix(stripped, []byte("|")) || bytes.HasSuffix(stripped, []byte(">")) {
 			inBlockScalar = true
 			blockIndent = indent
 		}

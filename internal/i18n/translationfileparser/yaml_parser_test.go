@@ -239,6 +239,18 @@ func TestDetectYAMLIndent(t *testing.T) {
 			want:     4,
 		},
 		{
+			name:     "block scalar chomping content ignored",
+			template: "description: |-\n  Body text\nhome:\n    title: Welcome\n",
+			fallback: 2,
+			want:     4,
+		},
+		{
+			name:     "folded block scalar indent indicator content ignored",
+			template: "description: >2-\n  Body text\nhome:\n    title: Welcome\n",
+			fallback: 2,
+			want:     4,
+		},
+		{
 			name:     "flat template uses fallback",
 			template: "hello: Hello\ncta: Start\n",
 			fallback: 2,
