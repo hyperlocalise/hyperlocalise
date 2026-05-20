@@ -115,7 +115,7 @@
 - Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.
 - CDATA values can be parsed, but changed translations are written back as escaped XML text rather than preserving the CDATA wrapper.
 - `MarshalGenericXML(template, values)` preserves the template structure and replaces only supported text leaf content.
-- `MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)` also rewrites root-element locale attributes (`xml:lang`, `lang`, `locale`, `language`) whose values match `sourceLocale`, adapting the original separator style (for example `en_US` -> `vi_VN`, `en` -> `vi`).
+- `MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)` also rewrites root-element locale attributes (`xml:lang`, `lang`, `locale`, `language`, `code`) whose values match `sourceLocale`, adapting the original separator style (for example `en_US` -> `vi_VN`, `en` -> `vi`).
 - XML marshal values must be decoded plain text, not pre-escaped XML; the serializer escapes translated text and attributes during writeback.
 - Surrounding whitespace inside text-only leaf values is treated as part of the source value and replacement range, so translation providers that trim values may normalize that formatting.
 

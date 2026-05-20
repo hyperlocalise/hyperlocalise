@@ -143,7 +143,7 @@ func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *test
 	}
 	rendered := string(out)
 	for _, want := range []string{
-		`code="en-US"`,
+		`code="fr-FR"`,
 		`xml:lang="fr"`,
 		`language='fr-FR'`,
 		`locale="fr_FR"`,

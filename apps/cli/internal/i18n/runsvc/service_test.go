@@ -3816,6 +3816,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
 		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
+		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -3841,6 +3842,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
 		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
 		{target: "/tmp/out.xml", source: "/tmp/source.xml"},
+		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 	}
 
 	for _, tc := range cases {

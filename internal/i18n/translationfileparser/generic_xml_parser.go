@@ -418,7 +418,7 @@ func genericXMLAttrNameBoundaryAfter(s string, offset int) bool {
 
 func isGenericXMLLocaleAttrName(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "xml:lang", "lang", "locale", "language":
+	case "xml:lang", "lang", "locale", "language", "code":
 		return true
 	default:
 		return false
