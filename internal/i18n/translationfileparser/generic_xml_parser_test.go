@@ -71,6 +71,19 @@ func TestGenericXMLParserFallsBackPastEmptyKeyAttributes(t *testing.T) {
 	}
 }
 
+func TestGenericXMLParserIgnoresNamespacedKeyAttributes(t *testing.T) {
+	content := []byte(`<locale xmlns:tool="urn:tool"><section id="home"><message tool:name="ignored">Welcome home</message></section></locale>`)
+
+	got, err := GenericXMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse namespaced key attr: %v", err)
+	}
+	want := map[string]string{"home.message": "Welcome home"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestGenericXMLParserKeepsNamedChildElementsUnderKeyedParent(t *testing.T) {
 	content := []byte(`<locale><section id="home"><message>Welcome</message><label>Start now</label></section></locale>`)
 
@@ -186,6 +199,15 @@ func TestMarshalGenericXMLRejectsPreEscapedTranslatedValues(t *testing.T) {
 	_, err := MarshalGenericXML(template, map[string]string{"terms": "Conditions &amp; terms"})
 	if err == nil || !strings.Contains(err.Error(), `key "terms"`) || !strings.Contains(err.Error(), "decoded plain text") {
 		t.Fatalf("expected pre-escaped value error, got %v", err)
+	}
+}
+
+func TestMarshalGenericXMLRejectsHTMLStyleNamedEntities(t *testing.T) {
+	template := []byte(`<locale><message key="copyright">Copyright</message></locale>`)
+
+	_, err := MarshalGenericXML(template, map[string]string{"copyright": "Copyright &copy; 2026"})
+	if err == nil || !strings.Contains(err.Error(), `key "copyright"`) || !strings.Contains(err.Error(), "decoded plain text") {
+		t.Fatalf("expected named entity value error, got %v", err)
 	}
 }
 

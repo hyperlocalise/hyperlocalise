@@ -471,7 +471,7 @@ func genericXMLTargetLocaleForAttr(attrValue, targetLocale string) string {
 func genericXMLKeyAttr(attrs []xml.Attr) string {
 	for _, wanted := range []string{"key", "id", "name"} {
 		for _, attr := range attrs {
-			if strings.EqualFold(attr.Name.Local, wanted) {
+			if attr.Name.Space == "" && strings.EqualFold(attr.Name.Local, wanted) {
 				if v := strings.TrimSpace(attr.Value); v != "" {
 					return v
 				}
