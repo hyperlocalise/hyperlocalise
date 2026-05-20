@@ -12,6 +12,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("messages.jsonc")).toBe("jsonc");
     expect(inferSupportedTranslationFileFormat("messages.yaml")).toBe("yaml");
     expect(inferSupportedTranslationFileFormat("messages.yml")).toBe("yaml");
+    expect(inferSupportedFileTranslationFileFormat("messages.yaml")).toBe("yaml");
+    expect(inferSupportedFileTranslationFileFormat("messages.yml")).toBe("yaml");
     expect(inferSupportedTranslationFileFormat("app.arb")).toBe("arb");
     expect(inferSupportedTranslationFileFormat("copy.xlf")).toBe("xliff");
     expect(inferSupportedTranslationFileFormat("copy.xlif")).toBe("xliff");
