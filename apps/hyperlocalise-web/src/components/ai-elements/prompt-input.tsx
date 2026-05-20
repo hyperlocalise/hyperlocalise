@@ -1043,13 +1043,17 @@ export type PromptInputTooltipProps = {
 };
 
 const PromptInputTooltip = ({ tooltip, children }: PromptInputTooltipProps) => {
-  if (!tooltip) {
+  const hasTooltip = Boolean(
+    tooltip && (typeof tooltip === "string" ? tooltip.trim() !== "" : !!tooltip.content),
+  );
+
+  if (!hasTooltip) {
     return children;
   }
 
-  const tooltipContent = typeof tooltip === "string" ? tooltip : tooltip.content;
-  const shortcut = typeof tooltip === "string" ? undefined : tooltip.shortcut;
-  const side = typeof tooltip === "string" ? "top" : (tooltip.side ?? "top");
+  const tooltipContent = typeof tooltip === "string" ? tooltip : (tooltip?.content ?? "");
+  const shortcut = typeof tooltip === "string" ? undefined : tooltip?.shortcut;
+  const side = typeof tooltip === "string" ? "top" : (tooltip?.side ?? "top");
 
   return (
     <Tooltip>
@@ -1148,47 +1152,49 @@ export const PromptInputSubmit = ({
   ...props
 }: PromptInputSubmitProps) => {
   const isGenerating = status === "submitted" || status === "streaming";
-
-  let Icon = <CornerDownLeftIcon className="size-4" />;
-
-  if (status === "submitted") {
-    Icon = <Spinner />;
-  } else if (status === "streaming") {
-    Icon = <SquareIcon className="size-4" />;
-  } else if (status === "error") {
-    Icon = <XIcon className="size-4" />;
-  }
+  const canStop = isGenerating && !!onStop;
 
   const handleClick = useCallback(
     (event: InputGroupButtonClickEvent) => {
-      if (isGenerating && onStop) {
+      if (canStop && onStop) {
         event.preventDefault();
         onStop();
         return;
       }
       onClick?.(event);
     },
-    [isGenerating, onStop, onClick],
+    [canStop, onStop, onClick],
   );
 
-  const finalTooltip =
-    tooltip ??
-    (isGenerating && onStop
-      ? { content: "Stop", shortcut: "Esc" }
-      : { content: "Submit", shortcut: "Enter" });
+  const finalTooltip = useMemo(() => {
+    if (tooltip) return tooltip;
+    if (canStop) return { content: "Stop", shortcut: "Esc" };
+    if (status === "submitted") return { content: "Sending..." };
+    if (status === "streaming") return { content: "Generating..." };
+    if (status === "error") return { content: "Error" };
+    return { content: "Submit", shortcut: "Enter" };
+  }, [tooltip, canStop, status]);
+
+  const finalIcon = useMemo(() => {
+    if (children) return children;
+    if (status === "submitted") return <Spinner />;
+    if (status === "streaming") return canStop ? <SquareIcon className="size-4" /> : <Spinner />;
+    if (status === "error") return <XIcon className="size-4" />;
+    return <CornerDownLeftIcon className="size-4" />;
+  }, [children, status, canStop]);
 
   return (
     <PromptInputTooltip tooltip={finalTooltip}>
       <InputGroupButton
-        aria-label={isGenerating ? "Stop" : "Submit"}
+        aria-label={canStop ? "Stop" : isGenerating ? "Generating" : "Submit"}
         className={cn(className)}
         onClick={handleClick}
         size={size}
-        type={isGenerating && onStop ? "button" : "submit"}
+        type={canStop ? "button" : "submit"}
         variant={variant}
         {...props}
       >
-        {children ?? Icon}
+        {finalIcon}
       </InputGroupButton>
     </PromptInputTooltip>
   );
