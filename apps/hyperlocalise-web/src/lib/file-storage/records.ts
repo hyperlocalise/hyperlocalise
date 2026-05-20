@@ -66,8 +66,11 @@ export function safePathPart(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-function normalizeSourcePath(value: string) {
-  return value.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+/g, "/");
+export function normalizeSourcePath(value: string) {
+  return value
+    .replace(/\\/g, "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+/g, "/");
 }
 
 function bytesFromContent(content: Buffer | Uint8Array | ArrayBuffer) {

@@ -142,6 +142,128 @@ export async function insertCompletedPublicFileJob(params: {
   });
 }
 
+export async function insertRepositoryPublicFileJob(params: {
+  projectId: string;
+  organizationId: string;
+  sourcePath: string;
+  sourceHash: string;
+  status: (typeof schema.jobStatusEnum.enumValues)[number];
+  versionCreatedAt: Date;
+  jobCreatedAt: Date;
+  completedAt?: Date | null;
+  outputFiles?: Array<{ fileId: string; locale: string; filename: string }>;
+}) {
+  return db.transaction(async (tx) => {
+    const storedFileId = `file_${randomUUID()}`;
+    const jobId = `job_${randomUUID()}`;
+    const filename = params.sourcePath.split("/").at(-1) ?? "source.xliff";
+    const outputFiles = params.outputFiles ?? [];
+
+    const [storedFile] = await tx
+      .insert(schema.storedFiles)
+      .values({
+        id: storedFileId,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        role: "source",
+        sourceKind: "repository_file",
+        storageProvider: "vercel_blob",
+        storageKey: `test/${storedFileId}/${filename}`,
+        storageUrl: `https://example.com/${storedFileId}/${filename}`,
+        downloadUrl: `https://example.com/${storedFileId}/${filename}?download=1`,
+        filename,
+        contentType: "application/xliff+xml",
+        byteSize: 2,
+        sha256: params.sourceHash,
+        metadata: {
+          sourcePath: params.sourcePath,
+          sourceHash: params.sourceHash,
+          uploadSurface: "public_api",
+        },
+        createdAt: params.versionCreatedAt,
+      })
+      .returning();
+
+    if (!storedFile) {
+      throw new Error("stored file insert failed");
+    }
+
+    const [sourceFile] = await tx
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        sourcePath: params.sourcePath,
+        createdAt: params.versionCreatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+        set: { updatedAt: params.versionCreatedAt },
+      })
+      .returning();
+
+    if (!sourceFile) {
+      throw new Error("repository source file insert failed");
+    }
+
+    const [version] = await tx
+      .insert(schema.repositorySourceFileVersions)
+      .values({
+        repositorySourceFileId: sourceFile.id,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        sourcePath: params.sourcePath,
+        storedFileId,
+        sourceHash: params.sourceHash,
+        uploadSurface: "public_api",
+        createdAt: params.versionCreatedAt,
+      })
+      .returning();
+
+    if (!version) {
+      throw new Error("repository source file version insert failed");
+    }
+
+    const [job] = await tx
+      .insert(schema.jobs)
+      .values({
+        id: jobId,
+        organizationId: params.organizationId,
+        projectId: params.projectId,
+        kind: "translation",
+        status: params.status,
+        inputPayload: {
+          sourceFileId: storedFileId,
+          fileFormat: "xliff",
+          sourceLocale: "en-US",
+          targetLocales: outputFiles.map((file) => file.locale),
+        },
+        outcomePayload:
+          params.status === "succeeded"
+            ? {
+                outputFiles,
+              }
+            : null,
+        completedAt: params.completedAt ?? null,
+        createdAt: params.jobCreatedAt,
+      })
+      .returning();
+
+    if (!job) {
+      throw new Error("job insert failed");
+    }
+
+    await tx.insert(schema.translationJobDetails).values({
+      jobId,
+      type: "file",
+      sourceFileVersionId: version.id,
+      outcomeKind: params.status === "succeeded" ? "file_result" : null,
+    });
+
+    return job;
+  });
+}
+
 export async function cleanupPublicApiFixture() {
   for (const workosOrganizationId of createdWorkosOrganizationIds) {
     await db

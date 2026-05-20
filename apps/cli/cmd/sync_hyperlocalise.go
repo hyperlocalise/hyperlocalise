@@ -6,13 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -262,38 +262,28 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 }
 
 func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, timeout time.Duration) (hyperlocalisePullReport, error) {
-	manifest, err := readHyperlocaliseManifest(rt.manifestPath)
+	plans, err := planHyperlocalisePullFiles(rt.cfg, o.locales)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
-	}
-	if !manifest.Complete {
-		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest is incomplete; rerun sync push before pulling")
-	}
-	if manifest.ProjectID != "" && manifest.ProjectID != rt.projectID {
-		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest project %q does not match configured project %q", manifest.ProjectID, rt.projectID)
 	}
 
 	if timeout <= 0 {
 		timeout = rt.timeout
 	}
+	rt.client.httpClient.Timeout = timeout
 
 	report := hyperlocalisePullReport{
 		Action:       "pull",
 		Complete:     true,
-		Jobs:         len(manifest.Jobs),
+		Jobs:         len(plans),
 		ManifestPath: rt.manifestPath,
 		DryRun:       o.dryRun,
 	}
 
-	deadline := time.Now().Add(timeout)
-	for i, manifestJob := range manifest.Jobs {
-		job, err := waitForHyperlocaliseJob(ctx, rt.client, manifestJob, deadline)
+	for _, plan := range plans {
+		job, err := rt.client.getLatestCompletedFileJob(ctx, rt.projectID, plan.SourcePath)
 		if err != nil {
-			var timeoutErr *hyperlocaliseJobTimeoutError
-			if errors.As(err, &timeoutErr) {
-				return report, fmt.Errorf("timed out waiting for hyperlocalise jobs: %s", describePendingHyperlocaliseJobs(manifest.Jobs[i:], manifestJob.JobID, timeoutErr.Status))
-			}
-			return report, err
+			return report, fmt.Errorf("find latest completed hyperlocalise job for %s: %w", plan.SourcePath, err)
 		}
 
 		outcome, err := parseHyperlocaliseFileOutcome(job)
@@ -302,7 +292,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 		}
 
 		for _, outputFile := range outcome.OutputFiles {
-			targetPath := strings.TrimSpace(manifestJob.TargetPaths[outputFile.Locale])
+			targetPath := strings.TrimSpace(plan.TargetPaths[outputFile.Locale])
 			if targetPath == "" {
 				report.Skipped++
 				continue
@@ -313,7 +303,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			}
 			content, err := rt.client.downloadFile(ctx, outputFile.FileID)
 			if err != nil {
-				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, manifestJob.JobID, err)
+				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, job.ID, err)
 			}
 			if err := writeFileAtomic(targetPath, content); err != nil {
 				return report, fmt.Errorf("write target file %q: %w", targetPath, err)
@@ -413,6 +403,14 @@ func newHyperlocaliseManifest(rt *hyperlocaliseSyncRuntime) hyperlocaliseSyncMan
 }
 
 func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
+	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
+}
+
+func planHyperlocalisePullFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
+	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, false)
+}
+
+func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
 		return nil, err
@@ -433,9 +431,13 @@ func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hy
 			if fileFormat == "" {
 				return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
 			}
-			sourceHash, err := sha256File(sourcePath)
-			if err != nil {
-				return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+			sourceHash := ""
+			if hashSources {
+				var err error
+				sourceHash, err = sha256File(sourcePath)
+				if err != nil {
+					return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+				}
 			}
 			targetPaths := make(map[string]string, len(targetLocales))
 			for _, locale := range targetLocales {
@@ -625,6 +627,18 @@ func hyperlocaliseJobMetadata(plan hyperlocaliseFilePlan) map[string]string {
 func (c *hyperlocaliseAPIClient) getJob(ctx context.Context, jobID string) (hyperlocaliseJob, error) {
 	var response hyperlocaliseJobResponse
 	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/"+jobID, "", nil, &response); err != nil {
+		return hyperlocaliseJob{}, err
+	}
+	return response.Job, nil
+}
+
+func (c *hyperlocaliseAPIClient) getLatestCompletedFileJob(ctx context.Context, projectID, sourcePath string) (hyperlocaliseJob, error) {
+	query := url.Values{}
+	query.Set("projectId", projectID)
+	query.Set("sourcePath", sourcePath)
+
+	var response hyperlocaliseJobResponse
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/latest?"+query.Encode(), "", nil, &response); err != nil {
 		return hyperlocaliseJob{}, err
 	}
 	return response.Job, nil
