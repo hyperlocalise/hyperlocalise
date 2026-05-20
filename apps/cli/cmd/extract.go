@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"bytes"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -596,7 +598,11 @@ func extractMessageDescriptor(src, file string, objectStart, objectEnd int) (ext
 
 	id, ok := values["id"]
 	if !ok || strings.TrimSpace(id) == "" {
-		return extractMessage{}, false, nil
+		defaultMessage, ok := values["defaultMessage"]
+		if !ok {
+			return extractMessage{}, false, nil
+		}
+		id = generatedFormatJSMessageID(defaultMessage, values["description"])
 	}
 
 	return extractMessage{
@@ -678,6 +684,10 @@ func readObjectPropertyKey(src string, index int) (string, int, bool) {
 	if index >= len(src) {
 		return "", index, false
 	}
+	if src[index] == '[' {
+		end, ok := findMatchingDelimiter(src, index, '[', ']')
+		return "", end + 1, ok
+	}
 	if isStringQuote(src[index]) {
 		value, next, ok := parseStaticStringLiteral(src, index)
 		return value, next, ok
@@ -744,7 +754,16 @@ func extractReactIntlJSXMessages(src, file string) ([]extractMessage, error) {
 		if err != nil {
 			return nil, err
 		}
-		if id, ok := attrs["id"]; ok && strings.TrimSpace(id) != "" {
+		id := attrs["id"]
+		if strings.TrimSpace(id) == "" {
+			defaultMessage, ok := attrs["defaultMessage"]
+			if !ok {
+				i = tagEnd + 1
+				continue
+			}
+			id = generatedFormatJSMessageID(defaultMessage, attrs["description"])
+		}
+		if strings.TrimSpace(id) != "" {
 			messages = append(messages, extractMessage{
 				ID:             id,
 				DefaultMessage: attrs["defaultMessage"],
@@ -757,6 +776,15 @@ func extractReactIntlJSXMessages(src, file string) ([]extractMessage, error) {
 	}
 
 	return messages, nil
+}
+
+func generatedFormatJSMessageID(defaultMessage, description string) string {
+	content := defaultMessage
+	if description != "" {
+		content = defaultMessage + "#" + description
+	}
+	sum := sha512.Sum512([]byte(content))
+	return base64.StdEncoding.EncodeToString(sum[:])[:6]
 }
 
 func isReactIntlJSXName(name string) bool {
