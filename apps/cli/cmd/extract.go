@@ -1132,7 +1132,7 @@ func skipStringLiteral(src string, index int) int {
 }
 
 func skipComment(src string, index int) (int, bool) {
-	if index+1 >= len(src) {
+	if index >= len(src) || src[index] != '/' || index+1 >= len(src) {
 		return index, false
 	}
 

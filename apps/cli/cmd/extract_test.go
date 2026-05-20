@@ -149,6 +149,38 @@ export const sop = defineMessage({
 	}
 }
 
+func TestExtractCommandExtractsJSXMessageIDStartingWithSlash(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	source := `
+import { FormattedMessage } from "react-intl";
+
+export function App() {
+  return <FormattedMessage defaultMessage="Open settings" id="/app.settings.open" />;
+}
+`
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), source)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	got, ok := catalog["/app.settings.open"]
+	if !ok {
+		t.Fatalf("missing slash-prefixed id in output=%s", out.String())
+	}
+	if got.DefaultMessage != "Open settings" {
+		t.Fatalf("defaultMessage = %q, want %q", got.DefaultMessage, "Open settings")
+	}
+}
+
 func TestExtractCommandPrefixesIDWithNormalizedFilename(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
