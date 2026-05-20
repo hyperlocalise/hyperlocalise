@@ -79,6 +79,18 @@ describe("createReadRepoFileTool", () => {
     const result = await t.execute!({ path: "readme.md", offset: 6 }, toolCallInfo);
     expect(result).toMatchObject({ success: true, content: "world" });
   });
+
+  it("redacts secrets in file content", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/.env": "OPENAI_API_KEY=sk-12345\ntoken=abcdefghijklmnopqrstuvwxyz12345",
+    });
+    const t = createReadRepoFileTool(ctx);
+    const result = await t.execute!({ path: ".env" }, toolCallInfo);
+    const content = (result as { content: string }).content;
+    expect(content).toContain("OPENAI_API_KEY=***REDACTED***");
+    expect(content).toContain("token=***REDACTED***");
+    expect(content).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
+  });
 });
 
 describe("createSearchRepoFilesTool", () => {
@@ -162,6 +174,41 @@ storage:
     expect(config?.sourceLocale).toBe("en");
     expect(config?.targetLocales).toEqual(["ja"]);
     expect(config?.buckets).toContain("app");
+  });
+
+  it("finds i18n.jsonc with comments and trailing commas", async () => {
+    const jsonc = `{
+  // Locale settings
+  "locales": {
+    "source": "en",
+    "targets": ["fr", "de",],
+  },
+  "buckets": {
+    "app": {
+      "files": [
+        {
+          "from": "src/en.json",
+          "to": "translations/{locale}.json",
+        },
+      ],
+    },
+  },
+  /*
+   * Storage settings
+   */
+  "storage": {
+    "adapter": "local",
+  },
+}`;
+    const ctx = createTestContext({ "/home/user/project/i18n.jsonc": jsonc });
+    const t = createDetectRepoConfigTool(ctx);
+    const result = await t.execute!({}, toolCallInfo);
+    expect(result).toMatchObject({ success: true, found: true, configPath: "i18n.jsonc" });
+    const config = (result as { config?: I18NConfigSummary }).config;
+    expect(config?.sourceLocale).toBe("en");
+    expect(config?.targetLocales).toEqual(["fr", "de"]);
+    expect(config?.buckets).toContain("app");
+    expect(config?.storageAdapter).toBe("local");
   });
 });
 
@@ -336,6 +383,18 @@ describe("buildHlArgs", () => {
   it("rejects positional arg that looks like flag", () => {
     expect(() => buildHlArgs({ subcommand: "check", args: ["--bad"] })).toThrow(
       "looks like a flag",
+    );
+  });
+
+  it("rejects $ in positional arg", () => {
+    expect(() => buildHlArgs({ subcommand: "check", args: ["$(cat /etc/passwd)"] })).toThrow(
+      "invalid characters",
+    );
+  });
+
+  it("rejects backtick in positional arg", () => {
+    expect(() => buildHlArgs({ subcommand: "check", args: ["`id`"] })).toThrow(
+      "invalid characters",
     );
   });
 

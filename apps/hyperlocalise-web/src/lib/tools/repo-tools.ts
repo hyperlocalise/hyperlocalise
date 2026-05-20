@@ -120,7 +120,7 @@ export function createReadRepoFileTool(ctx: RepoToolContext) {
 
         const slice = allBytes.slice(off, off + limit);
         const content = new TextDecoder("utf-8", { fatal: false }).decode(slice);
-        const { text, truncated } = truncate(content, limit);
+        const { text, truncated } = truncate(redact(content), limit);
 
         return {
           success: true,
@@ -294,9 +294,7 @@ async function extractConfigSummary(
     if (filename.endsWith(".jsonc")) {
       const result = await bash.exec("cat", { args: [filePath] });
       if (result.exitCode !== 0) return undefined;
-      jsonText = result.stdout
-        .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*/g, (_m, str) => (str ? str : ""))
-        .replace(/\/\*[\s\S]*?\*\//g, "");
+      jsonText = normalizeJsonc(result.stdout);
     } else {
       // Convert YAML to JSON using yq.
       const result = await bash.exec("yq", { args: ["-o", "json", ".", filePath] });
@@ -318,6 +316,107 @@ async function extractConfigSummary(
   } catch {
     return undefined;
   }
+}
+
+function normalizeJsonc(input: string): string {
+  return stripTrailingJsonCommas(stripJsoncComments(input));
+}
+
+function stripJsoncComments(input: string): string {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      while (i < input.length && input[i] !== "\n") {
+        i++;
+      }
+      if (i < input.length) {
+        output += "\n";
+      }
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      i += 2;
+      while (i < input.length - 1 && !(input[i] === "*" && input[i + 1] === "/")) {
+        if (input[i] === "\n") {
+          output += "\n";
+        }
+        i++;
+      }
+      i++;
+      continue;
+    }
+
+    output += char;
+  }
+
+  return output;
+}
+
+function stripTrailingJsonCommas(input: string): string {
+  let output = "";
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (inString) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      output += char;
+      continue;
+    }
+
+    if (char === ",") {
+      let j = i + 1;
+      while (j < input.length && /\s/.test(input[j])) {
+        j++;
+      }
+      if (input[j] === "}" || input[j] === "]") {
+        continue;
+      }
+    }
+
+    output += char;
+  }
+
+  return output;
 }
 
 export type RepoGitStateOutput = {
@@ -466,6 +565,7 @@ export function buildHlArgs(input: {
     if (a.startsWith("-")) {
       throw new Error(`Positional arg "${a}" looks like a flag`);
     }
+    validateValue(a);
     args.push(a);
   }
 
