@@ -188,6 +188,30 @@ func TestMarshalYAMLDeterministic(t *testing.T) {
 	}
 }
 
+func TestMarshalYAMLRejectsDuplicateTemplateKeys(t *testing.T) {
+	template := []byte("hello: Salut\nhello: Ancien\n")
+
+	_, err := MarshalYAML(template, map[string]string{"hello": "Bonjour"})
+	if err == nil {
+		t.Fatal("expected duplicate key error")
+	}
+	if !strings.Contains(err.Error(), "yaml validate template") || !strings.Contains(err.Error(), "appears more than once") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestMarshalYAMLWithPruneRejectsDuplicateTemplateKeys(t *testing.T) {
+	template := []byte("hello: Salut\nhello: Ancien\n")
+
+	_, err := MarshalYAMLWithPrune(template, map[string]string{"hello": "Bonjour"}, map[string]struct{}{"hello": {}})
+	if err == nil {
+		t.Fatal("expected duplicate key error")
+	}
+	if !strings.Contains(err.Error(), "yaml validate template") || !strings.Contains(err.Error(), "appears more than once") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestMarshalYAMLMatchesTemplateIndent(t *testing.T) {
 	template := []byte("home:\n    title: Welcome\n    steps:\n        - Choose plan\n        - Confirm\n")
 

@@ -28,6 +28,9 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 	if len(bytes.TrimSpace(template)) == 0 {
 		return nil, fmt.Errorf("yaml decode: empty YAML document")
 	}
+	if _, err := (YAMLParser{}).Parse(template); err != nil {
+		return nil, fmt.Errorf("yaml validate template: %w", err)
+	}
 	if err := yaml.Unmarshal(template, &doc); err != nil {
 		return nil, fmt.Errorf("yaml decode: %w", err)
 	}
