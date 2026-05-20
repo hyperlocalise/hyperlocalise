@@ -223,10 +223,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
     });
 
     expect(withGitHub).not.toBe(withoutGitHub);
-    expect(withGitHub).toContain("hyperlocalise/app");
-    expect(withGitHub).toContain("54321");
-    expect(withGitHub).toContain("42");
-    expect(withGitHub).toContain("abc123");
+    expect(withGitHub).toMatch(/^[a-f0-9]{64}$/);
+    expect(withoutGitHub).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("produces different keys for different PR numbers", () => {
@@ -294,8 +292,20 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       },
     });
 
-    expect(key).toContain("hyperlocalise/app");
-    expect(key).toContain("54321");
+    expect(key).toMatch(/^[a-f0-9]{64}$/);
+    expect(key).toBe(
+      buildRepoTmsTaskIdempotencyKey({
+        source: "github",
+        sourceThreadId: "thread_456",
+        organizationId: "org_def",
+        instructions: "Fix i18n",
+        githubContext: {
+          resolved: true,
+          installationId: 54321,
+          repositoryFullName: "hyperlocalise/app",
+        },
+      }),
+    );
   });
 });
 

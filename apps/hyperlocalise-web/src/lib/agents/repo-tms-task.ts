@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 /**
@@ -156,7 +157,8 @@ export function buildRepoTmsTaskIdempotencyKey(input: {
     );
   }
 
-  return parts.join("\0");
+  const raw = parts.join("\0");
+  return createHash("sha256").update(raw).digest("hex");
 }
 
 /**
@@ -169,6 +171,7 @@ export function serializeRepoTmsAgentTask(task: RepoTmsAgentTask): string {
 /**
  * Deserialize and validate a repo/TMS agent task from a JSON string.
  *
+ * @throws {SyntaxError} when `json` is not valid JSON.
  * @throws {z.ZodError} when the parsed value does not match the schema.
  */
 export function deserializeRepoTmsAgentTask(json: string): RepoTmsAgentTask {
