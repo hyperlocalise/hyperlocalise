@@ -79,6 +79,7 @@ func writeExtractOutput(cmd *cobra.Command, messages []extractMessage, options e
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
 	if err := enc.Encode(payload); err != nil {
 		return fmt.Errorf("encode extract output: %w", err)
 	}

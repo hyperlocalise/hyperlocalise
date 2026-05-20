@@ -203,9 +203,8 @@ func writeExtractICUTypedArgument(b *strings.Builder, value, kind, style string)
 func writeExtractICUSelect(b *strings.Builder, element icuparser.SelectElement) {
 	b.WriteByte('{')
 	b.WriteString(element.Value)
-	b.WriteString(", select,")
+	b.WriteString(",select,")
 	for _, option := range element.Options {
-		b.WriteByte(' ')
 		b.WriteString(option.Selector)
 		b.WriteByte('{')
 		b.WriteString(renderExtractICUElements(option.Value, false))
@@ -218,16 +217,18 @@ func writeExtractICUPlural(b *strings.Builder, element icuparser.PluralElement) 
 	b.WriteByte('{')
 	b.WriteString(element.Value)
 	if element.Type() == icuparser.TypeSelectOrdinal {
-		b.WriteString(", selectordinal,")
+		b.WriteString(",selectordinal,")
 	} else {
-		b.WriteString(", plural,")
+		b.WriteString(",plural,")
 	}
 	if element.Offset != 0 {
-		b.WriteString(" offset:")
+		b.WriteString("offset:")
 		b.WriteString(strconv.Itoa(element.Offset))
+		if len(element.Options) > 0 {
+			b.WriteByte(' ')
+		}
 	}
 	for _, option := range element.Options {
-		b.WriteByte(' ')
 		b.WriteString(option.Selector)
 		b.WriteByte('{')
 		b.WriteString(renderExtractICUElements(option.Value, true))

@@ -110,6 +110,45 @@ export function AppHeader() {
 	}
 }
 
+func TestExtractCommandDoesNotEscapeRichTextTagsInJSON(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), `
+import { defineMessage } from "react-intl";
+
+export const redirect = defineMessage({
+  id: "app.redirect",
+  defaultMessage: "If you weren't redirected, <link>click here</link>",
+});
+
+export const sop = defineMessage({
+  id: "app.sop",
+  defaultMessage: "Use <atSymbol>@</atSymbol> in the SOP to reference capabilities.",
+});
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	raw := out.String()
+	if strings.Contains(raw, `\u003c`) || strings.Contains(raw, `\u003e`) {
+		t.Fatalf("output should keep rich text tags unescaped: %s", raw)
+	}
+	if !strings.Contains(raw, `<link>click here</link>`) {
+		t.Fatalf("output missing unescaped link tag: %s", raw)
+	}
+	if !strings.Contains(raw, `<atSymbol>@</atSymbol>`) {
+		t.Fatalf("output missing unescaped atSymbol tag: %s", raw)
+	}
+}
+
 func TestExtractCommandPrefixesIDWithNormalizedFilename(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -211,7 +250,7 @@ export const message: { id: "app.types"; defaultMessage: "Types" };
 	if err := json.Unmarshal(content, &catalog); err != nil {
 		t.Fatalf("decode formatjs catalog: %v\noutput=%s", err, string(content))
 	}
-	if got, want := catalog["app.title"]["defaultMessage"], "{count, plural, one{I have a dog} other{I have many dogs}}"; got != want {
+	if got, want := catalog["app.title"]["defaultMessage"], "{count,plural,one{I have a dog}other{I have many dogs}}"; got != want {
 		t.Fatalf("app.title defaultMessage = %q, want %q", got, want)
 	}
 	if _, ok := catalog["app.title"]["description"]; ok {
@@ -254,7 +293,7 @@ export const title = defineMessage({
 	if got, want := len(catalog), 1; got != want {
 		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
 	}
-	if got, want := catalog["app.title"].DefaultMessage, "{count, plural, one{You have one project.} other{You have # projects.}}"; got != want {
+	if got, want := catalog["app.title"].DefaultMessage, "{count,plural,one{You have one project.}other{You have # projects.}}"; got != want {
 		t.Fatalf("flattened defaultMessage = %q, want %q", got, want)
 	}
 	if strings.Contains(out.String(), `"id":`) {
