@@ -113,7 +113,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       error: message,
     };
   } finally {
-    if (sandboxId && task.workMode !== "write") {
+    if (sandboxId && task.workMode === "read_only") {
       try {
         await stopRepoTmsSandbox(sandboxId);
       } catch {
