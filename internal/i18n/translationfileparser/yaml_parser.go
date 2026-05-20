@@ -162,5 +162,5 @@ func yamlNodeTagName(node *yaml.Node) string {
 }
 
 func isYAMLNull(node *yaml.Node) bool {
-	return node.Kind == yaml.ScalarNode && (node.Tag == "!!null" || strings.EqualFold(node.Value, "null"))
+	return node.Kind == yaml.ScalarNode && node.Tag == "!!null"
 }

@@ -72,6 +72,16 @@ func TestYAMLParserRejectsUnsupportedScalar(t *testing.T) {
 	}
 }
 
+func TestYAMLParserRejectsQuotedNullRoot(t *testing.T) {
+	_, err := (YAMLParser{}).Parse([]byte("\"null\"\n"))
+	if err == nil {
+		t.Fatalf("expected quoted null root error")
+	}
+	if !strings.Contains(err.Error(), "yaml root must be mapping") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestYAMLParserRejectsAmbiguousMappingKeys(t *testing.T) {
 	tests := []struct {
 		name    string
