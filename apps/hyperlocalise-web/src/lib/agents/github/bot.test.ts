@@ -36,6 +36,16 @@ const {
   markGitHubAgentRequestEnqueuedMock: vi.fn(),
   getInstallationOctokitMock: vi.fn(async () => ({
     rest: {
+      pulls: {
+        get: vi.fn(async () => ({
+          data: {
+            head: {
+              ref: "feature/i18n",
+              sha: "head-sha",
+            },
+          },
+        })),
+      },
       repos: {
         getCollaboratorPermissionLevel: vi.fn(async () => ({
           data: { permission: "write" },
@@ -220,6 +230,11 @@ describe("GitHub command routing", () => {
     const queue = { enqueue: vi.fn() };
     getInstallationOctokitMock.mockResolvedValueOnce({
       rest: {
+        pulls: {
+          get: vi.fn(async () => ({
+            data: { head: { ref: "feature/i18n", sha: "head-sha" } },
+          })),
+        },
         repos: {
           getCollaboratorPermissionLevel: vi.fn(async () => {
             throw Object.assign(new Error("not found"), { status: 404 });
