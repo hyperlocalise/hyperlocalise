@@ -62,6 +62,132 @@ func TestSameICUBlocks(t *testing.T) {
 	}
 }
 
+func TestFormatICUBlocks(t *testing.T) {
+	tests := []struct {
+		name   string
+		blocks []BlockSignature
+		want   string
+	}{
+		{
+			name:   "empty",
+			blocks: nil,
+			want:   "[]",
+		},
+		{
+			name: "plural with pounds",
+			blocks: []BlockSignature{
+				{Arg: "n", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 0}},
+			},
+			want: "[n:plural[one other]#[1 0]]",
+		},
+		{
+			name: "select without pounds",
+			blocks: []BlockSignature{
+				{Arg: "g", Type: "select", Options: []string{"female", "male"}},
+			},
+			want: "[g:select[female male]]",
+		},
+		{
+			name: "mixed blocks",
+			blocks: []BlockSignature{
+				{Arg: "count", Type: "plural", Options: []string{"other"}, Pounds: []int{1}},
+				{Arg: "gender", Type: "select", Options: []string{"other"}},
+			},
+			want: "[count:plural[other]#[1], gender:select[other]]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FormatICUBlocks(tt.blocks); got != tt.want {
+				t.Errorf("FormatICUBlocks() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseInvariantMustacheNormalization(t *testing.T) {
+	tests := []struct {
+		name    string
+		msg     string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name: "simple mustache",
+			msg:  "Hello {{name}}",
+			want: []string{"name"},
+		},
+		{
+			name: "mustache with dots and dollars",
+			msg:  "Price for {{user.id}} is {{$amount}}",
+			want: []string{"$amount", "user.id"},
+		},
+		{
+			name: "mixed icu and mustache",
+			msg:  "{count, plural, one {item} other {items}} for {{user_name}}",
+			want: []string{"count", "user_name"},
+		},
+		{
+			name:    "invalid mustache identifier (spaces)",
+			msg:     "Hello {{not a valid id}}",
+			wantErr: true,
+		},
+		{
+			name: "mustache with dashes",
+			msg:  "Value: {{my-dash-id}}",
+			want: []string{"my-dash-id"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("ParseInvariant(%q) error = %v, wantErr %v", tt.msg, err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			if !SamePlaceholderSet(inv.Placeholders, tt.want) {
+				t.Errorf("ParseInvariant(%q) placeholders = %v, want %v", tt.msg, inv.Placeholders, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseInvariantSorting(t *testing.T) {
+	// Blocks should be sorted by Arg, then Type, then Options/Pounds.
+	msg := "{b, select, other {x}} {a, plural, one {#} other {##}} {a, select, other {y}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	if len(inv.ICUBlocks) != 3 {
+		t.Fatalf("expected 3 ICU blocks, got %d", len(inv.ICUBlocks))
+	}
+
+	// Expected order:
+	// 1. Arg: a, Type: plural
+	// 2. Arg: a, Type: select
+	// 3. Arg: b, Type: select
+	expected := []struct {
+		arg  string
+		kind string
+	}{
+		{"a", "plural"},
+		{"a", "select"},
+		{"b", "select"},
+	}
+
+	for i, exp := range expected {
+		if inv.ICUBlocks[i].Arg != exp.arg || inv.ICUBlocks[i].Type != exp.kind {
+			t.Errorf("block %d: expected %s:%s, got %s:%s", i, exp.arg, exp.kind, inv.ICUBlocks[i].Arg, inv.ICUBlocks[i].Type)
+		}
+	}
+}
+
 func TestCountPoundsNestedPlurals(t *testing.T) {
 	// Inside the "one" branch of c1, there is one # (for c1) and a nested c2 plural.
 	// The # inside the c2 plural MUST NOT be counted towards c1's pound count,
