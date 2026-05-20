@@ -129,7 +129,7 @@ describe("GitHubCallbackPage", () => {
   });
 
   it("persists an installation, syncs repositories, and consumes state for the same admin user", async () => {
-    const { auth, nonce, state } = await createCallbackState({ role: "admin" });
+    const { auth, nonce, slug, state } = await createCallbackState({ role: "admin" });
 
     await expect(runCallback(state)).rejects.toThrow(
       `redirect:/org/${slug}/settings?github_connected=1`,
@@ -160,14 +160,12 @@ describe("GitHubCallbackPage", () => {
   });
 
   it("persists an installation when the signed state uses a null-slug organization id", async () => {
-    const { auth, nonce, slug, state } = await createCallbackState({
+    const { auth, nonce, state } = await createCallbackState({
       nullSlug: true,
       role: "admin",
     });
 
-    await expect(runCallback(state)).rejects.toThrow(
-      "redirect:/dashboard?github_connected=1",
-    );
+    await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?github_connected=1");
 
     const [installation] = await db
       .select()
