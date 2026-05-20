@@ -381,6 +381,49 @@ func TestStatusCommandMDXIdenticalSegmentWithInlineSyntaxIsSourceMatch(t *testin
 	}
 }
 
+func TestStatusCommandGenericXMLContent(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en-US.xml")
+	targetPath := filepath.Join(dir, "content", "vi-VN.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir content dir: %v", err)
+	}
+	source := `<locale><section id="home"><string name="title">Welcome back</string></section></locale>`
+	target := `<locale><section id="home"><string name="title">Welcome back</string></section></locale>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source xml: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target xml: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["vi-VN"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "content", "[locale].xml")) + `"}]}},
+  "groups": {"default":{"targets":["vi-VN"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "home.title") || !strings.Contains(got, ",vi-VN,translated,unknown,") {
+		t.Fatalf("expected translated xml row, got: %s", got)
+	}
+}
+
 func TestBuildStatusSummaryIncludesSourceMatch(t *testing.T) {
 	entries := []storage.Entry{
 		{Locale: "vi-VN", Value: "Da dich"},

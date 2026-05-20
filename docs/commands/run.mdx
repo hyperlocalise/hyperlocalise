@@ -24,8 +24,9 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 `run` can read source and target files with these extensions:
 
 - `.json`
+- `.jsonc`
 - `.arb`
-- `.xlf` and `.xliff`
+- `.xlf`, `.xlif`, and `.xliff`
 - `.po`
 - `.html`
 - `.liquid`
@@ -34,6 +35,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.strings`
 - `.stringsdict`
 - `.csv`
+- `.xml` and `.resx` for generic XML locale files
 
 For JSON (`.json`), `run` supports:
 
@@ -79,6 +81,14 @@ For CSV (`.csv`), `run` supports two layouts:
 - per-locale column layout (for example: `id,en,fr,de`)
 
 When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+
+For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
+
+- keyed leaves use `key`, `id`, or `name` attributes, for example `<message key="checkout.cta">Checkout now</message>`
+- nested path-shaped leaves use dotted element paths, for example `<home><title>Welcome</title></home>` -> `home.title`
+- `.resx`-style `<data name="home.title"><value>Welcome</value></data>` entries are supported
+- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved
+- mixed-content values such as `Hello <ph/>` and Android `<resources>` files are rejected instead of being rewritten as generic XML
 
 ## Flags
 

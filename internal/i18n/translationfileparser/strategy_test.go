@@ -232,6 +232,18 @@ hello,bonjour
 	}
 }
 
+func TestStrategyParsesGenericXML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.xml", []byte(`<locale><group id="home"><string name="title">Bonjour</string></group></locale>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["home.title"] != "Bonjour" {
+		t.Fatalf("unexpected home.title: %q", got["home.title"])
+	}
+}
+
 func TestStrategyRegistersLiquidParser(t *testing.T) {
 	s := NewDefaultStrategy()
 

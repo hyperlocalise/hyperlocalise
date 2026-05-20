@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<locale code="zh-CN">
+  <!-- Generic XML sample for CLI status/check/run smoke tests. -->
+  <metadata>
+    <owner>Localization</owner>
+  </metadata>
+  <section id="home">
+    <string name="title" tone="warm">欢迎回来，{name}</string>
+    <body>浏览今日精选优惠。</body>
+  </section>
+  <message key="checkout.cta" priority="primary">立即结账</message>
+</locale>

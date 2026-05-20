@@ -136,6 +136,70 @@ func TestRunDryRunLiquidReportUsesGeneratedLiquidKeys(t *testing.T) {
 	}
 }
 
+func TestRunDryRunGenericXMLReportsConfiguredEntries(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	reportPath := filepath.Join(dir, "report.json")
+	sourcePath := filepath.Join(dir, "locales", "en-US.xml")
+	targetPath := filepath.Join(dir, "locales", "fr-FR.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	source := `<?xml version="1.0" encoding="UTF-8"?>
+<locale code="en-US">
+  <section id="home">
+    <string name="title">Welcome back, {name}</string>
+  </section>
+  <message key="checkout.cta">Checkout now</message>
+</locale>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en-US","targets":["fr-FR"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr-FR"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--output", reportPath, "--output-detail", "full"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command xml dry-run: %v", err)
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+
+	reportContent, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read run report: %v", err)
+	}
+	var report runsvc.Report
+	if err := json.Unmarshal(reportContent, &report); err != nil {
+		t.Fatalf("decode run report: %v\n%s", err, reportContent)
+	}
+	if report.ExecutableTotal != 2 || len(report.Executable) != 2 {
+		t.Fatalf("expected two xml tasks, got %+v", report)
+	}
+	keys := map[string]string{}
+	for _, task := range report.Executable {
+		keys[task.EntryKey] = task.SourceText
+	}
+	if keys["home.title"] != "Welcome back, {name}" || keys["checkout.cta"] != "Checkout now" {
+		t.Fatalf("unexpected xml tasks: %#v", keys)
+	}
+}
+
 func TestRunDryRunWarnsWhenLegacyPromptIsConfigured(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
