@@ -1,3 +1,12 @@
+allowBuilds:
+  '@mongodb-js/zstd': false
+  '@nestjs/core': false
+  '@swc/core': false
+  cbor-extract: false
+  esbuild: false
+  msw: false
+  node-liblzma: false
+  sharp: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
   vite-plus: latest
