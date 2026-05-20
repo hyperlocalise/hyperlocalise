@@ -291,7 +291,9 @@ async function extractConfigSummary(
     if (filename.endsWith(".jsonc")) {
       const result = await bash.exec("cat", { args: [filePath] });
       if (result.exitCode !== 0) return undefined;
-      jsonText = result.stdout.replace(/\/\/.*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      jsonText = result.stdout
+        .replace(/("(?:[^"\\]|\\.)*")|\/\/[^\n]*/g, (_m, str) => (str ? str : ""))
+        .replace(/\/\*[\s\S]*?\*\//g, "");
     } else {
       // Convert YAML to JSON using yq.
       const result = await bash.exec("yq", { args: ["-o", "json", ".", filePath] });
@@ -412,6 +414,8 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
       const redactedStdout = redact(result.stdout);
       const redactedStderr = redact(result.stderr);
 
+      const report = extractReport(subcommand, redactedStdout);
+
       const { text: stdout, truncated: stdoutTruncated } = truncate(
         redactedStdout,
         DEFAULT_MAX_OUTPUT_BYTES,
@@ -433,8 +437,6 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
             .filter(Boolean);
         }
       }
-
-      const report = extractReport(subcommand, stdout);
 
       return {
         success: true,
