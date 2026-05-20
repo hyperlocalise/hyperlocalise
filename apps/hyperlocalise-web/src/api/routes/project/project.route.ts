@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -19,6 +19,7 @@ import {
 } from "./project.schema";
 import {
   forbiddenResponse,
+  getOwnedProject,
   invalidProjectPayloadResponse,
   isProjectMutationAllowed,
   ownedProjectWhere,
@@ -142,6 +143,143 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       return c.json({ project }, 201);
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .get("/:projectId/files", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await getOwnedProject(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const versionsSubquery = db
+        .select({
+          versionId: schema.repositorySourceFileVersions.id,
+          sourcePath: schema.repositorySourceFileVersions.sourcePath,
+          sourceHash: schema.repositorySourceFileVersions.sourceHash,
+          commitSha: schema.repositorySourceFileVersions.commitSha,
+          workflowRunId: schema.repositorySourceFileVersions.workflowRunId,
+          uploadedAt: schema.repositorySourceFileVersions.createdAt,
+          storedFileId: schema.repositorySourceFileVersions.storedFileId,
+          metadata: schema.storedFiles.metadata,
+          filename: schema.storedFiles.filename,
+          byteSize: schema.storedFiles.byteSize,
+          rowNumber:
+            sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.repositorySourceFileVersions.sourcePath} ORDER BY ${schema.repositorySourceFileVersions.createdAt} DESC)`.as(
+              "rn",
+            ),
+        })
+        .from(schema.repositorySourceFileVersions)
+        .innerJoin(
+          schema.storedFiles,
+          eq(schema.storedFiles.id, schema.repositorySourceFileVersions.storedFileId),
+        )
+        .where(
+          and(
+            eq(schema.storedFiles.projectId, params.projectId),
+            eq(schema.storedFiles.role, "source"),
+            eq(schema.storedFiles.sourceKind, "repository_file"),
+            eq(schema.storedFiles.organizationId, c.var.auth.organization.localOrganizationId),
+          ),
+        )
+        .as("versions_sq");
+
+      const versions = await db
+        .select({
+          versionId: versionsSubquery.versionId,
+          sourcePath: versionsSubquery.sourcePath,
+          sourceHash: versionsSubquery.sourceHash,
+          commitSha: versionsSubquery.commitSha,
+          workflowRunId: versionsSubquery.workflowRunId,
+          uploadedAt: versionsSubquery.uploadedAt,
+          storedFileId: versionsSubquery.storedFileId,
+          metadata: versionsSubquery.metadata,
+          filename: versionsSubquery.filename,
+          byteSize: versionsSubquery.byteSize,
+        })
+        .from(versionsSubquery)
+        .where(eq(versionsSubquery.rowNumber, 1));
+
+      const versionIds = versions.map((v) => v.versionId);
+
+      const latestJobs = new Map<
+        string,
+        {
+          jobId: string;
+          jobStatus: string;
+          jobCreatedAt: Date;
+          jobType: string;
+        }
+      >();
+
+      if (versionIds.length > 0) {
+        const jobsSubquery = db
+          .select({
+            versionId: schema.translationJobDetails.sourceFileVersionId,
+            jobId: schema.jobs.id,
+            jobStatus: schema.jobs.status,
+            jobCreatedAt: schema.jobs.createdAt,
+            jobType: schema.translationJobDetails.type,
+            rowNumber:
+              sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.translationJobDetails.sourceFileVersionId} ORDER BY ${schema.jobs.createdAt} DESC)`.as(
+                "rn",
+              ),
+          })
+          .from(schema.jobs)
+          .innerJoin(
+            schema.translationJobDetails,
+            eq(schema.translationJobDetails.jobId, schema.jobs.id),
+          )
+          .where(
+            and(
+              eq(schema.jobs.projectId, params.projectId),
+              inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
+            ),
+          )
+          .as("jobs_sq");
+
+        const jobs = await db
+          .select({
+            versionId: jobsSubquery.versionId,
+            jobId: jobsSubquery.jobId,
+            jobStatus: jobsSubquery.jobStatus,
+            jobCreatedAt: jobsSubquery.jobCreatedAt,
+            jobType: jobsSubquery.jobType,
+          })
+          .from(jobsSubquery)
+          .where(eq(jobsSubquery.rowNumber, 1));
+
+        for (const j of jobs) {
+          if (j.versionId) {
+            latestJobs.set(j.versionId, j);
+          }
+        }
+      }
+
+      const files = versions.map((v) => {
+        const job = latestJobs.get(v.versionId);
+        return {
+          sourcePath: v.sourcePath,
+          sourceHash: v.sourceHash,
+          commitSha: v.commitSha,
+          workflowRunId: v.workflowRunId,
+          uploadedAt: v.uploadedAt.toISOString(),
+          storedFileId: v.storedFileId,
+          metadata: v.metadata as Record<string, unknown>,
+          filename: v.filename,
+          byteSize: v.byteSize,
+          latestJob: job
+            ? {
+                id: job.jobId,
+                status: job.jobStatus,
+                createdAt: job.jobCreatedAt.toISOString(),
+                type: job.jobType,
+              }
+            : null,
+        };
+      });
+
+      return c.json({ files }, 200);
+    })
     .get("/:projectId", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const project = await projectStore.getById(c.var.auth, params.projectId);
