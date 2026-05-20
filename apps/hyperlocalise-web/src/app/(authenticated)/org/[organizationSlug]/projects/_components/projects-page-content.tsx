@@ -188,6 +188,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
           isDeletingProject={deleteProjectMutation.isPending}
+          organizationSlug={organizationSlug}
           onCreateProject={openCreateProjectDialog}
           onEditProject={openEditProjectDialog}
           onDeleteProject={setDeleteProject}

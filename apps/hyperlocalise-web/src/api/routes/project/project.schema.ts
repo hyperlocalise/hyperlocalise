@@ -45,9 +45,42 @@ export const projectsResponseSchema = z.object({
   projects: z.array(projectRecordSchema),
 });
 
+export const projectFileRecordSchema = z.object({
+  sourcePath: z.string(),
+  sourceHash: z.string().nullable(),
+  commitSha: z.string().nullable(),
+  workflowRunId: z.string().nullable(),
+  uploadedAt: z.string(),
+  storedFileId: z.string(),
+  metadata: z.record(z.string(), z.unknown()),
+  filename: z.string(),
+  byteSize: z.number(),
+  latestJob: z
+    .object({
+      id: z.string(),
+      status: z.enum([
+        "queued",
+        "running",
+        "succeeded",
+        "failed",
+        "waiting_for_review",
+        "cancelled",
+      ]),
+      createdAt: z.string(),
+      type: z.enum(["string", "file"]),
+    })
+    .nullable(),
+});
+
+export const projectFilesResponseSchema = z.object({
+  files: z.array(projectFileRecordSchema),
+});
+
 export type ProjectIdParams = z.infer<typeof projectIdParamsSchema>;
 export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
 export type ProjectRecord = z.infer<typeof projectRecordSchema>;
 export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
+export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
+export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
