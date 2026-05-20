@@ -497,7 +497,10 @@ describe("projectRoutes", () => {
       byteSize: 120,
       latestJob: null,
     });
-    expect(body.files[0].metadata).toMatchObject({ sourcePath: "src/locale/en.json", sourceHash: "abc123" });
+    expect(body.files[0].metadata).toMatchObject({
+      sourcePath: "src/locale/en.json",
+      sourceHash: "abc123",
+    });
   });
 
   it("returns 404 when another organization fetches project files", async () => {
