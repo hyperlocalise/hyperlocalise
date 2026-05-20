@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -21,8 +22,21 @@ type genericXMLEntry struct {
 }
 
 type genericXMLDocument struct {
-	template string
-	entries  []genericXMLEntry
+	template        string
+	entries         []genericXMLEntry
+	rootLocaleAttrs []genericXMLLocaleAttr
+}
+
+type genericXMLLocaleAttr struct {
+	valueStart int
+	valueEnd   int
+	value      string
+}
+
+type genericXMLReplacement struct {
+	start int
+	end   int
+	value string
 }
 
 type genericXMLFrame struct {
@@ -57,34 +71,62 @@ func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	return doc.render(values), nil
+	return doc.render(values, "", ""), nil
 }
 
-func (d genericXMLDocument) render(values map[string]string) []byte {
-	if len(d.entries) == 0 {
+func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
+	doc, err := parseGenericXMLDocument(template)
+	if err != nil {
+		return nil, err
+	}
+	return doc.render(values, sourceLocale, targetLocale), nil
+}
+
+func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) []byte {
+	replacements := make([]genericXMLReplacement, 0, len(d.entries)+len(d.rootLocaleAttrs))
+	for _, entry := range d.entries {
+		value := entry.valueRaw
+		if translated, ok := values[entry.key]; ok {
+			if translated != entry.sourceValue {
+				value = escapeXMLText(translated)
+			}
+		}
+		replacements = append(replacements, genericXMLReplacement{
+			start: entry.valueStart,
+			end:   entry.valueEnd,
+			value: value,
+		})
+	}
+
+	locale := strings.TrimSpace(targetLocale)
+	if locale != "" {
+		for _, attr := range d.rootLocaleAttrs {
+			if !genericXMLLocaleAttrMatchesSource(attr.value, sourceLocale) {
+				continue
+			}
+			replacements = append(replacements, genericXMLReplacement{
+				start: attr.valueStart,
+				end:   attr.valueEnd,
+				value: escapeXMLAttr(genericXMLTargetLocaleForAttr(attr.value, locale)),
+			})
+		}
+	}
+
+	if len(replacements) == 0 {
 		return []byte(d.template)
 	}
 
-	entries := append([]genericXMLEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	sort.Slice(replacements, func(i, j int) bool { return replacements[i].start < replacements[j].start })
 
 	var b strings.Builder
 	cursor := 0
-	for _, entry := range entries {
-		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
+	for _, replacement := range replacements {
+		if replacement.start < cursor || replacement.start > len(d.template) || replacement.end > len(d.template) {
 			continue
 		}
-		b.WriteString(d.template[cursor:entry.valueStart])
-		if translated, ok := values[entry.key]; ok {
-			if translated == entry.sourceValue {
-				b.WriteString(entry.valueRaw)
-			} else {
-				b.WriteString(escapeXMLText(translated))
-			}
-		} else {
-			b.WriteString(entry.valueRaw)
-		}
-		cursor = entry.valueEnd
+		b.WriteString(d.template[cursor:replacement.start])
+		b.WriteString(replacement.value)
+		cursor = replacement.end
 	}
 	b.WriteString(d.template[cursor:])
 	return []byte(b.String())
@@ -121,6 +163,7 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				if isGenericXMLSpecializedRoot(rootName) {
 					return genericXMLDocument{}, fmt.Errorf("generic XML parser: <%s> files require a specialized parser and are not supported as generic XML", rootName)
 				}
+				doc.rootLocaleAttrs = genericXMLRootLocaleAttrs(text[tokenStart:tokenEnd], tokenStart)
 			}
 			if len(stack) > 0 {
 				stack[len(stack)-1].hasElementChild = true
@@ -219,8 +262,12 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				current.hasNonWhitespace = true
 			}
 			current.value.Write(token)
-		case xml.Comment, xml.Directive, xml.ProcInst:
-			if len(stack) > 0 && strings.TrimSpace(text[tokenStart:tokenEnd]) != "" {
+		case xml.Comment:
+			if len(stack) > 0 && strings.TrimSpace(string(token)) != "" {
+				stack[len(stack)-1].hasNonTextContent = true
+			}
+		case xml.Directive, xml.ProcInst:
+			if len(stack) > 0 {
 				stack[len(stack)-1].hasNonTextContent = true
 			}
 		}
@@ -246,12 +293,65 @@ func genericXMLResolvedKey(frame *genericXMLFrame) string {
 			parts = append(parts, frame.name)
 			return strings.Join(parts, ".")
 		}
-		if frame.ownKey == "" && isGenericXMLValueElement(frame.name) {
-			return strings.Join(frame.keyPath, ".")
-		}
 		return strings.Join(frame.keyPath, ".")
 	}
 	return strings.Join(frame.path, ".")
+}
+
+var genericXMLRootLocaleAttrPattern = regexp.MustCompile(`(?i)(?:^|[\s<])(?:xml:lang|lang|locale|language|code)\s*=\s*(?:"([^"]*)"|'([^']*)')`)
+
+func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int) []genericXMLLocaleAttr {
+	matches := genericXMLRootLocaleAttrPattern.FindAllStringSubmatchIndex(rawStartTag, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	attrs := make([]genericXMLLocaleAttr, 0, len(matches))
+	for _, match := range matches {
+		valueStart, valueEnd := match[2], match[3]
+		if valueStart < 0 || valueEnd < 0 {
+			valueStart, valueEnd = match[4], match[5]
+		}
+		if valueStart < 0 || valueEnd < 0 {
+			continue
+		}
+		attrs = append(attrs, genericXMLLocaleAttr{
+			valueStart: absoluteStart + valueStart,
+			valueEnd:   absoluteStart + valueEnd,
+			value:      rawStartTag[valueStart:valueEnd],
+		})
+	}
+	return attrs
+}
+
+func genericXMLLocaleAttrMatchesSource(attrValue, sourceLocale string) bool {
+	attr := strings.TrimSpace(attrValue)
+	source := strings.TrimSpace(sourceLocale)
+	if attr == "" || source == "" {
+		return false
+	}
+	if strings.EqualFold(attr, source) {
+		return true
+	}
+	if !strings.Contains(attr, "-") && !strings.Contains(attr, "_") {
+		base := source
+		if idx := strings.IndexAny(base, "-_"); idx >= 0 {
+			base = base[:idx]
+		}
+		return strings.EqualFold(attr, base)
+	}
+	return false
+}
+
+func genericXMLTargetLocaleForAttr(attrValue, targetLocale string) string {
+	target := strings.TrimSpace(targetLocale)
+	attr := strings.TrimSpace(attrValue)
+	if attr != "" && !strings.Contains(attr, "-") && !strings.Contains(attr, "_") {
+		if idx := strings.IndexAny(target, "-_"); idx >= 0 {
+			return target[:idx]
+		}
+	}
+	return target
 }
 
 func genericXMLKeyAttr(attrs []xml.Attr) string {
@@ -276,7 +376,7 @@ func isGenericXMLMetadataElement(name string) bool {
 
 func isGenericXMLValueElement(name string) bool {
 	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "value", "text", "message", "string", "label":
+	case "value":
 		return true
 	default:
 		return false
@@ -290,4 +390,15 @@ func isGenericXMLSpecializedRoot(name string) bool {
 	default:
 		return false
 	}
+}
+
+func escapeXMLAttr(s string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	)
+	return replacer.Replace(s)
 }

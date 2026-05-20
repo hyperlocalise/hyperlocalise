@@ -110,7 +110,7 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return content, nil
 	case ".xml", ".resx":
-		content, err := translationfileparser.MarshalGenericXML(template, values)
+		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}

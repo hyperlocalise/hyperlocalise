@@ -56,6 +56,22 @@ func TestGenericXMLParserParsesResxStyleDataValues(t *testing.T) {
 	}
 }
 
+func TestGenericXMLParserKeepsNamedChildElementsUnderKeyedParent(t *testing.T) {
+	content := []byte(`<locale><section id="home"><message>Welcome</message><label>Start now</label></section></locale>`)
+
+	got, err := GenericXMLParser{}.Parse(content)
+	if err != nil {
+		t.Fatalf("parse keyed child elements: %v", err)
+	}
+	want := map[string]string{
+		"home.message": "Welcome",
+		"home.label":   "Start now",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestMarshalGenericXMLPreservesStructureAndReplacesOnlyText(t *testing.T) {
 	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <locale code="en-US">
@@ -87,6 +103,41 @@ func TestMarshalGenericXMLPreservesStructureAndReplacesOnlyText(t *testing.T) {
 	}
 }
 
+func TestMarshalGenericXMLWithTargetLocaleRewritesSourceLocaleAttributes(t *testing.T) {
+	template := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<locale code="en-US" xml:lang="en" data-code="keep">
+  <message key="hello">Hello</message>
+</locale>`)
+
+	out, err := MarshalGenericXMLWithTargetLocale(template, map[string]string{"hello": "Bonjour"}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal generic xml with target locale: %v", err)
+	}
+	rendered := string(out)
+	for _, want := range []string{
+		`code="fr-FR"`,
+		`xml:lang="fr"`,
+		`data-code="keep"`,
+		`<message key="hello">Bonjour</message>`,
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected %q in rendered xml:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestMarshalGenericXMLWithTargetLocalePreservesExistingTargetLocale(t *testing.T) {
+	template := []byte(`<locale code="fr-FR"><message key="hello">Salut</message></locale>`)
+
+	out, err := MarshalGenericXMLWithTargetLocale(template, map[string]string{"hello": "Bonjour"}, "en-US", "fr-FR")
+	if err != nil {
+		t.Fatalf("marshal generic xml with existing target locale: %v", err)
+	}
+	if got := string(out); !strings.Contains(got, `code="fr-FR"`) {
+		t.Fatalf("expected existing target locale preserved, got %q", got)
+	}
+}
+
 func TestMarshalGenericXMLPreservesRawEntityWhenValueUnchanged(t *testing.T) {
 	template := []byte(`<locale><message key="terms">Terms &amp; conditions</message></locale>`)
 
@@ -110,6 +161,16 @@ func TestGenericXMLParserRejectsMixedContent(t *testing.T) {
 	_, err := GenericXMLParser{}.Parse([]byte(`<locale><message key="hello">Hello <ph id="name"/>!</message></locale>`))
 	if err == nil || !strings.Contains(err.Error(), "mixed content") {
 		t.Fatalf("expected mixed content error, got %v", err)
+	}
+}
+
+func TestGenericXMLParserIgnoresEmptyCommentInTextLeaf(t *testing.T) {
+	got, err := GenericXMLParser{}.Parse([]byte(`<locale><message key="hello">Hello<!----></message></locale>`))
+	if err != nil {
+		t.Fatalf("parse empty comment in text leaf: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello entry: %#v", got)
 	}
 }
 
