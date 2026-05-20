@@ -4,17 +4,43 @@ vi.mock("workflow", () => ({
   getWorkflowMetadata: vi.fn(() => ({ workflowRunId: "run_123" })),
 }));
 
-const stopMock = vi.fn();
-const createMock = vi.fn(async () => ({ sandboxId: "sbx_1" }));
-const getMock = vi.fn(async () => ({ stop: stopMock }));
+const {
+  authMock,
+  createMock,
+  generateMock,
+  getInstallationOctokitMock,
+  getMock,
+  stopMock,
+  toolLoopAgentCtor,
+} = vi.hoisted(() => {
+  const authMock = vi.fn(async () => ({ token: "installation-token" }));
+  const stopMock = vi.fn();
+  const createMock = vi.fn(async () => ({ sandboxId: "sbx_1" }));
+  const getMock = vi.fn(async () => ({ stop: stopMock }));
+  const getInstallationOctokitMock = vi.fn(async () => ({ auth: authMock }));
+  const generateMock = vi.fn(async () => ({ text: "done" }));
+  const toolLoopAgentCtor = vi.fn(function ToolLoopAgent(_options: unknown) {
+    return { generate: generateMock };
+  });
+
+  return {
+    authMock,
+    createMock,
+    generateMock,
+    getInstallationOctokitMock,
+    getMock,
+    stopMock,
+    toolLoopAgentCtor,
+  };
+});
 
 vi.mock("@vercel/sandbox", () => ({ Sandbox: { create: createMock, get: getMock } }));
 
-const generateMock = vi.fn(async () => ({ text: "done" }));
-const toolLoopAgentCtor = vi.fn(function ToolLoopAgent() {
-  return { generate: generateMock };
-});
 vi.mock("ai", () => ({ ToolLoopAgent: toolLoopAgentCtor }));
+
+vi.mock("@/lib/agents/github/app", () => ({
+  getInstallationOctokit: getInstallationOctokitMock,
+}));
 
 vi.mock("@/lib/agents/hyperlocalise-agent", () => ({
   getHyperlocaliseAgentModel: vi.fn(() => ({ modelId: "x" })),
@@ -41,13 +67,26 @@ const baseTask = {
 describe("repoTmsAgentWorkflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authMock.mockResolvedValue({ token: "installation-token" });
     createMock.mockResolvedValue({ sandboxId: "sbx_1" });
     generateMock.mockResolvedValue({ text: "done" });
+    getInstallationOctokitMock.mockResolvedValue({ auth: authMock });
+    getMock.mockResolvedValue({ stop: stopMock });
+    stopMock.mockResolvedValue(undefined);
   });
 
   it("returns success state with source target and workflowRunId", async () => {
     const result = await repoTmsAgentWorkflow(baseTask as never);
 
+    expect(toolLoopAgentCtor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: "sys",
+        experimental_context: { sandboxId: null, repoTmsTaskId: "task_1" },
+      }),
+    );
+    expect(generateMock).toHaveBeenCalledWith({
+      messages: [{ role: "user", content: "run checks" }],
+    });
     expect(result).toEqual({
       ok: true,
       workflowRunId: "run_123",
@@ -62,8 +101,29 @@ describe("repoTmsAgentWorkflow", () => {
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
 
-    expect(createMock).toHaveBeenCalled();
+    expect(getInstallationOctokitMock).toHaveBeenCalledWith(1);
+    expect(authMock).toHaveBeenCalledWith({ type: "installation" });
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({
+          password: "installation-token",
+          username: "x-access-token",
+        }),
+      }),
+    );
     expect(stopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows a larger repo task tool-call budget", async () => {
+    await repoTmsAgentWorkflow(baseTask as never);
+
+    const options = toolLoopAgentCtor.mock.calls[0]?.[0] as unknown as {
+      stopWhen: Array<(step: { steps: unknown[] }) => boolean>;
+    };
+    const shouldStop = options.stopWhen[0];
+
+    expect(shouldStop({ steps: Array.from({ length: 19 }) })).toBe(false);
+    expect(shouldStop({ steps: Array.from({ length: 20 }) })).toBe(true);
   });
 
   it("captures failures from tool execution", async () => {
@@ -83,5 +143,22 @@ describe("repoTmsAgentWorkflow", () => {
     } as never);
 
     expect(stopMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves the structured result when cleanup fails", async () => {
+    stopMock.mockRejectedValueOnce(new Error("cleanup failed"));
+
+    const result = await repoTmsAgentWorkflow({
+      ...baseTask,
+      githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
+    } as never);
+
+    expect(result).toEqual({
+      ok: true,
+      workflowRunId: "run_123",
+      sourceReplyTarget: { source: "github", threadId: "thread_1" },
+      summary: "done",
+    });
+    expect(stopMock).toHaveBeenCalledTimes(1);
   });
 });

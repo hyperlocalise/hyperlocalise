@@ -3,6 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { getWorkflowMetadata } from "workflow";
 
 import type { RepoTmsAgentTask } from "@/lib/agents/repo-tms-task";
+import { getInstallationOctokit } from "@/lib/agents/github/app";
 import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
@@ -20,6 +21,43 @@ export type RepoTmsWorkflowResult = {
 };
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
+const agentStepLimit = 20;
+
+type InstallationAuth = {
+  token: string;
+};
+
+type ResolvedRepoTmsGitHubContext = Extract<
+  NonNullable<RepoTmsAgentTask["githubContext"]>,
+  { resolved: true }
+>;
+
+async function createRepoTmsSandbox(githubContext: ResolvedRepoTmsGitHubContext): Promise<string> {
+  "use step";
+
+  const octokit = await getInstallationOctokit(githubContext.installationId);
+  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
+  const sandbox = await Sandbox.create({
+    source: {
+      type: "git",
+      url: `https://github.com/${githubContext.repositoryFullName}.git`,
+      revision: githubContext.commitSha ?? githubContext.branch ?? "HEAD",
+      depth: 1,
+      username: "x-access-token",
+      password: token,
+    },
+    timeout: sandboxTimeoutMs,
+  });
+
+  return sandbox.sandboxId;
+}
+
+async function stopRepoTmsSandbox(sandboxId: string): Promise<void> {
+  "use step";
+
+  const sandbox = await Sandbox.get({ sandboxId });
+  await sandbox.stop();
+}
 
 export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<RepoTmsWorkflowResult> {
   "use workflow";
@@ -29,16 +67,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
 
   try {
     if (task.githubContext?.resolved) {
-      const sandbox = await Sandbox.create({
-        source: {
-          type: "git",
-          url: `https://github.com/${task.githubContext.repositoryFullName}.git`,
-          revision: task.githubContext.commitSha ?? task.githubContext.branch ?? "HEAD",
-          depth: 1,
-        },
-        timeout: sandboxTimeoutMs,
-      });
-      sandboxId = sandbox.sandboxId;
+      sandboxId = await createRepoTmsSandbox(task.githubContext);
     }
 
     const toolContext: ToolContext = {
@@ -53,19 +82,19 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
     const agent = new ToolLoopAgent({
       model: getHyperlocaliseAgentModel(),
       tools,
-      stopWhen: [(step) => step.steps.length >= 5],
-      system: buildHyperlocaliseAgentInstructions({
+      stopWhen: [(step) => step.steps.length >= agentStepLimit],
+      instructions: buildHyperlocaliseAgentInstructions({
         surface: "github",
         projectId: task.projectId,
         additionalInstructions: sandboxId
           ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
           : "No repository sandbox required for this task.",
       }),
+      experimental_context: { sandboxId, repoTmsTaskId: task.id },
     });
 
     const result = await agent.generate({
       messages: [{ role: "user", content: task.instructions }] as ModelMessage[],
-      experimental_context: { sandboxId, repoTmsTaskId: task.id },
     });
 
     return {
@@ -85,8 +114,11 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
     };
   } finally {
     if (sandboxId && task.workMode !== "write") {
-      const sandbox = await Sandbox.get({ sandboxId });
-      await sandbox.stop();
+      try {
+        await stopRepoTmsSandbox(sandboxId);
+      } catch {
+        // Best-effort cleanup; preserve the structured workflow result.
+      }
     }
   }
 }
