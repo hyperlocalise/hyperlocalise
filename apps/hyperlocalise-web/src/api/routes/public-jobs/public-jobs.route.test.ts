@@ -275,6 +275,28 @@ describe("publicJobRoutes", () => {
     expect(body.job.outputFiles).toBeNull();
   });
 
+  it("rejects latest job lookups for another organization's project", async () => {
+    const { apiKey } = await createPublicApiFixture();
+    const { project: otherProject } = await createPublicApiFixture();
+
+    const response = await client.api.v1.jobs.latest.$get(
+      {
+        query: {
+          projectId: otherProject.id,
+          sourcePath: "locales/en/source.xliff",
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      error: "project_not_found",
+      message: expect.any(String),
+    });
+  });
+
   it("returns the newest succeeded repository file job by source upload order", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     const olderJob = await insertRepositoryPublicFileJob({

@@ -105,6 +105,18 @@ function publicJobOutputFiles(input: {
   }));
 }
 
+async function getProjectForOrganization(organizationId: string, projectId: string) {
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(
+      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
+    )
+    .limit(1);
+
+  return project ?? null;
+}
+
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
@@ -112,17 +124,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       const payload = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
 
-      // Verify project belongs to the authenticated organization
-      const [project] = await db
-        .select({ id: schema.projects.id })
-        .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.id, payload.projectId),
-            eq(schema.projects.organizationId, organizationId),
-          ),
-        )
-        .limit(1);
+      const project = await getProjectForOrganization(organizationId, payload.projectId);
 
       if (!project) {
         return projectNotFoundResponse(c);
@@ -220,6 +222,11 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         const query = c.req.valid("query");
         const organizationId = c.var.auth.organization.localOrganizationId;
         const sourcePath = normalizeSourcePath(query.sourcePath);
+        const project = await getProjectForOrganization(organizationId, query.projectId);
+
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
 
         const [job] = await db
           .select({
@@ -246,10 +253,10 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           .where(
             and(
               eq(schema.repositorySourceFileVersions.organizationId, organizationId),
-              eq(schema.repositorySourceFileVersions.projectId, query.projectId),
+              eq(schema.repositorySourceFileVersions.projectId, project.id),
               eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
               eq(schema.jobs.organizationId, organizationId),
-              eq(schema.jobs.projectId, query.projectId),
+              eq(schema.jobs.projectId, project.id),
               eq(schema.jobs.kind, "translation"),
               eq(schema.jobs.status, "succeeded"),
               eq(schema.translationJobDetails.type, "file"),

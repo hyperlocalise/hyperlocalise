@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -24,6 +25,8 @@ import (
 )
 
 const hyperlocaliseManifestVersion = 1
+
+var hyperlocaliseJobPollInterval = 5 * time.Second
 
 type hyperlocaliseSyncRuntime struct {
 	cfg          *config.I18NConfig
@@ -104,6 +107,15 @@ type hyperlocaliseAPIClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+}
+
+type hyperlocaliseAPIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *hyperlocaliseAPIError) Error() string {
+	return fmt.Sprintf("hyperlocalise api returned %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
 }
 
 type hyperlocaliseUploadFileResponse struct {
@@ -262,28 +274,38 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 }
 
 func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, timeout time.Duration) (hyperlocalisePullReport, error) {
-	plans, err := planHyperlocalisePullFiles(rt.cfg, o.locales)
+	manifest, err := readHyperlocaliseManifest(rt.manifestPath)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
+	}
+	if !manifest.Complete {
+		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest is incomplete; rerun sync push before pulling")
+	}
+	if manifest.ProjectID != "" && manifest.ProjectID != rt.projectID {
+		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest project %q does not match configured project %q", manifest.ProjectID, rt.projectID)
 	}
 
 	if timeout <= 0 {
 		timeout = rt.timeout
 	}
-	rt.client.httpClient.Timeout = timeout
 
 	report := hyperlocalisePullReport{
 		Action:       "pull",
 		Complete:     true,
-		Jobs:         len(plans),
+		Jobs:         len(manifest.Jobs),
 		ManifestPath: rt.manifestPath,
 		DryRun:       o.dryRun,
 	}
 
-	for _, plan := range plans {
-		job, err := rt.client.getLatestCompletedFileJob(ctx, rt.projectID, plan.SourcePath)
+	deadline := time.Now().Add(timeout)
+	for i, manifestJob := range manifest.Jobs {
+		job, err := waitForHyperlocaliseJob(ctx, rt.client, manifestJob, deadline)
 		if err != nil {
-			return report, fmt.Errorf("find latest completed hyperlocalise job for %s: %w", plan.SourcePath, err)
+			var timeoutErr *hyperlocaliseJobTimeoutError
+			if errors.As(err, &timeoutErr) {
+				return report, fmt.Errorf("timed out waiting for hyperlocalise jobs: %s", describePendingHyperlocaliseJobs(manifest.Jobs[i:], manifestJob.JobID, timeoutErr.Status))
+			}
+			return report, err
 		}
 
 		outcome, err := parseHyperlocaliseFileOutcome(job)
@@ -292,7 +314,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 		}
 
 		for _, outputFile := range outcome.OutputFiles {
-			targetPath := strings.TrimSpace(plan.TargetPaths[outputFile.Locale])
+			targetPath := strings.TrimSpace(manifestJob.TargetPaths[outputFile.Locale])
 			if targetPath == "" {
 				report.Skipped++
 				continue
@@ -303,7 +325,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			}
 			content, err := rt.client.downloadFile(ctx, outputFile.FileID)
 			if err != nil {
-				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, job.ID, err)
+				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, manifestJob.JobID, err)
 			}
 			if err := writeFileAtomic(targetPath, content); err != nil {
 				return report, fmt.Errorf("write target file %q: %w", targetPath, err)
@@ -313,6 +335,96 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	}
 
 	return report, nil
+}
+
+type hyperlocaliseJobTimeoutError struct {
+	Status string
+}
+
+func (e *hyperlocaliseJobTimeoutError) Error() string {
+	return "timed out waiting for hyperlocalise job"
+}
+
+func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient, manifestJob hyperlocaliseManifestJob, deadline time.Time) (hyperlocaliseJob, error) {
+	jobID := manifestJob.JobID
+	for {
+		if !time.Now().Before(deadline) {
+			return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
+		}
+
+		requestCtx, cancel := context.WithDeadline(ctx, deadline)
+		job, err := client.getJob(requestCtx, jobID)
+		cancel()
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return hyperlocaliseJob{}, ctxErr
+			}
+			return hyperlocaliseJob{}, err
+		}
+
+		switch job.Status {
+		case "succeeded":
+			return job, nil
+		case "failed", "cancelled":
+			if strings.TrimSpace(job.LastError) != "" {
+				return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s: %s", jobID, job.Status, job.LastError)
+			}
+			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s", jobID, job.Status)
+		case "queued", "running", "waiting_for_review":
+			if !time.Now().Before(deadline) {
+				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: job.Status}
+			}
+
+			wait := time.Until(deadline)
+			if wait > hyperlocaliseJobPollInterval {
+				wait = hyperlocaliseJobPollInterval
+			}
+
+			timer := time.NewTimer(wait)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
+				return hyperlocaliseJob{}, ctx.Err()
+			case <-timer.C:
+			}
+		default:
+			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s has unknown status %q", jobID, job.Status)
+		}
+	}
+}
+
+func describePendingHyperlocaliseJobs(manifestJobs []hyperlocaliseManifestJob, statusJobID, status string) string {
+	descriptions := make([]string, 0, len(manifestJobs))
+	for _, manifestJob := range manifestJobs {
+		jobStatus := ""
+		if manifestJob.JobID == statusJobID {
+			jobStatus = status
+		}
+		descriptions = append(descriptions, describePendingHyperlocaliseJob(manifestJob, jobStatus))
+	}
+	return strings.Join(descriptions, "; ")
+}
+
+func describePendingHyperlocaliseJob(manifestJob hyperlocaliseManifestJob, status string) string {
+	var parts []string
+	if jobID := strings.TrimSpace(manifestJob.JobID); jobID != "" {
+		parts = append(parts, "job_id="+jobID)
+	}
+	if sourcePath := strings.TrimSpace(manifestJob.SourcePath); sourcePath != "" {
+		parts = append(parts, "source_path="+sourcePath)
+	}
+	if len(manifestJob.TargetLocales) > 0 {
+		parts = append(parts, "target_locales="+strings.Join(manifestJob.TargetLocales, ","))
+	}
+	if status = strings.TrimSpace(status); status != "" {
+		parts = append(parts, "status="+status)
+	}
+	if len(parts) == 0 {
+		return "unknown pending job"
+	}
+	return strings.Join(parts, " ")
 }
 
 func newHyperlocaliseManifest(rt *hyperlocaliseSyncRuntime) hyperlocaliseSyncManifest {
@@ -553,6 +665,14 @@ func hyperlocaliseJobMetadata(plan hyperlocaliseFilePlan) map[string]string {
 	return metadata
 }
 
+func (c *hyperlocaliseAPIClient) getJob(ctx context.Context, jobID string) (hyperlocaliseJob, error) {
+	var response hyperlocaliseJobResponse
+	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/"+jobID, "", nil, &response); err != nil {
+		return hyperlocaliseJob{}, err
+	}
+	return response.Job, nil
+}
+
 func (c *hyperlocaliseAPIClient) getLatestCompletedFileJob(ctx context.Context, projectID, sourcePath string) (hyperlocaliseJob, error) {
 	query := url.Values{}
 	query.Set("projectId", projectID)
@@ -580,7 +700,7 @@ func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("hyperlocalise api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	const maxDownloadBytes = 50 * 1024 * 1024 // 50 MB
@@ -606,7 +726,7 @@ func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, conte
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("hyperlocalise api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	if out == nil {
 		return nil
@@ -692,6 +812,21 @@ func writeHyperlocaliseManifest(path string, manifest hyperlocaliseSyncManifest)
 	}
 	content = append(content, '\n')
 	return writeFileAtomic(path, content)
+}
+
+func readHyperlocaliseManifest(path string) (hyperlocaliseSyncManifest, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return hyperlocaliseSyncManifest{}, fmt.Errorf("read hyperlocalise manifest %q: %w", path, err)
+	}
+	var manifest hyperlocaliseSyncManifest
+	if err := json.Unmarshal(content, &manifest); err != nil {
+		return hyperlocaliseSyncManifest{}, fmt.Errorf("decode hyperlocalise manifest %q: %w", path, err)
+	}
+	if manifest.Version != hyperlocaliseManifestVersion {
+		return hyperlocaliseSyncManifest{}, fmt.Errorf("unsupported hyperlocalise manifest version %d", manifest.Version)
+	}
+	return manifest, nil
 }
 
 func writeFileAtomic(path string, content []byte) error {
