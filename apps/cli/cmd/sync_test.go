@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
 func TestSyncCommonOptionsDefaultToApplyMode(t *testing.T) {
@@ -66,48 +68,170 @@ func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
 	}
 }
 
-func TestHyperlocalisePullTimeoutIncludesPendingJobDetails(t *testing.T) {
+func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T) {
 	dir := t.TempDir()
-	manifestPath := filepath.Join(dir, "jobs.json")
-	manifest := hyperlocaliseSyncManifest{
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	manifestPath := filepath.Join(dir, "hyperlocalise-jobs.json")
+	requestedLatest := false
+	requestedJobByID := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/jobs/job-owned":
+			requestedJobByID = true
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"id":"job-owned","status":"succeeded","outputFiles":[{"fileId":"file-fr","locale":"fr","filename":"fr.json"}]}}`))
+		case "/v1/jobs/latest":
+			requestedLatest = true
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"id":"job-newer","status":"succeeded","outputFiles":[{"fileId":"file-newer-fr","locale":"fr","filename":"fr.json"}]}}`))
+		case "/v1/files/file-fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		case "/v1/files/file-newer-fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Salut"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	httpClient := server.Client()
+	httpClient.Timeout = 42 * time.Second
+	if err := writeHyperlocaliseManifest(manifestPath, hyperlocaliseSyncManifest{
 		Version:     hyperlocaliseManifestVersion,
 		Complete:    true,
 		GeneratedAt: time.Now().UTC(),
 		ProjectID:   "project-1",
 		Jobs: []hyperlocaliseManifestJob{{
-			JobID:         "job-1",
+			JobID:         "job-owned",
 			SourcePath:    "locales/en.json",
-			TargetLocales: []string{"fr-FR", "de-DE"},
+			TargetLocales: []string{"fr"},
 			TargetPaths: map[string]string{
-				"fr-FR": "locales/fr-FR.json",
-				"de-DE": "locales/de-DE.json",
-			},
-		}, {
-			JobID:         "job-2",
-			SourcePath:    "content/en.json",
-			TargetLocales: []string{"fr-FR"},
-			TargetPaths: map[string]string{
-				"fr-FR": "content/fr-FR.json",
+				"fr": targetPath,
 			},
 		}},
-	}
-	if err := writeHyperlocaliseManifest(manifestPath, manifest); err != nil {
+	}); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/jobs/job-1" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"job":{"id":"job-1","status":"queued"}}`))
-	}))
-	defer server.Close()
-
 	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
 		projectID:    "project-1",
 		manifestPath: manifestPath,
-		timeout:      time.Nanosecond,
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: httpClient,
+		},
+	}
+
+	report, err := runHyperlocalisePull(
+		context.Background(),
+		rt,
+		syncCommonOptions{},
+		250*time.Millisecond,
+	)
+	if err != nil {
+		t.Fatalf("pull manifest job: %v", err)
+	}
+	if requestedLatest {
+		t.Fatalf("sync pull should not request the latest completed job")
+	}
+	if !requestedJobByID {
+		t.Fatalf("expected sync pull to request the manifest job ID")
+	}
+	if httpClient.Timeout != 42*time.Second {
+		t.Fatalf("http client timeout = %s, want unchanged 42s", httpClient.Timeout)
+	}
+	if report.Jobs != 1 || report.Downloaded != 1 || report.Skipped != 0 {
+		t.Fatalf("report = %#v, want one downloaded job output", report)
+	}
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("target content = %q", string(content))
+	}
+}
+
+func TestHyperlocalisePullPollsUntilManifestJobIsComplete(t *testing.T) {
+	originalPollInterval := hyperlocaliseJobPollInterval
+	hyperlocaliseJobPollInterval = 10 * time.Millisecond
+	t.Cleanup(func() {
+		hyperlocaliseJobPollInterval = originalPollInterval
+	})
+
+	dir := t.TempDir()
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	manifestPath := filepath.Join(dir, "hyperlocalise-jobs.json")
+	jobRequests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/jobs/job-owned":
+			jobRequests++
+			if jobRequests < 3 {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"job":{"id":"job-owned","status":"running"}}`))
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"id":"job-owned","status":"succeeded","outputFiles":[{"fileId":"file-fr","locale":"fr","filename":"fr.json"}]}}`))
+		case "/v1/files/file-fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	if err := writeHyperlocaliseManifest(manifestPath, hyperlocaliseSyncManifest{
+		Version:     hyperlocaliseManifestVersion,
+		Complete:    true,
+		GeneratedAt: time.Now().UTC(),
+		ProjectID:   "project-1",
+		Jobs: []hyperlocaliseManifestJob{{
+			JobID:         "job-owned",
+			SourcePath:    "locales/en.json",
+			TargetLocales: []string{"fr"},
+			TargetPaths: map[string]string{
+				"fr": targetPath,
+			},
+		}},
+	}); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		projectID:    "project-1",
+		manifestPath: manifestPath,
+		timeout:      200 * time.Millisecond,
 		client: &hyperlocaliseAPIClient{
 			baseURL:    server.URL,
 			apiKey:     "test-key",
@@ -115,29 +239,27 @@ func TestHyperlocalisePullTimeoutIncludesPendingJobDetails(t *testing.T) {
 		},
 	}
 
-	_, err := runHyperlocalisePull(
+	report, err := runHyperlocalisePull(
 		context.Background(),
 		rt,
 		syncCommonOptions{},
-		time.Nanosecond,
+		0,
 	)
-	if err == nil {
-		t.Fatalf("expected timeout error")
+	if err != nil {
+		t.Fatalf("pull manifest job after polling: %v", err)
 	}
-	got := err.Error()
-	for _, want := range []string{
-		"timed out waiting for hyperlocalise jobs",
-		"job_id=job-1",
-		"source_path=locales/en.json",
-		"target_locales=fr-FR,de-DE",
-		"status=queued",
-		"job_id=job-2",
-		"source_path=content/en.json",
-		"target_locales=fr-FR",
-	} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("timeout error = %q, want %q", got, want)
-		}
+	if jobRequests != 3 {
+		t.Fatalf("manifest job requests = %d, want 3", jobRequests)
+	}
+	if report.Jobs != 1 || report.Downloaded != 1 || report.Skipped != 0 {
+		t.Fatalf("report = %#v, want one downloaded job output", report)
+	}
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("target content = %q", string(content))
 	}
 }
 
