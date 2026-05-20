@@ -15,10 +15,11 @@
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Android XML strings, Markdown/MDX, and HTML parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -100,6 +101,17 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### Android XML Strings (`.xml`)
+
+- Applies only to Android string resource paths matching `**/res/values*/strings.xml`.
+- Parses `<string name="...">` values by resource name.
+- Parses `<plurals name="..."><item quantity="...">` values as `name.quantity`.
+- Skips resources marked `translatable="false"`.
+- Preserves comments, resource attributes such as `formatted`, namespace declarations, and unrelated whitespace when marshalling.
+- Preserves Android printf placeholders such as `%1$s` and `%d` as normal resource text.
+- Rejects unsupported translatable resource constructs such as `<string-array>` with clear errors.
+- `MarshalAndroidXMLResources(template, values)` preserves the source or target template layout and replaces only supported resource value bodies.
 
 ## Minimal usage
 

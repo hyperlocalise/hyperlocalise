@@ -43,6 +43,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".strings", AppleStringsParser{})
 	s.Register(".stringsdict", AppleStringsdictParser{})
 	s.Register(".csv", CSVParser{})
+	s.Register(".xml", AndroidXMLResourcesParser{})
 	return s
 }
 

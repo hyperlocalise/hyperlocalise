@@ -77,6 +77,20 @@ Shared multi-locale file:
 
 For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
+### Android XML string resource mappings
+
+Android XML support is intentionally scoped to string resource files named `strings.xml` under `res/values*` directories. Use Android locale qualifier names in your target paths:
+
+```yaml
+buckets:
+  android:
+    files:
+      - from: app/src/main/res/values/strings.xml
+        to: app/src/main/res/values-{{target}}/strings.xml
+```
+
+Supported resource entries are `<string name="...">` and `<plurals name="..."><item quantity="...">`. Resources marked `translatable="false"` are preserved and skipped. Unsupported translatable resource shapes such as `<string-array>` fail closed so they are not silently dropped.
+
 ## Groups
 
 `groups.<name>` defines what to process together.

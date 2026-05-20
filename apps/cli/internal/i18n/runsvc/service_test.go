@@ -2785,6 +2785,79 @@ func TestRunWritesAppleStringsdictWithInsertedKeyWhenExistingTargetPresent(t *te
 	}
 }
 
+func TestRunWritesAndroidXMLResourcesUsingSourceTemplate(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/app/src/main/res/values/strings.xml"
+	targetPath := "/tmp/app/src/main/res/values-fr/strings.xml"
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+  <!-- keep comment -->
+  <string name="welcome" formatted="true">Hello <xliff:g id="user">%1$s</xliff:g></string>
+  <string name="debug_only" translatable="false">Debug only</string>
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		switch req.Source {
+		case `Hello <xliff:g id="user">%1$s</xliff:g>`:
+			return `Bonjour <xliff:g id="user">%1$s</xliff:g>`, nil
+		case "%d item":
+			return "%d article", nil
+		case "%d items":
+			return "%d articles", nil
+		case "Debug only":
+			t.Fatalf("translatable=false Android string must not be translated")
+			return "", nil
+		default:
+			return req.Source, nil
+		}
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	for _, want := range []string{
+		"<!-- keep comment -->",
+		`formatted="true"`,
+		`<string name="debug_only" translatable="false">Debug only</string>`,
+		`Bonjour <xliff:g id="user">%1$s</xliff:g>`,
+		`<item quantity="one">%d article</item>`,
+		`<item quantity="other">%d articles</item>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected Android XML output to contain %q, got %q", want, out)
+		}
+	}
+}
+
 func TestRunWritesCSVUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.csv"
