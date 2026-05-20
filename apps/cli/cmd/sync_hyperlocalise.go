@@ -13,7 +13,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -447,10 +446,6 @@ func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hy
 	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
 }
 
-func planHyperlocalisePullFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
-	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, false)
-}
-
 func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
@@ -668,18 +663,6 @@ func hyperlocaliseJobMetadata(plan hyperlocaliseFilePlan) map[string]string {
 func (c *hyperlocaliseAPIClient) getJob(ctx context.Context, jobID string) (hyperlocaliseJob, error) {
 	var response hyperlocaliseJobResponse
 	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/"+jobID, "", nil, &response); err != nil {
-		return hyperlocaliseJob{}, err
-	}
-	return response.Job, nil
-}
-
-func (c *hyperlocaliseAPIClient) getLatestCompletedFileJob(ctx context.Context, projectID, sourcePath string) (hyperlocaliseJob, error) {
-	query := url.Values{}
-	query.Set("projectId", projectID)
-	query.Set("sourcePath", sourcePath)
-
-	var response hyperlocaliseJobResponse
-	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/latest?"+query.Encode(), "", nil, &response); err != nil {
 		return hyperlocaliseJob{}, err
 	}
 	return response.Job, nil
