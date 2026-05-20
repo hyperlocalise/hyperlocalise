@@ -76,11 +76,6 @@ buckets:
     files:
       - from: tests/csv/en-US.csv
         to: tests/csv/[locale].csv
-  tests_xml:
-    files:
-      - from: tests/xml/en-US.xml
-        to: tests/xml/[locale].xml
-
 # One group links the target(s) with the bucket(s).
 # Think of a group as "what to run" for a subset of locales/files.
 groups:
@@ -111,7 +106,6 @@ groups:
       - tests_strings
       - tests_stringsdict
       - tests_csv
-      - tests_xml
 
 llm:
   # When set, this provider/model pair is used only for context-memory building.
