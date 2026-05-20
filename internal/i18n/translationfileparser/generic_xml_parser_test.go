@@ -202,12 +202,15 @@ func TestMarshalGenericXMLRejectsPreEscapedTranslatedValues(t *testing.T) {
 	}
 }
 
-func TestMarshalGenericXMLRejectsHTMLStyleNamedEntities(t *testing.T) {
+func TestMarshalGenericXMLEscapesLiteralNamedEntityText(t *testing.T) {
 	template := []byte(`<locale><message key="copyright">Copyright</message></locale>`)
 
-	_, err := MarshalGenericXML(template, map[string]string{"copyright": "Copyright &copy; 2026"})
-	if err == nil || !strings.Contains(err.Error(), `key "copyright"`) || !strings.Contains(err.Error(), "decoded plain text") {
-		t.Fatalf("expected named entity value error, got %v", err)
+	out, err := MarshalGenericXML(template, map[string]string{"copyright": "Copyright &copy; 2026"})
+	if err != nil {
+		t.Fatalf("marshal literal named entity text: %v", err)
+	}
+	if got, want := string(out), `<locale><message key="copyright">Copyright &amp;copy; 2026</message></locale>`; got != want {
+		t.Fatalf("unexpected rendered xml\nwant: %s\n got: %s", want, got)
 	}
 }
 

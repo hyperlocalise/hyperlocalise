@@ -127,8 +127,11 @@ func (d genericXMLDocument) render(values map[string]string, sourceLocale, targe
 	var b strings.Builder
 	cursor := 0
 	for _, replacement := range replacements {
-		if replacement.start < cursor || replacement.start > len(d.template) || replacement.end > len(d.template) {
-			continue
+		if replacement.start < cursor {
+			return nil, fmt.Errorf("generic XML parser: overlapping replacement at byte %d", replacement.start)
+		}
+		if replacement.start > len(d.template) || replacement.end > len(d.template) {
+			return nil, fmt.Errorf("generic XML parser: replacement range [%d,%d) is outside template length %d", replacement.start, replacement.end, len(d.template))
 		}
 		b.WriteString(d.template[cursor:replacement.start])
 		b.WriteString(replacement.value)
@@ -301,7 +304,8 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 func genericXMLResolvedKey(frame *genericXMLFrame) string {
 	if len(frame.keyPath) > 0 {
 		if frame.ownKey == "" && !isGenericXMLValueElement(frame.name) {
-			parts := append([]string{}, frame.keyPath...)
+			parts := make([]string, len(frame.keyPath), len(frame.keyPath)+1)
+			copy(parts, frame.keyPath)
 			parts = append(parts, frame.name)
 			return strings.Join(parts, ".")
 		}

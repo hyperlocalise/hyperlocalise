@@ -50,9 +50,6 @@ func isXMLTextEntityReference(entity string) bool {
 	case "amp", "lt", "gt", "apos", "quot":
 		return true
 	}
-	if isXMLNamedEntityReference(entity) {
-		return true
-	}
 	if strings.HasPrefix(entity, "#x") || strings.HasPrefix(entity, "#X") {
 		return isXMLHexCharacterReference(entity[2:])
 	}
@@ -60,18 +57,6 @@ func isXMLTextEntityReference(entity string) bool {
 		return isXMLDecimalCharacterReference(entity[1:])
 	}
 	return false
-}
-
-func isXMLNamedEntityReference(s string) bool {
-	if s == "" || !isASCIIAlpha(s[0]) {
-		return false
-	}
-	for i := 1; i < len(s); i++ {
-		if !isASCIIAlpha(s[i]) && (s[i] < '0' || s[i] > '9') {
-			return false
-		}
-	}
-	return true
 }
 
 func isXMLDecimalCharacterReference(s string) bool {
@@ -84,10 +69,6 @@ func isXMLDecimalCharacterReference(s string) bool {
 		}
 	}
 	return true
-}
-
-func isASCIIAlpha(ch byte) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
 }
 
 func isXMLHexCharacterReference(s string) bool {
