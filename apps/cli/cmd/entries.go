@@ -1,14 +1,14 @@
 package cmd
 
 import (
- 	"bytes"
- 	"encoding/json"
- 	"fmt"
- 	"os"
- 	"strings"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 
- 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
- 	"github.com/spf13/cobra"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
+	"github.com/spf13/cobra"
 )
 
 func newEntriesCmd() *cobra.Command {
@@ -43,4 +43,3 @@ func newEntriesCmd() *cobra.Command {
 	}
 	return cmd
 }
-
