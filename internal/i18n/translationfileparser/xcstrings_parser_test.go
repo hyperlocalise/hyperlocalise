@@ -458,6 +458,58 @@ func TestMarshalXCStringsWritesTargetLocaleAndPreservesMetadata(t *testing.T) {
 	}
 }
 
+func TestMarshalXCStringsPromotesNewStringUnitState(t *testing.T) {
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	targetTemplate := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+
+	out, err := MarshalXCStrings(targetTemplate, source, map[string]string{"hello": "Bonjour"}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal xcstrings: %v", err)
+	}
+
+	var catalog map[string]any
+	if err := json.Unmarshal(out, &catalog); err != nil {
+		t.Fatalf("decode marshaled catalog: %v", err)
+	}
+	unit := nestedXCStringsMap(t, catalog, "strings", "hello", "localizations", "fr", "stringUnit")
+	if got := unit["state"]; got != "translated" {
+		t.Fatalf("expected new state to be promoted after writing value, got %#v", got)
+	}
+	if got := unit["value"]; got != "Bonjour" {
+		t.Fatalf("expected translated value, got %#v", got)
+	}
+}
+
 func assertStringMapValue(t *testing.T, got map[string]string, key, want string) {
 	t.Helper()
 	if got[key] != want {
