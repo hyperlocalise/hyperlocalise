@@ -63,6 +63,21 @@ func TestFluentParserPreservesRelativeIndentation(t *testing.T) {
 	}
 }
 
+func TestFluentParserKeepsIndentedHashContinuationLines(t *testing.T) {
+	values, err := FluentParser{}.Parse([]byte(`topic =
+    # trending
+    Now
+`))
+	if err != nil {
+		t.Fatalf("parse fluent: %v", err)
+	}
+
+	want := "# trending\nNow"
+	if values["topic"] != want {
+		t.Fatalf("expected indented hash line as value content\n got: %q\nwant: %q", values["topic"], want)
+	}
+}
+
 func TestMarshalFluentPreservesCommentsAndReplacesValues(t *testing.T) {
 	template := []byte(`# Greeting
 hello = Hello { $name }

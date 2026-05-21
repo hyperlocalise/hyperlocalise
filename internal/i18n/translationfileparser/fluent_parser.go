@@ -240,7 +240,7 @@ func fluentValueSpan(lines []fluentLine, index, valueStart int) (int, int) {
 	for next < len(lines) {
 		line := lines[next]
 		trimmed := strings.TrimSpace(line.text)
-		if trimmed == "" || isFluentComment(trimmed) {
+		if trimmed == "" {
 			break
 		}
 		if !fluentLineIndented(line.text) {
