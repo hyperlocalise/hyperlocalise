@@ -160,7 +160,8 @@ func (p *astParser) parseArgumentLike() (Element, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected format type at %d", p.pos)
 	}
-	kind = strings.ToLower(strings.TrimSpace(kind))
+	// BOLT OPTIMIZATION: readIdentifierLike results are already trimmed.
+	kind = strings.ToLower(kind)
 	p.skipSpaces()
 
 	if kind == "number" || kind == "date" || kind == "time" {
@@ -398,9 +399,9 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 			return 0, nil, fmt.Errorf("expected ICU selector at %d", p.pos)
 		}
 		p.skipSpaces()
-		selLower := strings.ToLower(sel)
-		if strings.HasPrefix(selLower, "offset:") {
-			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(selLower, "offset:")))
+		if len(sel) > 7 && strings.EqualFold(sel[:7], "offset:") {
+			// BOLT OPTIMIZATION: Use EqualFold to avoid ToLower and manual TrimSpace for efficiency.
+			n, err := strconv.Atoi(strings.TrimSpace(sel[7:]))
 			if err != nil {
 				return 0, nil, fmt.Errorf("invalid plural offset %q", sel)
 			}
@@ -615,7 +616,9 @@ func (p *astParser) readIdentifierLike() (string, bool) {
 	if p.pos == start {
 		return "", false
 	}
-	return strings.TrimSpace(p.src[start:p.pos]), true
+	// BOLT OPTIMIZATION: Internal callers (parseArgumentLike, parseSelectOptions, parsePluralOptions)
+	// always call skipSpaces() before, and we break on whitespace, so TrimSpace is redundant.
+	return p.src[start:p.pos], true
 }
 
 func (p *astParser) readSelector() (string, bool) {
@@ -625,7 +628,8 @@ func (p *astParser) readSelector() (string, bool) {
 		for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
 			p.pos++
 		}
-		return strings.TrimSpace(p.src[start:p.pos]), p.pos > start+1
+		// BOLT OPTIMIZATION: break on first non-digit, no TrimSpace needed.
+		return p.src[start:p.pos], p.pos > start+1
 	}
 	for p.pos < len(p.src) {
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
@@ -637,7 +641,8 @@ func (p *astParser) readSelector() (string, bool) {
 	if p.pos == start {
 		return "", false
 	}
-	return strings.TrimSpace(p.src[start:p.pos]), true
+	// BOLT OPTIMIZATION: break on first whitespace or delimiter, no TrimSpace needed.
+	return p.src[start:p.pos], true
 }
 
 func (p *astParser) readTagName() (string, bool) {
