@@ -23,9 +23,6 @@ describe("PromptInput Components Tooltip & Accessibility", () => {
     expect(markup).toContain("Click me");
     expect(markup).toContain('data-slot="tooltip-trigger"');
 
-    // Check for nested buttons: <button ...><button ...>
-    // Since we use render={button} on TooltipTrigger, and Button has render support,
-    // it should flatten to a single button.
     const buttonCount = (markup.match(/<button/g) || []).length;
     expect(buttonCount).toBe(1);
   });
@@ -52,7 +49,6 @@ describe("PromptInput Components Tooltip & Accessibility", () => {
     expect(markup).toContain("Send");
     expect(markup).toContain('data-slot="tooltip-trigger"');
 
-    // Check for nested buttons in the submit section
     const buttonCount = (markup.match(/<button/g) || []).length;
     expect(buttonCount).toBe(1);
   });
