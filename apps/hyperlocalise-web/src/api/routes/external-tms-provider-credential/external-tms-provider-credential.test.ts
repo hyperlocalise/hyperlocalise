@@ -203,9 +203,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
 
-    const response = await client.api.orgs[":organizationSlug"][
-      "external-tms-provider-credential"
-    ][":providerKind"].$delete(
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ].$delete(
       {
         param: {
           organizationSlug: identity.organization.slug ?? "missing",
