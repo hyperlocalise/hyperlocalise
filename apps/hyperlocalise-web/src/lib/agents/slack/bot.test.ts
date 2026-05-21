@@ -9,17 +9,29 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
+import { buildRepoTmsTaskIdempotencyKey } from "@/lib/agents/repo-tms-task";
 
-const { agentGenerateMock, createConversationToolLoopAgentMock, loadMessagesMock } = vi.hoisted(
-  () => ({
-    agentGenerateMock: vi.fn(),
-    createConversationToolLoopAgentMock: vi.fn(() => ({
-      generate: agentGenerateMock,
-    })),
-    loadMessagesMock: vi.fn(async () => []),
-  }),
-);
+const {
+  agentGenerateMock,
+  createConversationToolLoopAgentMock,
+  loadMessagesMock,
+  resolveSlackRepoTmsGitHubContextMock,
+} = vi.hoisted(() => ({
+  agentGenerateMock: vi.fn(),
+  createConversationToolLoopAgentMock: vi.fn(() => ({
+    generate: agentGenerateMock,
+  })),
+  loadMessagesMock: vi.fn(async () => []),
+  resolveSlackRepoTmsGitHubContextMock: vi.fn(),
+}));
 
+const { enqueueRepoTmsTaskMock } = vi.hoisted(() => ({
+  enqueueRepoTmsTaskMock: vi.fn(async () => ({ ids: ["run-123"] })),
+}));
+
+vi.mock("@/workflows/adapters", () => ({
+  createRepoTmsAgentTaskQueue: vi.fn(() => ({ enqueue: enqueueRepoTmsTaskMock })),
+}));
 vi.mock("@/lib/env", () => ({
   env: {
     SLACK_CLIENT_ID: "test-client-id",
@@ -29,22 +41,35 @@ vi.mock("@/lib/env", () => ({
 }));
 
 vi.mock("@/lib/agents/hyperlocalise-agent", () => {
-  return {
-    createConversationToolLoopAgent: createConversationToolLoopAgentMock,
-    loadInteractionModelMessages: loadMessagesMock,
-    replaceLastUserMessage: (
-      messages: Array<{ role: "user" | "assistant"; content: string }>,
-      text: string,
-    ) => {
-      const nextMessages = [...messages];
-      const lastUserIndex = nextMessages.findLastIndex((message) => message.role === "user");
-      if (lastUserIndex >= 0) {
-        nextMessages[lastUserIndex] = { role: "user", content: text };
+  return vi
+    .importActual<typeof import("@/lib/agents/hyperlocalise-agent")>(
+      "@/lib/agents/hyperlocalise-agent",
+    )
+    .then((actual) => ({
+      ...actual,
+      createConversationToolLoopAgent: createConversationToolLoopAgentMock,
+      loadInteractionModelMessages: loadMessagesMock,
+      replaceLastUserMessage: (
+        messages: Array<{ role: "user" | "assistant"; content: string }>,
+        text: string,
+      ) => {
+        const nextMessages = [...messages];
+        const lastUserIndex = nextMessages.findLastIndex((message) => message.role === "user");
+        if (lastUserIndex >= 0) {
+          nextMessages[lastUserIndex] = { role: "user", content: text };
+          return nextMessages;
+        }
+        nextMessages.push({ role: "user", content: text });
         return nextMessages;
-      }
-      nextMessages.push({ role: "user", content: text });
-      return nextMessages;
-    },
+      },
+    }));
+});
+
+vi.mock("@/lib/agents/repo-tms-context", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/agents/repo-tms-context")>();
+  return {
+    ...original,
+    resolveSlackRepoTmsGitHubContext: resolveSlackRepoTmsGitHubContextMock,
   };
 });
 
@@ -333,6 +358,7 @@ describe("handleNewConversation", () => {
     vi.clearAllMocks();
     agentGenerateMock.mockResolvedValue({ text: "AI response" });
     loadMessagesMock.mockResolvedValue([]);
+    resolveSlackRepoTmsGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
   });
 
   it("ignores bot messages", async () => {
@@ -423,6 +449,156 @@ describe("handleNewConversation", () => {
       messages: [{ role: "user", content: "Help me translate" }],
     });
     expect(posts).toEqual([{ markdown: "AI response" }]);
+  });
+
+  it("does not resolve GitHub context for ordinary translation chat", async () => {
+    const { thread } = createThread();
+    const message = createMessage({ text: "Translate this to French" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(resolveSlackRepoTmsGitHubContextMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves GitHub context for repo/TMS Slack intents", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Can you check https://github.com/acme/web/pull/42",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    resolveSlackRepoTmsGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_pr_url",
+      context: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+        pullRequestNumber: 42,
+      },
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: { repoTms: { github: { defaultRepositoryFullName: "acme/web" } } },
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(resolveSlackRepoTmsGitHubContextMock).toHaveBeenCalledWith({
+      organizationId: "org-123",
+      text: "Can you check https://github.com/acme/web/pull/42",
+      connectorConfig: { repoTms: { github: { defaultRepositoryFullName: "acme/web" } } },
+      projectId: "project-123",
+      channelId: "C123",
+      requirePullRequest: true,
+    });
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledTimes(1);
+    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "slack",
+        sourceThreadId: thread.id,
+        actor: {
+          sourceUserId: message.author.userId,
+          userId: "user-123",
+          email: "alice@example.com",
+          displayName: "Alice",
+        },
+        organizationId: "org-123",
+        projectId: "project-123",
+        workMode: "approval_required",
+        instructions: "Can you check https://github.com/acme/web/pull/42",
+        githubContext: {
+          resolved: true,
+          installationId: 12345,
+          repositoryFullName: "acme/web",
+          pullRequestNumber: 42,
+        },
+        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+          source: "slack",
+          sourceThreadId: thread.id,
+          organizationId: "org-123",
+          instructions: "Can you check https://github.com/acme/web/pull/42",
+          githubContext: {
+            resolved: true,
+            installationId: 12345,
+            repositoryFullName: "acme/web",
+            pullRequestNumber: 42,
+          },
+        }),
+      }),
+    );
+    expect(posts).toEqual([
+      {
+        markdown:
+          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+      },
+    ]);
+  });
+
+  it("asks a Slack follow-up when repo/TMS context is unresolved", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Can you check PR #42",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    resolveSlackRepoTmsGitHubContextMock.mockResolvedValueOnce({
+      status: "unresolved",
+      context: {
+        resolved: false,
+        reason: "No GitHub repository context was configured for this Slack request.",
+      },
+      followUp: "Please send a GitHub pull request URL.",
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([{ markdown: "Please send a GitHub pull request URL." }]);
   });
 
   it("resumes existing interaction and posts AI response", async () => {

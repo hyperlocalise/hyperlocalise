@@ -1,6 +1,10 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/icuparser"
+)
 
 func TestFlattenExtractICUMessage(t *testing.T) {
 	tests := []struct {
@@ -16,37 +20,42 @@ func TestFlattenExtractICUMessage(t *testing.T) {
 		{
 			name: "plural hoists prefix suffix and pound",
 			in:   "You have {count, plural, one{one project} other{# projects}}.",
-			want: "{count, plural, one{You have one project.} other{You have # projects.}}",
+			want: "{count,plural,one{You have one project.}other{You have # projects.}}",
 		},
 		{
 			name: "select hoists prefix and suffix",
 			in:   "The {gender, select, female{hostess} male{host} other{host}} arrived.",
-			want: "{gender, select, female{The hostess arrived.} male{The host arrived.} other{The host arrived.}}",
+			want: "{gender,select,female{The hostess arrived.}male{The host arrived.}other{The host arrived.}}",
 		},
 		{
 			name: "selectordinal hoists prefix and suffix",
 			in:   "You finished {place, selectordinal, one{#st} two{#nd} few{#rd} other{#th}}.",
-			want: "{place, selectordinal, one{You finished #st.} two{You finished #nd.} few{You finished #rd.} other{You finished #th.}}",
+			want: "{place,selectordinal,one{You finished #st.}two{You finished #nd.}few{You finished #rd.}other{You finished #th.}}",
 		},
 		{
 			name: "nested selectors are flattened recursively",
 			in:   "{gender, select, female{She has {count, plural, one{one file} other{# files}}} male{He has {count, plural, one{one file} other{# files}}} other{They have {count, plural, one{one file} other{# files}}}}.",
-			want: "{gender, select, female{{count, plural, one{She has one file.} other{She has # files.}}} male{{count, plural, one{He has one file.} other{He has # files.}}} other{{count, plural, one{They have one file.} other{They have # files.}}}}",
+			want: "{gender,select,female{{count,plural,one{She has one file.}other{She has # files.}}}male{{count,plural,one{He has one file.}other{He has # files.}}}other{{count,plural,one{They have one file.}other{They have # files.}}}}",
 		},
 		{
 			name: "rich text tags are preserved in plural branches",
 			in:   "{count, plural, one{<b>One file</b>} other{<b># files</b>}} selected.",
-			want: "{count, plural, one{<b>One file</b> selected.} other{<b># files</b> selected.}}",
+			want: "{count,plural,one{<b>One file</b> selected.}other{<b># files</b> selected.}}",
 		},
 		{
 			name: "quoted braces in literals are preserved",
 			in:   "Set '{'count'}' to {count, plural, one{one value} other{# values}}.",
-			want: "{count, plural, one{Set '{'count'}' to one value.} other{Set '{'count'}' to # values.}}",
+			want: "{count,plural,one{Set '{'count'}' to one value.}other{Set '{'count'}' to # values.}}",
 		},
 		{
 			name: "plural offset is preserved",
 			in:   "Invite {count, plural, offset:1 =0{nobody} one{{name}} other{{name} and # others}}.",
-			want: "{count, plural, offset:1 =0{Invite nobody.} one{Invite {name}.} other{Invite {name} and # others.}}",
+			want: "{count,plural,offset:1 =0{Invite nobody.}one{Invite {name}.}other{Invite {name} and # others.}}",
+		},
+		{
+			name: "typed arguments use compact commas in flattened selectors",
+			in:   "Total {amount, number} due {dueDate, date, medium} for {count, plural, one{one item} other{# items}}.",
+			want: "{count,plural,one{Total {amount,number} due {dueDate,date,medium} for one item.}other{Total {amount,number} due {dueDate,date,medium} for # items.}}",
 		},
 		{
 			name: "unsupported custom formatter stays unchanged",
@@ -63,6 +72,9 @@ func TestFlattenExtractICUMessage(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Fatalf("flattened message = %q, want %q", got, tt.want)
+			}
+			if _, err := icuparser.Parse(got, nil); err != nil {
+				t.Fatalf("flattened message should parse as ICU: %v", err)
 			}
 		})
 	}

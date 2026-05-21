@@ -1,0 +1,26 @@
+---
+title: "pack"
+description: "Group translation ids by shared string value."
+---
+
+## Usage
+
+```bash
+hyperlocalise pack <translation-file> [--prefix-id]
+```
+
+## Behavior
+
+`pack` reads a translation file, groups identical translated strings together, and writes JSON where each key is the string value and each value is an array of ids that use that string.
+
+For FormatJS message JSON, `pack` uses `defaultMessage` as the string value and omits `description` metadata from output.
+
+```json
+{
+  "Dashboard": ["src.components.app-header.title", "src.components.hero.title"]
+}
+```
+
+## Flags
+
+- `--prefix-id`: strip `extract --prefix-id` filename prefixes from ids. For example, `src.components.app-header.title` becomes `title`.

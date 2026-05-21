@@ -116,12 +116,6 @@ func TestCountPoundsNested(t *testing.T) {
 }
 
 func TestInvariantHelpersEdgeCases(t *testing.T) {
-	if formatPoundCounts(nil) != "" {
-		t.Fatal("empty formatPoundCounts")
-	}
-	if formatPoundCounts([]int{1, 2}) != "1,2" {
-		t.Fatalf("formatPoundCounts: %q", formatPoundCounts([]int{1, 2}))
-	}
 	if uniqueStrings(nil) != nil {
 		t.Fatal("uniqueStrings(nil) should be nil")
 	}

@@ -110,6 +110,190 @@ export function AppHeader() {
 	}
 }
 
+func TestExtractCommandExtractsDefineMessagesWithComputedKeys(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "DeleteAccount.tsx"), `
+import { defineMessages } from "react-intl";
+
+enum UserDeleteReason {
+  Leaving_current_role = "Leaving_current_role",
+  Switching_to_another_product = "Switching_to_another_product",
+}
+
+const DELETE_REASON_LABELS = defineMessages({
+  [UserDeleteReason.Leaving_current_role]: {
+    id: '8+RXxBclvz',
+    defaultMessage: 'Leaving current role',
+    description: 'Account deletion survey: reason option',
+  },
+  [UserDeleteReason.Switching_to_another_product]: {
+    id: '5faw+pEI3P',
+    defaultMessage: 'Switching to another product',
+    description: 'Account deletion survey: reason option',
+  },
+});
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	if got, want := len(catalog), 2; got != want {
+		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
+	}
+	if got, want := catalog["8+RXxBclvz"].DefaultMessage, "Leaving current role"; got != want {
+		t.Fatalf("computed-key message defaultMessage = %q, want %q", got, want)
+	}
+	if got, want := catalog["5faw+pEI3P"].Description, "Account deletion survey: reason option"; got != want {
+		t.Fatalf("computed-key message description = %q, want %q", got, want)
+	}
+}
+
+func TestExtractCommandGeneratesFormatJSIDForMissingID(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "DocumentPreview.tsx"), `
+import { defineMessages, FormattedMessage } from "react-intl";
+
+const messages = defineMessages({
+  title: {
+    defaultMessage: 'Document preview \u2014 {documentName}',
+    description:
+      'Dialog title for previewing a generated document with the document name appended',
+  },
+  save: {
+    defaultMessage: 'Save document',
+  },
+});
+
+export function DocumentPreview() {
+  return (
+    <FormattedMessage
+      defaultMessage="Open document"
+      description="Button label for opening the generated document preview"
+    />
+    <FormattedMessage defaultMessage="Close preview" />
+  );
+}
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	got, ok := catalog["OVx7L4"]
+	if !ok {
+		t.Fatalf("missing generated FormatJS id OVx7L4 in output=%s", out.String())
+	}
+	if got.DefaultMessage != "Document preview \u2014 {documentName}" {
+		t.Fatalf("generated-id defaultMessage = %q", got.DefaultMessage)
+	}
+	if got.Description != "Dialog title for previewing a generated document with the document name appended" {
+		t.Fatalf("generated-id description = %q", got.Description)
+	}
+	if got, ok := catalog["cBUY8d"]; !ok {
+		t.Fatalf("missing generated FormatJS id cBUY8d for descriptor without description in output=%s", out.String())
+	} else if got.DefaultMessage != "Save document" {
+		t.Fatalf("generated-id defaultMessage = %q", got.DefaultMessage)
+	}
+
+	jsxID := generatedFormatJSMessageID("Open document", "Button label for opening the generated document preview")
+	if _, ok := catalog[jsxID]; !ok {
+		t.Fatalf("missing generated JSX id %q in output=%s", jsxID, out.String())
+	}
+	if got, ok := catalog["8jAKYt"]; !ok {
+		t.Fatalf("missing generated JSX id 8jAKYt for message without description in output=%s", out.String())
+	} else if got.DefaultMessage != "Close preview" {
+		t.Fatalf("generated JSX defaultMessage = %q", got.DefaultMessage)
+	}
+}
+
+func TestExtractCommandDoesNotEscapeRichTextTagsInJSON(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), `
+import { defineMessage } from "react-intl";
+
+export const redirect = defineMessage({
+  id: "app.redirect",
+  defaultMessage: "If you weren't redirected, <link>click here</link>",
+});
+
+export const sop = defineMessage({
+  id: "app.sop",
+  defaultMessage: "Use <atSymbol>@</atSymbol> in the SOP to reference capabilities.",
+});
+`)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	raw := out.String()
+	if strings.Contains(raw, `\u003c`) || strings.Contains(raw, `\u003e`) {
+		t.Fatalf("output should keep rich text tags unescaped: %s", raw)
+	}
+	if !strings.Contains(raw, `<link>click here</link>`) {
+		t.Fatalf("output missing unescaped link tag: %s", raw)
+	}
+	if !strings.Contains(raw, `<atSymbol>@</atSymbol>`) {
+		t.Fatalf("output missing unescaped atSymbol tag: %s", raw)
+	}
+}
+
+func TestExtractCommandExtractsJSXMessageIDStartingWithSlash(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	source := `
+import { FormattedMessage } from "react-intl";
+
+export function App() {
+  return <FormattedMessage defaultMessage="Open settings" id="/app.settings.open" />;
+}
+`
+	writeExtractTestFile(t, filepath.Join(dir, "src", "App.tsx"), source)
+
+	cmd := newExtractCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"src"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute extract command: %v", err)
+	}
+
+	catalog := decodeExtractTestCatalog(t, out.Bytes())
+	got, ok := catalog["/app.settings.open"]
+	if !ok {
+		t.Fatalf("missing slash-prefixed id in output=%s", out.String())
+	}
+	if got.DefaultMessage != "Open settings" {
+		t.Fatalf("defaultMessage = %q, want %q", got.DefaultMessage, "Open settings")
+	}
+}
+
 func TestExtractCommandPrefixesIDWithNormalizedFilename(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -211,7 +395,7 @@ export const message: { id: "app.types"; defaultMessage: "Types" };
 	if err := json.Unmarshal(content, &catalog); err != nil {
 		t.Fatalf("decode formatjs catalog: %v\noutput=%s", err, string(content))
 	}
-	if got, want := catalog["app.title"]["defaultMessage"], "{count, plural, one{I have a dog} other{I have many dogs}}"; got != want {
+	if got, want := catalog["app.title"]["defaultMessage"], "{count,plural,one{I have a dog}other{I have many dogs}}"; got != want {
 		t.Fatalf("app.title defaultMessage = %q, want %q", got, want)
 	}
 	if _, ok := catalog["app.title"]["description"]; ok {
@@ -254,7 +438,7 @@ export const title = defineMessage({
 	if got, want := len(catalog), 1; got != want {
 		t.Fatalf("message count = %d, want %d; output=%s", got, want, out.String())
 	}
-	if got, want := catalog["app.title"].DefaultMessage, "{count, plural, one{You have one project.} other{You have # projects.}}"; got != want {
+	if got, want := catalog["app.title"].DefaultMessage, "{count,plural,one{You have one project.}other{You have # projects.}}"; got != want {
 		t.Fatalf("flattened defaultMessage = %q, want %q", got, want)
 	}
 	if strings.Contains(out.String(), `"id":`) {

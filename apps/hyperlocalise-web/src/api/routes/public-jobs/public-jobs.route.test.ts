@@ -12,6 +12,7 @@ import {
   createPublicApiFixture,
   insertStoredSourceFile,
   insertCompletedPublicFileJob,
+  insertRepositoryPublicFileJob,
   cleanupPublicApiFixture,
 } from "./public-jobs.fixture";
 
@@ -272,5 +273,138 @@ describe("publicJobRoutes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { job: { outputFiles: unknown } };
     expect(body.job.outputFiles).toBeNull();
+  });
+
+  it("rejects latest job lookups for another organization's project", async () => {
+    const { apiKey } = await createPublicApiFixture();
+    const { project: otherProject } = await createPublicApiFixture();
+
+    const response = await client.api.v1.jobs.latest.$get(
+      {
+        query: {
+          projectId: otherProject.id,
+          sourcePath: "locales/en/source.xliff",
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      error: "project_not_found",
+      message: expect.any(String),
+    });
+  });
+
+  it("returns the newest succeeded repository file job by source upload order", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const olderJob = await insertRepositoryPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/en/source.xliff",
+      sourceHash: "sha256:older",
+      status: "succeeded",
+      versionCreatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      jobCreatedAt: new Date("2026-01-01T00:01:00.000Z"),
+      completedAt: new Date("2026-01-04T00:00:00.000Z"),
+      outputFiles: [
+        {
+          fileId: "file_output_older_fr",
+          locale: "fr-FR",
+          filename: "source.older.fr-FR.xliff",
+        },
+      ],
+    });
+    const newerJob = await insertRepositoryPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/en/source.xliff",
+      sourceHash: "sha256:newer",
+      status: "succeeded",
+      versionCreatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      jobCreatedAt: new Date("2026-01-02T00:01:00.000Z"),
+      completedAt: new Date("2026-01-03T00:00:00.000Z"),
+      outputFiles: [
+        {
+          fileId: "file_output_newer_fr",
+          locale: "fr-FR",
+          filename: "source.newer.fr-FR.xliff",
+        },
+      ],
+    });
+
+    const response = await client.api.v1.jobs.latest.$get(
+      {
+        query: {
+          projectId: project.id,
+          sourcePath: "locales/en/source.xliff",
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: { id: string; outputFiles: unknown } };
+    expect(body.job.id).toBe(newerJob.id);
+    expect(body.job.id).not.toBe(olderJob.id);
+    expect(body.job.outputFiles).toEqual([
+      {
+        fileId: "file_output_newer_fr",
+        locale: "fr-FR",
+        filename: "source.newer.fr-FR.xliff",
+      },
+    ]);
+  });
+
+  it("falls back to the previous succeeded repository file job while the latest push is queued", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const previousJob = await insertRepositoryPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/en/source.xliff",
+      sourceHash: "sha256:previous",
+      status: "succeeded",
+      versionCreatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      jobCreatedAt: new Date("2026-01-01T00:01:00.000Z"),
+      completedAt: new Date("2026-01-01T00:10:00.000Z"),
+      outputFiles: [
+        {
+          fileId: "file_output_previous_fr",
+          locale: "fr-FR",
+          filename: "source.previous.fr-FR.xliff",
+        },
+      ],
+    });
+    await insertRepositoryPublicFileJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath: "locales/en/source.xliff",
+      sourceHash: "sha256:queued",
+      status: "queued",
+      versionCreatedAt: new Date("2026-01-02T00:00:00.000Z"),
+      jobCreatedAt: new Date("2026-01-02T00:01:00.000Z"),
+    });
+
+    const response = await client.api.v1.jobs.latest.$get(
+      {
+        query: {
+          projectId: project.id,
+          sourcePath: "locales/en/source.xliff",
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: { id: string; outputFiles: unknown } };
+    expect(body.job.id).toBe(previousJob.id);
+    expect(body.job.outputFiles).toEqual([
+      {
+        fileId: "file_output_previous_fr",
+        locale: "fr-FR",
+        filename: "source.previous.fr-FR.xliff",
+      },
+    ]);
   });
 });

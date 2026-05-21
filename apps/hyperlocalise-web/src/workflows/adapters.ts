@@ -3,11 +3,13 @@ import { start } from "workflow/api";
 import { emailTranslationWorkflow } from "./email-translation";
 import { fileTranslationJobWorkflow } from "./file-translation-job";
 import { githubFixWorkflow } from "./github-fix";
+import { repoTmsAgentWorkflow } from "./repo-tms-agent";
 import { translationJobWorkflow } from "./translation-job";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
   JobQueue,
+  RepoTmsAgentTaskQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
@@ -44,6 +46,15 @@ export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createRepoTmsAgentTaskQueue(): RepoTmsAgentTaskQueue {
+  return {
+    async enqueue(task) {
+      const run = await start(repoTmsAgentWorkflow, [task]);
+      return { ids: [run.runId] };
     },
   };
 }

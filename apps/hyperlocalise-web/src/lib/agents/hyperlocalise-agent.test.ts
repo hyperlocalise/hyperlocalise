@@ -46,9 +46,12 @@ vi.mock("@/lib/database", () => ({
 }));
 
 import {
+  buildHyperlocaliseAgentIntentInstructions,
   buildHyperlocaliseAgentInstructions,
+  classifyHyperlocaliseAgentIntent,
   createConversationToolLoopAgent,
   createHyperlocaliseAgent,
+  getActiveToolsForHyperlocaliseAgentIntent,
   hyperlocaliseAgentStepLimit,
   replaceLastUserMessage,
   toModelMessages,
@@ -80,6 +83,49 @@ describe("hyperlocalise agent core", () => {
 
     expect(instructions).toContain("This conversation is NOT attached to a project yet.");
     expect(instructions).toContain("call listProjects");
+  });
+
+  it("classifies GitHub pull request URLs as repo/TMS pull request intent", () => {
+    const intent = classifyHyperlocaliseAgentIntent({
+      surface: "slack",
+      text: "Can you check https://github.com/acme/web/pull/42",
+    });
+
+    expect(intent).toEqual({
+      kind: "repo_tms",
+      githubContextRequirement: "pull_request",
+    });
+    expect(getActiveToolsForHyperlocaliseAgentIntent(intent)).toContain("createSyncJob");
+    expect(buildHyperlocaliseAgentIntentInstructions(intent)).toContain(
+      "Intent: repository/TMS work.",
+    );
+  });
+
+  it("does not classify normal translation requests as repo/TMS intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Translate this JSON file to French",
+      }),
+    ).toEqual({ kind: "translation" });
+  });
+
+  it("does not treat standalone run plus hl as repo/TMS intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Run a translation job in HL",
+      }),
+    ).toEqual({ kind: "translation" });
+  });
+
+  it("classifies explicit repo run requests as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Run the repo checks",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
   });
 
   it("converts interaction rows to model messages", () => {
@@ -143,12 +189,14 @@ describe("hyperlocalise agent core", () => {
     createConversationToolLoopAgent({
       surface: "web",
       toolContext,
+      intent: { kind: "repo_tms", githubContextRequirement: "repository" },
     });
 
     expect(buildToolsMock).toHaveBeenCalledWith(toolContext);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: { listProjects: { description: "mock tool" } },
+        activeTools: expect.arrayContaining(["createSyncJob"]),
       }),
     );
   });

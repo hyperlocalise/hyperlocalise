@@ -49,5 +49,11 @@ export const jobIdParamsSchema = z.object({
   jobId: z.string().trim().min(1),
 });
 
+export const latestPublicJobQuerySchema = z.object({
+  projectId: z.string().trim().min(1),
+  sourcePath: z.string().trim().min(1).max(2048),
+});
+
 export type CreatePublicJobBody = z.infer<typeof createPublicJobBodySchema>;
 export type JobIdParams = z.infer<typeof jobIdParamsSchema>;
+export type LatestPublicJobQuery = z.infer<typeof latestPublicJobQuerySchema>;

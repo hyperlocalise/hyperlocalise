@@ -25,6 +25,8 @@ import (
 
 const hyperlocaliseManifestVersion = 1
 
+var hyperlocaliseJobPollInterval = 5 * time.Second
+
 type hyperlocaliseSyncRuntime struct {
 	cfg          *config.I18NConfig
 	configPath   string
@@ -104,6 +106,15 @@ type hyperlocaliseAPIClient struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+}
+
+type hyperlocaliseAPIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *hyperlocaliseAPIError) Error() string {
+	return fmt.Sprintf("hyperlocalise api returned %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
 }
 
 type hyperlocaliseUploadFileResponse struct {
@@ -336,8 +347,20 @@ func (e *hyperlocaliseJobTimeoutError) Error() string {
 func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient, manifestJob hyperlocaliseManifestJob, deadline time.Time) (hyperlocaliseJob, error) {
 	jobID := manifestJob.JobID
 	for {
-		job, err := client.getJob(ctx, jobID)
+		if !time.Now().Before(deadline) {
+			return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
+		}
+
+		requestCtx, cancel := context.WithDeadline(ctx, deadline)
+		job, err := client.getJob(requestCtx, jobID)
+		cancel()
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return hyperlocaliseJob{}, ctxErr
+			}
+			if errors.Is(err, context.DeadlineExceeded) {
+				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
+			}
 			return hyperlocaliseJob{}, err
 		}
 
@@ -350,13 +373,23 @@ func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient
 			}
 			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s", jobID, job.Status)
 		case "queued", "running", "waiting_for_review":
-			if time.Now().After(deadline) {
+			if !time.Now().Before(deadline) {
 				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: job.Status}
 			}
+
+			wait := time.Until(deadline)
+			if wait > hyperlocaliseJobPollInterval {
+				wait = hyperlocaliseJobPollInterval
+			}
+
+			timer := time.NewTimer(wait)
 			select {
 			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
+				}
 				return hyperlocaliseJob{}, ctx.Err()
-			case <-time.After(5 * time.Second):
+			case <-timer.C:
 			}
 		default:
 			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s has unknown status %q", jobID, job.Status)
@@ -413,6 +446,13 @@ func newHyperlocaliseManifest(rt *hyperlocaliseSyncRuntime) hyperlocaliseSyncMan
 }
 
 func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
+	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
+}
+
+// planHyperlocaliseFilesWithOptions builds the file plan for push or pull.
+// When hashSources is false, source files are not hashed (used for pull-without-manifest
+// where the CLI queries the API for the latest completed job instead).
+func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
 		return nil, err
@@ -433,9 +473,13 @@ func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hy
 			if fileFormat == "" {
 				return nil, fmt.Errorf("unsupported source file format for %q", sourcePath)
 			}
-			sourceHash, err := sha256File(sourcePath)
-			if err != nil {
-				return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+			sourceHash := ""
+			if hashSources {
+				var err error
+				sourceHash, err = sha256File(sourcePath)
+				if err != nil {
+					return nil, fmt.Errorf("hash source file %q: %w", sourcePath, err)
+				}
 			}
 			targetPaths := make(map[string]string, len(targetLocales))
 			for _, locale := range targetLocales {
@@ -645,7 +689,7 @@ func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("hyperlocalise api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	const maxDownloadBytes = 50 * 1024 * 1024 // 50 MB
@@ -671,7 +715,7 @@ func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, conte
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("hyperlocalise api returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	if out == nil {
 		return nil
