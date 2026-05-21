@@ -35,3 +35,7 @@
 ## 2026-06-01 - Preferring strconv.Itoa over fmt.Sprintf in hot paths
 **Learning:** `fmt.Sprintf` is flexible but expensive due to reflection and parsing the format string. For simple integer conversions, `strconv.Itoa` is much faster and avoids unnecessary overhead.
 **Action:** Replaced `fmt.Sprintf("%s[%d]", ...)` with string concatenation and `strconv.Itoa` in `markdownNodePath`, contributing to a ~6x performance improvement.
+
+## 2026-06-05 - Optimizing recursive JSON flattening
+**Learning:** In recursive tree/map traversal (like `flattenJSON`), using `fmt.Sprintf` for key construction at every level accumulates significant allocation and formatting overhead. String concatenation with `strconv.Itoa` is considerably more efficient for these hot paths.
+**Action:** Replaced `fmt.Sprintf("%s[%d]", ...)` with manual concatenation in `internal/i18n/translationfileparser/json_parser.go`.
