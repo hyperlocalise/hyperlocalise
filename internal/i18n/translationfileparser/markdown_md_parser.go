@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -308,19 +310,21 @@ func findMarkdownLineStop(content []byte, idx int) int {
 }
 
 func markdownNodePath(node ast.Node, lineIndex int) string {
-	parts := []string{}
+	// BOLT OPTIMIZATION: Append to slice and reverse to avoid O(N^2) prepending allocations.
+	var parts []string
 	for current := node; current != nil; current = current.Parent() {
 		if current.Kind() == ast.KindDocument {
 			break
 		}
-		parts = append([]string{fmt.Sprintf("%s[%d]", current.Kind().String(), markdownSiblingOrdinal(current))}, parts...)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf.
+		parts = append(parts, current.Kind().String()+"["+strconv.Itoa(markdownSiblingOrdinal(current))+"]")
 	}
+	slices.Reverse(parts)
 	if lineIndex >= 0 {
-		parts = append(parts, fmt.Sprintf("line[%d]", lineIndex))
+		parts = append(parts, "line["+strconv.Itoa(lineIndex)+"]")
 	}
 	return strings.Join(parts, "/")
 }
-
 func markdownSiblingOrdinal(node ast.Node) int {
 	ordinal := 0
 	for sibling := node.PreviousSibling(); sibling != nil; sibling = sibling.PreviousSibling() {

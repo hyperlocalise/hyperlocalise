@@ -517,7 +517,8 @@ func scanJSXTagFragment(line string, start int, state *markdownParseState) (int,
 }
 
 func stripTrailingJSXClosingLiterals(body string) (string, []string) {
-	trailing := []string{}
+	// BOLT OPTIMIZATION: Append to slice and reverse to avoid O(N^2) prepending allocations.
+	var trailing []string
 	for {
 		end := len(body)
 		for end > 0 && (body[end-1] == ' ' || body[end-1] == '\t') {
@@ -525,13 +526,15 @@ func stripTrailingJSXClosingLiterals(body string) (string, []string) {
 		}
 		start := strings.LastIndex(body[:end], "</")
 		if start < 0 || !looksLikeJSXTagStart(body, start) {
+			slices.Reverse(trailing)
 			return body, trailing
 		}
 		tagEnd := findJSXTagEnd(body, start)
 		if tagEnd != end {
+			slices.Reverse(trailing)
 			return body, trailing
 		}
-		trailing = append([]string{body[start:end]}, trailing...)
+		trailing = append(trailing, body[start:end])
 		body = body[:start]
 	}
 }

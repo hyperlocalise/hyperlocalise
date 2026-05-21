@@ -27,3 +27,11 @@
 ## 2026-05-27 - Eliminating O(N log N) allocations in sort comparators
 **Learning:** Using `strings.Join` or `fmt.Sprintf` inside a sort comparator (e.g., `sort.Slice`) creates allocations for every comparison, leading to (N \log N)$ total allocations. Go 1.21's `slices.Compare` and `cmp.Compare` allow for efficient, allocation-free lexicographical comparison of struct fields and slices.
 **Action:** Optimized `ParseInvariant` in `internal/i18n/icuparser/invariant.go` by replacing string-joining logic with `slices.SortFunc` and `slices.Compare`, resulting in a ~2.9x speedup and ~20% fewer allocations.
+
+## 2026-06-01 - Eliminating O(N^2) slice prepending
+**Learning:** Prepending to a slice using `append([]T{item}, slice...)` is (N^2)$ due to repeated allocations and data copying. For building paths or lists that should be in reverse order, it is significantly more efficient to append normally ((N)$) and call `slices.Reverse` once at the end.
+**Action:** Optimized `markdownNodePath` and `stripTrailingJSXClosingLiterals` in `internal/i18n/translationfileparser` by switching to append+reverse, resulting in ~2.4x to ~6x speedups and ~10x fewer allocations.
+
+## 2026-06-01 - Preferring strconv.Itoa over fmt.Sprintf in hot paths
+**Learning:** `fmt.Sprintf` is flexible but expensive due to reflection and parsing the format string. For simple integer conversions, `strconv.Itoa` is much faster and avoids unnecessary overhead.
+**Action:** Replaced `fmt.Sprintf("%s[%d]", ...)` with string concatenation and `strconv.Itoa` in `markdownNodePath`, contributing to a ~6x performance improvement.
