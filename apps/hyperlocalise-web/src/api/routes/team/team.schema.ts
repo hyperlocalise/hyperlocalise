@@ -18,7 +18,7 @@ export const updateTeamBodySchema = createTeamBodySchema
   .refine((value) => value.name !== undefined || value.slug !== undefined);
 
 export const addTeamMemberBodySchema = z.object({
-  workosUserId: z.string().trim().min(1),
+  workosUserId: z.string().trim().min(1).max(256),
   role: teamRoleSchema.optional(),
 });
 
