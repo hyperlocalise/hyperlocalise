@@ -158,7 +158,7 @@ type GlossaryTermConstraint = {
   targetTerm: string;
   targetLocale: string;
   forbidden: boolean | null;
-  caseSensitive?: boolean;
+  caseSensitive?: boolean | null;
 };
 
 type GlossaryValidationFailure = {
@@ -182,13 +182,13 @@ export function validateGlossaryTermsInTranslation(input: {
   const failures: GlossaryValidationFailure[] = [];
 
   for (const term of input.terms) {
-    const caseSensitive = term.caseSensitive ?? false;
+    const caseSensitive = term.caseSensitive === true;
     if (!sourceContainsTerm(input.sourceText, { sourceTerm: term.sourceTerm, caseSensitive })) {
       continue;
     }
 
     const hasTarget = translationContainsTerm(input.translatedText, term.targetTerm, caseSensitive);
-    if (term.forbidden) {
+    if (term.forbidden === true) {
       if (hasTarget) {
         failures.push({
           sourceTerm: term.sourceTerm,
@@ -200,7 +200,7 @@ export function validateGlossaryTermsInTranslation(input: {
       continue;
     }
 
-    if (!hasTarget) {
+    if (term.forbidden === false && !hasTarget) {
       failures.push({
         sourceTerm: term.sourceTerm,
         targetTerm: term.targetTerm,
@@ -266,12 +266,13 @@ async function assembleFileTranslationContextStep(input: {
   const glossaryTerms = attachedTerms
     .filter((term) => sourceContainsTerm(sourceText, term))
     .slice(0, 50)
-    .map(({ sourceTerm, targetTerm, targetLocale, description, forbidden }) => ({
+    .map(({ sourceTerm, targetTerm, targetLocale, description, forbidden, caseSensitive }) => ({
       sourceTerm,
       targetTerm,
       targetLocale,
       description,
       forbidden,
+      caseSensitive,
     }));
 
   const context = {
@@ -419,6 +420,8 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       });
     }
 
+    const sourceText = sourceContent.toString("utf8");
+
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
       let reusedEntries: Record<string, string> = {};
@@ -448,7 +451,6 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           }
         : context;
 
-      const sourceText = sourceContent.toString("utf8");
       const runTranslationWithValidation = async (attempt: 1 | 2, retryFeedback?: string) => {
         const translation = await runTranslationStep(
           sandboxId,
@@ -475,6 +477,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             targetTerm: term.targetTerm,
             targetLocale: term.targetLocale,
             forbidden: term.forbidden,
+            caseSensitive: term.caseSensitive,
           })),
         });
 

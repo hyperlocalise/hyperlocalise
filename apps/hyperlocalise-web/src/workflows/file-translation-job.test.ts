@@ -50,4 +50,46 @@ describe("validateGlossaryTermsInTranslation", () => {
       },
     ]);
   });
+
+  it("ignores terms with no configured constraint", () => {
+    const failures = validateGlossaryTermsInTranslation({
+      sourceText: "Click the workspace settings.",
+      translatedText: "Cliquez sur les paramètres.",
+      terms: [
+        {
+          sourceTerm: "workspace",
+          targetTerm: "espace de travail",
+          targetLocale: "fr-FR",
+          forbidden: null,
+        },
+      ],
+    });
+
+    expect(failures).toEqual([]);
+  });
+
+  it("respects case-sensitive glossary matching", () => {
+    const failures = validateGlossaryTermsInTranslation({
+      sourceText: "Use API credentials.",
+      translatedText: "Utilisez api credentials.",
+      terms: [
+        {
+          sourceTerm: "API",
+          targetTerm: "API",
+          targetLocale: "fr-FR",
+          forbidden: false,
+          caseSensitive: true,
+        },
+      ],
+    });
+
+    expect(failures).toEqual([
+      {
+        sourceTerm: "API",
+        targetTerm: "API",
+        forbidden: false,
+        reason: "missing_preferred_term",
+      },
+    ]);
+  });
 });

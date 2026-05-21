@@ -13,6 +13,7 @@ export type SandboxTranslationContext = {
     targetTerm: string;
     targetLocale: string;
     forbidden?: boolean | null;
+    caseSensitive?: boolean | null;
     description?: string | null;
   }>;
 };
