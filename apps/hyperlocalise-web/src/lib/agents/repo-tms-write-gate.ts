@@ -20,9 +20,10 @@ const adminRoles = new Set(["owner", "admin"]);
  *
  * Rules:
  * - read_only: all writes are denied.
- * - write: allow if the actor is an admin/owner; deny for members.
- * - approval_required: allow admin/owner writes; deny members until a durable
- *   approval flow exists.
+ * - write: allow Slack workspace members and GitHub requests that passed
+ *   adapter-level permission checks.
+ * - approval_required: keep GitHub admin-gated and allow legacy Slack tasks
+ *   for verified workspace members.
  *
  * GitHub-sourced write-mode tasks are assumed to have passed bot-level
  * permission checks (requesterCanRunFix) before enqueuing.
@@ -48,7 +49,7 @@ export function checkRepoTmsWriteGate(input: {
     return checkGitHubWriteGate(input.workMode, input.actor);
   }
 
-  // chat_ui: same as Slack — require admin/owner privileges.
+  // chat_ui: same as Slack — require a verified workspace member role.
   return checkSlackWriteGate(input.workMode, input.actor);
 }
 
@@ -56,27 +57,26 @@ function checkSlackWriteGate(
   workMode: RepoTmsAgentWorkMode,
   actor: RepoTmsAgentActor,
 ): WriteGateResult {
-  const isAdmin = actor.role && adminRoles.has(actor.role);
+  const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
 
   if (workMode === "write") {
-    if (isAdmin) {
+    if (isMember) {
       return { allowed: true };
     }
     return {
       allowed: false,
-      reason:
-        "Slack-triggered write actions require admin or owner privileges. Please contact a workspace admin.",
+      reason: "Slack-triggered write actions require a verified workspace member.",
     };
   }
 
-  // approval_required
-  if (isAdmin) {
+  // Legacy Slack tasks may still carry approval_required from before the
+  // approval placeholder was removed.
+  if (isMember) {
     return { allowed: true };
   }
   return {
     allowed: false,
-    reason:
-      "Write actions in this workflow require admin or owner privileges. Please contact a workspace admin.",
+    reason: "Slack-triggered write actions require a verified workspace member.",
   };
 }
 

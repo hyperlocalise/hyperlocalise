@@ -53,7 +53,7 @@ describe("checkRepoTmsWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("denies Slack write for member role in write mode", () => {
+  it("allows Slack write for member role in write mode", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "write",
       source: "slack",
@@ -61,8 +61,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "apply_fixes",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner");
+    expect(result.allowed).toBe(true);
   });
 
   it("denies Slack write when role is missing in write mode", () => {
@@ -74,7 +73,7 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner");
+    expect(deniedReason(result)).toContain("verified workspace member");
   });
 
   it("allows Slack approval_required for admin role (auto-approve)", () => {
@@ -88,7 +87,7 @@ describe("checkRepoTmsWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("denies Slack approval_required for member role without implying an approval path", () => {
+  it("allows legacy Slack approval_required for member role", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "approval_required",
       source: "slack",
@@ -96,8 +95,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "upload_sources",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner privileges");
+    expect(result.allowed).toBe(true);
   });
 
   it("allows GitHub write mode for any role", () => {
@@ -142,8 +140,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "apply_fixes",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner");
+    expect(result.allowed).toBe(true);
   });
 });
 

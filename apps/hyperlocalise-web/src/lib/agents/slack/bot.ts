@@ -202,7 +202,7 @@ async function processSlackMessage(
         },
         organizationId,
         projectId,
-        workMode: "approval_required",
+        workMode: "write",
         instructions: message.text,
         githubContext: resolvedRepoTmsContext,
         createdAt: new Date().toISOString(),

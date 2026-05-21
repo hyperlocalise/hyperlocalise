@@ -72,12 +72,13 @@ async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
+  outputStream: "both" | "stdout" = "both",
 ): Promise<{ exitCode: number; output: string }> {
   const sandbox = await Sandbox.get({ sandboxId });
   const result = await sandbox.runCommand(command, args);
   return {
     exitCode: result.exitCode,
-    output: await result.output("both"),
+    output: await result.output(outputStream),
   };
 }
 
@@ -423,7 +424,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
             };
           }
 
-          const result = await runSandboxCommand(ctx.sandboxId, "cat", [path]);
+          const result = await runSandboxCommand(ctx.sandboxId, "cat", [path], "stdout");
           if (result.exitCode !== 0) {
             await logMutation(ctx, {
               action: "upload_sources",
