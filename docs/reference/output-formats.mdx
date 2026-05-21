@@ -59,3 +59,7 @@ Common sync warning or conflict cases include:
 ## CSV translation files
 
 When `run` writes `.csv` translation targets, output row order is deterministic for newly appended keys (sorted by key), and existing rows keep their original order.
+
+## Fluent translation files
+
+When `run` writes `.ftl` translation targets, existing comments, blank lines, and message order come from the selected template. Parsed message and attribute value spans are replaced in place. Missing top-level message keys are appended in sorted order, and unsupported Fluent terms fail before output is written.

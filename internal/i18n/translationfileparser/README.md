@@ -15,10 +15,11 @@
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.ftl` via `FluentParser` (Mozilla Fluent messages and attributes)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, ARB, XLIFF, PO, HTML, Liquid, Markdown/MDX, Apple Strings/Stringsdict, CSV, and Fluent parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -100,6 +101,16 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### Fluent (`.ftl`)
+
+- Parses top-level message values into message IDs.
+- Parses message attributes into dotted keys.
+  - Example: `brand =` with `.title = Hyperlocalise` becomes `brand.title=Hyperlocalise`.
+- Multiline values and select/plural patterns are kept as a single translation value for the message or attribute.
+- Comments, blank lines, ordering, and unsupported metadata are preserved by `MarshalFluent(template, values)` because only parsed value spans are replaced.
+- Term definitions (`-brand = ...`) and term references are rejected with clear errors; they are not rewritten by the parser.
+- Newly appended message keys are written in sorted order. New attributes can be appended only when their parent message is not already present in the template.
 
 ## Minimal usage
 

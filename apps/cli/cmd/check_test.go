@@ -55,6 +55,41 @@ func TestCheckCommandNoFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandRecognizesFluentFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en.ftl")
+	targetPath := filepath.Join(dir, "dist", "fr.ftl")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("hello = Hello { $name }\n"), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("hello = Bonjour { $name }\n"), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command fluent: %v", err)
+	}
+	if !strings.Contains(out.String(), "No problems.") {
+		t.Fatalf("expected no-findings stylish output, got %q", out.String())
+	}
+}
+
 func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
