@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 )
 
 // MarshalJSON rewrites a JSON translation file using the provided flattened values.
@@ -59,7 +60,9 @@ func rewriteJSONObject(payload map[string]any, prefix string, values map[string]
 
 func rewriteJSONArray(payload []any, prefix string, values map[string]string) {
 	for idx, raw := range payload {
-		fullKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		// to reduce allocation and formatting overhead in recursive JSON rewriting.
+		fullKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		switch typed := raw.(type) {
 		case string:
 			if replacement, ok := values[fullKey]; ok {
