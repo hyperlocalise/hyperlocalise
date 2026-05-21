@@ -3,7 +3,10 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
-import { persistFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
+import {
+  persistFileTranslationMemoryEntries,
+  reuseFileTranslationMemoryEntries,
+} from "@/lib/translation/file-translation-memory";
 import {
   isImageTranslationFileFormat,
   type SupportedTranslationFileFormat,
@@ -61,6 +64,7 @@ async function runTranslationStep(
   targetLocale: string,
   instructions: string | null,
   context: SandboxTranslationContext,
+  prefilledEntries: Record<string, string>,
 ) {
   "use step";
 
@@ -75,12 +79,23 @@ async function runTranslationStep(
   );
   await writeTempConfig(sandboxId, config, configPath);
 
+  const prefilledPath = `/tmp/hyperlocalise-prefilled-${targetLocale}.json`;
+  let prefilledFlags = "";
+  if (Object.keys(prefilledEntries).length > 0) {
+    await writeFileToSandbox(
+      sandboxId,
+      prefilledPath,
+      Buffer.from(JSON.stringify(prefilledEntries), "utf8"),
+    );
+    prefilledFlags = ` --prefilled-entries '${shellSingleQuote(prefilledPath)}' --prefilled-target-path '${shellSingleQuote(outputFile)}'`;
+  }
+
   return runSandboxCommand(
     sandboxId,
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off`,
+      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off${prefilledFlags}`,
     ],
     {
       env: getSandboxTranslationEnv(),
@@ -348,6 +363,24 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
+      let reusedEntries: Record<string, string> = {};
+      if (sourceEntries) {
+        reusedEntries = await reuseFileTranslationMemoryEntries({
+          projectId: claim.job.projectId,
+          sourceLocale: parsedInput.sourceLocale,
+          targetLocale,
+          sourceEntries,
+        });
+        if (Object.keys(reusedEntries).length > 0) {
+          console.info("[file-translation-workflow] matched reusable translation memory entries", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            reusedEntryCount: Object.keys(reusedEntries).length,
+            sourceEntryCount: Object.keys(sourceEntries).length,
+          });
+        }
+      }
       const localeContext = context.glossaryTerms
         ? {
             ...context,
@@ -365,6 +398,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         targetLocale,
         instructions,
         localeContext,
+        reusedEntries,
       );
 
       if (translation.exitCode !== 0) {
