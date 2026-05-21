@@ -9,30 +9,43 @@ type UpsertedMemoryEntry = {
   targetText: string;
 };
 
-const { eqMock, insertMock, onConflictDoUpdateMock, selectMock, sqlMock, valuesMock } = vi.hoisted(
-  () => {
-    const onConflictDoUpdateMock = vi.fn(async () => undefined);
-    const valuesMock = vi.fn((_values: UpsertedMemoryEntry[]) => ({
-      onConflictDoUpdate: onConflictDoUpdateMock,
-    }));
-    const insertMock = vi.fn(() => ({ values: valuesMock }));
-    const whereMock = vi.fn(async () => [{ memoryId: "memory_1" }, { memoryId: "memory_2" }]);
-    const fromMock = vi.fn(() => ({ where: whereMock }));
-    const selectMock = vi.fn(() => ({ from: fromMock }));
+const {
+  andMock,
+  eqMock,
+  inArrayMock,
+  insertMock,
+  onConflictDoUpdateMock,
+  selectMock,
+  sqlMock,
+  valuesMock,
+  whereMock,
+} = vi.hoisted(() => {
+  const onConflictDoUpdateMock = vi.fn(async () => undefined);
+  const valuesMock = vi.fn((_values: UpsertedMemoryEntry[]) => ({
+    onConflictDoUpdate: onConflictDoUpdateMock,
+  }));
+  const insertMock = vi.fn(() => ({ values: valuesMock }));
+  const whereMock = vi.fn(async () => [{ memoryId: "memory_1" }, { memoryId: "memory_2" }]);
+  const fromMock = vi.fn(() => ({ where: whereMock }));
+  const selectMock = vi.fn(() => ({ from: fromMock }));
 
-    return {
-      eqMock: vi.fn(() => "project filter"),
-      insertMock,
-      onConflictDoUpdateMock,
-      selectMock,
-      sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
-      valuesMock,
-    };
-  },
-);
+  return {
+    andMock: vi.fn((...conditions: string[]) => ["and", conditions]),
+    eqMock: vi.fn(() => "project filter"),
+    inArrayMock: vi.fn(() => "memory filter"),
+    insertMock,
+    onConflictDoUpdateMock,
+    selectMock,
+    sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
+    valuesMock,
+    whereMock,
+  };
+});
 
 vi.mock("drizzle-orm", () => ({
+  and: andMock,
   eq: eqMock,
+  inArray: inArrayMock,
   sql: sqlMock,
 }));
 
@@ -59,7 +72,10 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-import { persistFileTranslationMemoryEntries } from "./file-translation-memory";
+import {
+  persistFileTranslationMemoryEntries,
+  reuseFileTranslationMemoryEntries,
+} from "./file-translation-memory";
 
 describe("persistFileTranslationMemoryEntries", () => {
   beforeEach(() => {
@@ -126,5 +142,28 @@ describe("persistFileTranslationMemoryEntries", () => {
         set: expect.objectContaining({ updatedAt: { sql: "now()" } }),
       }),
     );
+  });
+});
+
+describe("reuseFileTranslationMemoryEntries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("scopes reusable memory entry lookup to the project's attached memories", async () => {
+    whereMock
+      .mockResolvedValueOnce([{ memoryId: "memory_1" }, { memoryId: "memory_2" }])
+      .mockResolvedValueOnce([]);
+
+    await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: { first: "Hello" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(inArrayMock).toHaveBeenCalledWith("memoryId", ["memory_1", "memory_2"]);
+    expect(andMock).toHaveBeenCalledWith("project filter", "memory filter");
+    expect(whereMock.mock.calls[1]).toEqual([["and", ["project filter", "memory filter"]]]);
   });
 });
