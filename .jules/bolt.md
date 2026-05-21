@@ -43,3 +43,7 @@
 ## 2026-06-10 - Optimizing recursive JSON marshaling
 **Learning:** Similar to `flattenJSON` in the parser, using `fmt.Sprintf` for key construction in recursive JSON rewriting (e.g., `rewriteJSONArray`) adds significant allocation and formatting overhead. String concatenation with `strconv.Itoa` is a much more efficient alternative for these hot paths.
 **Action:** Replaced `fmt.Sprintf("%s[%d]", ...)` with manual concatenation in `internal/i18n/translationfileparser/json_marshal.go`.
+
+## 2026-06-12 - Optimizing segment key and placeholder generation across parsers
+**Learning:** Hot paths in parser logic, such as segment key generation, hashing for placeholders, and path construction, accumulate significant overhead when using `fmt.Sprintf`. String concatenation combined with `strconv.Itoa` is a much more efficient alternative, reducing reflection and formatting costs.
+**Action:** Replaced `fmt.Sprintf` with concatenation and `strconv.Itoa` in `html_parser.go`, `markdown_parser.go`, `liquid_parser.go`, and `markdown_mdx_parser.go`.
