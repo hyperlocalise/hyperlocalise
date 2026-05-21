@@ -84,7 +84,7 @@ describe("organizationExternalTmsProjects", () => {
     expect(updated.id).toBe(created.id);
     expect(updated.name).toBe("Marketing Website v2");
     expect(updated.isActive).toBe(false);
-    expect(updated.syncErrorMessage).toBe("provider unavailable");
+    expect(updated.lastSyncErrorMessage).toBe("provider unavailable");
     expect(updated.targetLocales).toEqual(["fr", "de", "es"]);
 
     const rows = await db

@@ -86,6 +86,10 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "phrase",
   "lokalise",
 ]);
+export const projectSourceEnum = pgEnum("project_source", [
+  "native",
+  "external_tms",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -258,7 +262,7 @@ export const projects = pgTable(
     // Shared project-level translation guidance injected into job execution.
     translationContext: text("translation_context").notNull().default(""),
     // Where this project originated from.
-    source: text("source").notNull().default("native"),
+    source: projectSourceEnum("source").notNull().default("native"),
     // Provider kind when sourced from external TMS.
     externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
     // External provider credential backing this project.

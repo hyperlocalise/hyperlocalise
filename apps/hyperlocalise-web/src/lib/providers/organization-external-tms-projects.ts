@@ -35,7 +35,7 @@ export async function upsertOrganizationExternalTmsProject(input: {
       targetLocales: input.targetLocales,
       externalProjectUrl: input.externalProjectUrl ?? null,
       isActive: input.isActive ?? true,
-      lastSyncedAt: now,
+      lastSyncedAt: input.syncErrorMessage ? undefined : now,
       lastSyncErrorAt: input.syncErrorMessage ? now : null,
       lastSyncErrorMessage: input.syncErrorMessage ?? null,
       providerMetadata: input.metadata ?? {},
@@ -54,7 +54,7 @@ export async function upsertOrganizationExternalTmsProject(input: {
         targetLocales: input.targetLocales,
         externalProjectUrl: input.externalProjectUrl ?? null,
         isActive: input.isActive ?? true,
-        lastSyncedAt: now,
+        lastSyncedAt: input.syncErrorMessage ? undefined : now,
         lastSyncErrorAt: input.syncErrorMessage ? now : null,
         lastSyncErrorMessage: input.syncErrorMessage ?? null,
         providerMetadata: input.metadata ?? {},
@@ -62,6 +62,10 @@ export async function upsertOrganizationExternalTmsProject(input: {
       },
     })
     .returning();
+
+  if (!project) {
+    throw new Error("Failed to upsert external TMS project");
+  }
 
   return project;
 }
