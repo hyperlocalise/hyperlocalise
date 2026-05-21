@@ -3,7 +3,8 @@ package translationfileparser
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -57,7 +58,7 @@ func parseStrictFormatJSMessages(out map[string]string, payload map[string]any) 
 	for key := range payload {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		message := payload[key].(map[string]any)
@@ -121,7 +122,7 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 	for key := range input {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, key := range keys {
 		value := input[key]
@@ -151,7 +152,9 @@ func flattenJSON(out map[string]string, prefix string, input map[string]any) err
 
 func flattenJSONArray(out map[string]string, prefix string, input []any) error {
 	for idx, item := range input {
-		itemKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		// to reduce allocation and formatting overhead in recursive flattening.
+		itemKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		switch typed := item.(type) {
 		case string:
 			out[itemKey] = typed
