@@ -76,6 +76,68 @@ export const projectFilesResponseSchema = z.object({
   files: z.array(projectFileRecordSchema),
 });
 
+export const projectFileDetailQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+});
+
+export const projectFileContentSchema = z.object({
+  text: z.string(),
+  truncated: z.boolean(),
+});
+
+export const projectFileVersionRecordSchema = z.object({
+  id: z.string(),
+  sourcePath: z.string(),
+  sourceHash: z.string().nullable(),
+  commitSha: z.string().nullable(),
+  workflowRunId: z.string().nullable(),
+  uploadedAt: z.string(),
+  storedFileId: z.string(),
+  filename: z.string(),
+  contentType: z.string(),
+  byteSize: z.number(),
+  sha256: z.string(),
+  metadata: z.record(z.string(), z.unknown()),
+  content: projectFileContentSchema.nullable(),
+});
+
+export const projectFileOutputRecordSchema = z.object({
+  fileId: z.string(),
+  locale: z.string(),
+  filename: z.string(),
+  byteSize: z.number().nullable(),
+  sha256: z.string().nullable(),
+  contentType: z.string().nullable(),
+  downloadPath: z.string(),
+  content: projectFileContentSchema.nullable(),
+});
+
+export const projectFileJobRecordSchema = z.object({
+  id: z.string(),
+  sourceFileVersionId: z.string(),
+  status: z.enum(["queued", "running", "succeeded", "failed", "waiting_for_review", "cancelled"]),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+  workflowRunId: z.string().nullable(),
+  sourceLocale: z.string().nullable(),
+  targetLocales: z.array(z.string()),
+  outputs: z.array(projectFileOutputRecordSchema),
+});
+
+export const projectFileDetailResponseSchema = z.object({
+  file: z.object({
+    sourcePath: z.string(),
+    filename: z.string(),
+    versions: z.array(projectFileVersionRecordSchema),
+    jobsByLocale: z.array(
+      z.object({
+        locale: z.string(),
+        jobs: z.array(projectFileJobRecordSchema),
+      }),
+    ),
+  }),
+});
+
 export type ProjectIdParams = z.infer<typeof projectIdParamsSchema>;
 export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
@@ -84,3 +146,9 @@ export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
+export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
+export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
+export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;
+export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSchema>;
+export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
+export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;

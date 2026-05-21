@@ -2,14 +2,22 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { app } from "@/api/app";
+import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 
+import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
-import type { ProjectResponse, ProjectsResponse, ProjectFilesResponse } from "./project.schema";
+import type {
+  ProjectFileDetailResponse,
+  ProjectResponse,
+  ProjectsResponse,
+  ProjectFilesResponse,
+} from "./project.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
@@ -21,6 +29,8 @@ vi.mock("@/api/auth/workos-session", () => ({
 
 const client = testClient(app);
 const appClient = client;
+const fileStorageAdapter = createMemoryFileStorageAdapter();
+const fileDetailClient = testClient(createApp({ fileStorageAdapter }));
 const projectFixture = createProjectTestFixture(client);
 const { authHeadersFor, createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   projectFixture;
@@ -524,5 +534,152 @@ describe("projectRoutes", () => {
     expect(response.status).toBe(404);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
+  });
+
+  it("returns source version detail with diffs inputs and translation outputs", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+    const sourcePath = "src/locale/en.json";
+
+    const olderSource = await createStoredFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "en.json",
+      contentType: "application/json",
+      content: Buffer.from('{"hello":"Hello"}'),
+      metadata: { sourcePath, sourceHash: "sha256:older" },
+      adapter: fileStorageAdapter,
+    });
+    const olderVersion = await createRepositorySourceFileVersion({
+      storedFile: olderSource,
+      sourcePath,
+      sourceHash: "sha256:older",
+      commitSha: "1111111111",
+      workflowRunId: "run_older",
+    });
+
+    const newerSource = await createStoredFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      role: "source",
+      sourceKind: "repository_file",
+      filename: "en.json",
+      contentType: "application/json",
+      content: Buffer.from('{"hello":"Hello world"}'),
+      metadata: { sourcePath, sourceHash: "sha256:newer" },
+      adapter: fileStorageAdapter,
+    });
+    const newerVersion = await createRepositorySourceFileVersion({
+      storedFile: newerSource,
+      sourcePath,
+      sourceHash: "sha256:newer",
+      commitSha: "2222222222",
+      workflowRunId: "run_newer",
+    });
+
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ createdAt: new Date("2026-05-19T10:00:00.000Z") })
+      .where(eq(schema.repositorySourceFileVersions.id, olderVersion.id));
+    await db
+      .update(schema.repositorySourceFileVersions)
+      .set({ createdAt: new Date("2026-05-19T11:00:00.000Z") })
+      .where(eq(schema.repositorySourceFileVersions.id, newerVersion.id));
+
+    await db.insert(schema.jobs).values({
+      id: "job_newer_fr",
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      kind: "translation",
+      status: "succeeded",
+      inputPayload: {
+        sourceFileId: newerSource.id,
+        fileFormat: "json",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      },
+      workflowRunId: "workflow_translation",
+      createdAt: new Date("2026-05-19T11:05:00.000Z"),
+      completedAt: new Date("2026-05-19T11:30:00.000Z"),
+    });
+    await db.insert(schema.translationJobDetails).values({
+      jobId: "job_newer_fr",
+      type: "file",
+      sourceFileVersionId: newerVersion.id,
+      outcomeKind: "file_result",
+    });
+
+    const outputFile = await createStoredFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      role: "output",
+      sourceKind: "job_output",
+      sourceJobId: "job_newer_fr",
+      filename: "fr.json",
+      contentType: "application/json",
+      content: Buffer.from('{"hello":"Bonjour le monde"}'),
+      metadata: {},
+      adapter: fileStorageAdapter,
+    });
+    await db
+      .update(schema.jobs)
+      .set({
+        outcomePayload: {
+          outputFiles: [{ fileId: outputFile.id, locale: "fr", filename: "fr.json" }],
+        },
+      })
+      .where(eq(schema.jobs.id, "job_newer_fr"));
+
+    const response = await fileDetailClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { sourcePath: `./${sourcePath}` },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileDetailResponse;
+    expect(body.file.versions.map((version) => version.id)).toEqual([
+      newerVersion.id,
+      olderVersion.id,
+    ]);
+    expect(body.file.versions[0]).toMatchObject({
+      sourceHash: "sha256:newer",
+      commitSha: "2222222222",
+      workflowRunId: "run_newer",
+      content: { text: '{"hello":"Hello world"}', truncated: false },
+    });
+    expect(body.file.jobsByLocale).toEqual([
+      {
+        locale: "fr",
+        jobs: [
+          expect.objectContaining({
+            id: "job_newer_fr",
+            sourceFileVersionId: newerVersion.id,
+            targetLocales: ["fr"],
+            outputs: [
+              expect.objectContaining({
+                fileId: outputFile.id,
+                locale: "fr",
+                filename: "fr.json",
+                byteSize: Buffer.byteLength('{"hello":"Bonjour le monde"}'),
+                sha256: outputFile.sha256,
+                downloadPath: `/api/orgs/${identity.organization.slug}/files/${outputFile.id}`,
+                content: { text: '{"hello":"Bonjour le monde"}', truncated: false },
+              }),
+            ],
+          }),
+        ],
+      },
+    ]);
   });
 });

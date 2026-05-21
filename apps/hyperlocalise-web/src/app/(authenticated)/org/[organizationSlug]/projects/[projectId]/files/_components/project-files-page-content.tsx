@@ -1,13 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft01Icon, File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  Download01Icon,
+  File01Icon,
+  Folder01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { File as DiffFile, MultiFileDiff, type FileContents } from "@pierre/diffs/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { FileTree, FileTreeFile, FileTreeFolder } from "@/components/ai-elements/file-tree";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +24,12 @@ import {
   type Tone,
 } from "../../../../_components/workspace-resource-shared";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileDetailResponse,
+  ProjectFileJobRecord,
+  ProjectFileRecord,
+  ProjectFileVersionRecord,
+} from "@/api/routes/project/project.schema";
 
 type TreeNode = {
   name: string;
@@ -92,6 +104,172 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
+function shortSha(value: string | null) {
+  return value ? value.slice(0, 10) : "—";
+}
+
+function versionLabel(version: ProjectFileVersionRecord, index: number) {
+  const date = new Date(version.uploadedAt).toLocaleString();
+  return `v${index + 1} · ${date} · ${shortSha(version.sourceHash)}`;
+}
+
+function toDiffFile(version: ProjectFileVersionRecord): FileContents | null {
+  if (!version.content) {
+    return null;
+  }
+
+  return {
+    name: version.filename,
+    contents: version.content.text,
+    cacheKey: `${version.id}:${version.sha256}`,
+  };
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+        {label}
+      </TypographyP>
+      <TypographyP className="mt-1 truncate font-mono text-sm text-foreground/72">
+        {value ?? "—"}
+      </TypographyP>
+    </div>
+  );
+}
+
+function SourceViewer({ version }: { version: ProjectFileVersionRecord }) {
+  const file = toDiffFile(version);
+
+  if (!file) {
+    return (
+      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
+        Inline preview is unavailable for this file.
+      </TypographyP>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
+      <DiffFile
+        file={file}
+        disableWorkerPool
+        options={{ disableFileHeader: true, overflow: "scroll", themeType: "system" }}
+      />
+    </div>
+  );
+}
+
+function VersionDiff({
+  before,
+  after,
+}: {
+  before: ProjectFileVersionRecord | undefined;
+  after: ProjectFileVersionRecord | undefined;
+}) {
+  const beforeFile = before ? toDiffFile(before) : null;
+  const afterFile = after ? toDiffFile(after) : null;
+
+  if (!beforeFile || !afterFile) {
+    return (
+      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
+        Select two previewable text versions to render a diff.
+      </TypographyP>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
+      <MultiFileDiff
+        oldFile={beforeFile}
+        newFile={afterFile}
+        disableWorkerPool
+        options={{
+          diffStyle: "unified",
+          diffIndicators: "classic",
+          hunkSeparators: "metadata",
+          overflow: "scroll",
+          themeType: "system",
+        }}
+      />
+    </div>
+  );
+}
+
+function JobGroup({ locale, jobs }: { locale: string; jobs: ProjectFileJobRecord[] }) {
+  return (
+    <div className="rounded-md border border-foreground/8 bg-background/40 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <TypographyP className="font-medium text-foreground">{locale}</TypographyP>
+        <TypographyP className="text-xs text-foreground/42">
+          {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+        </TypographyP>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {jobs.map((job) => (
+          <div
+            key={job.id}
+            className="border-t border-foreground/8 pt-3 first:border-t-0 first:pt-0"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={cn("rounded-full", toneClass(jobTone(job.status)))}
+              >
+                {job.status}
+              </Badge>
+              <TypographyP className="font-mono text-xs text-foreground/52">{job.id}</TypographyP>
+            </div>
+            <TypographyP className="mt-1 text-xs text-foreground/42">
+              Created {new Date(job.createdAt).toLocaleString()}
+            </TypographyP>
+
+            {job.outputs.length > 0 ? (
+              <div className="mt-3 flex flex-col gap-3">
+                {job.outputs.map((output) => (
+                  <div
+                    key={`${job.id}:${output.fileId}`}
+                    className="rounded-md bg-foreground/3 p-3"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <TypographyP className="truncate text-sm font-medium text-foreground">
+                          {output.filename}
+                        </TypographyP>
+                        <TypographyP className="mt-1 font-mono text-xs text-foreground/42">
+                          {output.fileId}
+                        </TypographyP>
+                      </div>
+                      <Button variant="outline" size="xs" render={<a href={output.downloadPath} />}>
+                        <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} className="size-3" />
+                        Download
+                      </Button>
+                    </div>
+                    <TypographyP className="mt-2 text-xs text-foreground/42">
+                      {output.byteSize !== null ? formatBytes(output.byteSize) : "Unknown size"}
+                      {output.sha256 ? ` · ${shortSha(output.sha256)}` : ""}
+                    </TypographyP>
+                    {output.content ? (
+                      <pre className="mt-3 max-h-64 overflow-auto rounded-md border border-foreground/8 bg-background p-3 text-xs leading-5 text-foreground/72">
+                        {output.content.text}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <TypographyP className="mt-2 text-xs text-foreground/42">
+                No output files recorded for this job.
+              </TypographyP>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FileTreeNode({ node }: { node: TreeNode }) {
   if (node.file) {
     return (
@@ -132,6 +310,9 @@ export function ProjectFilesPageContent({
   projectId: string;
 }) {
   const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
+  const [baseVersionId, setBaseVersionId] = useState<string | undefined>();
+  const [compareVersionId, setCompareVersionId] = useState<string | undefined>();
 
   const projectQuery = useQuery({
     queryKey: ["project", organizationSlug, projectId],
@@ -163,9 +344,66 @@ export function ProjectFilesPageContent({
     },
   });
 
+  const fileDetailQuery = useQuery({
+    queryKey: ["project-file-detail", organizationSlug, projectId, selectedPath],
+    enabled: Boolean(selectedPath),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.$get({
+        param: { organizationSlug, projectId },
+        query: { sourcePath: selectedPath ?? "" },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load file detail (${response.status})`);
+      }
+      return (await response.json()) as ProjectFileDetailResponse;
+    },
+  });
+
   const files = filesQuery.data ?? [];
   const tree = buildTree(files);
   const selectedFile = files.find((f) => f.sourcePath === selectedPath);
+  const fileDetail = fileDetailQuery.data?.file;
+  const versions = useMemo(() => fileDetail?.versions ?? [], [fileDetail?.versions]);
+  const selectedVersion =
+    versions.find((version) => version.id === selectedVersionId) ?? versions[0];
+  const baseVersion = versions.find((version) => version.id === baseVersionId) ?? versions.at(1);
+  const compareVersion =
+    versions.find((version) => version.id === compareVersionId) ?? selectedVersion ?? versions[0];
+  const selectedVersionJobs = useMemo(() => {
+    if (!fileDetail || !selectedVersion) {
+      return [];
+    }
+
+    return fileDetail.jobsByLocale
+      .map((group) => ({
+        locale: group.locale,
+        jobs: group.jobs.filter((job) => job.sourceFileVersionId === selectedVersion.id),
+      }))
+      .filter((group) => group.jobs.length > 0);
+  }, [fileDetail, selectedVersion]);
+
+  useEffect(() => {
+    if (versions.length === 0) {
+      setSelectedVersionId(undefined);
+      setBaseVersionId(undefined);
+      setCompareVersionId(undefined);
+      return;
+    }
+
+    setSelectedVersionId((current) =>
+      current && versions.some((version) => version.id === current) ? current : versions[0]?.id,
+    );
+    setCompareVersionId((current) =>
+      current && versions.some((version) => version.id === current) ? current : versions[0]?.id,
+    );
+    setBaseVersionId((current) =>
+      current && versions.some((version) => version.id === current)
+        ? current
+        : (versions[1]?.id ?? versions[0]?.id),
+    );
+  }, [versions]);
 
   const stats = {
     total: files.length,
@@ -314,36 +552,105 @@ export function ProjectFilesPageContent({
                 </div>
               </div>
 
-              {selectedFile.latestJob ? (
+              {fileDetailQuery.isLoading ? (
                 <div className="border-t border-foreground/8 pt-4">
-                  <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Latest job
+                  <TypographyP className="text-sm text-foreground/52">
+                    Loading file detail…
                   </TypographyP>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "rounded-full",
-                        toneClass(jobTone(selectedFile.latestJob.status)),
-                      )}
-                    >
-                      {selectedFile.latestJob.status}
-                    </Badge>
-                    <TypographyP className="text-sm text-foreground/72">
-                      {selectedFile.latestJob.type}
+                </div>
+              ) : fileDetailQuery.isError ? (
+                <div className="border-t border-foreground/8 pt-4">
+                  <TypographyP className="text-sm text-flame-100">
+                    Failed to load file detail.
+                  </TypographyP>
+                </div>
+              ) : fileDetail && selectedVersion ? (
+                <div className="flex flex-col gap-5 border-t border-foreground/8 pt-4">
+                  <div className="flex flex-col gap-2">
+                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Source versions
                     </TypographyP>
+                    <select
+                      value={selectedVersion.id}
+                      onChange={(event) => setSelectedVersionId(event.target.value)}
+                      className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
+                    >
+                      {versions.map((version, index) => (
+                        <option key={version.id} value={version.id}>
+                          {versionLabel(version, index)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <TypographyP className="mt-1 text-xs text-foreground/42">
-                    {selectedFile.latestJob.id}
-                  </TypographyP>
-                  <TypographyP className="mt-1 text-xs text-foreground/42">
-                    Created {new Date(selectedFile.latestJob.createdAt).toLocaleString()}
-                  </TypographyP>
+
+                  <div className="grid gap-3">
+                    <DetailRow label="Version ID" value={selectedVersion.id} />
+                    <DetailRow label="Source hash" value={selectedVersion.sourceHash} />
+                    <DetailRow label="Commit" value={selectedVersion.commitSha} />
+                    <DetailRow label="Workflow run" value={selectedVersion.workflowRunId} />
+                    <DetailRow
+                      label="Uploaded"
+                      value={new Date(selectedVersion.uploadedAt).toLocaleString()}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Source preview
+                    </TypographyP>
+                    <SourceViewer version={selectedVersion} />
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Diff
+                    </TypographyP>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <select
+                        value={baseVersion?.id ?? ""}
+                        onChange={(event) => setBaseVersionId(event.target.value)}
+                        className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
+                      >
+                        {versions.map((version, index) => (
+                          <option key={version.id} value={version.id}>
+                            Base {versionLabel(version, index)}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={compareVersion?.id ?? ""}
+                        onChange={(event) => setCompareVersionId(event.target.value)}
+                        className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
+                      >
+                        {versions.map((version, index) => (
+                          <option key={version.id} value={version.id}>
+                            Compare {versionLabel(version, index)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <VersionDiff before={baseVersion} after={compareVersion} />
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Translation jobs
+                    </TypographyP>
+                    {selectedVersionJobs.length > 0 ? (
+                      selectedVersionJobs.map((group) => (
+                        <JobGroup key={group.locale} locale={group.locale} jobs={group.jobs} />
+                      ))
+                    ) : (
+                      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
+                        No translation jobs for this source version yet.
+                      </TypographyP>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="border-t border-foreground/8 pt-4">
                   <TypographyP className="text-xs text-foreground/42">
-                    No translation jobs for this file yet.
+                    No version detail found for this file.
                   </TypographyP>
                 </div>
               )}
