@@ -291,17 +291,19 @@ func slicesEqual[T comparable](a, b []T) bool {
 func isPlaceholderName(s string) bool {
 	// BOLT OPTIMIZATION: Internal callers (readIdentifierLike, normalizeMustachePlaceholders)
 	// already provide trimmed strings, so we skip TrimSpace here.
+	// We also use a byte loop to avoid UTF-8 decoding as all valid characters are ASCII.
 	if s == "" {
 		return false
 	}
-	for i, r := range s {
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
 		if i == 0 {
-			if !isPlaceholderFirstRune(r) {
+			if !isPlaceholderFirstRune(rune(ch)) {
 				return false
 			}
 			continue
 		}
-		if !isPlaceholderSubsequentRune(r) {
+		if !isPlaceholderSubsequentRune(rune(ch)) {
 			return false
 		}
 	}

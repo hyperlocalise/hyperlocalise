@@ -46,6 +46,27 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Accumulate literal text chunks to avoid byte-by-byte processing.
+		// Special characters in ICU: {, }, # (if in plural), < (unless ignored), '
+		specialChars := "{}"
+		if ctx.inPlural {
+			specialChars += "#"
+		}
+		if !p.opts.IgnoreTag {
+			specialChars += "<"
+		}
+		specialChars += "\x27"
+
+		nextSpecial := strings.IndexAny(p.src[p.pos:], specialChars)
+		if nextSpecial > 0 {
+			text.WriteString(p.src[p.pos : p.pos+nextSpecial])
+			p.pos += nextSpecial
+		} else if nextSpecial == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+
 		stop, err := p.handleMessageChar(&out, &text, ctx, untilBrace, flushText)
 		if err != nil {
 			return nil, err
@@ -465,6 +486,23 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Accumulate literal text chunks to avoid byte-by-byte processing.
+		specialChars := "{}<"
+		if ctx.inPlural {
+			specialChars += "#"
+		}
+		specialChars += "\x27"
+
+		nextSpecial := strings.IndexAny(p.src[p.pos:], specialChars)
+		if nextSpecial > 0 {
+			text.WriteString(p.src[p.pos : p.pos+nextSpecial])
+			p.pos += nextSpecial
+		} else if nextSpecial == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+
 		closed, err := p.consumeClosingTagIfPresent(name, flushText)
 		if err != nil {
 			return nil, err
@@ -581,6 +619,15 @@ func (p *astParser) consumeQuotedInto(b *strings.Builder) {
 
 func (p *astParser) skipSpaces() {
 	for p.pos < len(p.src) {
+		ch := p.src[p.pos]
+		// BOLT OPTIMIZATION: Fast-path for ASCII whitespace to avoid UTF-8 decoding.
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' {
+			p.pos++
+			continue
+		}
+		if ch < utf8.RuneSelf {
+			break
+		}
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if !unicode.IsSpace(r) {
 			break
