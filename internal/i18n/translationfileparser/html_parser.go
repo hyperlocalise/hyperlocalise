@@ -5,10 +5,10 @@ package translationfileparser
 // so that the LLM translates clean prose while the markup is restored on marshal.
 
 import (
+	"strconv"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -283,8 +283,9 @@ func protectHTMLInlineSyntax(segment string) (string, map[string]string, string,
 	placeholderCount := 0
 
 	appendPlaceholder := func(literal string) string {
-		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", placeholderCount, literal)))
-		ph := fmt.Sprintf("\x1eHLHTPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), placeholderCount)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		sum := sha256.Sum256([]byte(strconv.Itoa(placeholderCount) + ":" + literal))
+		ph := "\x1eHLHTPH_" + strings.ToUpper(hex.EncodeToString(sum[:])[:12]) + "_" + strconv.Itoa(placeholderCount) + "\x1f"
 		placeholderCount++
 		placeholders[ph] = literal
 		return ph
@@ -315,9 +316,10 @@ func htmlSegmentKey(segment string, occurrences map[string]int) string {
 	count := occurrences[hash]
 	occurrences[hash] = count + 1
 	if count == 0 {
-		return fmt.Sprintf("html.%s", hash)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		return "html." + hash
 	}
-	return fmt.Sprintf("html.%s.%d", hash, count+1)
+	return "html." + hash + "." + strconv.Itoa(count+1)
 }
 
 // expandHTMLPlaceholders replaces sentinel tokens in rendered with their original
