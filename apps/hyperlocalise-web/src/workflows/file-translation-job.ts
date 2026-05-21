@@ -34,6 +34,10 @@ import {
   storeOutputFileStep,
 } from "./steps/translation-job";
 
+function shellSingleQuote(value: string) {
+  return value.replaceAll("'", "'\\''");
+}
+
 async function createSandboxStep() {
   "use step";
   return createTranslationSandbox();
@@ -76,7 +80,7 @@ async function runTranslationStep(
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${configPath.replaceAll("'", "'\\''")}' --locale '${targetLocale.replaceAll("'", "'\\''")}' --force --progress off`,
+      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(targetLocale)}' --force --progress off`,
     ],
     {
       env: getSandboxTranslationEnv(),
@@ -84,13 +88,12 @@ async function runTranslationStep(
   );
 }
 
-
 async function extractEntriesStep(sandboxId: string, path: string) {
   "use step";
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
-    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${path.replaceAll("'", "'\''")}'`],
+    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(path)}'`],
     { env: getSandboxTranslationEnv() },
   );
   if (result.exitCode !== 0) {
@@ -330,6 +333,18 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     await writeSourceFileStep(sandboxId, inputFilename, sourceContent);
 
     const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
+    let sourceEntries: Record<string, string> | null = null;
+
+    try {
+      sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
+    } catch (error) {
+      console.warn("[file-translation-workflow] source TM extraction failed", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        sourcePath: sourceFile.filename,
+        error: userFacingFailureReason(error),
+      });
+    }
 
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
@@ -374,18 +389,30 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         content: translatedContent,
       });
 
-      const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
-      const targetEntries = await extractEntriesStep(sandboxId, outputFilename);
-      await persistFileTranslationMemoryEntries({
-        projectId: claim.job.projectId,
-        jobId: claim.job.id,
-        sourceLocale: parsedInput.sourceLocale,
-        targetLocale,
-        sourcePath: sourceFile.filename,
-        sourceFileHash: sourceFile.sha256,
-        sourceEntries,
-        targetEntries,
-      });
+      if (sourceEntries) {
+        try {
+          const targetEntries = await extractEntriesStep(sandboxId, outputFilename);
+          await persistFileTranslationMemoryEntries({
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
+            sourcePath: sourceFile.filename,
+            sourceFileHash: sourceFile.sha256,
+            sourceEntries,
+            targetEntries,
+          });
+        } catch (error) {
+          console.warn("[file-translation-workflow] target TM persistence failed", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            sourcePath: sourceFile.filename,
+            outputPath: outputFilename,
+            error: userFacingFailureReason(error),
+          });
+        }
+      }
 
       outputFiles.push({
         fileId: storedOutput.id,
