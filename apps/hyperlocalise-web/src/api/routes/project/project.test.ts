@@ -656,7 +656,7 @@ describe("projectRoutes", () => {
       sourceHash: "sha256:newer",
       commitSha: "2222222222",
       workflowRunId: "run_newer",
-      content: { text: '{"hello":"Hello world"}', truncated: false },
+      content: { text: '{"hello":"Hello world"}' },
     });
     expect(body.file.jobsByLocale).toEqual([
       {
@@ -674,12 +674,38 @@ describe("projectRoutes", () => {
                 byteSize: Buffer.byteLength('{"hello":"Bonjour le monde"}'),
                 sha256: outputFile.sha256,
                 downloadPath: `/api/orgs/${identity.organization.slug}/files/${outputFile.id}`,
-                content: { text: '{"hello":"Bonjour le monde"}', truncated: false },
+                content: { text: '{"hello":"Bonjour le monde"}' },
               }),
             ],
           }),
         ],
       },
     ]);
+  });
+
+  it("returns 400 for missing sourcePath query param on file detail", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    const response = await fileDetailClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { sourcePath: "" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
+      error: "invalid_project_payload",
+      message: expect.any(String),
+    });
   });
 });

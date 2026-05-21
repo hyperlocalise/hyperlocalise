@@ -110,7 +110,7 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   const parsed = projectFileDetailQuerySchema.safeParse(value);
 
   if (!parsed.success) {
-    return projectNotFoundResponse(c);
+    return invalidProjectPayloadResponse(c);
   }
 
   return parsed.data;
@@ -225,7 +225,6 @@ async function inlineTextContent(input: {
   const buffer = await bufferFromStream(object.body);
   return {
     text: new TextDecoder("utf-8", { fatal: false }).decode(buffer),
-    truncated: false,
   };
 }
 
@@ -300,7 +299,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           .orderBy(
             desc(schema.repositorySourceFileVersions.createdAt),
             desc(schema.repositorySourceFileVersions.id),
-          );
+          )
+          .limit(50);
 
         if (versions.length === 0) {
           return projectNotFoundResponse(c);
@@ -332,7 +332,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
             ),
           )
-          .orderBy(desc(schema.jobs.createdAt), desc(schema.jobs.id));
+          .orderBy(desc(schema.jobs.createdAt), desc(schema.jobs.id))
+          .limit(100);
 
         const outputFileIds = Array.from(
           new Set(jobRows.flatMap((job) => fileJobOutputFiles(job).map((file) => file.fileId))),
@@ -364,7 +365,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const outputFileById = new Map(outputFiles.map((file) => [file.id, file]));
 
         const versionRecords = await Promise.all(
-          versions.map(async (version) => ({
+          versions.map(async (version, index) => ({
             id: version.id,
             sourcePath: version.sourcePath,
             sourceHash: version.sourceHash,
@@ -377,7 +378,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             byteSize: version.byteSize,
             sha256: version.sha256,
             metadata: version.metadata as Record<string, unknown>,
-            content: await inlineTextContent({ adapter, file: version }),
+            content: index === 0 ? await inlineTextContent({ adapter, file: version }) : null,
           })),
         );
 

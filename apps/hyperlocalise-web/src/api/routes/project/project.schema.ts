@@ -82,7 +82,6 @@ export const projectFileDetailQuerySchema = z.object({
 
 export const projectFileContentSchema = z.object({
   text: z.string(),
-  truncated: z.boolean(),
 });
 
 export const projectFileVersionRecordSchema = z.object({
