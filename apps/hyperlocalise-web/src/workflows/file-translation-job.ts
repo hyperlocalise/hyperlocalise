@@ -4,10 +4,6 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
-  persistFileTranslationMemoryEntries,
-  reuseFileTranslationMemoryEntries,
-} from "@/lib/translation/file-translation-memory";
-import {
   isImageTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -34,6 +30,8 @@ import {
   getProjectOrganizationStep,
   getStoredFileContentStep,
   getStoredFileStep,
+  persistFileTranslationMemoryEntriesStep,
+  reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
 } from "./steps/translation-job";
 
@@ -365,7 +363,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
       let reusedEntries: Record<string, string> = {};
       if (sourceEntries) {
-        reusedEntries = await reuseFileTranslationMemoryEntries({
+        reusedEntries = await reuseFileTranslationMemoryEntriesStep({
           projectId: claim.job.projectId,
           sourceLocale: parsedInput.sourceLocale,
           targetLocale,
@@ -426,7 +424,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       if (sourceEntries) {
         try {
           const targetEntries = await extractEntriesStep(sandboxId, outputFilename);
-          await persistFileTranslationMemoryEntries({
+          await persistFileTranslationMemoryEntriesStep({
             projectId: claim.job.projectId,
             jobId: claim.job.id,
             sourceLocale: parsedInput.sourceLocale,

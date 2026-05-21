@@ -12,6 +12,10 @@ import {
   failTranslationJob,
   type ClaimedTranslationJob,
 } from "@/lib/translation/translation-job-queued-function";
+import {
+  persistFileTranslationMemoryEntries,
+  reuseFileTranslationMemoryEntries,
+} from "@/lib/translation/file-translation-memory";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -288,6 +292,30 @@ export async function storeOutputFileStep(input: {
     await del(uploaded.pathname, { token: env.BLOB_READ_WRITE_TOKEN });
     throw error;
   }
+}
+
+export async function reuseFileTranslationMemoryEntriesStep(input: {
+  projectId: string;
+  sourceLocale: string;
+  targetLocale: string;
+  sourceEntries: Record<string, string>;
+}) {
+  "use step";
+  return reuseFileTranslationMemoryEntries(input);
+}
+
+export async function persistFileTranslationMemoryEntriesStep(input: {
+  projectId: string;
+  jobId: string;
+  sourceLocale: string;
+  targetLocale: string;
+  sourcePath: string;
+  sourceFileHash: string;
+  sourceEntries: Record<string, string>;
+  targetEntries: Record<string, string>;
+}) {
+  "use step";
+  return persistFileTranslationMemoryEntries(input);
 }
 
 export async function completeFileTranslationJobStep(input: {
