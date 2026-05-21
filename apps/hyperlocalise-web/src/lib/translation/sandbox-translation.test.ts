@@ -1,4 +1,12 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const sandboxMocks = vi.hoisted(() => {
+  const output = vi.fn();
+  const runCommand = vi.fn();
+  const get = vi.fn();
+
+  return { get, output, runCommand };
+});
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -8,7 +16,59 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-import { buildTempConfig } from "@/lib/translation/sandbox-translation";
+vi.mock("@vercel/sandbox", () => ({
+  Sandbox: {
+    get: sandboxMocks.get,
+  },
+}));
+
+import { buildTempConfig, runSandboxCommand } from "@/lib/translation/sandbox-translation";
+
+describe("sandbox command runner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("captures combined output by default", async () => {
+    sandboxMocks.output.mockResolvedValueOnce("stdout and stderr");
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(runSandboxCommand("sandbox_123", "echo", ["hello"])).resolves.toEqual({
+      exitCode: 0,
+      output: "stdout and stderr",
+    });
+
+    expect(sandboxMocks.output).toHaveBeenCalledWith("both");
+  });
+
+  it("can capture stdout only for machine-readable command output", async () => {
+    sandboxMocks.output.mockResolvedValueOnce('{"hello":"world"}');
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(
+      runSandboxCommand("sandbox_123", "bash", ["-c", "hl entries source.json"], {
+        output: "stdout",
+      }),
+    ).resolves.toEqual({
+      exitCode: 0,
+      output: '{"hello":"world"}',
+    });
+
+    expect(sandboxMocks.output).toHaveBeenCalledWith("stdout");
+  });
+});
 
 describe("sandbox translation temporary config", () => {
   it("augments file translation system prompt with project context, job context, and glossary", () => {

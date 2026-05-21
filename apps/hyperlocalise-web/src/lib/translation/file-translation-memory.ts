@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -27,48 +27,43 @@ export async function persistFileTranslationMemoryEntries(input: {
   const memoryIds = attached.map((x) => x.memoryId);
   if (memoryIds.length === 0) return;
 
-  for (const unit of units) {
+  const values = units.flatMap((unit) => {
     const normalized = normalizeTranslationMemorySourceText(unit.sourceText);
-    await db
-      .insert(schema.memoryEntries)
-      .values(
-        memoryIds.map((memoryId) => ({
-          memoryId,
-          sourceLocale: input.sourceLocale,
-          targetLocale: input.targetLocale,
-          sourceText: unit.sourceText,
-          normalizedSourceText: normalized,
-          targetText: unit.targetText,
-          provenance: "file_job",
-          externalKey: `${input.jobId}:${input.targetLocale}:${unit.key}`,
-          metadata: {
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            sourceFileHash: input.sourceFileHash,
-            jobId: input.jobId,
-            segmentKey: unit.key,
-          },
-        })),
-      )
-      .onConflictDoUpdate({
-        target: [
-          schema.memoryEntries.memoryId,
-          schema.memoryEntries.sourceLocale,
-          schema.memoryEntries.targetLocale,
-          schema.memoryEntries.normalizedSourceText,
-        ],
-        set: {
-          targetText: unit.targetText,
-          provenance: "file_job",
-          externalKey: `${input.jobId}:${input.targetLocale}:${unit.key}`,
-          metadata: {
-            projectId: input.projectId,
-            sourcePath: input.sourcePath,
-            sourceFileHash: input.sourceFileHash,
-            jobId: input.jobId,
-            segmentKey: unit.key,
-          },
-        },
-      });
-  }
+    return memoryIds.map((memoryId) => ({
+      memoryId,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      sourceText: unit.sourceText,
+      normalizedSourceText: normalized,
+      targetText: unit.targetText,
+      provenance: "file_job",
+      externalKey: `${input.jobId}:${input.targetLocale}:${unit.key}`,
+      metadata: {
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        sourceFileHash: input.sourceFileHash,
+        jobId: input.jobId,
+        segmentKey: unit.key,
+      },
+    }));
+  });
+
+  await db
+    .insert(schema.memoryEntries)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        schema.memoryEntries.memoryId,
+        schema.memoryEntries.sourceLocale,
+        schema.memoryEntries.targetLocale,
+        schema.memoryEntries.normalizedSourceText,
+      ],
+      set: {
+        targetText: sql`excluded.target_text`,
+        provenance: sql`excluded.provenance`,
+        externalKey: sql`excluded.external_key`,
+        metadata: sql`excluded.metadata`,
+        updatedAt: new Date(),
+      },
+    });
 }

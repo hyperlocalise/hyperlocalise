@@ -34,7 +34,7 @@ export async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
-  options?: { env?: Record<string, string> },
+  options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
 ): Promise<{ exitCode: number; output: string }> {
   const sandbox = await Sandbox.get({ sandboxId });
   const result = await sandbox.runCommand({
@@ -44,7 +44,7 @@ export async function runSandboxCommand(
   });
   return {
     exitCode: result.exitCode,
-    output: await result.output("both"),
+    output: await result.output(options?.output ?? "both"),
   };
 }
 
