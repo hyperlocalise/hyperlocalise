@@ -33,6 +33,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 						"title": "Description materials",
 						"exportPattern": "/localization/%locale%/file_name",
 						"path": "/main",
+						"webUrl": "https://crowdin.com/project/project-identifier/settings#files",
 						"isReadOnly": true,
 						"priority": "normal",
 						"createdAt": "2024-04-18T14:14:00+00:00",
@@ -60,6 +61,7 @@ func TestSourceFilesService_ListDirectories(t *testing.T) {
 			Title:         "Description materials",
 			ExportPattern: "/localization/%locale%/file_name",
 			Path:          "/main",
+			WebURL:        "https://crowdin.com/project/project-identifier/settings#files",
 			IsReadOnly:    ToPtr(true),
 			Priority:      "normal",
 			CreatedAt:     "2024-04-18T14:14:00+00:00",
@@ -91,7 +93,7 @@ func TestDirectory_MarshalJSON_IsReadOnly(t *testing.T) {
 	b, err := json.Marshal(directory)
 	require.NoError(t, err)
 
-	assert.JSONEq(t, `{"id":0,"projectId":0,"name":"","title":"","exportPattern":"","path":"","isReadOnly":false,"priority":"","createdAt":"","updatedAt":""}`, string(b))
+	assert.JSONEq(t, `{"id":0,"projectId":0,"name":"","title":"","exportPattern":"","path":"","isReadOnly":false,"priority":"","createdAt":"","updatedAt":"","webUrl":""}`, string(b))
 
 	directory.IsReadOnly = nil
 	b, err = json.Marshal(directory)
@@ -177,6 +179,7 @@ func TestSourceFilesService_GetDirectory(t *testing.T) {
 				"title": "Description materials",
 				"exportPattern": "/localization/%locale%/file_name",
 				"path": "/main",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#files",
 				"priority": "normal",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
@@ -196,6 +199,7 @@ func TestSourceFilesService_GetDirectory(t *testing.T) {
 		Title:         "Description materials",
 		ExportPattern: "/localization/%locale%/file_name",
 		Path:          "/main",
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#files",
 		Priority:      "normal",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
@@ -226,6 +230,7 @@ func TestSourceFilesService_AddDirectory(t *testing.T) {
 				"title": "New Directory",
 				"exportPattern": "/localization/%locale%/new_file_name",
 				"path": "/new_directory",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#files",
 				"priority": "normal",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
@@ -252,6 +257,7 @@ func TestSourceFilesService_AddDirectory(t *testing.T) {
 		Title:         "New Directory",
 		ExportPattern: "/localization/%locale%/new_file_name",
 		Path:          "/new_directory",
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#files",
 		Priority:      "normal",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
@@ -298,6 +304,7 @@ func TestSourceFilesService_EditDirectory(t *testing.T) {
 				"title": "Description materials",
 				"exportPattern": "/localization/%locale%/file_name",
 				"path": "/main",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#files",
 				"priority": "normal",
 				"createdAt": "2024-04-18T14:14:00+00:00",
 				"updatedAt": "2024-04-18T14:14:00+00:00"
@@ -324,6 +331,7 @@ func TestSourceFilesService_EditDirectory(t *testing.T) {
 		Title:         "Description materials",
 		ExportPattern: "/localization/%locale%/file_name",
 		Path:          "/main",
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#files",
 		Priority:      "normal",
 		CreatedAt:     "2024-04-18T14:14:00+00:00",
 		UpdatedAt:     "2024-04-18T14:14:00+00:00",
@@ -569,6 +577,7 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 				"context": "Context for translators",
 				"type": "xliff",
 				"path": "/directory1/directory2/filename.extension",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#files",
 				"status": "active",
 				"fields": {
 					"fieldSlug": "fieldValue"
@@ -591,6 +600,7 @@ func TestSourceFilesService_GetFile(t *testing.T) {
 		Context:     ToPtr("Context for translators"),
 		Type:        "xliff",
 		Path:        "/directory1/directory2/filename.extension",
+		WebURL:      "https://crowdin.com/project/project-identifier/settings#files",
 		Status:      "active",
 		Fields:      map[string]any{"fieldSlug": "fieldValue"},
 		IsReadOnly:  ToPtr(true),
