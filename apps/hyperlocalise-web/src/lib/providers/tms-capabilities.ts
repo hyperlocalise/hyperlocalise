@@ -252,16 +252,34 @@ export const tmsProviderCapabilityRegistry = Object.fromEntries(
   ].map((provider) => [provider.id, provider]),
 ) as Record<KnownTmsProviderId, TmsProviderCapabilityRegistryEntry>;
 
+function createEmptyTmsProviderCapability(
+  providerId: TmsProviderId,
+  label = providerId,
+): TmsProviderCapabilityRegistryEntry {
+  return {
+    id: providerId,
+    label,
+    capabilities: Object.fromEntries(
+      tmsProviderCapabilityActions.map((action) => [
+        action,
+        normalizeCapability(action, undefined),
+      ]),
+    ) as Record<TmsProviderCapabilityAction, TmsProviderCapability>,
+  };
+}
+
 export function getTmsProviderCapability(providerId: string) {
-  const normalizedProviderId = tmsProviderIdSchema.parse(providerId);
+  const parsedProviderId = tmsProviderIdSchema.safeParse(providerId);
+
+  if (!parsedProviderId.success) {
+    return createEmptyTmsProviderCapability(providerId);
+  }
+
+  const normalizedProviderId = parsedProviderId.data;
 
   return (
     tmsProviderCapabilityRegistry[normalizedProviderId as KnownTmsProviderId] ??
-    normalizeTmsProviderCapabilityRegistryEntry({
-      id: normalizedProviderId,
-      label: normalizedProviderId,
-      capabilities: {},
-    })
+    createEmptyTmsProviderCapability(normalizedProviderId)
   );
 }
 

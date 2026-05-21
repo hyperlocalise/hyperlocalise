@@ -123,4 +123,18 @@ describe("tmsProviderCapabilityRegistry", () => {
       ui: { state: "hidden" },
     });
   });
+
+  it.each(["My TMS", "Phrase", "1invalid", ""])(
+    "returns a normalized empty capability set for invalid provider id %s",
+    (providerId) => {
+      const provider = getTmsProviderCapability(providerId);
+
+      expect(provider.id).toBe(providerId);
+      expect(provider.label).toBe(providerId);
+      expect(provider.capabilities["files.download"]).toMatchObject({
+        supported: false,
+        ui: { state: "hidden" },
+      });
+    },
+  );
 });
