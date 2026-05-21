@@ -14,6 +14,8 @@
 
 ## Before Finalizing
 
+If we change Go code:
+
 - Run `make fmt`.
 - Run `make lint`.
 - Run `make test`.
