@@ -493,6 +493,7 @@ export type RunHyperlocaliseCliOutput = {
   stderr: string;
   changedPaths: string[];
   report?: unknown;
+  artifact?: { kind: "file"; path: string; note: string } | { kind: "inline"; note: string };
   truncated: boolean;
 };
 
@@ -639,7 +640,8 @@ function assertReadOnlyAction(subcommand: string, args?: string[]): void {
   if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
 
   const actionKey = [args?.[0], args?.[1]].filter(Boolean).join(":");
-  if (!READ_ONLY_TMS_ACTIONS.has(actionKey)) {
+  const providerScopedKey = [subcommand, actionKey].filter(Boolean).join(":");
+  if (!READ_ONLY_TMS_ACTIONS.has(actionKey) && !READ_ONLY_TMS_ACTIONS.has(providerScopedKey)) {
     throw new Error(
       `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
     );

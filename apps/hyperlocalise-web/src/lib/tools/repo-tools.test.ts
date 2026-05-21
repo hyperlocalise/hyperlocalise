@@ -301,7 +301,7 @@ describe("createRunHyperlocaliseCliTool", () => {
   it("rejects unapproved subcommand at schema level", async () => {
     const ctx = createTestContext();
     const t = createRunHyperlocaliseCliTool(ctx);
-    // The tool schema only allows check/status/extract, so parse should fail.
+    // The tool schema only allows check/status/extract/crowdin/lokalise/phrase, so parse should fail.
     const parse = (t as unknown as { inputSchema: z.ZodSchema<unknown> }).inputSchema.safeParse({
       subcommand: "sync",
     });
