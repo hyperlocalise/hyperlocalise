@@ -9,30 +9,21 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
+import { buildRepoTmsTaskIdempotencyKey } from "@/lib/agents/repo-tms-task";
 
 const {
   agentGenerateMock,
-  buildRepoTmsGitHubContextInstructionsMock,
   createConversationToolLoopAgentMock,
   loadMessagesMock,
   resolveSlackRepoTmsGitHubContextMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
-  buildRepoTmsGitHubContextInstructionsMock: vi.fn(
-    (context: { repositoryFullName: string; pullRequestNumber?: number }) =>
-      `Resolved GitHub repository context:\n- repository: ${context.repositoryFullName}\n${
-        context.pullRequestNumber === undefined
-          ? ""
-          : `- pullRequestNumber: ${context.pullRequestNumber}`
-      }`,
-  ),
   createConversationToolLoopAgentMock: vi.fn(() => ({
     generate: agentGenerateMock,
   })),
   loadMessagesMock: vi.fn(async () => []),
   resolveSlackRepoTmsGitHubContextMock: vi.fn(),
 }));
-
 
 const { enqueueRepoTmsTaskMock } = vi.hoisted(() => ({
   enqueueRepoTmsTaskMock: vi.fn(async () => ({ ids: ["run-123"] })),
@@ -78,7 +69,6 @@ vi.mock("@/lib/agents/repo-tms-context", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/repo-tms-context")>();
   return {
     ...original,
-    buildRepoTmsGitHubContextInstructions: buildRepoTmsGitHubContextInstructionsMock,
     resolveSlackRepoTmsGitHubContext: resolveSlackRepoTmsGitHubContextMock,
   };
 });
@@ -532,8 +522,45 @@ describe("handleNewConversation", () => {
     });
     expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
     expect(enqueueRepoTmsTaskMock).toHaveBeenCalledTimes(1);
+    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "slack",
+        sourceThreadId: thread.id,
+        actor: {
+          sourceUserId: message.author.userId,
+          userId: "user-123",
+          email: "alice@example.com",
+          displayName: "Alice",
+        },
+        organizationId: "org-123",
+        projectId: "project-123",
+        workMode: "approval_required",
+        instructions: "Can you check https://github.com/acme/web/pull/42",
+        githubContext: {
+          resolved: true,
+          installationId: 12345,
+          repositoryFullName: "acme/web",
+          pullRequestNumber: 42,
+        },
+        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+          source: "slack",
+          sourceThreadId: thread.id,
+          organizationId: "org-123",
+          instructions: "Can you check https://github.com/acme/web/pull/42",
+          githubContext: {
+            resolved: true,
+            installationId: 12345,
+            repositoryFullName: "acme/web",
+            pullRequestNumber: 42,
+          },
+        }),
+      }),
+    );
     expect(posts).toEqual([
-      { markdown: "Queued your repo/TMS workflow. I'll post progress and final results in this thread." },
+      {
+        markdown:
+          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+      },
     ]);
   });
 

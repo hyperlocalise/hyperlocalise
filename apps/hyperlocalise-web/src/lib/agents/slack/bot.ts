@@ -10,12 +10,10 @@ import {
   loadInteractionModelMessages,
   replaceLastUserMessage,
 } from "@/lib/agents/hyperlocalise-agent";
-import {
-  buildRepoTmsGitHubContextInstructions,
-  resolveSlackRepoTmsGitHubContext,
-} from "@/lib/agents/repo-tms-context";
+import { resolveSlackRepoTmsGitHubContext } from "@/lib/agents/repo-tms-context";
 import {
   buildRepoTmsTaskIdempotencyKey,
+  type RepoTmsAgentGitHubContext,
   type RepoTmsAgentTask,
 } from "@/lib/agents/repo-tms-task";
 import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
@@ -166,7 +164,7 @@ async function processSlackMessage(
     const intent = classifyHyperlocaliseAgentIntent({ surface: "slack", text: message.text });
     const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
     const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
-    let resolvedRepoTmsContext: RepoTmsAgentTask["githubContext"];
+    let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
 
     if (intent.kind === "repo_tms") {
       const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
@@ -187,9 +185,6 @@ async function processSlackMessage(
 
       if (githubContextResolution.status === "resolved") {
         resolvedRepoTmsContext = githubContextResolution.context;
-        additionalInstructions.push(
-          buildRepoTmsGitHubContextInstructions(githubContextResolution.context),
-        );
       }
     }
 
@@ -215,10 +210,7 @@ async function processSlackMessage(
           sourceThreadId: thread.id,
           organizationId,
           instructions: message.text,
-          githubContext:
-            resolvedRepoTmsContext && resolvedRepoTmsContext.resolved
-              ? resolvedRepoTmsContext
-              : undefined,
+          githubContext: resolvedRepoTmsContext,
         }),
       };
       await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
