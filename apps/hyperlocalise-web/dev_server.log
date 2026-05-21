@@ -1,0 +1,31 @@
+$ next dev
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 684ms
+Discovering workflow directives 13825ms
+Created steps bundle 560ms
+Created intermediate workflow bundle 2494ms
+⚠ Serde warning for classes "Command", "CommandFinished", "Snapshot", "Sandbox", "ChannelImpl", "Message", "ThreadImpl", "FileSystem": Workflow bundle contains Node.js built-in imports: assert, async_hooks, buffer, console, crypto, diagnostics_channel, dns, events, fs, http, http2, net, path, perf_hooks, querystring, stream, string_decoder, tls, url, util, worker_threads, zlib. These will fail at runtime in the workflow sandbox. Add "use step" to methods that depend on Node.js APIs so they are stripped from the workflow bundle.
+Creating webhook route
+Creating manifest...
+Created manifest with 92 steps, 5 workflows, and 8 classes 2791ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+Discovering workflow directives 14350ms
+Created steps bundle 179ms
+Created intermediate workflow bundle 2413ms
+⚠ Serde warning for classes "Command", "CommandFinished", "Snapshot", "Sandbox", "ChannelImpl", "Message", "ThreadImpl", "FileSystem": Workflow bundle contains Node.js built-in imports: assert, async_hooks, buffer, console, crypto, diagnostics_channel, dns, events, fs, http, http2, net, path, perf_hooks, querystring, stream, string_decoder, tls, url, util, worker_threads, zlib. These will fail at runtime in the workflow sandbox. Add "use step" to methods that depend on Node.js APIs so they are stripped from the workflow bundle.
+⨯ Error: You must provide a redirect URI in the AuthKit middleware or in the environment variables.
+    at ignore-listed frames
+ GET / 404 in 2.2s (next.js: -160765µs, proxy.ts: 2.2s, application-code: 189ms)
+[browser] Uncaught Error: You must provide a redirect URI in the AuthKit middleware or in the environment variables.
+○ Compiling /_not-found/page ...
+Discovering workflow directives 23545ms
+Created steps bundle 309ms
+Created intermediate workflow bundle 4230ms
+⚠ Serde warning for classes "Command", "CommandFinished", "Sandbox", "Snapshot", "FileSystem", "ChannelImpl", "Message", "ThreadImpl": Workflow bundle contains Node.js built-in imports: assert, async_hooks, buffer, console, crypto, diagnostics_channel, dns, events, fs, http, http2, net, path, perf_hooks, querystring, stream, string_decoder, tls, url, util, worker_threads, zlib. These will fail at runtime in the workflow sandbox. Add "use step" to methods that depend on Node.js APIs so they are stripped from the workflow bundle.
