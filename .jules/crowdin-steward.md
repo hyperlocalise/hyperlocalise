@@ -53,3 +53,15 @@
 **Learning:** The Crowdin Bundles API v2 returns an `eta` field in bundle export responses, and the Tasks API supports filtering by `workflowStepId` via query parameters. These were missing from the Go SDK models and request options.
 
 **Action:** Added `ETA` to the `BundleExport` model in `model/bundles.go`. Added `WorkflowStepID` to `TasksListOptions` and updated its `Values()` method in `model/tasks.go` to encode it. Updated contract tests in `bundles_test.go` and `tasks_test.go` to verify parity.
+
+## 2026-06-26 - Fix Organization Webhooks path and improve model parity for WebURL
+
+**Learning:** The Crowdin API v2 for Organization Webhooks (account-level) uses the path `/api/v2/webhooks`, unlike project webhooks which are under `/api/v2/projects/{projectId}/webhooks`. The SDK was incorrectly using the project-specific path for account-level additions. Additionally, many core models like Branch, Directory, and File include a `webUrl` field in their responses which was missing from the SDK.
+
+**Action:** Updated `OrganizationWebhooksService.Add` to use the correct account-level path and removed the redundant `projectID` parameter. Added `WebURL` field to `Branch`, `Directory`, and `File` models in `model/branches.go` and `model/source_files.go`. Updated comprehensive test suites in `webhooks_organization_test.go`, `branches_test.go`, and `source_files_test.go` to verify correct parsing and serialization.
+
+## 2026-06-26 - Improve Glossary and TM model parity for updatedAt and translationOfTermId
+
+**Learning:** The Crowdin API v2 for Glossaries and Translation Memories returns an `updatedAt` field in their resource responses, which was missing from the Go SDK models. Additionally, the Add Term endpoint supports a deprecated `translationOfTermId` field for linking translations, which can still be useful for legacy integrations.
+
+**Action:** Added `UpdatedAt` (string) to `Glossary` and `TranslationMemory` models. Added `TranslationOfTermID` (int) to `TermAddRequest`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization of these fields.

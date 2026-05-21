@@ -14,11 +14,28 @@ import { env } from "@/lib/env";
 import { buildTools } from "@/lib/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
 
+import { githubPullRequestUrlPatternSource } from "./repo-tms-context";
+
 export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
 export const hyperlocaliseAgentStepLimit = 5;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
+
+export type HyperlocaliseAgentIntentKind =
+  | "translation"
+  | "repo_tms"
+  | "job_status"
+  | "glossary_memory"
+  | "project"
+  | "general";
+
+export type HyperlocaliseAgentGitHubContextRequirement = "repository" | "pull_request";
+
+export type HyperlocaliseAgentIntent = {
+  kind: HyperlocaliseAgentIntentKind;
+  githubContextRequirement?: HyperlocaliseAgentGitHubContextRequirement;
+};
 
 type InteractionHistoryRow = {
   senderType: "user" | "agent";
@@ -41,8 +58,127 @@ type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
   additionalInstructions?: string;
+  intent?: HyperlocaliseAgentIntent;
   onFinish?: ToolLoopAgentSettings<never, ToolSet>["onFinish"];
 };
+
+const intentToolsets = {
+  translation: [
+    "listProjects",
+    "getProjectContext",
+    "updateInteractionProject",
+    "queryGlossary",
+    "queryTranslationMemory",
+    "createTranslationJob",
+    "readStoredFile",
+  ],
+  repo_tms: [
+    "listProjects",
+    "getProjectContext",
+    "updateInteractionProject",
+    "createSyncJob",
+    "resolveInteraction",
+  ],
+  job_status: ["listJobs", "getJobStatus", "resolveInteraction"],
+  glossary_memory: [
+    "queryGlossary",
+    "queryTranslationMemory",
+    "listGlossaries",
+    "createGlossary",
+    "updateGlossary",
+    "deleteGlossary",
+    "listGlossaryTerms",
+    "createGlossaryTerm",
+    "updateGlossaryTerm",
+    "deleteGlossaryTerm",
+    "listTranslationMemories",
+    "createTranslationMemory",
+    "updateTranslationMemory",
+    "deleteTranslationMemory",
+    "listMemoryEntries",
+    "createMemoryEntry",
+    "updateMemoryEntry",
+    "deleteMemoryEntry",
+  ],
+  project: ["listProjects", "getProjectContext", "updateInteractionProject"],
+  general: undefined,
+} satisfies Record<HyperlocaliseAgentIntentKind, string[] | undefined>;
+
+const githubPullRequestUrlPattern = new RegExp(githubPullRequestUrlPatternSource, "i");
+
+export function classifyHyperlocaliseAgentIntent(input: {
+  text: string;
+  surface: HyperlocaliseAgentSurface;
+}): HyperlocaliseAgentIntent {
+  const text = input.text.trim();
+
+  if (isRepoTmsPullRequestIntent(text)) {
+    return { kind: "repo_tms", githubContextRequirement: "pull_request" };
+  }
+
+  if (isRepoTmsRepositoryIntent(text)) {
+    return { kind: "repo_tms", githubContextRequirement: "repository" };
+  }
+
+  if (
+    /\b(job|jobs|workflow|workflows)\b/i.test(text) &&
+    /\b(status|list|show|check)\b/i.test(text)
+  ) {
+    return { kind: "job_status" };
+  }
+
+  if (/\b(glossar(?:y|ies)|term(?:s)?|translation memor(?:y|ies)|tmx|tm)\b/i.test(text)) {
+    return { kind: "glossary_memory" };
+  }
+
+  if (/\b(project|workspace)\b/i.test(text)) {
+    return { kind: "project" };
+  }
+
+  if (
+    /\b(translat(?:e|ion|ing)|locali[sz](?:e|ation|ing)|source locale|target locale)\b/i.test(text)
+  ) {
+    return { kind: "translation" };
+  }
+
+  return { kind: "general" };
+}
+
+export function getActiveToolsForHyperlocaliseAgentIntent(
+  intent: HyperlocaliseAgentIntent,
+): ToolLoopAgentSettings<never, ToolSet>["activeTools"] | undefined {
+  return intentToolsets[intent.kind];
+}
+
+export function buildHyperlocaliseAgentIntentInstructions(intent: HyperlocaliseAgentIntent) {
+  if (intent.kind === "repo_tms") {
+    return [
+      "Intent: repository/TMS work.",
+      "Use only the repository context provided by the source adapter.",
+      "Do not infer or invent a GitHub repository, pull request, branch, or installation ID.",
+      "If repository/TMS execution is unavailable, say that clearly and keep the response tied to the resolved context.",
+    ].join("\n");
+  }
+
+  return null;
+}
+
+function isRepoTmsPullRequestIntent(text: string) {
+  return (
+    githubPullRequestUrlPattern.test(text) ||
+    /\b(?:pull request|pr)\s*#?\d+\b/i.test(text) ||
+    /\bgithub\s+#?\d+\b/i.test(text)
+  );
+}
+
+function isRepoTmsRepositoryIntent(text: string) {
+  const repoSubject = /\b(?:repo|repository|github|hl|hyperlocalise)\b/i.test(text);
+  const repoAction = /\b(?:checks?|fix|review|scan|inspect|sync|extract|analy[sz]e)\b/i.test(text);
+  const repoRunAction = /\brun\s+(?:the\s+)?(?:repo|repository|github|hl|hyperlocalise)\b/i.test(
+    text,
+  );
+  return repoSubject && (repoAction || repoRunAction);
+}
 
 export function getHyperlocaliseAgentModel() {
   if (!env.OPENAI_API_KEY) {
@@ -184,13 +320,16 @@ export function createConversationToolLoopAgent({
   surface,
   toolContext,
   additionalInstructions,
+  intent,
   onFinish,
 }: CreateConversationAgentInput) {
+  const tools = buildTools(toolContext);
   return createHyperlocaliseAgent({
     surface,
     projectId: toolContext.projectId,
-    tools: buildTools(toolContext),
+    tools,
     additionalInstructions,
+    activeTools: intent ? getActiveToolsForHyperlocaliseAgentIntent(intent) : undefined,
     onFinish,
   });
 }

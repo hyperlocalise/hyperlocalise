@@ -50,6 +50,27 @@
       "when": 1779191256205,
       "tag": "0006_crazy_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779332064811,
+      "tag": "0007_bent_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779369302850,
+      "tag": "0008_flowery_mach_iv",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779372021091,
+      "tag": "0009_graceful_black_panther",
+      "breakpoints": true
     }
   ]
 }

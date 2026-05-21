@@ -314,7 +314,8 @@ func TestGlossariesService_GetGlossary(t *testing.T) {
 				"defaultProjectIds": [2],
 				"projectIds": [6],
 				"webUrl": "https://example.crowdin.com/u/glossaries/1",
-				"createdAt": "2023-09-16T13:42:04+00:00"
+				"createdAt": "2023-09-16T13:42:04+00:00",
+				"updatedAt": "2023-09-16T13:42:04+00:00"
 			}
 		}`)
 	})
@@ -336,6 +337,7 @@ func TestGlossariesService_GetGlossary(t *testing.T) {
 		ProjectIDs:        []int{6},
 		WebURL:            "https://example.crowdin.com/u/glossaries/1",
 		CreatedAt:         "2023-09-16T13:42:04+00:00",
+		UpdatedAt:         "2023-09-16T13:42:04+00:00",
 	}
 	assert.Equal(t, expected, glossary)
 }
@@ -1178,7 +1180,8 @@ func TestGlossariesService_AddTerm(t *testing.T) {
 			"gender": "masculine",
 			"note": "string",
 			"url": "https://example.com/base-url",
-			"conceptId": 1
+			"conceptId": 1,
+			"translationOfTermId": 2
 		}`)
 
 		fmt.Fprint(w, `{
@@ -1204,16 +1207,17 @@ func TestGlossariesService_AddTerm(t *testing.T) {
 	})
 
 	req := &model.TermAddRequest{
-		LanguageID:   "fr",
-		Text:         "Voir",
-		Description:  "use for pages only (check screenshots)",
-		PartOfSpeech: "verb",
-		Status:       "preferred",
-		Type:         "abbreviation",
-		Gender:       "masculine",
-		Note:         "string",
-		URL:          "https://example.com/base-url",
-		ConceptID:    1,
+		LanguageID:          "fr",
+		Text:                "Voir",
+		Description:         "use for pages only (check screenshots)",
+		PartOfSpeech:        "verb",
+		Status:              "preferred",
+		Type:                "abbreviation",
+		Gender:              "masculine",
+		Note:                "string",
+		URL:                 "https://example.com/base-url",
+		ConceptID:           1,
+		TranslationOfTermID: 2,
 	}
 	term, resp, err := client.Glossaries.AddTerm(context.Background(), 1, req)
 	require.NoError(t, err)

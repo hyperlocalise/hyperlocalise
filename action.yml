@@ -124,6 +124,7 @@ runs:
       shell: bash
       env:
         HYPERLOCALISE_VERSION: ${{ inputs.hyperlocalise-version }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         install_dir="${RUNNER_TEMP}/hyperlocalise-bin"

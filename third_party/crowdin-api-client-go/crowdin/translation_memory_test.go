@@ -32,7 +32,8 @@ func TestTranslationMemoryService_GetTM(t *testing.T) {
 				"defaultProjectIds": [2],
 				"projectIds": [2],
 				"webUrl": "https://crowdin.com/profile/username/resources/traslation-memory/1",
-				"createdAt": "2023-09-16T13:42:04+00:00"
+				"createdAt": "2023-09-16T13:42:04+00:00",
+				"updatedAt": "2023-09-16T13:42:04+00:00"
 			}
 		}`)
 	})
@@ -54,6 +55,7 @@ func TestTranslationMemoryService_GetTM(t *testing.T) {
 		ProjectIDs:        []int{2},
 		WebURL:            "https://crowdin.com/profile/username/resources/traslation-memory/1",
 		CreatedAt:         "2023-09-16T13:42:04+00:00",
+		UpdatedAt:         "2023-09-16T13:42:04+00:00",
 	}
 	assert.Equal(t, expected, tm)
 }

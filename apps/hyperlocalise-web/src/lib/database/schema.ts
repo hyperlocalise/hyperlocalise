@@ -80,6 +80,13 @@ export const llmProviderEnum = pgEnum("llm_provider", [
   "groq",
   "mistral",
 ]);
+export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", [
+  "crowdin",
+  "smartling",
+  "phrase",
+  "lokalise",
+]);
+export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -251,6 +258,38 @@ export const projects = pgTable(
     description: text("description").notNull().default(""),
     // Shared project-level translation guidance injected into job execution.
     translationContext: text("translation_context").notNull().default(""),
+    // Where this project originated from.
+    source: projectSourceEnum("source").notNull().default("native"),
+    // Provider kind when sourced from external TMS.
+    externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
+    // External provider credential backing this project.
+    externalProviderCredentialId: uuid("external_provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    // Stable project ID from the external TMS provider.
+    externalProjectId: text("external_project_id"),
+    // Source locale from provider metadata.
+    sourceLocale: text("source_locale"),
+    // Target locales from provider metadata.
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Optional direct project URL in provider UI.
+    externalProjectUrl: text("external_project_url"),
+    // Whether provider reports this project as active.
+    isActive: boolean("is_active").notNull().default(true),
+    // Last successful sync timestamp.
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    // Last sync failure timestamp and message.
+    lastSyncErrorAt: timestamp("last_sync_error_at", { withTimezone: true }),
+    lastSyncErrorMessage: text("last_sync_error_message"),
+    // Raw provider metadata for debugging and forward compatibility.
+    providerMetadata: jsonb("provider_metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When project metadata was last changed.
@@ -261,6 +300,11 @@ export const projects = pgTable(
   },
   (table) => [
     uniqueIndex("projects_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("projects_org_provider_external_project_key").on(
+      table.organizationId,
+      table.externalProviderKind,
+      table.externalProjectId,
+    ),
     index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_projects_created_by_user_id").on(table.createdByUserId),
   ],
@@ -559,6 +603,47 @@ export const organizationLlmProviderCredentials = pgTable(
       table.provider,
     ),
     index("idx_organization_llm_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const organizationExternalTmsProviderCredentials = pgTable(
+  "organization_external_tms_provider_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    displayName: text("display_name").notNull(),
+    region: text("region"),
+    baseUrl: text("base_url"),
+    validationStatus: text("validation_status").notNull().default("unvalidated"),
+    validationMessage: text("validation_message"),
+    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
+    encryptionAlgorithm: text("encryption_algorithm").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    maskedSecretSuffix: text("masked_secret_suffix").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("organization_external_tms_provider_credentials_org_provider_kind_key").on(
+      table.organizationId,
+      table.providerKind,
+    ),
+    index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
   ],
 );
 
@@ -1173,5 +1258,67 @@ export const repositorySourceFileVersions = pgTable(
     ),
     index("idx_repository_source_file_versions_workflow_run").on(table.workflowRunId),
     index("idx_repository_source_file_versions_api_key").on(table.uploadedByApiKeyId),
+  ],
+);
+
+export const repoTmsMutationLogActionEnum = pgEnum("repo_tms_mutation_log_action", [
+  "upload_sources",
+  "apply_fixes",
+  "commit_changes",
+  "push_to_branch",
+  "tms_mutate",
+]);
+
+export const repoTmsMutationLogStatusEnum = pgEnum("repo_tms_mutation_log_status", [
+  "pending",
+  "approved",
+  "denied",
+  "completed",
+  "failed",
+]);
+
+export const repoTmsMutationLogs = pgTable(
+  "repo_tms_mutation_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    workflowRunId: text("workflow_run_id"),
+    taskId: text("task_id").notNull(),
+    actor: jsonb("actor")
+      .$type<{
+        sourceUserId: string;
+        userId?: string;
+        email?: string;
+        displayName?: string;
+        role?: string;
+      }>()
+      .notNull(),
+    action: repoTmsMutationLogActionEnum("action").notNull(),
+    source: text("source").notNull(),
+    provider: text("provider"),
+    status: repoTmsMutationLogStatusEnum("status").notNull().default("pending"),
+    details: jsonb("details")
+      .$type<{
+        changedPaths?: string[];
+        commands?: string[];
+        error?: string;
+        reason?: string;
+      }>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_repo_tms_mutation_logs_org").on(table.organizationId),
+    index("idx_repo_tms_mutation_logs_task").on(table.taskId),
+    index("idx_repo_tms_mutation_logs_workflow_run").on(table.workflowRunId),
+    index("idx_repo_tms_mutation_logs_created_at").on(table.createdAt),
   ],
 );

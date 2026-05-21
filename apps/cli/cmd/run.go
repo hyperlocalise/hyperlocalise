@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +24,8 @@ import (
 )
 
 type runOptions struct {
+	prefilledEntriesPath      string
+	prefilledTargetPath       string
 	configPath                string
 	interactive               bool
 	dryRun                    bool
@@ -84,6 +88,8 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "only run tasks for the given target locale(s)")
 	cmd.Flags().StringSliceVar(&o.targetLocaleAlias, "target-locale", nil, "alias for --locale")
 	cmd.Flags().StringVar(&o.outputPath, "output", "", "report output JSON path")
+	cmd.Flags().StringVar(&o.prefilledEntriesPath, "prefilled-entries", "", "JSON file containing prefilled translation entries keyed by entry id")
+	cmd.Flags().StringVar(&o.prefilledTargetPath, "prefilled-target-path", "", "target output path to apply --prefilled-entries to")
 	cmd.Flags().BoolVar(&o.experimentalContextMemory, "experimental-context-memory", o.experimentalContextMemory, "enable experimental two-stage context memory generation before translation")
 	cmd.Flags().StringVar(&o.contextMemoryScope, "context-memory-scope", runsvc.ContextMemoryScopeFile, "scope for experimental context memory: file|bucket|group")
 	cmd.Flags().IntVar(&o.contextMemoryMaxChars, "context-memory-max-chars", 1200, "maximum context memory characters injected into each translation request")
@@ -128,6 +134,27 @@ func normalizeRunFileFlags(paths []string) ([]string, error) {
 		normalized = append(normalized, trimmed)
 	}
 	return normalized, nil
+}
+
+func loadPrefilledEntries(path string) (map[string]string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return nil, nil
+	}
+	raw, err := os.ReadFile(trimmed)
+	if err != nil {
+		return nil, fmt.Errorf("read --prefilled-entries %q: %w", trimmed, err)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	entries := map[string]string{}
+	if err := decoder.Decode(&entries); err != nil {
+		return nil, fmt.Errorf("parse --prefilled-entries %q: %w", trimmed, err)
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("parse --prefilled-entries %q: unexpected trailing data", trimmed)
+	}
+	return entries, nil
 }
 
 func executeRun(cmd *cobra.Command, o runOptions) error {
@@ -215,6 +242,14 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		defer renderer.Close()
 	}
 
+	prefilledEntries, err := loadPrefilledEntries(o.prefilledEntriesPath)
+	if err != nil {
+		return err
+	}
+	if len(prefilledEntries) > 0 && strings.TrimSpace(o.prefilledTargetPath) == "" {
+		return fmt.Errorf("--prefilled-target-path is required when --prefilled-entries is provided")
+	}
+
 	input := runsvc.Input{
 		ConfigPath:                o.configPath,
 		DryRun:                    o.dryRun,
@@ -231,6 +266,8 @@ func executeRun(cmd *cobra.Command, o runOptions) error {
 		ContextMemoryScope:        contextMemoryScope,
 		ContextMemoryMaxChars:     o.contextMemoryMaxChars,
 		ReportJSONDetail:          jsonDetail,
+		PrefilledEntries:          prefilledEntries,
+		PrefilledTargetPath:       strings.TrimSpace(o.prefilledTargetPath),
 	}
 	if renderer != nil {
 		input.OnEvent = func(event runsvc.Event) {

@@ -15,6 +15,7 @@ type Branch struct {
 	UpdatedAt     string  `json:"updatedAt"`
 	ExportPattern *string `json:"exportPattern,omitempty"`
 	Priority      *string `json:"priority,omitempty"`
+	WebURL        string  `json:"webUrl"`
 }
 
 // BranchesGetResponse describes a response with a single branch.
