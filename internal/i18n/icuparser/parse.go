@@ -51,7 +51,7 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 		// and multiple handleMessageChar calls for plain text.
 		// We must stop at '}' as well to correctly handle nested structures
 		// when untilBrace is true, or to report an error otherwise.
-		idx := strings.IndexAny(p.src[p.pos:], "{#<'} ")
+		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
 		if idx == -1 {
 			text.WriteString(p.src[p.pos:])
 			p.pos = len(p.src)
@@ -484,7 +484,7 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
 		// ahead to the next special character.
 		// We must stop at '}' to correctly detect the closing tag or nested structure boundaries.
-		idx := strings.IndexAny(p.src[p.pos:], "{#<'} ")
+		idx := strings.IndexAny(p.src[p.pos:], "{#<'}")
 		if idx == -1 {
 			text.WriteString(p.src[p.pos:])
 			p.pos = len(p.src)
