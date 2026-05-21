@@ -32,8 +32,9 @@ type fluentEntry struct {
 }
 
 type fluentDocument struct {
-	template string
-	entries  []fluentEntry
+	template   string
+	entries    []fluentEntry
+	messageIDs map[string]struct{}
 }
 
 func (p FluentParser) Parse(content []byte) (map[string]string, error) {
@@ -84,11 +85,14 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 		return strings.Compare(a.key, b.key)
 	})
 
-	seen := make(map[string]struct{}, len(entries))
+	templateKeys := make(map[string]struct{}, len(entries)+len(d.messageIDs))
+	for messageID := range d.messageIDs {
+		templateKeys[messageID] = struct{}{}
+	}
 	var b strings.Builder
 	cursor := 0
 	for _, entry := range entries {
-		seen[entry.key] = struct{}{}
+		templateKeys[entry.key] = struct{}{}
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
 		}
@@ -102,7 +106,7 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 	}
 	b.WriteString(d.template[cursor:])
 
-	if err := appendMissingFluentEntries(&b, values, seen); err != nil {
+	if err := appendMissingFluentEntries(&b, values, templateKeys); err != nil {
 		return nil, err
 	}
 
@@ -116,7 +120,7 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 
 	text := string(content)
 	lines := scanFluentLines(text)
-	doc := fluentDocument{template: text, entries: []fluentEntry{}}
+	doc := fluentDocument{template: text, entries: []fluentEntry{}, messageIDs: map[string]struct{}{}}
 	seen := map[string]struct{}{}
 	pendingComments := []string{}
 	parentID := ""
@@ -168,6 +172,10 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 		if !ok {
 			return fluentDocument{}, fmt.Errorf("line %d: expected Fluent message assignment", lineNumberAt(text, line.start))
 		}
+		if _, ok := doc.messageIDs[messageID]; ok {
+			return fluentDocument{}, fmt.Errorf("line %d: duplicate Fluent message id %q", lineNumberAt(text, line.start), messageID)
+		}
+		doc.messageIDs[messageID] = struct{}{}
 		context := formatFluentComments(pendingComments)
 		pendingComments = nil
 		parentID = messageID
@@ -393,8 +401,25 @@ func normalizeFluentValue(raw string) string {
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
 	}
+	commonIndent := -1
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if commonIndent < 0 || indent < commonIndent {
+			commonIndent = indent
+		}
+	}
+	if commonIndent < 0 {
+		commonIndent = 0
+	}
 	for i, line := range lines {
-		lines[i] = strings.TrimRight(strings.TrimLeft(line, " \t"), " \t")
+		if len(line) >= commonIndent {
+			lines[i] = strings.TrimRight(line[commonIndent:], " \t")
+		} else {
+			lines[i] = strings.TrimRight(line, " \t")
+		}
 	}
 	return strings.Join(lines, "\n")
 }
@@ -426,17 +451,17 @@ func encodeFluentValue(value, continuationIndent string, blockValue bool) string
 	return lines[0] + "\n" + continuationIndent + strings.Join(lines[1:], "\n"+continuationIndent)
 }
 
-func appendMissingFluentEntries(b *strings.Builder, values map[string]string, seen map[string]struct{}) error {
+func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}) error {
 	messageKeys := []string{}
 	attrsByParent := map[string][]string{}
 
 	for key := range values {
-		if _, ok := seen[key]; ok {
+		if _, ok := templateKeys[key]; ok {
 			continue
 		}
 		parent, attr, ok := splitFluentAttributeKey(key)
 		if ok {
-			if _, parentExists := seen[parent]; parentExists {
+			if _, parentExists := templateKeys[parent]; parentExists {
 				return fmt.Errorf("fluent marshal: cannot append missing attribute %q because parent message %q already exists in template", key, parent)
 			}
 			attrsByParent[parent] = append(attrsByParent[parent], attr)

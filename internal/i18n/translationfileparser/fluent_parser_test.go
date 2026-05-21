@@ -33,13 +33,33 @@ items =
 		"escaped":          "Use \\\\{literal\\\\} and C:\\\\Temp",
 		"brand.title":      "Hyperlocalise",
 		"brand.aria-label": "Open { $item }",
-		"items":            "{ $count ->\n[one] One item\n*[other] { $count } items\n}",
+		"items":            "{ $count ->\n    [one] One item\n   *[other] { $count } items\n}",
 	}
 	if !reflect.DeepEqual(values, want) {
 		t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
 	}
 	if !strings.Contains(ctx["hello"], "Greeting shown after sign-in.") {
 		t.Fatalf("expected comment context for hello, got %#v", ctx)
+	}
+}
+
+func TestFluentParserPreservesRelativeIndentation(t *testing.T) {
+	values, err := FluentParser{}.Parse([]byte(`nested =
+    { $gender ->
+        [male] { $count ->
+            [one] His item
+           *[other] His items
+        }
+       *[other] Their item
+    }
+`))
+	if err != nil {
+		t.Fatalf("parse fluent: %v", err)
+	}
+
+	want := "{ $gender ->\n    [male] { $count ->\n        [one] His item\n       *[other] His items\n    }\n   *[other] Their item\n}"
+	if values["nested"] != want {
+		t.Fatalf("expected relative indentation preserved\n got: %q\nwant: %q", values["nested"], want)
 	}
 }
 
@@ -83,6 +103,18 @@ items =
 `
 	if string(got) != want {
 		t.Fatalf("marshaled fluent mismatch\n got: %q\nwant: %q", string(got), want)
+	}
+}
+
+func TestMarshalFluentRejectsNewAttributeForExistingAttributeOnlyParent(t *testing.T) {
+	_, err := MarshalFluent([]byte(`brand =
+    .title = Hyperlocalise
+`), map[string]string{
+		"brand.title":  "Hyperlocalise FR",
+		"brand.footer": "Footer",
+	})
+	if err == nil || !strings.Contains(err.Error(), `cannot append missing attribute "brand.footer"`) {
+		t.Fatalf("expected missing attribute parent guard error, got %v", err)
 	}
 }
 
