@@ -9,7 +9,7 @@ import {
 export const updateProviderCredentialBodySchema = z
   .object({
     provider: llmProviderSchema,
-    apiKey: z.string().trim().min(1, "API key is required.").max(1024),
+    apiKey: z.string().trim().min(1, "API key is required.").max(4096),
     defaultModel: z.string().trim().min(1, "Default model is required.").max(256),
   })
   .superRefine((value, context) => {

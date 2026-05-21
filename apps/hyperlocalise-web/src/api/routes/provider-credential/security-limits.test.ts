@@ -4,7 +4,7 @@ import { addTeamMemberBodySchema } from "../team/team.schema";
 
 describe("Schema length limits", () => {
   it("should enforce max length on provider credential apiKey", () => {
-    const longKey = "a".repeat(1025);
+    const longKey = "a".repeat(4097);
     const result = updateProviderCredentialBodySchema.safeParse({
       provider: "openai",
       apiKey: longKey,
@@ -13,7 +13,6 @@ describe("Schema length limits", () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       const issues = result.error.issues;
-      // console.log('apiKey issues:', JSON.stringify(issues, null, 2));
       const issue = issues.find((i) => i.code === "too_big" && i.path.includes("apiKey"));
       expect(issue).toBeDefined();
     }
