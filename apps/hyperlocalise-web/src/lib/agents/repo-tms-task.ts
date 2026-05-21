@@ -8,8 +8,8 @@ import { z } from "zod";
  *                repository state or create TMS-side effects.
  * - write:       The agent may apply changes directly (e.g. push commits,
  *                create TMS entries) when it has sufficient context.
- * - approval_required: The agent may plan changes but must surface them for
- *                      human approval before applying.
+ * - approval_required: The agent may plan changes, but write tools require an
+ *                      admin/owner until durable human approval is implemented.
  */
 export const repoTmsAgentWorkModeSchema = z.enum(["read_only", "write", "approval_required"]);
 

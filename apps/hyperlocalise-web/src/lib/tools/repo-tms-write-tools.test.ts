@@ -48,6 +48,7 @@ import {
   createCommitChangesTool,
   createPushToBranchTool,
   createUploadSourcesTool,
+  getCommittableChangedPaths,
 } from "./repo-tms-write-tools";
 import type { ToolContext } from "./types";
 
@@ -348,6 +349,24 @@ describe("createPushToBranchTool", () => {
 
     expect(result.success).toBe(true);
     expect(result.branch).toBe("main");
+  });
+});
+
+describe("getCommittableChangedPaths", () => {
+  it("uses rename and copy destination paths from porcelain v1 z output", () => {
+    const paths = getCommittableChangedPaths(
+      "R  src/i18n/en-old.json\0src/i18n/en.json\0C  src/i18n/fr.json\0src/i18n/fr-copy.json\0",
+    );
+
+    expect(paths).toEqual(["src/i18n/en.json", "src/i18n/fr-copy.json"]);
+  });
+
+  it("skips internal report destinations for rename and copy entries", () => {
+    const paths = getCommittableChangedPaths(
+      "R  src/report.md\0.hyperlocalise/report.md\0 M src/i18n/en.json\0",
+    );
+
+    expect(paths).toEqual(["src/i18n/en.json"]);
   });
 });
 

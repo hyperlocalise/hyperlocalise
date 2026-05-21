@@ -516,18 +516,17 @@ export function getCommittableChangedPaths(statusOutput: string): string[] {
 
     const status = entry.slice(0, 2);
     const path = entry.slice(3);
-    const isRenameOrCopy = status[0] === "R" || status[0] === "C";
-    if (!path || status === "!!" || isInternalReportPath(path)) {
-      if (isRenameOrCopy) {
-        index += 1;
-      }
-      continue;
-    }
-
-    paths.push(path);
+    const isRenameOrCopy = status.includes("R") || status.includes("C");
+    const committablePath = isRenameOrCopy ? entries[index + 1] : path;
     if (isRenameOrCopy) {
       index += 1;
     }
+
+    if (!committablePath || status === "!!" || isInternalReportPath(committablePath)) {
+      continue;
+    }
+
+    paths.push(committablePath);
   }
   return paths;
 }

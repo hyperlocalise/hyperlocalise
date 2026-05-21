@@ -50,7 +50,7 @@ import {
  * conversation, and project.
  */
 export function buildTools(ctx: ToolContext): ToolSet {
-  return {
+  const tools: ToolSet = {
     listProjects: createListProjectsTool(ctx),
     getProjectContext: createGetProjectContextTool(ctx),
     updateInteractionProject: createUpdateInteractionProjectTool(ctx),
@@ -85,10 +85,14 @@ export function buildTools(ctx: ToolContext): ToolSet {
     listJobs: createListJobsTool(ctx),
     getJobStatus: createGetJobStatusTool(ctx),
     resolveInteraction: createResolveInteractionTool(ctx),
-
-    applyHyperlocaliseFixes: createApplyHyperlocaliseFixesTool(ctx),
-    commitChanges: createCommitChangesTool(ctx),
-    pushToBranch: createPushToBranchTool(ctx),
-    uploadSources: createUploadSourcesTool(ctx),
   };
+
+  if (ctx.workMode !== "read_only") {
+    tools.applyHyperlocaliseFixes = createApplyHyperlocaliseFixesTool(ctx);
+    tools.commitChanges = createCommitChangesTool(ctx);
+    tools.pushToBranch = createPushToBranchTool(ctx);
+    tools.uploadSources = createUploadSourcesTool(ctx);
+  }
+
+  return tools;
 }

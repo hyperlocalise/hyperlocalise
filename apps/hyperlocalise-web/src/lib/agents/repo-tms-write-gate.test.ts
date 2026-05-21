@@ -88,7 +88,7 @@ describe("checkRepoTmsWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("denies Slack approval_required for member role (needs explicit approval)", () => {
+  it("denies Slack approval_required for member role without implying an approval path", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "approval_required",
       source: "slack",
@@ -97,7 +97,7 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("explicit approval");
+    expect(deniedReason(result)).toContain("admin or owner privileges");
   });
 
   it("allows GitHub write mode for any role", () => {
@@ -111,7 +111,7 @@ describe("checkRepoTmsWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("denies GitHub approval_required for member role (needs explicit approval)", () => {
+  it("denies GitHub approval_required for member role without implying an approval path", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "approval_required",
       source: "github",
@@ -120,7 +120,7 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("explicit approval");
+    expect(deniedReason(result)).toContain("admin or owner privileges");
   });
 
   it("allows GitHub approval_required for admin role (auto-approve)", () => {

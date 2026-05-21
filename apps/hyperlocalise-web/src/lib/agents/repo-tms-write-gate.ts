@@ -21,7 +21,8 @@ const adminRoles = new Set(["owner", "admin"]);
  * Rules:
  * - read_only: all writes are denied.
  * - write: allow if the actor is an admin/owner; deny for members.
- * - approval_required: auto-approve for admin/owner; otherwise require explicit approval.
+ * - approval_required: allow admin/owner writes; deny members until a durable
+ *   approval flow exists.
  *
  * GitHub-sourced write-mode tasks are assumed to have passed bot-level
  * permission checks (requesterCanRunFix) before enqueuing.
@@ -47,7 +48,7 @@ export function checkRepoTmsWriteGate(input: {
     return checkGitHubWriteGate(input.workMode, input.actor);
   }
 
-  // chat_ui: same as Slack — require admin/owner or explicit approval
+  // chat_ui: same as Slack — require admin/owner privileges.
   return checkSlackWriteGate(input.workMode, input.actor);
 }
 
@@ -75,7 +76,7 @@ function checkSlackWriteGate(
   return {
     allowed: false,
     reason:
-      "This write action requires explicit approval. A workspace admin or owner must approve it first.",
+      "Write actions in this workflow require admin or owner privileges. Please contact a workspace admin.",
   };
 }
 
@@ -91,8 +92,8 @@ function checkGitHubWriteGate(
     return { allowed: true };
   }
 
-  // approval_required: auto-approve for admins; otherwise require the same
-  // explicit approval step as other sources.
+  // approval_required: allow admins; deny other roles until a durable approval
+  // flow exists.
   if (isAdmin) {
     return { allowed: true };
   }
@@ -100,7 +101,7 @@ function checkGitHubWriteGate(
   return {
     allowed: false,
     reason:
-      "This write action requires explicit approval. A workspace admin or owner must approve it first.",
+      "Write actions in this workflow require admin or owner privileges. Please contact a workspace admin.",
   };
 }
 
