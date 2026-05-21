@@ -80,6 +80,12 @@ export const llmProviderEnum = pgEnum("llm_provider", [
   "groq",
   "mistral",
 ]);
+export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", [
+  "crowdin",
+  "smartling",
+  "phrase",
+  "lokalise",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -559,6 +565,47 @@ export const organizationLlmProviderCredentials = pgTable(
       table.provider,
     ),
     index("idx_organization_llm_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const organizationExternalTmsProviderCredentials = pgTable(
+  "organization_external_tms_provider_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    displayName: text("display_name").notNull(),
+    region: text("region"),
+    baseUrl: text("base_url"),
+    validationStatus: text("validation_status").notNull().default("unvalidated"),
+    validationMessage: text("validation_message"),
+    lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
+    encryptionAlgorithm: text("encryption_algorithm").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    maskedSecretSuffix: text("masked_secret_suffix").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("organization_external_tms_provider_credentials_org_provider_kind_key").on(
+      table.organizationId,
+      table.providerKind,
+    ),
+    index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
   ],
 );
 

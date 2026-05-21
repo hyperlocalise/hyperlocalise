@@ -29,6 +29,7 @@ import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhoo
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
 import { createFileRoutes } from "./routes/file/file.route";
+import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
@@ -85,6 +86,7 @@ function createOrgScopedAppRoutes(
     .route("/projects", createProjectRoutes(options))
     .route("/jobs", createWorkspaceJobRoutes({ jobQueue: options.jobQueue }))
     .route("/provider-credential", createProviderCredentialRoutes())
+    .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route("/agent-email", createAgentEmailRoutes())
     .route("/agent-slack", createAgentSlackRoutes())
     .route("/teams", createTeamRoutes())
