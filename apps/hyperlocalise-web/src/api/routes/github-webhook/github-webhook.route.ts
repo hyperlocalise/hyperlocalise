@@ -157,135 +157,136 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
     }),
     async (c) => {
       const event = c.req.header("x-github-event");
-    const delivery = c.req.header("x-github-delivery");
+      const delivery = c.req.header("x-github-delivery");
 
-    const bodyBuffer = await c.req.raw.arrayBuffer();
-    const bodyText = new TextDecoder().decode(bodyBuffer);
+      const bodyBuffer = await c.req.raw.arrayBuffer();
+      const bodyText = new TextDecoder().decode(bodyBuffer);
 
-    const parseResult = safeJsonParse(bodyText);
-    if (!parseResult.ok) {
-      logger.warn({ delivery, event }, "invalid webhook payload");
-      return c.json({ error: "invalid_payload" }, 400);
-    }
-    const payload = parseResult.value as GitHubWebhookPayload;
-
-    logger.info(
-      {
-        delivery,
-        event,
-        action: payload.action,
-        installationId: payload.installation?.id,
-        repository: payload.repository?.full_name,
-      },
-      "webhook received",
-    );
-
-    if (!options.githubWebhookHandler) {
-      const verified = await verifyGitHubWebhookSignature(
-        bodyText,
-        c.req.header("x-hub-signature-256"),
-      );
-      if (!verified) {
-        logger.warn({ delivery, event }, "invalid webhook signature");
-        return c.json({ error: "invalid_signature" }, 401);
+      const parseResult = safeJsonParse(bodyText);
+      if (!parseResult.ok) {
+        logger.warn({ delivery, event }, "invalid webhook payload");
+        return c.json({ error: "invalid_payload" }, 400);
       }
-    }
+      const payload = parseResult.value as GitHubWebhookPayload;
 
-    if (event === "installation" && payload.action === "deleted" && payload.installation?.id) {
-      logger.info({ installationId: payload.installation.id }, "deleting github installation");
-      await db
-        .delete(schema.githubInstallations)
-        .where(
-          eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
-        );
-
-      return c.json({ ok: true, ignored: false }, 200);
-    }
-
-    if (event === "installation_repositories" || event === "repository") {
       logger.info(
-        {
-          installationId: payload.installation?.id,
-          repositoriesAdded: payload.repositories_added?.length ?? 0,
-          repositoriesRemoved: payload.repositories_removed?.length ?? 0,
-          repository: payload.repository?.full_name,
-          action: payload.action,
-        },
-        "applying repository webhook",
-      );
-      await applyRepositoryWebhook(payload);
-      return c.json({ ok: true, ignored: false }, 200);
-    }
-
-    if (!payload.installation?.id) {
-      logger.info({ delivery, event }, "ignoring webhook: no installation id");
-      return c.json({ ok: true, ignored: true }, 200);
-    }
-
-    const installation = await findStoredInstallation(String(payload.installation.id));
-    if (!installation) {
-      logger.info(
-        { installationId: payload.installation.id },
-        "ignoring webhook: installation not found",
-      );
-      return c.json({ ok: true, ignored: true }, 200);
-    }
-
-    if (!payload.repository?.id) {
-      logger.info(
-        { installationId: payload.installation.id, event },
-        "ignoring webhook: no repository id",
-      );
-      return c.json({ ok: true, ignored: true }, 200);
-    }
-
-    const enabled = await isRepositoryEnabled({
-      organizationId: installation.organizationId,
-      githubInstallationId: installation.githubInstallationId,
-      githubRepositoryId: String(payload.repository.id),
-    });
-    if (!enabled) {
-      logger.info(
-        {
-          installationId: installation.githubInstallationId,
-          repositoryId: payload.repository.id,
-          repository: payload.repository.full_name,
-        },
-        "ignoring webhook: repository not enabled",
-      );
-      return c.json({ ok: true, ignored: true }, 200);
-    }
-
-    const handler =
-      options.githubWebhookHandler ??
-      (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
-
-    if (!handler) {
-      logger.error("github adapter not configured");
-      return c.json({ error: "github_adapter_not_configured" }, 503);
-    }
-
-    // Reconstruct the request so the adapter can verify the webhook signature.
-    const request = new Request(c.req.raw.url, {
-      method: c.req.raw.method,
-      headers: c.req.raw.headers,
-      body: bodyBuffer,
-    });
-
-    try {
-      const response = await handler(request);
-      logger.info({ delivery, event, status: response.status }, "webhook processed");
-      return response;
-    } catch (error) {
-      logger.error(
         {
           delivery,
           event,
-          error: error instanceof Error ? error.message : String(error),
+          action: payload.action,
+          installationId: payload.installation?.id,
+          repository: payload.repository?.full_name,
         },
-        "webhook handler failed",
+        "webhook received",
       );
-      throw error;
-    }
-  });
+
+      if (!options.githubWebhookHandler) {
+        const verified = await verifyGitHubWebhookSignature(
+          bodyText,
+          c.req.header("x-hub-signature-256"),
+        );
+        if (!verified) {
+          logger.warn({ delivery, event }, "invalid webhook signature");
+          return c.json({ error: "invalid_signature" }, 401);
+        }
+      }
+
+      if (event === "installation" && payload.action === "deleted" && payload.installation?.id) {
+        logger.info({ installationId: payload.installation.id }, "deleting github installation");
+        await db
+          .delete(schema.githubInstallations)
+          .where(
+            eq(schema.githubInstallations.githubInstallationId, String(payload.installation.id)),
+          );
+
+        return c.json({ ok: true, ignored: false }, 200);
+      }
+
+      if (event === "installation_repositories" || event === "repository") {
+        logger.info(
+          {
+            installationId: payload.installation?.id,
+            repositoriesAdded: payload.repositories_added?.length ?? 0,
+            repositoriesRemoved: payload.repositories_removed?.length ?? 0,
+            repository: payload.repository?.full_name,
+            action: payload.action,
+          },
+          "applying repository webhook",
+        );
+        await applyRepositoryWebhook(payload);
+        return c.json({ ok: true, ignored: false }, 200);
+      }
+
+      if (!payload.installation?.id) {
+        logger.info({ delivery, event }, "ignoring webhook: no installation id");
+        return c.json({ ok: true, ignored: true }, 200);
+      }
+
+      const installation = await findStoredInstallation(String(payload.installation.id));
+      if (!installation) {
+        logger.info(
+          { installationId: payload.installation.id },
+          "ignoring webhook: installation not found",
+        );
+        return c.json({ ok: true, ignored: true }, 200);
+      }
+
+      if (!payload.repository?.id) {
+        logger.info(
+          { installationId: payload.installation.id, event },
+          "ignoring webhook: no repository id",
+        );
+        return c.json({ ok: true, ignored: true }, 200);
+      }
+
+      const enabled = await isRepositoryEnabled({
+        organizationId: installation.organizationId,
+        githubInstallationId: installation.githubInstallationId,
+        githubRepositoryId: String(payload.repository.id),
+      });
+      if (!enabled) {
+        logger.info(
+          {
+            installationId: installation.githubInstallationId,
+            repositoryId: payload.repository.id,
+            repository: payload.repository.full_name,
+          },
+          "ignoring webhook: repository not enabled",
+        );
+        return c.json({ ok: true, ignored: true }, 200);
+      }
+
+      const handler =
+        options.githubWebhookHandler ??
+        (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
+
+      if (!handler) {
+        logger.error("github adapter not configured");
+        return c.json({ error: "github_adapter_not_configured" }, 503);
+      }
+
+      // Reconstruct the request so the adapter can verify the webhook signature.
+      const request = new Request(c.req.raw.url, {
+        method: c.req.raw.method,
+        headers: c.req.raw.headers,
+        body: bodyBuffer,
+      });
+
+      try {
+        const response = await handler(request);
+        logger.info({ delivery, event, status: response.status }, "webhook processed");
+        return response;
+      } catch (error) {
+        logger.error(
+          {
+            delivery,
+            event,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "webhook handler failed",
+        );
+        throw error;
+      }
+    },
+  );
 }

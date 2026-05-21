@@ -23,24 +23,25 @@ export function createResendWebhookRoutes(options: CreateResendWebhookRoutesOpti
     async (c) => {
       logger.info({ method: c.req.method, path: c.req.path }, "webhook received");
 
-    try {
-      const bot = await getEmailBot({
-        emailAgentTaskQueue: options.emailAgentTaskQueue ?? createEmailAgentTaskQueue(),
-      });
+      try {
+        const bot = await getEmailBot({
+          emailAgentTaskQueue: options.emailAgentTaskQueue ?? createEmailAgentTaskQueue(),
+        });
 
-      const response = await bot.webhooks.resend(c.req.raw, {
-        waitUntil: (task) => {
-          after(() => task);
-        },
-      });
-      logger.info({ status: response.status }, "webhook processed");
-      return response;
-    } catch (error) {
-      logger.error(
-        { error: error instanceof Error ? error.message : String(error) },
-        "webhook processing failed",
-      );
-      throw error;
-    }
-  });
+        const response = await bot.webhooks.resend(c.req.raw, {
+          waitUntil: (task) => {
+            after(() => task);
+          },
+        });
+        logger.info({ status: response.status }, "webhook processed");
+        return response;
+      } catch (error) {
+        logger.error(
+          { error: error instanceof Error ? error.message : String(error) },
+          "webhook processing failed",
+        );
+        throw error;
+      }
+    },
+  );
 }
