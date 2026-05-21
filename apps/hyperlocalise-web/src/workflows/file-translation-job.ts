@@ -3,6 +3,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
+import { persistFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
 import {
   isImageTranslationFileFormat,
   type SupportedTranslationFileFormat,
@@ -83,6 +84,20 @@ async function runTranslationStep(
   );
 }
 
+
+async function extractEntriesStep(sandboxId: string, path: string) {
+  "use step";
+  const result = await runSandboxCommand(
+    sandboxId,
+    "bash",
+    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${path.replaceAll("'", "'\''")}'`],
+    { env: getSandboxTranslationEnv() },
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(`failed to extract entries for ${path}: ${result.output}`);
+  }
+  return JSON.parse(result.output) as Record<string, string>;
+}
 async function readOutputStep(sandboxId: string, outputFile: string) {
   "use step";
   return readTranslatedFile(sandboxId, outputFile);
@@ -357,6 +372,19 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         filename: outputFilename,
         contentType: sourceFile.contentType,
         content: translatedContent,
+      });
+
+      const sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
+      const targetEntries = await extractEntriesStep(sandboxId, outputFilename);
+      await persistFileTranslationMemoryEntries({
+        projectId: claim.job.projectId,
+        jobId: claim.job.id,
+        sourceLocale: parsedInput.sourceLocale,
+        targetLocale,
+        sourcePath: sourceFile.filename,
+        sourceFileHash: sourceFile.sha256,
+        sourceEntries,
+        targetEntries,
       });
 
       outputFiles.push({
