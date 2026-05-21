@@ -104,8 +104,6 @@ export function buildGitHubFixRequestInput(
   };
 }
 
-
-
 export function buildGitHubRepoTmsRequestInput(input: {
   installationId: number;
   repositoryFullName: string;

@@ -28,6 +28,10 @@ export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | 
     };
   }
 
+  if (parts.length === 0) {
+    return null;
+  }
+
   return {
     command: "repo_tms",
     instructions: parts.join(" "),
