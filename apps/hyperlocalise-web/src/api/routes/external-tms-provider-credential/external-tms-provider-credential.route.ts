@@ -15,13 +15,15 @@ import {
 
 const validateUpsertBody = validator("json", (value, c) => {
   const parsed = upsertExternalTmsProviderCredentialBodySchema.safeParse(value);
-  if (!parsed.success) return c.json({ error: "invalid_external_tms_provider_credential_payload" }, 400);
+  if (!parsed.success)
+    return c.json({ error: "invalid_external_tms_provider_credential_payload" }, 400);
   return parsed.data;
 });
 
 const validateRevealBody = validator("json", (value, c) => {
   const parsed = revealExternalTmsProviderCredentialBodySchema.safeParse(value);
-  if (!parsed.success) return c.json({ error: "invalid_external_tms_provider_credential_payload" }, 400);
+  if (!parsed.success)
+    return c.json({ error: "invalid_external_tms_provider_credential_payload" }, 400);
   return parsed.data;
 });
 
@@ -69,7 +71,11 @@ export function createExternalTmsProviderCredentialRoutes() {
         const deleted = await deleteOrganizationExternalTmsProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           role: c.var.auth.membership.role,
-          providerKind: c.req.param("providerKind") as "crowdin" | "smartling" | "phrase" | "lokalise",
+          providerKind: c.req.param("providerKind") as
+            | "crowdin"
+            | "smartling"
+            | "phrase"
+            | "lokalise",
         });
 
         if (!deleted) return c.json({ error: "provider_credential_not_found" }, 404);

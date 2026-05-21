@@ -34,7 +34,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
 
-    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$put(
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].$put(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
@@ -52,7 +54,12 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const [stored] = await db
       .select()
       .from(schema.organizationExternalTmsProviderCredentials)
-      .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, authContext!.organization.localOrganizationId));
+      .where(
+        eq(
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          authContext!.organization.localOrganizationId,
+        ),
+      );
     expect(stored?.ciphertext).not.toContain("crowdin-token-super-secret");
   });
 
@@ -60,7 +67,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const headers = await fixture.authHeadersFor(identity);
 
-    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$put(
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].$put(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
