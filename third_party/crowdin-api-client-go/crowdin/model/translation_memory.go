@@ -20,6 +20,7 @@ type TranslationMemory struct {
 	ProjectIDs        []int    `json:"projectIds"`
 	WebURL            string   `json:"webUrl"`
 	CreatedAt         string   `json:"createdAt"`
+	UpdatedAt         string   `json:"updatedAt"`
 }
 
 // TranslationMemoryResponse defines the structure of the response
