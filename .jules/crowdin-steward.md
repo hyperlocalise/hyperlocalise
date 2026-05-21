@@ -53,3 +53,9 @@
 **Learning:** The Crowdin Bundles API v2 returns an `eta` field in bundle export responses, and the Tasks API supports filtering by `workflowStepId` via query parameters. These were missing from the Go SDK models and request options.
 
 **Action:** Added `ETA` to the `BundleExport` model in `model/bundles.go`. Added `WorkflowStepID` to `TasksListOptions` and updated its `Values()` method in `model/tasks.go` to encode it. Updated contract tests in `bundles_test.go` and `tasks_test.go` to verify parity.
+
+## 2026-06-26 - Improve Glossary and TM model parity for updatedAt and translationOfTermId
+
+**Learning:** The Crowdin API v2 for Glossaries and Translation Memories returns an `updatedAt` field in their resource responses, which was missing from the Go SDK models. Additionally, the Add Term endpoint supports a deprecated `translationOfTermId` field for linking translations, which can still be useful for legacy integrations.
+
+**Action:** Added `UpdatedAt` (string) to `Glossary` and `TranslationMemory` models. Added `TranslationOfTermID` (int) to `TermAddRequest`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization of these fields.

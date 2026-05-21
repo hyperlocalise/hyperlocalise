@@ -127,6 +127,7 @@ type Glossary struct {
 	ProjectIDs        []int    `json:"projectIds"`
 	WebURL            string   `json:"webUrl"`
 	CreatedAt         string   `json:"createdAt"`
+	UpdatedAt         string   `json:"updatedAt"`
 }
 
 // GlossaryResponse defines the structure of a response when
@@ -494,6 +495,9 @@ type TermAddRequest struct {
 	URL string `json:"url,omitempty"`
 	// Defines whether to add translation to the existing term.
 	ConceptID int `json:"conceptId,omitempty"`
+	// Defines whether to add translation to the existing term.
+	// Deprecated: Use ConceptID instead.
+	TranslationOfTermID int `json:"translationOfTermId,omitempty"`
 }
 
 // Validate checks if the request is valid.
