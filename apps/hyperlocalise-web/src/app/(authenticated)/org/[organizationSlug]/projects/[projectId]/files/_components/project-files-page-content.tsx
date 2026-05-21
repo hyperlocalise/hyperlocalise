@@ -227,36 +227,46 @@ function JobGroup({ locale, jobs }: { locale: string; jobs: ProjectFileJobRecord
 
             {job.outputs.length > 0 ? (
               <div className="mt-3 flex flex-col gap-3">
-                {job.outputs.map((output) => (
-                  <div
-                    key={`${job.id}:${output.fileId}`}
-                    className="rounded-md bg-foreground/3 p-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <TypographyP className="truncate text-sm font-medium text-foreground">
-                          {output.filename}
-                        </TypographyP>
-                        <TypographyP className="mt-1 font-mono text-xs text-foreground/42">
-                          {output.fileId}
-                        </TypographyP>
+                {job.outputs
+                  .filter((output) => output.locale === locale)
+                  .map((output) => (
+                    <div
+                      key={`${job.id}:${output.fileId}`}
+                      className="rounded-md bg-foreground/3 p-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <TypographyP className="truncate text-sm font-medium text-foreground">
+                            {output.filename}
+                          </TypographyP>
+                          <TypographyP className="mt-1 font-mono text-xs text-foreground/42">
+                            {output.fileId}
+                          </TypographyP>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          render={<a href={output.downloadPath} />}
+                        >
+                          <HugeiconsIcon
+                            icon={Download01Icon}
+                            strokeWidth={1.8}
+                            className="size-3"
+                          />
+                          Download
+                        </Button>
                       </div>
-                      <Button variant="outline" size="xs" render={<a href={output.downloadPath} />}>
-                        <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} className="size-3" />
-                        Download
-                      </Button>
+                      <TypographyP className="mt-2 text-xs text-foreground/42">
+                        {output.byteSize !== null ? formatBytes(output.byteSize) : "Unknown size"}
+                        {output.sha256 ? ` · ${shortSha(output.sha256)}` : ""}
+                      </TypographyP>
+                      {output.content ? (
+                        <pre className="mt-3 max-h-64 overflow-auto rounded-md border border-foreground/8 bg-background p-3 text-xs leading-5 text-foreground/72">
+                          {output.content.text}
+                        </pre>
+                      ) : null}
                     </div>
-                    <TypographyP className="mt-2 text-xs text-foreground/42">
-                      {output.byteSize !== null ? formatBytes(output.byteSize) : "Unknown size"}
-                      {output.sha256 ? ` · ${shortSha(output.sha256)}` : ""}
-                    </TypographyP>
-                    {output.content ? (
-                      <pre className="mt-3 max-h-64 overflow-auto rounded-md border border-foreground/8 bg-background p-3 text-xs leading-5 text-foreground/72">
-                        {output.content.text}
-                      </pre>
-                    ) : null}
-                  </div>
-                ))}
+                  ))}
               </div>
             ) : (
               <TypographyP className="mt-2 text-xs text-foreground/42">
@@ -399,9 +409,7 @@ export function ProjectFilesPageContent({
       current && versions.some((version) => version.id === current) ? current : versions[0]?.id,
     );
     setBaseVersionId((current) =>
-      current && versions.some((version) => version.id === current)
-        ? current
-        : (versions[1]?.id ?? versions[0]?.id),
+      current && versions.some((version) => version.id === current) ? current : versions[1]?.id,
     );
   }, [versions]);
 
