@@ -351,6 +351,24 @@ describe("GitHub command routing", () => {
     ]);
   });
 
+  it("reports repo/TMS claim failures before adding the reaction", async () => {
+    const { addReactionMock, posts, thread } = createThread();
+    const queue = { enqueue: vi.fn() };
+    claimGitHubAgentRequestMock.mockRejectedValueOnce(new Error("claimed"));
+
+    await expect(
+      handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }), {
+        queue,
+      }),
+    ).rejects.toThrow("claimed");
+
+    expect(repoTmsQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(addReactionMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+    ]);
+  });
+
   it("routes fix through a restricted ToolLoopAgent tool", async () => {
     const { addReactionMock, posts, setStateMock, thread } = createThread();
     const queue = { enqueue: vi.fn(async () => ({ ids: ["run_123"] })) };

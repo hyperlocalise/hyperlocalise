@@ -177,23 +177,31 @@ export async function handleMention(
       );
       return;
     }
-    await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
     const taskQueue: RepoTmsAgentTaskQueue = createRepoTmsAgentTaskQueue();
     const githubContext = githubContextResolution.context;
-    const claim = await claimGitHubAgentRequest(
-      buildGitHubRepoTmsRequestInput({
-        installationId: event.installationId,
-        repositoryFullName: event.repositoryFullName,
-        pullRequestNumber: event.pullRequestNumber,
-        commentId: event.trigger.commentId,
-        instructions: command.instructions,
-      }),
-    );
+    let claim: Awaited<ReturnType<typeof claimGitHubAgentRequest>>;
+    try {
+      claim = await claimGitHubAgentRequest(
+        buildGitHubRepoTmsRequestInput({
+          installationId: event.installationId,
+          repositoryFullName: event.repositoryFullName,
+          pullRequestNumber: event.pullRequestNumber,
+          commentId: event.trigger.commentId,
+          instructions: command.instructions,
+        }),
+      );
+    } catch (error) {
+      await thread.post(
+        "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+      );
+      throw error;
+    }
     if (claim.alreadyQueued) {
       await thread.post("This repo/TMS request is already queued.");
       return;
     }
 
+    await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
     try {
       const result = await taskQueue.enqueue({
         id: randomUUID(),
