@@ -108,9 +108,9 @@ function shortSha(value: string | null) {
   return value ? value.slice(0, 10) : "—";
 }
 
-function versionLabel(version: ProjectFileVersionRecord, index: number) {
+function versionLabel(version: ProjectFileVersionRecord, index: number, total: number) {
   const date = new Date(version.uploadedAt).toLocaleString();
-  return `v${index + 1} · ${date} · ${shortSha(version.sourceHash)}`;
+  return `v${total - index} · ${date} · ${shortSha(version.sourceHash)}`;
 }
 
 function toDiffFile(version: ProjectFileVersionRecord): FileContents | null {
@@ -577,7 +577,7 @@ export function ProjectFilesPageContent({
                     >
                       {versions.map((version, index) => (
                         <option key={version.id} value={version.id}>
-                          {versionLabel(version, index)}
+                          {versionLabel(version, index, versions.length)}
                         </option>
                       ))}
                     </select>
@@ -613,7 +613,7 @@ export function ProjectFilesPageContent({
                       >
                         {versions.map((version, index) => (
                           <option key={version.id} value={version.id}>
-                            Base {versionLabel(version, index)}
+                            Base {versionLabel(version, index, versions.length)}
                           </option>
                         ))}
                       </select>
@@ -624,7 +624,7 @@ export function ProjectFilesPageContent({
                       >
                         {versions.map((version, index) => (
                           <option key={version.id} value={version.id}>
-                            Compare {versionLabel(version, index)}
+                            Compare {versionLabel(version, index, versions.length)}
                           </option>
                         ))}
                       </select>

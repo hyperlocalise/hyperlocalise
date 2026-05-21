@@ -365,7 +365,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const outputFileById = new Map(outputFiles.map((file) => [file.id, file]));
 
         const versionRecords = await Promise.all(
-          versions.map(async (version, index) => ({
+          versions.map(async (version, _index) => ({
             id: version.id,
             sourcePath: version.sourcePath,
             sourceHash: version.sourceHash,
@@ -378,7 +378,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             byteSize: version.byteSize,
             sha256: version.sha256,
             metadata: version.metadata as Record<string, unknown>,
-            content: index === 0 ? await inlineTextContent({ adapter, file: version }) : null,
+            content: await inlineTextContent({ adapter, file: version }),
           })),
         );
 
