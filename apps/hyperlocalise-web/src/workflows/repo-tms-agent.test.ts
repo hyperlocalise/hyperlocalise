@@ -141,6 +141,10 @@ describe("repoTmsAgentWorkflow", () => {
         organizationId: "org_1",
         membershipRole: "member",
         projectId: null,
+        workMode: "read_only",
+        actor: baseTask.actor,
+        sandboxId: null,
+        githubContext: null,
       }),
     );
   });
@@ -174,6 +178,38 @@ describe("repoTmsAgentWorkflow", () => {
     } as never);
 
     expect(stopMock).not.toHaveBeenCalled();
+  });
+
+  it("passes repo-tms context fields to tools when github context is resolved", async () => {
+    await repoTmsAgentWorkflow({
+      ...baseTask,
+      actor: { sourceUserId: "u1", role: "admin" },
+      workMode: "approval_required",
+      githubContext: {
+        resolved: true,
+        installationId: 1,
+        repositoryFullName: "acme/repo",
+        branch: "main",
+      },
+    } as never);
+
+    expect(buildToolsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "task_1",
+        organizationId: "org_1",
+        membershipRole: "admin",
+        projectId: null,
+        workMode: "approval_required",
+        actor: { sourceUserId: "u1", role: "admin" },
+        sandboxId: "sbx_1",
+        githubContext: {
+          resolved: true,
+          installationId: 1,
+          repositoryFullName: "acme/repo",
+          branch: "main",
+        },
+      }),
+    );
   });
 
   it("preserves the structured result when cleanup fails", async () => {

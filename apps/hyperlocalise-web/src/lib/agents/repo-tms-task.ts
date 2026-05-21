@@ -37,6 +37,8 @@ export const repoTmsAgentActorSchema = z.object({
   email: z.string().optional(),
   /** Human-readable display name from the source. */
   displayName: z.string().optional(),
+  /** Organization membership role when the actor is a known member. */
+  role: z.enum(["owner", "admin", "member"]).optional(),
 });
 
 export type RepoTmsAgentActor = z.infer<typeof repoTmsAgentActorSchema>;

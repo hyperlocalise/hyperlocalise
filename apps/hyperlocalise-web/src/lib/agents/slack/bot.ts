@@ -198,6 +198,7 @@ async function processSlackMessage(
           userId: membership.localUserId,
           email: slackUser?.email,
           displayName: message.author.fullName ?? message.author.userName,
+          role: membership.role,
         },
         organizationId,
         projectId,

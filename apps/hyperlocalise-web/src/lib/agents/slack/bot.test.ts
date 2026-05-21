@@ -531,6 +531,7 @@ describe("handleNewConversation", () => {
           userId: "user-123",
           email: "alice@example.com",
           displayName: "Alice",
+          role: "member",
         },
         organizationId: "org-123",
         projectId: "project-123",
