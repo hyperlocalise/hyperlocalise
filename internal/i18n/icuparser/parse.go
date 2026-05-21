@@ -46,6 +46,22 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
+		// ahead to the next special character. This avoids byte-by-byte iteration
+		// and multiple handleMessageChar calls for plain text.
+		// We must stop at '}' as well to correctly handle nested structures
+		// when untilBrace is true, or to report an error otherwise.
+		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
+		if idx == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+		if idx > 0 {
+			text.WriteString(p.src[p.pos : p.pos+idx])
+			p.pos += idx
+		}
+
 		stop, err := p.handleMessageChar(&out, &text, ctx, untilBrace, flushText)
 		if err != nil {
 			return nil, err
@@ -465,6 +481,20 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
+		// ahead to the next special character.
+		// We must stop at '}' to correctly detect the closing tag or nested structure boundaries.
+		idx := strings.IndexAny(p.src[p.pos:], "{#<'}")
+		if idx == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+		if idx > 0 {
+			text.WriteString(p.src[p.pos : p.pos+idx])
+			p.pos += idx
+		}
+
 		closed, err := p.consumeClosingTagIfPresent(name, flushText)
 		if err != nil {
 			return nil, err
@@ -581,6 +611,17 @@ func (p *astParser) consumeQuotedInto(b *strings.Builder) {
 
 func (p *astParser) skipSpaces() {
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Fast-path for common ASCII whitespace to avoid
+		// utf8.DecodeRuneInString and unicode.IsSpace calls.
+		ch := p.src[p.pos]
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' {
+			p.pos++
+			continue
+		}
+		if ch < 0x80 {
+			break
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if !unicode.IsSpace(r) {
 			break
