@@ -88,8 +88,9 @@ describe("persistFileTranslationMemoryEntries", () => {
 
     expect(values).toHaveLength(4);
     expect(
-      values.map((value: { memoryId: string; normalizedSourceText: string }) =>
-        `${value.memoryId}:${value.normalizedSourceText}`,
+      values.map(
+        (value: { memoryId: string; normalizedSourceText: string }) =>
+          `${value.memoryId}:${value.normalizedSourceText}`,
       ),
     ).toEqual([
       "memory_1:hello world",
