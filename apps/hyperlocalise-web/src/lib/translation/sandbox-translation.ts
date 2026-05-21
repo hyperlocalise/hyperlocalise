@@ -13,6 +13,7 @@ export type SandboxTranslationContext = {
     targetTerm: string;
     targetLocale: string;
     forbidden?: boolean | null;
+    caseSensitive?: boolean | null;
     description?: string | null;
   }>;
 };
@@ -224,6 +225,10 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
 
 export function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
+
+  if (message.startsWith("glossary validation failed")) {
+    return message;
+  }
 
   if (message.includes("hyperlocalise CLI installation failed")) {
     return "something went wrong while setting up the translation environment on our end.";
