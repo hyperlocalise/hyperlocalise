@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import {
@@ -120,7 +121,15 @@ async function getProjectForOrganization(organizationId: string, projectId: stri
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
-    .post("/", requireApiKeyPermission("jobs:write"), validateCreateJobBody, async (c) => {
+    .post(
+      "/",
+      requireApiKeyPermission("jobs:write"),
+      bodyLimit({
+        maxSize: 1024 * 1024, // 1MB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      validateCreateJobBody,
+      async (c) => {
       const payload = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
 

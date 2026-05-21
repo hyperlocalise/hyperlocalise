@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { after } from "next/server";
 
 import { env } from "@/lib/env";
@@ -65,8 +66,14 @@ function extractTeamId(payload: unknown): string | null {
 }
 
 export function createSlackWebhookRoutes() {
-  return new Hono().post("/", async (c) => {
-    logger.info({ method: c.req.method, path: c.req.path }, "slack webhook received");
+  return new Hono().post(
+    "/",
+    bodyLimit({
+      maxSize: 1024 * 1024, // 1MB
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+    async (c) => {
+      logger.info({ method: c.req.method, path: c.req.path }, "slack webhook received");
 
     const bodyBuffer = await c.req.raw.arrayBuffer();
     const bodyText = new TextDecoder().decode(bodyBuffer);

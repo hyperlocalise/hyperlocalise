@@ -20,6 +20,10 @@ export const REDACTION_PATHS = [
   "cookie",
   '["x-api-key"]',
   '["x-workos-signature"]',
+  'headers["x-hub-signature-256"]',
+  'headers["x-slack-signature"]',
+  '["x-hub-signature-256"]',
+  '["x-slack-signature"]',
   "*.apiKey",
   "*.token",
   "*.secret",
@@ -32,10 +36,14 @@ export const REDACTION_PATHS = [
   "*.cookie",
   "*.x-api-key",
   "*.x-workos-signature",
+  "*.x-hub-signature-256",
+  "*.x-slack-signature",
   "headers.authorization",
   "headers.cookie",
   'headers["x-api-key"]',
   'headers["x-workos-signature"]',
+  'headers["x-hub-signature-256"]',
+  'headers["x-slack-signature"]',
 ];
 
 const root = pino({

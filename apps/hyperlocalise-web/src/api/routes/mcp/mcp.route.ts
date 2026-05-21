@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -365,8 +366,15 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
     )
     .use("/mcp/*", mcpAuthEnabledMiddleware)
-    .post("/mcp/register", validateRegisterBody, async (c) => {
-      const payload = c.req.valid("json");
+    .post(
+      "/mcp/register",
+      bodyLimit({
+        maxSize: 256 * 1024, // 256KB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      validateRegisterBody,
+      async (c) => {
+        const payload = c.req.valid("json");
       const unsupportedRedirectUri = payload.redirect_uris.find(
         (uri) => !isAllowedRedirectUri(uri),
       );
@@ -465,8 +473,14 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
 
       return c.redirect(redirectUrl.toString(), 302);
     })
-    .post("/mcp/token", async (c) => {
-      const parsed = tokenRequestSchema.safeParse(await readTokenRequestBody(c.req.raw));
+    .post(
+      "/mcp/token",
+      bodyLimit({
+        maxSize: 256 * 1024, // 256KB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      async (c) => {
+        const parsed = tokenRequestSchema.safeParse(await readTokenRequestBody(c.req.raw));
 
       if (!parsed.success) {
         return c.json({ error: "invalid_request" }, 400);

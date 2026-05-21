@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import { db, schema } from "@/lib/database";
 import { getGitHubApp } from "@/lib/agents/github/app";
@@ -148,8 +149,14 @@ async function applyRepositoryWebhook(payload: GitHubWebhookPayload) {
 }
 
 export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOptions = {}) {
-  return new Hono().post("/", async (c) => {
-    const event = c.req.header("x-github-event");
+  return new Hono().post(
+    "/",
+    bodyLimit({
+      maxSize: 1024 * 1024, // 1MB
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+    async (c) => {
+      const event = c.req.header("x-github-event");
     const delivery = c.req.header("x-github-delivery");
 
     const bodyBuffer = await c.req.raw.arrayBuffer();
