@@ -404,3 +404,91 @@ func TestMarshalSourceTemplateTargetXCStringsPrefersTargetLocaleTemplate(t *test
 		t.Fatalf("expected target template metadata to be preserved: %s", content)
 	}
 }
+
+func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "goodbye": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goodbye"
+          }
+        }
+      }
+    },
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	target := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "goodbye": {
+      "comment": "Target-only reviewer note",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au revoir"
+          }
+        }
+      }
+    },
+    "hello": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salut"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	if err := os.WriteFile(targetPath, target, 0o644); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"hello": "Bonjour",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["hello"] != "Bonjour" || entries["goodbye"] != "Au revoir" {
+		t.Fatalf("expected updated and preserved target-locale entries: %#v\n%s", entries, content)
+	}
+	if !strings.Contains(string(content), `"comment": "Target-only reviewer note"`) {
+		t.Fatalf("expected target-only metadata to be preserved: %s", content)
+	}
+}

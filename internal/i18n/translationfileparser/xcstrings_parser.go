@@ -2,12 +2,15 @@ package translationfileparser
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 )
+
+const xcstringsEscapedBaseKeyPrefix = "%xcs:"
 
 // XCStringsParser parses Apple Xcode string catalog (.xcstrings) files.
 type XCStringsParser struct{}
@@ -166,7 +169,7 @@ func xcstringsSourceLeafRefs(entryKey string, entry map[string]any, sourceLangua
 		return nil, err
 	}
 	if !hasLocs || len(locs) == 0 {
-		return []xcstringsLeafRef{{key: entryKey}}, nil
+		return []xcstringsLeafRef{{key: xcstringsKeyForSteps(entryKey, nil)}}, nil
 	}
 
 	if sourceLanguage != "" {
@@ -189,7 +192,7 @@ func xcstringsSourceLeafRefs(entryKey string, entry map[string]any, sourceLangua
 		if xcstringsLocalizationsHaveStructuredLeaves(locs) {
 			return nil, fmt.Errorf("xcstrings key %q: source localization %q is required for variants or substitutions", entryKey, sourceLanguage)
 		}
-		return []xcstringsLeafRef{{key: entryKey}}, nil
+		return []xcstringsLeafRef{{key: xcstringsKeyForSteps(entryKey, nil)}}, nil
 	}
 
 	if len(locs) == 1 {
@@ -210,7 +213,7 @@ func xcstringsSourceLeafRefs(entryKey string, entry map[string]any, sourceLangua
 	if xcstringsLocalizationsHaveStructuredLeaves(locs) {
 		return nil, fmt.Errorf("xcstrings key %q: sourceLanguage is required for variant or substitution entries", entryKey)
 	}
-	return []xcstringsLeafRef{{key: entryKey}}, nil
+	return []xcstringsLeafRef{{key: xcstringsKeyForSteps(entryKey, nil)}}, nil
 }
 
 func xcstringsValueForRef(entry map[string]any, sourceLanguage string, ref xcstringsLeafRef) (string, bool, error) {
@@ -252,9 +255,12 @@ func collectXCStringsLeaves(baseKey string, loc map[string]any, out map[string]s
 		if err != nil {
 			return 0, err
 		}
-		value, err := xcstringsStringUnitValue(unit)
+		value, ok, err := xcstringsStringUnitValue(unit)
 		if err != nil {
 			return 0, err
+		}
+		if !ok {
+			return count, nil
 		}
 		key := xcstringsKeyForSteps(baseKey, steps)
 		out[key] = value
@@ -282,8 +288,14 @@ func collectXCStringsLeaves(baseKey string, loc map[string]any, out map[string]s
 func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstringsPathStep, refs *[]xcstringsLeafRef) (int, error) {
 	count := 0
 	if raw, ok := loc["stringUnit"]; ok {
-		if _, err := xcstringsObjectValue(raw, "stringUnit"); err != nil {
+		unit, err := xcstringsObjectValue(raw, "stringUnit")
+		if err != nil {
 			return 0, err
+		}
+		if _, ok, err := xcstringsStringUnitValue(unit); err != nil {
+			return 0, err
+		} else if !ok {
+			return 0, fmt.Errorf("xcstrings key %q: stringUnit.value is required in source localization", baseKey)
 		}
 		*refs = append(*refs, xcstringsLeafRef{key: xcstringsKeyForSteps(baseKey, steps), steps: append([]xcstringsPathStep(nil), steps...)})
 		count++
@@ -392,16 +404,16 @@ func collectXCStringsSubstitutionLeaves(baseKey string, loc map[string]any, out 
 	return count, nil
 }
 
-func xcstringsStringUnitValue(unit map[string]any) (string, error) {
+func xcstringsStringUnitValue(unit map[string]any) (string, bool, error) {
 	raw, ok := unit["value"]
 	if !ok {
-		return "", nil
+		return "", false, nil
 	}
 	value, ok := raw.(string)
 	if !ok {
-		return "", fmt.Errorf("xcstrings: stringUnit.value must be a string")
+		return "", false, fmt.Errorf("xcstrings: stringUnit.value must be a string")
 	}
-	return value, nil
+	return value, true, nil
 }
 
 func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (string, bool, error) {
@@ -444,8 +456,8 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 	if err != nil {
 		return "", false, err
 	}
-	value, err := xcstringsStringUnitValue(unit)
-	return value, true, err
+	value, ok, err := xcstringsStringUnitValue(unit)
+	return value, ok, err
 }
 
 func xcstringsLocalizationsHaveStructuredLeaves(locs map[string]any) bool {
@@ -472,7 +484,7 @@ func xcstringsLocalizationHasStructuredContainers(loc map[string]any) bool {
 }
 
 func xcstringsKeyForSteps(baseKey string, steps []xcstringsPathStep) string {
-	key := baseKey
+	key := escapeXCStringsBaseKey(baseKey)
 	for _, step := range steps {
 		switch step.kind {
 		case "variation":
@@ -482,6 +494,13 @@ func xcstringsKeyForSteps(baseKey string, steps []xcstringsPathStep) string {
 		}
 	}
 	return key
+}
+
+func escapeXCStringsBaseKey(key string) string {
+	if !strings.Contains(key, "::") && !strings.HasPrefix(key, xcstringsEscapedBaseKeyPrefix) {
+		return key
+	}
+	return xcstringsEscapedBaseKeyPrefix + base64.RawURLEncoding.EncodeToString([]byte(key))
 }
 
 func xcstringsEntryContext(entry map[string]any, sourceLanguage string) string {

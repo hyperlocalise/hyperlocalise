@@ -144,6 +144,25 @@ func TestParseXCStringsLocaleReadsRequestedTargetLocale(t *testing.T) {
           }
         }
       }
+    },
+    "empty_in_fr": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
+    "missing_value_in_fr": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "new"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
@@ -154,8 +173,12 @@ func TestParseXCStringsLocaleReadsRequestedTargetLocale(t *testing.T) {
 		t.Fatalf("parse target locale: %v", err)
 	}
 	assertStringMapValue(t, got, "hello", "Bonjour")
+	assertStringMapValue(t, got, "empty_in_fr", "")
 	if _, ok := got["missing_in_fr"]; ok {
 		t.Fatalf("did not expect missing target locale key, got %#v", got)
+	}
+	if _, ok := got["missing_value_in_fr"]; ok {
+		t.Fatalf("did not expect missing stringUnit.value key, got %#v", got)
 	}
 }
 
@@ -238,6 +261,75 @@ func TestXCStringsParserRejectsNonStringUnitValue(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "stringUnit.value must be a string") {
 		t.Fatalf("expected stringUnit value error, got %v", err)
 	}
+}
+
+func TestXCStringsParserRejectsMissingSourceStringUnitValue(t *testing.T) {
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+
+	_, err := (XCStringsParser{}).Parse(content)
+	if err == nil || !strings.Contains(err.Error(), "stringUnit.value is required") {
+		t.Fatalf("expected missing source stringUnit.value error, got %v", err)
+	}
+}
+
+func TestXCStringsParserEscapesReservedBaseKeySeparator(t *testing.T) {
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "item_count::plural.one": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flat key"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+
+	got, err := (XCStringsParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse xcstrings: %v", err)
+	}
+	escapedFlatKey := escapeXCStringsBaseKey("item_count::plural.one")
+	if escapedFlatKey == "item_count::plural.one" {
+		t.Fatalf("expected flat key containing reserved separator to be escaped")
+	}
+	assertStringMapValue(t, got, "item_count::plural.one", "%lld item")
+	assertStringMapValue(t, got, escapedFlatKey, "Flat key")
 }
 
 func TestMarshalXCStringsWritesTargetLocaleAndPreservesMetadata(t *testing.T) {
