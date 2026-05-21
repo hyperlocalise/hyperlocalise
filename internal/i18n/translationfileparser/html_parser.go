@@ -5,12 +5,12 @@ package translationfileparser
 // so that the LLM translates clean prose while the markup is restored on marshal.
 
 import (
-	"strconv"
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/html"

@@ -1,13 +1,13 @@
 package translationfileparser
 
 import (
-	"strconv"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"html"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 )
