@@ -63,6 +63,7 @@ const projectStore: ProjectStore = {
         name: payload.name,
         description: payload.description ?? "",
         translationContext: payload.translationContext ?? "",
+        source: "native",
       })
       .returning();
 
