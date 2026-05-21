@@ -324,6 +324,32 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect((result as { stdout: string }).stdout).toContain("subcommand=check");
   });
 
+  it("allows read-only provider downloads", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => ({
+        stdout: `subcommand=${args.join(" ")}\n`,
+        stderr: "",
+        exitCode: 0,
+      })),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    const result = await t.execute!(
+      { subcommand: "phrase", args: ["glossary", "download"] },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: true, exitCode: 0 });
+  });
+
+  it("rejects write-capable provider actions", async () => {
+    const ctx = createTestContext();
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await expect(
+      t.execute!({ subcommand: "phrase", args: ["translations", "upload"] }, toolCallInfo),
+    ).rejects.toThrow("Only read-only TMS actions are allowed");
+  });
+
   it("constructs args safely", async () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(

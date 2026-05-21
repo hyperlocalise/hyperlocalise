@@ -496,20 +496,30 @@ export type RunHyperlocaliseCliOutput = {
   truncated: boolean;
 };
 
+const HL_SUBCOMMANDS = ["check", "status", "extract", "crowdin", "lokalise", "phrase"] as const;
+const READ_ONLY_TMS_ACTIONS = new Set([
+  "config",
+  "check",
+  "translations:download",
+  "glossary:download",
+  "tm:download",
+]);
+
 /**
  * Run an allowlisted hyperlocalise CLI subcommand with structured inputs.
  */
 export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Run an allowlisted hyperlocalise CLI subcommand (check, status, extract) with structured arguments. Does not expose arbitrary shell execution.",
+      "Run an allowlisted hyperlocalise CLI subcommand for read-only repo/TMS checks. Does not expose arbitrary shell execution.",
     inputSchema: z.object({
-      subcommand: z.enum(["check", "status", "extract"]).describe("The subcommand to run."),
+      subcommand: z.enum(HL_SUBCOMMANDS).describe("The subcommand to run."),
       args: z.array(z.string()).optional().describe("Positional arguments."),
       flags: z.record(z.string(), z.string()).optional().describe("Key-value flags (--key=value)."),
       boolFlags: z.array(z.string()).optional().describe("Boolean flags (--flag)."),
     }),
     execute: async ({ subcommand, args, flags, boolFlags }) => {
+      assertReadOnlyAction(subcommand, args);
       const commandArgs = buildHlArgs({ subcommand, args, flags, boolFlags });
       const result = await ctx.bash.exec("hl", { args: commandArgs });
 
@@ -517,6 +527,7 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
       const redactedStderr = redact(result.stderr);
 
       const report = extractReport(subcommand, redactedStdout);
+      const artifact = summarizeArtifactHint(subcommand, commandArgs, redactedStdout);
 
       const { text: stdout, truncated: stdoutTruncated } = truncate(
         redactedStdout,
@@ -547,6 +558,7 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
         stderr,
         changedPaths,
         report,
+        artifact,
         truncated: stdoutTruncated || stderrTruncated,
       };
     },
@@ -621,4 +633,35 @@ function extractReport(subcommand: string, stdout: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function assertReadOnlyAction(subcommand: string, args?: string[]): void {
+  if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
+
+  const actionKey = [args?.[0], args?.[1]].filter(Boolean).join(":");
+  if (!READ_ONLY_TMS_ACTIONS.has(actionKey)) {
+    throw new Error(
+      `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
+    );
+  }
+}
+
+function summarizeArtifactHint(subcommand: string, commandArgs: string[], stdout: string) {
+  const outputFlag = commandArgs.find((arg) => arg.startsWith("--output="));
+  if (outputFlag) {
+    return {
+      kind: "file",
+      path: outputFlag.slice("--output=".length),
+      note: "Use readRepoFile or readStoredFile to inspect this artifact.",
+    };
+  }
+
+  if (stdout.length > DEFAULT_MAX_OUTPUT_BYTES / 2 || subcommand === "extract") {
+    return {
+      kind: "inline",
+      note: "Large output detected; prefer --output=<path> for structured artifact capture.",
+    };
+  }
+
+  return undefined;
 }
