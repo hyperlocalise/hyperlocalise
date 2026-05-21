@@ -6,7 +6,6 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import { createApiKey } from "@/lib/api-keys";
 
 import {
   listOrganizationExternalTmsProjects,
@@ -31,13 +30,16 @@ describe("organizationExternalTmsProjects", () => {
     const userId = randomUUID();
     const organizationId = randomUUID();
 
-    await db.insert(schema.users).values({ id: userId, workosUserId: `user_${randomUUID()}` });
+    await db.insert(schema.users).values({
+      id: userId,
+      workosUserId: `user_${randomUUID()}`,
+      email: `test-${userId}@example.com`,
+    });
     await db.insert(schema.organizations).values({
       id: organizationId,
       workosOrganizationId: `org_${randomUUID()}`,
       slug: `org-${randomUUID().slice(0, 8)}`,
       name: "Acme",
-      apiKeyPrefix: createApiKey().id,
     });
     await db.insert(schema.organizationMemberships).values({
       organizationId,
@@ -105,13 +107,16 @@ describe("organizationExternalTmsProjects", () => {
     const userId = randomUUID();
     const organizationId = randomUUID();
 
-    await db.insert(schema.users).values({ id: userId, workosUserId: `user_${randomUUID()}` });
+    await db.insert(schema.users).values({
+      id: userId,
+      workosUserId: `user_${randomUUID()}`,
+      email: `test-${userId}@example.com`,
+    });
     await db.insert(schema.organizations).values({
       id: organizationId,
       workosOrganizationId: `org_${randomUUID()}`,
       slug: `org-${randomUUID().slice(0, 8)}`,
       name: "Acme",
-      apiKeyPrefix: createApiKey().id,
     });
     await db.insert(schema.organizationMemberships).values({
       organizationId,

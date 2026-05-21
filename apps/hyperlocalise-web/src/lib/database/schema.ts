@@ -86,10 +86,7 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "phrase",
   "lokalise",
 ]);
-export const projectSourceEnum = pgEnum("project_source", [
-  "native",
-  "external_tms",
-]);
+export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -275,7 +272,10 @@ export const projects = pgTable(
     // Source locale from provider metadata.
     sourceLocale: text("source_locale"),
     // Target locales from provider metadata.
-    targetLocales: jsonb("target_locales").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     // Optional direct project URL in provider UI.
     externalProjectUrl: text("external_project_url"),
     // Whether provider reports this project as active.
@@ -646,7 +646,6 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
   ],
 );
-
 
 export const githubInstallations = pgTable(
   "github_installations",
