@@ -121,16 +121,29 @@ export async function canPushToGitHubBranch(input: {
       return { canPush: false, reason: "Invalid repository full name." };
     }
 
-    const { data: pr } = await octokit.rest.repos.get({
+    const { data: repository } = await octokit.rest.repos.get({
       owner,
       repo,
     });
 
-    const hasPushAccess = pr.permissions?.push === true;
+    const hasPushAccess = repository.permissions?.push === true;
     if (!hasPushAccess) {
       return {
         canPush: false,
         reason: "The GitHub App installation does not have push access to this repository.",
+      };
+    }
+
+    const { data: branch } = await octokit.rest.repos.getBranch({
+      owner,
+      repo,
+      branch: input.branch,
+    });
+
+    if (branch.protected) {
+      return {
+        canPush: false,
+        reason: `Branch ${input.branch} is protected. Push changes through the repository's required review flow.`,
       };
     }
 

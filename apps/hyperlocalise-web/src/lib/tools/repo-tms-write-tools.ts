@@ -31,10 +31,11 @@ async function logMutation(
   },
 ) {
   const taskId = ctx.conversationId;
+  const workflowRunId = ctx.workflowRunId ?? ctx.conversationId;
   await ctx.db.insert(schema.repoTmsMutationLogs).values({
     organizationId: ctx.organizationId,
     projectId: ctx.projectId,
-    workflowRunId: ctx.conversationId,
+    workflowRunId,
     taskId,
     actor: {
       sourceUserId: ctx.actor?.sourceUserId ?? "unknown",
@@ -44,7 +45,7 @@ async function logMutation(
       role: ctx.actor?.role,
     },
     action: input.action,
-    source: ctx.actor ? "repo_tms_agent" : "unknown",
+    source: ctx.repoTmsSource ?? (ctx.actor ? "repo_tms_agent" : "unknown"),
     provider: ctx.githubContext ? "github" : "tms",
     status: input.status,
     details: input.details ?? {},
@@ -447,7 +448,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                 metadata: {
                   sourcePath: normalizedPath,
                   commitSha: ctx.githubContext?.commitSha,
-                  workflowRunId: ctx.conversationId,
+                  workflowRunId: ctx.workflowRunId ?? ctx.conversationId,
                   uploadSurface: "repo_tms_agent",
                 },
                 adapter,
@@ -458,7 +459,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                 storedFile: uploadedFile,
                 sourcePath: normalizedPath,
                 commitSha: ctx.githubContext?.commitSha,
-                workflowRunId: ctx.conversationId,
+                workflowRunId: ctx.workflowRunId ?? ctx.conversationId,
                 uploadedByUserId: ctx.actor?.userId,
                 uploadSurface: "repo_tms_agent",
                 db: tx,

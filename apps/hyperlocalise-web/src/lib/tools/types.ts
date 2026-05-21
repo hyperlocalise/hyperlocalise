@@ -15,6 +15,7 @@ import type {
  */
 export type ToolContext = {
   conversationId: string;
+  workflowRunId?: string | null;
   organizationId: string;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;

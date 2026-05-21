@@ -149,12 +149,16 @@ describe("checkRepoTmsWriteGate", () => {
 
 describe("canPushToGitHubBranch", () => {
   it("returns canPush=true when the installation has push access", async () => {
+    const getBranchMock = vi.fn(async () => ({
+      data: { protected: false },
+    }));
     vi.mocked(getInstallationOctokit).mockResolvedValue({
       rest: {
         repos: {
           get: vi.fn(async () => ({
             data: { permissions: { push: true } },
           })),
+          getBranch: getBranchMock,
         },
       },
     } as unknown as Awaited<ReturnType<typeof getInstallationOctokit>>);
@@ -166,6 +170,11 @@ describe("canPushToGitHubBranch", () => {
     });
 
     expect(result.canPush).toBe(true);
+    expect(getBranchMock).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      branch: "main",
+    });
   });
 
   it("returns canPush=false when the installation lacks push access", async () => {
@@ -187,6 +196,30 @@ describe("canPushToGitHubBranch", () => {
 
     expect(result.canPush).toBe(false);
     expect(result.reason).toContain("does not have push access");
+  });
+
+  it("returns canPush=false when the target branch is protected", async () => {
+    vi.mocked(getInstallationOctokit).mockResolvedValue({
+      rest: {
+        repos: {
+          get: vi.fn(async () => ({
+            data: { permissions: { push: true } },
+          })),
+          getBranch: vi.fn(async () => ({
+            data: { protected: true },
+          })),
+        },
+      },
+    } as unknown as Awaited<ReturnType<typeof getInstallationOctokit>>);
+
+    const result = await canPushToGitHubBranch({
+      installationId: 123,
+      repositoryFullName: "owner/repo",
+      branch: "release/2026-05",
+    });
+
+    expect(result.canPush).toBe(false);
+    expect(result.reason).toContain("release/2026-05 is protected");
   });
 
   it("returns canPush=false for invalid repository full name", async () => {

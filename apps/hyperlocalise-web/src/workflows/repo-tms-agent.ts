@@ -72,6 +72,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
 
     const toolContext: ToolContext = {
       conversationId: task.id,
+      workflowRunId,
       organizationId: task.organizationId,
       membershipRole: task.actor.role ?? "member",
       projectId: task.projectId,

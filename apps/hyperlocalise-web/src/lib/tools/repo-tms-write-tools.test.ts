@@ -61,6 +61,7 @@ function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
 
   return {
     conversationId: "task_1",
+    workflowRunId: "run_1",
     organizationId: "org_1",
     membershipRole: "member",
     projectId: "proj_1",
@@ -120,6 +121,42 @@ describe("createApplyHyperlocaliseFixesTool", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Approval required");
+  });
+
+  it("logs the repo-tms source and workflow run id", async () => {
+    const valuesMock = vi.fn(() => Promise.resolve([]));
+    const db = {
+      insert: vi.fn(() => ({
+        values: valuesMock,
+      })),
+      transaction: vi.fn(),
+    } as unknown as ToolContext["db"];
+    checkRepoTmsWriteGateMock.mockReturnValue({
+      allowed: false,
+      reason: "Approval required",
+    });
+
+    const tool = createApplyHyperlocaliseFixesTool(
+      createBaseCtx({
+        db,
+        conversationId: "task_1",
+        workflowRunId: "run_123",
+        repoTmsSource: "github",
+      }),
+    );
+
+    await tool.execute!(
+      { scope: "all" },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+    );
+
+    expect(valuesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowRunId: "run_123",
+        taskId: "task_1",
+        source: "github",
+      }),
+    );
   });
 
   it("returns error when no sandbox is available", async () => {
@@ -403,6 +440,7 @@ describe("createUploadSourcesTool", () => {
         content: Buffer.from('{"hello":"Hello"}'),
         metadata: expect.objectContaining({
           sourcePath: "src/i18n/en.json",
+          workflowRunId: "run_1",
           uploadSurface: "repo_tms_agent",
         }),
       }),
@@ -410,6 +448,7 @@ describe("createUploadSourcesTool", () => {
     expect(createRepositorySourceFileVersionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sourcePath: "src/i18n/en.json",
+        workflowRunId: "run_1",
         uploadSurface: "repo_tms_agent",
       }),
     );

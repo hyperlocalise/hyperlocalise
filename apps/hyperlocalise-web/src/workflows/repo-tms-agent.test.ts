@@ -138,6 +138,7 @@ describe("repoTmsAgentWorkflow", () => {
     expect(buildToolsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: "task_1",
+        workflowRunId: "run_123",
         organizationId: "org_1",
         membershipRole: "member",
         projectId: null,
@@ -197,6 +198,7 @@ describe("repoTmsAgentWorkflow", () => {
     expect(buildToolsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: "task_1",
+        workflowRunId: "run_123",
         organizationId: "org_1",
         membershipRole: "admin",
         projectId: null,
