@@ -1,33 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  eqMock,
-  fromMock,
-  insertMock,
-  onConflictDoUpdateMock,
-  selectMock,
-  sqlMock,
-  valuesMock,
-  whereMock,
-} = vi.hoisted(() => {
-  const onConflictDoUpdateMock = vi.fn(async () => undefined);
-  const valuesMock = vi.fn(() => ({ onConflictDoUpdate: onConflictDoUpdateMock }));
-  const insertMock = vi.fn(() => ({ values: valuesMock }));
-  const whereMock = vi.fn(async () => [{ memoryId: "memory_1" }, { memoryId: "memory_2" }]);
-  const fromMock = vi.fn(() => ({ where: whereMock }));
-  const selectMock = vi.fn(() => ({ from: fromMock }));
+type UpsertedMemoryEntry = {
+  externalKey: string;
+  memoryId: string;
+  metadata: { segmentKey: string };
+  normalizedSourceText: string;
+  sourceText: string;
+  targetText: string;
+};
 
-  return {
-    eqMock: vi.fn(() => "project filter"),
-    fromMock,
-    insertMock,
-    onConflictDoUpdateMock,
-    selectMock,
-    sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
-    valuesMock,
-    whereMock,
-  };
-});
+const { eqMock, insertMock, onConflictDoUpdateMock, selectMock, sqlMock, valuesMock } = vi.hoisted(
+  () => {
+    const onConflictDoUpdateMock = vi.fn(async () => undefined);
+    const valuesMock = vi.fn((_values: UpsertedMemoryEntry[]) => ({
+      onConflictDoUpdate: onConflictDoUpdateMock,
+    }));
+    const insertMock = vi.fn(() => ({ values: valuesMock }));
+    const whereMock = vi.fn(async () => [{ memoryId: "memory_1" }, { memoryId: "memory_2" }]);
+    const fromMock = vi.fn(() => ({ where: whereMock }));
+    const selectMock = vi.fn(() => ({ from: fromMock }));
+
+    return {
+      eqMock: vi.fn(() => "project filter"),
+      insertMock,
+      onConflictDoUpdateMock,
+      selectMock,
+      sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
+      valuesMock,
+    };
+  },
+);
 
 vi.mock("drizzle-orm", () => ({
   eq: eqMock,
@@ -84,15 +86,12 @@ describe("persistFileTranslationMemoryEntries", () => {
       targetLocale: "fr",
     });
 
-    const values = valuesMock.mock.calls[0]?.[0];
+    expect(valuesMock).toHaveBeenCalledOnce();
+
+    const [values] = valuesMock.mock.calls[0];
 
     expect(values).toHaveLength(4);
-    expect(
-      values.map(
-        (value: { memoryId: string; normalizedSourceText: string }) =>
-          `${value.memoryId}:${value.normalizedSourceText}`,
-      ),
-    ).toEqual([
+    expect(values.map((value) => `${value.memoryId}:${value.normalizedSourceText}`)).toEqual([
       "memory_1:hello world",
       "memory_2:hello world",
       "memory_1:goodbye",
@@ -100,8 +99,7 @@ describe("persistFileTranslationMemoryEntries", () => {
     ]);
     expect(
       values.find(
-        (value: { memoryId: string; normalizedSourceText: string }) =>
-          value.memoryId === "memory_1" && value.normalizedSourceText === "hello world",
+        (value) => value.memoryId === "memory_1" && value.normalizedSourceText === "hello world",
       ),
     ).toMatchObject({
       externalKey: "job_1:fr:second",
@@ -123,6 +121,10 @@ describe("persistFileTranslationMemoryEntries", () => {
       targetLocale: "fr",
     });
 
-    expect(onConflictDoUpdateMock.mock.calls[0]?.[0].set.updatedAt).toEqual({ sql: "now()" });
+    expect(onConflictDoUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        set: expect.objectContaining({ updatedAt: { sql: "now()" } }),
+      }),
+    );
   });
 });
