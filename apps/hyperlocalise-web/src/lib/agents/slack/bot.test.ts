@@ -33,6 +33,14 @@ const {
   resolveSlackRepoTmsGitHubContextMock: vi.fn(),
 }));
 
+
+const { enqueueRepoTmsTaskMock } = vi.hoisted(() => ({
+  enqueueRepoTmsTaskMock: vi.fn(async () => ({ ids: ["run-123"] })),
+}));
+
+vi.mock("@/workflows/adapters", () => ({
+  createRepoTmsAgentTaskQueue: vi.fn(() => ({ enqueue: enqueueRepoTmsTaskMock })),
+}));
 vi.mock("@/lib/env", () => ({
   env: {
     SLACK_CLIENT_ID: "test-client-id",
@@ -522,13 +530,11 @@ describe("handleNewConversation", () => {
       channelId: "C123",
       requirePullRequest: true,
     });
-    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        intent: { kind: "repo_tms", githubContextRequirement: "pull_request" },
-        additionalInstructions: expect.stringContaining("repository: acme/web"),
-      }),
-    );
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledTimes(1);
+    expect(posts).toEqual([
+      { markdown: "Queued your repo/TMS workflow. I'll post progress and final results in this thread." },
+    ]);
   });
 
   it("asks a Slack follow-up when repo/TMS context is unresolved", async () => {

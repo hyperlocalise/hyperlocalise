@@ -1,4 +1,5 @@
 import { Chat, emoji } from "chat";
+import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
@@ -13,6 +14,11 @@ import {
   buildRepoTmsGitHubContextInstructions,
   resolveSlackRepoTmsGitHubContext,
 } from "@/lib/agents/repo-tms-context";
+import {
+  buildRepoTmsTaskIdempotencyKey,
+  type RepoTmsAgentTask,
+} from "@/lib/agents/repo-tms-task";
+import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
 import { db } from "@/lib/database";
@@ -160,6 +166,7 @@ async function processSlackMessage(
     const intent = classifyHyperlocaliseAgentIntent({ surface: "slack", text: message.text });
     const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
     const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
+    let resolvedRepoTmsContext: RepoTmsAgentTask["githubContext"];
 
     if (intent.kind === "repo_tms") {
       const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
@@ -179,10 +186,50 @@ async function processSlackMessage(
       }
 
       if (githubContextResolution.status === "resolved") {
+        resolvedRepoTmsContext = githubContextResolution.context;
         additionalInstructions.push(
           buildRepoTmsGitHubContextInstructions(githubContextResolution.context),
         );
       }
+    }
+
+    if (intent.kind === "repo_tms") {
+      const repoTmsTask: RepoTmsAgentTask = {
+        id: randomUUID(),
+        source: "slack",
+        sourceThreadId: thread.id,
+        actor: {
+          sourceUserId: message.author.userId,
+          userId: membership.localUserId,
+          email: slackUser?.email,
+          displayName: message.author.fullName ?? message.author.userName,
+        },
+        organizationId,
+        projectId,
+        workMode: "approval_required",
+        instructions: message.text,
+        githubContext: resolvedRepoTmsContext,
+        createdAt: new Date().toISOString(),
+        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+          source: "slack",
+          sourceThreadId: thread.id,
+          organizationId,
+          instructions: message.text,
+          githubContext:
+            resolvedRepoTmsContext && resolvedRepoTmsContext.resolved
+              ? resolvedRepoTmsContext
+              : undefined,
+        }),
+      };
+      await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
+
+      await removeEyesReaction(thread, message);
+      wrapThreadPost(thread, interactionId);
+      await thread.post({
+        markdown:
+          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+      });
+      return;
     }
 
     const imageAttachments = getSlackImageAttachments(message);
