@@ -57,6 +57,13 @@
       "when": 1779332064811,
       "tag": "0007_bent_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779369302850,
+      "tag": "0008_flowery_mach_iv",
+      "breakpoints": true
     }
   ]
 }
