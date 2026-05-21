@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { db, schema } from "@/lib/database";
@@ -15,7 +15,12 @@ export async function reuseFileTranslationMemoryEntries(input: {
   sourceEntries: Record<string, string>;
 }) {
   const units = Object.entries(input.sourceEntries)
-    .map(([key, sourceText]) => ({ key, sourceText, normalizedSourceText: normalizeTranslationMemorySourceText(sourceText), sourceTextHash: sourceTextHash(sourceText) }))
+    .map(([key, sourceText]) => ({
+      key,
+      sourceText,
+      normalizedSourceText: normalizeTranslationMemorySourceText(sourceText),
+      sourceTextHash: sourceTextHash(sourceText),
+    }))
     .filter((unit) => unit.sourceText.trim().length > 0);
   if (units.length === 0) return {} as Record<string, string>;
 
@@ -34,15 +39,28 @@ export async function reuseFileTranslationMemoryEntries(input: {
       metadata: schema.memoryEntries.metadata,
     })
     .from(schema.memoryEntries)
-    .where(eq(schema.memoryEntries.sourceLocale, input.sourceLocale));
+    .where(
+      and(
+        eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+        inArray(schema.memoryEntries.memoryId, memoryIds),
+      ),
+    );
 
   const reusable: Record<string, string> = {};
   for (const unit of units) {
     const match = rows.find((row) => {
       if (!memoryIds.includes(row.memoryId)) return false;
       if (row.normalizedSourceText !== unit.normalizedSourceText) return false;
-      const metadata = row.metadata as { segmentKey?: string; sourceTextHash?: string; targetLocale?: string } | null;
-      return metadata?.segmentKey === unit.key && metadata?.sourceTextHash === unit.sourceTextHash && metadata?.targetLocale === input.targetLocale;
+      const metadata = row.metadata as {
+        segmentKey?: string;
+        sourceTextHash?: string;
+        targetLocale?: string;
+      } | null;
+      return (
+        metadata?.segmentKey === unit.key &&
+        metadata?.sourceTextHash === unit.sourceTextHash &&
+        metadata?.targetLocale === input.targetLocale
+      );
     });
     if (match?.targetText?.trim()) {
       reusable[unit.key] = match.targetText;
