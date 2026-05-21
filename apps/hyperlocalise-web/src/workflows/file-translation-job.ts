@@ -93,7 +93,7 @@ async function extractEntriesStep(sandboxId: string, path: string) {
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
-    ["-c", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(path)}'`],
+    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(path)}'`],
     { env: getSandboxTranslationEnv(), output: "stdout" },
   );
   if (result.exitCode !== 0) {
