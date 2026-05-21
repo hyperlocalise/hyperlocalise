@@ -34,6 +34,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.strings`
 - `.stringsdict`
 - `.csv`
+- `.php`
 
 For JSON (`.json`), `run` supports:
 
@@ -72,6 +73,23 @@ For Liquid (`.liquid`), `run` translates hardcoded visible template text and pre
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 
+For PHP locale arrays (`.php`), `run` supports files that consist of a PHP opening tag and a single static return array:
+
+- `return [ ... ];` and `return array(...);` are supported
+- quoted string keys are flattened with dotted paths, such as `auth.failed`
+- string values may use single or double quotes; comments, whitespace, key order, and array syntax are preserved when writing
+- nested arrays can model plural or select variants with keys such as `items.one` and `items.other`
+- executable PHP, variables, function calls, constants, `declare(...)`, and double-quoted interpolation are rejected with a clear parse error
+
+Example config mapping:
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+```
 
 For CSV (`.csv`), `run` supports two layouts:
 

@@ -2579,6 +2579,77 @@ func TestRunWritesAppleStringsUsingSourceTemplateWhenTargetMissing(t *testing.T)
 	}
 }
 
+func TestRunWritesPHPArrayLocaleUsingSourceTemplateWhenTargetMissing(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.php"
+	targetPath := "/tmp/out.php"
+	source := `<?php
+
+return [
+    // Authentication copy.
+    'auth' => [
+        'failed' => 'These credentials do not match our records.',
+    ],
+    'items' => [
+        'one' => ':count item',
+        'other' => ':count items',
+    ],
+];
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		switch req.Source {
+		case "These credentials do not match our records.":
+			return "Ces identifiants ne correspondent pas a nos dossiers.", nil
+		case ":count item":
+			return ":count element", nil
+		case ":count items":
+			return ":count elements", nil
+		default:
+			t.Fatalf("unexpected translation request: %q", req.Source)
+			return "", nil
+		}
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	for _, needle := range []string{
+		"// Authentication copy.",
+		"'failed' => 'Ces identifiants ne correspondent pas a nos dossiers.'",
+		"'one' => ':count element'",
+		"'other' => ':count elements'",
+	} {
+		if !strings.Contains(out, needle) {
+			t.Fatalf("expected PHP output to contain %q, got:\n%s", needle, out)
+		}
+	}
+}
+
 func TestRunWritesAppleStringsWithInsertedKeyWhenExistingTargetPresent(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.strings"

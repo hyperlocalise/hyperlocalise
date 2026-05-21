@@ -15,10 +15,11 @@
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.php` via `PHPArrayParser` (static PHP locale arrays)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, HTML, CSV, and PHP array parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -100,6 +101,16 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### PHP Array Locales (`.php`)
+
+- Parses PHP files that begin with `<?php` and return one static array literal.
+- Supports short arrays (`return [ ... ];`) and legacy arrays (`return array(...);`).
+- Requires quoted string keys and string-literal values; nested arrays are flattened with dotted keys.
+  - Example: `['auth' => ['failed' => 'Invalid']]` -> `auth.failed=Invalid`
+- Preserves comments, whitespace, key order, quote style, and array syntax on marshal by replacing only existing string value literals.
+- Supports plural/select-style variants represented as nested keys such as `items.one` and `items.other`.
+- Rejects executable or dynamic PHP constructs, including variables, function calls, constants, `declare(...)`, and double-quoted interpolation.
 
 ## Minimal usage
 
