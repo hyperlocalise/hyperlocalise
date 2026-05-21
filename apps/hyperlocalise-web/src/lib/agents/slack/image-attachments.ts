@@ -142,12 +142,19 @@ function buildImageFailureMessage(imageAttachment: ImageLocalizationAttachment) 
   return `Sorry, I couldn't localize ${imageAttachment.name ?? "that image"} right now. Please try again with the image and target language.`;
 }
 
+type HandleSlackImageAttachmentsOptions = {
+  imageAttachments?: ImageLocalizationAttachment[];
+  conversationMessages?: SlackImageIntentMessage[];
+  beforePostGeneratedImage?: () => Promise<void> | void;
+};
+
 export async function handleSlackImageAttachments(
   thread: SlackImageThread,
   message: Message,
-  imageAttachments = getSlackImageAttachments(message),
-  conversationMessages: SlackImageIntentMessage[] = [],
+  options: HandleSlackImageAttachmentsOptions = {},
 ) {
+  const imageAttachments = options.imageAttachments ?? getSlackImageAttachments(message);
+  const conversationMessages = options.conversationMessages ?? [];
   if (imageAttachments.length === 0) {
     return { handled: false, localizedCount: 0 };
   }
@@ -173,6 +180,7 @@ export async function handleSlackImageAttachments(
         contextLines: [message.text ? `Slack request: ${message.text}` : null],
       });
 
+      await options.beforePostGeneratedImage?.();
       await thread.post({
         raw: [
           `Here is the localized version of ${imageAttachment.name ?? "your image"} for ${targetLocale}. I kept the layout and style as close to the original as possible.`,

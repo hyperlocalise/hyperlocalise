@@ -243,7 +243,13 @@ async function processSlackMessage(
 
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
-      await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
+      await handleSlackImageAttachments(thread, message, {
+        imageAttachments,
+        conversationMessages: imageIntentMessages,
+        beforePostGeneratedImage: async () => {
+          await removeEyesReaction(thread, message);
+        },
+      });
 
       if (storedFileAttachments.length === 0) {
         return;
