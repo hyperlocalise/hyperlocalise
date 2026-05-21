@@ -639,16 +639,21 @@ function extractReport(subcommand: string, stdout: string): unknown {
 function assertReadOnlyAction(subcommand: string, args?: string[]): void {
   if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
 
-  const actionKey = [args?.[0], args?.[1]].filter(Boolean).join(":");
-  const providerScopedKey = [subcommand, actionKey].filter(Boolean).join(":");
-  if (!READ_ONLY_TMS_ACTIONS.has(actionKey) && !READ_ONLY_TMS_ACTIONS.has(providerScopedKey)) {
-    throw new Error(
-      `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
-    );
+  const actionKey = args && args.length >= 2 ? `${args[0]}:${args[1]}` : (args?.[0] ?? "");
+  if (READ_ONLY_TMS_ACTIONS.has(actionKey)) {
+    if (!actionKey.includes(":") || (args?.length ?? 0) >= 2) return;
   }
+
+  throw new Error(
+    `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
+  );
 }
 
-function summarizeArtifactHint(subcommand: string, commandArgs: string[], stdout: string) {
+function summarizeArtifactHint(
+  subcommand: string,
+  commandArgs: string[],
+  stdout: string,
+): RunHyperlocaliseCliOutput["artifact"] {
   const outputFlag = commandArgs.find((arg) => arg.startsWith("--output="));
   if (outputFlag) {
     return {
