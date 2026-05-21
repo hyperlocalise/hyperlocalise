@@ -3,6 +3,13 @@ import { z } from "zod";
 import { Sandbox } from "@vercel/sandbox";
 
 import { schema } from "@/lib/database";
+import { getFileStorageAdapter } from "@/lib/file-storage";
+import {
+  createRepositorySourceFileVersion,
+  createStoredFile,
+  normalizeSourcePath,
+} from "@/lib/file-storage/records";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { ToolContext } from "./types";
 import {
   canPushToGitHubBranch,
@@ -45,7 +52,7 @@ async function logMutation(
 }
 
 function assertWriteAllowed(ctx: ToolContext, action: WriteAction) {
-  if (!ctx.workMode || !ctx.actor) {
+  if (!ctx.workMode || !ctx.repoTmsSource || !ctx.actor) {
     return {
       allowed: false as const,
       reason: "Write context is not available for this tool.",
@@ -54,7 +61,7 @@ function assertWriteAllowed(ctx: ToolContext, action: WriteAction) {
 
   return checkRepoTmsWriteGate({
     workMode: ctx.workMode,
-    source: ctx.actor.sourceUserId.startsWith("U") ? "slack" : "github",
+    source: ctx.repoTmsSource,
     actor: ctx.actor,
     action,
   });
@@ -71,6 +78,36 @@ async function runSandboxCommand(
     exitCode: result.exitCode,
     output: await result.output("both"),
   };
+}
+
+function sourceFilename(path: string) {
+  const normalizedPath = normalizeSourcePath(path);
+  return normalizedPath.split("/").filter(Boolean).at(-1) ?? normalizedPath;
+}
+
+function sourceContentType(path: string) {
+  const format = inferSupportedFileTranslationFileFormat(path);
+  switch (format) {
+    case "json":
+    case "jsonc":
+    case "arb":
+      return "application/json";
+    case "xliff":
+      return "application/xliff+xml";
+    case "po":
+    case "strings":
+    case "stringsdict":
+      return "text/plain";
+    case "html":
+      return "text/html";
+    case "markdown":
+    case "mdx":
+      return "text/markdown";
+    case "csv":
+      return "text/csv";
+    default:
+      return "application/octet-stream";
+  }
 }
 
 /**
@@ -374,8 +411,17 @@ export function createUploadSourcesTool(ctx: ToolContext) {
       }
 
       try {
-        const uploaded: string[] = [];
+        const adapter = getFileStorageAdapter();
+        const uploaded: Array<{ path: string; fileId: string; sourceFileVersionId: string }> = [];
         for (const path of input.paths) {
+          const normalizedPath = normalizeSourcePath(path);
+          if (!inferSupportedFileTranslationFileFormat(normalizedPath)) {
+            return {
+              success: false,
+              error: `Unsupported source file format for ${path}.`,
+            };
+          }
+
           const result = await runSandboxCommand(ctx.sandboxId, "cat", [path]);
           if (result.exitCode !== 0) {
             await logMutation(ctx, {
@@ -385,13 +431,59 @@ export function createUploadSourcesTool(ctx: ToolContext) {
             });
             return { success: false, error: `Failed to read ${path}: ${result.output}` };
           }
-          uploaded.push(path);
+
+          let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
+          const { storedFile, version } = await ctx.db
+            .transaction(async (tx) => {
+              uploadedFile = await createStoredFile({
+                organizationId: ctx.organizationId,
+                projectId: ctx.projectId,
+                createdByUserId: ctx.actor?.userId ?? null,
+                role: "source",
+                sourceKind: "repository_file",
+                filename: sourceFilename(normalizedPath),
+                contentType: sourceContentType(normalizedPath),
+                content: Buffer.from(result.output),
+                metadata: {
+                  sourcePath: normalizedPath,
+                  commitSha: ctx.githubContext?.commitSha,
+                  workflowRunId: ctx.conversationId,
+                  uploadSurface: "repo_tms_agent",
+                },
+                adapter,
+                db: tx,
+              });
+
+              const version = await createRepositorySourceFileVersion({
+                storedFile: uploadedFile,
+                sourcePath: normalizedPath,
+                commitSha: ctx.githubContext?.commitSha,
+                workflowRunId: ctx.conversationId,
+                uploadedByUserId: ctx.actor?.userId,
+                uploadSurface: "repo_tms_agent",
+                db: tx,
+              });
+
+              return { storedFile: uploadedFile, version };
+            })
+            .catch(async (error) => {
+              if (uploadedFile) {
+                await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => {});
+              }
+              throw error;
+            });
+
+          uploaded.push({
+            path: normalizedPath,
+            fileId: storedFile.id,
+            sourceFileVersionId: version.id,
+          });
         }
 
         await logMutation(ctx, {
           action: "upload_sources",
           status: "completed",
-          details: { changedPaths: uploaded },
+          details: { changedPaths: uploaded.map((file) => file.path) },
         });
 
         return {

@@ -23,9 +23,8 @@ const adminRoles = new Set(["owner", "admin"]);
  * - write: allow if the actor is an admin/owner; deny for members.
  * - approval_required: auto-approve for admin/owner; otherwise require explicit approval.
  *
- * GitHub-sourced tasks are assumed to have passed bot-level permission checks
- * (requesterCanRunFix) before enqueuing, so they are treated more permissively
- * than Slack for write/approval_required modes.
+ * GitHub-sourced write-mode tasks are assumed to have passed bot-level
+ * permission checks (requesterCanRunFix) before enqueuing.
  */
 export function checkRepoTmsWriteGate(input: {
   workMode: RepoTmsAgentWorkMode;
@@ -92,13 +91,17 @@ function checkGitHubWriteGate(
     return { allowed: true };
   }
 
-  // approval_required: auto-approve for admins; otherwise allow because
-  // the GitHub bot already verified write access before enqueuing.
+  // approval_required: auto-approve for admins; otherwise require the same
+  // explicit approval step as other sources.
   if (isAdmin) {
     return { allowed: true };
   }
 
-  return { allowed: true };
+  return {
+    allowed: false,
+    reason:
+      "This write action requires explicit approval. A workspace admin or owner must approve it first.",
+  };
 }
 
 /**

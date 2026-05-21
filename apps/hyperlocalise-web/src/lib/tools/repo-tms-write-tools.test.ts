@@ -1,8 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+const { sandboxGetMock } = vi.hoisted(() => ({
+  sandboxGetMock: vi.fn(),
+}));
+
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: {
-    get: vi.fn(),
+    get: sandboxGetMock,
   },
 }));
 
@@ -16,7 +20,29 @@ vi.mock("@/lib/agents/repo-tms-write-gate", () => ({
   canPushToGitHubBranch: canPushToGitHubBranchMock,
 }));
 
-import { Sandbox } from "@vercel/sandbox";
+const { createStoredFileMock, createRepositorySourceFileVersionMock, deleteStoredObjectMock } =
+  vi.hoisted(() => ({
+    createStoredFileMock: vi.fn(),
+    createRepositorySourceFileVersionMock: vi.fn(),
+    deleteStoredObjectMock: vi.fn(),
+  }));
+
+vi.mock("@/lib/file-storage", () => ({
+  getFileStorageAdapter: vi.fn(() => ({
+    provider: "vercel_blob",
+    delete: deleteStoredObjectMock,
+  })),
+}));
+
+vi.mock("@/lib/file-storage/records", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/file-storage/records")>();
+  return {
+    ...actual,
+    createStoredFile: createStoredFileMock,
+    createRepositorySourceFileVersion: createRepositorySourceFileVersionMock,
+  };
+});
+
 import {
   createApplyHyperlocaliseFixesTool,
   createCommitChangesTool,
@@ -26,17 +52,21 @@ import {
 import type { ToolContext } from "./types";
 
 function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
+  const db = {
+    insert: vi.fn(() => ({
+      values: vi.fn(() => Promise.resolve([])),
+    })),
+    transaction: vi.fn((callback) => callback(db)),
+  } as unknown as ToolContext["db"];
+
   return {
     conversationId: "task_1",
     organizationId: "org_1",
     membershipRole: "member",
     projectId: "proj_1",
-    db: {
-      insert: vi.fn(() => ({
-        values: vi.fn(() => Promise.resolve([])),
-      })),
-    } as unknown as ToolContext["db"],
+    db,
     workMode: "approval_required",
+    repoTmsSource: "slack",
     actor: { sourceUserId: "U1", role: "member" },
     sandboxId: "sbx_1",
     githubContext: {
@@ -53,6 +83,27 @@ describe("createApplyHyperlocaliseFixesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+  });
+
+  it("passes the explicit repo-tms source to the write gate", async () => {
+    const tool = createApplyHyperlocaliseFixesTool(
+      createBaseCtx({
+        repoTmsSource: "chat_ui",
+        actor: { sourceUserId: "user_1", role: "member" },
+      }),
+    );
+
+    await tool.execute!(
+      { scope: "all" },
+      { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
+    );
+
+    expect(checkRepoTmsWriteGateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "chat_ui",
+        actor: { sourceUserId: "user_1", role: "member" },
+      }),
+    );
   });
 
   it("denies the fix when the write gate rejects it", async () => {
@@ -87,7 +138,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
       exitCode: 0,
       output: vi.fn(async () => "fixed 3 entries"),
     }));
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -107,7 +158,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
       exitCode: 1,
       output: vi.fn(async () => "command not found"),
     }));
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -149,7 +200,7 @@ describe("createCommitChangesTool", () => {
       exitCode: 0,
       output: vi.fn(async () => ""),
     }));
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -176,7 +227,7 @@ describe("createCommitChangesTool", () => {
         output: vi.fn(async () => "[main abc123] fix(i18n): apply hyperlocalise fixes"),
       });
 
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -248,7 +299,7 @@ describe("createPushToBranchTool", () => {
       exitCode: 0,
       output: vi.fn(async () => "pushed to origin"),
     }));
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -267,6 +318,20 @@ describe("createUploadSourcesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+    createStoredFileMock.mockImplementation(async (input) => ({
+      id: `file_${input.filename}`,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      storageKey: `test/${input.filename}`,
+      filename: input.filename,
+      contentType: input.contentType,
+      sha256: "sha",
+    }));
+    createRepositorySourceFileVersionMock.mockImplementation(async (input) => ({
+      id: `version_${input.storedFile.id}`,
+      storedFileId: input.storedFile.id,
+      sourcePath: input.sourcePath,
+    }));
   });
 
   it("denies upload when the write gate rejects it", async () => {
@@ -301,7 +366,7 @@ describe("createUploadSourcesTool", () => {
       exitCode: 0,
       output: vi.fn(async () => '{"hello":"Hello"}'),
     }));
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 
@@ -309,10 +374,45 @@ describe("createUploadSourcesTool", () => {
     const result = (await tool.execute!(
       { paths: ["src/i18n/en.json", "src/i18n/fr.json"] },
       { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
-    )) as { success: boolean; uploaded: string[] };
+    )) as {
+      success: boolean;
+      uploaded: Array<{ path: string; fileId: string; sourceFileVersionId: string }>;
+    };
 
     expect(result.success).toBe(true);
-    expect(result.uploaded).toEqual(["src/i18n/en.json", "src/i18n/fr.json"]);
+    expect(result.uploaded).toEqual([
+      {
+        path: "src/i18n/en.json",
+        fileId: "file_en.json",
+        sourceFileVersionId: "version_file_en.json",
+      },
+      {
+        path: "src/i18n/fr.json",
+        fileId: "file_fr.json",
+        sourceFileVersionId: "version_file_fr.json",
+      },
+    ]);
+    expect(createStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_1",
+        projectId: "proj_1",
+        role: "source",
+        sourceKind: "repository_file",
+        filename: "en.json",
+        contentType: "application/json",
+        content: Buffer.from('{"hello":"Hello"}'),
+        metadata: expect.objectContaining({
+          sourcePath: "src/i18n/en.json",
+          uploadSurface: "repo_tms_agent",
+        }),
+      }),
+    );
+    expect(createRepositorySourceFileVersionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourcePath: "src/i18n/en.json",
+        uploadSurface: "repo_tms_agent",
+      }),
+    );
   });
 
   it("returns error when a file cannot be read", async () => {
@@ -321,7 +421,7 @@ describe("createUploadSourcesTool", () => {
       .mockResolvedValueOnce({ exitCode: 0, output: vi.fn(async () => '{"hello":"Hello"}') })
       .mockResolvedValueOnce({ exitCode: 1, output: vi.fn(async () => "No such file") });
 
-    vi.mocked(Sandbox.get).mockResolvedValue({
+    sandboxGetMock.mockResolvedValue({
       runCommand: runCommandMock,
     } as never);
 

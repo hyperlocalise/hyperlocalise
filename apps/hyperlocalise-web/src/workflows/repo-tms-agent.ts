@@ -77,6 +77,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       projectId: task.projectId,
       db,
       workMode: task.workMode,
+      repoTmsSource: task.source,
       actor: task.actor,
       sandboxId: sandboxId ?? null,
       githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
@@ -117,7 +118,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       error: message,
     };
   } finally {
-    if (sandboxId && task.workMode === "read_only") {
+    if (sandboxId) {
       try {
         await stopRepoTmsSandbox(sandboxId);
       } catch {

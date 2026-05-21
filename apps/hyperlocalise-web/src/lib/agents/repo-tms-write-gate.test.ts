@@ -111,11 +111,23 @@ describe("checkRepoTmsWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("allows GitHub approval_required for any role (bot already validated)", () => {
+  it("denies GitHub approval_required for member role (needs explicit approval)", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "approval_required",
       source: "github",
       actor: { sourceUserId: "octocat", role: "member" },
+      action: "commit_changes",
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(deniedReason(result)).toContain("explicit approval");
+  });
+
+  it("allows GitHub approval_required for admin role (auto-approve)", () => {
+    const result = checkRepoTmsWriteGate({
+      workMode: "approval_required",
+      source: "github",
+      actor: { sourceUserId: "octocat", role: "admin" },
       action: "commit_changes",
     });
 

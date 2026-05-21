@@ -142,6 +142,7 @@ describe("repoTmsAgentWorkflow", () => {
         membershipRole: "member",
         projectId: null,
         workMode: "read_only",
+        repoTmsSource: "github",
         actor: baseTask.actor,
         sandboxId: null,
         githubContext: null,
@@ -170,14 +171,14 @@ describe("repoTmsAgentWorkflow", () => {
     expect(result.error).toContain("tool failed");
   });
 
-  it("keeps write-mode sandbox available", async () => {
+  it("cleans up write-mode sandbox runs", async () => {
     await repoTmsAgentWorkflow({
       ...baseTask,
       workMode: "write",
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
 
-    expect(stopMock).not.toHaveBeenCalled();
+    expect(stopMock).toHaveBeenCalledTimes(1);
   });
 
   it("passes repo-tms context fields to tools when github context is resolved", async () => {
@@ -200,6 +201,7 @@ describe("repoTmsAgentWorkflow", () => {
         membershipRole: "admin",
         projectId: null,
         workMode: "approval_required",
+        repoTmsSource: "github",
         actor: { sourceUserId: "u1", role: "admin" },
         sandboxId: "sbx_1",
         githubContext: {

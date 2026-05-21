@@ -3,6 +3,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import type {
   RepoTmsAgentActor,
   RepoTmsAgentGitHubContext,
+  RepoTmsAgentTaskSource,
   RepoTmsAgentWorkMode,
 } from "@/lib/agents/repo-tms-task";
 
@@ -20,6 +21,7 @@ export type ToolContext = {
   db: typeof db;
   /** Repo/TMS agent context (optional, populated for repo-tms workflows). */
   workMode?: RepoTmsAgentWorkMode;
+  repoTmsSource?: RepoTmsAgentTaskSource;
   actor?: RepoTmsAgentActor;
   sandboxId?: string | null;
   githubContext?: RepoTmsAgentGitHubContext | null;
