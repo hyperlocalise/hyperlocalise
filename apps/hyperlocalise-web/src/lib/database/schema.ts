@@ -1108,6 +1108,10 @@ export const externalJobDetails = pgTable(
     index("idx_external_job_details_external_job_id").on(table.externalJobId),
     index("idx_external_job_details_sync_state").on(table.syncState),
     index("idx_external_job_details_linked_job").on(table.linkedJobId),
+    uniqueIndex("idx_external_job_details_provider_job_unique").on(
+      table.externalJobId,
+      table.providerKind,
+    ),
   ],
 );
 

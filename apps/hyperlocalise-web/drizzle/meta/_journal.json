@@ -78,6 +78,13 @@
       "when": 1779405823342,
       "tag": "0010_noisy_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779407538022,
+      "tag": "0011_lethal_chamber",
+      "breakpoints": true
     }
   ]
 }

@@ -34,7 +34,7 @@ const cases: ProviderCase[] = [
   { provider: "smartling", status: "AWAITING_AUTHORIZATION", expected: "queued" },
   { provider: "smartling", status: "In Translation", expected: "running" },
   { provider: "smartling", status: "COMPLETED", expected: "succeeded" },
-  { provider: "smartling", status: "CANCELLED", expected: "failed" },
+  { provider: "smartling", status: "CANCELLED", expected: "cancelled" },
   { provider: "smartling", status: "In Review", expected: "waiting_for_review" },
 
   // Phrase

@@ -83,7 +83,8 @@ function mapSmartlingStatus(status: string): NormalizedJobStatus {
     ].includes(status)
   )
     return "queued";
-  if (["failed", "rejected", "error", "cancelled", "canceled"].includes(status)) return "failed";
+  if (["failed", "rejected", "error"].includes(status)) return "failed";
+  if (["cancelled", "canceled"].includes(status)) return "cancelled";
   if (
     [
       "waiting_for_review",

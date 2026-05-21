@@ -24,79 +24,39 @@ export async function upsertExternalJob(input: {
   const normalizedStatus = mapProviderStatusToNormalized(input.providerKind, input.externalStatus);
 
   const now = new Date();
-
-  // Try to find an existing external job for this provider + external job id
-  // within the same organization and project.
-  const [existing] = await db
-    .select({ jobId: schema.externalJobDetails.jobId })
-    .from(schema.externalJobDetails)
-    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.externalJobDetails.jobId))
-    .where(
-      and(
-        eq(schema.jobs.organizationId, input.organizationId),
-        eq(schema.jobs.projectId, input.projectId),
-        eq(schema.externalJobDetails.providerKind, input.providerKind),
-        eq(schema.externalJobDetails.externalJobId, input.externalJobId),
-      ),
-    )
-    .limit(1);
-
-  if (existing) {
-    const [updatedJob] = await db
-      .update(schema.jobs)
-      .set({
-        status: normalizedStatus,
-        updatedAt: now,
-        completedAt:
-          normalizedStatus === "succeeded" ||
-          normalizedStatus === "failed" ||
-          normalizedStatus === "cancelled"
-            ? now
-            : null,
-      })
-      .where(eq(schema.jobs.id, existing.jobId))
-      .returning();
-
-    const [updatedDetails] = await db
-      .update(schema.externalJobDetails)
-      .set({
-        externalStatus: input.externalStatus,
-        title: input.title ?? "",
-        dueDate: input.dueDate ?? null,
-        targetLocales: input.targetLocales ?? [],
-        assignedUsers: input.assignedUsers ?? [],
-        externalUrl: input.externalUrl ?? null,
-        providerPayload: input.providerPayload ?? {},
-        syncState: "synced",
-        updatedAt: now,
-      })
-      .where(eq(schema.externalJobDetails.jobId, existing.jobId))
-      .returning();
-
-    return { ...updatedJob, externalDetails: updatedDetails };
-  }
-
-  // Create a new job + external details in a transaction.
   const jobId = `job_${randomUUID()}`;
 
-  const result = await db.transaction(async (tx) => {
+  const jobValues = {
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    createdByUserId: null,
+    kind: input.kind ?? "translation",
+    status: normalizedStatus,
+    inputPayload: {},
+    completedAt:
+      normalizedStatus === "succeeded" ||
+      normalizedStatus === "failed" ||
+      normalizedStatus === "cancelled"
+        ? now
+        : null,
+  };
+
+  const detailsValues = {
+    externalTaskId: input.externalTaskId ?? null,
+    externalStatus: input.externalStatus,
+    title: input.title ?? "",
+    dueDate: input.dueDate ?? null,
+    targetLocales: input.targetLocales ?? [],
+    assignedUsers: input.assignedUsers ?? [],
+    externalUrl: input.externalUrl ?? null,
+    syncState: "synced",
+    providerPayload: input.providerPayload ?? {},
+  };
+
+  return await db.transaction(async (tx) => {
     const [createdJob] = await tx
       .insert(schema.jobs)
-      .values({
-        id: jobId,
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        createdByUserId: null,
-        kind: input.kind ?? "translation",
-        status: normalizedStatus,
-        inputPayload: {},
-        completedAt:
-          normalizedStatus === "succeeded" ||
-          normalizedStatus === "failed" ||
-          normalizedStatus === "cancelled"
-            ? now
-            : null,
-      })
+      .values({ id: jobId, ...jobValues })
       .returning();
 
     const [details] = await tx
@@ -105,22 +65,40 @@ export async function upsertExternalJob(input: {
         jobId,
         providerKind: input.providerKind,
         externalJobId: input.externalJobId,
-        externalTaskId: input.externalTaskId ?? null,
-        externalStatus: input.externalStatus,
-        title: input.title ?? "",
-        dueDate: input.dueDate ?? null,
-        targetLocales: input.targetLocales ?? [],
-        assignedUsers: input.assignedUsers ?? [],
-        externalUrl: input.externalUrl ?? null,
-        syncState: "synced",
-        providerPayload: input.providerPayload ?? {},
+        ...detailsValues,
+      })
+      .onConflictDoUpdate({
+        target: [schema.externalJobDetails.externalJobId, schema.externalJobDetails.providerKind],
+        set: {
+          ...detailsValues,
+          updatedAt: now,
+        },
       })
       .returning();
 
+    if (details.jobId !== jobId) {
+      await tx.delete(schema.jobs).where(eq(schema.jobs.id, jobId));
+
+      const [updatedJob] = await tx
+        .update(schema.jobs)
+        .set({
+          status: normalizedStatus,
+          updatedAt: now,
+          completedAt:
+            normalizedStatus === "succeeded" ||
+            normalizedStatus === "failed" ||
+            normalizedStatus === "cancelled"
+              ? now
+              : null,
+        })
+        .where(eq(schema.jobs.id, details.jobId))
+        .returning();
+
+      return { ...updatedJob, externalDetails: details };
+    }
+
     return { ...createdJob, externalDetails: details };
   });
-
-  return result;
 }
 
 export async function linkExternalJobToNativeJob(input: {
