@@ -72,10 +72,16 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
 
     const toolContext: ToolContext = {
       conversationId: task.id,
+      workflowRunId,
       organizationId: task.organizationId,
-      membershipRole: "member",
+      membershipRole: task.actor.role ?? "member",
       projectId: task.projectId,
       db,
+      workMode: task.workMode,
+      repoTmsSource: task.source,
+      actor: task.actor,
+      sandboxId: sandboxId ?? null,
+      githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
     };
 
     const tools = buildTools(toolContext) as ToolSet;
@@ -113,7 +119,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       error: message,
     };
   } finally {
-    if (sandboxId && task.workMode === "read_only") {
+    if (sandboxId) {
       try {
         await stopRepoTmsSandbox(sandboxId);
       } catch {

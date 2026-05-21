@@ -35,6 +35,12 @@ import {
   createUpdateInteractionProjectTool,
 } from "./project-tools";
 import type { ToolContext } from "./types";
+import {
+  createApplyHyperlocaliseFixesTool,
+  createCommitChangesTool,
+  createPushToBranchTool,
+  createUploadSourcesTool,
+} from "./repo-tms-write-tools";
 
 /**
  * Builds the full agent toolset for a specific request context.
@@ -44,7 +50,7 @@ import type { ToolContext } from "./types";
  * conversation, and project.
  */
 export function buildTools(ctx: ToolContext): ToolSet {
-  return {
+  const tools: ToolSet = {
     listProjects: createListProjectsTool(ctx),
     getProjectContext: createGetProjectContextTool(ctx),
     updateInteractionProject: createUpdateInteractionProjectTool(ctx),
@@ -80,4 +86,13 @@ export function buildTools(ctx: ToolContext): ToolSet {
     getJobStatus: createGetJobStatusTool(ctx),
     resolveInteraction: createResolveInteractionTool(ctx),
   };
+
+  if (ctx.workMode !== "read_only") {
+    tools.applyHyperlocaliseFixes = createApplyHyperlocaliseFixesTool(ctx);
+    tools.commitChanges = createCommitChangesTool(ctx);
+    tools.pushToBranch = createPushToBranchTool(ctx);
+    tools.uploadSources = createUploadSourcesTool(ctx);
+  }
+
+  return tools;
 }

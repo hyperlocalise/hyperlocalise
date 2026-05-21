@@ -531,10 +531,11 @@ describe("handleNewConversation", () => {
           userId: "user-123",
           email: "alice@example.com",
           displayName: "Alice",
+          role: "member",
         },
         organizationId: "org-123",
         projectId: "project-123",
-        workMode: "approval_required",
+        workMode: "write",
         instructions: "Can you check https://github.com/acme/web/pull/42",
         githubContext: {
           resolved: true,

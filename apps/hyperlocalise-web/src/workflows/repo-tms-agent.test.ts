@@ -138,9 +138,15 @@ describe("repoTmsAgentWorkflow", () => {
     expect(buildToolsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: "task_1",
+        workflowRunId: "run_123",
         organizationId: "org_1",
         membershipRole: "member",
         projectId: null,
+        workMode: "read_only",
+        repoTmsSource: "github",
+        actor: baseTask.actor,
+        sandboxId: null,
+        githubContext: null,
       }),
     );
   });
@@ -166,14 +172,48 @@ describe("repoTmsAgentWorkflow", () => {
     expect(result.error).toContain("tool failed");
   });
 
-  it("keeps write-mode sandbox available", async () => {
+  it("cleans up write-mode sandbox runs", async () => {
     await repoTmsAgentWorkflow({
       ...baseTask,
       workMode: "write",
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
 
-    expect(stopMock).not.toHaveBeenCalled();
+    expect(stopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes repo-tms context fields to tools when github context is resolved", async () => {
+    await repoTmsAgentWorkflow({
+      ...baseTask,
+      actor: { sourceUserId: "u1", role: "admin" },
+      workMode: "approval_required",
+      githubContext: {
+        resolved: true,
+        installationId: 1,
+        repositoryFullName: "acme/repo",
+        branch: "main",
+      },
+    } as never);
+
+    expect(buildToolsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "task_1",
+        workflowRunId: "run_123",
+        organizationId: "org_1",
+        membershipRole: "admin",
+        projectId: null,
+        workMode: "approval_required",
+        repoTmsSource: "github",
+        actor: { sourceUserId: "u1", role: "admin" },
+        sandboxId: "sbx_1",
+        githubContext: {
+          resolved: true,
+          installationId: 1,
+          repositoryFullName: "acme/repo",
+          branch: "main",
+        },
+      }),
+    );
   });
 
   it("preserves the structured result when cleanup fails", async () => {

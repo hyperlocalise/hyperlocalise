@@ -1,5 +1,11 @@
 import type { db } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import type {
+  RepoTmsAgentActor,
+  RepoTmsAgentGitHubContext,
+  RepoTmsAgentTaskSource,
+  RepoTmsAgentWorkMode,
+} from "@/lib/agents/repo-tms-task";
 
 /**
  * Request-scoped context passed to every chat tool.
@@ -9,8 +15,15 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
  */
 export type ToolContext = {
   conversationId: string;
+  workflowRunId?: string | null;
   organizationId: string;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   db: typeof db;
+  /** Repo/TMS agent context (optional, populated for repo-tms workflows). */
+  workMode?: RepoTmsAgentWorkMode;
+  repoTmsSource?: RepoTmsAgentTaskSource;
+  actor?: RepoTmsAgentActor;
+  sandboxId?: string | null;
+  githubContext?: RepoTmsAgentGitHubContext | null;
 };

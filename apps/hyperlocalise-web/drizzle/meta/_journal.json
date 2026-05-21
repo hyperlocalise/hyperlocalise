@@ -50,6 +50,13 @@
       "when": 1779191256205,
       "tag": "0006_crazy_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779332064811,
+      "tag": "0007_bent_wild_pack",
+      "breakpoints": true
     }
   ]
 }
