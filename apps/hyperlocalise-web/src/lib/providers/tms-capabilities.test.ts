@@ -65,6 +65,24 @@ describe("normalizeTmsProviderCapabilityRegistryEntry", () => {
       ui: { state: "enabled" },
     });
   });
+
+  it("does not synthesize unsupported copy for supported disabled UI states", () => {
+    const provider = normalizeTmsProviderCapabilityRegistryEntry({
+      id: "setup_tms",
+      label: "Setup TMS",
+      capabilities: {
+        "webhooks.configure": {
+          ui: { state: "disabled" },
+        },
+      },
+    });
+
+    expect(provider.capabilities["webhooks.configure"]).toEqual({
+      supported: true,
+      label: "Configure webhooks",
+      ui: { state: "disabled" },
+    });
+  });
 });
 
 describe("tmsProviderCapabilityRegistry", () => {

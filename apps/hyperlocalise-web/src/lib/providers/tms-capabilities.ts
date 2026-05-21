@@ -130,6 +130,8 @@ function normalizeCapability(
 
   const supported = capability.supported ?? true;
   const uiState = capability.ui?.state ?? (supported ? "enabled" : "disabled");
+  const resolvedDisabledReason =
+    capability.ui?.disabledReason ?? (!supported ? unsupportedReason : undefined);
 
   return {
     supported,
@@ -137,11 +139,7 @@ function normalizeCapability(
     ...(capability.description ? { description: capability.description } : {}),
     ui: {
       state: uiState,
-      ...(!supported || uiState === "disabled"
-        ? { disabledReason: capability.ui?.disabledReason ?? unsupportedReason }
-        : capability.ui?.disabledReason
-          ? { disabledReason: capability.ui.disabledReason }
-          : {}),
+      ...(resolvedDisabledReason ? { disabledReason: resolvedDisabledReason } : {}),
     },
   };
 }
@@ -232,8 +230,6 @@ export const tmsProviderCapabilityRegistry = Object.fromEntries(
         ...commonFileSyncCapabilities,
         "locales.write": true,
         "tasks.create": true,
-        "glossary.import": true,
-        "glossary.export": true,
         "qa.run": true,
         "translation_memory.import": {
           supported: false,
