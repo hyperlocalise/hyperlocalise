@@ -670,6 +670,63 @@ Bonjour
 	}
 }
 
+func TestCheckCommandChecksJSTSLocaleModuleContent(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "messages.ts")
+	targetPath := filepath.Join(dir, "dist", "fr", "messages.ts")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`export default {
+  title: "Welcome",
+  cta: "Checkout",
+};
+`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`export default {
+  title: "Welcome",
+  cta: "",
+};
+`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command js/ts: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse js/ts json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkSameAsSource)
+	assertFindingType(t, report.Findings, checkNotLocalized)
+
+	got := map[string]checkFinding{}
+	for _, finding := range report.Findings {
+		if filepath.ToSlash(finding.SourceFile) == filepath.ToSlash(sourcePath) && filepath.ToSlash(finding.TargetFile) == filepath.ToSlash(targetPath) {
+			got[finding.Key] = finding
+		}
+	}
+	if got["title"].Type != checkSameAsSource || got["cta"].Type != checkNotLocalized {
+		t.Fatalf("expected JS/TS findings for title and cta, got %+v", report.Findings)
+	}
+}
+
 func TestCheckCommandMDXSkipsICUParityAndUsesASTParity(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

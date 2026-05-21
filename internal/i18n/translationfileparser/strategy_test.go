@@ -43,6 +43,23 @@ func TestStrategyParsesJSONC(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	extensions := []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+	for _, ext := range extensions {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("locales/en"+ext, []byte(`export default { hello: "Hello", nested: { cta: "Start now" } };`))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if got["hello"] != "Hello" || got["nested.cta"] != "Start now" {
+				t.Fatalf("unexpected entries for %s: %#v", ext, got)
+			}
+		})
+	}
+}
+
 func TestStrategyParsesARB(t *testing.T) {
 	s := NewDefaultStrategy()
 

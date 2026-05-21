@@ -77,6 +77,31 @@ Shared multi-locale file:
 
 For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
+### JS/TS locale module patterns
+
+Use JavaScript or TypeScript locale module mappings when your app imports locale objects directly:
+
+```yaml
+buckets:
+  web:
+    files:
+      - from: apps/web/messages/{{source}}.ts
+        to: apps/web/messages/{{target}}.ts
+```
+
+Supported modules must export one static object, for example:
+
+```ts
+export default {
+  home: {
+    title: "Welcome",
+    cta: "Start now",
+  },
+} as const;
+```
+
+Hyperlocalise preserves comments, imports, export syntax, and non-message module text. It rejects dynamic values, computed keys, spread properties, multiple exported locale objects, and interpolated template literals.
+
 ## Groups
 
 `groups.<name>` defines what to process together.

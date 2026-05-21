@@ -24,6 +24,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 `run` can read source and target files with these extensions:
 
 - `.json`
+- `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 - `.arb`
 - `.xlf` and `.xliff`
 - `.po`
@@ -42,6 +43,15 @@ For JSON (`.json`), `run` supports:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
 In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+
+For JavaScript and TypeScript locale modules (`.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`), `run` supports static locale object exports:
+
+- `export default { ... }`
+- `export const messages = { ... }`
+- `module.exports = { ... }`
+- `const messages = { ... }; export default messages`
+
+Nested objects are flattened to dotted keys, string arrays use bracket indexes, and strict FormatJS-style entries translate only `defaultMessage` while preserving `description` metadata. Comments, imports, export syntax, and `as const` are preserved on write. Dynamic values, computed keys, spread properties, multiple exported locale objects, and template literals with `${...}` interpolation fail with a parser error instead of being rewritten.
 
 For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
 

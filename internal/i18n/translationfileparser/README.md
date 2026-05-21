@@ -6,6 +6,7 @@
 
 - `.json` via `JSONParser`
 - `.jsonc` via `JSONCParser`
+- `.js` / `.jsx` / `.mjs` / `.cjs` / `.ts` / `.tsx` / `.mts` / `.cts` via `JSTSLocaleModuleParser`
 - `.arb` via `ARBParser` (Flutter Application Resource Bundle)
 - `.xlf` / `.xliff` via `XLIFFParser` (XLIFF 1.2 and 2.x)
 - `.po` via `POFileParser` (GNU gettext)
@@ -18,7 +19,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JS/TS locale module, XLIFF, PO, Apple Strings, Markdown/MDX, and HTML parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -36,6 +37,15 @@
 - Accepts JSON with `//` and `/* ... */` comments plus trailing commas.
 - Produces the same flattened dotted-key output shape as the JSON parser.
 - Non-string leaf values are rejected.
+
+### JS/TS Locale Modules
+
+- Accepts static locale modules shaped as `export default { ... }`, `export const messages = { ... }`, `module.exports = { ... }`, or `const messages = { ... }; export default messages`.
+- Nested object keys are flattened with dotted keys; string arrays use bracket indexes.
+  - Example: `export default { home: { title: "Welcome" } }` -> `home.title=Welcome`
+- Strict FormatJS-style objects are supported when each top-level key has a static `defaultMessage`; `description` is returned as entry context and preserved as metadata.
+- Comments, imports, export syntax, `as const`, and unrelated module text are preserved during marshal because only string literal value spans are replaced.
+- Dynamic values, computed keys, spread properties, multiple exported locale objects, and template literals with `${...}` interpolation are rejected.
 
 ### ARB
 
