@@ -325,6 +325,7 @@ func markdownNodePath(node ast.Node, lineIndex int) string {
 	}
 	return strings.Join(parts, "/")
 }
+
 func markdownSiblingOrdinal(node ast.Node) int {
 	ordinal := 0
 	for sibling := node.PreviousSibling(); sibling != nil; sibling = sibling.PreviousSibling() {
