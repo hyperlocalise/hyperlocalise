@@ -29,7 +29,8 @@ func TestBranchesService_List(t *testing.T) {
 						"createdAt": "2023-09-16T13:48:04+00:00",
 						"updatedAt": "2023-09-19T13:25:27+00:00",
 						"exportPattern": "%_three_letters_code%",
-						"priority": "normal"
+						"priority": "normal",
+						"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 					}
 				}
 			],
@@ -55,6 +56,7 @@ func TestBranchesService_List(t *testing.T) {
 			UpdatedAt:     "2023-09-19T13:25:27+00:00",
 			ExportPattern: ToPtr("%_three_letters_code%"),
 			Priority:      ToPtr("normal"),
+			WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
 		},
 	}
 	if !reflect.DeepEqual(branches, want) {
@@ -85,7 +87,8 @@ func TestBranchesService_ListWithQueryParams(t *testing.T) {
 						"createdAt": "2023-09-16T13:48:04+00:00",
 						"updatedAt": "2023-09-19T13:25:27+00:00",
 						"exportPattern": "%_three_letters_code%",
-						"priority": "normal"
+						"priority": "normal",
+						"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 					}
 				}
 			],
@@ -115,6 +118,7 @@ func TestBranchesService_ListWithQueryParams(t *testing.T) {
 			UpdatedAt:     "2023-09-19T13:25:27+00:00",
 			ExportPattern: ToPtr("%_three_letters_code%"),
 			Priority:      ToPtr("normal"),
+			WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
 		},
 	}
 	if !reflect.DeepEqual(branches, want) {
@@ -138,7 +142,8 @@ func TestBranchesService_Get(t *testing.T) {
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportPattern": "%_three_letters_code%",
-				"priority": "normal"
+				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 			}
 		}`)
 	})
@@ -157,6 +162,7 @@ func TestBranchesService_Get(t *testing.T) {
 		UpdatedAt:     "2023-09-19T13:25:27+00:00",
 		ExportPattern: ToPtr("%_three_letters_code%"),
 		Priority:      ToPtr("normal"),
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
 	}
 	if !reflect.DeepEqual(branch, want) {
 		t.Errorf("Branches.Get returned %+v, want %+v", branch, want)
@@ -207,7 +213,8 @@ func TestBranchesService_Add(t *testing.T) {
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportPattern": "%_three_letters_code%",
-				"priority": "normal"
+				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 			}
 		}`)
 	})
@@ -231,6 +238,7 @@ func TestBranchesService_Add(t *testing.T) {
 		UpdatedAt:     "2023-09-19T13:25:27+00:00",
 		ExportPattern: ToPtr("%_three_letters_code%"),
 		Priority:      ToPtr("normal"),
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
 	}
 	if !reflect.DeepEqual(branch, want) {
 		t.Errorf("Branches.Add returned %+v, want %+v", branch, want)
@@ -254,7 +262,8 @@ func TestBranchesService_AddWithRequiredBodyParams(t *testing.T) {
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportPattern": "%_three_letters_code%",
-				"priority": "normal"
+				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 			}
 		}`)
 	})
@@ -275,6 +284,7 @@ func TestBranchesService_AddWithRequiredBodyParams(t *testing.T) {
 		UpdatedAt:     "2023-09-19T13:25:27+00:00",
 		ExportPattern: ToPtr("%_three_letters_code%"),
 		Priority:      ToPtr("normal"),
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
 	}
 	if !reflect.DeepEqual(branch, want) {
 		t.Errorf("Branches.Add returned %+v, want %+v", branch, want)
@@ -299,7 +309,8 @@ func TestBranchesService_Edit(t *testing.T) {
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportPattern": "%_three_letters_code%",
-				"priority": "normal"
+				"priority": "normal",
+				"webUrl": "https://crowdin.com/project/project-identifier/settings#branches"
 			}
 		}`)
 	})
@@ -315,9 +326,19 @@ func TestBranchesService_Edit(t *testing.T) {
 		t.Errorf("Branches.Edit returned error: %v", err)
 	}
 
-	want := "develop-master"
-	if branch.Name != want {
-		t.Errorf("Branches.Edit returned %+v, want %+v", branch.Name, want)
+	want := &model.Branch{
+		ID:            34,
+		ProjectID:     2,
+		Name:          "develop-master",
+		Title:         "Master branch",
+		CreatedAt:     "2023-09-16T13:48:04+00:00",
+		UpdatedAt:     "2023-09-19T13:25:27+00:00",
+		ExportPattern: ToPtr("%_three_letters_code%"),
+		Priority:      ToPtr("normal"),
+		WebURL:        "https://crowdin.com/project/project-identifier/settings#branches",
+	}
+	if !reflect.DeepEqual(branch, want) {
+		t.Errorf("Branches.Edit returned %+v, want %+v", branch, want)
 	}
 }
 
