@@ -242,3 +242,165 @@ func TestMarshalTargetFileJSONC(t *testing.T) {
 		t.Fatalf("expected translated value in output: %s", content)
 	}
 }
+
+func TestMarshalSourceTemplateTargetXCStringsWritesTargetLocale(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "Localizable.xcstrings")
+	targetPath := filepath.Join(t.TempDir(), "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "comment": "Greeting",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello %@"
+          }
+        }
+      }
+    },
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"hello":                    "Bonjour %@",
+		"item_count::plural.one":   "%lld article",
+		"item_count::plural.other": "%lld articles",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["hello"] != "Bonjour %@" || entries["item_count::plural.other"] != "%lld articles" {
+		t.Fatalf("unexpected marshaled entries: %#v\n%s", entries, content)
+	}
+	if !strings.Contains(string(content), `"comment": "Greeting"`) {
+		t.Fatalf("expected source metadata to be preserved: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetXCStringsPrefersTargetLocaleTemplate(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	target := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "comment": "Target reviewer note",
+      "localizations": {
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld ancien article"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld anciens articles"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	if err := os.WriteFile(targetPath, target, 0o644); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"item_count::plural.one":   "%lld article",
+		"item_count::plural.other": "%lld articles",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["item_count::plural.one"] != "%lld article" {
+		t.Fatalf("unexpected target-locale entries: %#v", entries)
+	}
+	if !strings.Contains(string(content), `"comment": "Target reviewer note"`) {
+		t.Fatalf("expected target template metadata to be preserved: %s", content)
+	}
+}

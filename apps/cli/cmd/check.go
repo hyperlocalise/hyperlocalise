@@ -873,7 +873,7 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 				continue
 			}
 
-			targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourceDesc.sourcePath, target.targetPath)
+			targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourceDesc.sourcePath, target.targetPath, target.locale)
 			if err != nil {
 				return nil, err
 			}
@@ -907,7 +907,7 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 	return findings, nil
 }
 
-func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath string) (map[string]string, []byte, []byte, bool, error) {
+func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, []byte, []byte, bool, error) {
 	ext := strings.ToLower(filepath.Ext(targetPath))
 	if ext == ".md" || ext == ".mdx" {
 		sourceContent, err := os.ReadFile(sourcePath)
@@ -925,7 +925,7 @@ func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, 
 		return targetEntries, sourceContent, targetContent, true, nil
 	}
 
-	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath)
+	targetEntries, err := readTargetEntriesForStatus(parser, sourcePath, targetPath, locale)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil, nil, false, nil

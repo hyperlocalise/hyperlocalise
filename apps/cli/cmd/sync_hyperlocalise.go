@@ -554,6 +554,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "strings"
 	case ".stringsdict":
 		return "stringsdict"
+	case ".xcstrings":
+		return "xcstrings"
 	case ".csv":
 		return "csv"
 	default:
@@ -910,6 +912,8 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".po", ".strings", ".stringsdict":
 		return "text/plain"
+	case ".xcstrings":
+		return "application/json"
 	default:
 		return "application/octet-stream"
 	}

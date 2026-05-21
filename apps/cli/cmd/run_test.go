@@ -488,6 +488,61 @@ func TestRunDryRunFiltersByFile(t *testing.T) {
 	}
 }
 
+func TestRunDryRunRecognizesXCStrings(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "dist", "fr", "Localizable.xcstrings")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	source := `{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello %@"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ios":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "{{target}}", "Localizable.xcstrings")) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ios"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command dry-run xcstrings: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "planned_total=1") ||
+		!strings.Contains(got, filepath.ToSlash(targetPath)) ||
+		!strings.Contains(got, "key=hello") {
+		t.Fatalf("expected xcstrings dry-run task, got %q", got)
+	}
+}
+
 func TestRunDryRunFiltersByRepeatedFileFlag(t *testing.T) {
 	fixture := setupRunFileFilterFixture(t)
 
