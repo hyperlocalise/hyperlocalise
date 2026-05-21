@@ -114,7 +114,7 @@ async function extractEntriesStep(sandboxId: string, path: string) {
   }
   return JSON.parse(result.output) as Record<string, string>;
 }
-async function readOutputStep(sandboxId: string, outputFile: string) {
+async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";
   return readTranslatedFile(sandboxId, outputFile);
 }
@@ -467,7 +467,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           throw new Error(`translation failed for ${targetLocale}: ${translation.output}`);
         }
 
-        const translatedContent = await readOutputStep(sandboxId, outputFilename);
+        const translatedContent = await readOutputStep(sandboxId, outputFilename, attempt);
         const translatedText = translatedContent.toString("utf8");
         const glossaryFailures = validateGlossaryTermsInTranslation({
           sourceText,
