@@ -170,8 +170,17 @@ func TestFluentParserRejectsAttributeWithoutParent(t *testing.T) {
 }
 
 func TestFluentParserRejectsTermReferences(t *testing.T) {
-	_, err := FluentParser{}.Parse([]byte("hello = Welcome { -brand }\n"))
-	if err == nil || !strings.Contains(err.Error(), "references a term") {
-		t.Fatalf("expected term reference error, got %v", err)
+	tests := []string{
+		"hello = Welcome {-brand }\n",
+		"hello = Welcome { -brand }\n",
+		"hello = Welcome {  -brand }\n",
+		"hello = Welcome {\t-brand }\n",
+	}
+
+	for _, input := range tests {
+		_, err := FluentParser{}.Parse([]byte(input))
+		if err == nil || !strings.Contains(err.Error(), "references a term") {
+			t.Fatalf("expected term reference error for %q, got %v", input, err)
+		}
 	}
 }

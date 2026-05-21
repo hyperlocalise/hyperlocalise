@@ -425,10 +425,27 @@ func normalizeFluentValue(raw string) string {
 }
 
 func validateFluentValue(key, value string) error {
-	if strings.Contains(value, "{-") || strings.Contains(value, "{ -") {
+	if fluentValueReferencesTerm(value) {
 		return fmt.Errorf("fluent key %q references a term, which is not supported", key)
 	}
 	return nil
+}
+
+func fluentValueReferencesTerm(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] != '{' {
+			continue
+		}
+
+		j := i + 1
+		for j < len(value) && (value[j] == ' ' || value[j] == '\t') {
+			j++
+		}
+		if j < len(value) && value[j] == '-' {
+			return true
+		}
+	}
+	return false
 }
 
 func encodeFluentValue(value, continuationIndent string, blockValue bool) string {
