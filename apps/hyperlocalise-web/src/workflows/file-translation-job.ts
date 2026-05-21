@@ -153,6 +153,66 @@ function sourceContainsTerm(
   return sourceText.toLocaleLowerCase().includes(term.sourceTerm.toLocaleLowerCase());
 }
 
+type GlossaryTermConstraint = {
+  sourceTerm: string;
+  targetTerm: string;
+  targetLocale: string;
+  forbidden: boolean | null;
+  caseSensitive?: boolean;
+};
+
+type GlossaryValidationFailure = {
+  sourceTerm: string;
+  targetTerm: string;
+  forbidden: boolean;
+  reason: "missing_preferred_term" | "contains_forbidden_term";
+};
+
+function translationContainsTerm(text: string, term: string, caseSensitive: boolean) {
+  return caseSensitive
+    ? text.includes(term)
+    : text.toLocaleLowerCase().includes(term.toLocaleLowerCase());
+}
+
+export function validateGlossaryTermsInTranslation(input: {
+  sourceText: string;
+  translatedText: string;
+  terms: GlossaryTermConstraint[];
+}) {
+  const failures: GlossaryValidationFailure[] = [];
+
+  for (const term of input.terms) {
+    const caseSensitive = term.caseSensitive ?? false;
+    if (!sourceContainsTerm(input.sourceText, { sourceTerm: term.sourceTerm, caseSensitive })) {
+      continue;
+    }
+
+    const hasTarget = translationContainsTerm(input.translatedText, term.targetTerm, caseSensitive);
+    if (term.forbidden) {
+      if (hasTarget) {
+        failures.push({
+          sourceTerm: term.sourceTerm,
+          targetTerm: term.targetTerm,
+          forbidden: true,
+          reason: "contains_forbidden_term",
+        });
+      }
+      continue;
+    }
+
+    if (!hasTarget) {
+      failures.push({
+        sourceTerm: term.sourceTerm,
+        targetTerm: term.targetTerm,
+        forbidden: false,
+        reason: "missing_preferred_term",
+      });
+    }
+  }
+
+  return failures;
+}
+
 async function assembleFileTranslationContextStep(input: {
   jobId: string;
   projectId: string;
@@ -388,22 +448,61 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           }
         : context;
 
-      const translation = await runTranslationStep(
-        sandboxId,
-        inputFilename,
-        outputFilename,
-        parsedInput.sourceLocale,
-        targetLocale,
-        instructions,
-        localeContext,
-        reusedEntries,
-      );
+      const sourceText = sourceContent.toString("utf8");
+      const runTranslationWithValidation = async (attempt: 1 | 2, retryFeedback?: string) => {
+        const translation = await runTranslationStep(
+          sandboxId,
+          inputFilename,
+          outputFilename,
+          parsedInput.sourceLocale,
+          targetLocale,
+          retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
+          localeContext,
+          reusedEntries,
+        );
 
-      if (translation.exitCode !== 0) {
-        throw new Error(`translation failed for ${targetLocale}: ${translation.output}`);
-      }
+        if (translation.exitCode !== 0) {
+          throw new Error(`translation failed for ${targetLocale}: ${translation.output}`);
+        }
 
-      const translatedContent = await readOutputStep(sandboxId, outputFilename);
+        const translatedContent = await readOutputStep(sandboxId, outputFilename);
+        const translatedText = translatedContent.toString("utf8");
+        const glossaryFailures = validateGlossaryTermsInTranslation({
+          sourceText,
+          translatedText,
+          terms: (localeContext.glossaryTerms ?? []).map((term) => ({
+            sourceTerm: term.sourceTerm,
+            targetTerm: term.targetTerm,
+            targetLocale: term.targetLocale,
+            forbidden: term.forbidden,
+          })),
+        });
+
+        if (glossaryFailures.length > 0 && attempt === 1) {
+          const feedback = [
+            `Glossary validation failed for locale ${targetLocale}. Fix these term constraints exactly and regenerate:`,
+            ...glossaryFailures.map((failure) =>
+              failure.forbidden
+                ? `- Forbidden term violation for source "${failure.sourceTerm}": do not use "${failure.targetTerm}"`
+                : `- Missing preferred term for source "${failure.sourceTerm}": must include "${failure.targetTerm}"`,
+            ),
+          ].join("\n");
+          return runTranslationWithValidation(2, feedback);
+        }
+
+        if (glossaryFailures.length > 0) {
+          const diagnostics = {
+            targetLocale,
+            failedTermCount: glossaryFailures.length,
+            failures: glossaryFailures,
+          };
+          throw new Error(`glossary validation failed: ${JSON.stringify(diagnostics)}`);
+        }
+
+        return translatedContent;
+      };
+
+      const translatedContent = await runTranslationWithValidation(1);
       await logDiagnosticsStep(
         claim.job.id,
         sourceFile.filename,
