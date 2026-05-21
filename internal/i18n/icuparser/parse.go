@@ -399,9 +399,9 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 			return 0, nil, fmt.Errorf("expected ICU selector at %d", p.pos)
 		}
 		p.skipSpaces()
-		if len(sel) > 7 && strings.EqualFold(sel[:7], "offset:") {
-			// BOLT OPTIMIZATION: Use EqualFold to avoid ToLower and manual TrimSpace for efficiency.
-			n, err := strconv.Atoi(strings.TrimSpace(sel[7:]))
+		if len(sel) >= 7 && strings.EqualFold(sel[:7], "offset:") {
+			// BOLT OPTIMIZATION: Use EqualFold to avoid ToLower and skip redundant TrimSpace.
+			n, err := strconv.Atoi(sel[7:])
 			if err != nil {
 				return 0, nil, fmt.Errorf("invalid plural offset %q", sel)
 			}
