@@ -142,7 +142,7 @@ function buildImageFailureMessage(imageAttachment: ImageLocalizationAttachment) 
   return `Sorry, I couldn't localize ${imageAttachment.name ?? "that image"} right now. Please try again with the image and target language.`;
 }
 
-type HandleSlackImageAttachmentsOptions = {
+export type HandleSlackImageAttachmentsOptions = {
   imageAttachments?: ImageLocalizationAttachment[];
   conversationMessages?: SlackImageIntentMessage[];
   beforePostGeneratedImage?: () => Promise<void> | void;
@@ -180,7 +180,17 @@ export async function handleSlackImageAttachments(
         contextLines: [message.text ? `Slack request: ${message.text}` : null],
       });
 
-      await options.beforePostGeneratedImage?.();
+      if (options.beforePostGeneratedImage) {
+        try {
+          await options.beforePostGeneratedImage();
+        } catch (error) {
+          console.error("Failed to run Slack pre-image-post hook", {
+            error,
+            imageName: imageAttachment.name,
+            targetLocale,
+          });
+        }
+      }
       await thread.post({
         raw: [
           `Here is the localized version of ${imageAttachment.name ?? "your image"} for ${targetLocale}. I kept the layout and style as close to the original as possible.`,
