@@ -9,6 +9,7 @@ import {
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 import {
+  externalTmsProviderKindSchema,
   revealExternalTmsProviderCredentialBodySchema,
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
@@ -31,22 +32,26 @@ export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .put("/", validateUpsertBody, async (c) => {
-      if (!["owner", "admin"].includes(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
+      try {
+        const payload = c.req.valid("json");
+        const providerCredential = await upsertOrganizationExternalTmsProviderCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          role: c.var.auth.membership.role,
+          providerKind: payload.providerKind,
+          displayName: payload.displayName,
+          secretMaterial: payload.secretMaterial,
+          region: payload.region,
+          baseUrl: payload.baseUrl,
+        });
+
+        return c.json({ externalTmsProviderCredential: providerCredential }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        throw error;
       }
-
-      const payload = c.req.valid("json");
-      const providerCredential = await upsertOrganizationExternalTmsProviderCredential({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        providerKind: payload.providerKind,
-        displayName: payload.displayName,
-        secretMaterial: payload.secretMaterial,
-        region: payload.region,
-        baseUrl: payload.baseUrl,
-      });
-
-      return c.json({ externalTmsProviderCredential: providerCredential }, 200);
     })
     .post("/reveal", validateRevealBody, async (c) => {
       try {
@@ -68,14 +73,15 @@ export function createExternalTmsProviderCredentialRoutes() {
     })
     .delete("/:providerKind", async (c) => {
       try {
+        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+        if (!providerKind.success) {
+          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+        }
+
         const deleted = await deleteOrganizationExternalTmsProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           role: c.var.auth.membership.role,
-          providerKind: c.req.param("providerKind") as
-            | "crowdin"
-            | "smartling"
-            | "phrase"
-            | "lokalise",
+          providerKind: providerKind.data,
         });
 
         if (!deleted) return c.json({ error: "provider_credential_not_found" }, 404);

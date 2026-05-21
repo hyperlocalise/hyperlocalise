@@ -16,11 +16,19 @@ export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRol
   }
 }
 
-export async function getOrganizationExternalTmsProviderCredentialSummary(organizationId: string) {
+export async function getOrganizationExternalTmsProviderCredentialSummary(
+  organizationId: string,
+  providerKind: ExternalTmsProviderKind,
+) {
   const [credential] = await db
     .select()
     .from(schema.organizationExternalTmsProviderCredentials)
-    .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId))
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, providerKind),
+      ),
+    )
     .limit(1);
 
   return credential ?? null;
@@ -29,12 +37,16 @@ export async function getOrganizationExternalTmsProviderCredentialSummary(organi
 export async function upsertOrganizationExternalTmsProviderCredential(input: {
   organizationId: string;
   userId: string;
+  role: OrganizationMembershipRole;
   providerKind: ExternalTmsProviderKind;
   displayName: string;
   secretMaterial: string;
   region?: string | null;
   baseUrl?: string | null;
 }) {
+  assertExternalTmsCredentialAdmin(input.role);
+
+  const now = new Date();
   const encrypted = encryptProviderCredential(input.secretMaterial);
   const [credential] = await db
     .insert(schema.organizationExternalTmsProviderCredentials)
@@ -73,6 +85,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
         maskedSecretSuffix: maskProviderCredentialSuffix(input.secretMaterial),
+        updatedAt: now,
       },
     })
     .returning();
