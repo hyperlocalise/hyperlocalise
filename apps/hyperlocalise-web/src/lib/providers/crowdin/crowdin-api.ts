@@ -109,6 +109,60 @@ export interface CrowdinLanguageProgress {
   approvalProgress: number;
 }
 
+export interface CrowdinTaskDetails extends CrowdinTask {
+  sourceLanguageId?: string;
+  targetLanguageId?: string;
+  stringIds?: number[] | null;
+}
+
+export interface CrowdinLanguageTranslation {
+  stringId: number;
+  contentType: string;
+  translationId: number | null;
+  text: string | null;
+  createdAt: string | null;
+}
+
+export interface CrowdinStringTranslation {
+  id: number;
+  text: string;
+  createdAt: string;
+}
+
+export interface CrowdinTranslationApproval {
+  id: number;
+  translationId: number;
+  stringId: number;
+  languageId: string;
+}
+
+export interface CrowdinStorage {
+  id: number;
+  fileName: string;
+}
+
+export interface CrowdinUploadTranslationsResult {
+  projectId: number;
+  storageId: number;
+  languageId: string;
+  fileId: number;
+}
+
+export interface CrowdinTranslationBuild {
+  id: number;
+  projectId: number;
+  status: string;
+  progress: number;
+  createdAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+}
+
+export interface CrowdinDownloadLink {
+  url: string;
+  expireIn?: string;
+}
+
 interface CrowdinListResponse<T> {
   data: Array<{ data: T }>;
   pagination?: {
@@ -341,6 +395,297 @@ export class CrowdinApiClient {
   }
 
   /**
+   * Get a single task by identifier.
+   */
+  async getTask(projectId: number, taskId: number): Promise<CrowdinTaskDetails> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks/${taskId}`,
+    );
+    return response.data;
+  }
+
+  /**
+   * List language-scoped translations for a project.
+   */
+  async listLanguageTranslations(
+    projectId: number,
+    languageId: string,
+    options?: { fileId?: number; stringIds?: number[] },
+  ): Promise<CrowdinLanguageTranslation[]> {
+    const translations: CrowdinLanguageTranslation[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
+      if (options?.fileId !== undefined) {
+        params.append("fileId", String(options.fileId));
+      }
+      if (options?.stringIds?.length) {
+        params.append("stringIds", options.stringIds.join(","));
+      }
+
+      const response = await this.get<CrowdinListResponse<CrowdinLanguageTranslation>>(
+        `/projects/${projectId}/languages/${languageId}/translations?${params.toString()}`,
+      );
+      const page = response.data.map((item) => item.data);
+      translations.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return translations;
+  }
+
+  /**
+   * List string translations for a specific string and language.
+   */
+  async listStringTranslations(
+    projectId: number,
+    stringId: number,
+    languageId: string,
+  ): Promise<CrowdinStringTranslation[]> {
+    const params = new URLSearchParams({
+      stringId: String(stringId),
+      languageId,
+      limit: "500",
+      offset: "0",
+    });
+    const response = await this.get<CrowdinListResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations?${params.toString()}`,
+    );
+    return response.data.map((item) => item.data);
+  }
+
+  /**
+   * List translation approvals, optionally filtered by language.
+   */
+  async listTranslationApprovals(
+    projectId: number,
+    languageId?: string,
+  ): Promise<CrowdinTranslationApproval[]> {
+    const approvals: CrowdinTranslationApproval[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (languageId) {
+        params.append("languageId", languageId);
+      }
+
+      const response = await this.get<CrowdinListResponse<CrowdinTranslationApproval>>(
+        `/projects/${projectId}/approvals?${params.toString()}`,
+      );
+      const page = response.data.map((item) => item.data);
+      approvals.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return approvals;
+  }
+
+  /**
+   * Upload file bytes to Crowdin storage.
+   */
+  async addStorage(input: { fileName: string; content: Uint8Array; contentType?: string }) {
+    const url = `${this.baseUrl}/storages`;
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": input.contentType ?? "application/octet-stream",
+        "Crowdin-API-FileName": encodeURIComponent(input.fileName),
+      },
+      body: input.content as BodyInit,
+    });
+
+    if (!response.ok) {
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+
+      throw new CrowdinApiError(
+        `Crowdin API returned HTTP ${response.status} for /storages`,
+        response.status,
+        body,
+      );
+    }
+
+    const payload = (await response.json()) as CrowdinGetResponse<CrowdinStorage>;
+    return payload.data;
+  }
+
+  /**
+   * Import uploaded storage content as translations for a language.
+   */
+  async uploadTranslations(
+    projectId: number,
+    languageId: string,
+    input: {
+      storageId: number;
+      fileId: number;
+      autoApproveImported?: boolean;
+    },
+  ): Promise<CrowdinUploadTranslationsResult> {
+    const response = await this.post<CrowdinGetResponse<CrowdinUploadTranslationsResult>>(
+      `/projects/${projectId}/translations/${languageId}`,
+      {
+        storageId: input.storageId,
+        fileId: input.fileId,
+        autoApproveImported: input.autoApproveImported ?? true,
+      },
+    );
+    return response.data;
+  }
+
+  /**
+   * Start an async project translation build.
+   */
+  async buildProjectTranslation(
+    projectId: number,
+    input?: { targetLanguageIds?: string[]; exportApprovedOnly?: boolean },
+  ): Promise<CrowdinTranslationBuild> {
+    const response = await this.post<CrowdinGetResponse<CrowdinTranslationBuild>>(
+      `/projects/${projectId}/translations/builds`,
+      {
+        skipUntranslatedStrings: false,
+        skipUntranslatedFiles: false,
+        exportApprovedOnly: input?.exportApprovedOnly ?? false,
+        targetLanguageIds: input?.targetLanguageIds,
+      },
+    );
+    return response.data;
+  }
+
+  /**
+   * Check status of an async translation build.
+   */
+  async getTranslationBuildStatus(
+    projectId: number,
+    buildId: number,
+  ): Promise<CrowdinTranslationBuild> {
+    const response = await this.get<CrowdinGetResponse<CrowdinTranslationBuild>>(
+      `/projects/${projectId}/translations/builds/${buildId}`,
+    );
+    return response.data;
+  }
+
+  /**
+   * Get a download link for a completed translation build.
+   */
+  async downloadTranslationBuild(projectId: number, buildId: number): Promise<CrowdinDownloadLink> {
+    const response = await this.get<CrowdinGetResponse<CrowdinDownloadLink>>(
+      `/projects/${projectId}/translations/builds/${buildId}/download`,
+    );
+    return response.data;
+  }
+
+  /**
+   * Export strings for a task and return a download link when available.
+   */
+  async exportTaskStrings(projectId: number, taskId: number): Promise<CrowdinDownloadLink | null> {
+    const response = await this.fetchFn(
+      `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+        body: "",
+      },
+    );
+
+    if (response.status === 204) {
+      return null;
+    }
+
+    if (!response.ok) {
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+
+      throw new CrowdinApiError(
+        `Crowdin API returned HTTP ${response.status} for /projects/${projectId}/tasks/${taskId}/exports`,
+        response.status,
+        body,
+      );
+    }
+
+    const payload = (await response.json()) as CrowdinGetResponse<CrowdinDownloadLink>;
+    return payload.data;
+  }
+
+  /**
+   * Download content from a Crowdin-provided URL.
+   */
+  async downloadUrl(url: string): Promise<Uint8Array> {
+    const response = await this.fetchFn(url, { method: "GET" });
+    if (!response.ok) {
+      throw new CrowdinApiError(
+        `Crowdin download returned HTTP ${response.status}`,
+        response.status,
+        null,
+      );
+    }
+
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
+  /**
+   * Poll a translation build until it finishes or fails.
+   */
+  async waitForTranslationBuild(
+    projectId: number,
+    buildId: number,
+    options?: { maxAttempts?: number; delayMs?: number },
+  ): Promise<CrowdinTranslationBuild> {
+    const maxAttempts = options?.maxAttempts ?? 20;
+    const delayMs = options?.delayMs ?? 250;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const build = await this.getTranslationBuildStatus(projectId, buildId);
+      if (build.status === "finished") {
+        return build;
+      }
+      if (build.status === "failed" || build.status === "canceled") {
+        throw new CrowdinApiError(
+          `Crowdin translation build ${buildId} finished with status ${build.status}`,
+          500,
+          build,
+        );
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new CrowdinApiError(`Crowdin translation build ${buildId} timed out`, 504, {
+      buildId,
+      projectId,
+    });
+  }
+
+  /**
    * Get translation progress for each target language in a project.
    */
   async listProjectLanguageProgress(projectId: number): Promise<CrowdinLanguageProgress[]> {
@@ -365,15 +710,31 @@ export class CrowdinApiClient {
     return progress;
   }
 
+  private authHeaders(contentType = "application/json"): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.token}`,
+      "Content-Type": contentType,
+    };
+  }
+
   private async get<T>(path: string): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    const response = await this.fetchFn(url, {
+    return this.request<T>(path, {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
+      headers: this.authHeaders(),
     });
+  }
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "POST",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async request<T>(path: string, init: RequestInit): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const response = await this.fetchFn(url, init);
 
     if (!response.ok) {
       let body: unknown;

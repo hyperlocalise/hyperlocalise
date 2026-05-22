@@ -9,8 +9,14 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { pullCrowdinTaskContent } from "@/lib/providers/crowdin/crowdin-content-puller";
 import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
+import { pushCrowdinTranslations } from "@/lib/providers/crowdin/crowdin-translation-pusher";
+import {
+  pullExternalTmsTaskContent,
+  pushExternalTmsTranslations,
+} from "@/lib/providers/external-tms-content-sync";
 import { syncExternalTmsFileKeys } from "@/lib/providers/external-tms-file-sync";
 import { syncExternalTmsJobTasks } from "@/lib/providers/external-tms-job-sync";
 import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
@@ -21,6 +27,8 @@ import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
 import {
   createProjectBodySchema,
+  externalTmsContentSyncBodySchema,
+  externalTmsTranslationPushBodySchema,
   projectFileDetailQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
@@ -159,6 +167,26 @@ const validateCreateProjectBody = validator("json", (value, c) => {
 
 const validateUpdateProjectBody = validator("json", (value, c) => {
   const parsed = updateProjectBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateExternalTmsContentSyncBody = validator("json", (value, c) => {
+  const parsed = externalTmsContentSyncBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateExternalTmsTranslationPushBody = validator("json", (value, c) => {
+  const parsed = externalTmsTranslationPushBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -800,6 +828,74 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
     })
+    .post(
+      "/:projectId/sync-pull-content",
+      validateProjectParams,
+      validateExternalTmsContentSyncBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const project = await projectStore.getById(c.var.auth, params.projectId);
+
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        if (project.externalProviderKind !== "crowdin") {
+          return c.json({ error: "provider_sync_not_implemented" }, 501);
+        }
+
+        const result = await pullExternalTmsTaskContent({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          providerKind: "crowdin",
+          externalJobId: payload.externalJobId,
+          pullContent: pullCrowdinTaskContent,
+        });
+
+        return c.json({ externalTmsContentPull: result }, 200);
+      },
+    )
+    .post(
+      "/:projectId/sync-push-translations",
+      validateProjectParams,
+      validateExternalTmsTranslationPushBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const project = await projectStore.getById(c.var.auth, params.projectId);
+
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        if (project.externalProviderKind !== "crowdin") {
+          return c.json({ error: "provider_sync_not_implemented" }, 501);
+        }
+
+        const result = await pushExternalTmsTranslations({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          providerKind: "crowdin",
+          externalJobId: payload.externalJobId,
+          translations: payload.translations,
+          pushTranslations: pushCrowdinTranslations,
+        });
+
+        return c.json(
+          { externalTmsTranslationPush: result },
+          result.status === "failed" ? 207 : 200,
+        );
+      },
+    )
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
