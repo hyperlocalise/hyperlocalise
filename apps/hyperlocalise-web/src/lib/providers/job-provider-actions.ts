@@ -32,7 +32,7 @@ export const jobProviderActionDefinitions: JobProviderActionDefinition[] = [
     id: "review_with_agent",
     label: "Review with agent",
     agentRunKind: "review",
-    requiredCapabilities: ["jobs.read", "qa.run", "keys.read"],
+    requiredCapabilities: ["jobs.read", "comments.read", "keys.read"],
   },
   {
     id: "run_qa_checks",

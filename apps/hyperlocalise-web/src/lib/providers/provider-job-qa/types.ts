@@ -1,12 +1,11 @@
 export const providerQaCheckTypes = [
   "placeholder_mismatch",
   "icu_shape_mismatch",
-  "invalid_icu_structure",
   "missing_translation",
   "stale_unchanged_target",
   "length_expansion",
-  "json_invalid",
   "markdown_link",
+  "html_tag_mismatch",
   "glossary_violation",
 ] as const;
 
@@ -51,6 +50,7 @@ export type ProviderQaGlossaryTerm = {
 
 export type ProviderQaRunOptions = {
   targetLocales: string[];
+  sourceLocale?: string | null;
   glossaryTerms?: ProviderQaGlossaryTerm[];
   lengthExpansionWarningRatio?: number;
   lengthExpansionErrorRatio?: number;

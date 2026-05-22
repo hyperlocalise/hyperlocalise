@@ -96,8 +96,9 @@ export async function executeProviderJobQaForContent(input: {
   pullRunId: string;
 }) {
   const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
-  const report = runProviderJobQa(input.content, {
+  const report = await runProviderJobQa(input.content, {
     targetLocales: input.content.targetLocales,
+    sourceLocale: input.content.sourceLocale,
     glossaryTerms,
   });
 
@@ -143,14 +144,14 @@ export async function executeProviderAgentQa(input: {
       pullRunId: readOutputSummaryString(outputSummary, "pullRunId"),
       report:
         storedReport ??
-        runProviderJobQa(
+        (await runProviderJobQa(
           {
             externalJobId: run.externalJobId,
             targetLocales: [],
             units: [],
           },
           { targetLocales: [] },
-        ),
+        )),
       alreadyCompleted: true,
     };
   }
