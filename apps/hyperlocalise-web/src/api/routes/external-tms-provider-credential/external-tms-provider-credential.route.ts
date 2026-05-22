@@ -150,6 +150,9 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (error instanceof Error && error.message === "forbidden") {
           return c.json({ error: "forbidden" }, 403);
         }
+        if (error instanceof Error && error.message === "provider_credential_not_found") {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
         throw error;
       }
     })

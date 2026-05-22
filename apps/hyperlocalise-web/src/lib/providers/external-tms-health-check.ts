@@ -296,16 +296,21 @@ function isBlockedIpv4Address(hostname: string) {
 function isBlockedIpv6Address(hostname: string) {
   if (!hostname.includes(":")) return false;
 
-  return (
+  if (
     hostname === "::1" ||
     hostname.startsWith("fe80:") ||
     hostname.startsWith("fc") ||
-    hostname.startsWith("fd") ||
-    hostname.startsWith("::ffff:10.") ||
-    hostname.startsWith("::ffff:127.") ||
-    hostname.startsWith("::ffff:169.254.") ||
-    hostname.startsWith("::ffff:192.168.")
-  );
+    hostname.startsWith("fd")
+  ) {
+    return true;
+  }
+
+  if (hostname.startsWith("::ffff:")) {
+    const ipv4 = hostname.slice("::ffff:".length);
+    return isBlockedIpv4Address(ipv4);
+  }
+
+  return false;
 }
 
 function parseSmartlingCredentials(secretMaterial: string) {
