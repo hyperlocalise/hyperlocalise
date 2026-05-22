@@ -535,7 +535,7 @@ describe("handleNewConversation", () => {
         },
         organizationId: "org-123",
         projectId: "project-123",
-        workMode: "write",
+        workMode: "read_only",
         instructions: "Can you check https://github.com/acme/web/pull/42",
         githubContext: {
           resolved: true,
@@ -560,7 +560,7 @@ describe("handleNewConversation", () => {
     expect(posts).toEqual([
       {
         markdown:
-          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+          "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
       },
     ]);
   });

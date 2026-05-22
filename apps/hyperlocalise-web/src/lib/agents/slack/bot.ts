@@ -202,7 +202,7 @@ async function processSlackMessage(
         },
         organizationId,
         projectId,
-        workMode: "write",
+        workMode: "read_only",
         instructions: message.text,
         githubContext: resolvedRepoTmsContext,
         createdAt: new Date().toISOString(),
@@ -220,7 +220,7 @@ async function processSlackMessage(
       wrapThreadPost(thread, interactionId);
       await thread.post({
         markdown:
-          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+          "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
       });
       return;
     }

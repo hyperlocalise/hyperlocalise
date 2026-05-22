@@ -22,6 +22,8 @@ export type RepoTmsWorkflowResult = {
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 const agentStepLimit = 20;
+const readOnlyRepoInstructions =
+  "This workflow is read-only. Gather repository and TMS context, but do not modify files, upload sources, commit, push, or create TMS-side effects.";
 
 type InstallationAuth = {
   token: string;
@@ -92,9 +94,14 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       instructions: buildHyperlocaliseAgentInstructions({
         surface: task.source === "slack" ? "slack" : task.source === "github" ? "github" : "web",
         projectId: task.projectId,
-        additionalInstructions: sandboxId
-          ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
-          : "No repository sandbox required for this task.",
+        additionalInstructions: [
+          sandboxId
+            ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
+            : "No repository sandbox required for this task.",
+          task.workMode === "read_only" ? readOnlyRepoInstructions : null,
+        ]
+          .filter((instruction): instruction is string => instruction !== null)
+          .join("\n\n"),
       }),
       experimental_context: { sandboxId, repoTmsTaskId: task.id },
     });
