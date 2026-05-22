@@ -1,4 +1,4 @@
-import { and, desc, eq, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
@@ -99,11 +99,31 @@ export async function failAgentRun(input: {
 }
 
 export async function cancelAgentRun(input: { runId: string; organizationId: string }) {
-  return finishAgentRun({
-    runId: input.runId,
-    organizationId: input.organizationId,
-    status: "cancelled",
-  });
+  const now = new Date();
+  const [run] = await db
+    .update(schema.agentRuns)
+    .set({
+      status: "cancelled",
+      completedAt: now,
+      outputSummary: {},
+      changedItems: [],
+      warnings: [],
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.agentRuns.id, input.runId),
+        eq(schema.agentRuns.organizationId, input.organizationId),
+        inArray(schema.agentRuns.status, ["queued", "running"]),
+      ),
+    )
+    .returning();
+
+  if (!run) {
+    throw new Error("Agent run not found or not in cancellable state");
+  }
+
+  return run;
 }
 
 async function finishAgentRun(input: {
@@ -162,12 +182,13 @@ export async function updateAgentRun(input: {
       and(
         eq(schema.agentRuns.id, input.runId),
         eq(schema.agentRuns.organizationId, input.organizationId),
+        inArray(schema.agentRuns.status, ["queued", "running"]),
       ),
     )
     .returning();
 
   if (!run) {
-    throw new Error("Agent run not found");
+    throw new Error("Agent run not found or not in updatable state");
   }
 
   return run;

@@ -206,6 +206,26 @@ describe("agent runs", () => {
     expect(cancelled.completedAt).toBeTruthy();
   });
 
+  it("cancels a queued run", async () => {
+    const { project } = await createTestProject();
+
+    const created = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "phrase",
+      externalJobId: "phrase-job-queued-cancel",
+      kind: "translate",
+    });
+
+    const cancelled = await cancelAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(cancelled.status).toBe("cancelled");
+    expect(cancelled.startedAt).toBeNull();
+    expect(cancelled.completedAt).toBeTruthy();
+  });
+
   it("updates run fields independently", async () => {
     const { project, user } = await createTestProject();
     const job = await createTestJob({
@@ -235,6 +255,49 @@ describe("agent runs", () => {
     expect(updated.warnings).toEqual(["spelling mismatch"]);
     expect(updated.hyperlocaliseJobId).toBe(job.id);
     expect(updated.status).toBe("queued");
+  });
+
+  it("does not update a terminal run", async () => {
+    const { project } = await createTestProject();
+
+    const created = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "smartling",
+      externalJobId: "smartling-job-terminal-update",
+      kind: "review",
+    });
+
+    await startAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+    });
+
+    await completeAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+      outputSummary: { final: true },
+      changedItems: [{ segmentId: "s1", final: true }],
+      warnings: ["terminal warning"],
+    });
+
+    await expect(
+      updateAgentRun({
+        runId: created.id,
+        organizationId: project.organizationId,
+        outputSummary: { progress: 0.5 },
+        changedItems: [{ segmentId: "s1", progress: true }],
+        warnings: ["stale warning"],
+      }),
+    ).rejects.toThrow("Agent run not found or not in updatable state");
+
+    const fetched = await getAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(fetched?.outputSummary).toEqual({ final: true });
+    expect(fetched?.changedItems).toEqual([{ segmentId: "s1", final: true }]);
+    expect(fetched?.warnings).toEqual(["terminal warning"]);
   });
 
   it("fetches a run by id and organization", async () => {
