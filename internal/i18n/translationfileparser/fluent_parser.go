@@ -90,23 +90,33 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 		templateKeys[messageID] = struct{}{}
 	}
 	var b strings.Builder
+	hasRendered := false
+	renderedLastByte := byte(0)
+	writeRenderedString := func(value string) {
+		b.WriteString(value)
+		if len(value) == 0 {
+			return
+		}
+		hasRendered = true
+		renderedLastByte = value[len(value)-1]
+	}
 	cursor := 0
 	for _, entry := range entries {
 		templateKeys[entry.key] = struct{}{}
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
 		}
-		b.WriteString(d.template[cursor:entry.valueStart])
+		writeRenderedString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
-			b.WriteString(encodeFluentValue(translated, entry.continuationIndent, entry.blockValue))
+			writeRenderedString(encodeFluentValue(translated, entry.continuationIndent, entry.blockValue))
 		} else {
-			b.WriteString(d.template[entry.valueStart:entry.valueEnd])
+			writeRenderedString(d.template[entry.valueStart:entry.valueEnd])
 		}
 		cursor = entry.valueEnd
 	}
-	b.WriteString(d.template[cursor:])
+	writeRenderedString(d.template[cursor:])
 
-	if err := appendMissingFluentEntries(&b, values, templateKeys); err != nil {
+	if err := appendMissingFluentEntries(&b, values, templateKeys, hasRendered && renderedLastByte == '\n'); err != nil {
 		return nil, err
 	}
 
@@ -468,7 +478,7 @@ func encodeFluentValue(value, continuationIndent string, blockValue bool) string
 	return lines[0] + "\n" + continuationIndent + strings.Join(lines[1:], "\n"+continuationIndent)
 }
 
-func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}) error {
+func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}, endsWithNewline bool) error {
 	messageKeys := []string{}
 	attrsByParent := map[string][]string{}
 
@@ -493,7 +503,7 @@ func appendMissingFluentEntries(b *strings.Builder, values map[string]string, te
 	if len(messageKeys) == 0 && len(attrsByParent) == 0 {
 		return nil
 	}
-	if b.Len() > 0 && !strings.HasSuffix(b.String(), "\n") {
+	if b.Len() > 0 && !endsWithNewline {
 		b.WriteByte('\n')
 	}
 
