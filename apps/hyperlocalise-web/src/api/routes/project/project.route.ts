@@ -47,6 +47,20 @@ type ProjectStore = {
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
+async function countOpenJobs(auth: ApiAuthContext, projectId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.organizationId, auth.organization.localOrganizationId),
+        eq(schema.jobs.projectId, projectId),
+        inArray(schema.jobs.status, ["queued", "running", "waiting_for_review"]),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
 const projectStore: ProjectStore = {
   async list(auth) {
     return db
@@ -286,7 +300,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const payload = c.req.valid("json");
       const project = await projectStore.create(c.var.auth, payload);
-      return c.json({ project }, 201);
+      return c.json({ project: { ...project, openJobCount: 0 } }, 201);
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
@@ -713,7 +727,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      return c.json({ project }, 200);
+      const openJobCount = await countOpenJobs(c.var.auth, project.id);
+      return c.json({ project: { ...project, openJobCount } }, 200);
     })
     .patch("/:projectId", validateProjectParams, validateUpdateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
@@ -728,7 +743,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      return c.json({ project }, 200);
+      const openJobCount = await countOpenJobs(c.var.auth, project.id);
+      return c.json({ project: { ...project, openJobCount } }, 200);
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {

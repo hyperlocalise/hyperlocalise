@@ -40,6 +40,8 @@ function ProviderBadge({
 }
 
 function HealthBadge({ project }: { project: ProjectListRow }) {
+  if (project.source === "native") return null;
+
   if (!project.isActive) {
     return (
       <Badge variant="outline" className="text-[10px]">

@@ -45,7 +45,7 @@ export const projectRecordSchema = z.object({
   lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
-  openJobCount: z.number().int().optional(),
+  openJobCount: z.number().int(),
 });
 
 export const projectResponseSchema = z.object({

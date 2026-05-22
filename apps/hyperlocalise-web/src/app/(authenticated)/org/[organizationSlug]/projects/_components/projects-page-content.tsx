@@ -267,7 +267,13 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value ?? "all")}>
+            <Select
+              value={sourceFilter}
+              onValueChange={(value) => {
+                setSourceFilter(value ?? "all");
+                if (value === "native") setProviderFilter("all");
+              }}
+            >
               <SelectTrigger className="w-fit min-w-[8rem]">
                 <SelectValue placeholder="Source" />
               </SelectTrigger>
@@ -278,7 +284,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
               </SelectContent>
             </Select>
 
-            {hasExternalProjects ? (
+            {hasExternalProjects && sourceFilter !== "native" ? (
               <Select
                 value={providerFilter}
                 onValueChange={(value) => setProviderFilter(value ?? "all")}
