@@ -154,6 +154,7 @@ describe("fetchCrowdinFileKeys", () => {
           displayName: "English",
           format: "json",
           revision: "50",
+          externalUrl: "https://api.crowdin.test/project/1/files/101",
           syncState: "synced",
         }),
         expect.objectContaining({
@@ -163,6 +164,60 @@ describe("fetchCrowdinFileKeys", () => {
           displayName: "hello",
         }),
       ]),
+    );
+  });
+
+  it("builds file external URLs from the credential base URL", async () => {
+    async function fetchFileExternalUrl(baseUrl: string | null) {
+      const fetchMock = vi.fn(async (url) => {
+        const path = String(url);
+
+        if (path.includes("/files?")) {
+          return new Response(
+            JSON.stringify({
+              data: [
+                {
+                  data: {
+                    id: 101,
+                    branchId: null,
+                    directoryId: null,
+                    name: "en.json",
+                    title: "English",
+                    type: "json",
+                    path: "/en.json",
+                    status: "active",
+                    revisionId: 5,
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }) as unknown as typeof fetch;
+
+      globalThis.fetch = fetchMock;
+
+      const result = await fetchCrowdinFileKeys({
+        organizationId: "org-1",
+        projectId: "project-1",
+        providerKind: "crowdin",
+        externalProjectId: "1",
+        credential: { baseUrl } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+      });
+
+      return result.find((item) => item.resourceType === "file")?.externalUrl;
+    }
+
+    await expect(fetchFileExternalUrl("https://your-org.crowdin.com/api/v2/")).resolves.toBe(
+      "https://your-org.crowdin.com/project/1/files/101",
+    );
+    await expect(fetchFileExternalUrl("https://api.crowdin.com/api/v2")).resolves.toBe(
+      "https://crowdin.com/project/1/files/101",
     );
   });
 

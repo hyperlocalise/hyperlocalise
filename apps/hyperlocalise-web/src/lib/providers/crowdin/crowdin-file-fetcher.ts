@@ -11,6 +11,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     token: secretMaterial,
     baseUrl: credential.baseUrl ?? undefined,
   });
+  const webOrigin = crowdinWebOrigin(credential.baseUrl);
 
   const projectId = Number(externalProjectId);
   if (Number.isNaN(projectId)) {
@@ -102,7 +103,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
       displayName: file.title ?? file.name,
       format: file.type,
       revision,
-      externalUrl: `https://crowdin.com/project/${projectId}/files/${file.id}`,
+      externalUrl: `${webOrigin}/project/${projectId}/files/${file.id}`,
       syncState: file.status === "active" ? "synced" : "pending",
       providerPayload: {
         branchId: file.branchId,
@@ -210,4 +211,15 @@ function sourcePathOf(
 
 function errorMessageOf(error: unknown): string {
   return error instanceof Error ? error.message : "unknown error";
+}
+
+function crowdinWebOrigin(baseUrl: string | null): string {
+  const url = new URL(baseUrl ?? "https://api.crowdin.com/api/v2");
+  if (url.hostname === "api.crowdin.com") {
+    url.hostname = "crowdin.com";
+  }
+  url.pathname = "";
+  url.search = "";
+  url.hash = "";
+  return url.toString().replace(/\/$/g, "");
 }

@@ -58,7 +58,9 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
       description: task.description,
       fileIds: task.fileIds,
       languageId: task.languageId,
-      localeReadiness: task.languageId ? localeReadiness[task.languageId] : localeReadiness,
+      localeReadiness: task.languageId
+        ? (localeReadiness[task.languageId] ?? null)
+        : localeReadiness,
     },
     kind: mapTaskTypeToKind(task.type),
   }));
