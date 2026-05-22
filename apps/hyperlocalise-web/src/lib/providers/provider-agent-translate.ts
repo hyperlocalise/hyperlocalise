@@ -50,18 +50,12 @@ function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>):
   return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
 }
 
-function readOutputSummaryNumber(
-  outputSummary: Record<string, unknown>,
-  key: string,
-): number {
+function readOutputSummaryNumber(outputSummary: Record<string, unknown>, key: string): number {
   const value = outputSummary[key];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function readOutputSummaryString(
-  outputSummary: Record<string, unknown>,
-  key: string,
-): string {
+function readOutputSummaryString(outputSummary: Record<string, unknown>, key: string): string {
   const value = outputSummary[key];
   return typeof value === "string" ? value : "";
 }
@@ -241,8 +235,7 @@ export async function executeProviderAgentTranslation(input: {
     return {
       ok: false,
       agentRunId: input.agentRunId,
-      code:
-        run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
+      code: run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
       message: `Agent run is ${run.status}, expected queued or running`,
     };
   }
