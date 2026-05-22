@@ -153,6 +153,24 @@ func TestPHPArrayParserRejectsOutOfRangeUnicodeEscapes(t *testing.T) {
 	}
 }
 
+func TestPHPArrayParserKeepsUnbracedUEscapesLiteral(t *testing.T) {
+	content := []byte(`<?php return [
+    'username' => "\username",
+    'unicode_like' => "\u00e9",
+];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["username"] != `\username` {
+		t.Fatalf("username = %q, want literal \\username", got["username"])
+	}
+	if got["unicode_like"] != `\u00e9` {
+		t.Fatalf("unicode_like = %q, want literal \\u00e9", got["unicode_like"])
+	}
+}
+
 func TestPHPArrayParserRejectsDynamicValues(t *testing.T) {
 	tests := []struct {
 		name    string

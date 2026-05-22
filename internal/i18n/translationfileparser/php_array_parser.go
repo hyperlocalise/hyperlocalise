@@ -293,7 +293,9 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 			i += consumed
 		case 'u':
 			if i >= len(s.text) || s.text[i] != '{' {
-				return phpStringToken{}, fmt.Errorf("php locale array: invalid unicode escape at line %d", lineNumberAt(s.text, i-2))
+				b.WriteByte('\\')
+				b.WriteByte('u')
+				continue
 			}
 			end := strings.IndexByte(s.text[i+1:], '}')
 			if end < 0 {
