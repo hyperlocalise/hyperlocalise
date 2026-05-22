@@ -14,3 +14,22 @@ export const revealExternalTmsProviderCredentialBodySchema = z.object({
   providerKind: externalTmsProviderKindSchema,
   confirmed: z.literal(true),
 });
+
+export const externalTmsProviderHealthResponseSchema = z.object({
+  externalTmsProviderHealth: z.object({
+    providerKind: externalTmsProviderKindSchema,
+    status: z.enum(["connected", "degraded", "error"]),
+    availability: z.enum(["available", "unavailable", "unknown"]),
+    authValidity: z.enum(["valid", "invalid", "unknown"]),
+    errorCode: z.string().nullable(),
+    message: z.string().nullable(),
+    rateLimit: z.object({
+      limit: z.string().nullable(),
+      remaining: z.string().nullable(),
+      resetAt: z.string().nullable(),
+      retryAfter: z.string().nullable(),
+    }),
+    lastSuccessfulSyncAt: z.string().datetime().nullable(),
+    checkedAt: z.string().datetime(),
+  }),
+});

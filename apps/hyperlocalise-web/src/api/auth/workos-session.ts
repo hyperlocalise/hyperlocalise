@@ -5,6 +5,7 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
 type ResolveApiAuthContextOptions = {
+  cookie?: string;
   organizationSlug?: string;
   session?: Awaited<ReturnType<typeof withAuth>>;
 };
