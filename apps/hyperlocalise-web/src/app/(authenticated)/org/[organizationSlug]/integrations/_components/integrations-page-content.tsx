@@ -4,7 +4,6 @@ import { useEffect, useId, useState } from "react";
 import Image from "next/image";
 import {
   CheckmarkCircle02Icon,
-  Clock01Icon,
   Delete02Icon,
   Key01Icon,
   SaveIcon,
@@ -16,7 +15,17 @@ import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
 import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
+import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { createApiClient } from "@/lib/api-client";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +65,8 @@ type ProviderCredentialSummary = {
 type ManagedProviderId = "hyperlocalise-go";
 type ProviderOptionId = LlmProvider | ManagedProviderId;
 
+type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
+
 const hyperlocaliseGoProvider = {
   id: "hyperlocalise-go",
   label: "Hyperlocalise Go",
@@ -71,31 +82,25 @@ const byokProviders = [
 const tmsIntegrations = [
   {
     name: "Lokalise",
+    providerKind: "lokalise" as const,
     logo: "/images/tms/lokalise.webp",
     detail: "Projects, branches, and reviewed strings.",
   },
   {
     name: "Phrase",
+    providerKind: "phrase" as const,
     logo: "/images/tms/phrase.png",
     detail: "Sync jobs into existing Phrase workflows.",
   },
   {
     name: "Crowdin",
+    providerKind: "crowdin" as const,
     logo: "/images/tms/crowdin.png",
     detail: "Route reviewed output into Crowdin projects.",
   },
   {
-    name: "Transifex",
-    logo: "/images/tms/transifex.webp",
-    detail: "Keep product strings aligned with Transifex resources.",
-  },
-  {
-    name: "POEditor",
-    logo: "/images/tms/poeditor.png",
-    detail: "Push approved translations into POEditor terms.",
-  },
-  {
     name: "Smartling",
+    providerKind: "smartling" as const,
     logo: "/images/tms/smartling.png",
     detail: "Connect enterprise localization programs.",
   },
@@ -174,6 +179,89 @@ function useDeleteProviderCredential(organizationSlug: string) {
   });
 }
 
+function useExternalTmsCredentials(organizationSlug: string) {
+  return useQuery({
+    queryKey: ["external-tms-credentials", organizationSlug],
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$get({
+        param: { organizationSlug },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch external TMS credentials");
+      }
+
+      const data = await res.json();
+      return data.externalTmsProviderCredentials as ExternalTmsProviderCredentialSummary[];
+    },
+  });
+}
+
+function useSaveExternalTmsCredential(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      providerKind: ExternalTmsProviderKind;
+      displayName: string;
+      secretMaterial: string;
+      region?: string;
+      baseUrl?: string;
+    }) => {
+      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$put({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res
+          .json()
+          .catch(() => ({ error: "external_tms_provider_save_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to save external TMS provider",
+        );
+      }
+
+      const data = await res.json();
+      return data.externalTmsProviderCredential as ExternalTmsProviderCredentialSummary;
+    },
+    onSuccess: async (_, payload) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["external-tms-credentials", organizationSlug],
+      });
+      toast.success(`${payload.displayName} connected`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+function useDeleteExternalTmsCredential(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (providerKind: ExternalTmsProviderKind) => {
+      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+        ":providerKind"
+      ].$delete({
+        param: { organizationSlug, providerKind },
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "delete_failed" }));
+        throw new Error("error" in error ? String(error.error) : "Unable to disconnect provider");
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["external-tms-credentials", organizationSlug],
+      });
+      toast.success("Provider disconnected");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageContentProps) {
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
@@ -186,6 +274,27 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
 
   const modelFieldId = useId();
   const apiKeyFieldId = useId();
+
+  const { data: externalTmsCredentials, isLoading: isLoadingExternalTms } =
+    useExternalTmsCredentials(organizationSlug);
+  const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
+  const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
+  const [selectedTmsProvider, setSelectedTmsProvider] = useState<ExternalTmsProviderKind | null>(
+    null,
+  );
+  const [tmsDialogOpen, setTmsDialogOpen] = useState(false);
+  const [tmsDisplayName, setTmsDisplayName] = useState("");
+  const [tmsSecret, setTmsSecret] = useState("");
+  const [tmsRegion, setTmsRegion] = useState("");
+  const [tmsBaseUrl, setTmsBaseUrl] = useState("");
+  const [showTmsSecret, setShowTmsSecret] = useState(false);
+  const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
+    useState<ExternalTmsProviderKind | null>(null);
+
+  const tmsDisplayNameFieldId = useId();
+  const tmsSecretFieldId = useId();
+  const tmsRegionFieldId = useId();
+  const tmsBaseUrlFieldId = useId();
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {
@@ -215,6 +324,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const selectedProviderLabel =
     byokProviders.find((provider) => provider.id === selectedByokProvider)?.label ??
     selectedProviderConfig?.label;
+  const disconnectingTmsProviderName = disconnectingTmsProvider
+    ? tmsIntegrations.find((integration) => integration.providerKind === disconnectingTmsProvider)
+        ?.name
+    : null;
 
   return (
     <main className="space-y-5">
@@ -454,51 +567,302 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
             TMS
           </TypographyH2>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
-            Translation management system sync is staged for a later release. These connectors are
-            visible now so teams can plan the handoff path.
+            Connect external translation management systems to sync projects, files, jobs,
+            glossaries, and translation memories into the unified workspace.
           </TypographyP>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {tmsIntegrations.map((integration) => (
-            <Card
-              key={integration.name}
-              className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground opacity-78 ring-0"
-            >
-              <CardHeader className="gap-4 px-5 py-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
-                      <Image
-                        src={integration.logo}
-                        alt=""
-                        width={30}
-                        height={30}
-                        className="max-h-7 w-auto object-contain"
-                      />
+        {isLoadingExternalTms ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {tmsIntegrations.map((integration) => (
+              <Card
+                key={integration.name}
+                className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
+              >
+                <CardHeader className="gap-4 px-5 py-5">
+                  <Skeleton className="h-12 rounded-lg bg-foreground/5" />
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {tmsIntegrations.map((integration) => {
+              const credential = externalTmsCredentials?.find(
+                (c) => c.providerKind === integration.providerKind,
+              );
+              const isConnected = !!credential;
+
+              return (
+                <Card
+                  key={integration.name}
+                  className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
+                >
+                  <CardHeader className="gap-4 px-5 py-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
+                          <Image
+                            src={integration.logo}
+                            alt=""
+                            width={30}
+                            height={30}
+                            className="max-h-7 w-auto object-contain"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <CardTitle className="text-base font-medium text-foreground">
+                            {integration.name}
+                          </CardTitle>
+                          <CardDescription className="mt-1 text-foreground/46">
+                            {integration.detail}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      {isConnected ? (
+                        <Badge
+                          variant="outline"
+                          className="shrink-0 border-grove-300/25 bg-grove-300/10 text-grove-300"
+                        >
+                          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
+                          Connected
+                        </Badge>
+                      ) : null}
                     </div>
-                    <div className="min-w-0">
-                      <CardTitle className="text-base font-medium text-foreground">
-                        {integration.name}
-                      </CardTitle>
-                      <CardDescription className="mt-1 text-foreground/46">
-                        {integration.detail}
-                      </CardDescription>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <TypographyP className="text-sm text-foreground/52">
+                        {isConnected
+                          ? `${credential.displayName} · ****${credential.maskedSecretSuffix}`
+                          : "Not connected"}
+                      </TypographyP>
+                      <div className="flex gap-2">
+                        {isConnected ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
+                              onClick={() => {
+                                setSelectedTmsProvider(integration.providerKind);
+                                setTmsDisplayName(credential.displayName);
+                                setTmsSecret("");
+                                setTmsRegion(credential.region ?? "");
+                                setTmsBaseUrl(credential.baseUrl ?? "");
+                                setShowTmsSecret(false);
+                                setTmsDialogOpen(true);
+                              }}
+                            >
+                              Reconfigure
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
+                              onClick={() => setDisconnectingTmsProvider(integration.providerKind)}
+                              disabled={deleteExternalTms.isPending}
+                            >
+                              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                              Disconnect
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
+                            onClick={() => {
+                              setSelectedTmsProvider(integration.providerKind);
+                              setTmsDisplayName("");
+                              setTmsSecret("");
+                              setTmsRegion("");
+                              setTmsBaseUrl("");
+                              setShowTmsSecret(false);
+                              setTmsDialogOpen(true);
+                            }}
+                          >
+                            Connect
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 border-bud-500/25 bg-bud-500/10 text-bud-300"
-                  >
-                    <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} />
-                    Coming soon
-                  </Badge>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+                  </CardHeader>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
+
+      <Dialog open={tmsDialogOpen} onOpenChange={setTmsDialogOpen}>
+        <DialogContent className="border border-foreground/8 bg-foreground/2.5 text-foreground">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedTmsProvider
+                ? `${tmsIntegrations.find((t) => t.providerKind === selectedTmsProvider)?.name} credentials`
+                : "TMS credentials"}
+            </DialogTitle>
+            <DialogDescription className="text-foreground/52">
+              Save credentials to connect this provider. The secret is encrypted at rest and used to
+              sync projects, files, and jobs into the workspace.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTmsProvider ? (
+            <form
+              className="flex flex-col gap-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                saveExternalTms.mutate(
+                  {
+                    providerKind: selectedTmsProvider,
+                    displayName: tmsDisplayName.trim(),
+                    secretMaterial: tmsSecret.trim(),
+                    ...(tmsRegion.trim() ? { region: tmsRegion.trim() } : {}),
+                    ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                  },
+                  {
+                    onSuccess: () => {
+                      setTmsDisplayName("");
+                      setTmsSecret("");
+                      setTmsRegion("");
+                      setTmsBaseUrl("");
+                      setShowTmsSecret(false);
+                      setTmsDialogOpen(false);
+                    },
+                  },
+                );
+              }}
+            >
+              <Field className="gap-2">
+                <FieldLabel htmlFor={tmsDisplayNameFieldId}>Display name</FieldLabel>
+                <Input
+                  id={tmsDisplayNameFieldId}
+                  value={tmsDisplayName}
+                  onChange={(event) => setTmsDisplayName(event.target.value)}
+                  placeholder="e.g. Crowdin Production"
+                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                />
+              </Field>
+
+              <Field className="gap-2">
+                <FieldLabel htmlFor={tmsSecretFieldId}>API token / secret</FieldLabel>
+                <div className="relative">
+                  <HugeiconsIcon
+                    icon={Key01Icon}
+                    strokeWidth={1.8}
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
+                  />
+                  <Input
+                    id={tmsSecretFieldId}
+                    type={showTmsSecret ? "text" : "password"}
+                    autoComplete="off"
+                    value={tmsSecret}
+                    onChange={(event) => setTmsSecret(event.target.value)}
+                    placeholder="Enter provider API token"
+                    className="border-foreground/10 bg-foreground/3 ps-9 pe-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTmsSecret(!showTmsSecret)}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-foreground/38 transition-colors hover:text-foreground"
+                    aria-label={showTmsSecret ? "Hide secret" : "Show secret"}
+                  >
+                    {showTmsSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
+              </Field>
+
+              <Field className="gap-2">
+                <FieldLabel htmlFor={tmsRegionFieldId}>Region (optional)</FieldLabel>
+                <Input
+                  id={tmsRegionFieldId}
+                  value={tmsRegion}
+                  onChange={(event) => setTmsRegion(event.target.value)}
+                  placeholder="e.g. us, eu"
+                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                />
+              </Field>
+
+              <Field className="gap-2">
+                <FieldLabel htmlFor={tmsBaseUrlFieldId}>Base URL (optional)</FieldLabel>
+                <Input
+                  id={tmsBaseUrlFieldId}
+                  value={tmsBaseUrl}
+                  onChange={(event) => setTmsBaseUrl(event.target.value)}
+                  placeholder="https://api.example.com"
+                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                />
+              </Field>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
+                  onClick={() => setTmsDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                  disabled={
+                    !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
+                  }
+                >
+                  <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                  {saveExternalTms.isPending ? "Saving..." : "Save provider"}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={disconnectingTmsProvider !== null}
+        onOpenChange={(open) => {
+          if (!deleteExternalTms.isPending) {
+            setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the saved encrypted API credential. Reconnecting this provider will
+              require entering the secret again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteExternalTms.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
+              onClick={() => {
+                if (!disconnectingTmsProvider) {
+                  return;
+                }
+
+                deleteExternalTms.mutate(disconnectingTmsProvider, {
+                  onSuccess: () => setDisconnectingTmsProvider(null),
+                });
+              }}
+            >
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              {deleteExternalTms.isPending ? "Disconnecting..." : "Disconnect"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

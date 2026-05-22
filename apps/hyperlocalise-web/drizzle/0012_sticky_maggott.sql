@@ -1,0 +1,1 @@
+CREATE INDEX "idx_provider_sync_runs_org_kind_started" ON "provider_sync_runs" USING btree ("organization_id","kind","started_at");

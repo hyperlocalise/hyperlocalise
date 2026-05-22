@@ -15,7 +15,7 @@ export const createApiKeyBodySchema = z.object({
 });
 
 export const apiKeyIdParamsSchema = z.object({
-  apiKeyId: z.string().trim().min(1),
+  apiKeyId: z.string().trim().min(1).max(128),
 });
 
 export const apiKeySummarySchema = z.object({

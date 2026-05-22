@@ -1,6 +1,8 @@
 "use client";
 
-import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import Link from "next/link";
+import { ArrowRight01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -89,7 +91,7 @@ const glossaryMetrics = [
   { label: "Conflicts", value: "11", detail: "need reviewer input", tone: "watch" },
 ] as const;
 
-export function GlossariesPageContent() {
+export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="space-y-5">
       <PageHeader
@@ -100,6 +102,16 @@ export function GlossariesPageContent() {
         statusLabel="9 mocked"
       />
       <MetricsGrid metrics={glossaryMetrics} />
+      <div className="flex items-center gap-2 text-sm text-foreground/54">
+        <span>Synced provider glossaries will appear here alongside workspace glossaries.</span>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          <span>Connect a provider</span>
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+        </Link>
+      </div>
       <section className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <ResourceCard
           title="Glossary sets"

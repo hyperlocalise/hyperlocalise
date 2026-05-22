@@ -3,10 +3,18 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
+  assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
+  getOrganizationExternalTmsProviderCredentialSummary,
+  listOrganizationExternalTmsProviderCredentialSummaries,
   revealOrganizationExternalTmsProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
+import {
+  checkExternalTmsProviderHealth,
+  persistExternalTmsProviderHealth,
+} from "@/lib/providers/external-tms-health-check";
+import { recordProviderSyncRun } from "@/lib/providers/provider-sync-runs";
 
 import {
   externalTmsProviderKindSchema,
@@ -31,6 +39,21 @@ const validateRevealBody = validator("json", (value, c) => {
 export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .get("/", async (c) => {
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+        const providerCredentials = await listOrganizationExternalTmsProviderCredentialSummaries(
+          c.var.auth.organization.localOrganizationId,
+        );
+
+        return c.json({ externalTmsProviderCredentials: providerCredentials }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        throw error;
+      }
+    })
     .put("/", validateUpsertBody, async (c) => {
       try {
         const payload = c.req.valid("json");
@@ -67,6 +90,68 @@ export function createExternalTmsProviderCredentialRoutes() {
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
           return c.json({ error: "forbidden" }, 403);
+        }
+        throw error;
+      }
+    })
+    .post("/:providerKind/health-check", async (c) => {
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+
+        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+        if (!providerKind.success) {
+          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+        }
+
+        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+          c.var.auth.organization.localOrganizationId,
+          providerKind.data,
+        );
+        if (!providerCredentialSummary) {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+
+        const result = await recordProviderSyncRun(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            providerKind: providerKind.data,
+            kind: "health_check",
+          },
+          async (run) => {
+            const { credential, health } = await checkExternalTmsProviderHealth({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              providerKind: providerKind.data,
+            });
+
+            if (!credential || !health) throw new Error("provider_credential_not_found");
+
+            await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
+
+            return {
+              result: {
+                providerKind: providerKind.data,
+                ...health,
+                checkedAt: (run.startedAt ?? new Date()).toISOString(),
+              },
+              providerMetadata: {
+                credentialId: credential.id,
+                status: health.status,
+                availability: health.availability,
+                authValidity: health.authValidity,
+                errorCode: health.errorCode,
+                rateLimit: health.rateLimit,
+              },
+            };
+          },
+        );
+
+        return c.json({ externalTmsProviderHealth: result }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        if (error instanceof Error && error.message === "provider_credential_not_found") {
+          return c.json({ error: "provider_credential_not_found" }, 404);
         }
         throw error;
       }

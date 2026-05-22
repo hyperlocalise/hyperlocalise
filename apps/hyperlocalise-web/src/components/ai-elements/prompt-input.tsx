@@ -22,6 +22,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Select,
   SelectContent,
@@ -1076,10 +1077,10 @@ export const PromptInputButton = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger>{button}</TooltipTrigger>
+      <TooltipTrigger render={button} />
       <TooltipContent side={side}>
         {tooltipContent}
-        {shortcut && <span className="ms-2 text-muted-foreground">{shortcut}</span>}
+        {shortcut && <Kbd className="ms-2">{shortcut}</Kbd>}
       </TooltipContent>
     </Tooltip>
   );
@@ -1122,6 +1123,7 @@ export const PromptInputActionMenuItem = ({
 export type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
   status?: ChatStatus;
   onStop?: () => void;
+  tooltip?: PromptInputButtonTooltip;
 };
 
 export const PromptInputSubmit = ({
@@ -1131,6 +1133,7 @@ export const PromptInputSubmit = ({
   status,
   onStop,
   onClick,
+  tooltip,
   children,
   ...props
 }: PromptInputSubmitProps) => {
@@ -1158,7 +1161,7 @@ export const PromptInputSubmit = ({
     [isGenerating, onStop, onClick],
   );
 
-  return (
+  const button = (
     <InputGroupButton
       aria-label={isGenerating ? "Stop" : "Submit"}
       className={cn(className)}
@@ -1170,6 +1173,24 @@ export const PromptInputSubmit = ({
     >
       {children ?? Icon}
     </InputGroupButton>
+  );
+
+  if (!tooltip) {
+    return button;
+  }
+
+  const tooltipContent = typeof tooltip === "string" ? tooltip : tooltip.content;
+  const shortcut = typeof tooltip === "string" ? undefined : tooltip.shortcut;
+  const side = typeof tooltip === "string" ? "top" : (tooltip.side ?? "top");
+
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side={side}>
+        {tooltipContent}
+        {shortcut && <Kbd className="ms-2">{shortcut}</Kbd>}
+      </TooltipContent>
+    </Tooltip>
   );
 };
 

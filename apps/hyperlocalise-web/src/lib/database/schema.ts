@@ -86,7 +86,26 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "phrase",
   "lokalise",
 ]);
+export const externalTmsResourceTypeEnum = pgEnum("external_tms_resource_type", ["file", "key"]);
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
+export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
+  "project_scan",
+  "file_key_scan",
+  "job_task_scan",
+  "context_scan",
+  "tm_scan",
+  "glossary_scan",
+  "pull_content",
+  "push_translations",
+  "webhook",
+  "health_check",
+]);
+export const providerSyncRunStatusEnum = pgEnum("provider_sync_run_status", [
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -647,6 +666,73 @@ export const organizationExternalTmsProviderCredentials = pgTable(
   ],
 );
 
+export const providerSyncRuns = pgTable(
+  "provider_sync_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    kind: providerSyncRunKindEnum("kind").notNull(),
+    status: providerSyncRunStatusEnum("status").notNull().default("running"),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    externalProjectId: text("external_project_id"),
+    resourceType: text("resource_type"),
+    resourceId: text("resource_id"),
+    externalResourceId: text("external_resource_id"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    errorMessage: text("error_message"),
+    errorDetails: jsonb("error_details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    counts: jsonb("counts")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    providerMetadata: jsonb("provider_metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_provider_sync_runs_org_started").on(table.organizationId, table.startedAt),
+    index("idx_provider_sync_runs_org_provider_started").on(
+      table.organizationId,
+      table.providerKind,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_kind_started").on(
+      table.organizationId,
+      table.kind,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_project_started").on(
+      table.organizationId,
+      table.projectId,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_resource_started").on(
+      table.organizationId,
+      table.resourceType,
+      table.resourceId,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_status").on(table.status),
+  ],
+);
+
 export const githubInstallations = pgTable(
   "github_installations",
   {
@@ -1055,6 +1141,72 @@ export const assetManagementJobDetails = pgTable("asset_management_job_details",
     .default(sql`'{}'::jsonb`),
 });
 
+export const externalJobDetails = pgTable(
+  "external_job_details",
+  {
+    // One-to-one extension row for jobs that originated from an external TMS provider.
+    jobId: text("job_id")
+      .primaryKey()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    // Tenant that owns this external job, denormalized for unique index scoping.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Provider that owns this external job.
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    // Provider-scoped job identifier used for idempotent upserts.
+    externalJobId: text("external_job_id").notNull(),
+    // Optional provider task identifier when the provider uses a job/task hierarchy.
+    externalTaskId: text("external_task_id"),
+    // Raw provider status string preserved for diagnostics.
+    externalStatus: text("external_status").notNull(),
+    // Human-readable title from the provider.
+    title: text("title").notNull().default(""),
+    // Provider due date, if available.
+    dueDate: timestamp("due_date", { withTimezone: true }),
+    // Target locales from the provider job payload.
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Assigned user identifiers (emails or external IDs) from the provider.
+    assignedUsers: jsonb("assigned_users")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Direct URL to the job in the provider UI.
+    externalUrl: text("external_url"),
+    // Sync state tracked independently of provider status for UI badges.
+    syncState: text("sync_state").notNull().default("pending"),
+    // Raw provider payload retained for debugging and forward compatibility.
+    providerPayload: jsonb("provider_payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Optional link to a native Hyperlocalise job created when agent work is started.
+    linkedJobId: text("linked_job_id").references(() => jobs.id, { onDelete: "set null" }),
+    // When the external job record was first created.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the external job record was last changed.
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_external_job_details_provider_kind").on(table.providerKind),
+    index("idx_external_job_details_external_job_id").on(table.externalJobId),
+    index("idx_external_job_details_external_task_id").on(table.externalTaskId),
+    index("idx_external_job_details_sync_state").on(table.syncState),
+    index("idx_external_job_details_linked_job").on(table.linkedJobId),
+    uniqueIndex("idx_external_job_details_provider_job_unique").on(
+      table.organizationId,
+      table.externalJobId,
+      table.providerKind,
+    ),
+  ],
+);
+
 export const interactions = pgTable(
   "interactions",
   {
@@ -1258,6 +1410,77 @@ export const repositorySourceFileVersions = pgTable(
     ),
     index("idx_repository_source_file_versions_workflow_run").on(table.workflowRunId),
     index("idx_repository_source_file_versions_api_key").on(table.uploadedByApiKeyId),
+  ],
+);
+
+export const externalTmsFiles = pgTable(
+  "external_tms_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    externalProjectId: text("external_project_id").notNull(),
+    resourceType: externalTmsResourceTypeEnum("resource_type").notNull(),
+    externalResourceId: text("external_resource_id").notNull(),
+    sourcePath: text("source_path").notNull(),
+    displayName: text("display_name").notNull(),
+    format: text("format"),
+    sourceLocale: text("source_locale"),
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    sourceHash: text("source_hash"),
+    revision: text("revision"),
+    storedFileId: text("stored_file_id").references(() => storedFiles.id, {
+      onDelete: "set null",
+    }),
+    externalUrl: text("external_url"),
+    syncState: text("sync_state").notNull().default("pending"),
+    localeReadiness: jsonb("locale_readiness")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    providerPayload: jsonb("provider_payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("external_tms_files_provider_resource_key").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalProjectId,
+      table.resourceType,
+      table.externalResourceId,
+    ),
+    index("idx_external_tms_files_org_project_path").on(
+      table.organizationId,
+      table.projectId,
+      table.sourcePath,
+    ),
+    index("idx_external_tms_files_provider_project").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalProjectId,
+    ),
+    index("idx_external_tms_files_stored_file").on(table.storedFileId),
+    index("idx_external_tms_files_sync_state").on(table.syncState),
   ],
 );
 
