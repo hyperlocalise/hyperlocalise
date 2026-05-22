@@ -136,12 +136,19 @@ export async function recordProviderSyncRun<T>(
 
     return output.result;
   } catch (error) {
-    await failProviderSyncRun({
-      runId: run.id,
-      organizationId: run.organizationId,
-      errorMessage: error instanceof Error ? error.message : "provider sync run failed",
-      errorDetails: { name: error instanceof Error ? error.name : "UnknownError" },
-    });
+    try {
+      await failProviderSyncRun({
+        runId: run.id,
+        organizationId: run.organizationId,
+        errorMessage: error instanceof Error ? error.message : "provider sync run failed",
+        errorDetails: {
+          name: error instanceof Error ? error.name : "UnknownError",
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
+    } catch {
+      // Ignore failure to persist the error record; always re-throw the original error.
+    }
 
     throw error;
   }
@@ -150,6 +157,7 @@ export async function recordProviderSyncRun<T>(
 export async function listProviderSyncRuns(input: {
   organizationId: string;
   providerKind?: ExternalTmsProviderKind;
+  kind?: ProviderSyncRunKind;
   projectId?: string;
   resourceType?: string;
   resourceId?: string;
@@ -160,6 +168,9 @@ export async function listProviderSyncRuns(input: {
 
   if (input.providerKind) {
     filters.push(eq(schema.providerSyncRuns.providerKind, input.providerKind));
+  }
+  if (input.kind) {
+    filters.push(eq(schema.providerSyncRuns.kind, input.kind));
   }
   if (input.projectId) {
     filters.push(eq(schema.providerSyncRuns.projectId, input.projectId));
