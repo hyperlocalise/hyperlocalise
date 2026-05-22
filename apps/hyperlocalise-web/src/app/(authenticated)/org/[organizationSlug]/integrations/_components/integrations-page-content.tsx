@@ -618,7 +618,9 @@ export function IntegrationsPageContent({
                   provider={provider}
                   isActive={isActive}
                   isManaged={isManaged}
-                  footerLabel={isManaged ? undefined : "Configure"}
+                  footerLabel={
+                    isManaged ? (isActive ? undefined : "Switch to managed") : "Configure"
+                  }
                   disabled={isManaged && isActive ? true : isManaged && deleteCredential.isPending}
                   onSelect={() => {
                     if (isManaged) {
@@ -632,7 +634,9 @@ export function IntegrationsPageContent({
 
                     setSelectedProvider(byokProvider);
                     setSelectedModel(
-                      isConfigured ? credential.defaultModel : defaultModelByProvider[byokProvider],
+                      isConfigured && credential
+                        ? credential.defaultModel
+                        : defaultModelByProvider[byokProvider],
                     );
                     setApiKey("");
                     setDialogOpen(true);
