@@ -88,6 +88,14 @@ export default messages;`,
 
 export default messages;`,
 		},
+		{
+			name: "unicode identifier export",
+			content: `const données = {
+  hello: "Hello",
+};
+
+export default données;`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -128,6 +136,18 @@ func TestJSTSLocaleModuleParserParsesFormatJSContext(t *testing.T) {
 	}
 	if context["checkout.submit"] != "Checkout CTA" {
 		t.Fatalf("unexpected context: %#v", context)
+	}
+}
+
+func TestJSTSLocaleModuleParserParsesUnicodePropertyKeys(t *testing.T) {
+	got, err := (JSTSLocaleModuleParser{}).Parse([]byte(`export default {
+  étiquette: "Label",
+};`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["étiquette"] != "Label" {
+		t.Fatalf("unexpected unicode key entries: %#v", got)
 	}
 }
 

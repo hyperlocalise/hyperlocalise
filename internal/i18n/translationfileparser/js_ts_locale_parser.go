@@ -48,6 +48,11 @@ type jstsObjectProperty struct {
 	valueEnd   int
 }
 
+type jstsFormatJSProperty struct {
+	prop       jstsObjectProperty
+	childProps []jstsObjectProperty
+}
+
 type jstsStringLiteral struct {
 	decoded string
 	raw     string
@@ -389,10 +394,10 @@ func parseJSTSLocaleEntries(src string, objectStart, objectEnd int) ([]jstsLocal
 		return nil, nil, err
 	}
 
-	if ok, err := isJSTSStrictFormatJSObject(src, props); err != nil {
+	if formatJSProps, ok, err := parseJSTSStrictFormatJSObject(src, props); err != nil {
 		return nil, nil, err
 	} else if ok {
-		return parseJSTSFormatJSEntries(src, props)
+		return parseJSTSFormatJSEntries(src, formatJSProps)
 	}
 
 	var entries []jstsLocaleEntry
@@ -402,18 +407,19 @@ func parseJSTSLocaleEntries(src string, objectStart, objectEnd int) ([]jstsLocal
 	return entries, nil, nil
 }
 
-func isJSTSStrictFormatJSObject(src string, props []jstsObjectProperty) (bool, error) {
+func parseJSTSStrictFormatJSObject(src string, props []jstsObjectProperty) ([]jstsFormatJSProperty, bool, error) {
 	if len(props) == 0 {
-		return false, nil
+		return nil, false, nil
 	}
+	formatJSProps := make([]jstsFormatJSProperty, 0, len(props))
 	for _, prop := range props {
 		i := skipJSTSWhitespaceAndComments(src, prop.valueStart)
 		if i >= len(src) || src[i] != '{' {
-			return false, nil
+			return nil, false, nil
 		}
 		childProps, err := parseJSTSObjectProperties(src, i, prop.valueEnd)
 		if err != nil {
-			return false, err
+			return nil, false, err
 		}
 		hasDefaultMessage := false
 		for _, child := range childProps {
@@ -422,31 +428,28 @@ func isJSTSStrictFormatJSObject(src string, props []jstsObjectProperty) (bool, e
 			}
 			lit, err := parseJSTSStringLiteral(src, skipJSTSWhitespaceAndComments(src, child.valueStart))
 			if err != nil {
-				return false, fmt.Errorf("js/ts locale module key %q field defaultMessage: %w", prop.key, err)
+				return nil, false, fmt.Errorf("js/ts locale module key %q field defaultMessage: %w", prop.key, err)
 			}
 			if lit.end != child.valueEnd {
-				return false, fmt.Errorf("js/ts locale module key %q field defaultMessage must be a static string literal", prop.key)
+				return nil, false, fmt.Errorf("js/ts locale module key %q field defaultMessage must be a static string literal", prop.key)
 			}
 			hasDefaultMessage = true
 		}
 		if !hasDefaultMessage {
-			return false, nil
+			return nil, false, nil
 		}
+		formatJSProps = append(formatJSProps, jstsFormatJSProperty{prop: prop, childProps: childProps})
 	}
-	return true, nil
+	return formatJSProps, true, nil
 }
 
-func parseJSTSFormatJSEntries(src string, props []jstsObjectProperty) ([]jstsLocaleEntry, map[string]string, error) {
+func parseJSTSFormatJSEntries(src string, props []jstsFormatJSProperty) ([]jstsLocaleEntry, map[string]string, error) {
 	entries := make([]jstsLocaleEntry, 0, len(props))
 	context := map[string]string{}
-	for _, prop := range props {
-		childProps, err := parseJSTSObjectProperties(src, prop.valueStart, prop.valueEnd)
-		if err != nil {
-			return nil, nil, err
-		}
-
+	for _, formatProp := range props {
+		prop := formatProp.prop
 		var entry *jstsLocaleEntry
-		for _, child := range childProps {
+		for _, child := range formatProp.childProps {
 			if child.key != "defaultMessage" && child.key != "description" {
 				continue
 			}
@@ -636,9 +639,6 @@ func parseJSTSPropertyKey(src string, index int) (string, int, error) {
 			return "", index, fmt.Errorf("js/ts locale module property key: %w", err)
 		}
 		return lit.decoded, lit.end, nil
-	}
-	if !isJSTSIdentifierStart(src[index]) {
-		return "", index, fmt.Errorf("js/ts locale module: unsupported property key at line %d", lineNumberAt(src, index))
 	}
 	key, next, ok := readJSTSIdentifier(src, index)
 	if !ok {
@@ -1036,22 +1036,26 @@ func hasJSTSKeywordAt(src string, index int, keyword string) bool {
 }
 
 func readJSTSIdentifier(src string, index int) (string, int, bool) {
-	if index >= len(src) || !isJSTSIdentifierStart(src[index]) {
+	if index >= len(src) {
 		return "", index, false
 	}
-	i := index + 1
-	for i < len(src) && isJSTSIdentifierPart(src[i]) {
-		i++
+	r, size := utf8.DecodeRuneInString(src[index:])
+	if !isJSTSIdentifierStartRune(r) {
+		return "", index, false
+	}
+	i := index + size
+	for i < len(src) {
+		r, size := utf8.DecodeRuneInString(src[i:])
+		if !isJSTSIdentifierRunePart(r) {
+			break
+		}
+		i += size
 	}
 	return src[index:i], i, true
 }
 
-func isJSTSIdentifierStart(ch byte) bool {
-	return ch == '_' || ch == '$' || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
-}
-
-func isJSTSIdentifierPart(ch byte) bool {
-	return isJSTSIdentifierStart(ch) || (ch >= '0' && ch <= '9')
+func isJSTSIdentifierStartRune(r rune) bool {
+	return r == '_' || r == '$' || unicode.IsLetter(r)
 }
 
 func isJSTSIdentifierRunePart(r rune) bool {
