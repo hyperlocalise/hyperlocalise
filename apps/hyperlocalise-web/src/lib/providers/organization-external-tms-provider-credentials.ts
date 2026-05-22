@@ -91,6 +91,7 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
         and(
           eq(schema.projects.organizationId, organizationId),
           eq(schema.projects.source, "external_tms"),
+          eq(schema.projects.isActive, true),
           inArray(schema.projects.externalProviderKind, providerKinds),
         ),
       )
@@ -98,7 +99,9 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
     db
       .select({
         providerKind: schema.providerSyncRuns.providerKind,
-        completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`,
+        completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`.mapWith((v) =>
+          v == null ? null : new Date(v),
+        ),
       })
       .from(schema.providerSyncRuns)
       .where(
