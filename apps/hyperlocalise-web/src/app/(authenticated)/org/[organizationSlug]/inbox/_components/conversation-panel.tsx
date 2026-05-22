@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 
@@ -132,15 +133,24 @@ function ConversationHeader({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="More inbox item actions"
-        >
-          <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.8} className="size-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:bg-accent hover:text-foreground"
+                aria-label="More actions"
+              >
+                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.8} className="size-4" />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom" align="end">
+            More actions
+          </TooltipContent>
+        </Tooltip>
       </div>
     </header>
   );
