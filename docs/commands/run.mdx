@@ -26,6 +26,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.json`
 - `.jsonc`
 - `.yaml` and `.yml`
+- `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 - `.arb`
 - `.xlf`, `.xlif`, and `.xliff`
 - `.po`
@@ -48,6 +49,17 @@ For JSON (`.json`), `run` supports:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
 In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+
+For JavaScript and TypeScript locale modules (`.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`), `run` supports static locale object exports:
+
+- `export default { ... }`
+- `export const messages = { ... }`
+- `module.exports = { ... }`
+- `const messages = { ... }; export default messages`
+
+Nested objects are flattened to dotted keys, string arrays use bracket indexes, and strict FormatJS-style entries translate only `defaultMessage` while preserving `description` metadata. Comments, imports, export syntax, and `as const` are preserved on write. Dynamic values, computed keys, spread properties, multiple exported locale objects, and template literals with `${...}` interpolation fail with a parser error instead of being rewritten.
+
+When an existing JS/TS target module has the same key set as the source, `run` writes into the target template so translator comments and existing module layout are kept. If the source key set changes, `run` falls back to the source template to avoid merging mismatched object shapes.
 
 For YAML/YML (`.yaml`, `.yml`), `run` supports mapping-shaped locale files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silent corruption.
 

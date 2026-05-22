@@ -216,6 +216,72 @@ func TestRunDryRunLiquidReportUsesGeneratedLiquidKeys(t *testing.T) {
 	}
 }
 
+func TestRunDryRunJSTSReportUsesLocaleModuleKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	reportPath := filepath.Join(dir, "report.json")
+	sourcePath := filepath.Join(dir, "locales", "en.ts")
+	targetPath := filepath.Join(dir, "locales", "fr.ts")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	source := `export default {
+  home: {
+    title: "Welcome {name}",
+    cta: "Start now",
+  },
+};`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--output", reportPath, "--output-detail", "full"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command js/ts dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry_run=true") {
+		t.Fatalf("expected dry-run output, got %q", out.String())
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+
+	reportContent, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read run report: %v", err)
+	}
+	var report runsvc.Report
+	if err := json.Unmarshal(reportContent, &report); err != nil {
+		t.Fatalf("decode run report: %v\n%s", err, reportContent)
+	}
+	if report.ExecutableTotal != 2 || len(report.Executable) != 2 {
+		t.Fatalf("expected two js/ts tasks, got %+v", report)
+	}
+	got := map[string]string{}
+	for _, task := range report.Executable {
+		got[task.EntryKey] = task.SourceText
+	}
+	if got["home.title"] != "Welcome {name}" || got["home.cta"] != "Start now" {
+		t.Fatalf("unexpected js/ts tasks: %#v", got)
+	}
+}
+
 func TestRunDryRunAndroidXMLReportUsesResourceKeys(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

@@ -581,6 +581,52 @@ func TestStatusCommandMarkdownIdenticalSegmentIsSourceMatch(t *testing.T) {
 	}
 }
 
+func TestStatusCommandJSTSIdenticalSegmentIsSourceMatch(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "locales", "en-US.ts")
+	targetPath := filepath.Join(dir, "locales", "vi-VN.ts")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir locales dir: %v", err)
+	}
+	source := `export default {
+  title: "Welcome",
+};`
+	target := `export default {
+  title: "Welcome",
+};`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source ts: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target ts: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["vi-VN"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "locales", "[locale].ts")) + `"}]}},
+  "groups": {"default":{"targets":["vi-VN"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "title") || !strings.Contains(got, ",vi-VN,translated,unknown,") {
+		t.Fatalf("expected JS/TS status row, got: %s", got)
+	}
+}
+
 func TestStatusCommandMDXIdenticalSegmentWithInlineSyntaxIsSourceMatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

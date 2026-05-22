@@ -1784,6 +1784,149 @@ func TestRunWritesLiquidUsingSourceTemplateWhenTargetMissing(t *testing.T) {
 	}
 }
 
+func TestRunWritesJSTSLocaleModuleUsingSourceTemplateWhenTargetMissing(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ts"
+	targetPath := "/tmp/out.ts"
+	source := `import type { Messages } from "./types";
+
+// Landing page copy.
+export const messages: Messages = {
+  home: {
+    title: "Welcome {name}",
+    cta: 'Start now',
+  },
+  legal: ` + "`Terms & conditions`" + `,
+} as const;
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		return "FR(" + req.Source + ")", nil
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run js/ts execution: %v", err)
+	}
+	if report.Failed != 0 || report.ExecutableTotal != 3 || report.Succeeded != 3 {
+		t.Fatalf("unexpected js/ts run report: %+v", report)
+	}
+
+	out := string(written)
+	for _, want := range []string{
+		`import type { Messages } from "./types";`,
+		`// Landing page copy.`,
+		`export const messages: Messages = {`,
+		`title: "FR(Welcome {name})"`,
+		`cta: 'FR(Start now)'`,
+		"`FR(Terms & conditions)`",
+		"} as const;",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected JS/TS output to contain %q, got %q", want, out)
+		}
+	}
+}
+
+func TestRunDryRunPlansJSTSLocaleModuleKeys(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ts"
+	targetPath := "/tmp/out.ts"
+	source := `export default {
+  home: {
+    title: "Welcome {name}",
+    cta: "Start now",
+  },
+};`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	report, err := svc.Run(context.Background(), Input{DryRun: true})
+	if err != nil {
+		t.Fatalf("run dry-run: %v", err)
+	}
+	if report.ExecutableTotal != 2 || len(report.Executable) != 2 {
+		t.Fatalf("expected two JS/TS tasks, got %+v", report)
+	}
+	got := map[string]string{}
+	for _, task := range report.Executable {
+		got[task.EntryKey] = task.SourceText
+	}
+	if got["home.title"] != "Welcome {name}" || got["home.cta"] != "Start now" {
+		t.Fatalf("unexpected JS/TS dry-run tasks: %#v", got)
+	}
+}
+
+func TestRunJSTSValidationRejectsMissingPlaceholder(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ts"
+	targetPath := "/tmp/out.ts"
+	source := `export default { title: "Welcome {name}" };`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		return "Bienvenue", nil
+	}
+	svc.writeFile = func(_ string, _ []byte) error {
+		t.Fatal("write should not be called when JS/TS placeholder validation fails")
+		return nil
+	}
+
+	report, err := svc.Run(context.Background(), Input{Workers: 1})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+	if report.Failed != 1 || report.Succeeded != 0 {
+		t.Fatalf("expected failed task from JS/TS placeholder validation, got %+v", report)
+	}
+	if len(report.Failures) != 1 || !strings.Contains(strings.ToLower(report.Failures[0].Reason), "placeholder") {
+		t.Fatalf("expected placeholder failure, got %+v", report.Failures)
+	}
+}
+
 func TestRunWritesRealisticLiquidTemplateForMultipleLocales(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.liquid"
@@ -3889,6 +4032,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
 		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
+		"/tmp/source.ts":          []byte(`export default { hello: "Hello" };`),
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
 		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.properties":  []byte("hello=Hello\n"),
@@ -3917,6 +4061,8 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
 		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
+		{target: "/tmp/out.ts", source: "/tmp/source.ts"},
+		{target: "/tmp/out.js", source: "/tmp/source.ts"},
 		{target: "/tmp/out.xml", source: "/tmp/source.xml"},
 		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 		{target: "/tmp/out.properties", source: "/tmp/source.properties"},
@@ -4079,6 +4225,48 @@ func TestMarshalLiquidTargetPreservesExistingTargetByPosition(t *testing.T) {
 	}
 	if !strings.Contains(out, "<p>Paiement maintenant.</p>") {
 		t.Fatalf("expected staged paragraph translation, got %q", out)
+	}
+}
+
+func TestMarshalSourceTemplateTargetPrefersTargetTemplateForJSTSWhenAllKeysPresent(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ts"
+	targetPath := "/tmp/out.ts"
+	source := []byte(`export default {
+  title: "Welcome",
+  cta: "Checkout",
+};
+`)
+	target := []byte(`// Existing translator note.
+export default {
+  title: "Bienvenue",
+  cta: "Acheter",
+};
+`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".ts", targetPath, sourcePath, "en", "fr", map[string]string{
+		"title": "Salut",
+		"cta":   "Acheter",
+	})
+	if err != nil {
+		t.Fatalf("marshal js/ts target: %v", err)
+	}
+	out := string(content)
+	if !strings.Contains(out, "// Existing translator note.") {
+		t.Fatalf("expected target template comment preserved, got %q", out)
+	}
+	if !strings.Contains(out, `title: "Salut"`) || !strings.Contains(out, `cta: "Acheter"`) {
+		t.Fatalf("expected values written into target template, got %q", out)
 	}
 }
 

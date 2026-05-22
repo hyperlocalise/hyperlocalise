@@ -14,6 +14,9 @@ import (
 
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+	if isJSTSLocaleModuleExt(ext) {
+		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
+	}
 	switch ext {
 	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".html", ".liquid", ".xml", ".resx", ".properties":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
@@ -38,7 +41,7 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	if ext == ".liquid" {
 		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".xml" || ext == ".resx" || ext == ".properties" {
+	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".xml" || ext == ".resx" || ext == ".properties" || isJSTSLocaleModuleExt(ext) {
 		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
 		return content, nil, err
 	}
@@ -152,8 +155,19 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 		}
 		return content, nil
 	default:
+		if isJSTSLocaleModuleExt(ext) {
+			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
+}
+
+func isJSTSLocaleModuleExt(ext string) bool {
+	return slices.Contains(translationfileparser.JSTSLocaleModuleExts, ext)
 }
 
 func hasExactKeySet(a, b map[string]string) bool {
