@@ -421,7 +421,7 @@ export function IntegrationsPageContent({
               <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
             </div>
           ) : (
-            <div className="min-w-[640px]">
+            <div className="min-w-160">
               <div className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] border-b border-foreground/8 px-4 py-4 text-xs font-medium tracking-[0.08em] text-foreground/46 uppercase">
                 <div>Provider</div>
                 <div>API key</div>
@@ -917,14 +917,14 @@ export function IntegrationsPageContent({
       </section>
 
       <Dialog open={tmsDialogOpen} onOpenChange={setTmsDialogOpen}>
-        <DialogContent className="border border-foreground/8 bg-foreground/2.5 text-foreground">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {selectedTmsProvider
                 ? `${tmsIntegrations.find((t) => t.providerKind === selectedTmsProvider)?.name} credentials`
                 : "TMS credentials"}
             </DialogTitle>
-            <DialogDescription className="text-foreground/52">
+            <DialogDescription>
               Save credentials to connect this provider. The secret is encrypted at rest and used to
               sync projects, files, and jobs into the workspace.
             </DialogDescription>
