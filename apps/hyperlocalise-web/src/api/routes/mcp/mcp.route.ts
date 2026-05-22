@@ -52,7 +52,7 @@ const tokenRequestSchema = z.discriminatedUnion("grant_type", [
 
 const registerClientSchema = z.object({
   client_name: z.string().min(1).max(128).optional(),
-  redirect_uris: z.array(z.url()).min(1).max(10),
+  redirect_uris: z.array(z.url().max(2048)).min(1).max(10),
   grant_types: z.array(z.string().max(32)).optional(),
   response_types: z.array(z.string().max(32)).optional(),
   scope: z.string().max(128).optional(),
