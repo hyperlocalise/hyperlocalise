@@ -173,6 +173,56 @@ describe("syncExternalTmsFileKeys", () => {
     });
   });
 
+  it("records failed provider resources without upserting them", async () => {
+    const { organization, project } = await createExternalTmsProject({ providerKind: "crowdin" });
+
+    const result = await syncExternalTmsFileKeys({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      fetchFileKeys: async () => [
+        {
+          externalResourceId: "file-1",
+          resourceType: "file",
+          sourcePath: "docs/intro.md",
+          displayName: "intro.md",
+        },
+        {
+          externalResourceId: "file-1",
+          resourceType: "key",
+          sourcePath: "docs/intro.md/keys",
+          displayName: "intro.md keys",
+          syncErrorMessage: "Failed to list source strings for docs/intro.md: rate limited",
+        },
+      ],
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.counts).toEqual({
+      filesDiscovered: 2,
+      filesSynced: 1,
+      filesFailed: 1,
+    });
+    expect(result.failures).toEqual([
+      {
+        externalResourceId: "file-1",
+        sourcePath: "docs/intro.md/keys",
+        message: "Failed to list source strings for docs/intro.md: rate limited",
+      },
+    ]);
+
+    const files = await db
+      .select()
+      .from(schema.externalTmsFiles)
+      .where(eq(schema.externalTmsFiles.projectId, project.id));
+
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({
+      resourceType: "file",
+      externalResourceId: "file-1",
+    });
+  });
+
   it("records a failed run when provider file fetching fails", async () => {
     const { organization, project } = await createExternalTmsProject();
 

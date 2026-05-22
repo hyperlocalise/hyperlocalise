@@ -166,6 +166,73 @@ describe("fetchCrowdinFileKeys", () => {
     );
   });
 
+  it("returns a failed key resource when source strings cannot be listed for a file", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "en.json",
+                  title: "English",
+                  type: "json",
+                  path: "/en.json",
+                  status: "active",
+                  revisionId: 5,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/strings?")) {
+        return new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
+          status: 429,
+        });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchCrowdinFileKeys({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "crowdin",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+    });
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          externalResourceId: "101",
+          resourceType: "file",
+          sourcePath: "en.json",
+        }),
+        expect.objectContaining({
+          externalResourceId: "101",
+          resourceType: "key",
+          sourcePath: "en.json/keys",
+          syncErrorMessage: expect.stringContaining(
+            "Failed to list source strings for en.json: Crowdin API returned HTTP 429",
+          ),
+        }),
+      ]),
+    );
+  });
+
   it("throws on invalid project id", async () => {
     await expect(
       fetchCrowdinFileKeys({

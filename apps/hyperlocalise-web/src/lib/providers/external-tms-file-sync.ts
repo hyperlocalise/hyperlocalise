@@ -29,6 +29,7 @@ export type ExternalTmsFileKeyMetadata = {
   syncState?: string;
   localeReadiness?: Record<string, unknown>;
   providerPayload?: Record<string, unknown>;
+  syncErrorMessage?: string | null;
 };
 
 export type ExternalTmsFileKeyFetcher = (input: {
@@ -123,6 +124,16 @@ export async function syncExternalTmsFileKeys(input: {
 
     for (const fileKey of fileKeys) {
       try {
+        if (fileKey.syncErrorMessage) {
+          counts.filesFailed += 1;
+          failures.push({
+            externalResourceId: fileKey.externalResourceId ?? null,
+            sourcePath: fileKey.sourcePath ?? null,
+            message: fileKey.syncErrorMessage,
+          });
+          continue;
+        }
+
         await upsertExternalTmsFile({
           organizationId: input.organizationId,
           projectId: project.id,
