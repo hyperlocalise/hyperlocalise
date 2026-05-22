@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "idx_external_job_details_provider_job_unique" ON "external_job_details" USING btree ("external_job_id","provider_kind");

@@ -42,6 +42,7 @@ export async function upsertExternalJob(input: {
   };
 
   const detailsValues = {
+    organizationId: input.organizationId,
     externalTaskId: input.externalTaskId ?? null,
     externalStatus: input.externalStatus,
     title: input.title ?? "",
@@ -68,7 +69,11 @@ export async function upsertExternalJob(input: {
         ...detailsValues,
       })
       .onConflictDoUpdate({
-        target: [schema.externalJobDetails.externalJobId, schema.externalJobDetails.providerKind],
+        target: [
+          schema.externalJobDetails.organizationId,
+          schema.externalJobDetails.externalJobId,
+          schema.externalJobDetails.providerKind,
+        ],
         set: {
           ...detailsValues,
           updatedAt: now,
@@ -101,30 +106,27 @@ export async function upsertExternalJob(input: {
   });
 }
 
-export async function linkExternalJobToNativeJob(input: {
-  externalJobId: string;
-  nativeJobId: string;
-}) {
+export async function linkExternalJobToNativeJob(input: { jobId: string; nativeJobId: string }) {
   const [updated] = await db
     .update(schema.externalJobDetails)
     .set({
       linkedJobId: input.nativeJobId,
       updatedAt: new Date(),
     })
-    .where(eq(schema.externalJobDetails.jobId, input.externalJobId))
+    .where(eq(schema.externalJobDetails.jobId, input.jobId))
     .returning();
 
   return updated ?? null;
 }
 
-export async function unlinkExternalJobFromNativeJob(input: { externalJobId: string }) {
+export async function unlinkExternalJobFromNativeJob(input: { jobId: string }) {
   const [updated] = await db
     .update(schema.externalJobDetails)
     .set({
       linkedJobId: null,
       updatedAt: new Date(),
     })
-    .where(eq(schema.externalJobDetails.jobId, input.externalJobId))
+    .where(eq(schema.externalJobDetails.jobId, input.jobId))
     .returning();
 
   return updated ?? null;

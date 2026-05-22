@@ -1062,6 +1062,10 @@ export const externalJobDetails = pgTable(
     jobId: text("job_id")
       .primaryKey()
       .references(() => jobs.id, { onDelete: "cascade" }),
+    // Tenant that owns this external job, denormalized for unique index scoping.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
     // Provider that owns this external job.
     providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
     // Provider-scoped job identifier used for idempotent upserts.
@@ -1109,6 +1113,7 @@ export const externalJobDetails = pgTable(
     index("idx_external_job_details_sync_state").on(table.syncState),
     index("idx_external_job_details_linked_job").on(table.linkedJobId),
     uniqueIndex("idx_external_job_details_provider_job_unique").on(
+      table.organizationId,
       table.externalJobId,
       table.providerKind,
     ),

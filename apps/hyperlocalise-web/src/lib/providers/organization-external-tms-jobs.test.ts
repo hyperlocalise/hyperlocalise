@@ -182,7 +182,7 @@ describe("linkExternalJobToNativeJob", () => {
     });
 
     const linked = await linkExternalJobToNativeJob({
-      externalJobId: external.id,
+      jobId: external.id,
       nativeJobId,
     });
 
@@ -214,12 +214,12 @@ describe("unlinkExternalJobFromNativeJob", () => {
     });
 
     await linkExternalJobToNativeJob({
-      externalJobId: external.id,
+      jobId: external.id,
       nativeJobId,
     });
 
     const unlinked = await unlinkExternalJobFromNativeJob({
-      externalJobId: external.id,
+      jobId: external.id,
     });
 
     expect(unlinked?.linkedJobId).toBeNull();

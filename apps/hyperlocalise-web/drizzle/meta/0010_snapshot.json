@@ -1,6 +1,6 @@
 {
-  "id": "946a1e54-edce-4faa-9fa7-dd2c2ff8abaa",
-  "prevId": "ce05b997-987f-4470-8ff5-9ecd501b79e3",
+  "id": "6b5a68a7-e6d6-4c11-b8cf-1abfcfdf95af",
+  "prevId": "f39d7105-dce8-4912-a5a2-8f6dac4b3511",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -193,6 +193,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "provider_kind": {
           "name": "provider_kind",
           "type": "external_tms_provider_kind",
@@ -346,6 +352,33 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_external_job_details_provider_job_unique": {
+          "name": "idx_external_job_details_provider_job_unique",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "external_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -355,6 +388,19 @@
           "tableTo": "jobs",
           "columnsFrom": [
             "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "external_job_details_organization_id_organizations_id_fk": {
+          "name": "external_job_details_organization_id_organizations_id_fk",
+          "tableFrom": "external_job_details",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
           ],
           "columnsTo": [
             "id"
