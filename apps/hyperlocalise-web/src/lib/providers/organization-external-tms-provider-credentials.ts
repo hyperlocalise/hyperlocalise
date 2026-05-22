@@ -80,40 +80,41 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
 
   const providerKinds = credentials.map((c) => c.providerKind);
 
-  const projectCounts = await db
-    .select({
-      providerKind: schema.projects.externalProviderKind,
-      count: sql<number>`count(*)`.mapWith(Number),
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.organizationId, organizationId),
-        eq(schema.projects.source, "external_tms"),
-        inArray(schema.projects.externalProviderKind, providerKinds),
-      ),
-    )
-    .groupBy(schema.projects.externalProviderKind);
+  const [projectCounts, lastSyncs] = await Promise.all([
+    db
+      .select({
+        providerKind: schema.projects.externalProviderKind,
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, organizationId),
+          eq(schema.projects.source, "external_tms"),
+          inArray(schema.projects.externalProviderKind, providerKinds),
+        ),
+      )
+      .groupBy(schema.projects.externalProviderKind),
+    db
+      .select({
+        providerKind: schema.providerSyncRuns.providerKind,
+        completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`,
+      })
+      .from(schema.providerSyncRuns)
+      .where(
+        and(
+          eq(schema.providerSyncRuns.organizationId, organizationId),
+          eq(schema.providerSyncRuns.status, "succeeded"),
+          ne(schema.providerSyncRuns.kind, "health_check"),
+          inArray(schema.providerSyncRuns.providerKind, providerKinds),
+        ),
+      )
+      .groupBy(schema.providerSyncRuns.providerKind),
+  ]);
 
   const projectCountByProvider = Object.fromEntries(
     projectCounts.map((row) => [row.providerKind, row.count]),
   ) as Record<string, number>;
-
-  const lastSyncs = await db
-    .select({
-      providerKind: schema.providerSyncRuns.providerKind,
-      completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`,
-    })
-    .from(schema.providerSyncRuns)
-    .where(
-      and(
-        eq(schema.providerSyncRuns.organizationId, organizationId),
-        eq(schema.providerSyncRuns.status, "succeeded"),
-        ne(schema.providerSyncRuns.kind, "health_check"),
-        inArray(schema.providerSyncRuns.providerKind, providerKinds),
-      ),
-    )
-    .groupBy(schema.providerSyncRuns.providerKind);
 
   const lastSyncByProvider = Object.fromEntries(
     lastSyncs.map((row) => [row.providerKind, row.completedAt?.toISOString() ?? null]),

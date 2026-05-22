@@ -40,20 +40,11 @@ export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      try {
-        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+      const providerCredentials = await listOrganizationExternalTmsProviderCredentialDetails(
+        c.var.auth.organization.localOrganizationId,
+      );
 
-        const providerCredentials = await listOrganizationExternalTmsProviderCredentialDetails(
-          c.var.auth.organization.localOrganizationId,
-        );
-
-        return c.json({ externalTmsProviderCredentials: providerCredentials }, 200);
-      } catch (error) {
-        if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" }, 403);
-        }
-        throw error;
-      }
+      return c.json({ externalTmsProviderCredentials: providerCredentials }, 200);
     })
     .put("/", validateUpsertBody, async (c) => {
       try {
