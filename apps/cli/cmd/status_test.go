@@ -299,6 +299,248 @@ func TestStatusCommandBucketFilterUsesLocalstoreNamespace(t *testing.T) {
 	}
 }
 
+func TestStatusCommandXCStringsReadsRequestedTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "dist", "fr", "Localizable.xcstrings")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	source := `{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`
+	target := `{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ios":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "Localizable.xcstrings")) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ios"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ios"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "hello,") || !strings.Contains(got, ",fr,untranslated,unknown,") {
+		t.Fatalf("expected xcstrings target locale to be reported as untranslated, got: %s", got)
+	}
+}
+
+func TestStatusCommandAndroidXMLResources(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "app", "src", "main", "res", "values", "strings.xml")
+	targetPath := filepath.Join(dir, "app", "src", "main", "res", "values-fr", "strings.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Hello %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>
+`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Bonjour %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d article</item>
+    <item quantity="other">%d articles</item>
+  </plurals>
+</resources>
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"android":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["android"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--output", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	rows, err := csv.NewReader(bytes.NewReader(out.Bytes())).ReadAll()
+	if err != nil {
+		t.Fatalf("parse csv: %v\n%s", err, out.String())
+	}
+	if len(rows) != 4 {
+		t.Fatalf("expected header plus three Android XML rows, got %d: %v", len(rows), rows)
+	}
+	gotKeys := []string{rows[1][0], rows[2][0], rows[3][0]}
+	wantKeys := []string{"item_count.one", "item_count.other", "welcome"}
+	if !reflect.DeepEqual(gotKeys, wantKeys) {
+		t.Fatalf("unexpected status keys: got %v want %v", gotKeys, wantKeys)
+	}
+	for _, row := range rows[1:] {
+		if row[2] != "fr" || row[3] != "translated" {
+			t.Fatalf("expected translated fr Android row, got %v", row)
+		}
+	}
+}
+
+func TestStatusCommandPropertiesFileRecognized(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "messages.properties")
+	targetPath := filepath.Join(dir, "dist", "fr", "messages.properties")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("welcome.message=Hello {0}\n"), 0o600); err != nil {
+		t.Fatalf("write source properties: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("welcome.message=Bonjour {0}\n"), 0o600); err != nil {
+		t.Fatalf("write target properties: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "welcome.message") || !strings.Contains(got, ",fr,translated,unknown,") {
+		t.Fatalf("expected translated .properties row, got: %s", got)
+	}
+}
+
+func TestStatusCommandReadsYAMLFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.yml")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.yml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("hello: Hello\n"), 0o600); err != nil {
+		t.Fatalf("write source yaml: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("hello: Bonjour\n"), 0o600); err != nil {
+		t.Fatalf("write target yaml: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "dist", "[locale]", "strings.yml")) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "hello") || !strings.Contains(got, "translated") {
+		t.Fatalf("expected YAML status output, got: %s", got)
+	}
+}
+
 func TestStatusCommandMarkdownIdenticalSegmentIsSourceMatch(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
@@ -424,6 +666,49 @@ func TestStatusCommandMDXIdenticalSegmentWithInlineSyntaxIsSourceMatch(t *testin
 	}
 	if got := out.String(); !strings.Contains(got, ",vi-VN,source_match,unknown,") {
 		t.Fatalf("expected source_match mdx row, got: %s", got)
+	}
+}
+
+func TestStatusCommandGenericXMLContent(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en-US.xml")
+	targetPath := filepath.Join(dir, "content", "vi-VN.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir content dir: %v", err)
+	}
+	source := `<locale><section id="home"><string name="title">Welcome back</string></section></locale>`
+	target := `<locale><section id="home"><string name="title">Welcome back</string></section></locale>`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source xml: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target xml: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en-US","targets":["vi-VN"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "content", "[locale].xml")) + `"}]}},
+  "groups": {"default":{"targets":["vi-VN"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "home.title") || !strings.Contains(got, ",vi-VN,translated,unknown,") {
+		t.Fatalf("expected translated xml row, got: %s", got)
 	}
 }
 

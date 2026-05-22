@@ -2,8 +2,8 @@ package icuparser
 
 import (
 	"cmp"
-	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -79,15 +79,37 @@ func FormatICUBlocks(blocks []BlockSignature) string {
 	if len(blocks) == 0 {
 		return "[]"
 	}
-	parts := make([]string, 0, len(blocks))
-	for _, b := range blocks {
-		if hasNonZeroPounds(b.Pounds) {
-			parts = append(parts, fmt.Sprintf("%s:%s%v#%v", b.Arg, b.Type, b.Options, b.Pounds))
-			continue
+	var b strings.Builder
+	b.WriteByte('[')
+	for i, block := range blocks {
+		if i > 0 {
+			b.WriteString(", ")
 		}
-		parts = append(parts, fmt.Sprintf("%s:%s%v", b.Arg, b.Type, b.Options))
+		b.WriteString(block.Arg)
+		b.WriteByte(':')
+		b.WriteString(block.Type)
+		b.WriteByte('[')
+		for j, opt := range block.Options {
+			if j > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(opt)
+		}
+		b.WriteByte(']')
+
+		if hasNonZeroPounds(block.Pounds) {
+			b.WriteString("#[")
+			for j, p := range block.Pounds {
+				if j > 0 {
+					b.WriteByte(' ')
+				}
+				b.WriteString(strconv.Itoa(p))
+			}
+			b.WriteByte(']')
+		}
 	}
-	return "[" + strings.Join(parts, ", ") + "]"
+	b.WriteByte(']')
+	return b.String()
 }
 
 func normalizeMustachePlaceholders(s string) string {
@@ -232,9 +254,17 @@ func countPounds(elems []Element) int {
 		case TagElement:
 			total += countPounds(v.Children)
 		case SelectElement:
+			// For select elements, we take the maximum number of pounds found in any of its
+			// branches. Only one branch can be active at a time, so this correctly
+			// represents the contribution of this select block to the parent plural's
+			// pound count.
+			maxPounds := 0
 			for _, opt := range v.Options {
-				total += countPounds(opt.Value)
+				if n := countPounds(opt.Value); n > maxPounds {
+					maxPounds = n
+				}
 			}
+			total += maxPounds
 		case PluralElement:
 			// Stop recursion into nested plurals because '#' within them
 			// refers to the nested plural's argument.

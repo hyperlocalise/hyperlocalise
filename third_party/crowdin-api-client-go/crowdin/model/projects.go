@@ -79,6 +79,11 @@ type (
 		InContextProcessHiddenStrings   bool                       `json:"inContextProcessHiddenStrings,omitempty"`
 		InContextPseudoLanguageID       string                     `json:"inContextPseudoLanguageId,omitempty"`
 		InContextPseudoLanguage         *Language                  `json:"inContextPseudoLanguage,omitempty"`
+
+		// [Enterprise client]
+		TemplateID int `json:"templateId,omitempty"`
+		VendorID   int `json:"vendorId,omitempty"`
+		MTEngineID int `json:"mtEngineId,omitempty"`
 	}
 
 	ProjectTMPenalties struct {
@@ -147,6 +152,8 @@ type ProjectsListOptions struct {
 	HasManagerAccess *int `json:"hasManagerAccess,omitempty"`
 	// Set type to 0 to get all file based projects. Enum: 0, 1.
 	Type *int `json:"type,omitempty"`
+	// Group identifier.
+	GroupID *int `json:"groupId,omitempty"`
 }
 
 // Values returns the url.Values representation of ProjectsListOptions.
@@ -169,6 +176,9 @@ func (o *ProjectsListOptions) Values() (url.Values, bool) {
 	}
 	if o.Type != nil && (*o.Type == 0 || *o.Type == 1) {
 		v.Add("type", fmt.Sprintf("%d", *o.Type))
+	}
+	if o.GroupID != nil {
+		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
 	}
 	return v, len(v) > 0
 }

@@ -26,7 +26,7 @@ type Strategy struct {
 	parsersByExt map[string]Parser
 }
 
-// NewDefaultStrategy returns a strategy preconfigured for JSON and XLIFF files.
+// NewDefaultStrategy returns a strategy preconfigured for supported locale file formats.
 func NewDefaultStrategy() *Strategy {
 	s := &Strategy{parsersByExt: map[string]Parser{}}
 	s.Register(".json", JSONParser{})
@@ -34,6 +34,8 @@ func NewDefaultStrategy() *Strategy {
 	for _, ext := range JSTSLocaleModuleExts {
 		s.Register(ext, JSTSLocaleModuleParser{})
 	}
+	s.Register(".yaml", YAMLParser{})
+	s.Register(".yml", YAMLParser{})
 	s.Register(".arb", ARBParser{})
 	s.Register(".xlf", XLIFFParser{})
 	s.Register(".xlif", XLIFFParser{})
@@ -45,8 +47,28 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".mdx", MarkdownParser{MDX: true})
 	s.Register(".strings", AppleStringsParser{})
 	s.Register(".stringsdict", AppleStringsdictParser{})
+	s.Register(".xcstrings", XCStringsParser{})
 	s.Register(".csv", CSVParser{})
+	s.Register(".xml", XMLParser{})
+	s.Register(".resx", GenericXMLParser{})
+	s.Register(".properties", JavaPropertiesParser{})
 	return s
+}
+
+// XMLParser routes Android string resource XML files to the Android-specific
+// parser and all other .xml files to the generic XML locale parser.
+type XMLParser struct{}
+
+func (p XMLParser) Parse(content []byte) (map[string]string, error) {
+	return GenericXMLParser{}.Parse(content)
+}
+
+func (p XMLParser) parseWithPath(path string, content []byte) (map[string]string, map[string]string, error) {
+	if IsAndroidStringResourcePath(path) {
+		return AndroidXMLResourcesParser{}.parseWithPath(path, content)
+	}
+	values, err := GenericXMLParser{}.Parse(content)
+	return values, nil, err
 }
 
 // Register binds a parser to a file extension.

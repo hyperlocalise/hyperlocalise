@@ -9,6 +9,11 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
+import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
+import { syncExternalTmsFileKeys } from "@/lib/providers/external-tms-file-sync";
+import { syncExternalTmsJobTasks } from "@/lib/providers/external-tms-job-sync";
+import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
@@ -17,6 +22,7 @@ import { createTranslationJobEventQueue } from "@/workflows/adapters";
 import {
   createProjectBodySchema,
   projectFileDetailQuerySchema,
+  projectFilesQuerySchema,
   projectIdParamsSchema,
   updateProjectBodySchema,
   type CreateProjectBody,
@@ -45,6 +51,20 @@ type ProjectStore = {
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
+async function countOpenJobs(auth: ApiAuthContext, projectId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(schema.jobs)
+    .where(
+      and(
+        eq(schema.jobs.organizationId, auth.organization.localOrganizationId),
+        eq(schema.jobs.projectId, projectId),
+        inArray(schema.jobs.status, ["queued", "running", "waiting_for_review"]),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
 const projectStore: ProjectStore = {
   async list(auth) {
     return db
@@ -63,6 +83,7 @@ const projectStore: ProjectStore = {
         name: payload.name,
         description: payload.description ?? "",
         translationContext: payload.translationContext ?? "",
+        source: "native",
       })
       .returning();
 
@@ -108,6 +129,16 @@ const validateProjectParams = validator("param", (value, c) => {
 
 const validateProjectFileDetailQuery = validator("query", (value, c) => {
   const parsed = projectFileDetailQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFilesQuery = validator("query", (value, c) => {
+  const parsed = projectFilesQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -235,7 +266,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
       const projects = await projectStore.list(c.var.auth);
-      return c.json({ projects }, 200);
+
+      const projectIds = projects.map((p) => p.id);
+      const openJobCounts =
+        projectIds.length > 0
+          ? await db
+              .select({
+                projectId: schema.jobs.projectId,
+                count: sql<number>`count(*)`.mapWith(Number),
+              })
+              .from(schema.jobs)
+              .where(
+                and(
+                  eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
+                  inArray(schema.jobs.projectId, projectIds),
+                  inArray(schema.jobs.status, ["queued", "running", "waiting_for_review"]),
+                ),
+              )
+              .groupBy(schema.jobs.projectId)
+          : [];
+
+      const openJobCountByProjectId = new Map(
+        openJobCounts.map((row) => [row.projectId, row.count]),
+      );
+
+      const projectsWithJobCounts = projects.map((project) => ({
+        ...project,
+        openJobCount: openJobCountByProjectId.get(project.id) ?? 0,
+      }));
+
+      return c.json({ projects: projectsWithJobCounts }, 200);
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
@@ -244,7 +304,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const payload = c.req.valid("json");
       const project = await projectStore.create(c.var.auth, payload);
-      return c.json({ project }, 201);
+      return c.json({ project: { ...project, openJobCount: 0 } }, 201);
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
@@ -303,7 +363,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           .limit(50);
 
         if (versions.length === 0) {
-          return projectNotFoundResponse(c);
+          const [providerFile] = await db
+            .select()
+            .from(schema.externalTmsFiles)
+            .where(
+              and(
+                eq(schema.externalTmsFiles.projectId, params.projectId),
+                eq(
+                  schema.externalTmsFiles.organizationId,
+                  c.var.auth.organization.localOrganizationId,
+                ),
+                eq(schema.externalTmsFiles.sourcePath, sourcePath),
+              ),
+            )
+            .limit(1);
+
+          if (!providerFile) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json(
+            {
+              file: {
+                sourcePath,
+                filename: providerFile.displayName,
+                versions: [],
+                jobsByLocale: [],
+              },
+            },
+            200,
+          );
         }
 
         const versionIds = versions.map((version) => version.id);
@@ -446,8 +535,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
       },
     )
-    .get("/:projectId/files", validateProjectParams, async (c) => {
+    .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
+      const query = c.req.valid("query");
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
@@ -503,6 +593,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         .where(eq(versionsSubquery.rowNumber, 1));
 
       const versionIds = versions.map((v) => v.versionId);
+      const providerFiles = await listExternalTmsFilesForProject({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: params.projectId,
+        limit: query.limit,
+      });
 
       const latestJobs = new Map<
         string,
@@ -558,9 +653,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       }
 
-      const files = versions.map((v) => {
+      const nativeFiles = versions.map((v) => {
         const job = latestJobs.get(v.versionId);
         return {
+          origin: "repository" as const,
           sourcePath: v.sourcePath,
           sourceHash: v.sourceHash,
           commitSha: v.commitSha,
@@ -570,6 +666,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           metadata: v.metadata as Record<string, unknown>,
           filename: v.filename,
           byteSize: v.byteSize,
+          provider: null,
           latestJob: job
             ? {
                 id: job.jobId,
@@ -581,6 +678,49 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         };
       });
 
+      const nativeFileByStoredFileId = new Map(
+        nativeFiles.map((file) => [file.storedFileId, file]),
+      );
+      const providerBackedFiles = providerFiles.map((file) => {
+        const linkedNativeFile = file.storedFileId
+          ? nativeFileByStoredFileId.get(file.storedFileId)
+          : undefined;
+
+        return {
+          origin: "provider" as const,
+          sourcePath: file.sourcePath,
+          sourceHash: file.sourceHash,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt:
+            file.lastSyncedAt?.toISOString() ??
+            linkedNativeFile?.uploadedAt ??
+            file.updatedAt.toISOString(),
+          storedFileId: file.storedFileId,
+          metadata: file.providerPayload as Record<string, unknown>,
+          filename: file.displayName,
+          byteSize: linkedNativeFile?.byteSize ?? null,
+          provider: {
+            kind: file.providerKind,
+            resourceType: file.resourceType,
+            externalProjectId: file.externalProjectId,
+            externalResourceId: file.externalResourceId,
+            externalUrl: file.externalUrl,
+            syncState: file.syncState,
+            sourceLocale: file.sourceLocale,
+            targetLocales: file.targetLocales,
+            localeReadiness: file.localeReadiness as Record<string, unknown>,
+            revision: file.revision,
+            format: file.format,
+          },
+          latestJob: linkedNativeFile?.latestJob ?? null,
+        };
+      });
+
+      const files = [...nativeFiles, ...providerBackedFiles].sort((a, b) =>
+        a.sourcePath.localeCompare(b.sourcePath),
+      );
+
       return c.json({ files }, 200);
     })
     .get("/:projectId", validateProjectParams, async (c) => {
@@ -591,7 +731,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      return c.json({ project }, 200);
+      const openJobCount = await countOpenJobs(c.var.auth, project.id);
+      return c.json({ project: { ...project, openJobCount } }, 200);
     })
     .patch("/:projectId", validateProjectParams, validateUpdateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
@@ -606,7 +747,58 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      return c.json({ project }, 200);
+      const openJobCount = await countOpenJobs(c.var.auth, project.id);
+      return c.json({ project: { ...project, openJobCount } }, 200);
+    })
+    .post("/:projectId/sync-files", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (project.externalProviderKind !== "crowdin") {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsFileKeys({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: "crowdin",
+        fetchFileKeys: fetchCrowdinFileKeys,
+      });
+
+      return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-jobs", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (project.externalProviderKind !== "crowdin") {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsJobTasks({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: "crowdin",
+        fetchJobTasks: fetchCrowdinJobTasks,
+      });
+
+      return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {

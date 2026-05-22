@@ -49,6 +49,14 @@ func TestJSTSLocaleModuleParserParsesNamedAndCommonJSExports(t *testing.T) {
 };`,
 		},
 		{
+			name: "named export with default identifier export",
+			content: `export const messages = {
+  hello: "Hello",
+};
+
+export default messages;`,
+		},
+		{
 			name: "non-locale export before named export",
 			content: `export const LOCALE_CODE = "en-US";
 export const messages = {
@@ -81,6 +89,14 @@ export default messages;`,
 		{
 			name: "regex before export",
 			content: `const token = /[{identifier]/g;
+
+export default {
+  hello: "Hello",
+};`,
+		},
+		{
+			name: "regex with quotes before export",
+			content: `const token = /['"]/g;
 
 export default {
   hello: "Hello",

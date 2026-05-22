@@ -76,7 +76,6 @@ buckets:
     files:
       - from: tests/csv/en-US.csv
         to: tests/csv/[locale].csv
-
 # One group links the target(s) with the bucket(s).
 # Think of a group as "what to run" for a subset of locales/files.
 groups:

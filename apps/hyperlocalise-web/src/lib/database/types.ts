@@ -1,4 +1,7 @@
 import type {
+  agentRuns,
+  agentRunKindEnum,
+  agentRunStatusEnum,
   githubInstallations,
   glossaries,
   jobs,
@@ -9,6 +12,9 @@ import type {
   mcpSessions,
   organizationApiKeys,
   organizationLlmProviderCredentials,
+  providerSyncRunKindEnum,
+  providerSyncRuns,
+  providerSyncRunStatusEnum,
   repositorySourceFiles,
   repositorySourceFileVersions,
   translationJobDetails,
@@ -52,6 +58,14 @@ export type OrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferSelect;
 export type NewOrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferInsert;
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type NewAgentRun = typeof agentRuns.$inferInsert;
+export type AgentRunKind = (typeof agentRunKindEnum.enumValues)[number];
+export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
+export type ProviderSyncRun = typeof providerSyncRuns.$inferSelect;
+export type NewProviderSyncRun = typeof providerSyncRuns.$inferInsert;
+export type ProviderSyncRunKind = (typeof providerSyncRunKindEnum.enumValues)[number];
+export type ProviderSyncRunStatus = (typeof providerSyncRunStatusEnum.enumValues)[number];
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
 export type TeamMembership = typeof teamMemberships.$inferSelect;

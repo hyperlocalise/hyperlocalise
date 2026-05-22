@@ -284,6 +284,10 @@ function ReplyComposerContent({
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
                 className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label="Send reply"
+                tooltip={{
+                  content: "Send reply",
+                  shortcut: "Enter",
+                }}
               >
                 <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
                 Send
