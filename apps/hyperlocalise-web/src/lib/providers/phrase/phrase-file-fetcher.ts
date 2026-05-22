@@ -272,12 +272,19 @@ function buildUploadLocaleReadiness(input: {
       continue;
     }
 
-    if (statuses.every((status) => status === "ready")) {
+    const activeStatuses = statuses.filter((status) => status !== "excluded");
+
+    if (activeStatuses.length === 0) {
+      localeReadiness[localeKey] = "excluded";
+      continue;
+    }
+
+    if (activeStatuses.every((status) => status === "ready")) {
       localeReadiness[localeKey] = "ready";
       continue;
     }
 
-    if (statuses.some((status) => status === "ready" || status === "unverified")) {
+    if (activeStatuses.some((status) => status === "ready" || status === "unverified")) {
       localeReadiness[localeKey] = "unverified";
       continue;
     }

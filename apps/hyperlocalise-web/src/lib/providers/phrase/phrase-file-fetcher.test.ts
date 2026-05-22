@@ -130,6 +130,15 @@ describe("fetchPhraseFileKeys", () => {
               data_type: "icu",
               updated_at: "2026-05-02T00:00:00Z",
             },
+            {
+              id: "key-2",
+              name: "home.hero.subtitle",
+              description: "Hero subtitle",
+              tags: ["app"],
+              custom_metadata: { screen: "home" },
+              data_type: "icu",
+              updated_at: "2026-05-02T00:00:00Z",
+            },
           ]),
           { status: 200 },
         );
@@ -146,6 +155,15 @@ describe("fetchPhraseFileKeys", () => {
               state: "translated",
               unverified: false,
               excluded: false,
+            },
+            {
+              id: "tr-fr-2",
+              key_id: "key-2",
+              locale_name: "fr",
+              content: "Sous-titre",
+              state: "translated",
+              unverified: false,
+              excluded: true,
             },
             {
               id: "tr-fr-feature",
