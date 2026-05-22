@@ -131,7 +131,7 @@ export async function recordProviderSyncRun<T>(
       runId: run.id,
       organizationId: run.organizationId,
       counts: output.counts,
-      providerMetadata: output.providerMetadata,
+      providerMetadata: output.providerMetadata ?? run.providerMetadata,
     });
 
     return output.result;

@@ -144,4 +144,29 @@ describe("provider sync runs", () => {
     expect(run?.status).toBe("failed");
     expect(run?.errorMessage).toBe("Phrase health check timed out");
   });
+
+  it("preserves start metadata when successful operation omits metadata", async () => {
+    const project = await createTestProject();
+
+    await recordProviderSyncRun(
+      {
+        organizationId: project.organizationId,
+        providerKind: "phrase",
+        kind: "health_check",
+        providerMetadata: { requestId: "req_123", traceId: "trace_456" },
+      },
+      async () => ({
+        result: "ok",
+        counts: { checks: 1 },
+      }),
+    );
+
+    const [run] = await db
+      .select()
+      .from(schema.providerSyncRuns)
+      .where(eq(schema.providerSyncRuns.organizationId, project.organizationId));
+
+    expect(run?.status).toBe("succeeded");
+    expect(run?.providerMetadata).toEqual({ requestId: "req_123", traceId: "trace_456" });
+  });
 });
