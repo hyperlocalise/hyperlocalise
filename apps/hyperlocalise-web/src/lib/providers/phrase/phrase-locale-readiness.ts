@@ -24,7 +24,7 @@ export function mapPhraseTranslationReadiness(input: {
     return "ready";
   }
 
-  return "ready";
+  return "unverified";
 }
 
 export function buildPhraseKeyExternalResourceId(keyId: string, branch: string | null) {

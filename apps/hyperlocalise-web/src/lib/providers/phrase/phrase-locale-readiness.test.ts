@@ -29,6 +29,17 @@ describe("phrase locale readiness", () => {
     ).toBe("missing");
   });
 
+  it("maps non-translated content to unverified", () => {
+    expect(
+      mapPhraseTranslationReadiness({
+        content: "Draft copy",
+        state: "draft",
+        unverified: false,
+        excluded: false,
+      }),
+    ).toBe("unverified");
+  });
+
   it("maps unverified translated content to unverified", () => {
     expect(
       mapPhraseTranslationReadiness({

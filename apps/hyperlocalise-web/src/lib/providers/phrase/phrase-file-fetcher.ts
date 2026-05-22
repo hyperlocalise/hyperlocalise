@@ -190,8 +190,9 @@ async function loadTranslationsByKeyId(input: {
 }) {
   const translationsByKeyId = new Map<string, Map<string, PhraseTranslation>>();
   const listOptions = input.branch ? { branch: input.branch } : {};
+  const targetLocales = input.locales.filter((locale) => !locale.default);
 
-  await mapWithConcurrency(input.locales, LOCALE_FETCH_CONCURRENCY, async (locale) => {
+  await mapWithConcurrency(targetLocales, LOCALE_FETCH_CONCURRENCY, async (locale) => {
     try {
       const translations = await input.client.listTranslations(
         input.projectId,
@@ -213,6 +214,7 @@ async function loadTranslationsByKeyId(input: {
       if (error instanceof PhraseApiError && error.status === 401) {
         throw new Error("phrase_auth_invalid");
       }
+      throw error;
     }
   });
 
