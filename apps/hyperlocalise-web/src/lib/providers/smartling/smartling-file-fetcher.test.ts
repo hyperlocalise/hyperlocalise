@@ -173,7 +173,7 @@ describe("fetchSmartlingFileKeys", () => {
 
     const key = result.find((item) => item.resourceType === "key");
     expect(key).toMatchObject({
-      externalResourceId: "abc123",
+      externalResourceId: "locales/en.json::abc123",
       sourcePath: "locales/en.json/keys/abc123",
       displayName: "Hello",
     });
@@ -268,6 +268,106 @@ describe("fetchSmartlingFileKeys", () => {
     expect(first[0]?.externalResourceId).toBe("app/messages.json");
     expect(second[0]?.externalResourceId).toBe("app/messages.json");
     expect(first[0]?.externalResourceId).toBe(second[0]?.externalResourceId);
+  });
+
+  it("uses file-scoped externalResourceId for keys to avoid hash collisions across files", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects-api/v2/projects/proj-1")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                accountUid: "acct-1",
+                projectId: "proj-1",
+                projectName: "Marketing",
+                sourceLocaleId: "en-US",
+                archived: false,
+                targetLocales: [],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/files/list")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                items: [
+                  { fileUri: "locales/en.json", fileType: "json" },
+                  { fileUri: "locales/de.json", fileType: "json" },
+                ],
+                totalCount: 2,
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/file/status")) {
+        return new Response(
+          JSON.stringify({
+            response: { code: "SUCCESS", data: { items: [] } },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/source-strings")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                items: [{ hashcode: "shared-hash", stringText: "OK" }],
+                totalCount: 1,
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchSmartlingFileKeys({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "smartling",
+      externalProjectId: "proj-1",
+      credential,
+      project: {} as never,
+      secretMaterial: "user:secret:acct-1",
+    });
+
+    const keys = result.filter((item) => item.resourceType === "key");
+    expect(keys).toHaveLength(2);
+    expect(keys.map((key) => key.externalResourceId).toSorted()).toEqual([
+      "locales/de.json::shared-hash",
+      "locales/en.json::shared-hash",
+    ]);
   });
 
   it("throws on invalid project id", async () => {

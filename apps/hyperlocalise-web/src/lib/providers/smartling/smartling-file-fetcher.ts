@@ -90,7 +90,7 @@ export const fetchSmartlingFileKeys: ExternalTmsFileKeyFetcher = async ({
       for (const str of strings) {
         const keyPath = `${file.fileUri}/keys/${str.hashcode}`;
         results.push({
-          externalResourceId: str.hashcode,
+          externalResourceId: `${file.fileUri}::${str.hashcode}`,
           resourceType: "key",
           sourcePath: keyPath,
           displayName: str.stringText ?? str.hashcode,
