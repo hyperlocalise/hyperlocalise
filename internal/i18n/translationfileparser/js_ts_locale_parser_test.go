@@ -146,6 +146,29 @@ func TestJSTSLocaleModuleParserParsesFormatJSContext(t *testing.T) {
 	}
 }
 
+func TestJSTSLocaleModuleParserSkipsNonStringFormatJSDescription(t *testing.T) {
+	content := []byte(`export default {
+  "checkout.submit": {
+    defaultMessage: "Submit",
+    description: {
+      id: "checkout.submit",
+      note: "Primary action",
+    },
+  },
+};`)
+
+	values, context, err := (JSTSLocaleModuleParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if values["checkout.submit"] != "Submit" {
+		t.Fatalf("unexpected submit message: %q", values["checkout.submit"])
+	}
+	if len(context) != 0 {
+		t.Fatalf("expected object description to be skipped, got %#v", context)
+	}
+}
+
 func TestJSTSLocaleModuleParserFallsBackWhenDefaultMessageIsNestedValue(t *testing.T) {
 	content := []byte(`export default {
   panel: {

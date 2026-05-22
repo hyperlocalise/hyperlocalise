@@ -454,17 +454,14 @@ func parseJSTSFormatJSEntries(src string, props []jstsFormatJSProperty) ([]jstsL
 		prop := formatProp.prop
 		var entry *jstsLocaleEntry
 		for _, child := range formatProp.childProps {
-			if child.key != "defaultMessage" && child.key != "description" {
-				continue
-			}
-			lit, err := parseJSTSStringLiteral(src, skipJSTSWhitespaceAndComments(src, child.valueStart))
-			if err != nil {
-				return nil, nil, fmt.Errorf("js/ts locale module key %q field %s: %w", prop.key, child.key, err)
-			}
-			if lit.end != child.valueEnd {
-				return nil, nil, fmt.Errorf("js/ts locale module key %q field %s must be a static string literal", prop.key, child.key)
-			}
 			if child.key == "defaultMessage" {
+				lit, err := parseJSTSStringLiteral(src, skipJSTSWhitespaceAndComments(src, child.valueStart))
+				if err != nil {
+					return nil, nil, fmt.Errorf("js/ts locale module key %q field %s: %w", prop.key, child.key, err)
+				}
+				if lit.end != child.valueEnd {
+					return nil, nil, fmt.Errorf("js/ts locale module key %q field %s must be a static string literal", prop.key, child.key)
+				}
 				current := jstsLocaleEntry{
 					key:          prop.key,
 					sourceValue:  lit.decoded,
@@ -474,6 +471,13 @@ func parseJSTSFormatJSEntries(src string, props []jstsFormatJSProperty) ([]jstsL
 					quote:        lit.quote,
 				}
 				entry = &current
+				continue
+			}
+			if child.key != "description" {
+				continue
+			}
+			lit, err := parseJSTSStringLiteral(src, skipJSTSWhitespaceAndComments(src, child.valueStart))
+			if err != nil || lit.end != child.valueEnd {
 				continue
 			}
 			if strings.TrimSpace(lit.decoded) != "" {
