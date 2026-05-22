@@ -46,15 +46,32 @@ export const projectsResponseSchema = z.object({
 });
 
 export const projectFileRecordSchema = z.object({
+  origin: z.enum(["repository", "provider"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
   commitSha: z.string().nullable(),
   workflowRunId: z.string().nullable(),
   uploadedAt: z.string(),
-  storedFileId: z.string(),
+  storedFileId: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   filename: z.string(),
-  byteSize: z.number(),
+  byteSize: z.number().nullable(),
+  provider: z
+    .object({
+      kind: z.string(),
+      resourceType: z.enum(["file", "key"]),
+      externalProjectId: z.string(),
+      externalResourceId: z.string(),
+      externalUrl: z.string().nullable(),
+      syncState: z.string(),
+      sourceLocale: z.string().nullable(),
+      targetLocales: z.array(z.string()),
+      localeReadiness: z.record(z.string(), z.unknown()),
+      revision: z.string().nullable(),
+      format: z.string().nullable(),
+    })
+    .nullable()
+    .default(null),
   latestJob: z
     .object({
       id: z.string(),
@@ -74,6 +91,10 @@ export const projectFileRecordSchema = z.object({
 
 export const projectFilesResponseSchema = z.object({
   files: z.array(projectFileRecordSchema),
+});
+
+export const projectFilesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
 });
 
 export const projectFileDetailQuerySchema = z.object({
@@ -145,6 +166,7 @@ export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
+export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;

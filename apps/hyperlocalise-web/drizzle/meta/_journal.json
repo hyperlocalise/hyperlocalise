@@ -92,6 +92,13 @@
       "when": 1779412649858,
       "tag": "0012_sticky_maggott",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779414494211,
+      "tag": "0013_orange_vargas",
+      "breakpoints": true
     }
   ]
 }

@@ -86,6 +86,7 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "phrase",
   "lokalise",
 ]);
+export const externalTmsResourceTypeEnum = pgEnum("external_tms_resource_type", ["file", "key"]);
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
 export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
   "project_scan",
@@ -1408,6 +1409,77 @@ export const repositorySourceFileVersions = pgTable(
     ),
     index("idx_repository_source_file_versions_workflow_run").on(table.workflowRunId),
     index("idx_repository_source_file_versions_api_key").on(table.uploadedByApiKeyId),
+  ],
+);
+
+export const externalTmsFiles = pgTable(
+  "external_tms_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    externalProjectId: text("external_project_id").notNull(),
+    resourceType: externalTmsResourceTypeEnum("resource_type").notNull(),
+    externalResourceId: text("external_resource_id").notNull(),
+    sourcePath: text("source_path").notNull(),
+    displayName: text("display_name").notNull(),
+    format: text("format"),
+    sourceLocale: text("source_locale"),
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    sourceHash: text("source_hash"),
+    revision: text("revision"),
+    storedFileId: text("stored_file_id").references(() => storedFiles.id, {
+      onDelete: "set null",
+    }),
+    externalUrl: text("external_url"),
+    syncState: text("sync_state").notNull().default("pending"),
+    localeReadiness: jsonb("locale_readiness")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    providerPayload: jsonb("provider_payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("external_tms_files_provider_resource_key").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalProjectId,
+      table.resourceType,
+      table.externalResourceId,
+    ),
+    index("idx_external_tms_files_org_project_path").on(
+      table.organizationId,
+      table.projectId,
+      table.sourcePath,
+    ),
+    index("idx_external_tms_files_provider_project").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalProjectId,
+    ),
+    index("idx_external_tms_files_stored_file").on(table.storedFileId),
+    index("idx_external_tms_files_sync_state").on(table.syncState),
   ],
 );
 
