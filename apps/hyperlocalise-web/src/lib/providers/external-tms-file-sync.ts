@@ -227,19 +227,20 @@ async function getExternalTmsCredential(input: {
   providerKind: ExternalTmsProviderKind;
   credentialId: string | null;
 }) {
-  const filters = [
-    eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
-    eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
-  ];
-
-  if (input.credentialId) {
-    filters.push(eq(schema.organizationExternalTmsProviderCredentials.id, input.credentialId));
+  if (!input.credentialId) {
+    return null;
   }
 
   const [credential] = await db
     .select()
     .from(schema.organizationExternalTmsProviderCredentials)
-    .where(and(...filters))
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
+        eq(schema.organizationExternalTmsProviderCredentials.id, input.credentialId),
+      ),
+    )
     .limit(1);
 
   return credential ?? null;

@@ -37,6 +37,21 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   // Build directory path lookups per branch
   const directoryPathById = new Map<number, string>();
 
+  // Also fetch directories not associated with any branch (default/root)
+  try {
+    const rootDirectories = await client.listDirectories(projectId);
+    for (const directory of rootDirectories) {
+      const parentPath = directory.directoryId
+        ? (directoryPathById.get(directory.directoryId) ?? "")
+        : "";
+      directoryPathById.set(directory.id, `${parentPath}${directory.name}/`);
+    }
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new Error("crowdin_auth_invalid");
+    }
+  }
+
   const allFiles: Awaited<ReturnType<typeof client.listFiles>> = [];
 
   for (const branch of branches) {
@@ -72,11 +87,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   const results: Awaited<ReturnType<ExternalTmsFileKeyFetcher>> = [];
 
   for (const file of allFiles) {
-    const branchName = file.branchId ? (branchMap.get(file.branchId) ?? "") : "";
-    const directoryPath = file.directoryId ? (directoryPathById.get(file.directoryId) ?? "") : "";
-    const sourcePath = branchName
-      ? `${branchName}/${directoryPath}${file.name}`
-      : `${directoryPath}${file.name}`;
+    const sourcePath = sourcePathOf(file, branchMap, directoryPathById);
 
     let revision: string | undefined;
     try {
