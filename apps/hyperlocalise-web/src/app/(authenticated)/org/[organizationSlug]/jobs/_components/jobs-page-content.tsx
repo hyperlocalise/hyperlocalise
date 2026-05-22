@@ -96,10 +96,14 @@ function formatRelativeTime(value: string | null) {
   const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
   const absoluteSeconds = Math.abs(deltaSeconds);
   if (absoluteSeconds < 60) return RELATIVE_TIME_FORMATTER.format(deltaSeconds, "second");
-  if (absoluteSeconds < 3_600) return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 60), "minute");
-  if (absoluteSeconds < 86_400) return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 3_600), "hour");
-  if (absoluteSeconds < 2_592_000) return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 86_400), "day");
-  if (absoluteSeconds < 31_536_000) return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 2_592_000), "month");
+  if (absoluteSeconds < 3_600)
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 60), "minute");
+  if (absoluteSeconds < 86_400)
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 3_600), "hour");
+  if (absoluteSeconds < 2_592_000)
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 86_400), "day");
+  if (absoluteSeconds < 31_536_000)
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 2_592_000), "month");
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
@@ -120,9 +124,12 @@ function assignees(job: ApiJob) {
 
 function getJobName(job: ApiJob) {
   if (job.externalTitle) return job.externalTitle;
-  if (job.kind === "review" && job.reviewCriteria) return `Review: ${job.reviewCriteria}`.slice(0, 72);
-  if (job.kind === "sync" && job.syncConnectorKind) return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`.slice(0, 72);
-  if (job.kind === "asset_management" && job.assetType) return `${job.assetOperation ?? "manage"} ${job.assetType}`.slice(0, 72);
+  if (job.kind === "review" && job.reviewCriteria)
+    return `Review: ${job.reviewCriteria}`.slice(0, 72);
+  if (job.kind === "sync" && job.syncConnectorKind)
+    return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`.slice(0, 72);
+  if (job.kind === "asset_management" && job.assetType)
+    return `${job.assetOperation ?? "manage"} ${job.assetType}`.slice(0, 72);
   return job.id;
 }
 
@@ -135,39 +142,113 @@ function JobsStats({ jobs }: { jobs: JobRow[] }) {
   const metrics = useMemo(() => {
     const providerCount = jobs.filter((job) => job.externalProviderKind).length;
     return [
-      { label: "Provider synced", value: `${providerCount}`, detail: "external jobs/tasks", tone: "info" as const },
-      { label: "Running jobs", value: `${jobs.filter((job) => job.status === "running").length}`, detail: "active now", tone: "watch" as const },
-      { label: "Failed jobs", value: `${jobs.filter((job) => job.status === "failed").length}`, detail: "needs review", tone: "risk" as const },
+      {
+        label: "Provider synced",
+        value: `${providerCount}`,
+        detail: "external jobs/tasks",
+        tone: "info" as const,
+      },
+      {
+        label: "Running jobs",
+        value: `${jobs.filter((job) => job.status === "running").length}`,
+        detail: "active now",
+        tone: "watch" as const,
+      },
+      {
+        label: "Failed jobs",
+        value: `${jobs.filter((job) => job.status === "failed").length}`,
+        detail: "needs review",
+        tone: "risk" as const,
+      },
     ] as const;
   }, [jobs]);
 
   return <MetricsGrid metrics={metrics} />;
 }
 
-function JobsList({ emptyLabel, isLoading, jobs, organizationSlug }: { emptyLabel: string; isLoading: boolean; jobs: JobRow[]; organizationSlug: string; }) {
-  if (isLoading) return <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>;
+function JobsList({
+  emptyLabel,
+  isLoading,
+  jobs,
+  organizationSlug,
+}: {
+  emptyLabel: string;
+  isLoading: boolean;
+  jobs: JobRow[];
+  organizationSlug: string;
+}) {
+  if (isLoading)
+    return (
+      <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
+    );
   if (jobs.length === 0) {
-    return <div className="px-3 py-8"><TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP></div>;
+    return (
+      <div className="px-3 py-8">
+        <TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP>
+      </div>
+    );
   }
 
   return (
     <div className="overflow-x-auto">
       <div className="min-w-[86rem]">
         <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
-          <TypographyP>Name</TypographyP><TypographyP>Source</TypographyP><TypographyP>Project</TypographyP><TypographyP>Status</TypographyP><TypographyP>Target locales</TypographyP><TypographyP>Assignees</TypographyP><TypographyP>Deadline</TypographyP><TypographyP>Last sync</TypographyP><span aria-hidden />
+          <TypographyP>Name</TypographyP>
+          <TypographyP>Source</TypographyP>
+          <TypographyP>Project</TypographyP>
+          <TypographyP>Status</TypographyP>
+          <TypographyP>Target locales</TypographyP>
+          <TypographyP>Assignees</TypographyP>
+          <TypographyP>Deadline</TypographyP>
+          <TypographyP>Last sync</TypographyP>
+          <span aria-hidden />
         </div>
         {jobs.map((job, index) => (
           <div key={job.id}>
             <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] items-center gap-4 px-3 py-4">
-              <div className="min-w-0"><TypographyP className="truncate text-base font-medium text-foreground">{getJobName(job)}</TypographyP><TypographyP className="mt-1 truncate text-xs text-foreground/38">{formatJobKind(job)} · {job.externalTaskId ?? job.id}</TypographyP></div>
-              <Badge variant="outline" className="w-fit rounded-full">{sourceLabel(job)}</Badge>
-              <TypographyP className="truncate text-base text-foreground/58">{job.projectName ?? "Workspace"}</TypographyP>
-              <Badge variant="outline" className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}>{job.status}</Badge>
-              <TypographyP className="truncate text-sm text-foreground/58">{targetLocales(job)}</TypographyP>
-              <TypographyP className="truncate text-sm text-foreground/58">{assignees(job)}</TypographyP>
-              <TypographyP className="text-sm text-foreground/58">{formatRelativeTime(job.externalDueDate)}</TypographyP>
-              <TypographyP className="text-sm text-foreground/58">{formatRelativeTime(job.updatedAt)}</TypographyP>
-              <Link href={`/org/${organizationSlug}/jobs/${job.id}`} aria-label={`Open ${getJobName(job)}`} className="flex size-9 items-center justify-center rounded-lg text-foreground/58 transition-colors hover:bg-foreground/6 hover:text-foreground"><HugeiconsIcon icon={MoreHorizontalCircle01Icon} strokeWidth={2} className="size-5" /></Link>
+              <div className="min-w-0">
+                <TypographyP className="truncate text-base font-medium text-foreground">
+                  {getJobName(job)}
+                </TypographyP>
+                <TypographyP className="mt-1 truncate text-xs text-foreground/38">
+                  {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+                </TypographyP>
+              </div>
+              <Badge variant="outline" className="w-fit rounded-full">
+                {sourceLabel(job)}
+              </Badge>
+              <TypographyP className="truncate text-base text-foreground/58">
+                {job.projectName ?? "Workspace"}
+              </TypographyP>
+              <Badge
+                variant="outline"
+                className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
+              >
+                {job.status}
+              </Badge>
+              <TypographyP className="truncate text-sm text-foreground/58">
+                {targetLocales(job)}
+              </TypographyP>
+              <TypographyP className="truncate text-sm text-foreground/58">
+                {assignees(job)}
+              </TypographyP>
+              <TypographyP className="text-sm text-foreground/58">
+                {formatRelativeTime(job.externalDueDate)}
+              </TypographyP>
+              <TypographyP className="text-sm text-foreground/58">
+                {formatRelativeTime(job.updatedAt)}
+              </TypographyP>
+              <Link
+                href={`/org/${organizationSlug}/jobs/${job.id}`}
+                aria-label={`Open ${getJobName(job)}`}
+                className="flex size-9 items-center justify-center rounded-lg text-foreground/58 transition-colors hover:bg-foreground/6 hover:text-foreground"
+              >
+                <HugeiconsIcon
+                  icon={MoreHorizontalCircle01Icon}
+                  strokeWidth={2}
+                  className="size-5"
+                />
+              </Link>
             </div>
             {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
           </div>
@@ -177,7 +258,13 @@ function JobsList({ emptyLabel, isLoading, jobs, organizationSlug }: { emptyLabe
   );
 }
 
-export function JobsPageContent({ organizationSlug, scope = "all" }: { organizationSlug: string; scope?: JobsScope; }) {
+export function JobsPageContent({
+  organizationSlug,
+  scope = "all",
+}: {
+  organizationSlug: string;
+  scope?: JobsScope;
+}) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "provider">("all");
@@ -186,7 +273,14 @@ export function JobsPageContent({ organizationSlug, scope = "all" }: { organizat
   const jobsQuery = useQuery({
     queryKey: ["jobs", organizationSlug, scope, statusFilter],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({ param: { organizationSlug }, query: { limit: "100", mine: scope === "mine" ? "true" : "false", ...(statusFilter === "all" ? {} : { status: statusFilter }) } });
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
+        param: { organizationSlug },
+        query: {
+          limit: "100",
+          mine: scope === "mine" ? "true" : "false",
+          ...(statusFilter === "all" ? {} : { status: statusFilter }),
+        },
+      });
       if (!response.ok) throw new Error(`Failed to load jobs (${response.status})`);
       const body = (await response.json()) as { jobs: JobRow[] };
       return body.jobs;
@@ -198,16 +292,116 @@ export function JobsPageContent({ organizationSlug, scope = "all" }: { organizat
     const normalizedSearch = search.trim().toLowerCase();
     return jobs.filter((job) => {
       const matchesStatus = statusFilter === "all" || job.status === statusFilter;
-      const matchesSource = sourceFilter === "all" || (sourceFilter === "provider" ? Boolean(job.externalProviderKind) : !job.externalProviderKind);
-      const isReady = job.status === "queued" || job.status === "running" || job.status === "waiting_for_review";
-      const matchesReady = agentReadyFilter === "all" || (agentReadyFilter === "ready" ? isReady : !isReady);
-      const matchesSearch = !normalizedSearch || [getJobName(job), job.projectName, job.id, job.kind, job.externalProviderKind, job.externalStatus, targetLocales(job), assignees(job)].join(" ").toLowerCase().includes(normalizedSearch);
+      const matchesSource =
+        sourceFilter === "all" ||
+        (sourceFilter === "provider"
+          ? Boolean(job.externalProviderKind)
+          : !job.externalProviderKind);
+      const isReady =
+        job.status === "queued" || job.status === "running" || job.status === "waiting_for_review";
+      const matchesReady =
+        agentReadyFilter === "all" || (agentReadyFilter === "ready" ? isReady : !isReady);
+      const matchesSearch =
+        !normalizedSearch ||
+        [
+          getJobName(job),
+          job.projectName,
+          job.id,
+          job.kind,
+          job.externalProviderKind,
+          job.externalStatus,
+          targetLocales(job),
+          assignees(job),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedSearch);
       return matchesStatus && matchesSource && matchesReady && matchesSearch;
     });
   }, [jobs, search, statusFilter, sourceFilter, agentReadyFilter]);
 
   const title = scope === "mine" ? "My Jobs" : "Jobs";
-  const emptyLabel = scope === "mine" ? "No jobs found for your account." : "No jobs found for this workspace.";
+  const emptyLabel =
+    scope === "mine" ? "No jobs found for your account." : "No jobs found for this workspace.";
 
-  return <div className="mx-auto flex w-full max-w-7xl flex-col gap-6"><div><TypographyH1 className="font-heading text-4xl font-semibold text-foreground md:text-5xl">{title}</TypographyH1></div>{scope === "all" ? <JobsStats jobs={jobs} /> : null}<section className="space-y-5"><div className="flex flex-col gap-3 lg:flex-row"><div className="relative min-w-0 flex-1"><HugeiconsIcon icon={SearchIcon} strokeWidth={2} className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-foreground/42" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search jobs, providers, locales, assignees..." className="h-12 rounded-lg border-foreground/14 bg-transparent pl-12 text-base text-foreground placeholder:text-foreground/42" /></div><Select value={sourceFilter} onValueChange={(value) => setSourceFilter(value as typeof sourceFilter)}><SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44"><SelectValue placeholder="Source" /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="native">Native</SelectItem><SelectItem value="provider">Provider</SelectItem></SelectContent></Select><Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}><SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44"><HugeiconsIcon icon={FilterHorizontalIcon} strokeWidth={2} className="size-5" /><SelectValue placeholder="Status" /></SelectTrigger><SelectContent>{statusOptions.map((status) => (<SelectItem key={status} value={status}>{status === "all" ? "All status" : status}</SelectItem>))}</SelectContent></Select><Select value={agentReadyFilter} onValueChange={(value) => setAgentReadyFilter(value as typeof agentReadyFilter)}><SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44"><SelectValue placeholder="Agent" /></SelectTrigger><SelectContent><SelectItem value="all">Any agent state</SelectItem><SelectItem value="ready">Agent-ready</SelectItem><SelectItem value="not_ready">Not ready</SelectItem></SelectContent></Select></div>{jobsQuery.error ? <TypographyP className="text-sm text-flame-100">{jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}</TypographyP> : null}<JobsList emptyLabel={emptyLabel} isLoading={jobsQuery.isLoading} jobs={visibleJobs} organizationSlug={organizationSlug} /></section></div>;
+  return (
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+      <div>
+        <TypographyH1 className="font-heading text-4xl font-semibold text-foreground md:text-5xl">
+          {title}
+        </TypographyH1>
+      </div>
+      {scope === "all" ? <JobsStats jobs={jobs} /> : null}
+      <section className="space-y-5">
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative min-w-0 flex-1">
+            <HugeiconsIcon
+              icon={SearchIcon}
+              strokeWidth={2}
+              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-foreground/42"
+            />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search jobs, providers, locales, assignees..."
+              className="h-12 rounded-lg border-foreground/14 bg-transparent pl-12 text-base text-foreground placeholder:text-foreground/42"
+            />
+          </div>
+          <Select
+            value={sourceFilter}
+            onValueChange={(value) => setSourceFilter(value as typeof sourceFilter)}
+          >
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
+              <SelectValue placeholder="Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              <SelectItem value="native">Native</SelectItem>
+              <SelectItem value="provider">Provider</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+          >
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
+              <HugeiconsIcon icon={FilterHorizontalIcon} strokeWidth={2} className="size-5" />
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status === "all" ? "All status" : status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={agentReadyFilter}
+            onValueChange={(value) => setAgentReadyFilter(value as typeof agentReadyFilter)}
+          >
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
+              <SelectValue placeholder="Agent" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any agent state</SelectItem>
+              <SelectItem value="ready">Agent-ready</SelectItem>
+              <SelectItem value="not_ready">Not ready</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {jobsQuery.error ? (
+          <TypographyP className="text-sm text-flame-100">
+            {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
+          </TypographyP>
+        ) : null}
+        <JobsList
+          emptyLabel={emptyLabel}
+          isLoading={jobsQuery.isLoading}
+          jobs={visibleJobs}
+          organizationSlug={organizationSlug}
+        />
+      </section>
+    </div>
+  );
 }
