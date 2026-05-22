@@ -97,3 +97,10 @@ export type EmailAgentTask = {
 export type EmailAgentTaskQueue = JobQueue<EmailAgentTask>;
 
 export type RepoTmsAgentTaskQueue = JobQueue<import("@/lib/agents/repo-tms-task").RepoTmsAgentTask>;
+
+export type ProviderAgentTranslationEventData = {
+  agentRunId: string;
+  organizationId: string;
+};
+
+export type ProviderAgentTranslationQueue = JobQueue<ProviderAgentTranslationEventData>;

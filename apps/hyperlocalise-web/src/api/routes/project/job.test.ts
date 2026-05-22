@@ -8,7 +8,11 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import type {
+  JobQueue,
+  ProviderAgentTranslationQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
@@ -35,7 +39,20 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-const client = testClient(createApp({ jobQueue: createInlineTestJobQueue() }));
+function createInlineTestProviderAgentTranslationQueue(): ProviderAgentTranslationQueue {
+  return {
+    async enqueue(event) {
+      return { ids: [event.agentRunId] };
+    },
+  };
+}
+
+const client = testClient(
+  createApp({
+    jobQueue: createInlineTestJobQueue(),
+    providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+  }),
+);
 const appClient = client;
 const projectFixture = createProjectTestFixture(client);
 const {

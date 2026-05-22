@@ -1,0 +1,189 @@
+import "dotenv/config";
+
+import { eq } from "drizzle-orm";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+import { db, schema } from "@/lib/database";
+import type { ExternalTmsTaskContent } from "@/lib/providers/external-tms-content-sync";
+
+import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
+import { createAgentRun, getAgentRun } from "./agent-runs";
+import { executeProviderAgentTranslation } from "./provider-agent-translate";
+
+const projectFixture = createProjectTestFixture();
+const pullExternalTmsTaskContentMock = vi.fn();
+const loadOrganizationOpenAITranslationGeneratorMock = vi.fn();
+
+vi.mock("@/lib/providers/external-tms-content-sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/external-tms-content-sync")>();
+  return {
+    ...actual,
+    pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),
+  };
+});
+
+vi.mock("@/lib/translation/load-organization-translation-generator", () => ({
+  loadOrganizationOpenAITranslationGenerator: (...args: unknown[]) =>
+    loadOrganizationOpenAITranslationGeneratorMock(...args),
+}));
+
+beforeAll(async () => {
+  await db.$client.query("select 1");
+});
+
+afterEach(async () => {
+  await projectFixture.cleanup();
+  pullExternalTmsTaskContentMock.mockReset();
+  loadOrganizationOpenAITranslationGeneratorMock.mockReset();
+});
+
+async function createExternalTmsProject() {
+  const { project } = await projectFixture.createStoredProjectFixture();
+
+  await db
+    .update(schema.projects)
+    .set({
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "123",
+    })
+    .where(eq(schema.projects.id, project.id));
+
+  return project;
+}
+
+const pulledContent: ExternalTmsTaskContent = {
+  externalJobId: "task-1",
+  sourceLocale: "en",
+  targetLocales: ["fr"],
+  units: [
+    {
+      externalStringId: "1",
+      key: "hello",
+      sourceText: "Hello",
+      translations: [],
+    },
+    {
+      externalStringId: "2",
+      key: "world",
+      sourceText: "World",
+      translations: [{ locale: "fr", text: "Monde", isApproved: true }],
+    },
+  ],
+};
+
+describe("executeProviderAgentTranslation", () => {
+  it("pulls provider content, proposes translations, and stores changed items", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-1",
+      counts: { unitsDiscovered: 2, translationsDiscovered: 1, approvedTranslations: 1 },
+      content: pulledContent,
+    });
+
+    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Bonjour" }],
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-1",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      proposedCount: 1,
+      unitsProcessed: 2,
+      skippedApproved: 1,
+      pullRunId: "pull-run-1",
+    });
+
+    const completed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(completed?.status).toBe("succeeded");
+    expect(completed?.changedItems).toEqual([
+      {
+        externalStringId: "1",
+        key: "hello",
+        locale: "fr",
+        sourceText: "Hello",
+        from: "",
+        to: "Bonjour",
+      },
+    ]);
+    expect(completed?.outputSummary).toMatchObject({
+      pullRunId: "pull-run-1",
+      proposedCount: 1,
+      unitsProcessed: 2,
+      skippedApproved: 1,
+    });
+  });
+
+  it("fails when the provider does not support content pull", async () => {
+    const project = await createExternalTmsProject();
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "smartling",
+      externalJobId: "smartling-job-1",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "unsupported_provider_pull",
+    });
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(failed?.status).toBe("failed");
+    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
+  });
+
+  it("fails when projectId is missing from the input snapshot", async () => {
+    const project = await createExternalTmsProject();
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-2",
+      kind: "translate",
+      inputSnapshot: { action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "missing_project_id",
+    });
+  });
+});

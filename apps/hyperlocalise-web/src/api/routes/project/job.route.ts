@@ -18,7 +18,11 @@ import {
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import type {
+  JobQueue,
+  ProviderAgentTranslationQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
 
 import {
   forbiddenResponse,
@@ -49,6 +53,7 @@ type CreateJobRoutesOptions = {
 
 type CreateWorkspaceJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
+  providerAgentTranslationQueue: ProviderAgentTranslationQueue;
 };
 
 const jobSelect = {
@@ -688,6 +693,13 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           },
           hyperlocaliseJobId: job.id,
         });
+
+        if (payload.action === "translate_with_agent") {
+          await options.providerAgentTranslationQueue.enqueue({
+            agentRunId: agentRun.id,
+            organizationId,
+          });
+        }
 
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
       },
