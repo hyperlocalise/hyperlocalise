@@ -286,6 +286,8 @@ func TestHasDuplicatePounds(t *testing.T) {
 		{"duplicate in other branch", "{n, plural, one {#} other {##}}", true},
 		{"multiple blocks, one duplicate", "{n1, plural, one {#}}{n2, plural, one {##}}", true},
 		{"nested duplicate", "{n1, plural, one {{n2, plural, other {##}}}}", true},
+		{"select inside plural", "{n, plural, other {{gender, select, male {# he} female {# she} other {# they}}}}", false},
+		{"select inside plural duplicate", "{n, plural, other {# {gender, select, male {#} female {she} other {they}}}}", true},
 		{"select block", "{gender, select, male {he} female {she} other {they}}", false},
 		{"selectordinal duplicate", "{n, selectordinal, one {##st} other {#th}}", true},
 		{"mustache placeholder", "Hello {{name}}", false},

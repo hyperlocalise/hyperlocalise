@@ -251,7 +251,7 @@ func TestPeekReadEdges(t *testing.T) {
 
 func TestParseArgumentLikeExpectedOpenBrace(t *testing.T) {
 	p := astParser{src: "", pos: 0}
-	if _, err := p.parseArgumentLike(); err == nil || !strings.Contains(err.Error(), "expected '{'") {
+	if _, err := p.parseArgumentLike(parseCtx{}); err == nil || !strings.Contains(err.Error(), "expected '{'") {
 		t.Fatalf("got %v", err)
 	}
 }

@@ -254,9 +254,17 @@ func countPounds(elems []Element) int {
 		case TagElement:
 			total += countPounds(v.Children)
 		case SelectElement:
+			// For select elements, we take the maximum number of pounds found in any of its
+			// branches. Only one branch can be active at a time, so this correctly
+			// represents the contribution of this select block to the parent plural's
+			// pound count.
+			maxPounds := 0
 			for _, opt := range v.Options {
-				total += countPounds(opt.Value)
+				if n := countPounds(opt.Value); n > maxPounds {
+					maxPounds = n
+				}
 			}
+			total += maxPounds
 		case PluralElement:
 			// Stop recursion into nested plurals because '#' within them
 			// refers to the nested plural's argument.
