@@ -55,6 +55,64 @@ func TestCheckCommandNoFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandAndroidXMLResourcesNoFindings(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "app", "src", "main", "res", "values", "strings.xml")
+	targetPath := filepath.Join(dir, "app", "src", "main", "res", "values-fr", "strings.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Hello %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>
+`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Bonjour %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d article</item>
+    <item quantity="other">%d articles</item>
+  </plurals>
+</resources>
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command android xml: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	if report.Summary.Total != 0 {
+		t.Fatalf("expected no Android XML findings, got %+v", report)
+	}
+}
+
 func TestCheckCommandChecksYAMLContent(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

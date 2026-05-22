@@ -112,7 +112,20 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
-	case ".xml", ".resx":
+	case ".xml":
+		if translationfileparser.IsAndroidStringResourcePath(sourcePath) {
+			content, err := translationfileparser.MarshalAndroidXMLResources(template, values)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
+		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".resx":
 		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
 		if err != nil {
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)

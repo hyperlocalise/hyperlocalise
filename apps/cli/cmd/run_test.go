@@ -216,6 +216,72 @@ func TestRunDryRunLiquidReportUsesGeneratedLiquidKeys(t *testing.T) {
 	}
 }
 
+func TestRunDryRunAndroidXMLReportUsesResourceKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	reportPath := filepath.Join(dir, "report.json")
+	sourcePath := filepath.Join(dir, "app", "src", "main", "res", "values", "strings.xml")
+	targetPath := filepath.Join(dir, "app", "src", "main", "res", "values-fr", "strings.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Hello %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+
+	content := `{
+	  "locales": {"source":"en","targets":["fr"]},
+	  "buckets": {"android":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+	  "groups": {"default":{"targets":["fr"],"buckets":["android"]}},
+	  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
+	}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--config", configPath, "--dry-run", "--output", reportPath, "--output-detail", "full"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run command android dry-run: %v", err)
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no target file written in dry-run, stat err=%v", err)
+	}
+
+	reportContent, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read run report: %v", err)
+	}
+	var report runsvc.Report
+	if err := json.Unmarshal(reportContent, &report); err != nil {
+		t.Fatalf("decode run report: %v\n%s", err, reportContent)
+	}
+	if report.ExecutableTotal != 3 || len(report.Executable) != 3 {
+		t.Fatalf("expected three Android XML tasks, got %+v", report)
+	}
+	seen := map[string]string{}
+	for _, task := range report.Executable {
+		seen[task.EntryKey] = task.SourceText
+	}
+	if seen["welcome"] != "Hello %1$s" || seen["item_count.one"] != "%d item" || seen["item_count.other"] != "%d items" {
+		t.Fatalf("unexpected Android XML task entries: %#v", seen)
+	}
+}
+
 func TestRunDryRunGenericXMLReportsConfiguredEntries(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

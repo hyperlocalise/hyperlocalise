@@ -299,6 +299,81 @@ func TestStatusCommandBucketFilterUsesLocalstoreNamespace(t *testing.T) {
 	}
 }
 
+func TestStatusCommandAndroidXMLResources(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "app", "src", "main", "res", "values", "strings.xml")
+	targetPath := filepath.Join(dir, "app", "src", "main", "res", "values-fr", "strings.xml")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	source := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Hello %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d item</item>
+    <item quantity="other">%d items</item>
+  </plurals>
+</resources>
+`
+	target := `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="welcome">Bonjour %1$s</string>
+  <plurals name="item_count">
+    <item quantity="one">%d article</item>
+    <item quantity="other">%d articles</item>
+  </plurals>
+</resources>
+`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"android":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["android"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--output", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	rows, err := csv.NewReader(bytes.NewReader(out.Bytes())).ReadAll()
+	if err != nil {
+		t.Fatalf("parse csv: %v\n%s", err, out.String())
+	}
+	if len(rows) != 4 {
+		t.Fatalf("expected header plus three Android XML rows, got %d: %v", len(rows), rows)
+	}
+	gotKeys := []string{rows[1][0], rows[2][0], rows[3][0]}
+	wantKeys := []string{"item_count.one", "item_count.other", "welcome"}
+	if !reflect.DeepEqual(gotKeys, wantKeys) {
+		t.Fatalf("unexpected status keys: got %v want %v", gotKeys, wantKeys)
+	}
+	for _, row := range rows[1:] {
+		if row[2] != "fr" || row[3] != "translated" {
+			t.Fatalf("expected translated fr Android row, got %v", row)
+		}
+	}
+}
+
 func TestStatusCommandPropertiesFileRecognized(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")

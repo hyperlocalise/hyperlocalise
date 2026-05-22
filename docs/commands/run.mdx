@@ -36,6 +36,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.strings`
 - `.stringsdict`
 - `.csv`
+- Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml` and `.resx` for generic XML locale files
 - `.properties`
 
@@ -77,6 +78,15 @@ For Liquid (`.liquid`), `run` translates hardcoded visible template text and pre
 - HTML-shaped Liquid templates use the same visible-text extraction behavior as HTML
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
+
+For Android XML string resources (`**/res/values*/strings.xml`), `run` translates:
+
+- `<string name="...">` values
+- `<plurals name="..."><item quantity="...">` values, using keys such as `item_count.one` and `item_count.other`
+
+Android comments, namespaces, and resource attributes such as `formatted`, `tools:*`, and `translatable` are preserved. Resources marked `translatable="false"` are skipped. Android placeholders such as `%1$s` and `%d` stay in the extracted text and are written back with the translated value.
+
+Unsupported translatable Android resource shapes such as `<string-array>` fail with a clear parser error instead of being ignored.
 
 
 For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.

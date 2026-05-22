@@ -272,6 +272,18 @@ func TestStrategyParsesGenericXML(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesAndroidXMLResourcePath(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("app/src/main/res/values/strings.xml", []byte(`<resources><string name="app_name">Hyperlocalise</string></resources>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["app_name"] != "Hyperlocalise" {
+		t.Fatalf("unexpected app_name: %q", got["app_name"])
+	}
+}
+
 func TestStrategyParsesJavaProperties(t *testing.T) {
 	s := NewDefaultStrategy()
 

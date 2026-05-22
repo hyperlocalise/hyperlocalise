@@ -45,10 +45,26 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".strings", AppleStringsParser{})
 	s.Register(".stringsdict", AppleStringsdictParser{})
 	s.Register(".csv", CSVParser{})
-	s.Register(".xml", GenericXMLParser{})
+	s.Register(".xml", XMLParser{})
 	s.Register(".resx", GenericXMLParser{})
 	s.Register(".properties", JavaPropertiesParser{})
 	return s
+}
+
+// XMLParser routes Android string resource XML files to the Android-specific
+// parser and all other .xml files to the generic XML locale parser.
+type XMLParser struct{}
+
+func (p XMLParser) Parse(content []byte) (map[string]string, error) {
+	return GenericXMLParser{}.Parse(content)
+}
+
+func (p XMLParser) parseWithPath(path string, content []byte) (map[string]string, map[string]string, error) {
+	if IsAndroidStringResourcePath(path) {
+		return AndroidXMLResourcesParser{}.parseWithPath(path, content)
+	}
+	values, err := GenericXMLParser{}.Parse(content)
+	return values, nil, err
 }
 
 // Register binds a parser to a file extension.
