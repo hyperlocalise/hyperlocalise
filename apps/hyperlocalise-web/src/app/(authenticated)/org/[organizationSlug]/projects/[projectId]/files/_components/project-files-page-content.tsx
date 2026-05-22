@@ -356,6 +356,7 @@ export function ProjectFilesPageContent({
         ":projectId"
       ].files.$get({
         param: { organizationSlug, projectId },
+        query: { limit: "500" },
       });
       if (!response.ok) {
         throw new Error(`Failed to load files (${response.status})`);

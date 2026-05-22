@@ -64,6 +64,8 @@ describe("organizationExternalTmsFiles", () => {
       providerPayload: { id: "file-1", revision: 1 },
     });
 
+    expect(created.syncState).toBe("pending");
+
     const updated = await upsertExternalTmsFile({
       organizationId,
       projectId,
@@ -89,6 +91,26 @@ describe("organizationExternalTmsFiles", () => {
     expect(updated.targetLocales).toEqual(["fr", "de"]);
     expect(updated.sourceHash).toBe("sha256:two");
     expect(updated.syncState).toBe("stale");
+
+    const reset = await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en.json",
+      displayName: "English source",
+      format: "json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr", "de"],
+      sourceHash: "sha256:three",
+      revision: "3",
+      providerPayload: { id: "file-1", revision: 3 },
+    });
+
+    expect(reset.id).toBe(created.id);
+    expect(reset.syncState).toBe("pending");
 
     const rows = await db
       .select()
@@ -136,5 +158,25 @@ describe("organizationExternalTmsFiles", () => {
       ["file", "docs/intro.md"],
       ["key", "keys/nav.docs"],
     ]);
+  });
+
+  it("limits provider file listings", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    for (const sourcePath of ["keys/one", "keys/two", "keys/three"]) {
+      await upsertExternalTmsFile({
+        organizationId,
+        projectId,
+        providerKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        resourceType: "key",
+        externalResourceId: sourcePath,
+        sourcePath,
+      });
+    }
+
+    const files = await listExternalTmsFilesForProject({ organizationId, projectId, limit: 2 });
+
+    expect(files.map((file) => file.sourcePath)).toEqual(["keys/one", "keys/three"]);
   });
 });

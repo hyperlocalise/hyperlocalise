@@ -18,6 +18,7 @@ import { createTranslationJobEventQueue } from "@/workflows/adapters";
 import {
   createProjectBodySchema,
   projectFileDetailQuerySchema,
+  projectFilesQuerySchema,
   projectIdParamsSchema,
   updateProjectBodySchema,
   type CreateProjectBody,
@@ -110,6 +111,16 @@ const validateProjectParams = validator("param", (value, c) => {
 
 const validateProjectFileDetailQuery = validator("query", (value, c) => {
   const parsed = projectFileDetailQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFilesQuery = validator("query", (value, c) => {
+  const parsed = projectFilesQuerySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -477,8 +488,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
       },
     )
-    .get("/:projectId/files", validateProjectParams, async (c) => {
+    .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
+      const query = c.req.valid("query");
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
@@ -537,6 +549,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const providerFiles = await listExternalTmsFilesForProject({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectId: params.projectId,
+        limit: query.limit,
       });
 
       const latestJobs = new Map<

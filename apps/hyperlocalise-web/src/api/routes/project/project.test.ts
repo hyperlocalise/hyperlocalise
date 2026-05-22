@@ -490,6 +490,7 @@ describe("projectRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "500" },
       },
       {
         headers: await authHeadersFor(identity),
@@ -560,6 +561,7 @@ describe("projectRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "500" },
       },
       {
         headers: await authHeadersFor(identity),
@@ -605,6 +607,39 @@ describe("projectRoutes", () => {
     ]);
   });
 
+  it("limits provider-backed files when listing project files", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    for (const sourcePath of ["keys/alpha", "keys/beta"]) {
+      await upsertExternalTmsFile({
+        organizationId: createdBody.project.organizationId,
+        projectId,
+        providerKind: "phrase",
+        externalProjectId: "phrase-project-1",
+        resourceType: "key",
+        externalResourceId: sourcePath,
+        sourcePath,
+      });
+    }
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "1" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files.map((file) => file.sourcePath)).toEqual(["keys/alpha"]);
+  });
+
   it("returns 404 when another organization fetches project files", async () => {
     const ownerIdentity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(ownerIdentity);
@@ -617,6 +652,7 @@ describe("projectRoutes", () => {
           organizationSlug: otherIdentity.organization.slug ?? "missing-slug",
           projectId: createdBody.project.id,
         },
+        query: { limit: "500" },
       },
       {
         headers: await authHeadersFor(otherIdentity),

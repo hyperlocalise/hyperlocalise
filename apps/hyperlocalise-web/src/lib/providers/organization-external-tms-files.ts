@@ -5,6 +5,9 @@ import { normalizeSourcePath } from "@/lib/file-storage/records";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
+const defaultExternalTmsFilesLimit = 500;
+const maxExternalTmsFilesLimit = 1_000;
+
 export type ExternalTmsResourceType =
   (typeof schema.externalTmsResourceTypeEnum.enumValues)[number];
 
@@ -35,6 +38,10 @@ function defaultDisplayName(sourcePath: string) {
   return sourcePath.split("/").filter(Boolean).at(-1) ?? sourcePath;
 }
 
+function normalizeLimit(limit?: number) {
+  return Math.min(Math.max(limit ?? defaultExternalTmsFilesLimit, 1), maxExternalTmsFilesLimit);
+}
+
 export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
   const now = new Date();
   const sourcePath = normalizeSourcePath(input.sourcePath);
@@ -57,7 +64,7 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
       revision: input.revision ?? null,
       storedFileId: input.storedFileId ?? null,
       externalUrl: input.externalUrl ?? null,
-      syncState: input.syncState ?? "synced",
+      syncState: input.syncState ?? "pending",
       localeReadiness: input.localeReadiness ?? {},
       providerPayload: input.providerPayload ?? {},
       lastSyncedAt: input.lastSyncedAt ?? now,
@@ -82,7 +89,7 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
         revision: input.revision ?? null,
         storedFileId: input.storedFileId ?? null,
         externalUrl: input.externalUrl ?? null,
-        syncState: input.syncState ?? "synced",
+        syncState: input.syncState ?? "pending",
         localeReadiness: input.localeReadiness ?? {},
         providerPayload: input.providerPayload ?? {},
         lastSyncedAt: input.lastSyncedAt ?? now,
@@ -102,6 +109,7 @@ export async function listExternalTmsFilesForProject(input: {
   organizationId: string;
   projectId: string;
   resourceTypes?: ExternalTmsResourceType[];
+  limit?: number;
 }) {
   const filters = [
     eq(schema.externalTmsFiles.organizationId, input.organizationId),
@@ -116,5 +124,6 @@ export async function listExternalTmsFilesForProject(input: {
     .select()
     .from(schema.externalTmsFiles)
     .where(and(...filters))
-    .orderBy(schema.externalTmsFiles.sourcePath, schema.externalTmsFiles.displayName);
+    .orderBy(schema.externalTmsFiles.sourcePath, schema.externalTmsFiles.displayName)
+    .limit(normalizeLimit(input.limit));
 }

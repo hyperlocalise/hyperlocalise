@@ -93,6 +93,10 @@ export const projectFilesResponseSchema = z.object({
   files: z.array(projectFileRecordSchema),
 });
 
+export const projectFilesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+});
+
 export const projectFileDetailQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
 });
@@ -162,6 +166,7 @@ export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
+export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;
