@@ -201,4 +201,214 @@ describe("CrowdinApiClient", () => {
       expect.anything(),
     );
   });
+
+  it("lists directories for a project", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 1,
+                branchId: 10,
+                directoryId: null,
+                name: "locales",
+                title: "Locales",
+                exportPattern: null,
+                path: "/locales",
+              },
+            },
+            {
+              data: {
+                id: 2,
+                branchId: 10,
+                directoryId: 1,
+                name: "en",
+                title: null,
+                exportPattern: null,
+                path: "/locales/en",
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const directories = await client.listDirectories(1, 10);
+
+    expect(directories).toHaveLength(2);
+    expect(directories[0]).toMatchObject({ id: 1, name: "locales", branchId: 10 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/directories?limit=500&offset=0&branchId=10",
+      expect.anything(),
+    );
+  });
+
+  it("lists files for a project", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 101,
+                branchId: 10,
+                directoryId: 2,
+                name: "common.json",
+                title: "Common Strings",
+                type: "json",
+                path: "/locales/en/common.json",
+                status: "active",
+                revisionId: 5,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const files = await client.listFiles(1, 10, 2);
+
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({ id: 101, name: "common.json", type: "json", revisionId: 5 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/projects/1/files?"),
+      expect.anything(),
+    );
+  });
+
+  it("lists file revisions", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 50,
+                fileId: 101,
+                projectId: 1,
+                info: {
+                  sourceLanguageId: "en",
+                  addedStrings: 2,
+                  removedStrings: 0,
+                  updatedStrings: 1,
+                },
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const revisions = await client.listFileRevisions(1, 101);
+
+    expect(revisions).toHaveLength(1);
+    expect(revisions[0]).toMatchObject({ id: 50, fileId: 101, info: { addedStrings: 2 } });
+  });
+
+  it("lists source strings", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 1001,
+                projectId: 1,
+                fileId: 101,
+                branchId: 10,
+                directoryId: 2,
+                identifier: "hello",
+                text: "Hello",
+                type: "text",
+                context: null,
+                labelIds: null,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const strings = await client.listSourceStrings(1, 101);
+
+    expect(strings).toHaveLength(1);
+    expect(strings[0]).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+  });
+
+  it("lists tasks", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 2001,
+                projectId: 1,
+                type: "translate",
+                status: "in_progress",
+                title: "French translations",
+                description: "Translate homepage",
+                languageId: "fr",
+                fileIds: [101],
+                assignees: [{ id: 1, username: "translator1" }],
+                deadline: "2026-06-01T00:00:00Z",
+                webUrl: "https://crowdin.com/project/1/tasks/2001",
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listTasks(1);
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      id: 2001,
+      title: "French translations",
+      status: "in_progress",
+    });
+  });
+
+  it("lists project language progress", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                languageId: "fr",
+                words: { total: 100, translated: 80, approved: 60 },
+                phrases: { total: 50, translated: 40, approved: 30 },
+                translationProgress: 80,
+                approvalProgress: 60,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const progress = await client.listProjectLanguageProgress(1);
+
+    expect(progress).toHaveLength(1);
+    expect(progress[0]).toMatchObject({
+      languageId: "fr",
+      translationProgress: 80,
+      approvalProgress: 60,
+    });
+  });
 });

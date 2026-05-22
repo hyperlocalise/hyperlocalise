@@ -32,6 +32,83 @@ export interface CrowdinProjectWithDetails extends CrowdinProject {
   branches: CrowdinBranch[];
 }
 
+export interface CrowdinDirectory {
+  id: number;
+  branchId: number | null;
+  directoryId: number | null;
+  name: string;
+  title: string | null;
+  exportPattern: string | null;
+  path: string;
+}
+
+export interface CrowdinFile {
+  id: number;
+  branchId: number | null;
+  directoryId: number | null;
+  name: string;
+  title: string | null;
+  type: string;
+  path: string;
+  status: string;
+  revisionId: number;
+}
+
+export interface CrowdinFileRevision {
+  id: number;
+  fileId: number;
+  projectId: number;
+  info: {
+    sourceLanguageId: string;
+    addedStrings: number;
+    removedStrings: number;
+    updatedStrings: number;
+  };
+}
+
+export interface CrowdinSourceString {
+  id: number;
+  projectId: number;
+  fileId: number | null;
+  branchId: number | null;
+  directoryId: number | null;
+  identifier: string;
+  text: string | Record<string, string>;
+  type: string;
+  context: string | null;
+  labelIds: number[] | null;
+}
+
+export interface CrowdinTask {
+  id: number;
+  projectId: number;
+  type: string;
+  status: string;
+  title: string;
+  description: string | null;
+  languageId: string | null;
+  fileIds: number[] | null;
+  assignees: Array<{ id: number; username: string }> | null;
+  deadline: string | null;
+  webUrl: string;
+}
+
+export interface CrowdinLanguageProgress {
+  languageId: string;
+  words: {
+    total: number;
+    translated: number;
+    approved: number;
+  };
+  phrases: {
+    total: number;
+    translated: number;
+    approved: number;
+  };
+  translationProgress: number;
+  approvalProgress: number;
+}
+
 interface CrowdinListResponse<T> {
   data: Array<{ data: T }>;
   pagination?: {
@@ -123,6 +200,169 @@ export class CrowdinApiClient {
     }
 
     return branches;
+  }
+
+  /**
+   * List directories for a given project, optionally filtered by branch.
+   */
+  async listDirectories(projectId: number, branchId?: number): Promise<CrowdinDirectory[]> {
+    const directories: CrowdinDirectory[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    const branchParam = branchId !== undefined ? `&branchId=${branchId}` : "";
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinDirectory>>(
+        `/projects/${projectId}/directories?limit=${limit}&offset=${offset}${branchParam}`,
+      );
+      const page = response.data.map((item) => item.data);
+      directories.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return directories;
+  }
+
+  /**
+   * List source files for a given project, optionally filtered by branch or directory.
+   */
+  async listFiles(
+    projectId: number,
+    branchId?: number,
+    directoryId?: number,
+  ): Promise<CrowdinFile[]> {
+    const files: CrowdinFile[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (branchId !== undefined) params.append("branchId", String(branchId));
+    if (directoryId !== undefined) params.append("directoryId", String(directoryId));
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinFile>>(
+        `/projects/${projectId}/files?${params.toString()}`,
+      );
+      const page = response.data.map((item) => item.data);
+      files.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+      params.set("offset", String(offset));
+    }
+
+    return files;
+  }
+
+  /**
+   * List revisions for a given source file.
+   */
+  async listFileRevisions(projectId: number, fileId: number): Promise<CrowdinFileRevision[]> {
+    const revisions: CrowdinFileRevision[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinFileRevision>>(
+        `/projects/${projectId}/files/${fileId}/revisions?limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      revisions.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return revisions;
+  }
+
+  /**
+   * List source strings for a given project, optionally filtered by file.
+   */
+  async listSourceStrings(projectId: number, fileId?: number): Promise<CrowdinSourceString[]> {
+    const strings: CrowdinSourceString[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    const fileParam = fileId !== undefined ? `&fileId=${fileId}` : "";
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinSourceString>>(
+        `/projects/${projectId}/strings?limit=${limit}&offset=${offset}${fileParam}`,
+      );
+      const page = response.data.map((item) => item.data);
+      strings.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return strings;
+  }
+
+  /**
+   * List tasks for a given project.
+   */
+  async listTasks(projectId: number): Promise<CrowdinTask[]> {
+    const tasks: CrowdinTask[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinTask>>(
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      tasks.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return tasks;
+  }
+
+  /**
+   * Get translation progress for each target language in a project.
+   */
+  async listProjectLanguageProgress(projectId: number): Promise<CrowdinLanguageProgress[]> {
+    const progress: CrowdinLanguageProgress[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinLanguageProgress>>(
+        `/projects/${projectId}/languages/progress?limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      progress.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return progress;
   }
 
   private async get<T>(path: string): Promise<T> {
