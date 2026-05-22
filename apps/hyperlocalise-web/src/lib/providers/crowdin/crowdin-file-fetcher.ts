@@ -61,7 +61,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
       if (error instanceof CrowdinApiError && error.status === 401) {
         throw new Error("crowdin_auth_invalid");
       }
-      // Continue with other branches if one fails
+      throw error;
     }
   }
 
@@ -73,6 +73,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
     }
+    throw error;
   }
 
   const results: Awaited<ReturnType<ExternalTmsFileKeyFetcher>> = [];

@@ -191,4 +191,69 @@ describe("fetchCrowdinFileKeys", () => {
       }),
     ).rejects.toThrow("crowdin_auth_invalid");
   });
+
+  it("throws when a branch directory fetch fails", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/branches?")) {
+        return new Response(
+          JSON.stringify({
+            data: [{ data: { id: 10, name: "main", title: "Main" } }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/directories?") && path.includes("branchId=10")) {
+        return new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
+          status: 429,
+        });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      fetchCrowdinFileKeys({
+        organizationId: "org-1",
+        projectId: "project-1",
+        providerKind: "crowdin",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+      }),
+    ).rejects.toThrow("Crowdin API returned HTTP 429");
+  });
+
+  it("throws when the root file fetch fails", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/files?") && !path.includes("branchId=")) {
+        return new Response(JSON.stringify({ error: { message: "Unavailable" } }), {
+          status: 503,
+        });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      fetchCrowdinFileKeys({
+        organizationId: "org-1",
+        projectId: "project-1",
+        providerKind: "crowdin",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+      }),
+    ).rejects.toThrow("Crowdin API returned HTTP 503");
+  });
 });
