@@ -557,4 +557,269 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(summary?.validationMessage).toBe("Provider rejected the stored credential.");
     expect(summary?.lastValidatedAt).not.toBeNull();
   });
+
+  it("syncs crowdin projects and normalizes them into connected project records", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1,
+                  name: "Marketing Website",
+                  identifier: "marketing-website",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["fr", "de"],
+                  webUrl: "https://crowdin.com/project/marketing-website",
+                  isSuspended: false,
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.endsWith("/projects/1")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 1,
+              name: "Marketing Website",
+              identifier: "marketing-website",
+              sourceLanguageId: "en",
+              targetLanguageIds: ["fr", "de"],
+              webUrl: "https://crowdin.com/project/marketing-website",
+              isSuspended: false,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes("/projects/1/branches")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              { data: { id: 10, name: "main", title: "Main" } },
+              { data: { id: 11, name: "develop", title: null } },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      externalTmsProjectSync: {
+        status: string;
+        counts: {
+          projectsDiscovered: number;
+          projectsSynced: number;
+          projectsFailed: number;
+          localesSynced: number;
+        };
+      };
+    };
+    expect(data.externalTmsProjectSync.status).toBe("succeeded");
+    expect(data.externalTmsProjectSync.counts).toEqual({
+      projectsDiscovered: 1,
+      projectsSynced: 1,
+      projectsFailed: 0,
+      localesSynced: 3,
+    });
+
+    const projects = await db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.projects.externalProviderKind, "crowdin"),
+        ),
+      );
+
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      name: "Marketing Website",
+      sourceLocale: "en",
+      targetLocales: ["fr", "de"],
+      externalProjectId: "1",
+      externalProjectUrl: "https://crowdin.com/project/marketing-website",
+      isActive: true,
+      source: "external_tms",
+    });
+
+    const metadata = projects[0]?.providerMetadata as Record<string, unknown>;
+    expect(metadata.identifier).toBe("marketing-website");
+    expect(metadata.branches).toEqual([
+      { id: 10, name: "main", title: "Main" },
+      { id: 11, name: "develop", title: null },
+    ]);
+  });
+
+  it("returns 404 when syncing projects without a stored credential", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_credential_not_found",
+    });
+  });
+
+  it("records a failed sync run when crowdin auth is invalid", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            error: { code: 401, message: "Unauthorized" },
+          }),
+          { status: 401 },
+        );
+      }
+      return new Response("Not Found", { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "invalid-token",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(500);
+
+    const runs = await db
+      .select()
+      .from(schema.providerSyncRuns)
+      .where(
+        and(
+          eq(schema.providerSyncRuns.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.providerSyncRuns.providerKind, "crowdin"),
+          eq(schema.providerSyncRuns.kind, "project_scan"),
+        ),
+      );
+
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.status).toBe("failed");
+  });
+
+  it("returns 501 for providers that do not yet support project sync", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "phrase",
+      displayName: "Phrase",
+      secretMaterial: "phrase-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "phrase",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(501);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_sync_not_implemented",
+    });
+  });
+
+  it("blocks non-admin project sync requests", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
+    });
+  });
 });

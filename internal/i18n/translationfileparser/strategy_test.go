@@ -43,6 +43,34 @@ func TestStrategyParsesJSONC(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesYAML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.yaml", []byte("hello: bonjour\nhome:\n  title: Accueil\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["home.title"] != "Accueil" {
+		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
+	}
+}
+
+func TestStrategyParsesYML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.yml", []byte("hello: bonjour\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
 func TestStrategyParsesARB(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -322,7 +350,7 @@ func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.yaml", []byte(""))
+	_, err := s.Parse("fr.toml", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}

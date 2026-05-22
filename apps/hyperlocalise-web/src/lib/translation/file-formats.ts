@@ -1,6 +1,7 @@
 export const supportedTranslationFileFormats = [
   "json",
   "jsonc",
+  "yaml",
   "arb",
   "xliff",
   "po",
@@ -20,6 +21,7 @@ export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFor
 export const supportedFileTranslationFileFormats = [
   "json",
   "jsonc",
+  "yaml",
   "arb",
   "xliff",
   "po",
@@ -37,6 +39,8 @@ export type SupportedFileTranslationFileFormat =
 const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".json": "json",
   ".jsonc": "jsonc",
+  ".yaml": "yaml",
+  ".yml": "yaml",
   ".arb": "arb",
   ".xlf": "xliff",
   ".xlif": "xliff",
