@@ -38,14 +38,14 @@ const authorizationQuerySchema = z.object({
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
   z.object({
     grant_type: z.literal("authorization_code"),
-    code: z.string().min(1).max(2048),
+    code: z.string().min(1).max(8192),
     redirect_uri: z.url().max(2048),
     client_id: z.string().min(1).max(128),
     code_verifier: z.string().min(43).max(128),
   }),
   z.object({
     grant_type: z.literal("refresh_token"),
-    refresh_token: z.string().min(1).max(2048),
+    refresh_token: z.string().min(1).max(8192),
     client_id: z.string().min(1).max(128).optional(),
   }),
 ]);
