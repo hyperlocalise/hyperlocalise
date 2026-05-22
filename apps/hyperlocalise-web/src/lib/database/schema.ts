@@ -87,6 +87,24 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "lokalise",
 ]);
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
+export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
+  "project_scan",
+  "file_key_scan",
+  "job_task_scan",
+  "context_scan",
+  "tm_scan",
+  "glossary_scan",
+  "pull_content",
+  "push_translations",
+  "webhook",
+  "health_check",
+]);
+export const providerSyncRunStatusEnum = pgEnum("provider_sync_run_status", [
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -644,6 +662,73 @@ export const organizationExternalTmsProviderCredentials = pgTable(
       table.providerKind,
     ),
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const providerSyncRuns = pgTable(
+  "provider_sync_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    kind: providerSyncRunKindEnum("kind").notNull(),
+    status: providerSyncRunStatusEnum("status").notNull().default("running"),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    externalProjectId: text("external_project_id"),
+    resourceType: text("resource_type"),
+    resourceId: text("resource_id"),
+    externalResourceId: text("external_resource_id"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    errorMessage: text("error_message"),
+    errorDetails: jsonb("error_details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    counts: jsonb("counts")
+      .$type<Record<string, number>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    providerMetadata: jsonb("provider_metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_provider_sync_runs_org_started").on(table.organizationId, table.startedAt),
+    index("idx_provider_sync_runs_org_provider_started").on(
+      table.organizationId,
+      table.providerKind,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_kind_started").on(
+      table.organizationId,
+      table.kind,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_project_started").on(
+      table.organizationId,
+      table.projectId,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_org_resource_started").on(
+      table.organizationId,
+      table.resourceType,
+      table.resourceId,
+      table.startedAt,
+    ),
+    index("idx_provider_sync_runs_status").on(table.status),
   ],
 );
 
