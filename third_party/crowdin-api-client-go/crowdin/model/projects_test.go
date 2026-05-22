@@ -31,12 +31,17 @@ func TestProjectsListOptionsValues(t *testing.T) {
 			out:  "type=0",
 		},
 		{
+			name: "with groupId = 0",
+			opts: &ProjectsListOptions{GroupID: toPtr(0)},
+			out:  "groupId=0",
+		},
+		{
 			name: "with all options",
 			opts: &ProjectsListOptions{
 				OrderBy: "createdAt desc,name,id", UserID: 1, HasManagerAccess: toPtr(1),
-				Type: toPtr(1), ListOptions: ListOptions{Offset: 1, Limit: 10},
+				Type: toPtr(1), GroupID: toPtr(2), ListOptions: ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "hasManagerAccess=1&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cid&type=1&userId=1",
+			out: "groupId=2&hasManagerAccess=1&limit=10&offset=1&orderBy=createdAt+desc%2Cname%2Cid&type=1&userId=1",
 		},
 	}
 

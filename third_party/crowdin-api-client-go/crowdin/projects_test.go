@@ -209,7 +209,10 @@ func TestProjectsService_Get(t *testing.T) {
 				"textDirection": "ltr",
 				"dialectOf": null
 			},
-			"tmContextType": "segmentContext"
+			"tmContextType": "segmentContext",
+			"templateId": 10,
+			"vendorId": 11,
+			"mtEngineId": 12
 		}
 	}`
 
@@ -405,6 +408,9 @@ func TestProjectsService_Get(t *testing.T) {
 		TMContextType:          "segmentContext",
 		Background:             "data:image/png;base64,iVBORw0KGgo",
 		AssistActionAiPromptID: 0,
+		TemplateID:             10,
+		VendorID:               11,
+		MTEngineID:             12,
 	}
 	assert.Equal(t, expectedProjects, project)
 }

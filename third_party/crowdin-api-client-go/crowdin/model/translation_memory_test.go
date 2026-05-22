@@ -21,12 +21,17 @@ func TestTranslationMemoriesListOptionsValues(t *testing.T) {
 			opts: &TranslationMemoriesListOptions{},
 		},
 		{
+			name: "with groupId = 0",
+			opts: &TranslationMemoriesListOptions{GroupID: toPtr(0)},
+			out:  "groupId=0",
+		},
+		{
 			name: "all options",
 			opts: &TranslationMemoriesListOptions{
-				OrderBy: "createdAt desc,name", UserID: 1,
+				OrderBy: "createdAt desc,name", UserID: 1, GroupID: toPtr(2),
 				ListOptions: ListOptions{Limit: 10, Offset: 5},
 			},
-			out: "limit=10&offset=5&orderBy=createdAt+desc%2Cname&userId=1",
+			out: "groupId=2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&userId=1",
 		},
 	}
 
