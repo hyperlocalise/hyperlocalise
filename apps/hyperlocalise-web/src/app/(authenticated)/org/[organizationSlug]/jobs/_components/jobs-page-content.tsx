@@ -122,14 +122,32 @@ function assignees(job: ApiJob) {
   return "—";
 }
 
+function formatJobName(value: string) {
+  return value.slice(0, 72);
+}
+
+function getInputPayloadString(job: ApiJob, key: string) {
+  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
+    return null;
+  }
+  const value = (job.inputPayload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function getJobName(job: ApiJob) {
-  if (job.externalTitle) return job.externalTitle;
+  if (job.externalTitle) return formatJobName(job.externalTitle);
   if (job.kind === "review" && job.reviewCriteria)
-    return `Review: ${job.reviewCriteria}`.slice(0, 72);
+    return formatJobName(`Review: ${job.reviewCriteria}`);
   if (job.kind === "sync" && job.syncConnectorKind)
-    return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`.slice(0, 72);
+    return formatJobName(`${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`);
   if (job.kind === "asset_management" && job.assetType)
-    return `${job.assetOperation ?? "manage"} ${job.assetType}`.slice(0, 72);
+    return formatJobName(`${job.assetOperation ?? "manage"} ${job.assetType}`);
+  const researchScope = getInputPayloadString(job, "scope");
+  if (job.kind === "research" && researchScope) return formatJobName(`Research: ${researchScope}`);
+  const sourceText = getInputPayloadString(job, "sourceText");
+  if (sourceText) return formatJobName(sourceText);
+  const sourceFileId = getInputPayloadString(job, "sourceFileId");
+  if (sourceFileId) return formatJobName(sourceFileId);
   return job.id;
 }
 
@@ -140,23 +158,26 @@ function formatJobKind(job: ApiJob) {
 
 function JobsStats({ jobs }: { jobs: JobRow[] }) {
   const metrics = useMemo(() => {
-    const providerCount = jobs.filter((job) => job.externalProviderKind).length;
+    const runningCount = jobs.filter((job) => job.status === "running").length;
+    const queuedCount = jobs.filter((job) => job.status === "queued").length;
+    const failedCount = jobs.filter((job) => job.status === "failed").length;
+
     return [
       {
-        label: "Provider synced",
-        value: `${providerCount}`,
-        detail: "external jobs/tasks",
+        label: "Running jobs",
+        value: `${runningCount}`,
+        detail: "active now",
         tone: "info" as const,
       },
       {
-        label: "Running jobs",
-        value: `${jobs.filter((job) => job.status === "running").length}`,
-        detail: "active now",
+        label: "Queued jobs",
+        value: `${queuedCount}`,
+        detail: "waiting",
         tone: "watch" as const,
       },
       {
         label: "Failed jobs",
-        value: `${jobs.filter((job) => job.status === "failed").length}`,
+        value: `${failedCount}`,
         detail: "needs review",
         tone: "risk" as const,
       },
@@ -185,6 +206,12 @@ function JobsList({
     return (
       <div className="px-3 py-8">
         <TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+        >
+          <span>Connect a TMS provider to import existing jobs</span>
+        </Link>
       </div>
     );
   }
