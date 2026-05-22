@@ -91,7 +91,7 @@ const glossaryMetrics = [
   { label: "Conflicts", value: "11", detail: "need reviewer input", tone: "watch" },
 ] as const;
 
-export function GlossariesPageContent() {
+export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="space-y-5">
       <PageHeader
@@ -104,7 +104,10 @@ export function GlossariesPageContent() {
       <MetricsGrid metrics={glossaryMetrics} />
       <div className="flex items-center gap-2 text-sm text-foreground/54">
         <span>Synced provider glossaries will appear here alongside workspace glossaries.</span>
-        <Link href="integrations" className="inline-flex items-center gap-1 hover:text-foreground">
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
           <span>Connect a provider</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Link>

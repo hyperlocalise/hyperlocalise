@@ -108,7 +108,7 @@ function MarkdownBlock({ markdown }: { markdown: string }) {
   );
 }
 
-export function ContextPageContent() {
+export function ContextPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <PageHeader
@@ -123,7 +123,10 @@ export function ContextPageContent() {
 
       <div className="flex items-center gap-2 text-sm text-foreground/54">
         <span>Provider context from connected TMS systems will appear here.</span>
-        <Link href="integrations" className="inline-flex items-center gap-1 hover:text-foreground">
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
           <span>Connect a provider</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Link>

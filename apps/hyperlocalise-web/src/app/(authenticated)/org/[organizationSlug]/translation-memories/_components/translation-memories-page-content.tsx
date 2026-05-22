@@ -52,7 +52,7 @@ const memories = [
   },
 ] as const;
 
-export function TranslationMemoriesPageContent() {
+export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="space-y-5">
       <PageHeader
@@ -69,7 +69,10 @@ export function TranslationMemoriesPageContent() {
         <span>
           Synced provider translation memories will appear here alongside workspace memories.
         </span>
-        <Link href="integrations" className="inline-flex items-center gap-1 hover:text-foreground">
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
           <span>Connect a provider</span>
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Link>
