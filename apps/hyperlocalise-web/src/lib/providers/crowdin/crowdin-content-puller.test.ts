@@ -74,10 +74,23 @@ describe("pullCrowdinTaskContent", () => {
         );
       }
 
-      if (path.includes("/projects/42/translations?") && path.includes("stringId=1001")) {
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
         return new Response(
           JSON.stringify({
-            data: [{ data: { id: 9001, text: "Bonjour", createdAt: "2026-05-22T00:00:00Z" } }],
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9001,
+                  text: "Bonjour",
+                  createdAt: "2026-05-22T00:00:00Z",
+                },
+              },
+            ],
           }),
           { status: 200 },
         );
@@ -88,9 +101,9 @@ describe("pullCrowdinTaskContent", () => {
       }
 
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
-    }) as unknown as typeof fetch;
+    });
 
-    globalThis.fetch = fetchMock;
+    globalThis.fetch = fetchMock as typeof fetch;
 
     const result = await pullCrowdinTaskContent({
       organizationId: "org_1",
@@ -113,5 +126,15 @@ describe("pullCrowdinTaskContent", () => {
       sourceText: "Hello",
       translations: [{ locale: "fr", text: "Bonjour", isApproved: true }],
     });
+
+    const languageTranslationCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes("/projects/42/languages/fr/translations?"),
+    );
+    expect(languageTranslationCalls).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).includes("/projects/42/translations?stringId="),
+      ),
+    ).toBe(false);
   });
 });

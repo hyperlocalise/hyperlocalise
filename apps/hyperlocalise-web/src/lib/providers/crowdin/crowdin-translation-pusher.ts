@@ -80,8 +80,19 @@ export const pushCrowdinTranslations: ExternalTmsTranslationPusher = async ({
       entries: [],
     };
 
+    const entryKey = translation.key ?? translation.externalStringId;
+    if (!entryKey) {
+      failed += 1;
+      failures.push({
+        locale: translation.locale,
+        fileId: translation.fileId ?? null,
+        message: "crowdin_translation_missing_key",
+      });
+      continue;
+    }
+
     existing.entries.push({
-      key: translation.key ?? translation.externalStringId ?? "unknown",
+      key: entryKey,
       text: translation.text,
     });
     groups.set(key, existing);

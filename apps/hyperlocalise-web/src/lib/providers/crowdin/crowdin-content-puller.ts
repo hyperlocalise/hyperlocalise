@@ -69,34 +69,53 @@ export const pullCrowdinTaskContent: ExternalTmsContentPuller = async ({
   const approvals = await client.listTranslationApprovals(projectId, targetLanguageId);
   const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
-  const units: Awaited<ReturnType<ExternalTmsContentPuller>>["units"] = [];
+  const translationsByStringId = new Map<
+    number,
+    Awaited<ReturnType<typeof client.listLanguageTranslations>>
+  >();
+  const sourceStringIds = sourceStrings.map((sourceString) => sourceString.id);
 
-  for (const sourceString of sourceStrings) {
-    const translations = await client.listStringTranslations(
-      projectId,
-      sourceString.id,
-      targetLanguageId,
-    );
-
-    units.push({
-      externalStringId: String(sourceString.id),
-      key: sourceString.identifier,
-      sourceText: sourceTextValue(sourceString.text),
-      context: sourceString.context,
-      fileId: sourceString.fileId ? String(sourceString.fileId) : null,
-      translations: translations.map((translation) => ({
-        locale: targetLanguageId,
-        text: translation.text,
-        externalTranslationId: String(translation.id),
-        isApproved: approvedTranslationIds.has(translation.id),
-      })),
-      providerPayload: {
-        type: sourceString.type,
-        branchId: sourceString.branchId,
-        directoryId: sourceString.directoryId,
-      },
+  for (const chunk of chunkArray(sourceStringIds, 25)) {
+    const batch = await client.listLanguageTranslations(projectId, targetLanguageId, {
+      stringIds: chunk,
     });
+
+    for (const translation of batch) {
+      const existing = translationsByStringId.get(translation.stringId) ?? [];
+      existing.push(translation);
+      translationsByStringId.set(translation.stringId, existing);
+    }
   }
+
+  const units: Awaited<ReturnType<ExternalTmsContentPuller>>["units"] = sourceStrings.map(
+    (sourceString) => {
+      const translations = translationsByStringId.get(sourceString.id) ?? [];
+
+      return {
+        externalStringId: String(sourceString.id),
+        key: sourceString.identifier,
+        sourceText: sourceTextValue(sourceString.text),
+        context: sourceString.context,
+        fileId: sourceString.fileId ? String(sourceString.fileId) : null,
+        translations: translations
+          .filter((translation) => translation.text != null)
+          .map((translation) => ({
+            locale: targetLanguageId,
+            text: translation.text as string,
+            externalTranslationId:
+              translation.translationId != null ? String(translation.translationId) : null,
+            isApproved:
+              translation.translationId != null &&
+              approvedTranslationIds.has(translation.translationId),
+          })),
+        providerPayload: {
+          type: sourceString.type,
+          branchId: sourceString.branchId,
+          directoryId: sourceString.directoryId,
+        },
+      };
+    },
+  );
 
   let exportArtifact: Awaited<ReturnType<ExternalTmsContentPuller>>["exportArtifact"] = null;
   try {

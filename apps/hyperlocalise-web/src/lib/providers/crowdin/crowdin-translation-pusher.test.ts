@@ -185,4 +185,60 @@ describe("pushCrowdinTranslations", () => {
     expect(result.asyncOperations).toEqual([]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("reports missing translation keys as failures", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.endsWith("/projects/42/tasks/2001")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 2001,
+              projectId: 42,
+              type: 0,
+              status: "in_progress",
+              title: "French task",
+              description: null,
+              targetLanguageId: "fr",
+              languageId: "fr",
+              fileIds: [101],
+              webUrl: "https://crowdin.com/project/42/tasks/2001",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await pushCrowdinTranslations({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "crowdin",
+      externalProjectId: "42",
+      externalJobId: "2001",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      } as never,
+      project: {} as never,
+      secretMaterial: "token",
+      translations: [{ locale: "fr", text: "Bonjour", fileId: "101" }],
+    });
+
+    expect(result.uploaded).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.failures).toEqual([
+      {
+        locale: "fr",
+        fileId: "101",
+        message: "crowdin_translation_missing_key",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
