@@ -301,7 +301,7 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 			}
 			hex := s.text[i+1 : i+1+end]
 			v, err := strconv.ParseInt(hex, 16, 32)
-			if err != nil {
+			if err != nil || v > 0x10FFFF {
 				return phpStringToken{}, fmt.Errorf("php locale array: invalid unicode escape at line %d", lineNumberAt(s.text, i-2))
 			}
 			b.WriteRune(rune(v))
