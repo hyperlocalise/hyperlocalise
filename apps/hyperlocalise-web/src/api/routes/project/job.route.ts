@@ -681,10 +681,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           kind: actionDefinition.agentRunKind,
           actorUserId: c.var.auth.user.localUserId,
           inputSnapshot: {
+            ...actionDefinition.inputSnapshot,
             action: payload.action,
             hyperlocaliseJobId: job.id,
             projectId: job.projectId,
-            ...actionDefinition.inputSnapshot,
           },
           hyperlocaliseJobId: job.id,
         });

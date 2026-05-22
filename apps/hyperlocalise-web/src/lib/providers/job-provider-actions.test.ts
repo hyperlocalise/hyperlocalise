@@ -16,7 +16,7 @@ describe("job provider actions", () => {
     expect(isJobProviderActionAvailable("crowdin", "translate_with_agent")).toBe(true);
   });
 
-  it("hides phrase QA fix when QA is unsupported", () => {
+  it("shows phrase QA fix as disabled when QA is unsupported", () => {
     const actions = getJobProviderActionAvailability("phrase");
     const qaFix = actions.find((action) => action.id === "fix_qa_issues");
 

@@ -1,15 +1,16 @@
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
-import { jobProviderActionDefinitions } from "@/lib/providers/job-provider-actions";
+import {
+  jobProviderActionDefinitions,
+  type JobProviderActionId,
+} from "@/lib/providers/job-provider-actions";
 
-export const jobProviderActionIdSchema = z.enum([
-  "translate_with_agent",
-  "review_with_agent",
-  "fix_qa_issues",
-  "leave_provider_comment",
-  "push_approved_changes",
-]);
+export const supportedJobProviderActionIds = jobProviderActionDefinitions.map(
+  (action) => action.id,
+) as [JobProviderActionId, ...JobProviderActionId[]];
+
+export const jobProviderActionIdSchema = z.enum(supportedJobProviderActionIds);
 
 export const createJobAgentRunBodySchema = z.object({
   action: jobProviderActionIdSchema,
@@ -76,7 +77,3 @@ export type AgentRunRecord = z.infer<typeof agentRunRecordSchema>;
 export type JobProviderActionAvailabilityRecord = z.infer<
   typeof jobProviderActionAvailabilitySchema
 >;
-
-export const supportedJobProviderActionIds = jobProviderActionDefinitions.map(
-  (action) => action.id,
-);

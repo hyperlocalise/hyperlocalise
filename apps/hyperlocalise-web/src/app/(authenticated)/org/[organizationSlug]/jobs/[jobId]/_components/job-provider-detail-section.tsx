@@ -307,7 +307,7 @@ export function JobProviderDetailSection({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium capitalize text-foreground/82">
-                    {run.kind.replace("_", " ")}
+                    {run.kind.replaceAll("_", " ")}
                   </p>
                   <p className="text-xs text-foreground/48">Started {formatDate(run.createdAt)}</p>
                 </div>
