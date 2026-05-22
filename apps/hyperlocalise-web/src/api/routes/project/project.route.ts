@@ -248,7 +248,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
       const projects = await projectStore.list(c.var.auth);
-      return c.json({ projects }, 200);
+
+      const projectIds = projects.map((p) => p.id);
+      const openJobCounts =
+        projectIds.length > 0
+          ? await db
+              .select({
+                projectId: schema.jobs.projectId,
+                count: sql<number>`count(*)`.mapWith(Number),
+              })
+              .from(schema.jobs)
+              .where(
+                and(
+                  eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
+                  inArray(schema.jobs.projectId, projectIds),
+                  inArray(schema.jobs.status, ["queued", "running", "waiting_for_review"]),
+                ),
+              )
+              .groupBy(schema.jobs.projectId)
+          : [];
+
+      const openJobCountByProjectId = new Map(
+        openJobCounts.map((row) => [row.projectId, row.count]),
+      );
+
+      const projectsWithJobCounts = projects.map((project) => ({
+        ...project,
+        openJobCount: openJobCountByProjectId.get(project.id) ?? 0,
+      }));
+
+      return c.json({ projects: projectsWithJobCounts }, 200);
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {

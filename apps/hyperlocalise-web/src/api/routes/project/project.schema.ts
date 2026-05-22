@@ -33,8 +33,19 @@ export const projectRecordSchema = z.object({
   name: z.string(),
   description: z.string(),
   translationContext: z.string(),
+  source: z.enum(["native", "external_tms"]),
+  externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
+  externalProjectId: z.string().nullable(),
+  sourceLocale: z.string().nullable(),
+  targetLocales: z.array(z.string()),
+  externalProjectUrl: z.string().nullable(),
+  isActive: z.boolean(),
+  lastSyncedAt: z.string().nullable(),
+  lastSyncErrorAt: z.string().nullable(),
+  lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  openJobCount: z.number().int().optional(),
 });
 
 export const projectResponseSchema = z.object({
