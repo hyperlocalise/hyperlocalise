@@ -1,3 +1,4 @@
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { IntegrationsPageContent } from "./_components/integrations-page-content";
 
 export default async function IntegrationsPage({
@@ -6,6 +7,12 @@ export default async function IntegrationsPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
+  const auth = await requireAppAuthContext({ organizationSlug });
 
-  return <IntegrationsPageContent organizationSlug={organizationSlug} />;
+  return (
+    <IntegrationsPageContent
+      organizationSlug={organizationSlug}
+      membershipRole={auth.membership.role}
+    />
+  );
 }
