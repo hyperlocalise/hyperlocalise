@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -102,7 +102,7 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
   const lastSyncs = await db
     .select({
       providerKind: schema.providerSyncRuns.providerKind,
-      completedAt: schema.providerSyncRuns.completedAt,
+      completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`,
     })
     .from(schema.providerSyncRuns)
     .where(
@@ -113,14 +113,11 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
         inArray(schema.providerSyncRuns.providerKind, providerKinds),
       ),
     )
-    .orderBy(desc(schema.providerSyncRuns.completedAt));
+    .groupBy(schema.providerSyncRuns.providerKind);
 
-  const lastSyncByProvider: Record<string, string | null> = {};
-  for (const row of lastSyncs) {
-    if (lastSyncByProvider[row.providerKind] === undefined) {
-      lastSyncByProvider[row.providerKind] = row.completedAt?.toISOString() ?? null;
-    }
-  }
+  const lastSyncByProvider = Object.fromEntries(
+    lastSyncs.map((row) => [row.providerKind, row.completedAt?.toISOString() ?? null]),
+  ) as Record<string, string | null>;
 
   return credentials.map((credential) => ({
     ...credential,

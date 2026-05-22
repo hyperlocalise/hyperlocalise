@@ -67,6 +67,32 @@ function isAdmin(role: OrganizationMembershipRole) {
   return role === "owner" || role === "admin";
 }
 
+function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
+  switch (status) {
+    case "connected":
+      return "safe";
+    case "degraded":
+      return "watch";
+    case "error":
+      return "risk";
+    default:
+      return "info";
+  }
+}
+
+function tmsHealthLabel(status: string) {
+  switch (status) {
+    case "connected":
+      return "Connected";
+    case "degraded":
+      return "Degraded";
+    case "error":
+      return "Error";
+    default:
+      return "Unvalidated";
+  }
+}
+
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 function formatRelativeTime(value: string | null) {
@@ -644,32 +670,6 @@ export function IntegrationsPageContent({
                 (c) => c.providerKind === integration.providerKind,
               );
               const isConnected = !!credential;
-
-              function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
-                switch (status) {
-                  case "connected":
-                    return "safe";
-                  case "degraded":
-                    return "watch";
-                  case "error":
-                    return "risk";
-                  default:
-                    return "info";
-                }
-              }
-
-              function tmsHealthLabel(status: string) {
-                switch (status) {
-                  case "connected":
-                    return "Connected";
-                  case "degraded":
-                    return "Degraded";
-                  case "error":
-                    return "Error";
-                  default:
-                    return "Unvalidated";
-                }
-              }
 
               const capabilitiesExpanded = expandedCapabilities === integration.providerKind;
               const visibleCapabilities = credential
