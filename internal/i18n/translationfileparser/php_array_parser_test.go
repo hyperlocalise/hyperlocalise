@@ -107,6 +107,42 @@ return array(
 	}
 }
 
+func TestPHPArrayParserDecodesDoubleQuotedHexEscapes(t *testing.T) {
+	content := []byte(`<?php return [
+    'one_digit' => "\xA",
+    'two_digits' => "\x41",
+];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["one_digit"] != "\n" {
+		t.Fatalf("one_digit = %q, want newline", got["one_digit"])
+	}
+	if got["two_digits"] != "A" {
+		t.Fatalf("two_digits = %q, want A", got["two_digits"])
+	}
+}
+
+func TestPHPArrayParserDecodesDoubleQuotedOctalEscapes(t *testing.T) {
+	content := []byte(`<?php return [
+    'letter' => "\101",
+    'newline' => "\12",
+];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["letter"] != "A" {
+		t.Fatalf("letter = %q, want A", got["letter"])
+	}
+	if got["newline"] != "\n" {
+		t.Fatalf("newline = %q, want newline", got["newline"])
+	}
+}
+
 func TestPHPArrayParserRejectsDynamicValues(t *testing.T) {
 	tests := []struct {
 		name    string

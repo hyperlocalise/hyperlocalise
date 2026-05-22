@@ -285,12 +285,12 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 		case '\\', '"', '$':
 			b.WriteByte(escaped)
 		case 'x':
-			if i+2 > len(s.text) || !isPHPHexPair(s.text[i:i+2]) {
+			v, consumed, ok := readPHPHexEscape(s.text, i)
+			if !ok {
 				return phpStringToken{}, fmt.Errorf("php locale array: invalid hex escape at line %d", lineNumberAt(s.text, i-2))
 			}
-			v, _ := strconv.ParseUint(s.text[i:i+2], 16, 8)
-			b.WriteByte(byte(v))
-			i += 2
+			b.WriteByte(v)
+			i += consumed
 		case 'u':
 			if i >= len(s.text) || s.text[i] != '{' {
 				return phpStringToken{}, fmt.Errorf("php locale array: invalid unicode escape at line %d", lineNumberAt(s.text, i-2))
@@ -307,6 +307,15 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 			b.WriteRune(rune(v))
 			i += end + 2
 		default:
+			if isPHPOctalDigit(escaped) {
+				v, consumed, err := readPHPOctalEscape(s.text, i-1)
+				if err != nil {
+					return phpStringToken{}, fmt.Errorf("php locale array: invalid octal escape at line %d", lineNumberAt(s.text, i-2))
+				}
+				b.WriteByte(v)
+				i += consumed - 1
+				continue
+			}
 			b.WriteByte('\\')
 			b.WriteByte(escaped)
 		}
@@ -382,15 +391,39 @@ func isPHPIdentifierByte(ch byte) bool {
 	return ch == '_' || ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9'
 }
 
-func isPHPHexPair(s string) bool {
-	if len(s) != 2 {
-		return false
+func readPHPHexEscape(text string, start int) (byte, int, bool) {
+	if start >= len(text) || !isPHPHex(text[start]) {
+		return 0, 0, false
 	}
-	return isPHPHex(s[0]) && isPHPHex(s[1])
+	end := start + 1
+	if end < len(text) && isPHPHex(text[end]) {
+		end++
+	}
+	v, _ := strconv.ParseUint(text[start:end], 16, 8)
+	return byte(v), end - start, true
 }
 
 func isPHPHex(ch byte) bool {
 	return ch >= '0' && ch <= '9' || ch >= 'a' && ch <= 'f' || ch >= 'A' && ch <= 'F'
+}
+
+func readPHPOctalEscape(text string, start int) (byte, int, error) {
+	end := start
+	for end < len(text) && end-start < 3 && isPHPOctalDigit(text[end]) {
+		end++
+	}
+	if end == start {
+		return 0, 0, fmt.Errorf("missing octal digits")
+	}
+	v, err := strconv.ParseUint(text[start:end], 8, 16)
+	if err != nil || v > 0xff {
+		return 0, 0, fmt.Errorf("octal escape out of byte range")
+	}
+	return byte(v), end - start, nil
+}
+
+func isPHPOctalDigit(ch byte) bool {
+	return ch >= '0' && ch <= '7'
 }
 
 func encodePHPStringLiteral(value string, quote byte) string {
