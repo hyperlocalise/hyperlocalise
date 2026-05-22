@@ -174,7 +174,7 @@ func findJSTSLocaleExportObject(src string) (jstsExportObject, error) {
 		}
 
 		if hasJSTSKeywordAt(src, i, "export") {
-			next, found, err := parseJSTSExport(src, i, &exported, &defaultIdentifier)
+			next, found, err := parseJSTSExport(src, i, &exported, &defaultIdentifier, localObjects)
 			if err != nil {
 				return jstsExportObject{}, err
 			}
@@ -230,7 +230,7 @@ func findJSTSLocaleExportObject(src string) (jstsExportObject, error) {
 		if !ok {
 			return jstsExportObject{}, fmt.Errorf("js/ts locale module: export default %s references unsupported or missing object literal", defaultIdentifier)
 		}
-		exported = append(exported, object)
+		exported = appendUniqueJSTSExportObject(exported, object)
 	}
 
 	if len(exported) == 0 {
@@ -242,7 +242,16 @@ func findJSTSLocaleExportObject(src string) (jstsExportObject, error) {
 	return exported[0], nil
 }
 
-func parseJSTSExport(src string, start int, exported *[]jstsExportObject, defaultIdentifier *string) (int, bool, error) {
+func appendUniqueJSTSExportObject(exported []jstsExportObject, object jstsExportObject) []jstsExportObject {
+	for _, existing := range exported {
+		if existing.start == object.start && existing.end == object.end {
+			return exported
+		}
+	}
+	return append(exported, object)
+}
+
+func parseJSTSExport(src string, start int, exported *[]jstsExportObject, defaultIdentifier *string, localObjects map[string]jstsExportObject) (int, bool, error) {
 	i := skipJSTSWhitespaceAndComments(src, start+len("export"))
 	if hasJSTSKeywordAt(src, i, "default") {
 		i = skipJSTSWhitespaceAndComments(src, i+len("default"))
@@ -251,7 +260,7 @@ func parseJSTSExport(src string, start int, exported *[]jstsExportObject, defaul
 			if err != nil {
 				return start, true, err
 			}
-			*exported = append(*exported, object)
+			*exported = appendUniqueJSTSExportObject(*exported, object)
 			return object.end + 1, true, nil
 		}
 		if name, next, ok := readJSTSIdentifier(src, i); ok {
@@ -262,12 +271,13 @@ func parseJSTSExport(src string, start int, exported *[]jstsExportObject, defaul
 	}
 
 	if hasJSTSVariableKeywordAt(src, i) {
-		next, found, _, object, err := parseJSTSVariableObject(src, i)
+		next, found, name, object, err := parseJSTSVariableObject(src, i)
 		if err != nil {
 			return start, true, err
 		}
 		if found {
-			*exported = append(*exported, object)
+			localObjects[name] = object
+			*exported = appendUniqueJSTSExportObject(*exported, object)
 		}
 		return next, true, nil
 	}
@@ -1019,10 +1029,6 @@ func skipJSTSRegexLiteral(src string, index int) (int, bool) {
 	for i := index + 1; i < len(src); {
 		if _, ok := skipJSTSComment(src, i); ok {
 			return index, false
-		}
-		if isJSTSStringQuote(src[i]) {
-			i = skipJSTSStringLiteral(src, i)
-			continue
 		}
 		switch src[i] {
 		case '\\':
