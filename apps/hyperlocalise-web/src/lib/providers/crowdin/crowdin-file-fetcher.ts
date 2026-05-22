@@ -40,12 +40,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   // Also fetch directories not associated with any branch (default/root)
   try {
     const rootDirectories = await client.listDirectories(projectId);
-    for (const directory of rootDirectories) {
-      const parentPath = directory.directoryId
-        ? (directoryPathById.get(directory.directoryId) ?? "")
-        : "";
-      directoryPathById.set(directory.id, `${parentPath}${directory.name}/`);
-    }
+    buildDirectoryPaths(rootDirectories, directoryPathById);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
@@ -57,12 +52,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   for (const branch of branches) {
     try {
       const directories = await client.listDirectories(projectId, branch.id);
-      for (const directory of directories) {
-        const parentPath = directory.directoryId
-          ? (directoryPathById.get(directory.directoryId) ?? "")
-          : "";
-        directoryPathById.set(directory.id, `${parentPath}${directory.name}/`);
-      }
+      buildDirectoryPaths(directories, directoryPathById);
 
       const files = await client.listFiles(projectId, branch.id);
       allFiles.push(...files);
@@ -77,7 +67,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
   // Also fetch files not associated with any branch (default/root)
   try {
     const rootFiles = await client.listFiles(projectId);
-    allFiles.push(...rootFiles);
+    allFiles.push(...rootFiles.filter((f) => f.branchId === null));
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
@@ -149,6 +139,37 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
 
   return results;
 };
+
+function buildDirectoryPaths(
+  directories: Array<{ id: number; directoryId: number | null; name: string }>,
+  directoryPathById: Map<number, string>,
+): void {
+  const infoById = new Map<number, { directoryId: number | null; name: string }>();
+  for (const directory of directories) {
+    infoById.set(directory.id, { directoryId: directory.directoryId, name: directory.name });
+  }
+
+  for (const directory of directories) {
+    directoryPathById.set(directory.id, resolveDirectoryPath(directory.id, infoById));
+  }
+}
+
+function resolveDirectoryPath(
+  directoryId: number,
+  infoById: Map<number, { directoryId: number | null; name: string }>,
+): string {
+  const parts: string[] = [];
+  let currentId: number | null = directoryId;
+
+  while (currentId !== null) {
+    const info = infoById.get(currentId);
+    if (!info) break;
+    parts.unshift(info.name);
+    currentId = info.directoryId;
+  }
+
+  return parts.length > 0 ? `${parts.join("/")}/` : "";
+}
 
 function sourcePathOf(
   file: { branchId: number | null; directoryId: number | null; name: string },
