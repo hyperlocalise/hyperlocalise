@@ -321,10 +321,8 @@ function TmsIntegrationRow({
   const isConnected = !!credential;
 
   return (
-    <div
-      className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-foreground/8")}
-    >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
+    <div className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-border")}>
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2">
         <Image
           src={integration.logo}
           alt=""
@@ -352,30 +350,19 @@ function TmsIntegrationRow({
             </Badge>
           ) : null}
         </div>
-        <p className="mt-0.5 text-sm leading-6 text-foreground/52">{integration.detail}</p>
+        <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
       </div>
 
       <div className="shrink-0">
         {userIsAdmin ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-md border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-            onClick={onAction}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={onAction}>
             {isConnected ? "Manage" : "Connect"}
             <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
           </Button>
         ) : isConnected ? (
-          <Badge
-            variant="outline"
-            className="border-foreground/10 bg-foreground/5 text-foreground/34"
-          >
-            View only
-          </Badge>
+          <Badge variant="outline">View only</Badge>
         ) : (
-          <span className="text-sm text-foreground/42">Admins can connect</span>
+          <span className="text-sm text-muted-foreground">Admins can connect</span>
         )}
       </div>
     </div>
@@ -403,21 +390,18 @@ function ModelProviderCard({
       onClick={onSelect}
       disabled={disabled}
       className={cn(
-        "group relative flex min-h-44 w-full flex-col rounded-lg border bg-foreground/2.5 p-5 text-left transition-colors",
-        "hover:bg-foreground/4 disabled:cursor-not-allowed disabled:opacity-60",
-        isActive ? "border-foreground" : "border-foreground/8",
+        "group relative flex min-h-44 w-full flex-col rounded-lg border border-border bg-card p-5 text-left text-card-foreground transition-colors",
+        "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60",
+        isActive && "border-foreground",
       )}
     >
       {isActive ? (
-        <Badge
-          variant="outline"
-          className="absolute top-4 right-4 border-foreground/10 bg-foreground/8 text-[10px] text-foreground/72"
-        >
+        <Badge variant="outline" className="absolute top-4 right-4 text-[10px]">
           Active
         </Badge>
       ) : null}
 
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2">
         <Image
           src={provider.logo}
           alt=""
@@ -430,18 +414,15 @@ function ModelProviderCard({
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="text-base font-medium text-foreground">{provider.label}</span>
         {isManaged ? (
-          <Badge
-            variant="outline"
-            className="border-foreground/10 bg-foreground/5 text-[10px] text-foreground/52"
-          >
+          <Badge variant="outline" className="text-[10px]">
             Managed
           </Badge>
         ) : null}
       </div>
 
-      <p className="mt-1 text-sm text-foreground/52">{provider.description}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{provider.description}</p>
 
-      <div className="mt-auto flex items-center justify-end gap-1 pt-6 text-sm text-foreground/62">
+      <div className="mt-auto flex items-center justify-end gap-1 pt-6 text-sm text-muted-foreground">
         {footerLabel ? <span>{footerLabel}</span> : null}
         <HugeiconsIcon
           icon={ArrowRight01Icon}
@@ -574,15 +555,12 @@ export function IntegrationsPageContent({
           <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
             Integrations
           </TypographyH1>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
             Configure the model provider Hyperlocalise uses for translation runs and prepare TMS
             handoffs for approved copy.
           </TypographyP>
         </div>
-        <Badge
-          variant="outline"
-          className="rounded-full border-foreground/10 bg-foreground/5 text-foreground/68 lg:self-start"
-        >
+        <Badge variant="outline" className="rounded-full lg:self-start">
           Workspace level
         </Badge>
       </div>
@@ -592,7 +570,7 @@ export function IntegrationsPageContent({
           <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
             Model Provider
           </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
             Choose how Hyperlocalise runs translations: use our managed provider or bring your own
             API keys.
           </TypographyP>
@@ -601,7 +579,7 @@ export function IntegrationsPageContent({
         {isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {modelProviderCards.map((provider) => (
-              <Skeleton key={provider.id} className="min-h-44 rounded-lg bg-foreground/5" />
+              <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
             ))}
           </div>
         ) : (
@@ -649,10 +627,10 @@ export function IntegrationsPageContent({
       </section>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="border border-foreground/8 bg-foreground/2.5 text-foreground">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
-            <DialogDescription className="text-foreground/52">
+            <DialogDescription>
               Save one shared provider key for this workspace. Saving validates the key, encrypts it
               at rest, and replaces the current provider.
             </DialogDescription>
@@ -685,13 +663,10 @@ export function IntegrationsPageContent({
                   value={selectedModel}
                   onValueChange={(value) => setSelectedModel(value ?? "")}
                 >
-                  <SelectTrigger
-                    id={modelFieldId}
-                    className="h-9 w-full border-foreground/10 bg-foreground/3 text-foreground focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
-                  >
+                  <SelectTrigger id={modelFieldId} className="h-9 w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#0b0b0b] text-foreground">
+                  <SelectContent>
                     {selectedProviderConfig.models.map((model) => (
                       <SelectItem key={model} value={model}>
                         {model}
@@ -707,7 +682,7 @@ export function IntegrationsPageContent({
                   <HugeiconsIcon
                     icon={Key01Icon}
                     strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                   />
                   <Input
                     id={apiKeyFieldId}
@@ -716,12 +691,12 @@ export function IntegrationsPageContent({
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                     placeholder={`Enter ${selectedProviderLabel} API key`}
-                    className="border-foreground/10 bg-foreground/3 ps-9 pe-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    className="ps-9 pe-9"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-foreground/38 transition-colors hover:text-foreground"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                     aria-label={showApiKey ? "Hide API key" : "Show API key"}
                   >
                     {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
@@ -733,18 +708,13 @@ export function IntegrationsPageContent({
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                   onClick={() => deleteCredential.mutate()}
                   disabled={!credential || deleteCredential.isPending}
                 >
                   <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
                   {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-foreground text-background hover:bg-foreground/90"
-                  disabled={!apiKey.trim() || saveCredential.isPending}
-                >
+                <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
                   <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
                   {saveCredential.isPending ? "Validating..." : "Save provider"}
                 </Button>
@@ -759,25 +729,25 @@ export function IntegrationsPageContent({
           <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
             TMS
           </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/52">
+          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
             Connect external translation management systems to sync projects, files, jobs,
             glossaries, and translation memories into the unified workspace.
           </TypographyP>
         </div>
 
         {isLoadingExternalTms ? (
-          <div className="overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+          <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
             {tmsIntegrations.map((integration, index) => (
               <div
                 key={integration.name}
-                className={cn("px-5 py-4", index > 0 && "border-t border-foreground/8")}
+                className={cn("px-5 py-4", index > 0 && "border-t border-border")}
               >
-                <Skeleton className="h-14 rounded-lg bg-foreground/5" />
+                <Skeleton className="h-14 rounded-lg" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+          <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
             {tmsIntegrations.map((integration, index) => {
               const credential = externalTmsCredentials?.find(
                 (item) => item.providerKind === integration.providerKind,
@@ -845,7 +815,6 @@ export function IntegrationsPageContent({
                   value={tmsDisplayName}
                   onChange={(event) => setTmsDisplayName(event.target.value)}
                   placeholder="e.g. Crowdin Production"
-                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                 />
               </Field>
 
@@ -855,7 +824,7 @@ export function IntegrationsPageContent({
                   <HugeiconsIcon
                     icon={Key01Icon}
                     strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
+                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                   />
                   <Input
                     id={tmsSecretFieldId}
@@ -864,12 +833,12 @@ export function IntegrationsPageContent({
                     value={tmsSecret}
                     onChange={(event) => setTmsSecret(event.target.value)}
                     placeholder="Enter provider API token"
-                    className="border-foreground/10 bg-foreground/3 ps-9 pe-9 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
+                    className="ps-9 pe-9"
                   />
                   <button
                     type="button"
                     onClick={() => setShowTmsSecret(!showTmsSecret)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-foreground/38 transition-colors hover:text-foreground"
+                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
                     aria-label={showTmsSecret ? "Hide secret" : "Show secret"}
                   >
                     {showTmsSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
@@ -884,7 +853,6 @@ export function IntegrationsPageContent({
                   value={tmsRegion}
                   onChange={(event) => setTmsRegion(event.target.value)}
                   placeholder="e.g. us, eu"
-                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                 />
               </Field>
 
@@ -895,7 +863,6 @@ export function IntegrationsPageContent({
                   value={tmsBaseUrl}
                   onChange={(event) => setTmsBaseUrl(event.target.value)}
                   placeholder="https://api.example.com"
-                  className="border-foreground/10 bg-foreground/3 text-foreground placeholder:text-foreground/34 focus-visible:border-dew-500/60 focus-visible:ring-dew-500/20"
                 />
               </Field>
 
@@ -904,7 +871,6 @@ export function IntegrationsPageContent({
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
                     onClick={() => {
                       setTmsDialogOpen(false);
                       setDisconnectingTmsProvider(selectedTmsProvider);
@@ -918,17 +884,11 @@ export function IntegrationsPageContent({
                   <div />
                 )}
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                    onClick={() => setTmsDialogOpen(false)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setTmsDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-foreground text-background hover:bg-foreground/90"
                     disabled={
                       !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
                     }
