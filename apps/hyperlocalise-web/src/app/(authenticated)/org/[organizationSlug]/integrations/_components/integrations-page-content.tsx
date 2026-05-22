@@ -2,18 +2,15 @@
 
 import { useEffect, useId, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Alert02Icon,
-  ArrowDown01Icon,
   ArrowRight01Icon,
-  ArrowUp01Icon,
   CheckmarkCircle02Icon,
   Delete02Icon,
   Key01Icon,
   SaveIcon,
 } from "@hugeicons/core-free-icons";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { ArrowUpRightIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -23,6 +20,7 @@ import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/cata
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
+import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import {
   AlertDialog,
@@ -35,7 +33,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -55,6 +52,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/utils";
 
 const api = createApiClient();
 
@@ -93,39 +91,6 @@ function tmsHealthLabel(status: string) {
   }
 }
 
-const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-
-function formatRelativeTime(value: string | null) {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
-  const absoluteSeconds = Math.abs(deltaSeconds);
-
-  if (absoluteSeconds < 60) {
-    return RELATIVE_TIME_FORMATTER.format(deltaSeconds, "second");
-  }
-  if (absoluteSeconds < 3_600) {
-    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 60), "minute");
-  }
-  if (absoluteSeconds < 86_400) {
-    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 3_600), "hour");
-  }
-  if (absoluteSeconds < 2_592_000) {
-    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 86_400), "day");
-  }
-  if (absoluteSeconds < 31_536_000) {
-    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 2_592_000), "month");
-  }
-  return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
-}
-
 type ProviderCredentialSummary = {
   provider: LlmProvider;
   defaultModel: string;
@@ -140,15 +105,49 @@ type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
 
 const hyperlocaliseGoProvider = {
   id: "hyperlocalise-go",
-  label: "Hyperlocalise Go",
-  apiKey: "Managed by Hyperlocalise",
+  label: "Hyperlocalise GO",
+  description: "Managed by Hyperlocalise",
+  logo: "/images/logo.png",
 } as const;
 
 const byokProviders = [
-  { id: "openai", label: "OpenAI" },
-  { id: "anthropic", label: "Anthropic" },
-  { id: "gemini", label: "Google Gemini" },
-] as const satisfies readonly { id: LlmProvider; label: string }[];
+  {
+    id: "openai",
+    label: "Open AI",
+    description: "Connect your OpenAI account",
+    logo: "/images/openai-old-logo.webp",
+  },
+  {
+    id: "anthropic",
+    label: "Anthropic",
+    description: "Connect your Anthropic account",
+    logo: "/images/claude.png",
+  },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    description: "Connect your Gemini account",
+    logo: "/images/gemini.webp",
+  },
+] as const satisfies readonly {
+  id: LlmProvider;
+  label: string;
+  description: string;
+  logo: string;
+}[];
+
+type ModelProviderCardConfig = {
+  id: ProviderOptionId;
+  label: string;
+  description: string;
+  logo: string;
+  managed?: boolean;
+};
+
+const modelProviderCards: readonly ModelProviderCardConfig[] = [
+  hyperlocaliseGoProvider,
+  ...byokProviders,
+];
 
 const tmsIntegrations = [
   {
@@ -306,6 +305,154 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
   });
 }
 
+function TmsIntegrationRow({
+  integration,
+  credential,
+  userIsAdmin,
+  onAction,
+  isLast,
+}: {
+  integration: (typeof tmsIntegrations)[number];
+  credential?: ExternalTmsProviderCredentialListItem;
+  userIsAdmin: boolean;
+  onAction: () => void;
+  isLast: boolean;
+}) {
+  const isConnected = !!credential;
+
+  return (
+    <div
+      className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-foreground/8")}
+    >
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
+        <Image
+          src={integration.logo}
+          alt=""
+          width={30}
+          height={30}
+          className="max-h-7 w-auto object-contain"
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-base font-medium text-foreground">{integration.name}</p>
+          {isConnected ? (
+            <Badge
+              variant="outline"
+              className={toneClass(tmsHealthTone(credential.validationStatus))}
+            >
+              <HugeiconsIcon
+                icon={
+                  credential.validationStatus === "connected" ? CheckmarkCircle02Icon : Alert02Icon
+                }
+                strokeWidth={1.8}
+              />
+              {tmsHealthLabel(credential.validationStatus)}
+            </Badge>
+          ) : null}
+        </div>
+        <p className="mt-0.5 text-sm leading-6 text-foreground/52">{integration.detail}</p>
+      </div>
+
+      <div className="shrink-0">
+        {userIsAdmin ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-md border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
+            onClick={onAction}
+          >
+            {isConnected ? "Manage" : "Connect"}
+            <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
+          </Button>
+        ) : isConnected ? (
+          <Badge
+            variant="outline"
+            className="border-foreground/10 bg-foreground/5 text-foreground/34"
+          >
+            View only
+          </Badge>
+        ) : (
+          <span className="text-sm text-foreground/42">Admins can connect</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModelProviderCard({
+  provider,
+  isActive,
+  isManaged,
+  footerLabel,
+  onSelect,
+  disabled,
+}: {
+  provider: ModelProviderCardConfig;
+  isActive: boolean;
+  isManaged?: boolean;
+  footerLabel?: string;
+  onSelect: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={disabled}
+      className={cn(
+        "group relative flex min-h-44 w-full flex-col rounded-lg border bg-foreground/2.5 p-5 text-left transition-colors",
+        "hover:bg-foreground/4 disabled:cursor-not-allowed disabled:opacity-60",
+        isActive ? "border-foreground" : "border-foreground/8",
+      )}
+    >
+      {isActive ? (
+        <Badge
+          variant="outline"
+          className="absolute top-4 right-4 border-foreground/10 bg-foreground/8 text-[10px] text-foreground/72"
+        >
+          Active
+        </Badge>
+      ) : null}
+
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
+        <Image
+          src={provider.logo}
+          alt=""
+          width={28}
+          height={28}
+          className="max-h-7 w-auto object-contain"
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <span className="text-base font-medium text-foreground">{provider.label}</span>
+        {isManaged ? (
+          <Badge
+            variant="outline"
+            className="border-foreground/10 bg-foreground/5 text-[10px] text-foreground/52"
+          >
+            Managed
+          </Badge>
+        ) : null}
+      </div>
+
+      <p className="mt-1 text-sm text-foreground/52">{provider.description}</p>
+
+      <div className="mt-auto flex items-center justify-end gap-1 pt-6 text-sm text-foreground/62">
+        {footerLabel ? <span>{footerLabel}</span> : null}
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          strokeWidth={1.8}
+          className="size-4 transition-transform group-hover:translate-x-0.5 group-disabled:translate-x-0"
+        />
+      </div>
+    </button>
+  );
+}
+
 function useDeleteExternalTmsCredential(organizationSlug: string) {
   const queryClient = useQueryClient();
 
@@ -364,9 +511,6 @@ export function IntegrationsPageContent({
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
     useState<ExternalTmsProviderKind | null>(null);
-  const [expandedCapabilities, setExpandedCapabilities] = useState<ExternalTmsProviderKind | null>(
-    null,
-  );
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
@@ -406,6 +550,22 @@ export function IntegrationsPageContent({
     ? tmsIntegrations.find((integration) => integration.providerKind === disconnectingTmsProvider)
         ?.name
     : null;
+  const selectedTmsCredential = selectedTmsProvider
+    ? externalTmsCredentials?.find((item) => item.providerKind === selectedTmsProvider)
+    : undefined;
+
+  function openTmsProviderDialog(
+    providerKind: ExternalTmsProviderKind,
+    existingCredential?: ExternalTmsProviderCredentialListItem,
+  ) {
+    setSelectedTmsProvider(providerKind);
+    setTmsDisplayName(existingCredential?.displayName ?? "");
+    setTmsSecret("");
+    setTmsRegion(existingCredential?.region ?? "");
+    setTmsBaseUrl(existingCredential?.baseUrl ?? "");
+    setShowTmsSecret(false);
+    setTmsDialogOpen(true);
+  }
 
   return (
     <main className="space-y-5">
@@ -438,99 +598,50 @@ export function IntegrationsPageContent({
           </TypographyP>
         </div>
 
-        <div className="overflow-x-auto rounded-lg border border-foreground/8 bg-foreground/2.5">
-          {isLoading ? (
-            <div className="flex flex-col px-5 py-4 lg:px-6">
-              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
-              <Skeleton className="my-3 h-12 rounded-lg bg-foreground/5" />
-            </div>
-          ) : (
-            <div className="min-w-160">
-              <div className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] border-b border-foreground/8 px-4 py-4 text-xs font-medium tracking-[0.08em] text-foreground/46 uppercase">
-                <div>Provider</div>
-                <div>API key</div>
-                <div className="text-right">
-                  <span className="sr-only">Actions</span>
-                </div>
-              </div>
-              <div className="divide-y divide-foreground/8">
-                <div className="grid min-h-16 grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] items-center px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="text-base font-medium text-foreground">
-                      {hyperlocaliseGoProvider.label}
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="border-foreground/10 bg-foreground/5 text-foreground/52 text-[10px]"
-                    >
-                      Managed
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-foreground/52">{hyperlocaliseGoProvider.apiKey}</div>
-                  <div className="flex justify-end">
-                    {credential ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                        onClick={() => deleteCredential.mutate()}
-                        disabled={deleteCredential.isPending}
-                      >
-                        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                        {deleteCredential.isPending ? "Switching..." : "Switch to managed"}
-                      </Button>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-grove-300/25 bg-grove-300/10 text-grove-300"
-                      >
-                        <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
-                        Active
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+        {isLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {modelProviderCards.map((provider) => (
+              <Skeleton key={provider.id} className="min-h-44 rounded-lg bg-foreground/5" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {modelProviderCards.map((provider) => {
+              const isManaged = provider.id === hyperlocaliseGoProvider.id;
+              const isByok = !isManaged;
+              const isConfigured = isByok && credential?.provider === provider.id;
+              const isActive = isManaged ? !credential : isConfigured;
 
-                {byokProviders.map((provider) => {
-                  const isConfigured = credential?.provider === provider.id;
+              return (
+                <ModelProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  isActive={isActive}
+                  isManaged={isManaged}
+                  footerLabel={isManaged ? undefined : "Configure"}
+                  disabled={isManaged && isActive ? true : isManaged && deleteCredential.isPending}
+                  onSelect={() => {
+                    if (isManaged) {
+                      if (credential) {
+                        deleteCredential.mutate();
+                      }
+                      return;
+                    }
 
-                  return (
-                    <div
-                      key={provider.id}
-                      className="grid min-h-16 grid-cols-[minmax(180px,1fr)_minmax(220px,2fr)_160px] items-center px-4 py-4"
-                    >
-                      <div className="text-base font-medium text-foreground">{provider.label}</div>
-                      <div className="text-sm text-foreground/52">
-                        {isConfigured ? `**** ${credential.maskedApiKeySuffix}` : "-"}
-                      </div>
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                          onClick={() => {
-                            setSelectedProvider(provider.id);
-                            setSelectedModel(
-                              isConfigured
-                                ? credential.defaultModel
-                                : defaultModelByProvider[provider.id],
-                            );
-                            setApiKey("");
-                            setDialogOpen(true);
-                          }}
-                        >
-                          {isConfigured ? "Configured" : "Configure"}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+                    const byokProvider = provider.id as LlmProvider;
+
+                    setSelectedProvider(byokProvider);
+                    setSelectedModel(
+                      isConfigured ? credential.defaultModel : defaultModelByProvider[byokProvider],
+                    );
+                    setApiKey("");
+                    setDialogOpen(true);
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -651,265 +762,32 @@ export function IntegrationsPageContent({
         </div>
 
         {isLoadingExternalTms ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tmsIntegrations.map((integration) => (
-              <Card
+          <div className="overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+            {tmsIntegrations.map((integration, index) => (
+              <div
                 key={integration.name}
-                className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
+                className={cn("px-5 py-4", index > 0 && "border-t border-foreground/8")}
               >
-                <CardHeader className="gap-4 px-5 py-5">
-                  <Skeleton className="h-12 rounded-lg bg-foreground/5" />
-                </CardHeader>
-              </Card>
+                <Skeleton className="h-14 rounded-lg bg-foreground/5" />
+              </div>
             ))}
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {tmsIntegrations.map((integration) => {
+          <div className="overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+            {tmsIntegrations.map((integration, index) => {
               const credential = externalTmsCredentials?.find(
-                (c) => c.providerKind === integration.providerKind,
+                (item) => item.providerKind === integration.providerKind,
               );
-              const isConnected = !!credential;
-
-              const capabilitiesExpanded = expandedCapabilities === integration.providerKind;
-              const visibleCapabilities = credential
-                ? Object.entries(credential.capabilities).filter(
-                    ([, cap]) => cap.ui.state !== "hidden",
-                  )
-                : [];
 
               return (
-                <Card
+                <TmsIntegrationRow
                   key={integration.name}
-                  className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
-                >
-                  <CardHeader className="gap-4 px-5 py-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground p-2">
-                          <Image
-                            src={integration.logo}
-                            alt=""
-                            width={30}
-                            height={30}
-                            className="max-h-7 w-auto object-contain"
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <CardTitle className="text-base font-medium text-foreground">
-                            {integration.name}
-                          </CardTitle>
-                          <CardDescription className="mt-1 text-foreground/46">
-                            {integration.detail}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      {isConnected ? (
-                        <Badge
-                          variant="outline"
-                          className={toneClass(tmsHealthTone(credential.validationStatus))}
-                        >
-                          <HugeiconsIcon
-                            icon={
-                              credential.validationStatus === "connected"
-                                ? CheckmarkCircle02Icon
-                                : Alert02Icon
-                            }
-                            strokeWidth={1.8}
-                          />
-                          {tmsHealthLabel(credential.validationStatus)}
-                        </Badge>
-                      ) : null}
-                    </div>
-
-                    {isConnected ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-foreground/52">
-                          <span>{credential.displayName}</span>
-                          <span className="text-foreground/30">·</span>
-                          <span>****{credential.maskedSecretSuffix}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/42">
-                          <span>
-                            Last sync{" "}
-                            {credential.lastSuccessfulSyncAt
-                              ? formatRelativeTime(credential.lastSuccessfulSyncAt)
-                              : "never"}
-                          </span>
-                          <Link
-                            href={`/org/${organizationSlug}/projects`}
-                            className="inline-flex items-center gap-1 hover:text-foreground"
-                          >
-                            {credential.projectCount} projects
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-3"
-                            />
-                          </Link>
-                        </div>
-                      </div>
-                    ) : (
-                      <TypographyP className="text-sm text-foreground/52">
-                        Not connected
-                      </TypographyP>
-                    )}
-
-                    {isConnected && visibleCapabilities.length > 0 ? (
-                      <div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedCapabilities(
-                              capabilitiesExpanded ? null : integration.providerKind,
-                            )
-                          }
-                          className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
-                        >
-                          {capabilitiesExpanded ? "Hide capabilities" : "Show capabilities"}
-                          <HugeiconsIcon
-                            icon={capabilitiesExpanded ? ArrowUp01Icon : ArrowDown01Icon}
-                            strokeWidth={1.8}
-                            className="size-3"
-                          />
-                        </button>
-                        {capabilitiesExpanded ? (
-                          <div className="mt-2 grid grid-cols-2 gap-2">
-                            {visibleCapabilities.map(([action, cap]) => (
-                              <div key={action} className="flex items-center gap-2 text-xs">
-                                <span
-                                  className={
-                                    cap.supported ? "text-grove-300" : "text-foreground/30"
-                                  }
-                                >
-                                  {cap.supported ? "●" : "○"}
-                                </span>
-                                <span
-                                  className={
-                                    cap.ui.state === "disabled"
-                                      ? "text-foreground/34 line-through"
-                                      : "text-foreground/62"
-                                  }
-                                  title={cap.ui.disabledReason ?? cap.description}
-                                >
-                                  {cap.label}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    <div className="flex items-center justify-between gap-3">
-                      {isConnected ? (
-                        <div className="flex gap-3">
-                          <Link
-                            href={`/org/${organizationSlug}/projects`}
-                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
-                          >
-                            Projects
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-3"
-                            />
-                          </Link>
-                          <Link
-                            href={`/org/${organizationSlug}/files`}
-                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
-                          >
-                            Files
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-3"
-                            />
-                          </Link>
-                          <Link
-                            href={`/org/${organizationSlug}/jobs`}
-                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
-                          >
-                            Jobs
-                            <HugeiconsIcon
-                              icon={ArrowRight01Icon}
-                              strokeWidth={1.8}
-                              className="size-3"
-                            />
-                          </Link>
-                        </div>
-                      ) : (
-                        <div />
-                      )}
-                      <div className="flex gap-2">
-                        {isConnected && userIsAdmin ? (
-                          <>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                              onClick={() => {
-                                setSelectedTmsProvider(integration.providerKind);
-                                setTmsDisplayName(credential.displayName);
-                                setTmsSecret("");
-                                setTmsRegion(credential.region ?? "");
-                                setTmsBaseUrl(credential.baseUrl ?? "");
-                                setShowTmsSecret(false);
-                                setTmsDialogOpen(true);
-                              }}
-                            >
-                              Reconfigure
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                              onClick={() => setDisconnectingTmsProvider(integration.providerKind)}
-                              disabled={deleteExternalTms.isPending}
-                            >
-                              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                              Disconnect
-                            </Button>
-                          </>
-                        ) : isConnected ? (
-                          <Badge
-                            variant="outline"
-                            className="border-foreground/10 bg-foreground/5 text-foreground/34"
-                          >
-                            View only
-                          </Badge>
-                        ) : userIsAdmin ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                            onClick={() => {
-                              setSelectedTmsProvider(integration.providerKind);
-                              setTmsDisplayName("");
-                              setTmsSecret("");
-                              setTmsRegion("");
-                              setTmsBaseUrl("");
-                              setShowTmsSecret(false);
-                              setTmsDialogOpen(true);
-                            }}
-                          >
-                            Connect
-                          </Button>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="border-foreground/10 bg-foreground/5 text-foreground/34"
-                          >
-                            Admins can connect
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                </Card>
+                  integration={integration}
+                  credential={credential}
+                  userIsAdmin={userIsAdmin}
+                  isLast={index === tmsIntegrations.length - 1}
+                  onAction={() => openTmsProviderDialog(integration.providerKind, credential)}
+                />
               );
             })}
           </div>
@@ -1017,25 +895,44 @@ export function IntegrationsPageContent({
                 />
               </Field>
 
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                  onClick={() => setTmsDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-foreground text-background hover:bg-foreground/90"
-                  disabled={
-                    !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
-                  }
-                >
-                  <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                  {saveExternalTms.isPending ? "Saving..." : "Save provider"}
-                </Button>
+              <DialogFooter className="gap-2 sm:justify-between">
+                {selectedTmsCredential && userIsAdmin ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
+                    onClick={() => {
+                      setTmsDialogOpen(false);
+                      setDisconnectingTmsProvider(selectedTmsProvider);
+                    }}
+                    disabled={deleteExternalTms.isPending}
+                  >
+                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                    Disconnect
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
+                    onClick={() => setTmsDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-foreground text-background hover:bg-foreground/90"
+                    disabled={
+                      !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
+                    }
+                  >
+                    <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                    {saveExternalTms.isPending ? "Saving..." : "Save provider"}
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           ) : null}
