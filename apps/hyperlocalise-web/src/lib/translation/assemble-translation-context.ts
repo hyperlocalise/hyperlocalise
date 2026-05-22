@@ -55,7 +55,13 @@ function buildTsQuery(input: string): string {
     .join(" & ");
 }
 
-async function loadProjectForContext(projectId: string) {
+export type TranslationContextProject = {
+  id: string;
+  name: string;
+  translationContext: string;
+};
+
+async function loadProjectForContext(projectId: string): Promise<TranslationContextProject | null> {
   const [project] = await db
     .select({
       id: schema.projects.id,
@@ -193,11 +199,17 @@ async function loadMemoryMatchesForContext(input: {
     .limit(10);
 }
 
+export async function loadTranslationContextProject(projectId: string) {
+  return loadProjectForContext(projectId);
+}
+
 export async function assembleStringTranslationContextSnapshot(
   projectId: string,
   jobInput: StringTranslationJobInput,
+  projectOverride?: TranslationContextProject | null,
 ) {
-  const project = await loadProjectForContext(projectId);
+  const project =
+    projectOverride === undefined ? await loadProjectForContext(projectId) : projectOverride;
   if (!project) {
     return {
       ok: false,

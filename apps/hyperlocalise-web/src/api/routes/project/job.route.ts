@@ -30,7 +30,7 @@ import {
   isProjectMutationAllowed,
   projectNotFoundResponse,
 } from "./project.shared";
-import { createAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
+import { createAgentRun, failAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
 import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
@@ -695,10 +695,27 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         });
 
         if (payload.action === "translate_with_agent") {
-          await options.providerAgentTranslationQueue.enqueue({
-            agentRunId: agentRun.id,
-            organizationId,
-          });
+          try {
+            await options.providerAgentTranslationQueue.enqueue({
+              agentRunId: agentRun.id,
+              organizationId,
+            });
+          } catch (error) {
+            await failAgentRun({
+              runId: agentRun.id,
+              organizationId,
+              outputSummary: { code: "agent_run_queue_unavailable" },
+              warnings: [
+                error instanceof Error ? error.message : "agent translation queue unavailable",
+              ],
+            });
+
+            return serviceUnavailableResponse(
+              c,
+              "agent_run_queue_unavailable",
+              "Agent translation queue is unavailable",
+            );
+          }
         }
 
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);

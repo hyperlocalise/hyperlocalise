@@ -10,7 +10,10 @@ import {
   type ExternalTmsTranslationUnit,
 } from "@/lib/providers/external-tms-content-sync";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
+import {
+  assembleStringTranslationContextSnapshot,
+  loadTranslationContextProject,
+} from "@/lib/translation/assemble-translation-context";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
@@ -90,6 +93,16 @@ async function translateProviderUnits(input: {
   let unitsProcessed = 0;
   let skippedApproved = 0;
 
+  const project = await loadTranslationContextProject(input.projectId);
+  if (!project) {
+    return {
+      changedItems,
+      warnings: [`Translation project ${input.projectId} was not found`],
+      unitsProcessed: 0,
+      skippedApproved: 0,
+    };
+  }
+
   for (const unit of input.content.units) {
     if (!unit.sourceText.trim()) {
       continue;
@@ -119,6 +132,7 @@ async function translateProviderUnits(input: {
     const contextSnapshot = await assembleStringTranslationContextSnapshot(
       input.projectId,
       jobInput,
+      project,
     );
     if (!contextSnapshot.ok) {
       warnings.push(`Skipped ${unit.key}: ${contextSnapshot.message}`);
@@ -192,7 +206,7 @@ export async function executeProviderAgentTranslation(input: {
     };
   }
 
-  if (run.status !== "queued") {
+  if (run.status !== "queued" && run.status !== "running") {
     return {
       ok: false,
       agentRunId: input.agentRunId,
@@ -238,19 +252,21 @@ export async function executeProviderAgentTranslation(input: {
     };
   }
 
-  try {
-    await startAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to start agent run";
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: "agent_run_start_failed",
-      message,
-    };
+  if (run.status === "queued") {
+    try {
+      await startAgentRun({
+        runId: run.id,
+        organizationId: input.organizationId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to start agent run";
+      return {
+        ok: false,
+        agentRunId: input.agentRunId,
+        code: "agent_run_start_failed",
+        message,
+      };
+    }
   }
 
   let pullResult;

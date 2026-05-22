@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/database";
 import type { ExternalTmsTaskContent } from "@/lib/providers/external-tms-content-sync";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
-import { createAgentRun, getAgentRun } from "./agent-runs";
+import { createAgentRun, getAgentRun, startAgentRun } from "./agent-runs";
 import { executeProviderAgentTranslation } from "./provider-agent-translate";
 
 const projectFixture = createProjectTestFixture();
@@ -185,5 +185,66 @@ describe("executeProviderAgentTranslation", () => {
       ok: false,
       code: "missing_project_id",
     });
+  });
+
+  it("retries a running agent run after a worker crash", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-retry",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-retry",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "retry",
+            sourceText: "Retry me",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Reessayer" }],
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-retry",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    await startAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      proposedCount: 1,
+      unitsProcessed: 1,
+    });
+
+    const completed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(completed?.status).toBe("succeeded");
   });
 });
