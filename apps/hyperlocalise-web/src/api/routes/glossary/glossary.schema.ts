@@ -3,7 +3,7 @@ import { z } from "zod";
 const localePattern = /^[a-z]{2,3}(-[A-Z]{2,3})?$/;
 
 export const glossaryIdParamsSchema = z.object({
-  glossaryId: z.string().trim().min(1),
+  glossaryId: z.string().trim().min(1).max(128),
 });
 
 export const listGlossaryQuerySchema = z
