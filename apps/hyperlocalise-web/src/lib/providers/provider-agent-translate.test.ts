@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/database";
 import type { ExternalTmsTaskContent } from "@/lib/providers/external-tms-content-sync";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
+import * as agentRuns from "./agent-runs";
 import { createAgentRun, getAgentRun, startAgentRun } from "./agent-runs";
 import { executeProviderAgentTranslation } from "./provider-agent-translate";
 
@@ -185,6 +186,105 @@ describe("executeProviderAgentTranslation", () => {
       ok: false,
       code: "missing_project_id",
     });
+  });
+
+  it("fails the agent run when startAgentRun throws", async () => {
+    const project = await createExternalTmsProject();
+
+    const startSpy = vi
+      .spyOn(agentRuns, "startAgentRun")
+      .mockRejectedValueOnce(new Error("db unavailable"));
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-start-fail",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    startSpy.mockRestore();
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "agent_run_start_failed",
+    });
+    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(failed?.status).toBe("failed");
+    expect(failed?.outputSummary).toMatchObject({ code: "agent_run_start_failed" });
+  });
+
+  it("fails when the translation project no longer exists", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-missing-project",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 0, approvedTranslations: 0 },
+      content: {
+        externalJobId: "task-missing-project",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "gone",
+            sourceText: "Gone",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Parti" }],
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-missing-project",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    await db.delete(schema.projects).where(eq(schema.projects.id, project.id));
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "translation_project_not_found",
+    });
+
+    const failed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(failed?.status).toBe("failed");
+    expect(failed?.outputSummary).toMatchObject({
+      code: "translation_project_not_found",
+      pullRunId: "pull-run-missing-project",
+    });
+    expect(failed?.warnings).toEqual(expect.arrayContaining([expect.stringContaining(project.id)]));
   });
 
   it("retries a running agent run after a worker crash", async () => {

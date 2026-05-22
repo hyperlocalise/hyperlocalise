@@ -96,6 +96,7 @@ async function translateProviderUnits(input: {
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
     return {
+      projectNotFound: true,
       changedItems,
       warnings: [`Translation project ${input.projectId} was not found`],
       unitsProcessed: 0,
@@ -260,6 +261,12 @@ export async function executeProviderAgentTranslation(input: {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to start agent run";
+      await failAgentRun({
+        runId: run.id,
+        organizationId: input.organizationId,
+        outputSummary: { code: "agent_run_start_failed" },
+        warnings: [message],
+      });
       return {
         ok: false,
         agentRunId: input.agentRunId,
@@ -350,6 +357,28 @@ export async function executeProviderAgentTranslation(input: {
       ? organizationGenerator.project.translationContext
       : "",
   });
+
+  if (translationResult.projectNotFound) {
+    const message =
+      translationResult.warnings[0] ?? `Translation project ${projectId} was not found`;
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        code: "translation_project_not_found",
+        pullRunId: pullResult.runId,
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+      },
+      warnings: translationResult.warnings,
+    });
+
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: "translation_project_not_found",
+      message,
+    };
+  }
 
   await completeAgentRun({
     runId: run.id,
