@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<locale locale="en-US">
+  <!-- Generic XML sample for CLI status/check/run smoke tests. -->
+  <metadata>
+    <owner>Localization</owner>
+  </metadata>
+  <section id="home">
+    <string name="title" tone="warm">Welcome back, {name}</string>
+    <body>Browse today's featured deals.</body>
+  </section>
+  <message key="checkout.cta" priority="primary">Checkout now</message>
+</locale>

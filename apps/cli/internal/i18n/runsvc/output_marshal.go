@@ -14,11 +14,17 @@ import (
 
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+	if isJSTSLocaleModuleExt(ext) {
+		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
+	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".ftl", ".html", ".liquid":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".xcstrings", ".csv", ".arb", ".ftl", ".html", ".liquid", ".xml", ".resx", ".properties":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
+		return content, nil, err
+	case ".yaml", ".yml":
+		content, err := s.marshalYAMLTargetWithFallback(path, sourcePath, values, pruneKeys)
 		return content, nil, err
 	default:
 		return nil, nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
@@ -35,7 +41,7 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 	if ext == ".liquid" {
 		return s.marshalLiquidTarget(path, sourcePath, stagedEntries)
 	}
-	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".arb" || ext == ".ftl" {
+	if ext == ".xlf" || ext == ".xlif" || ext == ".xliff" || ext == ".po" || ext == ".strings" || ext == ".stringsdict" || ext == ".xcstrings" || ext == ".arb" || ext == ".ftl" || ext == ".xml" || ext == ".resx" || ext == ".properties" || isJSTSLocaleModuleExt(ext) {
 		content, err := s.marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale, values)
 		return content, nil, err
 	}
@@ -66,13 +72,21 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 	template := sourceTemplate
 	targetTemplate, err := s.readFile(path)
 	if err == nil {
-		targetEntries, parseErr := s.newParser().Parse(path, targetTemplate)
+		var (
+			targetEntries map[string]string
+			parseErr      error
+		)
+		if ext == ".xcstrings" {
+			targetEntries, parseErr = translationfileparser.ParseXCStringsLocale(targetTemplate, targetLocale)
+		} else {
+			targetEntries, parseErr = s.newParser().Parse(path, targetTemplate)
+		}
 		if parseErr == nil {
-			// For ARB files we always prefer the target template when it parses cleanly,
-			// so @@locale, @key attribute blocks, and template-defined ordering are
-			// preserved even when the key sets differ. MarshalARB handles new and
-			// removed message keys when rewriting the file.
-			if ext == ".arb" || hasExactKeySet(targetEntries, values) {
+			// For ARB and xcstrings files we always prefer the target template when it
+			// parses cleanly, so locale-specific metadata, translator-added comments,
+			// and existing translations for other keys are preserved even when the key
+			// sets differ. MarshalARB/MarshalXCStrings handle new and removed keys.
+			if ext == ".arb" || ext == ".xcstrings" || hasExactKeySet(targetEntries, values) {
 				template = targetTemplate
 			}
 		}
@@ -103,6 +117,12 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
+	case ".xcstrings":
+		content, err := translationfileparser.MarshalXCStrings(template, sourceTemplate, values, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	case ".arb":
 		content, err := translationfileparser.MarshalARB(template, sourceTemplate, values, targetLocale)
 		if err != nil {
@@ -115,9 +135,45 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
+	case ".xml":
+		if translationfileparser.IsAndroidStringResourcePath(sourcePath) {
+			content, err := translationfileparser.MarshalAndroidXMLResources(template, values)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
+		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".resx":
+		content, err := translationfileparser.MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
+	case ".properties":
+		content, err := translationfileparser.MarshalJavaProperties(template, values)
+		if err != nil {
+			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+		}
+		return content, nil
 	default:
+		if isJSTSLocaleModuleExt(ext) {
+			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
+}
+
+func isJSTSLocaleModuleExt(ext string) bool {
+	return slices.Contains(translationfileparser.JSTSLocaleModuleExts, ext)
 }
 
 func hasExactKeySet(a, b map[string]string) bool {

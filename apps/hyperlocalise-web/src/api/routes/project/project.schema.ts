@@ -1,7 +1,33 @@
 import { z } from "zod";
 
 export const projectIdParamsSchema = z.object({
-  projectId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
+});
+
+export const externalTmsContentSyncBodySchema = z.object({
+  externalJobId: z.string().trim().min(1).max(128),
+});
+
+export const externalTmsTranslationPushBodySchema = z.object({
+  externalJobId: z.string().trim().min(1).max(128),
+  translations: z
+    .array(
+      z
+        .object({
+          externalStringId: z.string().trim().min(1).max(128).optional(),
+          key: z.string().trim().min(1).max(512).optional(),
+          locale: z.string().trim().min(1).max(32),
+          text: z.string(),
+          fileId: z.string().trim().min(1).max(128).optional(),
+          fileName: z.string().trim().min(1).max(256).optional(),
+          format: z.string().trim().min(1).max(64).optional(),
+        })
+        .refine((data) => data.key != null || data.externalStringId != null, {
+          message: "Either key or externalStringId must be provided",
+          path: ["key"],
+        }),
+    )
+    .min(1),
 });
 
 export const createProjectBodySchema = z.object({
@@ -33,8 +59,19 @@ export const projectRecordSchema = z.object({
   name: z.string(),
   description: z.string(),
   translationContext: z.string(),
+  source: z.enum(["native", "external_tms"]),
+  externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
+  externalProjectId: z.string().nullable(),
+  sourceLocale: z.string().nullable(),
+  targetLocales: z.array(z.string()),
+  externalProjectUrl: z.string().nullable(),
+  isActive: z.boolean(),
+  lastSyncedAt: z.string().nullable(),
+  lastSyncErrorAt: z.string().nullable(),
+  lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  openJobCount: z.number().int(),
 });
 
 export const projectResponseSchema = z.object({
@@ -46,15 +83,32 @@ export const projectsResponseSchema = z.object({
 });
 
 export const projectFileRecordSchema = z.object({
+  origin: z.enum(["repository", "provider"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
   commitSha: z.string().nullable(),
   workflowRunId: z.string().nullable(),
   uploadedAt: z.string(),
-  storedFileId: z.string(),
+  storedFileId: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   filename: z.string(),
-  byteSize: z.number(),
+  byteSize: z.number().nullable(),
+  provider: z
+    .object({
+      kind: z.string(),
+      resourceType: z.enum(["file", "key"]),
+      externalProjectId: z.string(),
+      externalResourceId: z.string(),
+      externalUrl: z.string().nullable(),
+      syncState: z.string(),
+      sourceLocale: z.string().nullable(),
+      targetLocales: z.array(z.string()),
+      localeReadiness: z.record(z.string(), z.unknown()),
+      revision: z.string().nullable(),
+      format: z.string().nullable(),
+    })
+    .nullable()
+    .default(null),
   latestJob: z
     .object({
       id: z.string(),
@@ -74,6 +128,10 @@ export const projectFileRecordSchema = z.object({
 
 export const projectFilesResponseSchema = z.object({
   files: z.array(projectFileRecordSchema),
+});
+
+export const projectFilesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
 });
 
 export const projectFileDetailQuerySchema = z.object({
@@ -145,6 +203,7 @@ export type ProjectResponse = z.infer<typeof projectResponseSchema>;
 export type ProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
+export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;

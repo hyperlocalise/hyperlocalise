@@ -12,9 +12,15 @@ import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
+import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({
@@ -1021,5 +1027,157 @@ describe("jobRoutes", () => {
         lastError: "queue down",
       }),
     ]);
+  });
+
+  it("returns provider metadata and actions for provider-backed workspace jobs", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-detail-1",
+      externalTaskId: "crowdin-task-1",
+      externalStatus: "in_progress",
+      title: "Homepage strings",
+      targetLocales: ["fr-FR"],
+      assignedUsers: ["translator@example.com"],
+      externalUrl: "https://crowdin.com/project/demo/tasks/1",
+      providerPayload: { fileIds: [101] },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      job: expect.objectContaining({
+        id: externalJob.id,
+        externalProviderKind: "crowdin",
+        externalTitle: "Homepage strings",
+        externalStatus: "in_progress",
+        providerActions: expect.arrayContaining([
+          expect.objectContaining({
+            id: "translate_with_agent",
+            visible: true,
+            enabled: true,
+          }),
+        ]),
+        providerSourceFiles: [
+          expect.objectContaining({
+            id: "101",
+            displayName: "101",
+          }),
+        ],
+      }),
+    });
+  });
+
+  it("creates agent runs for supported provider actions", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-detail-2",
+      externalStatus: "todo",
+      title: "Product copy",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: { action: "translate_with_agent" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      agentRun: { kind: string; status: string; externalJobId: string };
+    };
+    expect(body.agentRun).toMatchObject({
+      kind: "translate",
+      status: "queued",
+      externalJobId: "crowdin-job-detail-2",
+    });
+
+    const listResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      agentRuns: [expect.objectContaining({ kind: "translate", status: "queued" })],
+    });
+  });
+
+  it("rejects agent runs for native jobs", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const localUserId = await getLocalUserId(identity.user.workosUserId);
+    const job = await insertJob({
+      projectId: project.id,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { action: "translate_with_agent" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "provider_job_required",
+    });
   });
 });

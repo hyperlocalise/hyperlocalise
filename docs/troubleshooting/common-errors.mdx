@@ -34,8 +34,10 @@ Cause: a mapped source or target file uses an extension not supported by the loc
 
 Fixes:
 
-- use one of: `.json`, `.arb`, `.xlf`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`, `.ftl`
+- use one of: `.json`, `.jsonc`, `.yaml`, `.yml`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`, `.properties`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.xcstrings`, `.csv`, `.ftl`
 - verify bucket `from` and `to` paths resolve to the expected file names
+
+For `.xcstrings`, ensure the catalog has a `strings` object and either a source-language localization for variant/substitution entries or simple catalog keys that can be used as source text.
 
 ## Provider auth failures
 

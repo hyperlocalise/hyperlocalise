@@ -250,12 +250,3 @@ func isStringsdictMetadataKey(path string) bool {
 	}
 	return strings.HasPrefix(segment, "NSString")
 }
-
-func escapeXMLText(s string) string {
-	replacer := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-	)
-	return replacer.Replace(s)
-}

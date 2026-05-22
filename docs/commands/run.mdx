@@ -24,8 +24,11 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 `run` can read source and target files with these extensions:
 
 - `.json`
+- `.jsonc`
+- `.yaml` and `.yml`
+- `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`
 - `.arb`
-- `.xlf` and `.xliff`
+- `.xlf`, `.xlif`, and `.xliff`
 - `.po`
 - `.html`
 - `.liquid`
@@ -33,8 +36,12 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.mdx`
 - `.strings`
 - `.stringsdict`
+- `.xcstrings`
 - `.csv`
 - `.ftl`
+- Android XML `strings.xml` files at `**/res/values*/strings.xml`
+- `.xml` and `.resx` for generic XML locale files
+- `.properties`
 
 For JSON (`.json`), `run` supports:
 
@@ -43,6 +50,19 @@ For JSON (`.json`), `run` supports:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
 In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+
+For JavaScript and TypeScript locale modules (`.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, `.cts`), `run` supports static locale object exports:
+
+- `export default { ... }`
+- `export const messages = { ... }`
+- `module.exports = { ... }`
+- `const messages = { ... }; export default messages`
+
+Nested objects are flattened to dotted keys, string arrays use bracket indexes, and strict FormatJS-style entries translate only `defaultMessage` while preserving `description` metadata. Comments, imports, export syntax, and `as const` are preserved on write. Dynamic values, computed keys, spread properties, multiple exported locale objects, and template literals with `${...}` interpolation fail with a parser error instead of being rewritten.
+
+When an existing JS/TS target module has the same key set as the source, `run` writes into the target template so translator comments and existing module layout are kept. If the source key set changes, `run` falls back to the source template to avoid merging mismatched object shapes.
+
+For YAML/YML (`.yaml`, `.yml`), `run` supports mapping-shaped locale files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silent corruption.
 
 For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
 
@@ -73,6 +93,19 @@ For Liquid (`.liquid`), `run` translates hardcoded visible template text and pre
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 
+For Apple/Xcode String Catalogs (`.xcstrings`), `run` reads catalog entries from `strings[*].localizations[sourceLanguage]` when present, falls back to the catalog key for simple source-only entries, and writes translated values under `localizations[targetLocale]`. Plural, device, and substitution leaves are exposed as stable keys such as `item_count::plural.one`, `search_label::device.mac`, and `count_label::substitution.total::plural.other`. Output is normalized as deterministic JSON; comments, extraction state, string-unit state, and unrelated catalog metadata are preserved as JSON fields, but original whitespace and object ordering are not byte-preserved.
+
+For Android XML string resources (`**/res/values*/strings.xml`), `run` translates:
+
+- `<string name="...">` values
+- `<plurals name="..."><item quantity="...">` values, using keys such as `item_count.one` and `item_count.other`
+
+Android comments, namespaces, and resource attributes such as `formatted`, `tools:*`, and `translatable` are preserved. Resources marked `translatable="false"` are skipped. Android placeholders such as `%1$s` and `%d` stay in the extracted text and are written back with the translated value.
+
+Unsupported translatable Android resource shapes such as `<string-array>` fail with a clear parser error instead of being ignored.
+
+
+For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
 
 For CSV (`.csv`), `run` supports two layouts:
 
@@ -87,6 +120,14 @@ For Mozilla Fluent (`.ftl`), `run` supports top-level messages, message attribut
 - comments, blank lines, and unparsed metadata are preserved when values are replaced in an existing template
 - Fluent terms (`-brand = ...`) and term references are not supported and fail with a clear parser error
 - newly appended message keys are sorted deterministically; new attributes can only be appended when their parent message is not already present in the template
+
+For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
+
+- keyed leaves use `key`, `id`, or `name` attributes, for example `<message key="checkout.cta">Checkout now</message>`
+- nested path-shaped leaves use dotted element paths, for example `<home><title>Welcome</title></home>` -> `home.title`
+- `.resx`-style `<data name="home.title"><value>Welcome</value></data>` entries are supported
+- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved
+- mixed-content values such as `Hello <ph/>` and Android `<resources>` files are rejected instead of being rewritten as generic XML
 
 ## Flags
 

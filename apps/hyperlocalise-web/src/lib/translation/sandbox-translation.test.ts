@@ -22,7 +22,11 @@ vi.mock("@vercel/sandbox", () => ({
   },
 }));
 
-import { buildTempConfig, runSandboxCommand } from "@/lib/translation/sandbox-translation";
+import {
+  buildTempConfig,
+  runSandboxCommand,
+  userFacingFailureReason,
+} from "@/lib/translation/sandbox-translation";
 
 describe("sandbox command runner", () => {
   beforeEach(() => {
@@ -108,5 +112,25 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("system_prompt:");
     expect(config).not.toContain("Project translation context:");
     expect(config).not.toContain("Glossary terms:");
+  });
+});
+
+describe("sandbox translation failure reasons", () => {
+  it("preserves glossary validation diagnostics for persisted job failures", () => {
+    const diagnostics = {
+      targetLocale: "fr-FR",
+      failedTermCount: 1,
+      failures: [
+        {
+          sourceTerm: "workspace",
+          targetTerm: "espace de travail",
+          forbidden: false,
+          reason: "missing_preferred_term",
+        },
+      ],
+    };
+    const message = `glossary validation failed: ${JSON.stringify(diagnostics)}`;
+
+    expect(userFacingFailureReason(new Error(message))).toBe(message);
   });
 });

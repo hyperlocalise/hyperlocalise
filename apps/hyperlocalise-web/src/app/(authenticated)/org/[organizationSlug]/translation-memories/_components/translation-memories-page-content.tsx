@@ -1,6 +1,12 @@
 "use client";
 
-import { DatabaseSyncIcon, FileSyncIcon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
+import Link from "next/link";
+import {
+  ArrowRight01Icon,
+  DatabaseSyncIcon,
+  FileSyncIcon,
+  LanguageSquareIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +52,7 @@ const memories = [
   },
 ] as const;
 
-export function TranslationMemoriesPageContent() {
+export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="space-y-5">
       <PageHeader
@@ -58,6 +64,19 @@ export function TranslationMemoriesPageContent() {
       />
 
       <MetricsGrid metrics={memoryMetrics} />
+
+      <div className="flex items-center gap-2 text-sm text-foreground/54">
+        <span>
+          Synced provider translation memories will appear here alongside workspace memories.
+        </span>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          <span>Connect a provider</span>
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+        </Link>
+      </div>
 
       <ResourceCard
         title="Memory stores"

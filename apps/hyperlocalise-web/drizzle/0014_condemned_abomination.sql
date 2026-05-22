@@ -1,0 +1,1 @@
+CREATE INDEX "idx_external_job_details_external_task_id" ON "external_job_details" USING btree ("external_task_id");

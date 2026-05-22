@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft02Icon, RefreshIcon, StopCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -24,6 +24,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
+
+import { JobProviderDetailSection } from "./job-provider-detail-section";
 
 type JobDetail = {
   id: string;
@@ -50,10 +52,46 @@ type JobDetail = {
   assetType: string | null;
   assetOperation: string | null;
   assetConfig: unknown;
+  externalProviderKind: string | null;
+  externalJobId: string | null;
+  externalTaskId: string | null;
+  externalStatus: string | null;
+  externalTitle: string | null;
+  externalDueDate: string | null;
+  externalTargetLocales: string[] | null;
+  externalAssignedUsers: string[] | null;
+  externalUrl: string | null;
+  externalSyncState: string | null;
+  externalProviderPayload: Record<string, unknown> | null;
+  linkedJobId: string | null;
+  providerSourceFiles?: Array<{
+    id: string;
+    displayName: string;
+    sourcePath: string | null;
+    resourceType: string | null;
+    externalUrl: string | null;
+  }>;
+  providerActions?: Array<{
+    id:
+      | "translate_with_agent"
+      | "review_with_agent"
+      | "fix_qa_issues"
+      | "leave_provider_comment"
+      | "push_approved_changes";
+    label: string;
+    agentRunKind: string;
+    visible: boolean;
+    enabled: boolean;
+    disabledReason?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
 };
+
+function isProviderBackedJob(job: JobDetail): job is JobDetail & { externalProviderKind: string } {
+  return Boolean(job.externalProviderKind);
+}
 
 function statusTone(status: JobDetail["status"]) {
   switch (status) {
@@ -123,11 +161,11 @@ async function parseActionError(response: Response, fallback: string) {
   return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
 }
 
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
       <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value || "—"}</dd>
+      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
     </div>
   );
 }
@@ -223,7 +261,7 @@ export function JobDetailPageContent({
             Jobs
           </Button>
           <TypographyH1 className="wrap-break-word font-heading text-3xl font-semibold text-foreground md:text-4xl">
-            {job?.id ?? jobId}
+            {job?.externalTitle ?? job?.id ?? jobId}
           </TypographyH1>
         </div>
         {job ? (
@@ -283,7 +321,14 @@ export function JobDetailPageContent({
               Overview
             </TypographyH2>
             <dl className="mt-3 divide-y divide-foreground/8">
+              <DetailRow label="Job ID" value={job.id} />
               <DetailRow label="Kind" value={formatKind(job)} />
+              <DetailRow
+                label="Source"
+                value={
+                  isProviderBackedJob(job) ? `Provider · ${job.externalProviderKind}` : "Native"
+                }
+              />
               <DetailRow label="Project" value={job.projectName ?? job.projectId ?? "Workspace"} />
               <DetailRow label="Interaction" value={job.interactionId} />
               <DetailRow label="Workflow run" value={job.workflowRunId} />
@@ -293,6 +338,10 @@ export function JobDetailPageContent({
               <DetailRow label="Last error" value={job.lastError} />
             </dl>
           </section>
+
+          {isProviderBackedJob(job) ? (
+            <JobProviderDetailSection job={job} jobId={jobId} organizationSlug={organizationSlug} />
+          ) : null}
 
           {job.kind === "review" || job.kind === "sync" || job.kind === "asset_management" ? (
             <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">

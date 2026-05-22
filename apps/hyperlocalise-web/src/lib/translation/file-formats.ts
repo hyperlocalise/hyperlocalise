@@ -1,6 +1,7 @@
 export const supportedTranslationFileFormats = [
   "json",
   "jsonc",
+  "yaml",
   "arb",
   "xliff",
   "po",
@@ -9,6 +10,7 @@ export const supportedTranslationFileFormats = [
   "mdx",
   "strings",
   "stringsdict",
+  "xcstrings",
   "csv",
   "png",
   "jpeg",
@@ -20,6 +22,7 @@ export type SupportedTranslationFileFormat = (typeof supportedTranslationFileFor
 export const supportedFileTranslationFileFormats = [
   "json",
   "jsonc",
+  "yaml",
   "arb",
   "xliff",
   "po",
@@ -28,6 +31,7 @@ export const supportedFileTranslationFileFormats = [
   "mdx",
   "strings",
   "stringsdict",
+  "xcstrings",
   "csv",
 ] as const;
 
@@ -37,6 +41,8 @@ export type SupportedFileTranslationFileFormat =
 const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".json": "json",
   ".jsonc": "jsonc",
+  ".yaml": "yaml",
+  ".yml": "yaml",
   ".arb": "arb",
   ".xlf": "xliff",
   ".xlif": "xliff",
@@ -47,6 +53,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".mdx": "mdx",
   ".strings": "strings",
   ".stringsdict": "stringsdict",
+  ".xcstrings": "xcstrings",
   ".csv": "csv",
   ".png": "png",
   ".jpg": "jpeg",

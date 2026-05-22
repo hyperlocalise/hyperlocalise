@@ -57,6 +57,8 @@ Other commands include `init`, `completion`, `update`, and `version`.
 
 For review-time validation, `check` also supports `--diff-stdin` to scope findings to changed keys from a unified patch for configured `.json`, `.jsonc`, and `.arb` translation files.
 
+Local generation supports common app resource formats including JSON/JSONC, ARB, XLIFF, PO, HTML, Liquid, Markdown/MDX, Apple `.strings`/`.stringsdict`, CSV, and Android `res/values*/strings.xml` resource files.
+
 Use `hyperlocalise --help` for the local command surface, or see the docs for full flags, examples, and provider-specific setup.
 
 ## GitHub Action
