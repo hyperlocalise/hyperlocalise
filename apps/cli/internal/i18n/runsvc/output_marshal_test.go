@@ -243,6 +243,33 @@ func TestMarshalTargetFileJSONC(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.properties")
+	targetPath := filepath.Join(t.TempDir(), "target.properties")
+	source := "# Checkout\nhello = Hello {0}\n"
+	target := "# Checkout translated\nhello = Salut {0}\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source properties: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target properties: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"})
+	if err != nil {
+		t.Fatalf("marshal properties target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "# Checkout translated") {
+		t.Fatalf("expected target comments to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "hello = Bonjour {0}") {
+		t.Fatalf("expected translated properties value, got %q", got)
+	}
+}
+
 func TestMarshalTargetFileYAMLUsesTargetTemplate(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {

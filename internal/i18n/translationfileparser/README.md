@@ -17,10 +17,11 @@
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
 - `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
+- `.properties` via `JavaPropertiesParser` (Java resource bundles)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, XLIFF, PO, Apple Strings, Markdown/MDX, CSV, Liquid, and HTML parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, XLIFF, PO, Apple Strings, Markdown/MDX, CSV, Liquid, HTML, generic XML/RESX, and Java properties parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -130,6 +131,15 @@
 - `MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)` also rewrites root-element locale attributes (`xml:lang`, `lang`, `locale`, `language`, `code`) whose values match `sourceLocale`, adapting the original separator style (for example `en_US` -> `vi_VN`, `en` -> `vi`).
 - XML marshal values must be decoded plain text, not pre-escaped XML; the serializer escapes translated text and attributes during writeback.
 - Surrounding whitespace inside text-only leaf values is treated as part of the source value and replacement range, so translation providers that trim values may normalize that formatting.
+
+### Java Properties (`.properties`)
+
+- Parses Java-style key/value entries separated by `=`, `:`, or unescaped whitespace.
+- Supports escaped keys and values, `\t`, `\n`, `\r`, `\f`, escaped separators, `\uXXXX` unicode escapes, and logical line continuations.
+- Ignores blank lines and preserves `#` / `!` comments during marshal. Adjacent leading comments are returned as entry context by `ParseWithContext`.
+- `MarshalJavaProperties(template, values)` preserves key order, comments, separators, and spacing while replacing value literals. New keys are appended in sorted order.
+- Writeback normalizes translated values to single-line escaped values.
+- Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations return explicit parse errors.
 
 ## Minimal usage
 

@@ -57,3 +57,7 @@ Use `buckets.*.files[].from` and `to` to point at `.csv` files when you run CSV-
 
 - Per-locale files typically use `[locale]` in the `to` path.
 - Shared CSV files can reuse the same `from` and `to` path.
+
+## Java properties workflow note
+
+Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.
