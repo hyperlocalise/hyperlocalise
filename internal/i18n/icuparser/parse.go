@@ -82,7 +82,7 @@ func (p *astParser) handleMessageChar(out *[]Element, text *strings.Builder, ctx
 	switch p.src[p.pos] {
 	case '{':
 		flushText()
-		el, err := p.parseArgumentLike()
+		el, err := p.parseArgumentLike(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -155,7 +155,7 @@ func (p *astParser) handleOpenTag(text *strings.Builder, ctx parseCtx, out *[]El
 	return true, nil
 }
 
-func (p *astParser) parseArgumentLike() (Element, error) {
+func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
 	if !p.consume('{') {
 		return nil, fmt.Errorf("expected '{' at %d", p.pos)
 	}
@@ -184,7 +184,7 @@ func (p *astParser) parseArgumentLike() (Element, error) {
 		return p.parseSimpleTypedArgument(arg, kind)
 	}
 	if kind == "select" {
-		return p.parseSelectArgument(arg)
+		return p.parseSelectArgument(arg, ctx)
 	}
 	if kind == "plural" || kind == "selectordinal" {
 		return p.parsePluralArgument(arg, kind)
@@ -286,12 +286,12 @@ func (p *astParser) finishTimeElement(arg, style string) (Element, error) {
 	}, nil
 }
 
-func (p *astParser) parseSelectArgument(arg string) (Element, error) {
+func (p *astParser) parseSelectArgument(arg string, ctx parseCtx) (Element, error) {
 	if !p.consume(',') {
 		return nil, fmt.Errorf("expected ',' before select options at %d", p.pos)
 	}
 	p.skipSpaces()
-	opts, err := p.parseSelectOptions(parseCtx{})
+	opts, err := p.parseSelectOptions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -537,7 +537,7 @@ func (p *astParser) handleTagBodyChar(out *[]Element, text *strings.Builder, ctx
 	switch p.peek() {
 	case '{':
 		flushText()
-		el, err := p.parseArgumentLike()
+		el, err := p.parseArgumentLike(ctx)
 		if err != nil {
 			return err
 		}
