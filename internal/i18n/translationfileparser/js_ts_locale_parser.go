@@ -682,7 +682,7 @@ func jstsLiteralValueEnd(src string, valueStart, containerEnd int) (int, error) 
 			return i, err
 		}
 		next := skipJSTSWhitespaceAndComments(src, lit.end)
-		if next < containerEnd && src[next] != ',' {
+		if next < containerEnd && src[next] != ',' && src[next] != '}' && src[next] != ']' && src[next] != ')' {
 			return skipJSTSValueExpression(src, i, containerEnd), nil
 		}
 		return lit.end, nil
