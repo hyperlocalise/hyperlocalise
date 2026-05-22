@@ -92,7 +92,7 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
         syncState: input.syncState ?? "pending",
         localeReadiness: input.localeReadiness ?? {},
         providerPayload: input.providerPayload ?? {},
-        lastSyncedAt: input.lastSyncedAt ?? now,
+        ...(input.lastSyncedAt !== undefined && { lastSyncedAt: input.lastSyncedAt }),
         updatedAt: now,
       },
     })

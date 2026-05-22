@@ -74,6 +74,17 @@ function buildTree(files: ProjectFileRecord[]): TreeNode {
         };
         nodeMap.set(path, node);
         nodeMap.get(parentPath)!.children.push(node);
+      } else if (i === parts.length - 1) {
+        if (!node.file) {
+          node.file = file;
+        } else {
+          if (file.provider && !node.file.provider) {
+            node.file = { ...node.file, provider: file.provider };
+          }
+          if (file.latestJob && !node.file.latestJob) {
+            node.file = { ...node.file, latestJob: file.latestJob };
+          }
+        }
       }
 
       parentPath = path;
