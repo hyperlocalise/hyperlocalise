@@ -1055,6 +1055,71 @@ export const assetManagementJobDetails = pgTable("asset_management_job_details",
     .default(sql`'{}'::jsonb`),
 });
 
+export const externalJobDetails = pgTable(
+  "external_job_details",
+  {
+    // One-to-one extension row for jobs that originated from an external TMS provider.
+    jobId: text("job_id")
+      .primaryKey()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    // Tenant that owns this external job, denormalized for unique index scoping.
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Provider that owns this external job.
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    // Provider-scoped job identifier used for idempotent upserts.
+    externalJobId: text("external_job_id").notNull(),
+    // Optional provider task identifier when the provider uses a job/task hierarchy.
+    externalTaskId: text("external_task_id"),
+    // Raw provider status string preserved for diagnostics.
+    externalStatus: text("external_status").notNull(),
+    // Human-readable title from the provider.
+    title: text("title").notNull().default(""),
+    // Provider due date, if available.
+    dueDate: timestamp("due_date", { withTimezone: true }),
+    // Target locales from the provider job payload.
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Assigned user identifiers (emails or external IDs) from the provider.
+    assignedUsers: jsonb("assigned_users")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Direct URL to the job in the provider UI.
+    externalUrl: text("external_url"),
+    // Sync state tracked independently of provider status for UI badges.
+    syncState: text("sync_state").notNull().default("pending"),
+    // Raw provider payload retained for debugging and forward compatibility.
+    providerPayload: jsonb("provider_payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Optional link to a native Hyperlocalise job created when agent work is started.
+    linkedJobId: text("linked_job_id").references(() => jobs.id, { onDelete: "set null" }),
+    // When the external job record was first created.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the external job record was last changed.
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_external_job_details_provider_kind").on(table.providerKind),
+    index("idx_external_job_details_external_job_id").on(table.externalJobId),
+    index("idx_external_job_details_sync_state").on(table.syncState),
+    index("idx_external_job_details_linked_job").on(table.linkedJobId),
+    uniqueIndex("idx_external_job_details_provider_job_unique").on(
+      table.organizationId,
+      table.externalJobId,
+      table.providerKind,
+    ),
+  ],
+);
+
 export const interactions = pgTable(
   "interactions",
   {

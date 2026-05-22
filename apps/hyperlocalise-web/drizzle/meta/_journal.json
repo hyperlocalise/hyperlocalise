@@ -71,6 +71,13 @@
       "when": 1779372021091,
       "tag": "0009_graceful_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779408620362,
+      "tag": "0010_third_black_widow",
+      "breakpoints": true
     }
   ]
 }
