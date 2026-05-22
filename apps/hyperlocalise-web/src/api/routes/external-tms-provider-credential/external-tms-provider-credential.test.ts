@@ -769,6 +769,370 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(runs[0]?.status).toBe("failed");
   });
 
+  it("returns connected Smartling health and records a health check sync run", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          response: {
+            code: "SUCCESS",
+            data: {
+              accessToken: "access-token",
+              refreshToken: "refresh-token",
+              expiresIn: 480,
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: JSON.stringify({
+        userIdentifier: "smartling-user",
+        userSecret: "smartling-secret",
+        accountUid: "acct-1",
+      }),
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "smartling",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "smartling",
+        status: "connected",
+        availability: "available",
+        authValidity: "valid",
+        errorCode: null,
+      },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.smartling.com/auth-api/v2/authenticate",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          userIdentifier: "smartling-user",
+          userSecret: "smartling-secret",
+        }),
+      }),
+    );
+  });
+
+  it("returns smartling_auth_invalid when Smartling rejects credentials", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          response: {
+            code: "AUTHENTICATION_ERROR",
+            errors: [{ message: "Invalid credentials" }],
+          },
+        }),
+        { status: 401 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: "smartling-user:smartling-secret:acct-1",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "smartling",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "smartling",
+        status: "error",
+        authValidity: "invalid",
+        errorCode: "smartling_auth_invalid",
+      },
+    });
+  });
+
+  it("returns smartling_api_unavailable when Smartling rejects paid API access", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          response: {
+            code: "FEATURE_NOT_AVAILABLE",
+            errors: [{ message: "API access is not enabled on your subscription" }],
+          },
+        }),
+        { status: 403 },
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: "smartling-user:smartling-secret:acct-1",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "smartling",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "smartling",
+        status: "degraded",
+        errorCode: "smartling_api_unavailable",
+      },
+    });
+  });
+
+  it("syncs Smartling projects and locales into connected TMS project records", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes("/accounts/acct-1/projects")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                items: [
+                  {
+                    accountUid: "acct-1",
+                    projectId: "proj-1",
+                    projectName: "Marketing Website",
+                    sourceLocaleId: "en-US",
+                    archived: false,
+                    projectTypeCode: "GDN",
+                  },
+                ],
+                totalCount: 1,
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes("/projects/proj-1")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                accountUid: "acct-1",
+                projectId: "proj-1",
+                projectName: "Marketing Website",
+                sourceLocaleId: "en-US",
+                archived: false,
+                projectTypeCode: "GDN",
+                targetLocales: [
+                  { localeId: "de-DE", description: "German", enabled: true },
+                  { localeId: "fr-FR", description: "French", enabled: true },
+                ],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: JSON.stringify({
+        userIdentifier: "smartling-user",
+        userSecret: "smartling-secret",
+        accountUid: "acct-1",
+      }),
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "smartling",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      externalTmsProjectSync: {
+        status: string;
+        counts: {
+          projectsDiscovered: number;
+          projectsSynced: number;
+          localesSynced: number;
+        };
+      };
+    };
+    expect(data.externalTmsProjectSync.status).toBe("succeeded");
+    expect(data.externalTmsProjectSync.counts).toEqual({
+      projectsDiscovered: 1,
+      projectsSynced: 1,
+      projectsFailed: 0,
+      localesSynced: 3,
+    });
+
+    const projects = await db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.projects.externalProviderKind, "smartling"),
+        ),
+      );
+
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      name: "Marketing Website",
+      sourceLocale: "en-US",
+      targetLocales: ["de-DE", "fr-FR"],
+      externalProjectId: "proj-1",
+      isActive: true,
+      source: "external_tms",
+    });
+  });
+
+  it("records a failed sync run when Smartling auth is invalid", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "AUTHENTICATION_ERROR",
+              errors: [{ message: "Invalid credentials" }],
+            },
+          }),
+          { status: 401 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: "smartling-user:invalid-secret:acct-1",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "smartling",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(500);
+
+    const runs = await db
+      .select()
+      .from(schema.providerSyncRuns)
+      .where(
+        and(
+          eq(schema.providerSyncRuns.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.providerSyncRuns.providerKind, "smartling"),
+          eq(schema.providerSyncRuns.kind, "project_scan"),
+        ),
+      );
+
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.status).toBe("failed");
+  });
+
   it("returns 501 for providers that do not yet support project sync", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

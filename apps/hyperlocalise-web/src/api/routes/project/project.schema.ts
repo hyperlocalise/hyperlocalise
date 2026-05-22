@@ -4,6 +4,32 @@ export const projectIdParamsSchema = z.object({
   projectId: z.string().trim().min(1).max(128),
 });
 
+export const externalTmsContentSyncBodySchema = z.object({
+  externalJobId: z.string().trim().min(1).max(128),
+});
+
+export const externalTmsTranslationPushBodySchema = z.object({
+  externalJobId: z.string().trim().min(1).max(128),
+  translations: z
+    .array(
+      z
+        .object({
+          externalStringId: z.string().trim().min(1).max(128).optional(),
+          key: z.string().trim().min(1).max(512).optional(),
+          locale: z.string().trim().min(1).max(32),
+          text: z.string(),
+          fileId: z.string().trim().min(1).max(128).optional(),
+          fileName: z.string().trim().min(1).max(256).optional(),
+          format: z.string().trim().min(1).max(64).optional(),
+        })
+        .refine((data) => data.key != null || data.externalStringId != null, {
+          message: "Either key or externalStringId must be provided",
+          path: ["key"],
+        }),
+    )
+    .min(1),
+});
+
 export const createProjectBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(10_000).optional(),

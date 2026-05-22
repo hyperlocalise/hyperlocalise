@@ -381,6 +381,66 @@ describe("CrowdinApiClient", () => {
     });
   });
 
+  it("gets a task and uploads translations through storage", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path.endsWith("/projects/1/tasks/9")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              projectId: 1,
+              type: 0,
+              status: "todo",
+              title: "Task",
+              description: null,
+              targetLanguageId: "fr",
+              languageId: "fr",
+              fileIds: [101],
+              webUrl: "https://crowdin.com/project/1/tasks/9",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/storages")) {
+        return new Response(JSON.stringify({ data: { id: 12, fileName: "fr.json" } }), {
+          status: 201,
+        });
+      }
+
+      if (path.endsWith("/projects/1/translations/fr") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            data: { projectId: 1, storageId: 12, languageId: "fr", fileId: 101 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const task = await client.getTask(1, 9);
+    expect(task.targetLanguageId).toBe("fr");
+
+    const storage = await client.addStorage({
+      fileName: "fr.json",
+      content: new TextEncoder().encode('{"hello":"Bonjour"}'),
+      contentType: "application/json",
+    });
+    expect(storage.id).toBe(12);
+
+    const upload = await client.uploadTranslations(1, "fr", {
+      storageId: storage.id,
+      fileId: 101,
+    });
+    expect(upload.fileId).toBe(101);
+  });
+
   it("lists project language progress", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
