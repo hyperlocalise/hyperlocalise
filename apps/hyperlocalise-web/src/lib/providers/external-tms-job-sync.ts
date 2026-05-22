@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { JobKind, ProviderSyncRunStatus } from "@/lib/database/types";
@@ -121,13 +121,15 @@ export async function syncExternalTmsJobTasks(input: {
 
     counts.jobTasksDiscovered = jobTasks.length;
 
+    const previousStatuses = await getExistingExternalJobStatuses({
+      organizationId: input.organizationId,
+      providerKind: input.providerKind,
+      externalJobIds: jobTasks.map((t) => t.externalJobId),
+    });
+
     for (const jobTask of jobTasks) {
       try {
-        const previous = await getExistingExternalJobStatus({
-          organizationId: input.organizationId,
-          providerKind: input.providerKind,
-          externalJobId: jobTask.externalJobId,
-        });
+        const previous = previousStatuses.get(jobTask.externalJobId) ?? null;
         const synced = await upsertExternalJob({
           organizationId: input.organizationId,
           projectId: project.id,
@@ -249,25 +251,35 @@ async function getExternalTmsCredential(input: {
   return credential ?? null;
 }
 
-async function getExistingExternalJobStatus(input: {
+async function getExistingExternalJobStatuses(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
-  externalJobId: string;
+  externalJobIds: string[];
 }) {
-  const [row] = await db
-    .select({ status: schema.jobs.status })
+  if (input.externalJobIds.length === 0) {
+    return new Map<string, string | null>();
+  }
+
+  const rows = await db
+    .select({
+      externalJobId: schema.externalJobDetails.externalJobId,
+      status: schema.jobs.status,
+    })
     .from(schema.externalJobDetails)
     .innerJoin(schema.jobs, eq(schema.jobs.id, schema.externalJobDetails.jobId))
     .where(
       and(
         eq(schema.externalJobDetails.organizationId, input.organizationId),
         eq(schema.externalJobDetails.providerKind, input.providerKind),
-        eq(schema.externalJobDetails.externalJobId, input.externalJobId),
+        inArray(schema.externalJobDetails.externalJobId, input.externalJobIds),
       ),
-    )
-    .limit(1);
+    );
 
-  return row?.status ?? null;
+  const map = new Map<string, string | null>();
+  for (const row of rows) {
+    map.set(row.externalJobId, row.status);
+  }
+  return map;
 }
 
 function normalizeDueDate(value: Date | string | null | undefined) {
