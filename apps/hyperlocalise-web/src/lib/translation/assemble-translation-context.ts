@@ -46,7 +46,7 @@ export type StringTranslationContextSnapshot = {
 
 function buildTsQuery(input: string): string {
   return input
-    .replace(/[&|!():*<>'"]/g, " ")
+    .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
