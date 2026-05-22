@@ -60,7 +60,12 @@ vi.mock("@/lib/agents/github/repositories", () => ({
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+  resolveApiAuthContextFromSession: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";

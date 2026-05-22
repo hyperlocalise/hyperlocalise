@@ -16,6 +16,7 @@ type Directory struct {
 	Title         string `json:"title"`
 	ExportPattern string `json:"exportPattern"`
 	Path          string `json:"path"`
+	WebURL        string `json:"webUrl"`
 	IsReadOnly    *bool  `json:"isReadOnly,omitempty"`
 	Priority      string `json:"priority"`
 	CreatedAt     string `json:"createdAt"`
@@ -136,6 +137,7 @@ type File struct {
 	Context     *string `json:"context,omitempty"`
 	Type        string  `json:"type"`
 	Path        string  `json:"path"`
+	WebURL      string  `json:"webUrl"`
 	Status      string  `json:"status"`
 	Fields      any     `json:"fields,omitempty"`
 	IsReadOnly  *bool   `json:"isReadOnly,omitempty"`

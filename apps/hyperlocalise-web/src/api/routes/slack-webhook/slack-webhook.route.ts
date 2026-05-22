@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { after } from "next/server";
 
 import { env } from "@/lib/env";
@@ -65,73 +66,80 @@ function extractTeamId(payload: unknown): string | null {
 }
 
 export function createSlackWebhookRoutes() {
-  return new Hono().post("/", async (c) => {
-    logger.info({ method: c.req.method, path: c.req.path }, "slack webhook received");
+  return new Hono().post(
+    "/",
+    bodyLimit({
+      maxSize: 1024 * 1024, // 1MB
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+    async (c) => {
+      logger.info({ method: c.req.method, path: c.req.path }, "slack webhook received");
 
-    const bodyBuffer = await c.req.raw.arrayBuffer();
-    const bodyText = new TextDecoder().decode(bodyBuffer);
+      const bodyBuffer = await c.req.raw.arrayBuffer();
+      const bodyText = new TextDecoder().decode(bodyBuffer);
 
-    const verified = await verifySlackSignature(c.req.raw, bodyText);
-    if (!verified) {
-      logger.warn("invalid slack webhook signature");
-      return c.json({ error: "invalid_signature" }, 401);
-    }
+      const verified = await verifySlackSignature(c.req.raw, bodyText);
+      if (!verified) {
+        logger.warn("invalid slack webhook signature");
+        return c.json({ error: "invalid_signature" }, 401);
+      }
 
-    let payload: unknown;
-    try {
-      payload = JSON.parse(bodyText);
-    } catch {
-      logger.warn("invalid slack webhook payload json");
-      return c.json({ error: "invalid_payload" }, 400);
-    }
+      let payload: unknown;
+      try {
+        payload = JSON.parse(bodyText);
+      } catch {
+        logger.warn("invalid slack webhook payload json");
+        return c.json({ error: "invalid_payload" }, 400);
+      }
 
-    // Handle Slack URL verification challenge
-    const challenge = (payload as Record<string, unknown>).challenge;
-    if (typeof challenge === "string") {
-      logger.info("responding to slack url verification challenge");
-      return c.json({ challenge }, 200);
-    }
+      // Handle Slack URL verification challenge
+      const challenge = (payload as Record<string, unknown>).challenge;
+      if (typeof challenge === "string") {
+        logger.info("responding to slack url verification challenge");
+        return c.json({ challenge }, 200);
+      }
 
-    const teamId = extractTeamId(payload);
-    if (!teamId) {
-      logger.info("ignoring slack webhook: no team_id");
-      return c.json({ ok: true, ignored: true }, 200);
-    }
+      const teamId = extractTeamId(payload);
+      if (!teamId) {
+        logger.info("ignoring slack webhook: no team_id");
+        return c.json({ ok: true, ignored: true }, 200);
+      }
 
-    const connector = await findSlackConnector(teamId, { enabledOnly: false });
-    if (!connector) {
-      logger.info({ teamId }, "ignoring slack webhook: unknown workspace");
-      return c.json({ ok: true, ignored: true }, 200);
-    }
+      const connector = await findSlackConnector(teamId, { enabledOnly: false });
+      if (!connector) {
+        logger.info({ teamId }, "ignoring slack webhook: unknown workspace");
+        return c.json({ ok: true, ignored: true }, 200);
+      }
 
-    if (!connector.enabled) {
-      logger.info({ teamId }, "ignoring slack webhook: workspace disabled");
-      return c.json({ ok: true, ignored: true }, 200);
-    }
+      if (!connector.enabled) {
+        logger.info({ teamId }, "ignoring slack webhook: workspace disabled");
+        return c.json({ ok: true, ignored: true }, 200);
+      }
 
-    try {
-      const bot = await getSlackBot();
-      const response = await bot.webhooks.slack(
-        new Request(c.req.raw.url, {
-          method: c.req.raw.method,
-          headers: c.req.raw.headers,
-          body: bodyBuffer,
-        }),
-        {
-          waitUntil: (task) => {
-            after(() => task);
+      try {
+        const bot = await getSlackBot();
+        const response = await bot.webhooks.slack(
+          new Request(c.req.raw.url, {
+            method: c.req.raw.method,
+            headers: c.req.raw.headers,
+            body: bodyBuffer,
+          }),
+          {
+            waitUntil: (task) => {
+              after(() => task);
+            },
           },
-        },
-      );
+        );
 
-      logger.info({ status: response.status, teamId }, "slack webhook processed");
-      return response;
-    } catch (error) {
-      logger.error(
-        { error: error instanceof Error ? error.message : String(error), teamId },
-        "slack webhook processing failed",
-      );
-      throw error;
-    }
-  });
+        logger.info({ status: response.status, teamId }, "slack webhook processed");
+        return response;
+      } catch (error) {
+        logger.error(
+          { error: error instanceof Error ? error.message : String(error), teamId },
+          "slack webhook processing failed",
+        );
+        throw error;
+      }
+    },
+  );
 }

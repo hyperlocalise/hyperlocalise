@@ -24,8 +24,10 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 `run` can read source and target files with these extensions:
 
 - `.json`
+- `.jsonc`
+- `.yaml` and `.yml`
 - `.arb`
-- `.xlf` and `.xliff`
+- `.xlf`, `.xlif`, and `.xliff`
 - `.po`
 - `.html`
 - `.liquid`
@@ -35,6 +37,8 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.stringsdict`
 - `.csv`
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
+- `.xml` and `.resx` for generic XML locale files
+- `.properties`
 
 For JSON (`.json`), `run` supports:
 
@@ -43,6 +47,8 @@ For JSON (`.json`), `run` supports:
   `{"[id]": {"defaultMessage": "[message]", "description": "[description]"}}`
 
 In FormatJS mode, only `defaultMessage` is translated. Keys (message IDs), `description`, and other non-message metadata are preserved.
+
+For YAML/YML (`.yaml`, `.yml`), `run` supports mapping-shaped locale files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silent corruption.
 
 For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
 
@@ -83,12 +89,23 @@ Android comments, namespaces, and resource attributes such as `formatted`, `tool
 Unsupported translatable Android resource shapes such as `<string-array>` fail with a clear parser error instead of being ignored.
 
 
+For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
+
+
 For CSV (`.csv`), `run` supports two layouts:
 
 - key/value layout (for example: `key,value`)
 - per-locale column layout (for example: `id,en,fr,de`)
 
 When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+
+For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
+
+- keyed leaves use `key`, `id`, or `name` attributes, for example `<message key="checkout.cta">Checkout now</message>`
+- nested path-shaped leaves use dotted element paths, for example `<home><title>Welcome</title></home>` -> `home.title`
+- `.resx`-style `<data name="home.title"><value>Welcome</value></data>` entries are supported
+- comments, attributes, metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved
+- mixed-content values such as `Hello <ph/>` and Android `<resources>` files are rejected instead of being rewritten as generic XML
 
 ## Flags
 

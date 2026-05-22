@@ -16,7 +16,7 @@ const publicJobMetadataSchema = z
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
-    projectId: z.string().trim().min(1),
+    projectId: z.string().trim().min(1).max(128),
     stringInput: z.object({
       sourceText: z.string().trim().min(1).max(100_000),
       sourceLocale: z.string().trim().min(1).max(32),
@@ -31,9 +31,9 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("file"),
-    projectId: z.string().trim().min(1),
+    projectId: z.string().trim().min(1).max(128),
     fileInput: z.object({
-      sourceFileId: z.string().trim().min(1),
+      sourceFileId: z.string().trim().min(1).max(128),
       fileFormat: z.enum(supportedFileTranslationFileFormats),
       sourceLocale: z.string().trim().min(1).max(32),
       targetLocales: z
@@ -46,11 +46,11 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
 ]);
 
 export const jobIdParamsSchema = z.object({
-  jobId: z.string().trim().min(1),
+  jobId: z.string().trim().min(1).max(128),
 });
 
 export const latestPublicJobQuerySchema = z.object({
-  projectId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
   sourcePath: z.string().trim().min(1).max(2048),
 });
 

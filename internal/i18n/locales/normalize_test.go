@@ -31,6 +31,11 @@ func TestNormalizeListSplitsTrimsAndDeduplicates(t *testing.T) {
 			in:   []string{"en-US,,en-GB", "EN-US", "  fr-CA  ,  FR-ca "},
 			want: []string{"en-US", "en-GB", "fr-CA"},
 		},
+		{
+			name: "prefix locales are distinct",
+			in:   []string{"en", "en-US", "en-GB"},
+			want: []string{"en", "en-US", "en-GB"},
+		},
 	}
 
 	for _, tt := range tests {

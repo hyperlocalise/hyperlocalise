@@ -52,6 +52,29 @@ Each file mapping uses:
 
 Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
 
+Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, and `.csv`.
+
+YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
+
+```yaml
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.yaml
+        to: apps/web/lang/{{target}}.yaml
+```
+
+Generic XML mappings can point at non-Android XML locale files:
+
+```yaml
+buckets:
+  xml:
+    files:
+      - from: locales/en-US.xml
+        to: locales/[locale].xml
+```
+
+XML entries must be text-only leaf elements keyed by `key`, `id`, or `name`, or nested path-shaped leaves. Android `<resources>` files, mixed-content XML, and CDATA-preserving writeback are not handled by the generic XML parser.
 
 ### CSV file mapping patterns
 
@@ -90,6 +113,20 @@ buckets:
 ```
 
 Supported resource entries are `<string name="...">` and `<plurals name="..."><item quantity="...">`. Resources marked `translatable="false"` are preserved and skipped. Unsupported translatable resource shapes such as `<string-array>` fail closed so they are not silently dropped.
+
+### Java properties file mapping patterns
+
+Use `.properties` mappings for Java resource bundles with one file per locale:
+
+```yaml
+buckets:
+  java:
+    files:
+      - from: src/main/resources/messages_{{source}}.properties
+        to: src/main/resources/messages_{{target}}.properties
+```
+
+Supported entries are flat Java properties keys with string values. Hyperlocalise preserves comments, separators, and key order on write; translated values are written as escaped single-line `.properties` values.
 
 ## Groups
 

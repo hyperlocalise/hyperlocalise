@@ -1,7 +1,7 @@
 package translationfileparser
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -163,7 +163,8 @@ func (s *mdxPathState) nextTextPath(line string, stack []mdxContainer) string {
 	base += "/" + mdxLineKind(line)
 	ordinal := s.textOrdinals[base]
 	s.textOrdinals[base] = ordinal + 1
-	return fmt.Sprintf("%s/text[%d]", base, ordinal)
+	// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+	return base + "/text[" + strconv.Itoa(ordinal) + "]"
 }
 
 func mdxLineKind(line string) string {

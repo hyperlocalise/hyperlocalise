@@ -349,16 +349,6 @@ func androidNamespaceAttrs(attrs []xml.Attr) string {
 	return b.String()
 }
 
-func escapeXMLAttr(value string) string {
-	replacer := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-		"\"", "&quot;",
-	)
-	return replacer.Replace(value)
-}
-
 func isAndroidStringResourcePath(path string) bool {
 	normalized := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
 	segments := strings.Split(strings.ToLower(normalized), "/")

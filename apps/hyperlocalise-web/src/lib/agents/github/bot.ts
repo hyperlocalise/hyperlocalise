@@ -9,6 +9,10 @@ import {
 } from "@/lib/agents/hyperlocalise-agent";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import {
+  buildRepoTmsGitHubContextInstructions,
+  resolveGitHubRepoTmsGitHubContext,
+} from "@/lib/agents/repo-tms-context";
 import { env } from "@/lib/env";
 import {
   addInteractionMessage,
@@ -17,12 +21,25 @@ import {
 } from "@/lib/interactions";
 import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
-import type { GitHubFixRequestedEventData, GitHubFixQueue } from "@/lib/workflow/types";
+import type {
+  GitHubFixRequestedEventData,
+  GitHubFixQueue,
+  RepoTmsAgentTaskQueue,
+} from "@/lib/workflow/types";
 
-import { parseFixCommand } from "./commands";
+import { parseHyperlocaliseCommand } from "./commands";
 import { buildFixEvent } from "./events";
 import { requesterCanRunFix } from "./permissions";
 import { createGitHubFixTools } from "./tools";
+import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
+import { buildRepoTmsTaskIdempotencyKey } from "@/lib/agents/repo-tms-task";
+import { randomUUID } from "node:crypto";
+import {
+  buildGitHubRepoTmsRequestInput,
+  claimGitHubAgentRequest,
+  markGitHubAgentRequestEnqueued,
+  releaseGitHubAgentRequestClaim,
+} from "./request-idempotency";
 
 type GitHubBotOptions = {
   githubFixQueue: GitHubFixQueue;
@@ -68,14 +85,14 @@ export async function handleMention(
     return;
   }
 
-  const command = parseFixCommand(message.text);
+  const command = parseHyperlocaliseCommand(message.text);
   if (!command) {
     return;
   }
 
   const installationId = await (thread.adapter as GitHubAdapter).getInstallationId(thread);
   if (!installationId) {
-    await thread.post("GitHub App installation is not configured for `@hyperlocalise fix`.");
+    await thread.post("GitHub App installation is not configured for `@hyperlocalise`.");
     return;
   }
   const githubInstallationId = String(installationId);
@@ -88,22 +105,32 @@ export async function handleMention(
   });
   if (!event) {
     await thread.post(
-      "I can only run `@hyperlocalise fix` from pull request comments or inline pull request review comments.",
+      "I can only run `@hyperlocalise` from pull request comments or inline pull request review comments.",
     );
     return;
   }
 
   if (!(await requesterCanRunFix(event))) {
     await thread.post(
-      "I can only run `@hyperlocalise fix` for repository collaborators with write access.",
+      "I can only run `@hyperlocalise` commands for repository collaborators with write access.",
     );
     return;
   }
 
+  const githubContextResolution = await resolveGitHubRepoTmsGitHubContext({
+    raw: message.raw as GitHubRawMessage,
+    installationId: Number.parseInt(githubInstallationId, 10),
+  });
+  if (githubContextResolution.status === "unresolved") {
+    await thread.post(githubContextResolution.followUp);
+    return;
+  }
+
+  const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
+
   // Conversation tracking
   let conversationId: string | undefined;
   try {
-    const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
     if (organizationId) {
       const existing = await findInteractionBySourceThreadId({
         organizationId,
@@ -137,6 +164,84 @@ export async function handleMention(
     // Best-effort tracking
   }
 
+  if (command.command === "repo_tms") {
+    if (githubContextResolution.status !== "resolved") {
+      await thread.post(
+        "I need a pull request context for this GitHub request. Please run the command from a PR comment or an inline PR review comment.",
+      );
+      return;
+    }
+    if (!organizationId) {
+      await thread.post(
+        "I could not resolve the Hyperlocalise workspace for this GitHub installation.",
+      );
+      return;
+    }
+    const taskQueue: RepoTmsAgentTaskQueue = createRepoTmsAgentTaskQueue();
+    const githubContext = githubContextResolution.context;
+    let claim: Awaited<ReturnType<typeof claimGitHubAgentRequest>>;
+    try {
+      claim = await claimGitHubAgentRequest(
+        buildGitHubRepoTmsRequestInput({
+          installationId: event.installationId,
+          repositoryFullName: event.repositoryFullName,
+          pullRequestNumber: event.pullRequestNumber,
+          commentId: event.trigger.commentId,
+          instructions: command.instructions,
+        }),
+      );
+    } catch (error) {
+      await thread.post(
+        "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+      );
+      throw error;
+    }
+    if (claim.alreadyQueued) {
+      await thread.post("This repo/TMS request is already queued.");
+      return;
+    }
+
+    await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
+    try {
+      const result = await taskQueue.enqueue({
+        id: randomUUID(),
+        source: "github",
+        sourceThreadId: thread.id,
+        actor: {
+          sourceUserId: message.author.userId,
+          displayName: message.author.fullName ?? message.author.userName,
+        },
+        organizationId,
+        projectId: null,
+        workMode: "approval_required",
+        instructions: command.instructions,
+        githubContext: githubContext,
+        createdAt: new Date().toISOString(),
+        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+          source: "github",
+          sourceThreadId: thread.id,
+          organizationId,
+          instructions: command.instructions,
+          githubContext,
+        }),
+      });
+      await markGitHubAgentRequestEnqueued({
+        requestId: claim.requestId,
+        workflowRunIds: result.ids,
+      });
+      await thread.post(
+        "Queued your repo/TMS workflow. I will post progress and completion updates on this pull request.",
+      );
+    } catch (error) {
+      await releaseGitHubAgentRequestClaim(claim.requestId);
+      await thread.post(
+        "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+      );
+      throw error;
+    }
+    return;
+  }
+
   await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
   await thread.setState({ lastFixEvent: event });
 
@@ -146,7 +251,14 @@ export async function handleMention(
     projectId: null,
     tools,
     activeTools: ["enqueueGitHubFix"],
-    additionalInstructions: buildGitHubFixInstructions(event),
+    additionalInstructions: [
+      buildGitHubFixInstructions(event),
+      githubContextResolution.status === "resolved"
+        ? buildRepoTmsGitHubContextInstructions(githubContextResolution.context)
+        : null,
+    ]
+      .filter((instruction): instruction is string => instruction !== null)
+      .join("\n\n"),
     prepareStep: ({ stepNumber }) => {
       if (stepNumber === 0) {
         return {

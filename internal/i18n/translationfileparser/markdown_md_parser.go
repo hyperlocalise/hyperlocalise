@@ -3,8 +3,9 @@ package translationfileparser
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -150,7 +151,7 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 				candidates = append(candidates, markdownSpanCandidate{
 					start:     valueStart,
 					stop:      valueEnd,
-					path:      fmt.Sprintf("frontmatter/%s", key),
+					path:      "frontmatter/" + key, // BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
 					yamlPlain: true,
 				})
 			}
@@ -169,7 +170,7 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 		candidates = append(candidates, markdownSpanCandidate{
 			start: start,
 			stop:  stop,
-			path:  fmt.Sprintf("frontmatter/%s", key),
+			path:  "frontmatter/" + key, // BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
 		})
 		offset += len(line)
 	}
@@ -236,7 +237,7 @@ func appendTableCandidates(out *[]markdownSpanCandidate, seen map[string]struct{
 			}
 		case *extast.TableRow:
 			if start, stop, ok := markdownTableRowSpan(typed, content, baseOffset); ok {
-				appendMarkdownCandidate(out, seen, start, stop, fmt.Sprintf("%s/row[%d]", markdownNodePath(table, 0), rowIndex))
+				appendMarkdownCandidate(out, seen, start, stop, markdownNodePath(table, 0)+"/row["+strconv.Itoa(rowIndex)+"]") // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
 			}
 			rowIndex++
 		}
@@ -274,7 +275,7 @@ func appendMarkdownCandidate(out *[]markdownSpanCandidate, seen map[string]struc
 	if stop <= start {
 		return
 	}
-	key := fmt.Sprintf("%d:%d", start, stop)
+	key := strconv.Itoa(start) + ":" + strconv.Itoa(stop) // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
 	if _, ok := seen[key]; ok {
 		return
 	}
@@ -308,15 +309,18 @@ func findMarkdownLineStop(content []byte, idx int) int {
 }
 
 func markdownNodePath(node ast.Node, lineIndex int) string {
-	parts := []string{}
+	// BOLT OPTIMIZATION: Append to slice and reverse to avoid O(N^2) prepending allocations.
+	var parts []string
 	for current := node; current != nil; current = current.Parent() {
 		if current.Kind() == ast.KindDocument {
 			break
 		}
-		parts = append([]string{fmt.Sprintf("%s[%d]", current.Kind().String(), markdownSiblingOrdinal(current))}, parts...)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf.
+		parts = append(parts, current.Kind().String()+"["+strconv.Itoa(markdownSiblingOrdinal(current))+"]")
 	}
+	slices.Reverse(parts)
 	if lineIndex >= 0 {
-		parts = append(parts, fmt.Sprintf("line[%d]", lineIndex))
+		parts = append(parts, "line["+strconv.Itoa(lineIndex)+"]")
 	}
 	return strings.Join(parts, "/")
 }
@@ -457,10 +461,10 @@ func isHTMLTagNameChar(ch byte) bool {
 }
 
 func markdownPlaceholderToken(idx int, literal string) string {
-	return fmt.Sprintf("\x1eHLMDPH_%s_%d\x1f", strings.ToUpper(markdownPlaceholderHash(idx, literal)), idx)
+	return "\x1eHLMDPH_" + strings.ToUpper(markdownPlaceholderHash(idx, literal)) + "_" + strconv.Itoa(idx) + "\x1f" // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
 }
 
 func markdownPlaceholderHash(idx int, literal string) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", idx, literal)))
+	sum := sha256.Sum256([]byte(strconv.Itoa(idx) + ":" + literal)) // BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
 	return hex.EncodeToString(sum[:])[:12]
 }
