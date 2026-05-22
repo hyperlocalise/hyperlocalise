@@ -95,7 +95,10 @@ export function createWorkosAuthMiddleware() {
         requestUrl.searchParams.get("organizationSlug") ||
         undefined;
 
-      const authFromSession = await resolveApiAuthContextFromSession({ organizationSlug });
+      const authFromSession = await resolveApiAuthContextFromSession({
+        cookie: c.req.header("cookie"),
+        organizationSlug,
+      });
       if (!authFromSession) {
         throw new Error("missing_auth_context");
       }

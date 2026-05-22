@@ -3,7 +3,6 @@ package translationfileparser
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"math"
 	"regexp"
 	"slices"
@@ -98,9 +97,10 @@ func markdownSegmentKey(segment string, occurrences map[string]int) string {
 	count := occurrences[hash]
 	occurrences[hash] = count + 1
 	if count == 0 {
-		return fmt.Sprintf("md.%s", hash)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		return "md." + hash
 	}
-	return fmt.Sprintf("md.%s.%d", hash, count+1)
+	return "md." + hash + "." + strconv.Itoa(count+1)
 }
 
 func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(markdownPart), state *markdownParseState, path string) {
@@ -314,8 +314,9 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 	placeholderCount := 0
 
 	appendPlaceholder := func(literal string) {
-		sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", placeholderCount, literal)))
-		placeholder := fmt.Sprintf("\x1eHLMDPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), placeholderCount)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		sum := sha256.Sum256([]byte(strconv.Itoa(placeholderCount) + ":" + literal))
+		placeholder := "\x1eHLMDPH_" + strings.ToUpper(hex.EncodeToString(sum[:])[:12]) + "_" + strconv.Itoa(placeholderCount) + "\x1f"
 		placeholderCount++
 		// Placeholder sentinels are exposed through Parse() and must survive translation
 		// round-trips so renderMarkdownPart can restore protected markdown/JSX literals.
@@ -517,7 +518,8 @@ func scanJSXTagFragment(line string, start int, state *markdownParseState) (int,
 }
 
 func stripTrailingJSXClosingLiterals(body string) (string, []string) {
-	trailing := []string{}
+	// BOLT OPTIMIZATION: Append to slice and reverse to avoid O(N^2) prepending allocations.
+	var trailing []string
 	for {
 		end := len(body)
 		for end > 0 && (body[end-1] == ' ' || body[end-1] == '\t') {
@@ -525,13 +527,15 @@ func stripTrailingJSXClosingLiterals(body string) (string, []string) {
 		}
 		start := strings.LastIndex(body[:end], "</")
 		if start < 0 || !looksLikeJSXTagStart(body, start) {
+			slices.Reverse(trailing)
 			return body, trailing
 		}
 		tagEnd := findJSXTagEnd(body, start)
 		if tagEnd != end {
+			slices.Reverse(trailing)
 			return body, trailing
 		}
-		trailing = append([]string{body[start:end]}, trailing...)
+		trailing = append(trailing, body[start:end])
 		body = body[:start]
 	}
 }

@@ -218,7 +218,17 @@ function JobsList({
   }
 
   if (jobs.length === 0) {
-    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
+    return (
+      <div className="px-3 py-8">
+        <TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+        >
+          <span>Connect a TMS provider to import existing jobs</span>
+        </Link>
+      </div>
+    );
   }
 
   return (

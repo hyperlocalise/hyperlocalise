@@ -18,7 +18,7 @@ export const updateTeamBodySchema = createTeamBodySchema
   .refine((value) => value.name !== undefined || value.slug !== undefined);
 
 export const addTeamMemberBodySchema = z.object({
-  workosUserId: z.string().trim().min(1),
+  workosUserId: z.string().trim().min(1).max(256),
   role: teamRoleSchema.optional(),
 });
 
@@ -28,7 +28,7 @@ export const teamIdParamsSchema = z.object({
 
 export const teamMemberParamsSchema = z.object({
   teamId: z.string().uuid(),
-  workosUserId: z.string().min(1),
+  workosUserId: z.string().min(1).max(256),
 });
 
 export const teamRecordSchema = z.object({
@@ -53,7 +53,7 @@ export const teamSummarySchema = teamRecordSchema
   });
 
 export const teamMemberSchema = z.object({
-  workosUserId: z.string(),
+  workosUserId: z.string().max(256),
   email: z.string().email(),
   role: teamRoleSchema,
 });

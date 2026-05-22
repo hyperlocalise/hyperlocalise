@@ -2,7 +2,7 @@ import type { GitHubRawMessage } from "@chat-adapter/github";
 
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
-import type { HyperlocaliseFixCommand } from "./commands";
+import type { HyperlocaliseCommand } from "./commands";
 
 function splitRepository(fullName: string) {
   const [repositoryOwner, repositoryName] = fullName.split("/");
@@ -15,7 +15,7 @@ function splitRepository(fullName: string) {
 
 export function buildFixEvent(input: {
   raw: GitHubRawMessage;
-  command: HyperlocaliseFixCommand;
+  command: HyperlocaliseCommand;
   installationId: number;
   requesterLogin: string;
 }): GitHubFixRequestedEventData | null {
@@ -66,7 +66,7 @@ export function buildFixEvent(input: {
       originalLine: input.raw.comment.original_line ?? null,
       side: input.raw.comment.side ?? null,
       commitSha: input.raw.comment.commit_id ?? input.raw.comment.original_commit_id ?? null,
-      locale: input.command.locale,
+      locale: input.command.command === "fix" ? input.command.locale : null,
     },
   };
 }

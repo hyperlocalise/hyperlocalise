@@ -301,7 +301,7 @@ describe("createRunHyperlocaliseCliTool", () => {
   it("rejects unapproved subcommand at schema level", async () => {
     const ctx = createTestContext();
     const t = createRunHyperlocaliseCliTool(ctx);
-    // The tool schema only allows check/status/extract, so parse should fail.
+    // The tool schema only allows check/status/extract/crowdin/lokalise/phrase, so parse should fail.
     const parse = (t as unknown as { inputSchema: z.ZodSchema<unknown> }).inputSchema.safeParse({
       subcommand: "sync",
     });
@@ -323,6 +323,38 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect(result).toMatchObject({ success: true, exitCode: 0 });
     expect((result as { stdout: string }).stdout).toContain("subcommand=check");
   });
+
+  it.each(["phrase", "crowdin", "lokalise"] as const)(
+    "allows read-only provider downloads for %s",
+    async (provider) => {
+      const ctx = createTestContext();
+      ctx.bash.registerCommand(
+        defineCommand("hl", async (args) => ({
+          stdout: `subcommand=${args.join(" ")}\n`,
+          stderr: "",
+          exitCode: 0,
+        })),
+      );
+
+      const t = createRunHyperlocaliseCliTool(ctx);
+      const result = await t.execute!(
+        { subcommand: provider, args: ["glossary", "download"] },
+        toolCallInfo,
+      );
+      expect(result).toMatchObject({ success: true, exitCode: 0 });
+    },
+  );
+
+  it.each(["phrase", "crowdin", "lokalise"] as const)(
+    "rejects write-capable provider actions for %s",
+    async (provider) => {
+      const ctx = createTestContext();
+      const t = createRunHyperlocaliseCliTool(ctx);
+      await expect(
+        t.execute!({ subcommand: provider, args: ["translations", "upload"] }, toolCallInfo),
+      ).rejects.toThrow("Only read-only TMS actions are allowed");
+    },
+  );
 
   it("constructs args safely", async () => {
     const ctx = createTestContext();

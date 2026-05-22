@@ -1,12 +1,22 @@
 import { Chat, emoji } from "chat";
+import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
 import {
+  buildHyperlocaliseAgentIntentInstructions,
+  classifyHyperlocaliseAgentIntent,
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
   replaceLastUserMessage,
 } from "@/lib/agents/hyperlocalise-agent";
+import { resolveSlackRepoTmsGitHubContext } from "@/lib/agents/repo-tms-context";
+import {
+  buildRepoTmsTaskIdempotencyKey,
+  type RepoTmsAgentGitHubContext,
+  type RepoTmsAgentTask,
+} from "@/lib/agents/repo-tms-task";
+import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
 import { db } from "@/lib/database";
@@ -86,6 +96,16 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
+function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): string | null {
+  const channelId = thread.channelId;
+  if (typeof channelId === "string" && channelId.length > 0) {
+    return channelId;
+  }
+
+  const raw = message.raw as { channel?: string } | undefined;
+  return raw?.channel ?? null;
+}
+
 async function removeEyesReaction(thread: Thread<SlackBotState>, message: Message): Promise<void> {
   await thread.adapter.removeReaction(thread.id, message.id, emoji.eyes).catch(() => {
     // Ignore reaction failures
@@ -98,6 +118,7 @@ async function processSlackMessage(
   interactionId: string,
   organizationId: string,
   projectId: string | null,
+  connectorConfig: Record<string, unknown> | null,
 ) {
   try {
     await thread.adapter.addReaction(thread.id, message.id, emoji.eyes).catch(() => {
@@ -137,6 +158,70 @@ async function processSlackMessage(
           warnedNonMemberUsers: [...warnedUsers, message.author.userId],
         });
       }
+      return;
+    }
+
+    const intent = classifyHyperlocaliseAgentIntent({ surface: "slack", text: message.text });
+    const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
+    const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
+    let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
+
+    if (intent.kind === "repo_tms") {
+      const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
+        organizationId,
+        text: message.text,
+        connectorConfig,
+        projectId,
+        channelId: getSlackChannelId(thread, message),
+        requirePullRequest: intent.githubContextRequirement === "pull_request",
+      });
+
+      if (githubContextResolution.status === "unresolved") {
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        await thread.post({ markdown: githubContextResolution.followUp });
+        return;
+      }
+
+      if (githubContextResolution.status === "resolved") {
+        resolvedRepoTmsContext = githubContextResolution.context;
+      }
+    }
+
+    if (intent.kind === "repo_tms") {
+      const repoTmsTask: RepoTmsAgentTask = {
+        id: randomUUID(),
+        source: "slack",
+        sourceThreadId: thread.id,
+        actor: {
+          sourceUserId: message.author.userId,
+          userId: membership.localUserId,
+          email: slackUser?.email,
+          displayName: message.author.fullName ?? message.author.userName,
+          role: membership.role,
+        },
+        organizationId,
+        projectId,
+        workMode: "write",
+        instructions: message.text,
+        githubContext: resolvedRepoTmsContext,
+        createdAt: new Date().toISOString(),
+        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+          source: "slack",
+          sourceThreadId: thread.id,
+          organizationId,
+          instructions: message.text,
+          githubContext: resolvedRepoTmsContext,
+        }),
+      };
+      await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
+
+      await removeEyesReaction(thread, message);
+      wrapThreadPost(thread, interactionId);
+      await thread.post({
+        markdown:
+          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+      });
       return;
     }
 
@@ -198,7 +283,13 @@ async function processSlackMessage(
 
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
-      await handleSlackImageAttachments(thread, message, imageAttachments, imageIntentMessages);
+      await handleSlackImageAttachments(thread, message, {
+        imageAttachments,
+        conversationMessages: imageIntentMessages,
+        beforePostGeneratedImage: async () => {
+          await removeEyesReaction(thread, message);
+        },
+      });
 
       if (storedFileAttachments.length === 0) {
         return;
@@ -214,7 +305,10 @@ async function processSlackMessage(
         projectId,
         db,
       },
-      additionalInstructions: buildSlackFileTranslationInstructions(),
+      intent,
+      additionalInstructions: additionalInstructions
+        .filter((instruction): instruction is string => instruction !== null)
+        .join("\n\n"),
     });
     const result = await agent.generate({ messages: chatMessages });
 
@@ -266,6 +360,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     interaction.id,
     connector.organizationId,
     interaction.projectId,
+    (connector.config ?? null) as Record<string, unknown> | null,
   );
 }
 
@@ -296,6 +391,7 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     interaction.id,
     connector.organizationId,
     interaction.projectId,
+    (connector.config ?? null) as Record<string, unknown> | null,
   );
 }
 

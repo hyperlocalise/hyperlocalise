@@ -13,6 +13,7 @@ export type SandboxTranslationContext = {
     targetTerm: string;
     targetLocale: string;
     forbidden?: boolean | null;
+    caseSensitive?: boolean | null;
     description?: string | null;
   }>;
 };
@@ -34,7 +35,7 @@ export async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
-  options?: { env?: Record<string, string> },
+  options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
 ): Promise<{ exitCode: number; output: string }> {
   const sandbox = await Sandbox.get({ sandboxId });
   const result = await sandbox.runCommand({
@@ -44,7 +45,7 @@ export async function runSandboxCommand(
   });
   return {
     exitCode: result.exitCode,
-    output: await result.output("both"),
+    output: await result.output(options?.output ?? "both"),
   };
 }
 
@@ -224,6 +225,10 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
 
 export function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
+
+  if (message.startsWith("glossary validation failed")) {
+    return message;
+  }
 
   if (message.includes("hyperlocalise CLI installation failed")) {
     return "something went wrong while setting up the translation environment on our end.";

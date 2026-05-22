@@ -5,5 +5,5 @@ export const updateRepositoriesSchema = z.object({
 });
 
 export const searchRepositoriesSchema = z.object({
-  q: z.string().optional(),
+  q: z.string().max(512).optional(),
 });
