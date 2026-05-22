@@ -139,7 +139,7 @@ func TestStrategyParsesAndroidStringResourcesByPath(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected non-Android string XML path to be rejected")
 	}
-	if !strings.Contains(err.Error(), "only Android string resource files") {
+	if !strings.Contains(err.Error(), "require a specialized parser") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
