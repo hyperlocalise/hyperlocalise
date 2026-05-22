@@ -9,6 +9,10 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
+import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
+import { syncExternalTmsFileKeys } from "@/lib/providers/external-tms-file-sync";
+import { syncExternalTmsJobTasks } from "@/lib/providers/external-tms-job-sync";
 import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
@@ -745,6 +749,56 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ project: { ...project, openJobCount } }, 200);
+    })
+    .post("/:projectId/sync-files", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (project.externalProviderKind !== "crowdin") {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsFileKeys({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: "crowdin",
+        fetchFileKeys: fetchCrowdinFileKeys,
+      });
+
+      return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-jobs", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (project.externalProviderKind !== "crowdin") {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsJobTasks({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: "crowdin",
+        fetchJobTasks: fetchCrowdinJobTasks,
+      });
+
+      return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
