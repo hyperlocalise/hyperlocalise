@@ -1,9 +1,11 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { fetchPhraseProjects } from "./phrase-project-fetcher";
 import { PHRASE_US_BASE_URL } from "./phrase-base-url";
 
 describe("fetchPhraseProjects", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   const credential = {
     id: "cred-1",
     organizationId: "org-1",
