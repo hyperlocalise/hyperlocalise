@@ -10,6 +10,9 @@ import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartlin
 const DEFAULT_AUTH_BASE_URL = "https://api.smartling.com/auth-api/v2";
 const DEFAULT_ACCOUNTS_BASE_URL = "https://api.smartling.com/accounts-api/v2";
 const DEFAULT_PROJECTS_BASE_URL = "https://api.smartling.com/projects-api/v2";
+const DEFAULT_FILES_BASE_URL = "https://api.smartling.com/files-api/v2";
+const DEFAULT_STRINGS_BASE_URL = "https://api.smartling.com/strings-api/v2";
+const DEFAULT_JOBS_BASE_URL = "https://api.smartling.com/jobs-api/v3";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const DEFAULT_PAGE_SIZE = 500;
 
@@ -18,6 +21,9 @@ export interface SmartlingApiClientOptions {
   authBaseUrl?: string;
   accountsBaseUrl?: string;
   projectsBaseUrl?: string;
+  filesBaseUrl?: string;
+  stringsBaseUrl?: string;
+  jobsBaseUrl?: string;
   fetchFn?: typeof fetch;
 }
 
@@ -50,6 +56,46 @@ export interface SmartlingProjectDetails {
   archived: boolean;
   projectTypeCode: string | null;
   targetLocales: SmartlingTargetLocale[];
+}
+
+export interface SmartlingFileSummary {
+  fileUri: string;
+  fileType?: string | null;
+  lastUploaded?: string | null;
+  hasInstructions?: boolean;
+  directives?: Record<string, unknown>;
+}
+
+export interface SmartlingFileLocaleStatus {
+  localeId: string;
+  completedStringCount?: number;
+  authorizedStringCount?: number;
+  lastCompleted?: string | null;
+  lastAuthorized?: string | null;
+}
+
+export interface SmartlingSourceString {
+  hashcode: string;
+  stringText?: string | null;
+  fileUri?: string | null;
+  variant?: string | null;
+  stringVariantUid?: string | null;
+  createdDate?: string | null;
+  modifiedDate?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SmartlingJobSummary {
+  translationJobUid: string;
+  jobName: string;
+  jobStatus: string;
+  description?: string | null;
+  dueDate?: string | null;
+  targetLocaleIds: string[];
+  createdDate?: string | null;
+  modifiedDate?: string | null;
+  referenceNumber?: string | null;
+  jobNumber?: string | null;
 }
 
 type SmartlingEnvelope<T> = {
@@ -97,6 +143,9 @@ export class SmartlingApiClient {
   private readonly authBaseUrl: string;
   private readonly accountsBaseUrl: string;
   private readonly projectsBaseUrl: string;
+  private readonly filesBaseUrl: string;
+  private readonly stringsBaseUrl: string;
+  private readonly jobsBaseUrl: string;
   private readonly fetchFn: typeof fetch;
   private tokens: SmartlingAuthTokens | null = null;
 
@@ -113,6 +162,18 @@ export class SmartlingApiClient {
     this.projectsBaseUrl = normalizeServiceBaseUrl(
       options.projectsBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "projects"),
       DEFAULT_PROJECTS_BASE_URL,
+    );
+    this.filesBaseUrl = normalizeServiceBaseUrl(
+      options.filesBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "files"),
+      DEFAULT_FILES_BASE_URL,
+    );
+    this.stringsBaseUrl = normalizeServiceBaseUrl(
+      options.stringsBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "strings"),
+      DEFAULT_STRINGS_BASE_URL,
+    );
+    this.jobsBaseUrl = normalizeServiceBaseUrl(
+      options.jobsBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "jobs"),
+      DEFAULT_JOBS_BASE_URL,
     );
     this.fetchFn = options.fetchFn ?? fetch;
   }
@@ -255,6 +316,107 @@ export class SmartlingApiClient {
       }));
   }
 
+  async listProjectFiles(projectId: string): Promise<SmartlingFileSummary[]> {
+    const files: SmartlingFileSummary[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{ items?: SmartlingFileSummary[]; totalCount?: number }>(
+          `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/files/list?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingFileSummary),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => files.push(...page),
+    });
+
+    return files;
+  }
+
+  async getFileStatusForAllLocales(
+    projectId: string,
+    fileUri: string,
+  ): Promise<SmartlingFileLocaleStatus[]> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams({ fileUri });
+    const data = await this.get<{ items?: SmartlingFileLocaleStatus[] }>(
+      `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file/status?${params.toString()}`,
+      token,
+    );
+
+    return (data.items ?? []).map((item) => ({
+      localeId: item.localeId,
+      completedStringCount: item.completedStringCount,
+      authorizedStringCount: item.authorizedStringCount,
+      lastCompleted: item.lastCompleted ?? null,
+      lastAuthorized: item.lastAuthorized ?? null,
+    }));
+  }
+
+  async listSourceStrings(
+    projectId: string,
+    options?: { fileUri?: string },
+  ): Promise<SmartlingSourceString[]> {
+    const strings: SmartlingSourceString[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        if (options?.fileUri) {
+          params.set("fileUri", options.fileUri);
+        }
+        const data = await this.get<{ items?: SmartlingSourceString[]; totalCount?: number }>(
+          `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/source-strings?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingSourceString),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => strings.push(...page),
+    });
+
+    return strings;
+  }
+
+  async listJobs(projectId: string): Promise<SmartlingJobSummary[]> {
+    const jobs: SmartlingJobSummary[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{ items?: SmartlingJobSummary[]; totalCount?: number }>(
+          `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingJobSummary),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => jobs.push(...page),
+    });
+
+    return jobs;
+  }
+
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
@@ -281,13 +443,28 @@ export class SmartlingApiClient {
   }
 }
 
-export function deriveServiceBaseUrl(authBaseUrl: string, service: "accounts" | "projects") {
+export function deriveServiceBaseUrl(
+  authBaseUrl: string,
+  service: "accounts" | "projects" | "files" | "strings" | "jobs",
+) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
   if (normalized.includes("/auth-api/")) {
-    return normalized.replace("/auth-api/", `/${service}-api/`);
+    const version = service === "jobs" ? "v3" : "v2";
+    return normalized.replace(/\/auth-api\/v\d+/, `/${service}-api/${version}`);
   }
 
-  return service === "accounts" ? DEFAULT_ACCOUNTS_BASE_URL : DEFAULT_PROJECTS_BASE_URL;
+  switch (service) {
+    case "accounts":
+      return DEFAULT_ACCOUNTS_BASE_URL;
+    case "projects":
+      return DEFAULT_PROJECTS_BASE_URL;
+    case "files":
+      return DEFAULT_FILES_BASE_URL;
+    case "strings":
+      return DEFAULT_STRINGS_BASE_URL;
+    case "jobs":
+      return DEFAULT_JOBS_BASE_URL;
+  }
 }
 
 export function normalizeServiceBaseUrl(baseUrl: string | undefined, fallback: string) {
@@ -412,4 +589,67 @@ function collectSmartlingErrorMessage(responseBody: unknown) {
     .map((error) => (typeof error?.message === "string" ? error.message : ""))
     .filter(Boolean)
     .join(" ");
+}
+
+async function paginateSmartlingList<T>(input: {
+  fetchPage: (offset: number, limit: number) => Promise<{ items: T[]; totalCount?: number }>;
+  onPage: (items: T[]) => void;
+}) {
+  let offset = 0;
+
+  while (true) {
+    const page = await input.fetchPage(offset, DEFAULT_PAGE_SIZE);
+    input.onPage(page.items);
+    offset += page.items.length;
+
+    if (page.items.length === 0) {
+      break;
+    }
+
+    if (typeof page.totalCount === "number") {
+      if (offset >= page.totalCount) {
+        break;
+      }
+    } else if (page.items.length < DEFAULT_PAGE_SIZE) {
+      break;
+    }
+  }
+}
+
+function normalizeSmartlingFileSummary(item: SmartlingFileSummary): SmartlingFileSummary {
+  return {
+    fileUri: item.fileUri,
+    fileType: item.fileType ?? null,
+    lastUploaded: item.lastUploaded ?? null,
+    hasInstructions: item.hasInstructions ?? false,
+    directives: item.directives ?? undefined,
+  };
+}
+
+function normalizeSmartlingSourceString(item: SmartlingSourceString): SmartlingSourceString {
+  return {
+    hashcode: item.hashcode,
+    stringText: item.stringText ?? null,
+    fileUri: item.fileUri ?? null,
+    variant: item.variant ?? null,
+    stringVariantUid: item.stringVariantUid ?? null,
+    createdDate: item.createdDate ?? null,
+    modifiedDate: item.modifiedDate ?? null,
+    metadata: item.metadata ?? undefined,
+  };
+}
+
+function normalizeSmartlingJobSummary(item: SmartlingJobSummary): SmartlingJobSummary {
+  return {
+    translationJobUid: item.translationJobUid,
+    jobName: item.jobName,
+    jobStatus: item.jobStatus,
+    description: item.description ?? null,
+    dueDate: item.dueDate ?? null,
+    targetLocaleIds: item.targetLocaleIds ?? [],
+    createdDate: item.createdDate ?? null,
+    modifiedDate: item.modifiedDate ?? null,
+    referenceNumber: item.referenceNumber ?? null,
+    jobNumber: item.jobNumber ?? null,
+  };
 }
