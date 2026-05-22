@@ -13,7 +13,12 @@ import {
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({

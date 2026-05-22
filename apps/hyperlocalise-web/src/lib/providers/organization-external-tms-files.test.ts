@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
@@ -13,19 +13,73 @@ import {
 } from "./organization-external-tms-files";
 
 describe("organizationExternalTmsFiles", () => {
+  const createdRecordsByTest = new Map<
+    string,
+    { organizationIds: Set<string>; projectIds: Set<string> }
+  >();
+
+  function currentTestKey() {
+    return expect.getState().currentTestName ?? "__organization_external_tms_files_default__";
+  }
+
+  function currentTestRecords() {
+    const testKey = currentTestKey();
+    const existing = createdRecordsByTest.get(testKey);
+
+    if (existing) {
+      return existing;
+    }
+
+    const records = {
+      organizationIds: new Set<string>(),
+      projectIds: new Set<string>(),
+    };
+    createdRecordsByTest.set(testKey, records);
+
+    return records;
+  }
+
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
 
   afterEach(async () => {
-    await db.delete(schema.externalTmsFiles);
-    await db.delete(schema.projects);
-    await db.delete(schema.organizations);
+    const testKey = currentTestKey();
+    const records = createdRecordsByTest.get(testKey);
+
+    if (!records) {
+      return;
+    }
+
+    const organizationIds = [...records.organizationIds];
+    const projectIds = [...records.projectIds];
+
+    if (organizationIds.length > 0) {
+      await db
+        .delete(schema.externalTmsFiles)
+        .where(inArray(schema.externalTmsFiles.organizationId, organizationIds));
+    }
+
+    if (projectIds.length > 0) {
+      await db.delete(schema.projects).where(inArray(schema.projects.id, projectIds));
+    }
+
+    if (organizationIds.length > 0) {
+      await db
+        .delete(schema.organizations)
+        .where(inArray(schema.organizations.id, organizationIds));
+    }
+
+    createdRecordsByTest.delete(testKey);
   });
 
   async function createProject() {
     const organizationId = randomUUID();
     const projectId = `project_${randomUUID()}`;
+    const records = currentTestRecords();
+
+    records.organizationIds.add(organizationId);
+    records.projectIds.add(projectId);
 
     await db.insert(schema.organizations).values({
       id: organizationId,
