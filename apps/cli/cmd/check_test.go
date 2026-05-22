@@ -1049,7 +1049,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	}
 
 	t.Run("missing target returns false without error", func(t *testing.T) {
-		entries, _, _, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath)
+		entries, _, _, exists, err := readCheckTargetEntries(parser, sourcePath, missingTargetPath, "fr")
 		if err != nil {
 			t.Fatalf("readCheckTargetEntries: %v", err)
 		}
@@ -1062,7 +1062,7 @@ func TestReadCheckTargetEntries(t *testing.T) {
 	})
 
 	t.Run("parse error is returned", func(t *testing.T) {
-		_, _, _, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath)
+		_, _, _, _, err := readCheckTargetEntries(parser, sourcePath, invalidTargetPath, "fr")
 		if err == nil {
 			t.Fatalf("expected parse error")
 		}
@@ -1645,6 +1645,82 @@ func executeCheckJSON(t *testing.T, configPath, diff string, extraArgs ...string
 		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
 	}
 	return report
+}
+
+func TestCheckCommandXCStringsReadsRequestedTargetLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "dist", "fr", "Localizable.xcstrings")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	source := `{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`
+	target := `{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--check", checkNotLocalized, "--format", "json", "--no-fail"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute check command: %v", err)
+	}
+
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse check report: %v\noutput=%s", err, out.String())
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Key != "hello" || report.Findings[0].Type != checkNotLocalized {
+		t.Fatalf("expected not_localized finding for fr xcstrings value, got %+v", report.Findings)
+	}
 }
 
 func unifiedDiffForPath(path, hunk string) string {

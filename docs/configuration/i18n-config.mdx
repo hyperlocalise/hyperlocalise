@@ -100,6 +100,19 @@ Shared multi-locale file:
 
 For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
+### Apple string catalog mapping patterns
+
+Use `.xcstrings` mappings for Xcode string catalogs:
+
+```json
+{
+  "from": "ios/en.lproj/Localizable.xcstrings",
+  "to": "ios/[locale].lproj/Localizable.xcstrings"
+}
+```
+
+Hyperlocalise writes target values into `localizations[targetLocale]` and preserves catalog metadata. `status` and `check` read the requested target locale from the catalog. Variant and substitution source entries must include a source-language localization so Hyperlocalise can extract the source forms safely.
+
 ### Android XML string resource mappings
 
 Android XML support is intentionally scoped to string resource files named `strings.xml` under `res/values*` directories. Use Android locale qualifier names in your target paths:

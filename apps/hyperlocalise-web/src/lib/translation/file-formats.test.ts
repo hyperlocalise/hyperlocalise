@@ -24,6 +24,8 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("page.mdx")).toBe("mdx");
     expect(inferSupportedTranslationFileFormat("Localizable.strings")).toBe("strings");
     expect(inferSupportedTranslationFileFormat("Localizable.stringsdict")).toBe("stringsdict");
+    expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
+    expect(inferSupportedFileTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedTranslationFileFormat("copy.csv")).toBe("csv");
   });
 

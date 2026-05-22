@@ -15,6 +15,7 @@
 - `.md` / `.mdx` via `MarkdownParser`
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
+- `.xcstrings` via `XCStringsParser` (Apple/Xcode string catalogs)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
@@ -22,7 +23,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, XLIFF, PO, Apple Strings, Markdown/MDX, CSV, Liquid, HTML, Android XML strings, generic XML/RESX, and Java properties parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, Android XML strings, generic XML/RESX, and Java properties parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -115,6 +116,18 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### Apple String Catalogs (`.xcstrings`)
+
+- Parses JSON string catalogs with top-level `sourceLanguage`, `strings`, and `version` fields.
+- Reads source values from `strings[*].localizations[sourceLanguage]` when available.
+- Falls back to the catalog key for simple source-only entries without a source localization.
+- Flattens variation and substitution leaves using stable `::` paths.
+  - Examples: `item_count::plural.one`, `search_label::device.mac`, `count_label::substitution.total::plural.other`.
+- Preserves comments, extraction state, string-unit state, substitutions metadata, and unrelated JSON fields on marshal.
+- `MarshalXCStrings(template, sourceTemplate, values, sourceLocale, targetLocale)` writes translated values under `localizations[targetLocale]` and emits deterministic, pretty-printed JSON.
+- Original whitespace and object ordering are normalized during writeback.
+- Variant and substitution entries without a source-language localization are rejected so the parser does not guess source text.
 
 ### Android XML Strings (`.xml`)
 

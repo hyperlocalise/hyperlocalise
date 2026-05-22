@@ -10,6 +10,7 @@ export const supportedTranslationFileFormats = [
   "mdx",
   "strings",
   "stringsdict",
+  "xcstrings",
   "csv",
   "png",
   "jpeg",
@@ -30,6 +31,7 @@ export const supportedFileTranslationFileFormats = [
   "mdx",
   "strings",
   "stringsdict",
+  "xcstrings",
   "csv",
 ] as const;
 
@@ -51,6 +53,7 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".mdx": "mdx",
   ".strings": "strings",
   ".stringsdict": "stringsdict",
+  ".xcstrings": "xcstrings",
   ".csv": "csv",
   ".png": "png",
   ".jpg": "jpeg",
