@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import {
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
+  DatabaseSyncIcon,
   InformationCircleIcon,
   LinkSquare02Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -22,6 +25,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { createApiClient } from "@/lib/api-client";
+import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { cn } from "@/lib/utils";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -264,7 +269,115 @@ function toneClass(tone: Tone) {
   }
 }
 
-export function DashboardPageContent() {
+const api = createApiClient();
+
+function TmsProviderSummary({ organizationSlug }: { organizationSlug: string }) {
+  const {
+    data: credentials,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["external-tms-credentials", organizationSlug],
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$get({
+        param: { organizationSlug },
+      });
+      if (!res.ok) throw new Error("Failed to fetch TMS credentials");
+      const data = await res.json();
+      return data.externalTmsProviderCredentials as ExternalTmsProviderCredentialSummary[];
+    },
+  });
+
+  const connectedProviders = credentials?.length ?? 0;
+
+  return (
+    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
+      <CardHeader className="px-5 pt-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-xl text-foreground">TMS providers</CardTitle>
+            <CardDescription className="mt-1 text-foreground/48">
+              Connected translation management systems and their sync status.
+            </CardDescription>
+          </div>
+          <HugeiconsIcon
+            icon={DatabaseSyncIcon}
+            strokeWidth={1.8}
+            className="mt-1 size-5 text-foreground/42"
+          />
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-3">
+        {isLoading ? (
+          <TypographyP className="px-5 py-4 text-sm text-foreground/52">
+            Loading providers…
+          </TypographyP>
+        ) : isError ? (
+          <TypographyP className="px-5 py-4 text-sm text-foreground/52">
+            Unable to load TMS providers.
+          </TypographyP>
+        ) : connectedProviders === 0 ? (
+          <div className="px-5 py-4">
+            <TypographyP className="text-sm text-foreground/52">
+              No external TMS providers connected yet.
+            </TypographyP>
+            <Link
+              href={`/org/${organizationSlug}/integrations`}
+              className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+            >
+              <span>Connect a provider in Integrations</span>
+              <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+            </Link>
+          </div>
+        ) : (
+          <div>
+            {credentials?.map((credential, index) => (
+              <div key={credential.id}>
+                <div className="flex items-center justify-between gap-4 px-5 py-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <TypographyP className="text-sm font-medium text-foreground">
+                        {credential.displayName}
+                      </TypographyP>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "rounded-full",
+                          credential.validationStatus === "validated"
+                            ? "border-grove-300/25 bg-grove-300/10 text-grove-300"
+                            : "border-bud-500/25 bg-bud-500/10 text-bud-300",
+                        )}
+                      >
+                        {credential.validationStatus === "validated" ? "Validated" : "Unvalidated"}
+                      </Badge>
+                    </div>
+                    <TypographyP className="mt-1 text-xs text-foreground/42">
+                      {credential.providerKind} · ****{credential.maskedSecretSuffix}
+                    </TypographyP>
+                  </div>
+                </div>
+                {index < (credentials?.length ?? 0) - 1 ? (
+                  <Separator className="bg-foreground/8" />
+                ) : null}
+              </div>
+            ))}
+            <div className="px-5">
+              <Link
+                href={`/org/${organizationSlug}/integrations`}
+                className="mt-3 flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+              >
+                <span>Manage providers</span>
+                <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+              </Link>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function DashboardPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <section className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
@@ -307,6 +420,10 @@ export function DashboardPageContent() {
             </CardContent>
           </Card>
         ))}
+      </section>
+
+      <section>
+        <TmsProviderSummary organizationSlug={organizationSlug} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(22rem,0.75fr)]">

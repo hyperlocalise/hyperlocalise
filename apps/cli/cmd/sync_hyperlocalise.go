@@ -558,6 +558,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "xcstrings"
 	case ".csv":
 		return "csv"
+	case ".properties":
+		return "properties"
 	default:
 		return ""
 	}
@@ -910,7 +912,7 @@ func contentTypeForPath(path string) string {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".md", ".mdx":
 		return "text/markdown"
-	case ".po", ".strings", ".stringsdict":
+	case ".po", ".strings", ".stringsdict", ".properties":
 		return "text/plain"
 	case ".xcstrings":
 		return "application/json"

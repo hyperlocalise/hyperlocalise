@@ -7,6 +7,7 @@ import (
 	"html"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -234,8 +235,9 @@ func appendLiquidBoundaryPlaceholder(literal string, placeholders map[string]str
 }
 
 func liquidPlaceholderToken(index int, literal string) string {
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%d:%s", index, literal)))
-	return fmt.Sprintf("\x1eHLLQPH_%s_%d\x1f", strings.ToUpper(hex.EncodeToString(sum[:])[:12]), index)
+	// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+	sum := sha256.Sum256([]byte(strconv.Itoa(index) + ":" + literal))
+	return "\x1eHLLQPH_" + strings.ToUpper(hex.EncodeToString(sum[:])[:12]) + "_" + strconv.Itoa(index) + "\x1f"
 }
 
 func updateLiquidHTMLTagState(input string, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
@@ -386,9 +388,10 @@ func liquidSegmentKey(segment string, occurrences map[string]int) string {
 	count := occurrences[hash]
 	occurrences[hash] = count + 1
 	if count == 0 {
-		return fmt.Sprintf("liquid.%s", hash)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		return "liquid." + hash
 	}
-	return fmt.Sprintf("liquid.%s.%d", hash, count+1)
+	return "liquid." + hash + "." + strconv.Itoa(count+1)
 }
 
 func (d liquidDocument) render(values map[string]string) ([]byte, LiquidRenderDiagnostics) {

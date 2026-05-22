@@ -49,7 +49,9 @@ type Input struct {
 	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
 	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
 	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
-	ReportJSONDetail string
+	ReportJSONDetail    string
+	PrefilledEntries    map[string]string
+	PrefilledTargetPath string
 }
 
 // FixTarget selects a subset of planned translation tasks when non-empty.
@@ -967,6 +969,8 @@ func parserModeForSource(path string, content []byte) string {
 	switch {
 	case strings.HasSuffix(normalized, ".arb"):
 		return "arb"
+	case translationfileparser.IsAndroidStringResourcePath(path):
+		return "android_xml"
 	case strings.HasSuffix(normalized, ".json"):
 		if isStrictFormatJSON(content) {
 			return "formatjs"

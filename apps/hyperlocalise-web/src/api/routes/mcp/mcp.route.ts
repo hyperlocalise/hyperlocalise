@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 import { validator } from "hono/validator";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -25,36 +26,36 @@ import { env } from "@/lib/env";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
-  client_id: z.string().min(1),
-  redirect_uri: z.url(),
-  code_challenge: z.string().min(32),
+  client_id: z.string().min(1).max(128),
+  redirect_uri: z.url().max(2048),
+  code_challenge: z.string().min(32).max(128),
   code_challenge_method: z.literal("S256"),
-  scope: z.string().optional().default("mcp"),
-  state: z.string().optional(),
-  organizationSlug: z.string().optional(),
+  scope: z.string().max(128).optional().default("mcp"),
+  state: z.string().max(128).optional(),
+  organizationSlug: z.string().max(128).optional(),
 });
 
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
   z.object({
     grant_type: z.literal("authorization_code"),
-    code: z.string().min(1),
-    redirect_uri: z.url(),
-    client_id: z.string().min(1),
-    code_verifier: z.string().min(43),
+    code: z.string().min(1).max(8192),
+    redirect_uri: z.url().max(2048),
+    client_id: z.string().min(1).max(128),
+    code_verifier: z.string().min(43).max(128),
   }),
   z.object({
     grant_type: z.literal("refresh_token"),
-    refresh_token: z.string().min(1),
-    client_id: z.string().min(1).optional(),
+    refresh_token: z.string().min(1).max(8192),
+    client_id: z.string().min(1).max(128).optional(),
   }),
 ]);
 
 const registerClientSchema = z.object({
-  client_name: z.string().min(1).optional(),
-  redirect_uris: z.array(z.url()).min(1),
-  grant_types: z.array(z.string()).optional(),
-  response_types: z.array(z.string()).optional(),
-  scope: z.string().optional(),
+  client_name: z.string().min(1).max(128).optional(),
+  redirect_uris: z.array(z.url().max(2048)).min(1).max(10),
+  grant_types: z.array(z.string().max(32)).optional(),
+  response_types: z.array(z.string().max(32)).optional(),
+  scope: z.string().max(128).optional(),
 });
 
 function isAllowedRedirectUri(redirectUri: string): boolean {
@@ -192,7 +193,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     {
       description: "Get Hyperlocalise project details by ID.",
       inputSchema: z.object({
-        projectId: z.string().min(1),
+        projectId: z.string().min(1).max(128),
       }),
     },
     async ({ projectId }) => {
@@ -365,44 +366,52 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
     )
     .use("/mcp/*", mcpAuthEnabledMiddleware)
-    .post("/mcp/register", validateRegisterBody, async (c) => {
-      const payload = c.req.valid("json");
-      const unsupportedRedirectUri = payload.redirect_uris.find(
-        (uri) => !isAllowedRedirectUri(uri),
-      );
+    .post(
+      "/mcp/register",
+      bodyLimit({
+        maxSize: 256 * 1024, // 256KB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      validateRegisterBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const unsupportedRedirectUri = payload.redirect_uris.find(
+          (uri) => !isAllowedRedirectUri(uri),
+        );
 
-      if (unsupportedRedirectUri) {
-        return c.json({ error: "invalid_redirect_uri" }, 400);
-      }
+        if (unsupportedRedirectUri) {
+          return c.json({ error: "invalid_redirect_uri" }, 400);
+        }
 
-      const clientId = `mcp_${randomUUID()}`;
-      const grantTypes = ["authorization_code", "refresh_token"];
-      const responseTypes = ["code"];
-      const scope = payload.scope ?? "mcp";
+        const clientId = `mcp_${randomUUID()}`;
+        const grantTypes = ["authorization_code", "refresh_token"];
+        const responseTypes = ["code"];
+        const scope = payload.scope ?? "mcp";
 
-      await db.insert(schema.mcpOAuthClients).values({
-        clientId,
-        clientName: payload.client_name,
-        redirectUris: payload.redirect_uris,
-        grantTypes,
-        responseTypes,
-        scope,
-      });
-
-      return c.json(
-        {
-          client_id: clientId,
-          client_id_issued_at: Math.floor(Date.now() / 1000),
-          client_name: payload.client_name,
-          redirect_uris: payload.redirect_uris,
-          grant_types: grantTypes,
-          response_types: responseTypes,
-          token_endpoint_auth_method: "none",
+        await db.insert(schema.mcpOAuthClients).values({
+          clientId,
+          clientName: payload.client_name,
+          redirectUris: payload.redirect_uris,
+          grantTypes,
+          responseTypes,
           scope,
-        },
-        201,
-      );
-    })
+        });
+
+        return c.json(
+          {
+            client_id: clientId,
+            client_id_issued_at: Math.floor(Date.now() / 1000),
+            client_name: payload.client_name,
+            redirect_uris: payload.redirect_uris,
+            grant_types: grantTypes,
+            response_types: responseTypes,
+            token_endpoint_auth_method: "none",
+            scope,
+          },
+          201,
+        );
+      },
+    )
     .get("/mcp/authorize", validateAuthorizationQuery, async (c) => {
       const query = c.req.valid("query");
 
@@ -465,31 +474,87 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
 
       return c.redirect(redirectUrl.toString(), 302);
     })
-    .post("/mcp/token", async (c) => {
-      const parsed = tokenRequestSchema.safeParse(await readTokenRequestBody(c.req.raw));
+    .post(
+      "/mcp/token",
+      bodyLimit({
+        maxSize: 256 * 1024, // 256KB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      async (c) => {
+        const parsed = tokenRequestSchema.safeParse(await readTokenRequestBody(c.req.raw));
 
-      if (!parsed.success) {
-        return c.json({ error: "invalid_request" }, 400);
-      }
-
-      if (parsed.data.grant_type === "authorization_code") {
-        const payload = parseAuthorizationCode(parsed.data.code);
-
-        if (
-          !payload ||
-          payload.clientId !== parsed.data.client_id ||
-          payload.redirectUri !== parsed.data.redirect_uri ||
-          !verifyPkceChallenge({
-            codeVerifier: parsed.data.code_verifier,
-            codeChallenge: payload.codeChallenge,
-            method: payload.codeChallengeMethod,
-          })
-        ) {
-          return c.json({ error: "invalid_grant" }, 400);
+        if (!parsed.success) {
+          return c.json({ error: "invalid_request" }, 400);
         }
 
-        const isFirstCodeUse = await markAuthorizationCodeUsed(parsed.data.code, payload);
-        if (!isFirstCodeUse) {
+        if (parsed.data.grant_type === "authorization_code") {
+          const payload = parseAuthorizationCode(parsed.data.code);
+
+          if (
+            !payload ||
+            payload.clientId !== parsed.data.client_id ||
+            payload.redirectUri !== parsed.data.redirect_uri ||
+            !verifyPkceChallenge({
+              codeVerifier: parsed.data.code_verifier,
+              codeChallenge: payload.codeChallenge,
+              method: payload.codeChallengeMethod,
+            })
+          ) {
+            return c.json({ error: "invalid_grant" }, 400);
+          }
+
+          const isFirstCodeUse = await markAuthorizationCodeUsed(parsed.data.code, payload);
+          if (!isFirstCodeUse) {
+            return c.json({ error: "invalid_grant" }, 400);
+          }
+
+          const accessToken = generateMcpToken();
+          const refreshToken = generateMcpToken();
+          const { accessTokenExpiresAt, refreshTokenExpiresAt } = getMcpTokenExpiry();
+
+          await db.insert(schema.mcpSessions).values({
+            userId: payload.userId,
+            organizationId: payload.organizationId,
+            scope: payload.scope,
+            accessTokenHash: hashMcpToken(accessToken),
+            refreshTokenHash: hashMcpToken(refreshToken),
+            workosAccessTokenEncrypted: null,
+            workosRefreshTokenEncrypted: null,
+            expiresAt: accessTokenExpiresAt,
+            refreshExpiresAt: refreshTokenExpiresAt,
+          });
+
+          return c.json(
+            tokenResponse({
+              accessToken,
+              refreshToken,
+              expiresIn: env.MCP_TOKEN_LIFETIME_MINUTES * 60,
+              scope: payload.scope,
+            }),
+            200,
+          );
+        }
+
+        const [session] = await db
+          .select({ id: schema.mcpSessions.id, scope: schema.mcpSessions.scope })
+          .from(schema.mcpSessions)
+          .innerJoin(
+            schema.organizationMemberships,
+            and(
+              eq(schema.organizationMemberships.userId, schema.mcpSessions.userId),
+              eq(schema.organizationMemberships.organizationId, schema.mcpSessions.organizationId),
+            ),
+          )
+          .where(
+            and(
+              eq(schema.mcpSessions.refreshTokenHash, hashMcpToken(parsed.data.refresh_token)),
+              gt(schema.mcpSessions.refreshExpiresAt, new Date()),
+              isNull(schema.mcpSessions.revokedAt),
+            ),
+          )
+          .limit(1);
+
+        if (!session) {
           return c.json({ error: "invalid_grant" }, 400);
         }
 
@@ -497,87 +562,38 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         const refreshToken = generateMcpToken();
         const { accessTokenExpiresAt, refreshTokenExpiresAt } = getMcpTokenExpiry();
 
-        await db.insert(schema.mcpSessions).values({
-          userId: payload.userId,
-          organizationId: payload.organizationId,
-          scope: payload.scope,
-          accessTokenHash: hashMcpToken(accessToken),
-          refreshTokenHash: hashMcpToken(refreshToken),
-          workosAccessTokenEncrypted: null,
-          workosRefreshTokenEncrypted: null,
-          expiresAt: accessTokenExpiresAt,
-          refreshExpiresAt: refreshTokenExpiresAt,
-        });
+        const updated = await db
+          .update(schema.mcpSessions)
+          .set({
+            accessTokenHash: hashMcpToken(accessToken),
+            refreshTokenHash: hashMcpToken(refreshToken),
+            expiresAt: accessTokenExpiresAt,
+            refreshExpiresAt: refreshTokenExpiresAt,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(schema.mcpSessions.id, session.id),
+              eq(schema.mcpSessions.refreshTokenHash, hashMcpToken(parsed.data.refresh_token)),
+            ),
+          )
+          .returning({ id: schema.mcpSessions.id });
+
+        if (!updated.length) {
+          return c.json({ error: "invalid_grant" }, 400);
+        }
 
         return c.json(
           tokenResponse({
             accessToken,
             refreshToken,
             expiresIn: env.MCP_TOKEN_LIFETIME_MINUTES * 60,
-            scope: payload.scope,
+            scope: session.scope,
           }),
           200,
         );
-      }
-
-      const [session] = await db
-        .select({ id: schema.mcpSessions.id, scope: schema.mcpSessions.scope })
-        .from(schema.mcpSessions)
-        .innerJoin(
-          schema.organizationMemberships,
-          and(
-            eq(schema.organizationMemberships.userId, schema.mcpSessions.userId),
-            eq(schema.organizationMemberships.organizationId, schema.mcpSessions.organizationId),
-          ),
-        )
-        .where(
-          and(
-            eq(schema.mcpSessions.refreshTokenHash, hashMcpToken(parsed.data.refresh_token)),
-            gt(schema.mcpSessions.refreshExpiresAt, new Date()),
-            isNull(schema.mcpSessions.revokedAt),
-          ),
-        )
-        .limit(1);
-
-      if (!session) {
-        return c.json({ error: "invalid_grant" }, 400);
-      }
-
-      const accessToken = generateMcpToken();
-      const refreshToken = generateMcpToken();
-      const { accessTokenExpiresAt, refreshTokenExpiresAt } = getMcpTokenExpiry();
-
-      const updated = await db
-        .update(schema.mcpSessions)
-        .set({
-          accessTokenHash: hashMcpToken(accessToken),
-          refreshTokenHash: hashMcpToken(refreshToken),
-          expiresAt: accessTokenExpiresAt,
-          refreshExpiresAt: refreshTokenExpiresAt,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(schema.mcpSessions.id, session.id),
-            eq(schema.mcpSessions.refreshTokenHash, hashMcpToken(parsed.data.refresh_token)),
-          ),
-        )
-        .returning({ id: schema.mcpSessions.id });
-
-      if (!updated.length) {
-        return c.json({ error: "invalid_grant" }, 400);
-      }
-
-      return c.json(
-        tokenResponse({
-          accessToken,
-          refreshToken,
-          expiresIn: env.MCP_TOKEN_LIFETIME_MINUTES * 60,
-          scope: session.scope,
-        }),
-        200,
-      );
-    })
+      },
+    )
     .use("/mcp/sse", mcpBearerAuthMiddleware)
     .use("/mcp/message", mcpBearerAuthMiddleware)
     .all("/mcp/sse", async (c) => handleMcpTransport(c.req.raw, c.var.mcpAuth))

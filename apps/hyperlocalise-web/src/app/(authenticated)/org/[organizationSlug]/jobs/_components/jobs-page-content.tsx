@@ -49,6 +49,14 @@ type ApiJob = {
   syncDirection: string | null;
   assetType: string | null;
   assetOperation: string | null;
+  externalProviderKind: string | null;
+  externalTaskId: string | null;
+  externalStatus: string | null;
+  externalTitle: string | null;
+  externalDueDate: string | null;
+  externalTargetLocales: string[] | null;
+  externalAssignedUsers: string[] | null;
+  externalSyncState: string | null;
 };
 
 type JobRow = ApiJob & {
@@ -79,93 +87,72 @@ function jobTone(status: ApiJob["status"]): Tone {
   }
 }
 
-/**
- * BOLT OPTIMIZATION: Reuse Intl.RelativeTimeFormat instance.
- * Creating Intl objects is expensive (~0.02ms per instance).
- * Reusing a single instance reduces overhead by >95%.
- */
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 function formatRelativeTime(value: string | null) {
-  if (!value) {
-    return "—";
-  }
-
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
   const absoluteSeconds = Math.abs(deltaSeconds);
-
-  if (absoluteSeconds < 60) {
-    return RELATIVE_TIME_FORMATTER.format(deltaSeconds, "second");
-  }
-  if (absoluteSeconds < 3_600) {
+  if (absoluteSeconds < 60) return RELATIVE_TIME_FORMATTER.format(deltaSeconds, "second");
+  if (absoluteSeconds < 3_600)
     return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 60), "minute");
-  }
-  if (absoluteSeconds < 86_400) {
+  if (absoluteSeconds < 86_400)
     return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 3_600), "hour");
-  }
-  if (absoluteSeconds < 2_592_000) {
+  if (absoluteSeconds < 2_592_000)
     return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 86_400), "day");
-  }
-  if (absoluteSeconds < 31_536_000) {
+  if (absoluteSeconds < 31_536_000)
     return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 2_592_000), "month");
-  }
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
+function sourceLabel(job: ApiJob) {
+  return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
+}
+
+function targetLocales(job: ApiJob) {
+  if (job.externalTargetLocales?.length) return job.externalTargetLocales.join(", ");
+  if (job.reviewTargetLocale) return job.reviewTargetLocale;
+  return "—";
+}
+
+function assignees(job: ApiJob) {
+  if (job.externalAssignedUsers?.length) return job.externalAssignedUsers.join(", ");
+  return "—";
+}
+
+function formatJobName(value: string) {
+  return value.slice(0, 72);
+}
+
+function getInputPayloadString(job: ApiJob, key: string) {
+  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
+    return null;
+  }
+  const value = (job.inputPayload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
 function getJobName(job: ApiJob) {
-  if (job.kind === "review" && job.reviewCriteria) {
-    return `Review: ${job.reviewCriteria}`.slice(0, 72);
-  }
-
-  if (job.kind === "sync" && job.syncConnectorKind) {
-    return `${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`.slice(0, 72);
-  }
-
-  if (job.kind === "asset_management" && job.assetType) {
-    return `${job.assetOperation ?? "manage"} ${job.assetType}`.slice(0, 72);
-  }
-
-  if (
-    job.kind === "research" &&
-    typeof job.inputPayload === "object" &&
-    job.inputPayload &&
-    "scope" in job.inputPayload &&
-    typeof job.inputPayload.scope === "string"
-  ) {
-    return `Research: ${job.inputPayload.scope}`.slice(0, 72);
-  }
-
-  if (
-    typeof job.inputPayload === "object" &&
-    job.inputPayload &&
-    "sourceText" in job.inputPayload &&
-    typeof job.inputPayload.sourceText === "string"
-  ) {
-    return job.inputPayload.sourceText.slice(0, 72);
-  }
-
-  if (
-    typeof job.inputPayload === "object" &&
-    job.inputPayload &&
-    "sourceFileId" in job.inputPayload &&
-    typeof job.inputPayload.sourceFileId === "string"
-  ) {
-    return job.inputPayload.sourceFileId;
-  }
-
+  if (job.externalTitle) return formatJobName(job.externalTitle);
+  if (job.kind === "review" && job.reviewCriteria)
+    return formatJobName(`Review: ${job.reviewCriteria}`);
+  if (job.kind === "sync" && job.syncConnectorKind)
+    return formatJobName(`${job.syncDirection ?? "sync"} ${job.syncConnectorKind}`);
+  if (job.kind === "asset_management" && job.assetType)
+    return formatJobName(`${job.assetOperation ?? "manage"} ${job.assetType}`);
+  const researchScope = getInputPayloadString(job, "scope");
+  if (job.kind === "research" && researchScope) return formatJobName(`Research: ${researchScope}`);
+  const sourceText = getInputPayloadString(job, "sourceText");
+  if (sourceText) return formatJobName(sourceText);
+  const sourceFileId = getInputPayloadString(job, "sourceFileId");
+  if (sourceFileId) return formatJobName(sourceFileId);
   return job.id;
 }
 
 function formatJobKind(job: ApiJob) {
-  if (job.kind === "translation" && job.type) {
-    return `${job.kind.replace("_", " ")} · ${job.type}`;
-  }
-
+  if (job.kind === "translation" && job.type) return `${job.kind.replace("_", " ")} · ${job.type}`;
   return job.kind.replace("_", " ");
 }
 
@@ -211,37 +198,52 @@ function JobsList({
   jobs: JobRow[];
   organizationSlug: string;
 }) {
-  if (isLoading) {
+  if (isLoading)
     return (
       <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
     );
-  }
-
   if (jobs.length === 0) {
-    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
+    return (
+      <div className="px-3 py-8">
+        <TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+        >
+          <span>Connect a TMS provider to import existing jobs</span>
+        </Link>
+      </div>
+    );
   }
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[55rem]">
-        <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
+      <div className="min-w-[86rem]">
+        <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
           <TypographyP>Name</TypographyP>
+          <TypographyP>Source</TypographyP>
           <TypographyP>Project</TypographyP>
           <TypographyP>Status</TypographyP>
-          <TypographyP className="text-right">Updated</TypographyP>
+          <TypographyP>Target locales</TypographyP>
+          <TypographyP>Assignees</TypographyP>
+          <TypographyP>Deadline</TypographyP>
+          <TypographyP>Last sync</TypographyP>
           <span aria-hidden />
         </div>
         {jobs.map((job, index) => (
           <div key={job.id}>
-            <div className="grid grid-cols-[minmax(18rem,1fr)_minmax(14rem,0.7fr)_9rem_11rem_3rem] items-center gap-4 px-3 py-4">
+            <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] items-center gap-4 px-3 py-4">
               <div className="min-w-0">
                 <TypographyP className="truncate text-base font-medium text-foreground">
                   {getJobName(job)}
                 </TypographyP>
                 <TypographyP className="mt-1 truncate text-xs text-foreground/38">
-                  {formatJobKind(job)} · {job.id}
+                  {formatJobKind(job)} · {job.externalTaskId ?? job.id}
                 </TypographyP>
               </div>
+              <Badge variant="outline" className="w-fit rounded-full">
+                {sourceLabel(job)}
+              </Badge>
               <TypographyP className="truncate text-base text-foreground/58">
                 {job.projectName ?? "Workspace"}
               </TypographyP>
@@ -251,7 +253,16 @@ function JobsList({
               >
                 {job.status}
               </Badge>
-              <TypographyP className="text-right text-base text-foreground/58">
+              <TypographyP className="truncate text-sm text-foreground/58">
+                {targetLocales(job)}
+              </TypographyP>
+              <TypographyP className="truncate text-sm text-foreground/58">
+                {assignees(job)}
+              </TypographyP>
+              <TypographyP className="text-sm text-foreground/58">
+                {formatRelativeTime(job.externalDueDate)}
+              </TypographyP>
+              <TypographyP className="text-sm text-foreground/58">
                 {formatRelativeTime(job.updatedAt)}
               </TypographyP>
               <Link
@@ -283,6 +294,9 @@ export function JobsPageContent({
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "provider">("all");
+  const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
+
   const jobsQuery = useQuery({
     queryKey: ["jobs", organizationSlug, scope, statusFilter],
     queryFn: async () => {
@@ -294,11 +308,7 @@ export function JobsPageContent({
           ...(statusFilter === "all" ? {} : { status: statusFilter }),
         },
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load jobs (${response.status})`);
-      }
-
+      if (!response.ok) throw new Error(`Failed to load jobs (${response.status})`);
       const body = (await response.json()) as { jobs: JobRow[] };
       return body.jobs;
     },
@@ -307,22 +317,36 @@ export function JobsPageContent({
   const jobs = jobsQuery.data ?? [];
   const visibleJobs = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-
     return jobs.filter((job) => {
       const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+      const matchesSource =
+        sourceFilter === "all" ||
+        (sourceFilter === "provider"
+          ? Boolean(job.externalProviderKind)
+          : !job.externalProviderKind);
+      const isReady =
+        job.status === "queued" || job.status === "running" || job.status === "waiting_for_review";
+      const matchesReady =
+        agentReadyFilter === "all" || (agentReadyFilter === "ready" ? isReady : !isReady);
       const matchesSearch =
         !normalizedSearch ||
-        [getJobName(job), job.projectName, job.id, job.kind, job.type, job.status]
+        [
+          getJobName(job),
+          job.projectName,
+          job.id,
+          job.kind,
+          job.externalProviderKind,
+          job.externalStatus,
+          targetLocales(job),
+          assignees(job),
+        ]
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
-
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesSource && matchesReady && matchesSearch;
     });
-  }, [jobs, search, statusFilter]);
+  }, [jobs, search, statusFilter, sourceFilter, agentReadyFilter]);
 
-  const isLoading = jobsQuery.isLoading;
-  const errorMessage = (jobsQuery.error instanceof Error && jobsQuery.error.message) || "";
   const title = scope === "mine" ? "My Jobs" : "Jobs";
   const emptyLabel =
     scope === "mine" ? "No jobs found for your account." : "No jobs found for this workspace.";
@@ -334,9 +358,7 @@ export function JobsPageContent({
           {title}
         </TypographyH1>
       </div>
-
       {scope === "all" ? <JobsStats jobs={jobs} /> : null}
-
       <section className="space-y-5">
         <div className="flex flex-col gap-3 lg:flex-row">
           <div className="relative min-w-0 flex-1">
@@ -348,35 +370,61 @@ export function JobsPageContent({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search jobs..."
+              placeholder="Search jobs, providers, locales, assignees..."
               className="h-12 rounded-lg border-foreground/14 bg-transparent pl-12 text-base text-foreground placeholder:text-foreground/42"
             />
           </div>
+          <Select
+            value={sourceFilter}
+            onValueChange={(value) => setSourceFilter(value as typeof sourceFilter)}
+          >
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
+              <SelectValue placeholder="Source" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              <SelectItem value="native">Native</SelectItem>
+              <SelectItem value="provider">Provider</SelectItem>
+            </SelectContent>
+          </Select>
           <Select
             value={statusFilter}
             onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
           >
             <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
               <HugeiconsIcon icon={FilterHorizontalIcon} strokeWidth={2} className="size-5" />
-              <SelectValue placeholder="Filter" />
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               {statusOptions.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {status === "all" ? "Filter" : status}
+                  {status === "all" ? "All status" : status}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <Select
+            value={agentReadyFilter}
+            onValueChange={(value) => setAgentReadyFilter(value as typeof agentReadyFilter)}
+          >
+            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
+              <SelectValue placeholder="Agent" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any agent state</SelectItem>
+              <SelectItem value="ready">Agent-ready</SelectItem>
+              <SelectItem value="not_ready">Not ready</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-
-        {errorMessage ? (
-          <TypographyP className="text-sm text-flame-100">{errorMessage}</TypographyP>
+        {jobsQuery.error ? (
+          <TypographyP className="text-sm text-flame-100">
+            {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
+          </TypographyP>
         ) : null}
-
         <JobsList
           emptyLabel={emptyLabel}
-          isLoading={isLoading}
+          isLoading={jobsQuery.isLoading}
           jobs={visibleJobs}
           organizationSlug={organizationSlug}
         />

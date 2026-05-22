@@ -55,11 +55,11 @@ func (s *OrganizationWebhooksService) Get(ctx context.Context, organizationWebho
 // Add creates a new webhook.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.webhooks.post
-func (s *OrganizationWebhooksService) Add(ctx context.Context, projectID int, req *model.WebhookAddRequest) (
+func (s *OrganizationWebhooksService) Add(ctx context.Context, req *model.WebhookAddRequest) (
 	*model.Webhook, *Response, error,
 ) {
 	res := new(model.WebhookResponse)
-	resp, err := s.client.Post(ctx, fmt.Sprintf("/api/v2/projects/%d/webhooks", projectID), req, res)
+	resp, err := s.client.Post(ctx, "/api/v2/webhooks", req, res)
 
 	return res.Data, resp, err
 }

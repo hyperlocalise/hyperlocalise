@@ -3,7 +3,7 @@ import { z } from "zod";
 export const maxPublicUploadBytes = 25 * 1024 * 1024;
 
 export const uploadBodySchema = z.object({
-  projectId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
   sourcePath: z.string().trim().min(1).max(2048),
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),
@@ -11,7 +11,7 @@ export const uploadBodySchema = z.object({
 });
 
 export const fileParamsSchema = z.object({
-  fileId: z.string().trim().min(1),
+  fileId: z.string().trim().min(1).max(128),
 });
 
 export type UploadBody = z.infer<typeof uploadBodySchema>;

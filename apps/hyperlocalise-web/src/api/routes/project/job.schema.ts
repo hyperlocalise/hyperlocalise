@@ -7,16 +7,16 @@ export const maxTranslationTargetLocales = 20;
 export const maxTranslationMetadataEntries = 50;
 
 export const jobProjectParamsSchema = z.object({
-  projectId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
 });
 
 export const jobParamsSchema = z.object({
-  projectId: z.string().trim().min(1),
-  jobId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
+  jobId: z.string().trim().min(1).max(128),
 });
 
 export const workspaceJobParamsSchema = z.object({
-  jobId: z.string().trim().min(1),
+  jobId: z.string().trim().min(1).max(128),
 });
 
 const metadataSchema = z
@@ -36,7 +36,7 @@ export const stringTranslationJobInputSchema = z.object({
 });
 
 export const fileTranslationJobInputSchema = z.object({
-  sourceFileId: z.string().trim().min(1),
+  sourceFileId: z.string().trim().min(1).max(128),
   fileFormat: z.enum(supportedTranslationFileFormats),
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(maxTranslationTargetLocales),
@@ -92,6 +92,18 @@ export const jobRecordSchema = z
     assetType: z.string().nullable(),
     assetOperation: z.string().nullable(),
     assetConfig: z.record(z.string(), z.unknown()).nullable(),
+    externalProviderKind: z.enum(schema.externalTmsProviderKindEnum.enumValues).nullable(),
+    externalJobId: z.string().nullable(),
+    externalTaskId: z.string().nullable(),
+    externalStatus: z.string().nullable(),
+    externalTitle: z.string().nullable(),
+    externalDueDate: z.string().nullable(),
+    externalTargetLocales: z.array(z.string()).nullable(),
+    externalAssignedUsers: z.array(z.string()).nullable(),
+    externalUrl: z.string().nullable(),
+    externalSyncState: z.string().nullable(),
+    externalProviderPayload: z.record(z.string(), z.unknown()).nullable(),
+    linkedJobId: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
     completedAt: z.string().nullable(),

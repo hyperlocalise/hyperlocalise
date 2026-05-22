@@ -67,6 +67,18 @@ const jobSelect = {
   assetType: schema.assetManagementJobDetails.assetType,
   assetOperation: schema.assetManagementJobDetails.operation,
   assetConfig: schema.assetManagementJobDetails.config,
+  externalProviderKind: schema.externalJobDetails.providerKind,
+  externalJobId: schema.externalJobDetails.externalJobId,
+  externalTaskId: schema.externalJobDetails.externalTaskId,
+  externalStatus: schema.externalJobDetails.externalStatus,
+  externalTitle: schema.externalJobDetails.title,
+  externalDueDate: schema.externalJobDetails.dueDate,
+  externalTargetLocales: schema.externalJobDetails.targetLocales,
+  externalAssignedUsers: schema.externalJobDetails.assignedUsers,
+  externalUrl: schema.externalJobDetails.externalUrl,
+  externalSyncState: schema.externalJobDetails.syncState,
+  externalProviderPayload: schema.externalJobDetails.providerPayload,
+  linkedJobId: schema.externalJobDetails.linkedJobId,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
@@ -88,6 +100,7 @@ async function getOwnedJob(projectId: string, jobId: string) {
       schema.assetManagementJobDetails,
       eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
     )
+    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
     .where(and(eq(schema.jobs.projectId, projectId), eq(schema.jobs.id, jobId)))
     .limit(1);
 
@@ -242,6 +255,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .where(and(...filters))
         .orderBy(desc(schema.jobs.createdAt))
         .limit(query.limit);
@@ -437,6 +451,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -465,6 +480,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -615,6 +631,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -699,6 +716,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(

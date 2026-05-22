@@ -46,6 +46,22 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
+		// ahead to the next special character. This avoids byte-by-byte iteration
+		// and multiple handleMessageChar calls for plain text.
+		// We must stop at '}' as well to correctly handle nested structures
+		// when untilBrace is true, or to report an error otherwise.
+		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
+		if idx == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+		if idx > 0 {
+			text.WriteString(p.src[p.pos : p.pos+idx])
+			p.pos += idx
+		}
+
 		stop, err := p.handleMessageChar(&out, &text, ctx, untilBrace, flushText)
 		if err != nil {
 			return nil, err
@@ -66,7 +82,7 @@ func (p *astParser) handleMessageChar(out *[]Element, text *strings.Builder, ctx
 	switch p.src[p.pos] {
 	case '{':
 		flushText()
-		el, err := p.parseArgumentLike()
+		el, err := p.parseArgumentLike(ctx)
 		if err != nil {
 			return false, err
 		}
@@ -139,7 +155,7 @@ func (p *astParser) handleOpenTag(text *strings.Builder, ctx parseCtx, out *[]El
 	return true, nil
 }
 
-func (p *astParser) parseArgumentLike() (Element, error) {
+func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
 	if !p.consume('{') {
 		return nil, fmt.Errorf("expected '{' at %d", p.pos)
 	}
@@ -160,14 +176,15 @@ func (p *astParser) parseArgumentLike() (Element, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected format type at %d", p.pos)
 	}
-	kind = strings.ToLower(strings.TrimSpace(kind))
+	// BOLT OPTIMIZATION: readIdentifierLike results are already trimmed.
+	kind = strings.ToLower(kind)
 	p.skipSpaces()
 
 	if kind == "number" || kind == "date" || kind == "time" {
 		return p.parseSimpleTypedArgument(arg, kind)
 	}
 	if kind == "select" {
-		return p.parseSelectArgument(arg)
+		return p.parseSelectArgument(arg, ctx)
 	}
 	if kind == "plural" || kind == "selectordinal" {
 		return p.parsePluralArgument(arg, kind)
@@ -269,12 +286,12 @@ func (p *astParser) finishTimeElement(arg, style string) (Element, error) {
 	}, nil
 }
 
-func (p *astParser) parseSelectArgument(arg string) (Element, error) {
+func (p *astParser) parseSelectArgument(arg string, ctx parseCtx) (Element, error) {
 	if !p.consume(',') {
 		return nil, fmt.Errorf("expected ',' before select options at %d", p.pos)
 	}
 	p.skipSpaces()
-	opts, err := p.parseSelectOptions(parseCtx{})
+	opts, err := p.parseSelectOptions(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -398,9 +415,9 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 			return 0, nil, fmt.Errorf("expected ICU selector at %d", p.pos)
 		}
 		p.skipSpaces()
-		selLower := strings.ToLower(sel)
-		if strings.HasPrefix(selLower, "offset:") {
-			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(selLower, "offset:")))
+		if len(sel) >= 7 && strings.EqualFold(sel[:7], "offset:") {
+			// BOLT OPTIMIZATION: Use EqualFold to avoid ToLower and skip redundant TrimSpace.
+			n, err := strconv.Atoi(sel[7:])
 			if err != nil {
 				return 0, nil, fmt.Errorf("invalid plural offset %q", sel)
 			}
@@ -464,6 +481,20 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 	}
 
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
+		// ahead to the next special character.
+		// We must stop at '}' to correctly detect the closing tag or nested structure boundaries.
+		idx := strings.IndexAny(p.src[p.pos:], "{#<'}")
+		if idx == -1 {
+			text.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
+		}
+		if idx > 0 {
+			text.WriteString(p.src[p.pos : p.pos+idx])
+			p.pos += idx
+		}
+
 		closed, err := p.consumeClosingTagIfPresent(name, flushText)
 		if err != nil {
 			return nil, err
@@ -506,7 +537,7 @@ func (p *astParser) handleTagBodyChar(out *[]Element, text *strings.Builder, ctx
 	switch p.peek() {
 	case '{':
 		flushText()
-		el, err := p.parseArgumentLike()
+		el, err := p.parseArgumentLike(ctx)
 		if err != nil {
 			return err
 		}
@@ -580,6 +611,17 @@ func (p *astParser) consumeQuotedInto(b *strings.Builder) {
 
 func (p *astParser) skipSpaces() {
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Fast-path for common ASCII whitespace to avoid
+		// utf8.DecodeRuneInString and unicode.IsSpace calls.
+		ch := p.src[p.pos]
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' {
+			p.pos++
+			continue
+		}
+		if ch < 0x80 {
+			break
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if !unicode.IsSpace(r) {
 			break
@@ -615,7 +657,9 @@ func (p *astParser) readIdentifierLike() (string, bool) {
 	if p.pos == start {
 		return "", false
 	}
-	return strings.TrimSpace(p.src[start:p.pos]), true
+	// BOLT OPTIMIZATION: Internal callers (parseArgumentLike, parseSelectOptions, parsePluralOptions)
+	// always call skipSpaces() before, and we break on whitespace, so TrimSpace is redundant.
+	return p.src[start:p.pos], true
 }
 
 func (p *astParser) readSelector() (string, bool) {
@@ -625,7 +669,8 @@ func (p *astParser) readSelector() (string, bool) {
 		for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
 			p.pos++
 		}
-		return strings.TrimSpace(p.src[start:p.pos]), p.pos > start+1
+		// BOLT OPTIMIZATION: break on first non-digit, no TrimSpace needed.
+		return p.src[start:p.pos], p.pos > start+1
 	}
 	for p.pos < len(p.src) {
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
@@ -637,7 +682,8 @@ func (p *astParser) readSelector() (string, bool) {
 	if p.pos == start {
 		return "", false
 	}
-	return strings.TrimSpace(p.src[start:p.pos]), true
+	// BOLT OPTIMIZATION: break on first whitespace or delimiter, no TrimSpace needed.
+	return p.src[start:p.pos], true
 }
 
 func (p *astParser) readTagName() (string, bool) {
