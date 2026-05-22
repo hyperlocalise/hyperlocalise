@@ -79,6 +79,77 @@ describe("PhraseApiClient", () => {
     expect(String(vi.mocked(fetchMock).mock.calls[0]?.[0])).toContain(PHRASE_US_BASE_URL);
   });
 
+  it("lists keys, uploads, and translations with branch filters", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/keys")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-1",
+              name: "home.hero.title",
+              tags: ["app"],
+              custom_metadata: { screen: "home" },
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/uploads")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "upload-1",
+              filename: "home.json",
+              format: "json",
+              tags: ["app"],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "tr-1",
+              key_id: "key-1",
+              locale_name: "fr",
+              content: "Bonjour",
+              state: "translated",
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const keys = await client.listKeys("proj-1", { branch: "feature" });
+    const uploads = await client.listUploads("proj-1", { branch: "feature" });
+    const translations = await client.listTranslations("proj-1", "fr", { branch: "feature" });
+
+    expect(keys[0]).toMatchObject({
+      id: "key-1",
+      name: "home.hero.title",
+      tags: ["app"],
+      customMetadata: { screen: "home" },
+    });
+    expect(uploads[0]).toMatchObject({ id: "upload-1", filename: "home.json", format: "json" });
+    expect(translations[0]).toMatchObject({
+      keyId: "key-1",
+      localeName: "fr",
+      content: "Bonjour",
+      state: "translated",
+    });
+    expect(String(vi.mocked(fetchMock).mock.calls[0]?.[0])).toContain("branch=feature");
+  });
+
   it("throws PhraseApiError for non-success responses", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
