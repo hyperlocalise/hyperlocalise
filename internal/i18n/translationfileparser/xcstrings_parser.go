@@ -765,6 +765,10 @@ func cloneXCStringsStringUnitSkeleton(value any) any {
 			out[key] = ""
 			continue
 		}
+		if key == "state" {
+			out[key] = "new"
+			continue
+		}
 		out[key] = cloneXCStringsSkeleton(child)
 	}
 	return out

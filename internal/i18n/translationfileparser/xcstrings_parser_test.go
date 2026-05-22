@@ -515,6 +515,68 @@ func TestMarshalXCStringsPromotesPendingStringUnitStates(t *testing.T) {
 	}
 }
 
+func TestMarshalXCStringsSkeletonMarksUnwrittenVariantsNew(t *testing.T) {
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	targetTemplate := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {},
+  "version": "1.0"
+}`)
+
+	out, err := MarshalXCStrings(targetTemplate, source, map[string]string{
+		"item_count::plural.one": "%lld article",
+	}, "en", "fr")
+	if err != nil {
+		t.Fatalf("marshal xcstrings: %v", err)
+	}
+
+	var catalog map[string]any
+	if err := json.Unmarshal(out, &catalog); err != nil {
+		t.Fatalf("decode marshaled catalog: %v", err)
+	}
+	one := nestedXCStringsMap(t, catalog, "strings", "item_count", "localizations", "fr", "variations", "plural", "one", "stringUnit")
+	if got := one["state"]; got != "translated" {
+		t.Fatalf("expected written variant state to be translated, got %#v", got)
+	}
+	if got := one["value"]; got != "%lld article" {
+		t.Fatalf("expected written variant value, got %#v", got)
+	}
+	other := nestedXCStringsMap(t, catalog, "strings", "item_count", "localizations", "fr", "variations", "plural", "other", "stringUnit")
+	if got := other["state"]; got != "new" {
+		t.Fatalf("expected unwritten skeleton variant state to remain new, got %#v", got)
+	}
+	if got := other["value"]; got != "" {
+		t.Fatalf("expected unwritten skeleton variant value to be empty, got %#v", got)
+	}
+}
+
 func assertStringMapValue(t *testing.T, got map[string]string, key, want string) {
 	t.Helper()
 	if got[key] != want {
