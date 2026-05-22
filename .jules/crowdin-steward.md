@@ -65,3 +65,15 @@
 **Learning:** The Crowdin API v2 for Glossaries and Translation Memories returns an `updatedAt` field in their resource responses, which was missing from the Go SDK models. Additionally, the Add Term endpoint supports a deprecated `translationOfTermId` field for linking translations, which can still be useful for legacy integrations.
 
 **Action:** Added `UpdatedAt` (string) to `Glossary` and `TranslationMemory` models. Added `TranslationOfTermID` (int) to `TermAddRequest`. Updated contract tests in `glossaries_test.go` and `translation_memory_test.go` to verify correct parsing and serialization of these fields.
+
+## 2026-07-03 - Improve Project and TM parity for Enterprise fields and GroupID filtering
+
+**Learning:** Crowdin Enterprise API v2 includes several fields in the Project response model (, , ) that were missing from the SDK. Additionally, listing projects and translation memories supports filtering by `groupId`. Using `*int` for the GroupID field allows the SDK to explicitly send `groupId=0` (for root group) while omitting it when nil.
+
+**Action:** Added `TemplateID`, `VendorID`, and `MTEngineID` to the `Project` struct in `model/projects.go`. Added `GroupID (*int)` to `ProjectsListOptions` and `TranslationMemoriesListOptions`. Updated `Values()` methods to correctly encode the `groupId` parameter. Verified with updated contract tests in `projects_test.go` and `model/translation_memory_test.go`.
+
+## 2026-07-03 - Improve Project and TM parity for Enterprise fields and GroupID filtering
+
+**Learning:** Crowdin Enterprise API v2 includes several fields in the Project response model (`templateId`, `vendorId`, `mtEngineId`) that were missing from the SDK. Additionally, listing projects and translation memories supports filtering by `groupId`. Using `*int` for the GroupID field allows the SDK to explicitly send `groupId=0` (for root group) while omitting it when nil.
+
+**Action:** Added `TemplateID`, `VendorID`, and `MTEngineID` to the `Project` struct in `model/projects.go`. Added `GroupID (*int)` to `ProjectsListOptions` and `TranslationMemoriesListOptions`. Updated `Values()` methods to correctly encode the `groupId` parameter. Verified with updated contract tests in `projects_test.go` and `model/translation_memory_test.go`.
