@@ -1,13 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { projectIdParamsSchema } from "./project/project.schema";
-import { jobProjectParamsSchema, jobParamsSchema, workspaceJobParamsSchema, fileTranslationJobInputSchema } from "./project/job.schema";
-import { createPublicJobBodySchema, jobIdParamsSchema, latestPublicJobQuerySchema } from "./public-jobs/public-jobs.schema";
-import { uploadBodySchema, fileParamsSchema as publicFileParamsSchema } from "./public-files/public-files.schema";
+import {
+  jobProjectParamsSchema,
+  jobParamsSchema,
+  workspaceJobParamsSchema,
+  fileTranslationJobInputSchema,
+} from "./project/job.schema";
+import {
+  createPublicJobBodySchema,
+  jobIdParamsSchema,
+  latestPublicJobQuerySchema,
+} from "./public-jobs/public-jobs.schema";
+import {
+  uploadBodySchema,
+  fileParamsSchema as publicFileParamsSchema,
+} from "./public-files/public-files.schema";
 import { searchRepositoriesSchema } from "./github-installation/github-installation.schema";
 import { apiKeyIdParamsSchema } from "./api-key/api-key.schema";
 import { fileParamsSchema } from "./file/file.schema";
 import { glossaryIdParamsSchema } from "./glossary/glossary.schema";
-import { chatRequestBodySchema, multipartChatRequestSchema } from "./chat-request/chat-request.schema";
+import {
+  chatRequestBodySchema,
+  multipartChatRequestSchema,
+} from "./chat-request/chat-request.schema";
 
 describe("Identifier Schema length limits", () => {
   const longId = "a".repeat(129);
@@ -23,17 +38,21 @@ describe("Identifier Schema length limits", () => {
     expect(jobParamsSchema.safeParse({ projectId: longId, jobId: "valid" }).success).toBe(false);
     expect(jobParamsSchema.safeParse({ projectId: "valid", jobId: longId }).success).toBe(false);
     expect(workspaceJobParamsSchema.safeParse({ jobId: longId }).success).toBe(false);
-    expect(fileTranslationJobInputSchema.safeParse({
-      sourceFileId: longId,
-      fileFormat: "json",
-      sourceLocale: "en",
-      targetLocales: ["fr"]
-    }).success).toBe(false);
+    expect(
+      fileTranslationJobInputSchema.safeParse({
+        sourceFileId: longId,
+        fileFormat: "json",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      }).success,
+    ).toBe(false);
   });
 
   it("should enforce max length on projectId and jobId in public-jobs.schema", () => {
     expect(jobIdParamsSchema.safeParse({ jobId: longId }).success).toBe(false);
-    expect(latestPublicJobQuerySchema.safeParse({ projectId: longId, sourcePath: "a" }).success).toBe(false);
+    expect(
+      latestPublicJobQuerySchema.safeParse({ projectId: longId, sourcePath: "a" }).success,
+    ).toBe(false);
 
     const stringJobResult = createPublicJobBodySchema.safeParse({
       type: "string",
@@ -41,8 +60,8 @@ describe("Identifier Schema length limits", () => {
       stringInput: {
         sourceText: "a",
         sourceLocale: "en",
-        targetLocales: ["fr"]
-      }
+        targetLocales: ["fr"],
+      },
     });
     expect(stringJobResult.success).toBe(false);
 
@@ -53,8 +72,8 @@ describe("Identifier Schema length limits", () => {
         sourceFileId: longId,
         fileFormat: "json",
         sourceLocale: "en",
-        targetLocales: ["fr"]
-      }
+        targetLocales: ["fr"],
+      },
     });
     expect(fileJobResult.success).toBe(false);
   });
@@ -73,8 +92,12 @@ describe("Identifier Schema length limits", () => {
   });
 
   it("should enforce max length on file params (slug and fileId)", () => {
-    expect(fileParamsSchema.safeParse({ organizationSlug: longId, fileId: "valid" }).success).toBe(false);
-    expect(fileParamsSchema.safeParse({ organizationSlug: "valid", fileId: longId }).success).toBe(false);
+    expect(fileParamsSchema.safeParse({ organizationSlug: longId, fileId: "valid" }).success).toBe(
+      false,
+    );
+    expect(fileParamsSchema.safeParse({ organizationSlug: "valid", fileId: longId }).success).toBe(
+      false,
+    );
   });
 
   it("should enforce max length on glossaryId", () => {
@@ -83,6 +106,8 @@ describe("Identifier Schema length limits", () => {
 
   it("should enforce max length on projectId in chat-request", () => {
     expect(chatRequestBodySchema.safeParse({ text: "a", projectId: longId }).success).toBe(false);
-    expect(multipartChatRequestSchema.safeParse({ text: "a", projectId: longId }).success).toBe(false);
+    expect(multipartChatRequestSchema.safeParse({ text: "a", projectId: longId }).success).toBe(
+      false,
+    );
   });
 });
