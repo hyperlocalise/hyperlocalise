@@ -1,8 +1,10 @@
 "use client";
 
 import { createElement } from "react";
+import Link from "next/link";
 import {
   ArrowDown01Icon,
+  ArrowRight01Icon,
   File01Icon,
   FileValidationIcon,
   NoteIcon,
@@ -118,6 +120,14 @@ export function ContextPageContent() {
       />
 
       <MetricsGrid metrics={contextMetrics} />
+
+      <div className="flex items-center gap-2 text-sm text-foreground/54">
+        <span>Provider context from connected TMS systems will appear here.</span>
+        <Link href="integrations" className="inline-flex items-center gap-1 hover:text-foreground">
+          <span>Connect a provider</span>
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+        </Link>
+      </div>
 
       <ResourceCard
         title="Context content"

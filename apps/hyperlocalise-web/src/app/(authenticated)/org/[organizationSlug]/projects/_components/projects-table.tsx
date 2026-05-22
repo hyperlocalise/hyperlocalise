@@ -57,6 +57,12 @@ export function ProjectsTable({
               Track source content, release ownership, and translation context before work moves
               into translation jobs.
             </TypographyP>
+            <Link
+              href={`/org/${organizationSlug}/integrations`}
+              className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+            >
+              <span>Or connect a TMS provider to import existing projects</span>
+            </Link>
           </div>
           <Button
             type="button"

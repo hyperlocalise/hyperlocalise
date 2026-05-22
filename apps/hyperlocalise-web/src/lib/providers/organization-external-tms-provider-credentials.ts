@@ -16,6 +16,51 @@ export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRol
   }
 }
 
+export type ExternalTmsProviderCredentialSummary = {
+  id: string;
+  organizationId: string;
+  providerKind: ExternalTmsProviderKind;
+  displayName: string;
+  region: string | null;
+  baseUrl: string | null;
+  validationStatus: string;
+  validationMessage: string | null;
+  lastValidatedAt: Date | null;
+  maskedSecretSuffix: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function summarizeExternalCredential(
+  credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect,
+): ExternalTmsProviderCredentialSummary {
+  return {
+    id: credential.id,
+    organizationId: credential.organizationId,
+    providerKind: credential.providerKind as ExternalTmsProviderKind,
+    displayName: credential.displayName,
+    region: credential.region,
+    baseUrl: credential.baseUrl,
+    validationStatus: credential.validationStatus,
+    validationMessage: credential.validationMessage,
+    lastValidatedAt: credential.lastValidatedAt,
+    maskedSecretSuffix: credential.maskedSecretSuffix,
+    createdAt: credential.createdAt,
+    updatedAt: credential.updatedAt,
+  };
+}
+
+export async function listOrganizationExternalTmsProviderCredentialSummaries(
+  organizationId: string,
+): Promise<ExternalTmsProviderCredentialSummary[]> {
+  const credentials = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId));
+
+  return credentials.map(summarizeExternalCredential);
+}
+
 export async function getOrganizationExternalTmsProviderCredentialSummary(
   organizationId: string,
   providerKind: ExternalTmsProviderKind,
@@ -31,7 +76,7 @@ export async function getOrganizationExternalTmsProviderCredentialSummary(
     )
     .limit(1);
 
-  return credential ?? null;
+  return credential ? summarizeExternalCredential(credential) : null;
 }
 
 export async function upsertOrganizationExternalTmsProviderCredential(input: {

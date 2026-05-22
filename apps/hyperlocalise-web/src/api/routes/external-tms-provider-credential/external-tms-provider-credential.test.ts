@@ -220,4 +220,45 @@ describe("externalTmsProviderCredentialRoutes", () => {
       error: "invalid_external_tms_provider_kind",
     });
   });
+
+  it("lists all external TMS credentials for the organization", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "phrase",
+      displayName: "Phrase",
+      secretMaterial: "phrase-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.externalTmsProviderCredentials).toHaveLength(2);
+    const kinds = data.externalTmsProviderCredentials.map(
+      (c: { providerKind: string }) => c.providerKind,
+    );
+    expect(kinds).toContain("crowdin");
+    expect(kinds).toContain("phrase");
+  });
 });
