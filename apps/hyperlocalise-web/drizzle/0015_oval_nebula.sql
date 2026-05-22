@@ -26,6 +26,6 @@ ALTER TABLE "agent_runs" ADD CONSTRAINT "agent_runs_hyperlocalise_job_id_jobs_id
 CREATE INDEX "idx_agent_runs_org_created" ON "agent_runs" USING btree ("organization_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_agent_runs_org_provider_job" ON "agent_runs" USING btree ("organization_id","provider_kind","external_job_id");--> statement-breakpoint
 CREATE INDEX "idx_agent_runs_org_provider_task" ON "agent_runs" USING btree ("organization_id","provider_kind","external_task_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_runs_status" ON "agent_runs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_agent_runs_org_status" ON "agent_runs" USING btree ("organization_id","status");--> statement-breakpoint
 CREATE INDEX "idx_agent_runs_hyperlocalise_job" ON "agent_runs" USING btree ("hyperlocalise_job_id");--> statement-breakpoint
-CREATE INDEX "idx_agent_runs_actor" ON "agent_runs" USING btree ("actor_user_id");
+CREATE INDEX "idx_agent_runs_org_actor" ON "agent_runs" USING btree ("organization_id","actor_user_id");

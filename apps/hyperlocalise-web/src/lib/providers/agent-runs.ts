@@ -54,12 +54,13 @@ export async function startAgentRun(input: { runId: string; organizationId: stri
       and(
         eq(schema.agentRuns.id, input.runId),
         eq(schema.agentRuns.organizationId, input.organizationId),
+        eq(schema.agentRuns.status, "queued"),
       ),
     )
     .returning();
 
   if (!run) {
-    throw new Error("Agent run not found");
+    throw new Error("Agent run not found or not in queued state");
   }
 
   return run;
@@ -128,12 +129,13 @@ async function finishAgentRun(input: {
       and(
         eq(schema.agentRuns.id, input.runId),
         eq(schema.agentRuns.organizationId, input.organizationId),
+        eq(schema.agentRuns.status, "running"),
       ),
     )
     .returning();
 
   if (!run) {
-    throw new Error("Agent run not found");
+    throw new Error("Agent run not found or not in running state");
   }
 
   return run;

@@ -1,5 +1,5 @@
 {
-  "id": "0157c036-d10f-450a-a09a-baac6095786b",
+  "id": "3b20d412-b13d-463d-93e8-d44880b250b8",
   "prevId": "8b391a4b-d81b-4b43-ae57-fe2f259c8309",
   "version": "7",
   "dialect": "postgresql",
@@ -198,9 +198,15 @@
           "method": "btree",
           "with": {}
         },
-        "idx_agent_runs_status": {
-          "name": "idx_agent_runs_status",
+        "idx_agent_runs_org_status": {
+          "name": "idx_agent_runs_org_status",
           "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "status",
               "isExpression": false,
@@ -228,9 +234,15 @@
           "method": "btree",
           "with": {}
         },
-        "idx_agent_runs_actor": {
-          "name": "idx_agent_runs_actor",
+        "idx_agent_runs_org_actor": {
+          "name": "idx_agent_runs_org_actor",
           "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "actor_user_id",
               "isExpression": false,

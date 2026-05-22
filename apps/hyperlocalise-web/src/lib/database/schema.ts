@@ -1273,9 +1273,9 @@ export const agentRuns = pgTable(
       table.providerKind,
       table.externalTaskId,
     ),
-    index("idx_agent_runs_status").on(table.status),
+    index("idx_agent_runs_org_status").on(table.organizationId, table.status),
     index("idx_agent_runs_hyperlocalise_job").on(table.hyperlocaliseJobId),
-    index("idx_agent_runs_actor").on(table.actorUserId),
+    index("idx_agent_runs_org_actor").on(table.organizationId, table.actorUserId),
   ],
 );
 
