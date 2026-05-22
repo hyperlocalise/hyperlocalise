@@ -112,6 +112,35 @@ describe("CrowdinApiClient", () => {
     expect(branches[1]).toMatchObject({ id: 11, name: "feature/i18n", title: null });
   });
 
+  it("lists branches with pagination", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes("offset=0")) {
+        return new Response(
+          JSON.stringify({
+            data: [{ data: { id: 10, name: "main", title: "Main Branch" } }],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [],
+          pagination: { offset: 500, limit: 500 },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const branches = await client.listBranches(1);
+
+    expect(branches).toHaveLength(1);
+    expect(branches[0]).toMatchObject({ id: 10, name: "main", title: "Main Branch" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("throws CrowdinApiError on 401", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { code: 401, message: "Unauthorized" } }), {

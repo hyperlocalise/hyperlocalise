@@ -101,13 +101,28 @@ export class CrowdinApiClient {
   }
 
   /**
-   * List branches for a given project.
+   * List branches for a given project, following pagination automatically.
    */
   async listBranches(projectId: number): Promise<CrowdinBranch[]> {
-    const response = await this.get<CrowdinListResponse<CrowdinBranch>>(
-      `/projects/${projectId}/branches?limit=500`,
-    );
-    return response.data.map((item) => item.data);
+    const branches: CrowdinBranch[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinBranch>>(
+        `/projects/${projectId}/branches?limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      branches.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return branches;
   }
 
   private async get<T>(path: string): Promise<T> {
