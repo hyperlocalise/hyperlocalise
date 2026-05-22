@@ -7,16 +7,16 @@ export const maxTranslationTargetLocales = 20;
 export const maxTranslationMetadataEntries = 50;
 
 export const jobProjectParamsSchema = z.object({
-  projectId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
 });
 
 export const jobParamsSchema = z.object({
-  projectId: z.string().trim().min(1),
-  jobId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1).max(128),
+  jobId: z.string().trim().min(1).max(128),
 });
 
 export const workspaceJobParamsSchema = z.object({
-  jobId: z.string().trim().min(1),
+  jobId: z.string().trim().min(1).max(128),
 });
 
 const metadataSchema = z
@@ -36,7 +36,7 @@ export const stringTranslationJobInputSchema = z.object({
 });
 
 export const fileTranslationJobInputSchema = z.object({
-  sourceFileId: z.string().trim().min(1),
+  sourceFileId: z.string().trim().min(1).max(128),
   fileFormat: z.enum(supportedTranslationFileFormats),
   sourceLocale: z.string().trim().min(1).max(32),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(maxTranslationTargetLocales),

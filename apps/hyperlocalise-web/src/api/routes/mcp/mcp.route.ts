@@ -26,36 +26,36 @@ import { env } from "@/lib/env";
 
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
-  client_id: z.string().min(1),
+  client_id: z.string().min(1).max(128),
   redirect_uri: z.url(),
-  code_challenge: z.string().min(32),
+  code_challenge: z.string().min(32).max(128),
   code_challenge_method: z.literal("S256"),
-  scope: z.string().optional().default("mcp"),
-  state: z.string().optional(),
-  organizationSlug: z.string().optional(),
+  scope: z.string().max(128).optional().default("mcp"),
+  state: z.string().max(128).optional(),
+  organizationSlug: z.string().max(128).optional(),
 });
 
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
   z.object({
     grant_type: z.literal("authorization_code"),
-    code: z.string().min(1),
+    code: z.string().min(1).max(256),
     redirect_uri: z.url(),
-    client_id: z.string().min(1),
-    code_verifier: z.string().min(43),
+    client_id: z.string().min(1).max(128),
+    code_verifier: z.string().min(43).max(128),
   }),
   z.object({
     grant_type: z.literal("refresh_token"),
-    refresh_token: z.string().min(1),
-    client_id: z.string().min(1).optional(),
+    refresh_token: z.string().min(1).max(256),
+    client_id: z.string().min(1).max(128).optional(),
   }),
 ]);
 
 const registerClientSchema = z.object({
-  client_name: z.string().min(1).optional(),
-  redirect_uris: z.array(z.url()).min(1),
-  grant_types: z.array(z.string()).optional(),
-  response_types: z.array(z.string()).optional(),
-  scope: z.string().optional(),
+  client_name: z.string().min(1).max(128).optional(),
+  redirect_uris: z.array(z.url()).min(1).max(10),
+  grant_types: z.array(z.string().max(32)).optional(),
+  response_types: z.array(z.string().max(32)).optional(),
+  scope: z.string().max(128).optional(),
 });
 
 function isAllowedRedirectUri(redirectUri: string): boolean {
@@ -193,7 +193,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     {
       description: "Get Hyperlocalise project details by ID.",
       inputSchema: z.object({
-        projectId: z.string().min(1),
+        projectId: z.string().min(1).max(128),
       }),
     },
     async ({ projectId }) => {
