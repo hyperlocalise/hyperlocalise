@@ -458,7 +458,7 @@ func TestMarshalXCStringsWritesTargetLocaleAndPreservesMetadata(t *testing.T) {
 	}
 }
 
-func TestMarshalXCStringsPromotesNewStringUnitState(t *testing.T) {
+func TestMarshalXCStringsPromotesPendingStringUnitStates(t *testing.T) {
 	source := []byte(`{
   "sourceLanguage": "en",
   "strings": {
@@ -475,14 +475,17 @@ func TestMarshalXCStringsPromotesNewStringUnitState(t *testing.T) {
   },
   "version": "1.0"
 }`)
-	targetTemplate := []byte(`{
+
+	for _, state := range []string{"new", "needs_review"} {
+		t.Run(state, func(t *testing.T) {
+			targetTemplate := []byte(strings.ReplaceAll(`{
   "sourceLanguage": "en",
   "strings": {
     "hello": {
       "localizations": {
         "fr": {
           "stringUnit": {
-            "state": "new",
+            "state": "$STATE",
             "value": ""
           }
         }
@@ -490,23 +493,25 @@ func TestMarshalXCStringsPromotesNewStringUnitState(t *testing.T) {
     }
   },
   "version": "1.0"
-}`)
+}`, "$STATE", state))
 
-	out, err := MarshalXCStrings(targetTemplate, source, map[string]string{"hello": "Bonjour"}, "en", "fr")
-	if err != nil {
-		t.Fatalf("marshal xcstrings: %v", err)
-	}
+			out, err := MarshalXCStrings(targetTemplate, source, map[string]string{"hello": "Bonjour"}, "en", "fr")
+			if err != nil {
+				t.Fatalf("marshal xcstrings: %v", err)
+			}
 
-	var catalog map[string]any
-	if err := json.Unmarshal(out, &catalog); err != nil {
-		t.Fatalf("decode marshaled catalog: %v", err)
-	}
-	unit := nestedXCStringsMap(t, catalog, "strings", "hello", "localizations", "fr", "stringUnit")
-	if got := unit["state"]; got != "translated" {
-		t.Fatalf("expected new state to be promoted after writing value, got %#v", got)
-	}
-	if got := unit["value"]; got != "Bonjour" {
-		t.Fatalf("expected translated value, got %#v", got)
+			var catalog map[string]any
+			if err := json.Unmarshal(out, &catalog); err != nil {
+				t.Fatalf("decode marshaled catalog: %v", err)
+			}
+			unit := nestedXCStringsMap(t, catalog, "strings", "hello", "localizations", "fr", "stringUnit")
+			if got := unit["state"]; got != "translated" {
+				t.Fatalf("expected %q state to be promoted after writing value, got %#v", state, got)
+			}
+			if got := unit["value"]; got != "Bonjour" {
+				t.Fatalf("expected translated value, got %#v", got)
+			}
+		})
 	}
 }
 

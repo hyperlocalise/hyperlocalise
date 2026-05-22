@@ -716,7 +716,7 @@ func setXCStringsStringUnitValue(loc map[string]any, value string) error {
 	if err != nil {
 		return err
 	}
-	if state, ok := unit["state"].(string); !ok || strings.TrimSpace(state) == "" || strings.TrimSpace(state) == "new" {
+	if state, ok := unit["state"].(string); !ok || strings.TrimSpace(state) == "" || strings.TrimSpace(state) == "new" || strings.TrimSpace(state) == "needs_review" {
 		unit["state"] = "translated"
 	}
 	unit["value"] = value
