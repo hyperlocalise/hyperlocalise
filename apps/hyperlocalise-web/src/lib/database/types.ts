@@ -1,4 +1,7 @@
 import type {
+  agentRuns,
+  agentRunKindEnum,
+  agentRunStatusEnum,
   githubInstallations,
   glossaries,
   jobs,
@@ -55,6 +58,10 @@ export type OrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferSelect;
 export type NewOrganizationLlmProviderCredential =
   typeof organizationLlmProviderCredentials.$inferInsert;
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type NewAgentRun = typeof agentRuns.$inferInsert;
+export type AgentRunKind = (typeof agentRunKindEnum.enumValues)[number];
+export type AgentRunStatus = (typeof agentRunStatusEnum.enumValues)[number];
 export type ProviderSyncRun = typeof providerSyncRuns.$inferSelect;
 export type NewProviderSyncRun = typeof providerSyncRuns.$inferInsert;
 export type ProviderSyncRunKind = (typeof providerSyncRunKindEnum.enumValues)[number];
