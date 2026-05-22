@@ -1196,6 +1196,7 @@ export const externalJobDetails = pgTable(
   (table) => [
     index("idx_external_job_details_provider_kind").on(table.providerKind),
     index("idx_external_job_details_external_job_id").on(table.externalJobId),
+    index("idx_external_job_details_external_task_id").on(table.externalTaskId),
     index("idx_external_job_details_sync_state").on(table.syncState),
     index("idx_external_job_details_linked_job").on(table.linkedJobId),
     uniqueIndex("idx_external_job_details_provider_job_unique").on(
