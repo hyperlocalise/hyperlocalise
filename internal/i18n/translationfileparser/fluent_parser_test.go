@@ -38,7 +38,7 @@ items =
 	if !reflect.DeepEqual(values, want) {
 		t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
 	}
-	if !strings.Contains(ctx["hello"], "Greeting shown after sign-in.") {
+	if got := ctx["hello"]; got != "Greeting shown after sign-in." {
 		t.Fatalf("expected comment context for hello, got %#v", ctx)
 	}
 }
@@ -145,13 +145,31 @@ func TestMarshalFluentAppendsMissingEntriesDeterministically(t *testing.T) {
 	}
 
 	want := `hello = Salut
+
 apple = Pomme
+
 brand =
     .title = Titre
+
 zebra = Zebre
 `
 	if string(got) != want {
 		t.Fatalf("marshaled fluent mismatch\n got: %q\nwant: %q", string(got), want)
+	}
+}
+
+func TestFluentParserExcludesFileAndGroupCommentsFromMessageContext(t *testing.T) {
+	_, ctx, err := FluentParser{}.ParseWithContext([]byte(`### Checkout
+## Signed-in view
+# Greeting shown after sign-in.
+hello = Hello
+`))
+	if err != nil {
+		t.Fatalf("parse fluent: %v", err)
+	}
+
+	if got := ctx["hello"]; got != "Greeting shown after sign-in." {
+		t.Fatalf("expected only message comment context, got %q", got)
 	}
 }
 

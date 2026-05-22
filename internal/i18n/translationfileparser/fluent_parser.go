@@ -91,14 +91,22 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 	}
 	var b strings.Builder
 	hasRendered := false
-	renderedLastByte := byte(0)
+	renderedTrailingNewlines := 0
 	writeRenderedString := func(value string) {
 		b.WriteString(value)
 		if len(value) == 0 {
 			return
 		}
 		hasRendered = true
-		renderedLastByte = value[len(value)-1]
+		trailingNewlines := 0
+		for i := len(value) - 1; i >= 0 && value[i] == '\n'; i-- {
+			trailingNewlines++
+		}
+		if trailingNewlines == len(value) {
+			renderedTrailingNewlines += trailingNewlines
+		} else {
+			renderedTrailingNewlines = trailingNewlines
+		}
 	}
 	cursor := 0
 	for _, entry := range entries {
@@ -116,7 +124,7 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 	}
 	writeRenderedString(d.template[cursor:])
 
-	if err := appendMissingFluentEntries(&b, values, templateKeys, hasRendered && renderedLastByte == '\n'); err != nil {
+	if err := appendMissingFluentEntries(&b, values, templateKeys, hasRendered, renderedTrailingNewlines); err != nil {
 		return nil, err
 	}
 
@@ -147,7 +155,11 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 			continue
 		}
 		if isFluentComment(trimmed) {
-			pendingComments = append(pendingComments, fluentCommentText(trimmed))
+			if fluentCommentLevel(trimmed) == 1 {
+				pendingComments = append(pendingComments, fluentCommentText(trimmed))
+			} else {
+				pendingComments = nil
+			}
 			parentID = ""
 			parentContext = ""
 			i++
@@ -242,9 +254,6 @@ func fluentValueSpan(lines []fluentLine, index, valueStart int) (int, int) {
 		return valueStart, index
 	}
 	valueEnd := lines[index].end
-	if valueStart > valueEnd {
-		valueStart = valueEnd
-	}
 
 	next := index + 1
 	for next < len(lines) {
@@ -387,6 +396,14 @@ func isFluentComment(trimmed string) bool {
 	return strings.HasPrefix(trimmed, "#")
 }
 
+func fluentCommentLevel(trimmed string) int {
+	level := 0
+	for level < len(trimmed) && trimmed[level] == '#' {
+		level++
+	}
+	return level
+}
+
 func fluentCommentText(trimmed string) string {
 	return strings.TrimSpace(strings.TrimLeft(trimmed, "#"))
 }
@@ -478,7 +495,7 @@ func encodeFluentValue(value, continuationIndent string, blockValue bool) string
 	return lines[0] + "\n" + continuationIndent + strings.Join(lines[1:], "\n"+continuationIndent)
 }
 
-func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}, endsWithNewline bool) error {
+func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}, hasRendered bool, trailingNewlines int) error {
 	messageKeys := []string{}
 	attrsByParent := map[string][]string{}
 
@@ -503,8 +520,10 @@ func appendMissingFluentEntries(b *strings.Builder, values map[string]string, te
 	if len(messageKeys) == 0 && len(attrsByParent) == 0 {
 		return nil
 	}
-	if b.Len() > 0 && !endsWithNewline {
-		b.WriteByte('\n')
+	if hasRendered && trailingNewlines < 2 {
+		for i := trailingNewlines; i < 2; i++ {
+			b.WriteByte('\n')
+		}
 	}
 
 	topLevel := make([]string, 0, len(messageKeys)+len(attrsByParent))
@@ -520,7 +539,10 @@ func appendMissingFluentEntries(b *strings.Builder, values map[string]string, te
 		topLevel = append(topLevel, parent)
 	}
 	slices.Sort(topLevel)
-	for _, parent := range topLevel {
+	for index, parent := range topLevel {
+		if index > 0 {
+			b.WriteByte('\n')
+		}
 		if !isValidFluentIdentifier(parent) {
 			return fmt.Errorf("fluent marshal: invalid message id %q", parent)
 		}
