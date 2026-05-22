@@ -45,6 +45,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
     }
+    throw error;
   }
 
   const allFiles: Awaited<ReturnType<typeof client.listFiles>> = [];
@@ -84,6 +85,9 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
       const revisions = await client.listFileRevisions(projectId, file.id);
       if (revisions.length > 0) {
         revision = String(revisions[0]?.id ?? file.revisionId);
+      } else {
+        // Fall back to file.revisionId when the revisions list is empty
+        revision = String(file.revisionId);
       }
     } catch {
       // Fall back to file.revisionId if revision listing fails
@@ -160,8 +164,12 @@ function resolveDirectoryPath(
 ): string {
   const parts: string[] = [];
   let currentId: number | null = directoryId;
+  const visited = new Set<number>();
 
   while (currentId !== null) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+
     const info = infoById.get(currentId);
     if (!info) break;
     parts.unshift(info.name);
