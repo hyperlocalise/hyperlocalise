@@ -54,10 +54,21 @@ export const pushCrowdinTranslations: ExternalTmsTranslationPusher = async ({
     throw new Error("crowdin_task_missing_target_language");
   }
 
+  let uploaded = 0;
+  let failed = 0;
+  const failures: Array<{ locale: string; message: string; fileId?: string | null }> = [];
+  const asyncOperations: Array<Record<string, unknown>> = [];
+
   const groups = new Map<string, FileUploadGroup>();
   for (const translation of translations) {
     const fileId = Number(translation.fileId ?? task.fileIds?.[0]);
     if (Number.isNaN(fileId)) {
+      failed += 1;
+      failures.push({
+        locale: translation.locale,
+        fileId: translation.fileId ?? null,
+        message: "crowdin_translation_missing_file_id",
+      });
       continue;
     }
 
@@ -76,10 +87,9 @@ export const pushCrowdinTranslations: ExternalTmsTranslationPusher = async ({
     groups.set(key, existing);
   }
 
-  let uploaded = 0;
-  let failed = 0;
-  const failures: Array<{ locale: string; message: string; fileId?: string | null }> = [];
-  const asyncOperations: Array<Record<string, unknown>> = [];
+  if (groups.size === 0) {
+    return { uploaded, failed, failures, asyncOperations };
+  }
 
   for (const group of groups.values()) {
     try {

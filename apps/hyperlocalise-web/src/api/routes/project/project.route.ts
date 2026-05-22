@@ -857,7 +857,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           pullContent: pullCrowdinTaskContent,
         });
 
-        return c.json({ externalTmsContentPull: result }, 200);
+        return c.json({ externalTmsContentPull: result }, result.status === "failed" ? 207 : 200);
       },
     )
     .post(
