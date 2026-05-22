@@ -712,6 +712,11 @@ export const providerSyncRuns = pgTable(
       table.providerKind,
       table.startedAt,
     ),
+    index("idx_provider_sync_runs_org_kind_started").on(
+      table.organizationId,
+      table.kind,
+      table.startedAt,
+    ),
     index("idx_provider_sync_runs_org_project_started").on(
       table.organizationId,
       table.projectId,

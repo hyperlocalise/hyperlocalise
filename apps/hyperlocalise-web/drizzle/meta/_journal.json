@@ -85,6 +85,13 @@
       "when": 1779411315313,
       "tag": "0011_spicy_molly_hayes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779412649858,
+      "tag": "0012_sticky_maggott",
+      "breakpoints": true
     }
   ]
 }

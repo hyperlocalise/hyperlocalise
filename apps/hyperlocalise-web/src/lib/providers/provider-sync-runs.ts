@@ -145,6 +145,7 @@ export async function recordProviderSyncRun<T>(
           name: error instanceof Error ? error.name : "UnknownError",
           stack: error instanceof Error ? error.stack : undefined,
         },
+        providerMetadata: run.providerMetadata,
       });
     } catch {
       // Ignore failure to persist the error record; always re-throw the original error.
