@@ -1,8 +1,10 @@
 "use client";
 
 import { createElement } from "react";
+import Link from "next/link";
 import {
   ArrowDown01Icon,
+  ArrowRight01Icon,
   File01Icon,
   FileValidationIcon,
   NoteIcon,
@@ -106,7 +108,7 @@ function MarkdownBlock({ markdown }: { markdown: string }) {
   );
 }
 
-export function ContextPageContent() {
+export function ContextPageContent({ organizationSlug }: { organizationSlug: string }) {
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <PageHeader
@@ -118,6 +120,17 @@ export function ContextPageContent() {
       />
 
       <MetricsGrid metrics={contextMetrics} />
+
+      <div className="flex items-center gap-2 text-sm text-foreground/54">
+        <span>Provider context from connected TMS systems will appear here.</span>
+        <Link
+          href={`/org/${organizationSlug}/integrations`}
+          className="inline-flex items-center gap-1 hover:text-foreground"
+        >
+          <span>Connect a provider</span>
+          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
+        </Link>
+      </div>
 
       <ResourceCard
         title="Context content"

@@ -16,6 +16,49 @@ export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRol
   }
 }
 
+export type ExternalTmsProviderCredentialSummary = {
+  id: string;
+  providerKind: ExternalTmsProviderKind;
+  displayName: string;
+  region: string | null;
+  baseUrl: string | null;
+  validationStatus: string;
+  validationMessage: string | null;
+  lastValidatedAt: string | null;
+  maskedSecretSuffix: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function summarizeExternalCredential(
+  credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect,
+): ExternalTmsProviderCredentialSummary {
+  return {
+    id: credential.id,
+    providerKind: credential.providerKind as ExternalTmsProviderKind,
+    displayName: credential.displayName,
+    region: credential.region,
+    baseUrl: credential.baseUrl,
+    validationStatus: credential.validationStatus,
+    validationMessage: credential.validationMessage,
+    lastValidatedAt: credential.lastValidatedAt?.toISOString() ?? null,
+    maskedSecretSuffix: credential.maskedSecretSuffix,
+    createdAt: credential.createdAt.toISOString(),
+    updatedAt: credential.updatedAt.toISOString(),
+  };
+}
+
+export async function listOrganizationExternalTmsProviderCredentialSummaries(
+  organizationId: string,
+): Promise<ExternalTmsProviderCredentialSummary[]> {
+  const credentials = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId));
+
+  return credentials.map(summarizeExternalCredential);
+}
+
 export async function getOrganizationExternalTmsProviderCredentialSummary(
   organizationId: string,
   providerKind: ExternalTmsProviderKind,
@@ -31,7 +74,7 @@ export async function getOrganizationExternalTmsProviderCredentialSummary(
     )
     .limit(1);
 
-  return credential ?? null;
+  return credential ? summarizeExternalCredential(credential) : null;
 }
 
 export async function upsertOrganizationExternalTmsProviderCredential(input: {
