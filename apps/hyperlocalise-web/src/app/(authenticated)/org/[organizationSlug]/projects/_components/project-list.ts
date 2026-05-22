@@ -5,6 +5,17 @@ export type ApiProject = {
   translationContext?: string | null;
   createdAt?: string | Date | null;
   updatedAt?: string | Date | null;
+  source?: "native" | "external_tms";
+  externalProviderKind?: "crowdin" | "smartling" | "phrase" | "lokalise" | null;
+  externalProjectId?: string | null;
+  sourceLocale?: string | null;
+  targetLocales?: string[];
+  externalProjectUrl?: string | null;
+  isActive?: boolean;
+  lastSyncedAt?: string | Date | null;
+  lastSyncErrorAt?: string | Date | null;
+  lastSyncErrorMessage?: string | null;
+  openJobCount?: number;
 };
 
 export type ProjectListRow = {
@@ -17,6 +28,17 @@ export type ProjectListRow = {
   translationContextValue: string;
   created: string;
   updated: string;
+  source: "native" | "external_tms";
+  externalProviderKind: "crowdin" | "smartling" | "phrase" | "lokalise" | null;
+  externalProjectId: string | null;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalProjectUrl: string | null;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  lastSyncErrorAt: string | null;
+  lastSyncErrorMessage: string | null;
+  openJobCount: number;
 };
 
 /**
@@ -38,6 +60,20 @@ function formatTimestamp(value: string | Date | null | undefined, fallback: stri
 
   if (Number.isNaN(date.getTime())) {
     return fallback;
+  }
+
+  return DATE_FORMATTER.format(date);
+}
+
+function formatTimestampOrNull(value: string | Date | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
   }
 
   return DATE_FORMATTER.format(date);
@@ -76,5 +112,16 @@ export function mapProjectToListRow(project: ApiProject): ProjectListRow {
     translationContextValue,
     created: formatTimestamp(project.createdAt, "Created date unavailable"),
     updated: formatTimestamp(project.updatedAt, "Updated date unavailable"),
+    source: project.source ?? "native",
+    externalProviderKind: project.externalProviderKind ?? null,
+    externalProjectId: project.externalProjectId ?? null,
+    sourceLocale: project.sourceLocale ?? null,
+    targetLocales: project.targetLocales ?? [],
+    externalProjectUrl: project.externalProjectUrl ?? null,
+    isActive: project.isActive ?? true,
+    lastSyncedAt: formatTimestampOrNull(project.lastSyncedAt),
+    lastSyncErrorAt: formatTimestampOrNull(project.lastSyncErrorAt),
+    lastSyncErrorMessage: project.lastSyncErrorMessage ?? null,
+    openJobCount: project.openJobCount ?? 0,
   };
 }

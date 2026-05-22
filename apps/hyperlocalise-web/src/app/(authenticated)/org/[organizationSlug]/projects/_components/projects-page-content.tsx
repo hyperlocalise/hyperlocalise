@@ -7,6 +7,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
@@ -31,6 +39,56 @@ async function readProjectError(response: Response, fallback: string) {
   }
 
   return fallback;
+}
+
+function useProjectFilters(projects: ProjectListRow[]) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [providerFilter, setProviderFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = project.name.toLowerCase().includes(query);
+        const matchesId = project.id.toLowerCase().includes(query);
+        if (!matchesName && !matchesId) return false;
+      }
+
+      if (sourceFilter !== "all") {
+        if (project.source !== sourceFilter) return false;
+      }
+
+      if (providerFilter !== "all") {
+        if (project.externalProviderKind !== providerFilter) return false;
+      }
+
+      if (statusFilter !== "all") {
+        const isActive = statusFilter === "active";
+        if (project.isActive !== isActive) return false;
+      }
+
+      return true;
+    });
+  }, [projects, searchQuery, sourceFilter, providerFilter, statusFilter]);
+
+  const activeFilterCount = [sourceFilter, providerFilter, statusFilter].filter(
+    (f) => f !== "all",
+  ).length;
+
+  return {
+    searchQuery,
+    setSearchQuery,
+    sourceFilter,
+    setSourceFilter,
+    providerFilter,
+    setProviderFilter,
+    statusFilter,
+    setStatusFilter,
+    filteredProjects,
+    activeFilterCount,
+  };
 }
 
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
@@ -121,6 +179,19 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   });
 
   const projects = projectsQuery.data ?? [];
+  const {
+    searchQuery,
+    setSearchQuery,
+    sourceFilter,
+    setSourceFilter,
+    providerFilter,
+    setProviderFilter,
+    statusFilter,
+    setStatusFilter,
+    filteredProjects,
+    activeFilterCount,
+  } = useProjectFilters(projects);
+
   const isSavingProject = createProject.isPending || updateProject.isPending;
   const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";
   const projectDialogDescription =
@@ -163,6 +234,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     createProject.mutate(values);
   }
 
+  const hasExternalProjects = projects.some((p) => p.source === "external_tms");
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -182,9 +255,112 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           Create project
         </Button>
       </div>
+
+      {projectsQuery.isSuccess && projects.length > 0 ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <Input
+              placeholder="Search by name or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:max-w-xs"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={sourceFilter}
+              onValueChange={(value) => {
+                setSourceFilter(value ?? "all");
+                if (value === "native") {
+                  setProviderFilter("all");
+                  setStatusFilter("all");
+                }
+              }}
+            >
+              <SelectTrigger className="w-fit min-w-[8rem]">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All sources</SelectItem>
+                <SelectItem value="native">Native</SelectItem>
+                <SelectItem value="external_tms">External TMS</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasExternalProjects && sourceFilter !== "native" ? (
+              <Select
+                value={providerFilter}
+                onValueChange={(value) => setProviderFilter(value ?? "all")}
+              >
+                <SelectTrigger className="w-fit min-w-[8rem]">
+                  <SelectValue placeholder="Provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All providers</SelectItem>
+                  <SelectItem value="phrase">Phrase</SelectItem>
+                  <SelectItem value="crowdin">Crowdin</SelectItem>
+                  <SelectItem value="smartling">Smartling</SelectItem>
+                  <SelectItem value="lokalise">Lokalise</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
+
+            {hasExternalProjects && sourceFilter !== "native" ? (
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value ?? "all")}
+              >
+                <SelectTrigger className="w-fit min-w-[8rem]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
+
+            {activeFilterCount > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSourceFilter("all");
+                  setProviderFilter("all");
+                  setStatusFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {projectsQuery.isSuccess && projects.length > 0 && filteredProjects.length === 0 ? (
+        <div className="border-t border-foreground/8 px-1 py-8 text-sm text-foreground/52">
+          No projects match your filters.{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setSourceFilter("all");
+              setProviderFilter("all");
+              setStatusFilter("all");
+            }}
+            className="text-foreground/72 underline hover:text-foreground"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : null}
+
       <section>
         <ProjectsTable
-          projects={projects}
+          projects={filteredProjects}
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
           isDeletingProject={deleteProjectMutation.isPending}
