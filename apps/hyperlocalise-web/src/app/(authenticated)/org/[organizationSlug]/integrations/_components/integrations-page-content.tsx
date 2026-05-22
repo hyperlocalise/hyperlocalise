@@ -17,6 +17,15 @@ import type { LlmProvider } from "@/lib/database/types";
 import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
 import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { createApiClient } from "@/lib/api-client";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -279,6 +288,8 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const [tmsRegion, setTmsRegion] = useState("");
   const [tmsBaseUrl, setTmsBaseUrl] = useState("");
   const [showTmsSecret, setShowTmsSecret] = useState(false);
+  const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
+    useState<ExternalTmsProviderKind | null>(null);
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
@@ -313,6 +324,10 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const selectedProviderLabel =
     byokProviders.find((provider) => provider.id === selectedByokProvider)?.label ??
     selectedProviderConfig?.label;
+  const disconnectingTmsProviderName = disconnectingTmsProvider
+    ? tmsIntegrations.find((integration) => integration.providerKind === disconnectingTmsProvider)
+        ?.name
+    : null;
 
   return (
     <main className="space-y-5">
@@ -646,7 +661,7 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                               variant="ghost"
                               size="sm"
                               className="text-foreground/62 hover:bg-foreground/8 hover:text-foreground"
-                              onClick={() => deleteExternalTms.mutate(integration.providerKind)}
+                              onClick={() => setDisconnectingTmsProvider(integration.providerKind)}
                               disabled={deleteExternalTms.isPending}
                             >
                               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
@@ -807,6 +822,47 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={disconnectingTmsProvider !== null}
+        onOpenChange={(open) => {
+          if (!deleteExternalTms.isPending) {
+            setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the saved encrypted API credential. Reconnecting this provider will
+              require entering the secret again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteExternalTms.isPending}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
+              onClick={() => {
+                if (!disconnectingTmsProvider) {
+                  return;
+                }
+
+                deleteExternalTms.mutate(disconnectingTmsProvider, {
+                  onSuccess: () => setDisconnectingTmsProvider(null),
+                });
+              }}
+            >
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              {deleteExternalTms.isPending ? "Disconnecting..." : "Disconnect"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

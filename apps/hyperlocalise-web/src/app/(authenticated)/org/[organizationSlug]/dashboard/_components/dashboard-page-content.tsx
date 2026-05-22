@@ -272,7 +272,11 @@ function toneClass(tone: Tone) {
 const api = createApiClient();
 
 function TmsProviderSummary({ organizationSlug }: { organizationSlug: string }) {
-  const { data: credentials, isLoading } = useQuery({
+  const {
+    data: credentials,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["external-tms-credentials", organizationSlug],
     queryFn: async () => {
       const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"].$get({
@@ -307,6 +311,10 @@ function TmsProviderSummary({ organizationSlug }: { organizationSlug: string }) 
         {isLoading ? (
           <TypographyP className="px-5 py-4 text-sm text-foreground/52">
             Loading providers…
+          </TypographyP>
+        ) : isError ? (
+          <TypographyP className="px-5 py-4 text-sm text-foreground/52">
+            Unable to load TMS providers.
           </TypographyP>
         ) : connectedProviders === 0 ? (
           <div className="px-5 py-4">
