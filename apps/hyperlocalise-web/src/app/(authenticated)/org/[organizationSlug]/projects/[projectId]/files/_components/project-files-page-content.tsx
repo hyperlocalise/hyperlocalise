@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft01Icon,
   Download01Icon,
@@ -18,6 +19,19 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
+import {
+  collectLocaleOptions,
+  defaultWorkspaceFileFilters,
+  formatRelativeTimestamp,
+  ProviderKindBadge,
+  ResourceTypeBadge,
+  SourceOriginBadge,
+  summarizeLocaleReadiness,
+  SyncStateBadge,
+  toProjectFilesApiQuery,
+  WorkspaceFilesFilterBar,
+  type WorkspaceFileFilters,
+} from "../../../../_components/workspace-files-shared";
 import {
   PageHeader,
   toneClass,
@@ -302,10 +316,13 @@ function FileTreeNode({ node }: { node: TreeNode }) {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="size-4 shrink-0" />
           <span className="truncate">{node.name}</span>
+          <SourceOriginBadge origin={node.file.origin} />
           {node.file.provider ? (
-            <Badge variant="outline" className="ml-auto shrink-0 rounded-full text-xs">
-              {node.file.provider.kind}
-            </Badge>
+            <>
+              <ProviderKindBadge kind={node.file.provider.kind} />
+              <ResourceTypeBadge resourceType={node.file.provider.resourceType} />
+              <SyncStateBadge syncState={node.file.provider.syncState} />
+            </>
           ) : null}
           {node.file.latestJob ? (
             <Badge
@@ -341,7 +358,10 @@ export function ProjectFilesPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
-  const [selectedPath, setSelectedPath] = useState<string | undefined>();
+  const searchParams = useSearchParams();
+  const initialSourcePath = searchParams.get("sourcePath") ?? undefined;
+  const [filters, setFilters] = useState<WorkspaceFileFilters>(defaultWorkspaceFileFilters);
+  const [selectedPath, setSelectedPath] = useState<string | undefined>(initialSourcePath);
   const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
   const [baseVersionId, setBaseVersionId] = useState<string | undefined>();
   const [compareVersionId, setCompareVersionId] = useState<string | undefined>();
@@ -361,13 +381,13 @@ export function ProjectFilesPageContent({
   });
 
   const filesQuery = useQuery({
-    queryKey: ["project-files", organizationSlug, projectId],
+    queryKey: ["project-files", organizationSlug, projectId, filters],
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.$get({
         param: { organizationSlug, projectId },
-        query: { limit: "500" },
+        query: toProjectFilesApiQuery(filters),
       });
       if (!response.ok) {
         throw new Error(`Failed to load files (${response.status})`);
@@ -395,6 +415,7 @@ export function ProjectFilesPageContent({
   });
 
   const files = filesQuery.data ?? [];
+  const localeOptions = useMemo(() => collectLocaleOptions(files), [files]);
   const tree = buildTree(files);
   const selectedFile = files.find((f) => f.sourcePath === selectedPath);
   const fileDetail = fileDetailQuery.data?.file;
@@ -436,8 +457,21 @@ export function ProjectFilesPageContent({
     );
   }, [versions]);
 
+  useEffect(() => {
+    if (initialSourcePath) {
+      setSelectedPath(initialSourcePath);
+    }
+  }, [initialSourcePath]);
+
+  useEffect(() => {
+    if (selectedPath && !files.some((file) => file.sourcePath === selectedPath)) {
+      setSelectedPath(files[0]?.sourcePath);
+    }
+  }, [files, selectedPath]);
+
   const stats = {
     total: files.length,
+    provider: files.filter((f) => f.origin === "provider").length,
     withJobs: files.filter((f) => f.latestJob !== null).length,
     latestUpload:
       files.length > 0
@@ -461,15 +495,29 @@ export function ProjectFilesPageContent({
           icon={Folder01Icon}
           label="Project files"
           title={projectQuery.data?.name ?? "Project files"}
-          description="Browse repository source files and their latest translation jobs for this project."
+          description="Browse repository source files, synced provider files, and translation keys for this project."
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <WorkspaceFilesFilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        localeOptions={localeOptions}
+        projectOptions={[]}
+        showProjectFilter={false}
+      />
+
+      <div className="grid gap-3 md:grid-cols-4">
         <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <TypographyP className="text-sm text-foreground/52">Source files</TypographyP>
+          <TypographyP className="text-sm text-foreground/52">Matching files</TypographyP>
           <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
             {stats.total}
+          </TypographyP>
+        </div>
+        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+          <TypographyP className="text-sm text-foreground/52">Provider-backed</TypographyP>
+          <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
+            {stats.provider}
           </TypographyP>
         </div>
         <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
@@ -500,7 +548,7 @@ export function ProjectFilesPageContent({
                 className="size-8 text-foreground/24"
               />
               <TypographyP className="text-sm text-foreground/52">
-                No repository source files found for this project.
+                No source files found for this project.
               </TypographyP>
             </div>
           ) : (
@@ -552,17 +600,20 @@ export function ProjectFilesPageContent({
                         Provider
                       </TypographyP>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="rounded-full">
-                          {selectedFile.provider.kind}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          {selectedFile.provider.resourceType}
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full">
-                          {selectedFile.provider.syncState}
-                        </Badge>
+                        <ProviderKindBadge kind={selectedFile.provider.kind} />
+                        <ResourceTypeBadge resourceType={selectedFile.provider.resourceType} />
+                        <SyncStateBadge syncState={selectedFile.provider.syncState} />
+                        <SourceOriginBadge origin={selectedFile.origin} />
                       </div>
                     </div>
+                    <DetailRow
+                      label="Last synced"
+                      value={
+                        selectedFile.provider.lastSyncedAt
+                          ? formatRelativeTimestamp(selectedFile.provider.lastSyncedAt)
+                          : null
+                      }
+                    />
                     <DetailRow
                       label="External ID"
                       value={selectedFile.provider.externalResourceId}
@@ -580,11 +631,7 @@ export function ProjectFilesPageContent({
                     />
                     <DetailRow
                       label="Locale readiness"
-                      value={
-                        Object.keys(selectedFile.provider.localeReadiness).length > 0
-                          ? JSON.stringify(selectedFile.provider.localeReadiness)
-                          : null
-                      }
+                      value={summarizeLocaleReadiness(selectedFile.provider.localeReadiness)}
                     />
                     {selectedFile.provider.externalUrl ? (
                       <Button

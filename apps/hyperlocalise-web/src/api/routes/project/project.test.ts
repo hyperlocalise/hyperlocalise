@@ -612,6 +612,59 @@ describe("projectRoutes", () => {
     ]);
   });
 
+  it("filters project files by resource type and provider kind", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en/home.json",
+      displayName: "home.json",
+      syncState: "synced",
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "key",
+      externalResourceId: "key-1",
+      sourcePath: "keys/home.title",
+      displayName: "home.title",
+      syncState: "pending",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "500", resourceType: "key", providerKind: "crowdin" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files).toEqual([
+      expect.objectContaining({
+        sourcePath: "keys/home.title",
+        provider: expect.objectContaining({
+          kind: "crowdin",
+          resourceType: "key",
+        }),
+      }),
+    ]);
+  });
+
   it("limits provider-backed files when listing project files", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);
