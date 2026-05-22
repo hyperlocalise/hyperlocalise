@@ -109,13 +109,14 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 		}
 		return content, nil
-	case ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts":
-		content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
-		if err != nil {
-			return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
-		}
-		return content, nil
 	default:
+		if isJSTSLocaleModuleExt(ext) {
+			content, err := translationfileparser.MarshalJSTSLocaleModule(template, values)
+			if err != nil {
+				return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
+			}
+			return content, nil
+		}
 		return nil, fmt.Errorf("flush outputs: unsupported target file extension %q for %q", ext, path)
 	}
 }
