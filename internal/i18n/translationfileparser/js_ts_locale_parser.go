@@ -216,6 +216,10 @@ func findJSTSLocaleExportObject(src string) (jstsExportObject, error) {
 				i = next
 				continue
 			}
+			if next > i {
+				i = next
+				continue
+			}
 		}
 
 		i++
@@ -1012,10 +1016,18 @@ func skipJSTSRegexLiteral(src string, index int) (int, bool) {
 	}
 
 	inClass := false
-	for i := index + 1; i < len(src); i++ {
+	for i := index + 1; i < len(src); {
+		if _, ok := skipJSTSComment(src, i); ok {
+			return index, false
+		}
+		if isJSTSStringQuote(src[i]) {
+			i = skipJSTSStringLiteral(src, i)
+			continue
+		}
 		switch src[i] {
 		case '\\':
-			i++
+			i += 2
+			continue
 		case '\n', '\r':
 			return index, false
 		case '[':
@@ -1024,6 +1036,7 @@ func skipJSTSRegexLiteral(src string, index int) (int, bool) {
 			inClass = false
 		case '/':
 			if inClass {
+				i++
 				continue
 			}
 			i++
@@ -1032,6 +1045,7 @@ func skipJSTSRegexLiteral(src string, index int) (int, bool) {
 			}
 			return i, true
 		}
+		i++
 	}
 	return index, false
 }

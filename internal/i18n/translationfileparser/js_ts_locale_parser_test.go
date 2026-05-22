@@ -70,8 +70,25 @@ export const messages = {
 export default messages;`,
 		},
 		{
+			name: "bare non-locale const before identifier export",
+			content: `const LOCALE_CODE = "en-US";
+const messages = {
+  hello: "Hello",
+};
+
+export default messages;`,
+		},
+		{
 			name: "regex before export",
 			content: `const token = /[{identifier]/g;
+
+export default {
+  hello: "Hello",
+};`,
+		},
+		{
+			name: "division before url string",
+			content: `const ratio = total / "http://example.com".length;
 
 export default {
   hello: "Hello",
