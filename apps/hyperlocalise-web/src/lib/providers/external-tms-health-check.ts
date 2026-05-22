@@ -123,16 +123,27 @@ async function validateExternalTmsCredential(input: {
   fetchFn: typeof fetch;
 }): Promise<Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt">> {
   const request = buildValidationRequest(input);
+  if (!request) {
+    return {
+      status: "error",
+      availability: "unknown",
+      authValidity: "unknown",
+      errorCode: "provider_base_url_invalid",
+      message: "Provider base URL is invalid.",
+      rateLimit: emptyRateLimitHints(),
+    };
+  }
+
   let response: Response;
   try {
     response = await input.fetchFn(request.url, request.init);
-  } catch (error) {
+  } catch {
     return {
       status: "degraded",
       availability: "unavailable",
       authValidity: "unknown",
       errorCode: "provider_unavailable",
-      message: error instanceof Error ? error.message : "Provider health check failed.",
+      message: "Provider health check failed.",
       rateLimit: emptyRateLimitHints(),
     };
   }
@@ -185,30 +196,38 @@ function buildValidationRequest(input: {
   providerKind: ExternalTmsProviderKind;
   secretMaterial: string;
   baseUrl: string | null;
-}): { url: string; init: RequestInit } {
+}): { url: string; init: RequestInit } | null {
   switch (input.providerKind) {
-    case "crowdin":
+    case "crowdin": {
+      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.crowdin.com/api/v2");
+      if (!baseUrl) return null;
       return {
-        url: `${normalizeBaseUrl(input.baseUrl, "https://api.crowdin.com/api/v2")}/user`,
+        url: `${baseUrl}/user`,
         init: { headers: { Authorization: `Bearer ${input.secretMaterial}` } },
       };
-    case "phrase":
+    }
+    case "phrase": {
+      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.phrase.com/v2");
+      if (!baseUrl) return null;
       return {
-        url: `${normalizeBaseUrl(input.baseUrl, "https://api.phrase.com/v2")}/user`,
+        url: `${baseUrl}/user`,
         init: { headers: { Authorization: `token ${input.secretMaterial}` } },
       };
-    case "lokalise":
+    }
+    case "lokalise": {
+      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.lokalise.com/api2");
+      if (!baseUrl) return null;
       return {
-        url: `${normalizeBaseUrl(input.baseUrl, "https://api.lokalise.com/api2")}/me`,
+        url: `${baseUrl}/me`,
         init: { headers: { "X-Api-Token": input.secretMaterial } },
       };
+    }
     case "smartling": {
       const credentials = parseSmartlingCredentials(input.secretMaterial);
+      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.smartling.com/auth-api/v2");
+      if (!baseUrl) return null;
       return {
-        url: `${normalizeBaseUrl(
-          input.baseUrl,
-          "https://api.smartling.com/auth-api/v2",
-        )}/authenticate`,
+        url: `${baseUrl}/authenticate`,
         init: {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -220,7 +239,73 @@ function buildValidationRequest(input: {
 }
 
 function normalizeBaseUrl(baseUrl: string | null, defaultBaseUrl: string) {
-  return (baseUrl ?? defaultBaseUrl).replace(/\/+$/, "");
+  try {
+    const url = new URL(baseUrl ?? defaultBaseUrl);
+    if (!isAllowedProviderBaseUrl(url)) return null;
+    url.pathname = url.pathname.replace(/\/+$/, "");
+    url.search = "";
+    url.hash = "";
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function isAllowedProviderBaseUrl(url: URL) {
+  if (url.protocol !== "https:") return false;
+
+  const hostname = url.hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "")
+    .toLowerCase();
+  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost")) return false;
+  if (!hostname.includes(".") && !hostname.includes(":")) return false;
+
+  if (isBlockedIpv4Address(hostname) || isBlockedIpv6Address(hostname)) return false;
+
+  return true;
+}
+
+function isBlockedIpv4Address(hostname: string) {
+  const octets = hostname.split(".");
+  if (octets.length !== 4) return false;
+
+  const bytes = octets.map((octet) => Number(octet));
+  if (
+    bytes.some(
+      (byte, index) => !Number.isInteger(byte) || byte < 0 || byte > 255 || octets[index] === "",
+    )
+  ) {
+    return false;
+  }
+
+  const [first, second] = bytes as [number, number, number, number];
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    first >= 224 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19))
+  );
+}
+
+function isBlockedIpv6Address(hostname: string) {
+  if (!hostname.includes(":")) return false;
+
+  return (
+    hostname === "::1" ||
+    hostname.startsWith("fe80:") ||
+    hostname.startsWith("fc") ||
+    hostname.startsWith("fd") ||
+    hostname.startsWith("::ffff:10.") ||
+    hostname.startsWith("::ffff:127.") ||
+    hostname.startsWith("::ffff:169.254.") ||
+    hostname.startsWith("::ffff:192.168.")
+  );
 }
 
 function parseSmartlingCredentials(secretMaterial: string) {

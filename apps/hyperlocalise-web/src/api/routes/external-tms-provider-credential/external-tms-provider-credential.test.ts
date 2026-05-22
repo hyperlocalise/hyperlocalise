@@ -340,6 +340,130 @@ describe("externalTmsProviderCredentialRoutes", () => {
     });
   });
 
+  it("does not record a health check sync run when the credential is missing", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_credential_not_found",
+    });
+
+    const syncRuns = await db
+      .select()
+      .from(schema.providerSyncRuns)
+      .where(
+        and(
+          eq(schema.providerSyncRuns.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.providerSyncRuns.providerKind, "crowdin"),
+          eq(schema.providerSyncRuns.kind, "health_check"),
+        ),
+      );
+
+    expect(syncRuns).toHaveLength(0);
+  });
+
+  it("rejects unsafe provider base URLs before fetching", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+      baseUrl: "https://169.254.169.254/latest/meta-data",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "crowdin",
+        status: "error",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: "provider_base_url_invalid",
+        message: "Provider base URL is invalid.",
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a generic message when provider fetch fails", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+    const fetchMock = vi.fn(async () => {
+      throw new Error("connect ECONNREFUSED internal.service.local");
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["health-check"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "crowdin",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "crowdin",
+        status: "degraded",
+        availability: "unavailable",
+        authValidity: "unknown",
+        errorCode: "provider_unavailable",
+        message: "Provider health check failed.",
+      },
+    });
+  });
+
   it("returns a stable error code when provider auth is invalid", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

@@ -5,6 +5,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
+  getOrganizationExternalTmsProviderCredentialSummary,
   listOrganizationExternalTmsProviderCredentialSummaries,
   revealOrganizationExternalTmsProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
@@ -102,6 +103,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
         }
 
+        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+          c.var.auth.organization.localOrganizationId,
+          providerKind.data,
+        );
+        if (!providerCredentialSummary) {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+
         const result = await recordProviderSyncRun(
           {
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -114,14 +123,7 @@ export function createExternalTmsProviderCredentialRoutes() {
               providerKind: providerKind.data,
             });
 
-            if (!credential || !health) {
-              return {
-                result: null,
-                providerMetadata: {
-                  errorCode: "provider_credential_not_found",
-                },
-              };
-            }
+            if (!credential || !health) throw new Error("provider_credential_not_found");
 
             await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
 
@@ -143,7 +145,6 @@ export function createExternalTmsProviderCredentialRoutes() {
           },
         );
 
-        if (!result) return c.json({ error: "provider_credential_not_found" }, 404);
         return c.json({ externalTmsProviderHealth: result }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
