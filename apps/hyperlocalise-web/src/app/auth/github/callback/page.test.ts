@@ -60,7 +60,12 @@ vi.mock("@/lib/agents/github/repositories", () => ({
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: vi.fn(() => globalThis.__testApiAuthContext ?? null),
+  resolveApiAuthContextFromSession: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -160,14 +165,12 @@ describe("GitHubCallbackPage", () => {
   });
 
   it("persists an installation when the signed state uses a null-slug organization id", async () => {
-    const { auth, nonce, slug, state } = await createCallbackState({
+    const { auth, nonce, state } = await createCallbackState({
       nullSlug: true,
       role: "admin",
     });
 
-    await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/settings?github_connected=1`,
-    );
+    await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?github_connected=1");
 
     const [installation] = await db
       .select()

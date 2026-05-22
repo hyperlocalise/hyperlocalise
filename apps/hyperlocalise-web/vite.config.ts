@@ -10,10 +10,10 @@ loadDotenv({ path: path.join(rootDir, ".env") });
 
 export default defineConfig({
   fmt: {
-    ignorePatterns: ["drizzle/**"],
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
   },
   lint: {
-    ignorePatterns: ["drizzle/**"],
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
     options: { typeAware: true, typeCheck: true },
   },
   test: {

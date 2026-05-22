@@ -104,6 +104,23 @@ export function buildGitHubFixRequestInput(
   };
 }
 
+export function buildGitHubRepoTmsRequestInput(input: {
+  installationId: number;
+  repositoryFullName: string;
+  pullRequestNumber: number;
+  commentId: number | null;
+  instructions: string;
+}): GitHubAgentRequestInput {
+  return {
+    requestKind: "repo_tms",
+    githubInstallationId: String(input.installationId),
+    repositoryFullName: input.repositoryFullName,
+    pullRequestNumber: input.pullRequestNumber,
+    commentId: String(input.commentId ?? 0),
+    scopeType: "repo_tms",
+    scopeKey: input.instructions,
+  };
+}
 export async function claimGitHubAgentRequest(
   values: GitHubAgentRequestInput,
 ): Promise<GitHubAgentRequestClaim> {

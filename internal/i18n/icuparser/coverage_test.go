@@ -116,12 +116,6 @@ func TestCountPoundsNested(t *testing.T) {
 }
 
 func TestInvariantHelpersEdgeCases(t *testing.T) {
-	if formatPoundCounts(nil) != "" {
-		t.Fatal("empty formatPoundCounts")
-	}
-	if formatPoundCounts([]int{1, 2}) != "1,2" {
-		t.Fatalf("formatPoundCounts: %q", formatPoundCounts([]int{1, 2}))
-	}
 	if uniqueStrings(nil) != nil {
 		t.Fatal("uniqueStrings(nil) should be nil")
 	}
@@ -257,7 +251,7 @@ func TestPeekReadEdges(t *testing.T) {
 
 func TestParseArgumentLikeExpectedOpenBrace(t *testing.T) {
 	p := astParser{src: "", pos: 0}
-	if _, err := p.parseArgumentLike(); err == nil || !strings.Contains(err.Error(), "expected '{'") {
+	if _, err := p.parseArgumentLike(parseCtx{}); err == nil || !strings.Contains(err.Error(), "expected '{'") {
 		t.Fatalf("got %v", err)
 	}
 }

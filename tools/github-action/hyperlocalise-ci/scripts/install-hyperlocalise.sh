@@ -15,7 +15,11 @@ resolve_version() {
   fi
 
   local latest_release_json
-  latest_release_json="$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest")"
+  local curl_opts=("-fsSL")
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    curl_opts+=("-H" "Authorization: Bearer ${GITHUB_TOKEN}")
+  fi
+  latest_release_json="$(curl "${curl_opts[@]}" "https://api.github.com/repos/${repo}/releases/latest")"
   local resolved
   resolved="$(printf '%s' "${latest_release_json}" | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p' | awk 'NR==1{print; exit}')"
   if [[ -z "${resolved}" ]]; then

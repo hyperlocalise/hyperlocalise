@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import {
@@ -120,100 +121,109 @@ async function getProjectForOrganization(organizationId: string, projectId: stri
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
-    .post("/", requireApiKeyPermission("jobs:write"), validateCreateJobBody, async (c) => {
-      const payload = c.req.valid("json");
-      const organizationId = c.var.auth.organization.localOrganizationId;
+    .post(
+      "/",
+      requireApiKeyPermission("jobs:write"),
+      bodyLimit({
+        maxSize: 1024 * 1024, // 1MB
+        onError: (c) => c.json({ error: "payload_too_large" }, 413),
+      }),
+      validateCreateJobBody,
+      async (c) => {
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
 
-      const project = await getProjectForOrganization(organizationId, payload.projectId);
+        const project = await getProjectForOrganization(organizationId, payload.projectId);
 
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
-
-      if (payload.type === "file") {
-        const sourceFile = await getStoredFileForJobScope({
-          organizationId,
-          projectId: payload.projectId,
-          fileId: payload.fileInput.sourceFileId,
-        });
-
-        if (!sourceFile) {
-          return sourceFileNotFoundResponse(c);
+        if (!project) {
+          return projectNotFoundResponse(c);
         }
 
-        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
-        if (!inferredFileFormat) {
-          return unsupportedSourceFileFormatResponse(c);
-        }
+        const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
 
-        if (inferredFileFormat !== payload.fileInput.fileFormat) {
-          return sourceFileFormatMismatchResponse(c, inferredFileFormat);
-        }
-      }
-
-      const jobId = `job_${randomUUID()}`;
-      const [job] = await db.transaction(async (tx) => {
-        const sourceFileVersion =
-          payload.type === "file"
-            ? await ensureRepositorySourceFileVersionForStoredFile({
-                db: tx,
-                organizationId,
-                projectId: payload.projectId,
-                fileId: payload.fileInput.sourceFileId,
-              })
-            : null;
-
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values({
-            id: jobId,
+        if (payload.type === "file") {
+          const sourceFile = await getStoredFileForJobScope({
             organizationId,
             projectId: payload.projectId,
-            kind: "translation",
-            status: "queued",
-            inputPayload,
-            apiKeyId: c.var.auth.apiKey.id,
-          })
-          .returning();
-
-        const [details] = await tx
-          .insert(schema.translationJobDetails)
-          .values({
-            jobId,
-            type: payload.type,
-            sourceFileVersionId: sourceFileVersion?.id ?? null,
-          })
-          .returning();
-
-        return [{ ...createdJob, type: details.type }];
-      });
-
-      if (options.jobQueue) {
-        try {
-          await options.jobQueue.enqueue({
-            kind: "translation",
-            jobId: job.id,
-            projectId: payload.projectId,
-            type: payload.type,
+            fileId: payload.fileInput.sourceFileId,
           });
-        } catch (error) {
-          await db
-            .update(schema.jobs)
-            .set({
-              status: "failed",
-              lastError:
-                error instanceof Error ? error.message : "translation job queue unavailable",
-            })
-            .where(eq(schema.jobs.id, job.id));
 
-          return jobQueueUnavailableResponse(c);
+          if (!sourceFile) {
+            return sourceFileNotFoundResponse(c);
+          }
+
+          const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+          if (!inferredFileFormat) {
+            return unsupportedSourceFileFormatResponse(c);
+          }
+
+          if (inferredFileFormat !== payload.fileInput.fileFormat) {
+            return sourceFileFormatMismatchResponse(c, inferredFileFormat);
+          }
         }
-      }
 
-      return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
-    })
+        const jobId = `job_${randomUUID()}`;
+        const [job] = await db.transaction(async (tx) => {
+          const sourceFileVersion =
+            payload.type === "file"
+              ? await ensureRepositorySourceFileVersionForStoredFile({
+                  db: tx,
+                  organizationId,
+                  projectId: payload.projectId,
+                  fileId: payload.fileInput.sourceFileId,
+                })
+              : null;
+
+          const [createdJob] = await tx
+            .insert(schema.jobs)
+            .values({
+              id: jobId,
+              organizationId,
+              projectId: payload.projectId,
+              kind: "translation",
+              status: "queued",
+              inputPayload,
+              apiKeyId: c.var.auth.apiKey.id,
+            })
+            .returning();
+
+          const [details] = await tx
+            .insert(schema.translationJobDetails)
+            .values({
+              jobId,
+              type: payload.type,
+              sourceFileVersionId: sourceFileVersion?.id ?? null,
+            })
+            .returning();
+
+          return [{ ...createdJob, type: details.type }];
+        });
+
+        if (options.jobQueue) {
+          try {
+            await options.jobQueue.enqueue({
+              kind: "translation",
+              jobId: job.id,
+              projectId: payload.projectId,
+              type: payload.type,
+            });
+          } catch (error) {
+            await db
+              .update(schema.jobs)
+              .set({
+                status: "failed",
+                lastError:
+                  error instanceof Error ? error.message : "translation job queue unavailable",
+              })
+              .where(eq(schema.jobs.id, job.id));
+
+            return jobQueueUnavailableResponse(c);
+          }
+        }
+
+        return c.json({ job: { id: job.id, type: payload.type, status: "queued" } }, 201);
+      },
+    )
     .get(
       "/latest",
       requireApiKeyPermission("jobs:read"),

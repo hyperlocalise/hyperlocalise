@@ -6,6 +6,7 @@ import {
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
+  Folder01Icon,
   FolderKanbanIcon,
   InboxIcon,
   LinkSquare02Icon,
@@ -62,6 +63,11 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
           label: "Projects",
           href: `/org/${activeOrganizationSlug}/projects`,
           icon: FolderKanbanIcon,
+        },
+        {
+          label: "Files",
+          href: `/org/${activeOrganizationSlug}/files`,
+          icon: Folder01Icon,
         },
         {
           label: "Jobs",

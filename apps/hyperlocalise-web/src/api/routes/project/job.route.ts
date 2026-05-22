@@ -26,6 +26,15 @@ import {
   isProjectMutationAllowed,
   projectNotFoundResponse,
 } from "./project.shared";
+import { createAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
+import {
+  getJobProviderActionAvailability,
+  getJobProviderActionDefinition,
+  isJobProviderActionAvailable,
+} from "@/lib/providers/job-provider-actions";
+import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+
+import { createJobAgentRunBodySchema } from "./agent-run.schema";
 import {
   createJobBodySchema,
   jobListQuerySchema,
@@ -67,6 +76,18 @@ const jobSelect = {
   assetType: schema.assetManagementJobDetails.assetType,
   assetOperation: schema.assetManagementJobDetails.operation,
   assetConfig: schema.assetManagementJobDetails.config,
+  externalProviderKind: schema.externalJobDetails.providerKind,
+  externalJobId: schema.externalJobDetails.externalJobId,
+  externalTaskId: schema.externalJobDetails.externalTaskId,
+  externalStatus: schema.externalJobDetails.externalStatus,
+  externalTitle: schema.externalJobDetails.title,
+  externalDueDate: schema.externalJobDetails.dueDate,
+  externalTargetLocales: schema.externalJobDetails.targetLocales,
+  externalAssignedUsers: schema.externalJobDetails.assignedUsers,
+  externalUrl: schema.externalJobDetails.externalUrl,
+  externalSyncState: schema.externalJobDetails.syncState,
+  externalProviderPayload: schema.externalJobDetails.providerPayload,
+  linkedJobId: schema.externalJobDetails.linkedJobId,
   createdAt: schema.jobs.createdAt,
   updatedAt: schema.jobs.updatedAt,
   completedAt: schema.jobs.completedAt,
@@ -88,6 +109,7 @@ async function getOwnedJob(projectId: string, jobId: string) {
       schema.assetManagementJobDetails,
       eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
     )
+    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
     .where(and(eq(schema.jobs.projectId, projectId), eq(schema.jobs.id, jobId)))
     .limit(1);
 
@@ -179,6 +201,56 @@ const validateWorkspaceJobParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
+const validateCreateJobAgentRunBody = validator("json", (value, c) => {
+  const parsed = createJobAgentRunBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_agent_run_payload",
+      "Invalid agent run payload",
+      parsed.error.issues,
+    );
+  }
+
+  return parsed.data;
+});
+
+function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect): Record<string, unknown> {
+  return {
+    ...run,
+    startedAt: run.startedAt?.toISOString() ?? null,
+    completedAt: run.completedAt?.toISOString() ?? null,
+    createdAt: run.createdAt.toISOString(),
+    updatedAt: run.updatedAt.toISOString(),
+  };
+}
+
+async function enrichProviderBackedJob(job: Record<string, unknown>) {
+  if (!job.externalProviderKind || !job.externalJobId || !job.projectId || !job.organizationId) {
+    return job;
+  }
+
+  const providerKind =
+    job.externalProviderKind as (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
+
+  const [providerSourceFiles, providerActions] = await Promise.all([
+    resolveProviderSourceFiles({
+      organizationId: job.organizationId as string,
+      projectId: job.projectId as string,
+      providerKind,
+      providerPayload: (job.externalProviderPayload as Record<string, unknown> | null) ?? null,
+    }),
+    Promise.resolve(getJobProviderActionAvailability(providerKind)),
+  ]);
+
+  return {
+    ...job,
+    providerSourceFiles,
+    providerActions,
+  };
+}
+
 const validateCreateJobBody = validator("json", (value, c) => {
   const parsed = createJobBodySchema.safeParse(value);
 
@@ -242,6 +314,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .where(and(...filters))
         .orderBy(desc(schema.jobs.createdAt))
         .limit(query.limit);
@@ -437,6 +510,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -465,6 +539,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -484,8 +559,139 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      return c.json({ job }, 200);
+      return c.json({ job: await enrichProviderBackedJob(job) }, 200);
     })
+    .get("/:jobId/agent-runs", validateWorkspaceJobParams, async (c) => {
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+
+      const [job] = await db
+        .select({
+          externalProviderKind: schema.externalJobDetails.providerKind,
+          externalJobId: schema.externalJobDetails.externalJobId,
+          externalTaskId: schema.externalJobDetails.externalTaskId,
+        })
+        .from(schema.jobs)
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .where(
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+        )
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind || !job.externalJobId) {
+        return c.json({ agentRuns: [] }, 200);
+      }
+
+      const agentRuns = await listAgentRuns({
+        organizationId,
+        providerKind: job.externalProviderKind,
+        externalJobId: job.externalJobId,
+        externalTaskId: job.externalTaskId ?? undefined,
+      });
+
+      return c.json({ agentRuns: agentRuns.map(serializeAgentRun) }, 200);
+    })
+    .get("/:jobId/provider-actions", validateWorkspaceJobParams, async (c) => {
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+
+      const [job] = await db
+        .select({
+          externalProviderKind: schema.externalJobDetails.providerKind,
+        })
+        .from(schema.jobs)
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .where(
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+        )
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind) {
+        return c.json({ actions: [] }, 200);
+      }
+
+      return c.json({ actions: getJobProviderActionAvailability(job.externalProviderKind) }, 200);
+    })
+    .post(
+      "/:jobId/agent-runs",
+      validateWorkspaceJobParams,
+      validateCreateJobAgentRunBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        const [job] = await db
+          .select({
+            id: schema.jobs.id,
+            projectId: schema.jobs.projectId,
+            externalProviderKind: schema.externalJobDetails.providerKind,
+            externalJobId: schema.externalJobDetails.externalJobId,
+            externalTaskId: schema.externalJobDetails.externalTaskId,
+          })
+          .from(schema.jobs)
+          .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+          .where(
+            and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+          )
+          .limit(1);
+
+        if (!job) {
+          return notFoundResponse(c, "job_not_found", "Job not found");
+        }
+
+        if (!job.externalProviderKind || !job.externalJobId) {
+          return conflictResponse(
+            c,
+            "provider_job_required",
+            "Agent runs are only available for provider-backed jobs",
+          );
+        }
+
+        if (!isJobProviderActionAvailable(job.externalProviderKind, payload.action)) {
+          return conflictResponse(
+            c,
+            "provider_action_unavailable",
+            "This provider action is not available for the connected TMS",
+          );
+        }
+
+        const actionDefinition = getJobProviderActionDefinition(payload.action);
+        if (!actionDefinition) {
+          return badRequestResponse(c, "invalid_provider_action", "Unknown provider action");
+        }
+
+        const agentRun = await createAgentRun({
+          organizationId,
+          providerKind: job.externalProviderKind,
+          externalJobId: job.externalJobId,
+          externalTaskId: job.externalTaskId,
+          kind: actionDefinition.agentRunKind,
+          actorUserId: c.var.auth.user.localUserId,
+          inputSnapshot: {
+            ...actionDefinition.inputSnapshot,
+            action: payload.action,
+            hyperlocaliseJobId: job.id,
+            projectId: job.projectId,
+          },
+          hyperlocaliseJobId: job.id,
+        });
+
+        return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
+      },
+    )
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
@@ -615,6 +821,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(
@@ -699,6 +906,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.assetManagementJobDetails,
           eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
         )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
         .leftJoin(
           schema.projects,
           and(

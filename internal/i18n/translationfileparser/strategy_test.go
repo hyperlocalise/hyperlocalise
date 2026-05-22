@@ -43,6 +43,50 @@ func TestStrategyParsesJSONC(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	for _, ext := range JSTSLocaleModuleExts {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("locales/en"+ext, []byte(`export default { hello: "Hello", nested: { cta: "Start now" } };`))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if got["hello"] != "Hello" || got["nested.cta"] != "Start now" {
+				t.Fatalf("unexpected entries for %s: %#v", ext, got)
+			}
+		})
+	}
+}
+
+func TestStrategyParsesYAML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.yaml", []byte("hello: bonjour\nhome:\n  title: Accueil\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["home.title"] != "Accueil" {
+		t.Fatalf("unexpected home.title translation: %q", got["home.title"])
+	}
+}
+
+func TestStrategyParsesYML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.yml", []byte("hello: bonjour\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
 func TestStrategyParsesARB(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -218,6 +262,35 @@ func TestStrategyParsesAppleStringsdict(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesXCStrings(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+
+	got, err := s.Parse("Localizable.xcstrings", content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Hello" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
 func TestStrategyParsesCSV(t *testing.T) {
 	s := NewDefaultStrategy()
 
@@ -229,6 +302,48 @@ hello,bonjour
 	}
 	if got["hello"] != "bonjour" {
 		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
+func TestStrategyParsesGenericXML(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.xml", []byte(`<locale><group id="home"><string name="title">Bonjour</string></group></locale>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["home.title"] != "Bonjour" {
+		t.Fatalf("unexpected home.title: %q", got["home.title"])
+	}
+}
+
+func TestStrategyParsesAndroidXMLResourcePath(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("app/src/main/res/values/strings.xml", []byte(`<resources><string name="app_name">Hyperlocalise</string></resources>`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["app_name"] != "Hyperlocalise" {
+		t.Fatalf("unexpected app_name: %q", got["app_name"])
+	}
+}
+
+func TestStrategyParsesJavaProperties(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("messages_fr.properties", []byte(`# Checkout
+welcome.message = Bonjour {0}
+escaped\ key: Ligne un\nLigne deux
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["welcome.message"] != "Bonjour {0}" {
+		t.Fatalf("unexpected welcome.message translation: %q", got["welcome.message"])
+	}
+	if got["escaped key"] != "Ligne un\nLigne deux" {
+		t.Fatalf("unexpected escaped key translation: %q", got["escaped key"])
 	}
 }
 
@@ -310,7 +425,7 @@ func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	_, err := s.Parse("fr.yaml", []byte(""))
+	_, err := s.Parse("fr.toml", []byte(""))
 	if err == nil {
 		t.Fatalf("expected unsupported extension error")
 	}

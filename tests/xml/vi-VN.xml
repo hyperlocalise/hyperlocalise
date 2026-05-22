@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<locale locale="vi-VN">
+  <!-- Generic XML sample for CLI status/check/run smoke tests. -->
+  <metadata>
+    <owner>Localization</owner>
+  </metadata>
+  <section id="home">
+    <string name="title" tone="warm">Chao mung tro lai, {name}</string>
+    <body>Duyet cac uu dai noi bat hom nay.</body>
+  </section>
+  <message key="checkout.cta" priority="primary">Thanh toan ngay</message>
+</locale>

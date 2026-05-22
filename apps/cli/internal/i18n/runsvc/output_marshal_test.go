@@ -36,6 +36,23 @@ func TestMarshalTemplateBasedTargetUnsupportedExtension(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetRejectsAndroidXMLAtNonAndroidPath(t *testing.T) {
+	svc := newTestService()
+	sourcePath := filepath.Join(t.TempDir(), "messages.xml")
+	targetPath := filepath.Join(t.TempDir(), "messages.fr.xml")
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return []byte(`<resources><string name="hello">Hello</string></resources>`), nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	_, err := svc.marshalSourceTemplateTarget(".xml", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour"})
+	if err == nil || !strings.Contains(err.Error(), "require a specialized parser") {
+		t.Fatalf("expected specialized Android XML path error, got %v", err)
+	}
+}
+
 func TestLoadTemplateFallback(t *testing.T) {
 	svc := newTestService()
 	t.Run("prefer target", func(t *testing.T) {
@@ -240,5 +257,419 @@ func TestMarshalTargetFileJSONC(t *testing.T) {
 	}
 	if !strings.Contains(string(content), `"hello": "Bonjour"`) {
 		t.Fatalf("expected translated value in output: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetXCStringsWritesTargetLocale(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "Localizable.xcstrings")
+	targetPath := filepath.Join(t.TempDir(), "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "comment": "Greeting",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello %@"
+          }
+        }
+      }
+    },
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"hello":                    "Bonjour %@",
+		"item_count::plural.one":   "%lld article",
+		"item_count::plural.other": "%lld articles",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["hello"] != "Bonjour %@" || entries["item_count::plural.other"] != "%lld articles" {
+		t.Fatalf("unexpected marshaled entries: %#v\n%s", entries, content)
+	}
+	if !strings.Contains(string(content), `"comment": "Greeting"`) {
+		t.Fatalf("expected source metadata to be preserved: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetXCStringsPrefersTargetLocaleTemplate(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	target := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "item_count": {
+      "comment": "Target reviewer note",
+      "localizations": {
+        "fr": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld ancien article"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "needs_review",
+                  "value": "%lld anciens articles"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	if err := os.WriteFile(targetPath, target, 0o644); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"item_count::plural.one":   "%lld article",
+		"item_count::plural.other": "%lld articles",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["item_count::plural.one"] != "%lld article" {
+		t.Fatalf("unexpected target-locale entries: %#v", entries)
+	}
+	if !strings.Contains(string(content), `"comment": "Target reviewer note"`) {
+		t.Fatalf("expected target template metadata to be preserved: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetXCStringsPreservesTargetOnlySubset(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "Localizable.xcstrings")
+	targetPath := filepath.Join(dir, "fr", "Localizable.xcstrings")
+	source := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "goodbye": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Goodbye"
+          }
+        }
+      }
+    },
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	target := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "goodbye": {
+      "comment": "Target-only reviewer note",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au revoir"
+          }
+        }
+      }
+    },
+    "hello": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Salut"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+	if err := os.WriteFile(sourcePath, source, 0o644); err != nil {
+		t.Fatalf("write source xcstrings: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	if err := os.WriteFile(targetPath, target, 0o644); err != nil {
+		t.Fatalf("write target xcstrings: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".xcstrings", targetPath, sourcePath, "en", "fr", map[string]string{
+		"hello": "Bonjour",
+	})
+	if err != nil {
+		t.Fatalf("marshal xcstrings target: %v", err)
+	}
+
+	entries, err := translationfileparser.ParseXCStringsLocale(content, "fr")
+	if err != nil {
+		t.Fatalf("parse marshaled target locale: %v", err)
+	}
+	if entries["hello"] != "Bonjour" || entries["goodbye"] != "Au revoir" {
+		t.Fatalf("expected updated and preserved target-locale entries: %#v\n%s", entries, content)
+	}
+	if !strings.Contains(string(content), `"comment": "Target-only reviewer note"`) {
+		t.Fatalf("expected target-only metadata to be preserved: %s", content)
+	}
+}
+
+func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
+	sourcePath := filepath.Join(t.TempDir(), "source.properties")
+	targetPath := filepath.Join(t.TempDir(), "target.properties")
+	source := "# Checkout\nhello = Hello {0}\n"
+	target := "# Checkout translated\nhello = Salut {0}\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source properties: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target properties: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".properties", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Bonjour {0}"})
+	if err != nil {
+		t.Fatalf("marshal properties target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "# Checkout translated") {
+		t.Fatalf("expected target comments to be preserved, got %q", got)
+	}
+	if !strings.Contains(got, "hello = Bonjour {0}") {
+		t.Fatalf("expected translated properties value, got %q", got)
+	}
+}
+
+func TestMarshalTargetFileYAMLUsesTargetTemplate(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("# target comment\nhello: Salut\nhome:\n  title: Accueil ancien\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  title: Welcome\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, warnings, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":      "Bonjour",
+		"home.title": "Accueil",
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target file: %v", err)
+	}
+	if warnings != nil {
+		t.Fatalf("expected no warnings, got %#v", warnings)
+	}
+	text := string(content)
+	if !strings.Contains(text, "# target comment") {
+		t.Fatalf("expected target comment to be preserved: %s", text)
+	}
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "title: Accueil") {
+		t.Fatalf("expected translated values in output: %s", text)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackToSourceTemplate(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yml":
+			return []byte("count: 3\n"), nil
+		case "/tmp/source.yml":
+			return []byte("hello: Hello\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yml", "/tmp/source.yml", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target fallback: %v", err)
+	}
+	if !strings.Contains(string(content), "hello: Bonjour") {
+		t.Fatalf("expected source-template fallback content, got: %s", content)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackWhenTargetHasDuplicateKeys(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\nhello: Ancien\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml duplicate-key fallback: %v", err)
+	}
+	if got := strings.Count(string(content), "hello:"); got != 1 {
+		t.Fatalf("expected source-template fallback to remove duplicate key, got %d hello keys in: %s", got, content)
+	}
+	if !strings.Contains(string(content), "hello: Bonjour") {
+		t.Fatalf("expected translated source-template fallback content, got: %s", content)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackWhenTargetMissesNewSourceKey(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  subtitle: New\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":         "Bonjour",
+		"home.subtitle": "Nouveau",
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target fallback for missing key: %v", err)
+	}
+	text := string(content)
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "subtitle: Nouveau") {
+		t.Fatalf("expected source-template fallback with translated values, got: %s", text)
+	}
+}
+
+func TestMarshalTargetFileYAMLPrunesStaleMappingKeys(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\nold: Ancien\nhome:\n  title: Vieil accueil\n  old: Vieux\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  title: Welcome\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":      "Bonjour",
+		"home.title": "Accueil",
+	}, nil, map[string]struct{}{
+		"hello":      {},
+		"home.title": {},
+	})
+	if err != nil {
+		t.Fatalf("marshal yaml target with prune: %v", err)
+	}
+	text := string(content)
+	if strings.Contains(text, "old:") {
+		t.Fatalf("expected stale yaml keys to be pruned, got: %s", text)
+	}
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "title: Accueil") {
+		t.Fatalf("expected translated values in output: %s", text)
 	}
 }

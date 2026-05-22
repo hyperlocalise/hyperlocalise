@@ -22,6 +22,7 @@
     "@hugeicons/core-free-icons": "4.1.4",
     "@hugeicons/react": "1.1.6",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "@pierre/diffs": "^1.1.22",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@rive-app/react-webgl2": "^4.28.3",
     "@streamdown/cjk": "^1.0.3",
@@ -35,7 +36,7 @@
     "@vercel/sandbox": "1.10.2",
     "@workos-inc/authkit-nextjs": "4.1.0",
     "@xyflow/react": "^12.10.2",
-    "ai": "6.0.183",
+    "ai": "6.0.184",
     "ansi-to-react": "^6.2.6",
     "chat": "4.28.1",
     "class-variance-authority": "0.7.1",
@@ -45,7 +46,8 @@
     "dotenv": "17.4.2",
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
-    "hono": "4.12.18",
+    "hono": "4.12.19",
+    "just-bash": "^3.0.1",
     "lucide-react": "^1.14.0",
     "media-chrome": "^4.19.0",
     "motion": "12.38.0",
@@ -57,7 +59,7 @@
     "pino": "10.3.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "react-hook-form": "7.75.0",
+    "react-hook-form": "7.76.0",
     "react-intersection-observer": "10.0.3",
     "react-jsx-parser": "^2.4.1",
     "react-resizable-panels": "4.11.1",
@@ -91,5 +93,5 @@
     "vite-plus": "0.1.21",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@10.33.4"
+  "packageManager": "pnpm@11.1.2"
 }

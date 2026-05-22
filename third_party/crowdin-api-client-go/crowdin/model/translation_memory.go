@@ -20,6 +20,7 @@ type TranslationMemory struct {
 	ProjectIDs        []int    `json:"projectIds"`
 	WebURL            string   `json:"webUrl"`
 	CreatedAt         string   `json:"createdAt"`
+	UpdatedAt         string   `json:"updatedAt"`
 }
 
 // TranslationMemoryResponse defines the structure of the response
@@ -43,6 +44,8 @@ type TranslationMemoriesListOptions struct {
 	OrderBy string `json:"orderBy,omitempty"`
 	// Project Member Identifier.
 	UserID int `json:"userId,omitempty"`
+	// Group identifier.
+	GroupID *int `json:"groupId,omitempty"`
 
 	ListOptions
 }
@@ -61,6 +64,9 @@ func (o *TranslationMemoriesListOptions) Values() (url.Values, bool) {
 	}
 	if o.UserID > 0 {
 		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+	}
+	if o.GroupID != nil {
+		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
 	}
 
 	return v, len(v) > 0

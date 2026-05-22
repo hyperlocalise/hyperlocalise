@@ -1,0 +1,25 @@
+locales:
+  source: en-US
+  targets:
+    - zh-CN
+    - vi-VN
+
+buckets:
+  tests_xml:
+    files:
+      - from: tests/xml/en-US.xml
+        to: tests/xml/[locale].xml
+
+groups:
+  tests:
+    targets:
+      - zh-CN
+      - vi-VN
+    buckets:
+      - tests_xml
+
+llm:
+  profiles:
+    default:
+      provider: ollama
+      model: translategemma

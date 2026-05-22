@@ -279,7 +279,7 @@ func TestOrganizationWebhooksService_Add(t *testing.T) {
 	client, mux, teardowm := setupClient()
 	defer teardowm()
 
-	const path = "/api/v2/projects/1/webhooks"
+	const path = "/api/v2/webhooks"
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 		testURL(t, r, path)
@@ -318,7 +318,7 @@ func TestOrganizationWebhooksService_Add(t *testing.T) {
 			"Authorization": "Bearer ef231f493cafe336f98d486f596282205b3c2a0",
 		},
 	}
-	webhook, resp, err := client.OrganizationWebhooks.Add(context.Background(), 1, req)
+	webhook, resp, err := client.OrganizationWebhooks.Add(context.Background(), req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 	assert.Equal(t, 4, webhook.ID)

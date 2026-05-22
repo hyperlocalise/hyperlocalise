@@ -3,6 +3,7 @@ package runsvc
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,6 +74,17 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
 	}
+	executable, reusedByPrefill, prefillErr := applyPrefilledEntries(executable, checkpointStaged, in.PrefilledEntries, in.PrefilledTargetPath)
+	if prefillErr != nil {
+		endRunSpan(lockSpan, prefillErr, "apply_prefilled_entries")
+		return Report{}, prefillErr
+	}
+	if reusedByPrefill > 0 {
+		report.SkippedByLock += reusedByPrefill
+		report.ExecutableTotal = len(executable)
+		report.Warnings = append(report.Warnings, fmt.Sprintf("prefilled_entries_reused target=%s count=%d", in.PrefilledTargetPath, reusedByPrefill))
+	}
+
 	report.GeneratedAt = s.now()
 	report.ConfigPath = in.ConfigPath
 	report.Warnings = append(report.Warnings, planWarnings...)
@@ -166,6 +178,30 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	report.PruneApplied = len(report.PruneCandidates)
 	emitter.emit(completedEvent(report))
 	return report, nil
+}
+
+func applyPrefilledEntries(tasks []Task, staged map[string]stagedOutput, entries map[string]string, targetPath string) (filtered []Task, reused int, err error) {
+	if len(entries) == 0 || strings.TrimSpace(targetPath) == "" {
+		return tasks, 0, nil
+	}
+	trimmedTargetPath := filepath.Clean(strings.TrimSpace(targetPath))
+	filtered = make([]Task, 0, len(tasks))
+	for _, task := range tasks {
+		if filepath.Clean(task.TargetPath) != trimmedTargetPath || isImageTask(task) {
+			filtered = append(filtered, task)
+			continue
+		}
+		value, ok := entries[task.EntryKey]
+		if !ok || strings.TrimSpace(value) == "" {
+			filtered = append(filtered, task)
+			continue
+		}
+		if err := stageTaskOutput(staged, task.TargetPath, task.SourcePath, task.SourceLocale, task.TargetLocale, task.EntryKey, value, nil); err != nil {
+			return nil, 0, fmt.Errorf("stage prefilled output for %s: %w", taskIdentity(task.TargetPath, task.EntryKey), err)
+		}
+		reused++
+	}
+	return filtered, reused, nil
 }
 
 func warningsForLegacyPrompts(tasks []Task) []string {

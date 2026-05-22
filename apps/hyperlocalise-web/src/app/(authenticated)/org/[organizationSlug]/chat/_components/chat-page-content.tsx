@@ -74,6 +74,8 @@ const attachOptions = [
 const translationSourceFileAccept = [
   ".json",
   ".jsonc",
+  ".yaml",
+  ".yml",
   ".arb",
   ".xlf",
   ".xlif",
