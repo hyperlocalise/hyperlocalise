@@ -573,6 +573,108 @@ func TestHTTPClientResolveLocalesAllUsesSupportedLanguageLocale(t *testing.T) {
 	}
 }
 
+func TestHTTPClientUpsertTranslationsSkipsLocaleLookupForLanguageID(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/strings", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/strings?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":77,"identifier":"hello","context":"home"}}],"pagination":{"offset":0,"limit":500}}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected project lookup for bare language ID")
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected language lookup for bare language ID")
+	})
+	mux.HandleFunc("/api/v2/projects/123/translations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/translations?languageId=fr&limit=500&stringId=77")
+			_, _ = io.WriteString(w, `{"data":[],"pagination":{"offset":0,"limit":500}}`)
+		case http.MethodPost:
+			assertRequest(t, r, http.MethodPost, "/api/v2/projects/123/translations")
+			assertJSONBody(t, r, map[string]any{
+				"stringId":   float64(77),
+				"languageId": "fr",
+				"text":       "Bonjour",
+			})
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"data":{"id":91,"text":"Bonjour"}}`)
+		default:
+			t.Fatalf("unexpected method for translations: %s", r.Method)
+		}
+	})
+
+	result, err := client.UpsertTranslations(context.Background(), UpsertTranslationsInput{
+		ProjectID: "123",
+		Entries: []StringTranslation{{
+			Key:     "hello",
+			Context: "home",
+			Locale:  "fr",
+			Value:   "Bonjour",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("upsert translations: %v", err)
+	}
+	if !reflect.DeepEqual(result.Applied, []int{0}) {
+		t.Fatalf("applied = %#v, want [0]", result.Applied)
+	}
+}
+
+func TestHTTPClientUpsertTranslationsUsesLanguageIDForFolderLocale(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/123/strings", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/strings?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":77,"identifier":"hello","context":"home"}}],"pagination":{"offset":0,"limit":500}}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/projects/123")
+		_, _ = io.WriteString(w, `{"data":{"id":123,"targetLanguageIds":["fr"],"targetLanguages":[]}}`)
+	})
+	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
+		assertRequest(t, r, http.MethodGet, "/api/v2/languages?limit=500")
+		_, _ = io.WriteString(w, `{"data":[{"data":{"id":"fr","name":"French","locale":"fr-FR","twoLettersCode":"fr","threeLettersCode":"fra"}}],"pagination":{"offset":0,"limit":500}}`)
+	})
+	mux.HandleFunc("/api/v2/projects/123/translations", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			assertRequest(t, r, http.MethodGet, "/api/v2/projects/123/translations?languageId=fr&limit=500&stringId=77")
+			_, _ = io.WriteString(w, `{"data":[],"pagination":{"offset":0,"limit":500}}`)
+		case http.MethodPost:
+			assertRequest(t, r, http.MethodPost, "/api/v2/projects/123/translations")
+			assertJSONBody(t, r, map[string]any{
+				"stringId":   float64(77),
+				"languageId": "fr",
+				"text":       "Bonjour",
+			})
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{"data":{"id":91,"text":"Bonjour"}}`)
+		default:
+			t.Fatalf("unexpected method for translations: %s", r.Method)
+		}
+	})
+
+	result, err := client.UpsertTranslations(context.Background(), UpsertTranslationsInput{
+		ProjectID: "123",
+		Entries: []StringTranslation{{
+			Key:     "hello",
+			Context: "home",
+			Locale:  "fr-FR",
+			Value:   "Bonjour",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("upsert translations: %v", err)
+	}
+	if !reflect.DeepEqual(result.Applied, []int{0}) {
+		t.Fatalf("applied = %#v, want [0]", result.Applied)
+	}
+}
+
 func TestHTTPClientDownloadLogsOmitArtifactURL(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()

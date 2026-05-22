@@ -242,14 +242,18 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 				}
-				if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
-					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir translation output: %w", err)
-				}
 				if req.MergeApproved {
 					payload, err = mergeApprovedJSONFile(sourcePath, targetPath, payload)
 					if err != nil {
 						return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
 					}
+					if payload == nil {
+						skipped = append(skipped, remotePath+"@"+locale.Locale)
+						continue
+					}
+				}
+				if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir translation output: %w", err)
 				}
 				if err := os.WriteFile(targetPath, payload, 0o644); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write translation output: %w", err)
@@ -304,6 +308,7 @@ func mergeApprovedJSONFile(sourcePath, targetPath string, approvedPayload []byte
 		} else if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("merge approved translations: read existing translation file: %w", err)
 		}
+		return nil, nil
 	}
 
 	var merged orderedJSONObject
