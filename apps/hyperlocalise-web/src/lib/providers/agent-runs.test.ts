@@ -182,6 +182,30 @@ describe("agent runs", () => {
     expect(failed.warnings).toEqual(["provider API error after 2 items"]);
   });
 
+  it("fails a queued run and preserves provider context", async () => {
+    const { project } = await createTestProject();
+
+    const created = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-queued-fail",
+      kind: "comment_only",
+    });
+
+    const failed = await failAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+      outputSummary: { providerStatus: "rejected" },
+      warnings: ["duplicate provider job rejected before start"],
+    });
+
+    expect(failed.status).toBe("failed");
+    expect(failed.startedAt).toBeNull();
+    expect(failed.completedAt).toBeTruthy();
+    expect(failed.outputSummary).toEqual({ providerStatus: "rejected" });
+    expect(failed.warnings).toEqual(["duplicate provider job rejected before start"]);
+  });
+
   it("cancels a running run", async () => {
     const { project } = await createTestProject();
 

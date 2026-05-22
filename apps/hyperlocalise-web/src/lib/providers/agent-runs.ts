@@ -95,6 +95,7 @@ export async function failAgentRun(input: {
     status: "failed",
     outputSummary: input.outputSummary,
     warnings: input.warnings,
+    sourceStatuses: ["queued", "running"],
   });
 }
 
@@ -133,8 +134,10 @@ async function finishAgentRun(input: {
   outputSummary?: AgentRunOutputSummary;
   changedItems?: AgentRunChangedItem[];
   warnings?: string[];
+  sourceStatuses?: Extract<AgentRunStatus, "queued" | "running">[];
 }) {
   const now = new Date();
+  const sourceStatuses = input.sourceStatuses ?? ["running"];
   const [run] = await db
     .update(schema.agentRuns)
     .set({
@@ -149,13 +152,13 @@ async function finishAgentRun(input: {
       and(
         eq(schema.agentRuns.id, input.runId),
         eq(schema.agentRuns.organizationId, input.organizationId),
-        eq(schema.agentRuns.status, "running"),
+        inArray(schema.agentRuns.status, sourceStatuses),
       ),
     )
     .returning();
 
   if (!run) {
-    throw new Error("Agent run not found or not in running state");
+    throw new Error("Agent run not found or not in finishable state");
   }
 
   return run;
