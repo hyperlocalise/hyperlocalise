@@ -85,7 +85,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     try {
       const revisions = await client.listFileRevisions(projectId, file.id);
       if (revisions.length > 0) {
-        revision = String(revisions[revisions.length - 1]?.id ?? file.revisionId);
+        revision = String(revisions[0]?.id ?? file.revisionId);
       } else {
         // Fall back to file.revisionId when the revisions list is empty
         revision = String(file.revisionId);

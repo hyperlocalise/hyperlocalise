@@ -773,7 +773,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         fetchFileKeys: fetchCrowdinFileKeys,
       });
 
-      return c.json({ externalTmsFileKeySync: result }, 200);
+      return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
     })
     .post("/:projectId/sync-jobs", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
@@ -798,7 +798,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         fetchJobTasks: fetchCrowdinJobTasks,
       });
 
-      return c.json({ externalTmsJobTaskSync: result }, 200);
+      return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {

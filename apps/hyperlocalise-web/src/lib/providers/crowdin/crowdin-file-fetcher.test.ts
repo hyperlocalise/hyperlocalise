@@ -87,6 +87,19 @@ describe("fetchCrowdinFileKeys", () => {
                   },
                 },
               },
+              {
+                data: {
+                  id: 40,
+                  fileId: 101,
+                  projectId: 1,
+                  info: {
+                    sourceLanguageId: "en",
+                    addedStrings: 1,
+                    removedStrings: 0,
+                    updatedStrings: 0,
+                  },
+                },
+              },
             ],
           }),
           { status: 200 },

@@ -353,7 +353,7 @@ describe("CrowdinApiClient", () => {
               data: {
                 id: 2001,
                 projectId: 1,
-                type: "translate",
+                type: 0,
                 status: "in_progress",
                 title: "French translations",
                 description: "Translate homepage",
