@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -112,7 +113,9 @@ func flattenYAMLSequence(out map[string]string, prefix string, node *yaml.Node) 
 		return fmt.Errorf("yaml root must be mapping, got sequence")
 	}
 	for idx, item := range node.Content {
-		nextKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		// to reduce allocation and formatting overhead in recursive flattening.
+		nextKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		if err := flattenYAMLNode(out, nextKey, item); err != nil {
 			return err
 		}
@@ -155,7 +158,8 @@ func yamlNodeKindName(kind yaml.Kind) string {
 	case yaml.AliasNode:
 		return "alias"
 	default:
-		return fmt.Sprintf("unknown(%d)", kind)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf.
+		return "unknown(" + strconv.Itoa(int(kind)) + ")"
 	}
 }
 

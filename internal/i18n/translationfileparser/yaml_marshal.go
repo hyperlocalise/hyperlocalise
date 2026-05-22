@@ -3,6 +3,7 @@ package translationfileparser
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -217,7 +218,9 @@ func rewriteYAMLSequence(node *yaml.Node, prefix string, values map[string]strin
 		return fmt.Errorf("yaml root must be mapping, got sequence")
 	}
 	for idx, item := range node.Content {
-		nextKey := fmt.Sprintf("%s[%d]", prefix, idx)
+		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
+		// to reduce allocation and formatting overhead in recursive rewriting.
+		nextKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		if err := rewriteYAMLNode(item, nextKey, values); err != nil {
 			return err
 		}

@@ -55,3 +55,7 @@
 ## 2026-06-15 - Optimizing Markdown segment and placeholder generation
 **Learning:** Hot paths in Markdown parsing, such as frontmatter path generation, table row pathing, and placeholder hashing, benefit significantly from replacing `fmt.Sprintf` with string concatenation and `strconv.Itoa`. This reduces reflection overhead and allocations in paths that may be called thousands of times for large documents.
 **Action:** Replaced `fmt.Sprintf` with concatenation and `strconv.Itoa` in `internal/i18n/translationfileparser/markdown_md_parser.go`.
+
+## 2026-06-18 - Optimizing YAML segment key generation
+**Learning:** Hot paths in YAML parsing and marshaling, such as recursive segment key generation for sequences (e.g., `prefix[idx]`), benefit significantly from replacing `fmt.Sprintf` with string concatenation and `strconv.Itoa`. This reduces reflection overhead and allocations in deep document trees.
+**Action:** Replaced `fmt.Sprintf("%s[%d]", ...)` with manual concatenation in `internal/i18n/translationfileparser/yaml_parser.go` and `yaml_marshal.go`.
