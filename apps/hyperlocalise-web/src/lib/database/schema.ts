@@ -106,6 +106,20 @@ export const providerSyncRunStatusEnum = pgEnum("provider_sync_run_status", [
   "failed",
   "cancelled",
 ]);
+export const agentRunKindEnum = pgEnum("agent_run_kind", [
+  "translate",
+  "review",
+  "qa_fix",
+  "glossary_suggestion",
+  "comment_only",
+]);
+export const agentRunStatusEnum = pgEnum("agent_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -1204,6 +1218,64 @@ export const externalJobDetails = pgTable(
       table.externalJobId,
       table.providerKind,
     ),
+  ],
+);
+
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    externalJobId: text("external_job_id").notNull(),
+    externalTaskId: text("external_task_id"),
+    kind: agentRunKindEnum("kind").notNull(),
+    status: agentRunStatusEnum("status").notNull().default("queued"),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    inputSnapshot: jsonb("input_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    outputSummary: jsonb("output_summary")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    changedItems: jsonb("changed_items")
+      .$type<Record<string, unknown>[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    warnings: jsonb("warnings")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    hyperlocaliseJobId: text("hyperlocalise_job_id").references(() => jobs.id, {
+      onDelete: "set null",
+    }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_agent_runs_org_created").on(table.organizationId, table.createdAt),
+    index("idx_agent_runs_org_provider_job").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalJobId,
+    ),
+    index("idx_agent_runs_org_provider_task").on(
+      table.organizationId,
+      table.providerKind,
+      table.externalTaskId,
+    ),
+    index("idx_agent_runs_status").on(table.status),
+    index("idx_agent_runs_hyperlocalise_job").on(table.hyperlocaliseJobId),
+    index("idx_agent_runs_actor").on(table.actorUserId),
   ],
 );
 
