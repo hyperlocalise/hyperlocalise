@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/database";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import { resolvePhraseBaseUrl } from "./phrase/phrase-base-url";
 import { parseSmartlingCredentials } from "./smartling/smartling-credentials";
 import { classifySmartlingHttpError } from "./smartling/smartling-api";
 
@@ -68,6 +69,7 @@ export async function checkExternalTmsProviderHealth(input: {
     providerKind: input.providerKind,
     secretMaterial,
     baseUrl: credential.baseUrl,
+    region: credential.region,
     fetchFn: input.fetchFn ?? fetch,
   });
 
@@ -122,6 +124,7 @@ async function validateExternalTmsCredential(input: {
   providerKind: ExternalTmsProviderKind;
   secretMaterial: string;
   baseUrl: string | null;
+  region: string | null;
   fetchFn: typeof fetch;
 }): Promise<Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt">> {
   if (input.providerKind === "smartling") {
@@ -272,6 +275,7 @@ function buildValidationRequest(input: {
   providerKind: ExternalTmsProviderKind;
   secretMaterial: string;
   baseUrl: string | null;
+  region: string | null;
 }): { url: string; init: RequestInit } | null {
   switch (input.providerKind) {
     case "crowdin": {
@@ -283,7 +287,10 @@ function buildValidationRequest(input: {
       };
     }
     case "phrase": {
-      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.phrase.com/v2");
+      const baseUrl = normalizeBaseUrl(
+        resolvePhraseBaseUrl({ region: input.region, baseUrl: input.baseUrl }),
+        resolvePhraseBaseUrl({}),
+      );
       if (!baseUrl) return null;
       return {
         url: `${baseUrl}/user`,
