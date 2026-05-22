@@ -3,6 +3,8 @@ import type { ExternalTmsProjectFetcher } from "@/lib/providers/external-tms-pro
 import { parseSmartlingCredentials } from "./smartling-credentials";
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
 
+const PROJECT_DETAIL_FETCH_CONCURRENCY = 15;
+
 export const fetchSmartlingProjects: ExternalTmsProjectFetcher = async ({
   credential,
   secretMaterial,
@@ -31,8 +33,10 @@ export const fetchSmartlingProjects: ExternalTmsProjectFetcher = async ({
     throw error;
   }
 
-  const results = await Promise.all(
-    summaries.map(async (summary) => {
+  const results = await mapInBatches(
+    summaries,
+    PROJECT_DETAIL_FETCH_CONCURRENCY,
+    async (summary) => {
       if (summary.targetLocales.length > 0) {
         return normalizeSmartlingProject(summary);
       }
@@ -44,12 +48,15 @@ export const fetchSmartlingProjects: ExternalTmsProjectFetcher = async ({
         if (error instanceof SmartlingApiError && error.status === 401) {
           throw new Error("smartling_auth_invalid");
         }
+        if (error instanceof SmartlingApiError && error.code === "smartling_api_unavailable") {
+          throw new Error("smartling_api_unavailable");
+        }
 
         return normalizeSmartlingProject(summary, {
           syncWarning: error instanceof Error ? error.message : "project_details_fetch_failed",
         });
       }
-    }),
+    },
   );
 
   return results;
@@ -88,4 +95,21 @@ function normalizeSmartlingProject(
 
 function buildSmartlingProjectUrl(accountUid: string, projectId: string) {
   return `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(accountUid)}/project/${encodeURIComponent(projectId)}/dashboard`;
+}
+
+async function mapInBatches<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = [];
+  const batchSize = Math.max(1, concurrency);
+
+  for (let index = 0; index < items.length; index += batchSize) {
+    const batch = items.slice(index, index + batchSize);
+    const batchResults = await Promise.all(batch.map((item) => mapper(item)));
+    results.push(...batchResults);
+  }
+
+  return results;
 }

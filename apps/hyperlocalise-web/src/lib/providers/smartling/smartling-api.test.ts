@@ -217,6 +217,27 @@ describe("SmartlingApiClient", () => {
       errorCode: "smartling_api_unavailable",
     });
   });
+
+  it("uses classified error codes for non-success envelopes on HTTP 200", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          response: {
+            code: "MAX_OPERATIONS_LIMIT_EXCEEDED",
+            errors: [{ message: "Rate limit exceeded" }],
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+
+    await expect(client.authenticate()).rejects.toMatchObject({
+      status: 200,
+      code: "smartling_request_failed",
+    });
+  });
 });
 
 describe("deriveServiceBaseUrl", () => {

@@ -118,6 +118,90 @@ describe("fetchSmartlingProjects", () => {
     });
   });
 
+  it("fetches project details with bounded concurrency", async () => {
+    let inFlightProjectRequests = 0;
+    let maxInFlightProjectRequests = 0;
+
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (String(url).includes("/accounts/acct-1/projects")) {
+        const items = Array.from({ length: 25 }, (_, index) => ({
+          accountUid: "acct-1",
+          projectId: `proj-${index + 1}`,
+          projectName: `Project ${index + 1}`,
+          sourceLocaleId: "en-US",
+          archived: false,
+          projectTypeCode: "GDN",
+        }));
+
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { items, totalCount: items.length },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (String(url).includes("/projects/proj-")) {
+        inFlightProjectRequests += 1;
+        maxInFlightProjectRequests = Math.max(maxInFlightProjectRequests, inFlightProjectRequests);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlightProjectRequests -= 1;
+
+        const projectId = String(url).split("/projects/")[1];
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                accountUid: "acct-1",
+                projectId,
+                projectName: `Project ${projectId}`,
+                sourceLocaleId: "en-US",
+                archived: false,
+                projectTypeCode: "GDN",
+                targetLocales: [{ localeId: "de-DE", description: "German", enabled: true }],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const projects = await fetchSmartlingProjects({
+      organizationId: "org-1",
+      providerKind: "smartling",
+      credential,
+      secretMaterial: JSON.stringify({
+        userIdentifier: "user-1",
+        userSecret: "secret-1",
+        accountUid: "acct-1",
+      }),
+    });
+
+    expect(projects).toHaveLength(25);
+    expect(maxInFlightProjectRequests).toBeLessThanOrEqual(15);
+  });
+
   it("throws smartling_auth_invalid when authentication fails", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

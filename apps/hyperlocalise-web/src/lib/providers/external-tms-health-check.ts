@@ -167,17 +167,16 @@ async function validateExternalTmsCredential(input: {
   const rateLimit = readRateLimitHints(response.headers);
 
   if (input.providerKind === "smartling") {
+    const body = await readResponseBody(response);
+
     if (response.ok) {
-      const smartlingHealth = await readSmartlingHealthFromResponse(response);
+      const smartlingHealth = parseSmartlingHealthFromBody(response.status, body);
       if (smartlingHealth) {
         return { ...smartlingHealth, rateLimit };
       }
     }
 
-    const smartlingError = classifySmartlingHttpError(
-      response.status,
-      await readResponseBody(response),
-    );
+    const smartlingError = classifySmartlingHttpError(response.status, body);
     return {
       status: smartlingError.errorCode === "smartling_auth_invalid" ? "error" : "degraded",
       availability:
@@ -232,17 +231,17 @@ async function validateExternalTmsCredential(input: {
   };
 }
 
-async function readSmartlingHealthFromResponse(
-  response: Response,
-): Promise<Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt" | "rateLimit"> | null> {
-  const body = await readResponseBody(response);
+function parseSmartlingHealthFromBody(
+  status: number,
+  body: unknown,
+): Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt" | "rateLimit"> | null {
   if (!body || typeof body !== "object") return null;
 
   const envelope = body as {
     response?: { code?: string; data?: { accessToken?: string } };
   };
   if (envelope.response?.code !== "SUCCESS" || !envelope.response.data?.accessToken) {
-    const classified = classifySmartlingHttpError(response.status, body);
+    const classified = classifySmartlingHttpError(status, body);
     return {
       status: classified.errorCode === "smartling_auth_invalid" ? "error" : "degraded",
       availability: classified.errorCode === "smartling_unavailable" ? "unavailable" : "available",

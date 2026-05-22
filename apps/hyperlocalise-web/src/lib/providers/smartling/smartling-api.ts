@@ -376,12 +376,7 @@ async function parseSmartlingResponse<T>(response: Response, url: string): Promi
 
   if (envelope.response.code !== "SUCCESS") {
     const classified = classifySmartlingHttpError(response.status, body);
-    throw new SmartlingApiError(
-      classified.message,
-      response.status,
-      envelope.response.code ?? classified.errorCode,
-      body,
-    );
+    throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
   }
 
   return envelope.response.data;
