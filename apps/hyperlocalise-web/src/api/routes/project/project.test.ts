@@ -9,6 +9,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { upsertExternalTmsFile } from "@/lib/providers/organization-external-tms-files";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -511,6 +512,97 @@ describe("projectRoutes", () => {
       sourcePath: "src/locale/en.json",
       sourceHash: "abc123",
     });
+  });
+
+  it("lists provider-backed files and keys for a project", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en/home.json",
+      displayName: "home.json",
+      format: "json",
+      sourceLocale: "en",
+      targetLocales: ["fr", "de"],
+      sourceHash: "rev:one",
+      revision: "one",
+      externalUrl: "https://phrase.example.test/projects/phrase-project-1/files/file-1",
+      syncState: "synced",
+      localeReadiness: { fr: "ready", de: "missing" },
+      providerPayload: { id: "file-1", name: "home.json" },
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "key",
+      externalResourceId: "key-1",
+      sourcePath: "keys/home.hero.title",
+      displayName: "home.hero.title",
+      format: "icu",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      revision: "two",
+      syncState: "pending",
+      providerPayload: { id: "key-1", key: "home.hero.title" },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files).toEqual([
+      expect.objectContaining({
+        origin: "provider",
+        sourcePath: "keys/home.hero.title",
+        sourceHash: null,
+        storedFileId: null,
+        filename: "home.hero.title",
+        byteSize: null,
+        metadata: { id: "key-1", key: "home.hero.title" },
+        provider: expect.objectContaining({
+          kind: "phrase",
+          resourceType: "key",
+          externalProjectId: "phrase-project-1",
+          externalResourceId: "key-1",
+          syncState: "pending",
+          format: "icu",
+          revision: "two",
+        }),
+        latestJob: null,
+      }),
+      expect.objectContaining({
+        origin: "provider",
+        sourcePath: "locales/en/home.json",
+        sourceHash: "rev:one",
+        filename: "home.json",
+        provider: expect.objectContaining({
+          kind: "phrase",
+          resourceType: "file",
+          externalUrl: "https://phrase.example.test/projects/phrase-project-1/files/file-1",
+          sourceLocale: "en",
+          targetLocales: ["fr", "de"],
+          localeReadiness: { fr: "ready", de: "missing" },
+        }),
+      }),
+    ]);
   });
 
   it("returns 404 when another organization fetches project files", async () => {

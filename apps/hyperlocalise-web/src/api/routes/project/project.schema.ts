@@ -46,15 +46,32 @@ export const projectsResponseSchema = z.object({
 });
 
 export const projectFileRecordSchema = z.object({
+  origin: z.enum(["repository", "provider"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
   commitSha: z.string().nullable(),
   workflowRunId: z.string().nullable(),
   uploadedAt: z.string(),
-  storedFileId: z.string(),
+  storedFileId: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   filename: z.string(),
-  byteSize: z.number(),
+  byteSize: z.number().nullable(),
+  provider: z
+    .object({
+      kind: z.string(),
+      resourceType: z.enum(["file", "key"]),
+      externalProjectId: z.string(),
+      externalResourceId: z.string(),
+      externalUrl: z.string().nullable(),
+      syncState: z.string(),
+      sourceLocale: z.string().nullable(),
+      targetLocales: z.array(z.string()),
+      localeReadiness: z.record(z.string(), z.unknown()),
+      revision: z.string().nullable(),
+      format: z.string().nullable(),
+    })
+    .nullable()
+    .default(null),
   latestJob: z
     .object({
       id: z.string(),

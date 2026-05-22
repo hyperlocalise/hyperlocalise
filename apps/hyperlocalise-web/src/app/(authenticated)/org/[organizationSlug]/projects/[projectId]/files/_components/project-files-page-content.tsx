@@ -104,6 +104,10 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
+function formatMaybeBytes(bytes: number | null): string {
+  return typeof bytes === "number" ? formatBytes(bytes) : "—";
+}
+
 function shortSha(value: string | null) {
   return value ? value.slice(0, 10) : "—";
 }
@@ -287,11 +291,18 @@ function FileTreeNode({ node }: { node: TreeNode }) {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="size-4 shrink-0" />
           <span className="truncate">{node.name}</span>
+          {node.file.provider ? (
+            <Badge variant="outline" className="ml-auto shrink-0 rounded-full text-xs">
+              {node.file.provider.kind}
+            </Badge>
+          ) : null}
           {node.file.latestJob ? (
             <Badge
               variant="outline"
               className={cn(
-                "ml-auto shrink-0 rounded-full text-xs",
+                node.file.provider
+                  ? "shrink-0 rounded-full text-xs"
+                  : "ml-auto shrink-0 rounded-full text-xs",
                 toneClass(jobTone(node.file.latestJob.status)),
               )}
             >
@@ -511,7 +522,7 @@ export function ProjectFilesPageContent({
                     Stored file
                   </TypographyP>
                   <TypographyP className="mt-1 text-sm text-foreground/72">
-                    {selectedFile.storedFileId}
+                    {selectedFile.storedFileId ?? "—"}
                   </TypographyP>
                 </div>
                 <div>
@@ -519,9 +530,62 @@ export function ProjectFilesPageContent({
                     Size
                   </TypographyP>
                   <TypographyP className="mt-1 text-sm text-foreground/72">
-                    {formatBytes(selectedFile.byteSize)}
+                    {formatMaybeBytes(selectedFile.byteSize)}
                   </TypographyP>
                 </div>
+                {selectedFile.provider ? (
+                  <>
+                    <div>
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Provider
+                      </TypographyP>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="rounded-full">
+                          {selectedFile.provider.kind}
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full">
+                          {selectedFile.provider.resourceType}
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full">
+                          {selectedFile.provider.syncState}
+                        </Badge>
+                      </div>
+                    </div>
+                    <DetailRow
+                      label="External ID"
+                      value={selectedFile.provider.externalResourceId}
+                    />
+                    <DetailRow label="Format" value={selectedFile.provider.format} />
+                    <DetailRow label="Revision" value={selectedFile.provider.revision} />
+                    <DetailRow label="Source locale" value={selectedFile.provider.sourceLocale} />
+                    <DetailRow
+                      label="Target locales"
+                      value={
+                        selectedFile.provider.targetLocales.length > 0
+                          ? selectedFile.provider.targetLocales.join(", ")
+                          : null
+                      }
+                    />
+                    <DetailRow
+                      label="Locale readiness"
+                      value={
+                        Object.keys(selectedFile.provider.localeReadiness).length > 0
+                          ? JSON.stringify(selectedFile.provider.localeReadiness)
+                          : null
+                      }
+                    />
+                    {selectedFile.provider.externalUrl ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-fit"
+                        render={<a href={selectedFile.provider.externalUrl} target="_blank" />}
+                      >
+                        Open in provider
+                      </Button>
+                    ) : null}
+                  </>
+                ) : null}
                 <div>
                   <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
                     Source hash

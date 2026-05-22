@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
@@ -304,7 +305,36 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           .limit(50);
 
         if (versions.length === 0) {
-          return projectNotFoundResponse(c);
+          const [providerFile] = await db
+            .select()
+            .from(schema.externalTmsFiles)
+            .where(
+              and(
+                eq(schema.externalTmsFiles.projectId, params.projectId),
+                eq(
+                  schema.externalTmsFiles.organizationId,
+                  c.var.auth.organization.localOrganizationId,
+                ),
+                eq(schema.externalTmsFiles.sourcePath, sourcePath),
+              ),
+            )
+            .limit(1);
+
+          if (!providerFile) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json(
+            {
+              file: {
+                sourcePath,
+                filename: providerFile.displayName,
+                versions: [],
+                jobsByLocale: [],
+              },
+            },
+            200,
+          );
         }
 
         const versionIds = versions.map((version) => version.id);
@@ -504,6 +534,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         .where(eq(versionsSubquery.rowNumber, 1));
 
       const versionIds = versions.map((v) => v.versionId);
+      const providerFiles = await listExternalTmsFilesForProject({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: params.projectId,
+      });
 
       const latestJobs = new Map<
         string,
@@ -559,9 +593,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
       }
 
-      const files = versions.map((v) => {
+      const nativeFiles = versions.map((v) => {
         const job = latestJobs.get(v.versionId);
         return {
+          origin: "repository" as const,
           sourcePath: v.sourcePath,
           sourceHash: v.sourceHash,
           commitSha: v.commitSha,
@@ -571,6 +606,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           metadata: v.metadata as Record<string, unknown>,
           filename: v.filename,
           byteSize: v.byteSize,
+          provider: null,
           latestJob: job
             ? {
                 id: job.jobId,
@@ -581,6 +617,49 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             : null,
         };
       });
+
+      const nativeFileByStoredFileId = new Map(
+        nativeFiles.map((file) => [file.storedFileId, file]),
+      );
+      const providerBackedFiles = providerFiles.map((file) => {
+        const linkedNativeFile = file.storedFileId
+          ? nativeFileByStoredFileId.get(file.storedFileId)
+          : undefined;
+
+        return {
+          origin: "provider" as const,
+          sourcePath: file.sourcePath,
+          sourceHash: file.sourceHash,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt:
+            file.lastSyncedAt?.toISOString() ??
+            linkedNativeFile?.uploadedAt ??
+            file.updatedAt.toISOString(),
+          storedFileId: file.storedFileId,
+          metadata: file.providerPayload as Record<string, unknown>,
+          filename: file.displayName,
+          byteSize: linkedNativeFile?.byteSize ?? null,
+          provider: {
+            kind: file.providerKind,
+            resourceType: file.resourceType,
+            externalProjectId: file.externalProjectId,
+            externalResourceId: file.externalResourceId,
+            externalUrl: file.externalUrl,
+            syncState: file.syncState,
+            sourceLocale: file.sourceLocale,
+            targetLocales: file.targetLocales,
+            localeReadiness: file.localeReadiness as Record<string, unknown>,
+            revision: file.revision,
+            format: file.format,
+          },
+          latestJob: linkedNativeFile?.latestJob ?? null,
+        };
+      });
+
+      const files = [...nativeFiles, ...providerBackedFiles].sort((a, b) =>
+        a.sourcePath.localeCompare(b.sourcePath),
+      );
 
       return c.json({ files }, 200);
     })
