@@ -2,7 +2,12 @@
 
 import { useEffect, useId, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
+  Alert02Icon,
+  ArrowDown01Icon,
+  ArrowRight01Icon,
+  ArrowUp01Icon,
   CheckmarkCircle02Icon,
   Delete02Icon,
   Key01Icon,
@@ -15,8 +20,10 @@ import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
 import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
-import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
+
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
+import { toneClass } from "../../_components/workspace-resource-shared";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -53,7 +60,45 @@ const api = createApiClient();
 
 type IntegrationsPageContentProps = {
   organizationSlug: string;
+  membershipRole: OrganizationMembershipRole;
 };
+
+function isAdmin(role: OrganizationMembershipRole) {
+  return role === "owner" || role === "admin";
+}
+
+const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+function formatRelativeTime(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const absoluteSeconds = Math.abs(deltaSeconds);
+
+  if (absoluteSeconds < 60) {
+    return RELATIVE_TIME_FORMATTER.format(deltaSeconds, "second");
+  }
+  if (absoluteSeconds < 3_600) {
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 60), "minute");
+  }
+  if (absoluteSeconds < 86_400) {
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 3_600), "hour");
+  }
+  if (absoluteSeconds < 2_592_000) {
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 86_400), "day");
+  }
+  if (absoluteSeconds < 31_536_000) {
+    return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 2_592_000), "month");
+  }
+  return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
+}
 
 type ProviderCredentialSummary = {
   provider: LlmProvider;
@@ -191,7 +236,7 @@ function useExternalTmsCredentials(organizationSlug: string) {
       }
 
       const data = await res.json();
-      return data.externalTmsProviderCredentials as ExternalTmsProviderCredentialSummary[];
+      return data.externalTmsProviderCredentials;
     },
   });
 }
@@ -221,7 +266,7 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
       }
 
       const data = await res.json();
-      return data.externalTmsProviderCredential as ExternalTmsProviderCredentialSummary;
+      return data.externalTmsProviderCredential;
     },
     onSuccess: async (_, payload) => {
       await queryClient.invalidateQueries({
@@ -262,7 +307,10 @@ function useDeleteExternalTmsCredential(organizationSlug: string) {
   });
 }
 
-export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageContentProps) {
+export function IntegrationsPageContent({
+  organizationSlug,
+  membershipRole,
+}: IntegrationsPageContentProps) {
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
@@ -290,11 +338,15 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
     useState<ExternalTmsProviderKind | null>(null);
+  const [expandedCapabilities, setExpandedCapabilities] = useState<ExternalTmsProviderKind | null>(
+    null,
+  );
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
   const tmsRegionFieldId = useId();
   const tmsBaseUrlFieldId = useId();
+  const userIsAdmin = isAdmin(membershipRole);
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {
@@ -593,6 +645,39 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
               );
               const isConnected = !!credential;
 
+              function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
+                switch (status) {
+                  case "connected":
+                    return "safe";
+                  case "degraded":
+                    return "watch";
+                  case "error":
+                    return "risk";
+                  default:
+                    return "info";
+                }
+              }
+
+              function tmsHealthLabel(status: string) {
+                switch (status) {
+                  case "connected":
+                    return "Connected";
+                  case "degraded":
+                    return "Degraded";
+                  case "error":
+                    return "Error";
+                  default:
+                    return "Unvalidated";
+                }
+              }
+
+              const capabilitiesExpanded = expandedCapabilities === integration.providerKind;
+              const visibleCapabilities = credential
+                ? Object.entries(credential.capabilities).filter(
+                    ([, cap]) => cap.ui.state !== "hidden",
+                  )
+                : [];
+
               return (
                 <Card
                   key={integration.name}
@@ -622,22 +707,142 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                       {isConnected ? (
                         <Badge
                           variant="outline"
-                          className="shrink-0 border-grove-300/25 bg-grove-300/10 text-grove-300"
+                          className={toneClass(tmsHealthTone(credential.validationStatus))}
                         >
-                          <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
-                          Connected
+                          <HugeiconsIcon
+                            icon={
+                              credential.validationStatus === "connected"
+                                ? CheckmarkCircle02Icon
+                                : Alert02Icon
+                            }
+                            strokeWidth={1.8}
+                          />
+                          {tmsHealthLabel(credential.validationStatus)}
                         </Badge>
                       ) : null}
                     </div>
 
-                    <div className="flex items-center justify-between gap-3">
+                    {isConnected ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-foreground/52">
+                          <span>{credential.displayName}</span>
+                          <span className="text-foreground/30">·</span>
+                          <span>****{credential.maskedSecretSuffix}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/42">
+                          <span>
+                            Last sync{" "}
+                            {credential.lastSuccessfulSyncAt
+                              ? formatRelativeTime(credential.lastSuccessfulSyncAt)
+                              : "never"}
+                          </span>
+                          <Link
+                            href={`/org/${organizationSlug}/projects`}
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                          >
+                            {credential.projectCount} projects
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              strokeWidth={1.8}
+                              className="size-3"
+                            />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
                       <TypographyP className="text-sm text-foreground/52">
-                        {isConnected
-                          ? `${credential.displayName} · ****${credential.maskedSecretSuffix}`
-                          : "Not connected"}
+                        Not connected
                       </TypographyP>
+                    )}
+
+                    {isConnected && visibleCapabilities.length > 0 ? (
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedCapabilities(
+                              capabilitiesExpanded ? null : integration.providerKind,
+                            )
+                          }
+                          className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
+                        >
+                          {capabilitiesExpanded ? "Hide capabilities" : "Show capabilities"}
+                          <HugeiconsIcon
+                            icon={capabilitiesExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+                            strokeWidth={1.8}
+                            className="size-3"
+                          />
+                        </button>
+                        {capabilitiesExpanded ? (
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            {visibleCapabilities.map(([action, cap]) => (
+                              <div key={action} className="flex items-center gap-2 text-xs">
+                                <span
+                                  className={
+                                    cap.supported ? "text-grove-300" : "text-foreground/30"
+                                  }
+                                >
+                                  {cap.supported ? "●" : "○"}
+                                </span>
+                                <span
+                                  className={
+                                    cap.ui.state === "disabled"
+                                      ? "text-foreground/34 line-through"
+                                      : "text-foreground/62"
+                                  }
+                                  title={cap.ui.disabledReason ?? cap.description}
+                                >
+                                  {cap.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="flex items-center justify-between gap-3">
+                      {isConnected ? (
+                        <div className="flex gap-3">
+                          <Link
+                            href={`/org/${organizationSlug}/projects`}
+                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
+                          >
+                            Projects
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              strokeWidth={1.8}
+                              className="size-3"
+                            />
+                          </Link>
+                          <Link
+                            href={`/org/${organizationSlug}/files`}
+                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
+                          >
+                            Files
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              strokeWidth={1.8}
+                              className="size-3"
+                            />
+                          </Link>
+                          <Link
+                            href={`/org/${organizationSlug}/jobs`}
+                            className="inline-flex items-center gap-1 text-xs text-foreground/54 hover:text-foreground"
+                          >
+                            Jobs
+                            <HugeiconsIcon
+                              icon={ArrowRight01Icon}
+                              strokeWidth={1.8}
+                              className="size-3"
+                            />
+                          </Link>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
                       <div className="flex gap-2">
-                        {isConnected ? (
+                        {isConnected && userIsAdmin ? (
                           <>
                             <Button
                               type="button"
@@ -668,7 +873,14 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                               Disconnect
                             </Button>
                           </>
-                        ) : (
+                        ) : isConnected ? (
+                          <Badge
+                            variant="outline"
+                            className="border-foreground/10 bg-foreground/5 text-foreground/34"
+                          >
+                            View only
+                          </Badge>
+                        ) : userIsAdmin ? (
                           <Button
                             type="button"
                             variant="ghost"
@@ -686,6 +898,13 @@ export function IntegrationsPageContent({ organizationSlug }: IntegrationsPageCo
                           >
                             Connect
                           </Button>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-foreground/10 bg-foreground/5 text-foreground/34"
+                          >
+                            Admins can connect
+                          </Badge>
                         )}
                       </div>
                     </div>

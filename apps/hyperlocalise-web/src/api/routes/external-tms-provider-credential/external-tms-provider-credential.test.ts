@@ -226,7 +226,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     });
   });
 
-  it("lists all external TMS credentials for the organization", async () => {
+  it("lists all external TMS credentials for the organization with enriched details", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
@@ -239,13 +239,55 @@ describe("externalTmsProviderCredentialRoutes", () => {
       displayName: "Crowdin",
       secretMaterial: "crowdin-secret",
     });
+
+    await db.insert(schema.projects).values({
+      id: "crowdin-project-1",
+      organizationId: authContext.organization.localOrganizationId,
+      name: "Crowdin Project",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "123",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      externalTmsProviderCredentials: Array<{
+        providerKind: string;
+        projectCount: number;
+        capabilities: Record<string, { supported: boolean; label: string }>;
+      }>;
+    };
+    expect(data.externalTmsProviderCredentials).toHaveLength(1);
+    const crowdin = data.externalTmsProviderCredentials[0];
+    expect(crowdin.providerKind).toBe("crowdin");
+    expect(crowdin.projectCount).toBe(1);
+    expect(crowdin.capabilities["projects.read"]).toMatchObject({
+      supported: true,
+      label: "Read projects",
+    });
+  });
+
+  it("allows non-admins to list external TMS credentials", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
     await upsertOrganizationExternalTmsProviderCredential({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
-      role: authContext.membership.role,
-      providerKind: "phrase",
-      displayName: "Phrase",
-      secretMaterial: "phrase-secret",
+      role: "admin",
+      providerKind: "lokalise",
+      displayName: "Lokalise",
+      secretMaterial: "lokalise-secret",
     });
 
     const response = await client.api.orgs[":organizationSlug"][
@@ -261,12 +303,8 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const data = (await response.json()) as {
       externalTmsProviderCredentials: { providerKind: string }[];
     };
-    expect(data.externalTmsProviderCredentials).toHaveLength(2);
-    const kinds = data.externalTmsProviderCredentials.map(
-      (c: { providerKind: string }) => c.providerKind,
-    );
-    expect(kinds).toContain("crowdin");
-    expect(kinds).toContain("phrase");
+    expect(data.externalTmsProviderCredentials).toHaveLength(1);
+    expect(data.externalTmsProviderCredentials[0].providerKind).toBe("lokalise");
   });
 
   it("returns connected provider health and records a health check sync run", async () => {

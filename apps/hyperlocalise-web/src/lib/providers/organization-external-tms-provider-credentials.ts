@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -7,6 +7,11 @@ import {
   encryptProviderCredential,
   maskProviderCredentialSuffix,
 } from "@/lib/security/provider-credential-crypto";
+import {
+  getTmsProviderCapability,
+  type TmsProviderCapability,
+  type TmsProviderCapabilityAction,
+} from "@/lib/providers/tms-capabilities";
 
 export type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
 
@@ -28,6 +33,12 @@ export type ExternalTmsProviderCredentialSummary = {
   maskedSecretSuffix: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ExternalTmsProviderCredentialListItem = ExternalTmsProviderCredentialSummary & {
+  lastSuccessfulSyncAt: string | null;
+  projectCount: number;
+  capabilities: Record<TmsProviderCapabilityAction, TmsProviderCapability>;
 };
 
 function summarizeExternalCredential(
@@ -57,6 +68,66 @@ export async function listOrganizationExternalTmsProviderCredentialSummaries(
     .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId));
 
   return credentials.map(summarizeExternalCredential);
+}
+
+export async function listOrganizationExternalTmsProviderCredentialDetails(
+  organizationId: string,
+): Promise<ExternalTmsProviderCredentialListItem[]> {
+  const credentials = await listOrganizationExternalTmsProviderCredentialSummaries(organizationId);
+  if (credentials.length === 0) {
+    return [];
+  }
+
+  const providerKinds = credentials.map((c) => c.providerKind);
+
+  const projectCounts = await db
+    .select({
+      providerKind: schema.projects.externalProviderKind,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, organizationId),
+        eq(schema.projects.source, "external_tms"),
+        inArray(schema.projects.externalProviderKind, providerKinds),
+      ),
+    )
+    .groupBy(schema.projects.externalProviderKind);
+
+  const projectCountByProvider = Object.fromEntries(
+    projectCounts.map((row) => [row.providerKind, row.count]),
+  ) as Record<string, number>;
+
+  const lastSyncs = await db
+    .select({
+      providerKind: schema.providerSyncRuns.providerKind,
+      completedAt: schema.providerSyncRuns.completedAt,
+    })
+    .from(schema.providerSyncRuns)
+    .where(
+      and(
+        eq(schema.providerSyncRuns.organizationId, organizationId),
+        eq(schema.providerSyncRuns.status, "succeeded"),
+        ne(schema.providerSyncRuns.kind, "health_check"),
+        inArray(schema.providerSyncRuns.providerKind, providerKinds),
+      ),
+    )
+    .orderBy(desc(schema.providerSyncRuns.completedAt));
+
+  const lastSyncByProvider: Record<string, string | null> = {};
+  for (const row of lastSyncs) {
+    if (lastSyncByProvider[row.providerKind] === undefined) {
+      lastSyncByProvider[row.providerKind] = row.completedAt?.toISOString() ?? null;
+    }
+  }
+
+  return credentials.map((credential) => ({
+    ...credential,
+    lastSuccessfulSyncAt: lastSyncByProvider[credential.providerKind] ?? null,
+    projectCount: projectCountByProvider[credential.providerKind] ?? 0,
+    capabilities: getTmsProviderCapability(credential.providerKind).capabilities,
+  }));
 }
 
 export async function getOrganizationExternalTmsProviderCredentialSummary(
