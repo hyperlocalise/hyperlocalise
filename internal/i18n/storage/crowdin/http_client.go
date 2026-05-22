@@ -954,10 +954,7 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	if err != nil {
 		return UpsertTranslationsResult{}, err
 	}
-	languageIDByLocale, err := c.languageIDLookupByLocale(ctx, projectID)
-	if err != nil {
-		return UpsertTranslationsResult{}, err
-	}
+	var languageIDByLocale map[string]string
 	translationsByTarget := make(map[translationLookupKey]map[string]struct{}, len(in.Entries))
 	result := UpsertTranslationsResult{
 		Applied:  make([]int, 0, len(in.Entries)),
@@ -966,7 +963,7 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	}
 
 	for idx, entry := range in.Entries {
-		outcome, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, languageIDByLocale, translationsByTarget)
+		outcome, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, &languageIDByLocale, translationsByTarget)
 		if upsertErr != nil {
 			return result, &partialUpsertError{sentIndexes: result.Applied, cause: upsertErr}
 		}
@@ -1002,7 +999,7 @@ func (c *HTTPClient) upsertTranslationEntry(
 	projectID int,
 	entry StringTranslation,
 	sourceByKey map[sourceStringKey]int,
-	languageIDByLocale map[string]string,
+	languageIDByLocale *map[string]string,
 	translationsByTarget map[translationLookupKey]map[string]struct{},
 ) (upsertTranslationOutcome, error) {
 	key, locale := strings.TrimSpace(entry.Key), strings.TrimSpace(entry.Locale)
@@ -1015,7 +1012,10 @@ func (c *HTTPClient) upsertTranslationEntry(
 		return upsertTranslationOutcome{conflict: classifySourceStringConflict(err)}, nil
 	}
 
-	languageID := resolveCrowdinLanguageID(locale, languageIDByLocale)
+	languageID, err := c.resolveCrowdinLanguageID(ctx, projectID, locale, languageIDByLocale)
+	if err != nil {
+		return upsertTranslationOutcome{}, err
+	}
 	knownTexts, err := c.ensureKnownTranslationTexts(ctx, projectID, stringID, languageID, translationsByTarget)
 	if err != nil {
 		return upsertTranslationOutcome{}, err
@@ -1044,6 +1044,31 @@ func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context str
 	return stringID, nil
 }
 
+func (c *HTTPClient) resolveCrowdinLanguageID(ctx context.Context, projectID int, locale string, languageIDByLocale *map[string]string) (string, error) {
+	locale = strings.TrimSpace(locale)
+	if !mayBeCrowdinFolderLocale(locale) {
+		return locale, nil
+	}
+	if languageIDByLocale == nil {
+		return locale, nil
+	}
+	if *languageIDByLocale == nil {
+		lookup, err := c.languageIDLookupByLocale(ctx, projectID)
+		if err != nil {
+			return "", err
+		}
+		*languageIDByLocale = lookup
+	}
+	if languageID := strings.TrimSpace((*languageIDByLocale)[locale]); languageID != "" {
+		return languageID, nil
+	}
+	return locale, nil
+}
+
+func mayBeCrowdinFolderLocale(locale string) bool {
+	return strings.ContainsAny(locale, "-_")
+}
+
 func (c *HTTPClient) languageIDLookupByLocale(ctx context.Context, projectID int) (map[string]string, error) {
 	project, _, err := c.client.Projects.Get(ctx, projectID)
 	if err != nil {
@@ -1069,14 +1094,6 @@ func (c *HTTPClient) languageIDLookupByLocale(ctx context.Context, projectID int
 		}
 	}
 	return out, nil
-}
-
-func resolveCrowdinLanguageID(locale string, languageIDByLocale map[string]string) string {
-	locale = strings.TrimSpace(locale)
-	if languageID := strings.TrimSpace(languageIDByLocale[locale]); languageID != "" {
-		return languageID
-	}
-	return locale
 }
 
 func isConflictError(err error) bool {
