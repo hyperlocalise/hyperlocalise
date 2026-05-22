@@ -329,7 +329,6 @@ func isPlaceholderSubsequentRune(r rune) bool {
 	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
 }
 
-
 func isASCIIDigitRune(r rune) bool {
 	return r >= '0' && r <= '9'
 }
