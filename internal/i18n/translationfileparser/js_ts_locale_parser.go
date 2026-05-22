@@ -23,6 +23,9 @@ import (
 // template literals return clear errors instead of being skipped silently.
 type JSTSLocaleModuleParser struct{}
 
+// JSTSLocaleModuleExts are the file extensions supported by JSTSLocaleModuleParser.
+var JSTSLocaleModuleExts = []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
+
 type jstsLocaleDocument struct {
 	template string
 	entries  []jstsLocaleEntry
@@ -875,6 +878,11 @@ func encodeJSTSStringLiteral(value string, quote byte) string {
 				b.WriteRune(r)
 			}
 		default:
+			if r < 0x20 || r == 0x7F {
+				fmt.Fprintf(&b, `\u%04X`, r)
+				i += size
+				continue
+			}
 			b.WriteRune(r)
 		}
 		i += size

@@ -14,8 +14,11 @@ import (
 
 func (s *Service) marshalTargetFile(path, sourcePath, sourceLocale, targetLocale string, values map[string]string, stagedEntries map[string]string, pruneKeys map[string]struct{}) ([]byte, []string, error) {
 	ext := strings.ToLower(filepath.Ext(path))
+	if isJSTSLocaleModuleExt(ext) {
+		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
+	}
 	switch ext {
-	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".html", ".liquid", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts":
+	case ".xlf", ".xlif", ".xliff", ".po", ".md", ".mdx", ".strings", ".stringsdict", ".csv", ".arb", ".html", ".liquid":
 		return s.marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale, targetLocale, values, stagedEntries)
 	case ".json", ".jsonc":
 		content, err := s.marshalJSONTargetWithFallback(path, sourcePath, values, pruneKeys)
@@ -122,12 +125,7 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 }
 
 func isJSTSLocaleModuleExt(ext string) bool {
-	switch ext {
-	case ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts":
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(translationfileparser.JSTSLocaleModuleExts, ext)
 }
 
 func hasExactKeySet(a, b map[string]string) bool {

@@ -236,10 +236,11 @@ export const messages: Messages = {
 }
 
 func TestMarshalJSTSLocaleModuleEscapesTranslatedLiterals(t *testing.T) {
-	template := []byte("export default { title: 'It\\'s ok', template: `Hi` };\n")
+	template := []byte("export default { title: 'It\\'s ok', template: `Hi`, control: \"Safe\" };\n")
 	got, err := MarshalJSTSLocaleModule(template, map[string]string{
 		"title":    "L'offre\narrive",
 		"template": "Use ${name}",
+		"control":  string([]byte{'A', 0x01, 0x7F, 'Z'}),
 	})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -250,6 +251,9 @@ func TestMarshalJSTSLocaleModuleEscapesTranslatedLiterals(t *testing.T) {
 	}
 	if !strings.Contains(out, "template: `Use \\${name}`") {
 		t.Fatalf("expected template interpolation escape, got %q", out)
+	}
+	if !strings.Contains(out, `control: "A\u0001\u007FZ"`) {
+		t.Fatalf("expected control character escapes, got %q", out)
 	}
 }
 

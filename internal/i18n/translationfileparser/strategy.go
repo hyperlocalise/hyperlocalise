@@ -31,14 +31,9 @@ func NewDefaultStrategy() *Strategy {
 	s := &Strategy{parsersByExt: map[string]Parser{}}
 	s.Register(".json", JSONParser{})
 	s.Register(".jsonc", JSONCParser{})
-	s.Register(".js", JSTSLocaleModuleParser{})
-	s.Register(".jsx", JSTSLocaleModuleParser{})
-	s.Register(".mjs", JSTSLocaleModuleParser{})
-	s.Register(".cjs", JSTSLocaleModuleParser{})
-	s.Register(".ts", JSTSLocaleModuleParser{})
-	s.Register(".tsx", JSTSLocaleModuleParser{})
-	s.Register(".mts", JSTSLocaleModuleParser{})
-	s.Register(".cts", JSTSLocaleModuleParser{})
+	for _, ext := range JSTSLocaleModuleExts {
+		s.Register(ext, JSTSLocaleModuleParser{})
+	}
 	s.Register(".arb", ARBParser{})
 	s.Register(".xlf", XLIFFParser{})
 	s.Register(".xlif", XLIFFParser{})

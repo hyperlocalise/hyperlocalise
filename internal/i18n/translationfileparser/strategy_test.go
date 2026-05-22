@@ -46,8 +46,7 @@ func TestStrategyParsesJSONC(t *testing.T) {
 func TestStrategyParsesJSTSLocaleModules(t *testing.T) {
 	s := NewDefaultStrategy()
 
-	extensions := []string{".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
-	for _, ext := range extensions {
+	for _, ext := range JSTSLocaleModuleExts {
 		t.Run(ext, func(t *testing.T) {
 			got, err := s.Parse("locales/en"+ext, []byte(`export default { hello: "Hello", nested: { cta: "Start now" } };`))
 			if err != nil {
