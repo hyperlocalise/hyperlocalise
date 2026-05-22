@@ -65,18 +65,15 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
 };
 
 function mapTaskTypeToKind(
-  taskType: string,
+  taskType: number,
 ): "translation" | "research" | "review" | "sync" | "asset_management" {
-  switch (taskType.toLowerCase()) {
-    case "translate":
-    case "translation":
+  switch (taskType) {
+    case 0: // translate by own translators
+    case 2: // translate by vendor
       return "translation";
-    case "proofread":
-    case "review":
+    case 1: // proofread by own proofreaders
+    case 3: // proofread by vendor
       return "review";
-    case "import":
-    case "export":
-      return "sync";
     default:
       return "translation";
   }

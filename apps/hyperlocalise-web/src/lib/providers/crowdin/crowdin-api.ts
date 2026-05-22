@@ -82,7 +82,7 @@ export interface CrowdinSourceString {
 export interface CrowdinTask {
   id: number;
   projectId: number;
-  type: string;
+  type: number;
   status: string;
   title: string;
   description: string | null;
