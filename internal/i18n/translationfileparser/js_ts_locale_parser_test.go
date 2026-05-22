@@ -62,6 +62,24 @@ func TestJSTSLocaleModuleParserParsesNamedAndCommonJSExports(t *testing.T) {
 
 export default messages;`,
 		},
+		{
+			name: "regex before export",
+			content: `const token = /[{identifier]/g;
+
+export default {
+  hello: "Hello",
+};`,
+		},
+		{
+			name: "multiline type annotation",
+			content: `const messages: {
+  hello: string
+} = {
+  hello: "Hello",
+};
+
+export default messages;`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -161,6 +179,16 @@ func TestMarshalJSTSLocaleModuleEscapesTranslatedLiterals(t *testing.T) {
 	}
 	if !strings.Contains(out, "template: `Use \\${name}`") {
 		t.Fatalf("expected template interpolation escape, got %q", out)
+	}
+}
+
+func TestHasJSTSKeywordAtUsesUTF8IdentifierBoundaries(t *testing.T) {
+	src := "const émodule = 1;\nexport default { hello: \"Hello\" };\n"
+	if hasJSTSKeywordAt(src, strings.Index(src, "module"), "module") {
+		t.Fatal("did not expect keyword match inside non-ASCII identifier")
+	}
+	if !hasJSTSKeywordAt(src, strings.Index(src, "export"), "export") {
+		t.Fatal("expected export keyword match")
 	}
 }
 

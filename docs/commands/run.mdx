@@ -53,6 +53,8 @@ For JavaScript and TypeScript locale modules (`.js`, `.jsx`, `.mjs`, `.cjs`, `.t
 
 Nested objects are flattened to dotted keys, string arrays use bracket indexes, and strict FormatJS-style entries translate only `defaultMessage` while preserving `description` metadata. Comments, imports, export syntax, and `as const` are preserved on write. Dynamic values, computed keys, spread properties, multiple exported locale objects, and template literals with `${...}` interpolation fail with a parser error instead of being rewritten.
 
+When an existing JS/TS target module has the same key set as the source, `run` writes into the target template so translator comments and existing module layout are kept. If the source key set changes, `run` falls back to the source template to avoid merging mismatched object shapes.
+
 For Flutter ARB (`.arb`), `run` translates only message keys, preserves metadata keys such as `@key`, and normalizes `@@locale` to the target locale on write.
 
 For Markdown and MDX (`.md`, `.mdx`), `run` translates extracted prose and preserves non-translatable structure:

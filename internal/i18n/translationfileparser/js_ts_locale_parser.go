@@ -333,7 +333,7 @@ func parseJSTSVariableObject(src string, start int) (next int, found bool, name 
 	}
 
 	i = skipJSTSWhitespaceAndComments(src, next)
-	for i < len(src) && src[i] != '=' && src[i] != ',' && src[i] != ';' && src[i] != '\n' {
+	for i < len(src) && src[i] != '=' && src[i] != ',' && src[i] != ';' {
 		if nextIgnored, ok := skipJSTSIgnoredToken(src, i); ok {
 			i = nextIgnored
 			continue
@@ -885,7 +885,10 @@ func skipJSTSIgnoredToken(src string, index int) (int, bool) {
 	case '\'', '"', '`':
 		return skipJSTSStringLiteral(src, index), true
 	case '/':
-		return skipJSTSComment(src, index)
+		if next, ok := skipJSTSComment(src, index); ok {
+			return next, true
+		}
+		return skipJSTSRegexLiteral(src, index)
 	default:
 		return index, false
 	}
@@ -935,6 +938,40 @@ func skipJSTSComment(src string, index int) (int, bool) {
 	}
 }
 
+func skipJSTSRegexLiteral(src string, index int) (int, bool) {
+	if index+1 >= len(src) || src[index] != '/' {
+		return index, false
+	}
+
+	inClass := false
+	for i := index + 1; i < len(src); i++ {
+		switch src[i] {
+		case '\\':
+			i++
+		case '\n', '\r':
+			return index, false
+		case '[':
+			inClass = true
+		case ']':
+			inClass = false
+		case '/':
+			if inClass {
+				continue
+			}
+			i++
+			for i < len(src) && isJSTSRegexFlag(src[i]) {
+				i++
+			}
+			return i, true
+		}
+	}
+	return index, false
+}
+
+func isJSTSRegexFlag(ch byte) bool {
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
+}
+
 func skipJSTSWhitespaceAndComments(src string, index int) int {
 	for i := index; i < len(src); {
 		for i < len(src) {
@@ -963,9 +1000,17 @@ func hasJSTSKeywordAt(src string, index int, keyword string) bool {
 	if index < 0 || index+len(keyword) > len(src) || src[index:index+len(keyword)] != keyword {
 		return false
 	}
-	beforeOK := index == 0 || !isJSTSIdentifierPart(src[index-1])
+	beforeOK := index == 0
+	if !beforeOK {
+		r, _ := utf8.DecodeLastRuneInString(src[:index])
+		beforeOK = !isJSTSIdentifierRunePart(r)
+	}
 	after := index + len(keyword)
-	afterOK := after >= len(src) || !isJSTSIdentifierPart(src[after])
+	afterOK := after >= len(src)
+	if !afterOK {
+		r, _ := utf8.DecodeRuneInString(src[after:])
+		afterOK = !isJSTSIdentifierRunePart(r)
+	}
 	return beforeOK && afterOK
 }
 
@@ -986,6 +1031,10 @@ func isJSTSIdentifierStart(ch byte) bool {
 
 func isJSTSIdentifierPart(ch byte) bool {
 	return isJSTSIdentifierStart(ch) || (ch >= '0' && ch <= '9')
+}
+
+func isJSTSIdentifierRunePart(r rune) bool {
+	return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func isJSTSStringQuote(ch byte) bool {
