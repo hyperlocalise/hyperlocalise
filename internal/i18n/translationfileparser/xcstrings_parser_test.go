@@ -209,6 +209,50 @@ func TestXCStringsParserFallsBackToCatalogKeyForSimpleSourceEntries(t *testing.T
 	assertStringMapValue(t, got, "Settings", "Settings")
 }
 
+func TestXCStringsValueAtStepsMissingChildReturnsNotFound(t *testing.T) {
+	t.Run("missing variation dimension", func(t *testing.T) {
+		got, ok, err := xcstringsValueAtSteps(map[string]any{
+			"variations": map[string]any{
+				"device": map[string]any{},
+			},
+		}, []xcstringsPathStep{{kind: "variation", name: "plural", option: "one"}})
+		if err != nil {
+			t.Fatalf("expected missing variation dimension to be not found, got err=%v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("expected not found, got value=%q ok=%v", got, ok)
+		}
+	})
+
+	t.Run("missing variation option", func(t *testing.T) {
+		got, ok, err := xcstringsValueAtSteps(map[string]any{
+			"variations": map[string]any{
+				"plural": map[string]any{
+					"other": map[string]any{},
+				},
+			},
+		}, []xcstringsPathStep{{kind: "variation", name: "plural", option: "one"}})
+		if err != nil {
+			t.Fatalf("expected missing variation option to be not found, got err=%v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("expected not found, got value=%q ok=%v", got, ok)
+		}
+	})
+
+	t.Run("missing substitution", func(t *testing.T) {
+		got, ok, err := xcstringsValueAtSteps(map[string]any{
+			"substitutions": map[string]any{},
+		}, []xcstringsPathStep{{kind: "substitution", name: "count"}})
+		if err != nil {
+			t.Fatalf("expected missing substitution to be not found, got err=%v", err)
+		}
+		if ok || got != "" {
+			t.Fatalf("expected not found, got value=%q ok=%v", got, ok)
+		}
+	})
+}
+
 func TestXCStringsParserRejectsVariantWithoutSourceLocalization(t *testing.T) {
 	content := []byte(`{
   "sourceLanguage": "en",

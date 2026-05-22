@@ -425,11 +425,19 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 			if err != nil || !ok {
 				return "", false, err
 			}
-			options, err := xcstringsObjectValue(variations[step.name], fmt.Sprintf("variations.%s", step.name))
+			rawOptions, ok := variations[step.name]
+			if !ok {
+				return "", false, nil
+			}
+			options, err := xcstringsObjectValue(rawOptions, fmt.Sprintf("variations.%s", step.name))
 			if err != nil {
 				return "", false, err
 			}
-			next, err := xcstringsObjectValue(options[step.option], fmt.Sprintf("variations.%s.%s", step.name, step.option))
+			rawNext, ok := options[step.option]
+			if !ok {
+				return "", false, nil
+			}
+			next, err := xcstringsObjectValue(rawNext, fmt.Sprintf("variations.%s.%s", step.name, step.option))
 			if err != nil {
 				return "", false, err
 			}
@@ -439,7 +447,11 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 			if err != nil || !ok {
 				return "", false, err
 			}
-			next, err := xcstringsObjectValue(substitutions[step.name], fmt.Sprintf("substitutions.%s", step.name))
+			rawNext, ok := substitutions[step.name]
+			if !ok {
+				return "", false, nil
+			}
+			next, err := xcstringsObjectValue(rawNext, fmt.Sprintf("substitutions.%s", step.name))
 			if err != nil {
 				return "", false, err
 			}
