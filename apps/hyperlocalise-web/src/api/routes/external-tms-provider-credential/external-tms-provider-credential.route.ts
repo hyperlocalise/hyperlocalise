@@ -2,6 +2,9 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { notFoundResponse } from "@/api/response.schema";
+import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
+import { syncExternalTmsProjects } from "@/lib/providers/external-tms-project-sync";
 import {
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
@@ -144,6 +147,36 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         if (error instanceof Error && error.message === "provider_credential_not_found") {
           return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+        throw error;
+      }
+    })
+    .post("/:providerKind/sync-projects", async (c) => {
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+
+        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+        if (!providerKind.success) {
+          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+        }
+
+        if (providerKind.data !== "crowdin") {
+          return c.json({ error: "provider_sync_not_implemented" }, 501);
+        }
+
+        const result = await syncExternalTmsProjects({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: providerKind.data,
+          fetchProjects: fetchCrowdinProjects,
+        });
+
+        return c.json({ externalTmsProjectSync: result }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        if (error instanceof Error && error.message === "provider_credential_not_found") {
+          return notFoundResponse(c, "provider_credential_not_found");
         }
         throw error;
       }
