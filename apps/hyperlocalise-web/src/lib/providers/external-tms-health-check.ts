@@ -4,6 +4,8 @@ import { db, schema } from "@/lib/database";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import { parseSmartlingCredentials } from "./smartling/smartling-credentials";
+import { classifySmartlingHttpError } from "./smartling/smartling-api";
 
 export type ExternalTmsHealthStatus = "connected" | "degraded" | "error";
 export type ExternalTmsAvailability = "available" | "unavailable" | "unknown";
@@ -122,6 +124,21 @@ async function validateExternalTmsCredential(input: {
   baseUrl: string | null;
   fetchFn: typeof fetch;
 }): Promise<Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt">> {
+  if (input.providerKind === "smartling") {
+    try {
+      parseSmartlingCredentials(input.secretMaterial);
+    } catch {
+      return {
+        status: "error",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: "smartling_credentials_invalid",
+        message: "Smartling credentials must include a user identifier and user secret.",
+        rateLimit: emptyRateLimitHints(),
+      };
+    }
+  }
+
   const request = buildValidationRequest(input);
   if (!request) {
     return {
@@ -148,6 +165,28 @@ async function validateExternalTmsCredential(input: {
     };
   }
   const rateLimit = readRateLimitHints(response.headers);
+
+  if (input.providerKind === "smartling") {
+    const body = await readResponseBody(response);
+
+    if (response.ok) {
+      const smartlingHealth = parseSmartlingHealthFromBody(response.status, body);
+      if (smartlingHealth) {
+        return { ...smartlingHealth, rateLimit };
+      }
+    }
+
+    const smartlingError = classifySmartlingHttpError(response.status, body);
+    return {
+      status: smartlingError.errorCode === "smartling_auth_invalid" ? "error" : "degraded",
+      availability:
+        smartlingError.errorCode === "smartling_unavailable" ? "unavailable" : "available",
+      authValidity: smartlingError.errorCode === "smartling_auth_invalid" ? "invalid" : "unknown",
+      errorCode: smartlingError.errorCode,
+      message: smartlingError.message,
+      rateLimit,
+    };
+  }
 
   if (response.status === 401 || response.status === 403) {
     return {
@@ -192,6 +231,43 @@ async function validateExternalTmsCredential(input: {
   };
 }
 
+function parseSmartlingHealthFromBody(
+  status: number,
+  body: unknown,
+): Omit<ExternalTmsHealthCheckResult, "lastSuccessfulSyncAt" | "rateLimit"> | null {
+  if (!body || typeof body !== "object") return null;
+
+  const envelope = body as {
+    response?: { code?: string; data?: { accessToken?: string } };
+  };
+  if (envelope.response?.code !== "SUCCESS" || !envelope.response.data?.accessToken) {
+    const classified = classifySmartlingHttpError(status, body);
+    return {
+      status: classified.errorCode === "smartling_auth_invalid" ? "error" : "degraded",
+      availability: classified.errorCode === "smartling_unavailable" ? "unavailable" : "available",
+      authValidity: classified.errorCode === "smartling_auth_invalid" ? "invalid" : "unknown",
+      errorCode: classified.errorCode,
+      message: classified.message,
+    };
+  }
+
+  return {
+    status: "connected",
+    availability: "available",
+    authValidity: "valid",
+    errorCode: null,
+    message: null,
+  };
+}
+
+async function readResponseBody(response: Response) {
+  try {
+    return await response.json();
+  } catch {
+    return await response.text().catch(() => null);
+  }
+}
+
 function buildValidationRequest(input: {
   providerKind: ExternalTmsProviderKind;
   secretMaterial: string;
@@ -223,17 +299,24 @@ function buildValidationRequest(input: {
       };
     }
     case "smartling": {
-      const credentials = parseSmartlingCredentials(input.secretMaterial);
-      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.smartling.com/auth-api/v2");
-      if (!baseUrl) return null;
-      return {
-        url: `${baseUrl}/authenticate`,
-        init: {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(credentials),
-        },
-      };
+      try {
+        const credentials = parseSmartlingCredentials(input.secretMaterial);
+        const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.smartling.com/auth-api/v2");
+        if (!baseUrl) return null;
+        return {
+          url: `${baseUrl}/authenticate`,
+          init: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userIdentifier: credentials.userIdentifier,
+              userSecret: credentials.userSecret,
+            }),
+          },
+        };
+      } catch {
+        return null;
+      }
     }
   }
 }
@@ -311,25 +394,6 @@ function isBlockedIpv6Address(hostname: string) {
   }
 
   return false;
-}
-
-function parseSmartlingCredentials(secretMaterial: string) {
-  try {
-    const parsed = JSON.parse(secretMaterial) as unknown;
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "userIdentifier" in parsed &&
-      "userSecret" in parsed
-    ) {
-      return parsed;
-    }
-  } catch {
-    // Fall through to the compact `userIdentifier:userSecret` form.
-  }
-
-  const [userIdentifier, ...secretParts] = secretMaterial.split(":");
-  return { userIdentifier, userSecret: secretParts.join(":") };
 }
 
 function readRateLimitHints(headers: Headers): ExternalTmsRateLimitHints {

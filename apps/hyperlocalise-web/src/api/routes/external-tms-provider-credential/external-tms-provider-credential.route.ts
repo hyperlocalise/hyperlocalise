@@ -4,7 +4,11 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { notFoundResponse } from "@/api/response.schema";
 import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
-import { syncExternalTmsProjects } from "@/lib/providers/external-tms-project-sync";
+import { fetchSmartlingProjects } from "@/lib/providers/smartling/smartling-project-fetcher";
+import {
+  syncExternalTmsProjects,
+  type ExternalTmsProjectFetcher,
+} from "@/lib/providers/external-tms-project-sync";
 import {
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
@@ -160,14 +164,22 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
         }
 
-        if (providerKind.data !== "crowdin") {
+        const fetchProjectsByProvider: Partial<
+          Record<(typeof providerKind)["data"], ExternalTmsProjectFetcher>
+        > = {
+          crowdin: fetchCrowdinProjects,
+          smartling: fetchSmartlingProjects,
+        };
+
+        const fetchProjects = fetchProjectsByProvider[providerKind.data];
+        if (!fetchProjects) {
           return c.json({ error: "provider_sync_not_implemented" }, 501);
         }
 
         const result = await syncExternalTmsProjects({
           organizationId: c.var.auth.organization.localOrganizationId,
           providerKind: providerKind.data,
-          fetchProjects: fetchCrowdinProjects,
+          fetchProjects,
         });
 
         return c.json({ externalTmsProjectSync: result }, 200);
