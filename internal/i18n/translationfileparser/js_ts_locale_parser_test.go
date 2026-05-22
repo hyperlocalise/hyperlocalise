@@ -139,6 +139,30 @@ func TestJSTSLocaleModuleParserParsesFormatJSContext(t *testing.T) {
 	}
 }
 
+func TestJSTSLocaleModuleParserFallsBackWhenDefaultMessageIsNestedValue(t *testing.T) {
+	content := []byte(`export default {
+  panel: {
+    defaultMessage: {
+      title: "Title",
+    },
+    cta: "Continue",
+  },
+};`)
+
+	got, err := (JSTSLocaleModuleParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	want := map[string]string{
+		"panel.defaultMessage.title": "Title",
+		"panel.cta":                  "Continue",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries mismatch:\ngot  %#v\nwant %#v", got, want)
+	}
+}
+
 func TestJSTSLocaleModuleParserParsesUnicodePropertyKeys(t *testing.T) {
 	got, err := (JSTSLocaleModuleParser{}).Parse([]byte(`export default {
   étiquette: "Label",
@@ -148,6 +172,18 @@ func TestJSTSLocaleModuleParserParsesUnicodePropertyKeys(t *testing.T) {
 	}
 	if got["étiquette"] != "Label" {
 		t.Fatalf("unexpected unicode key entries: %#v", got)
+	}
+}
+
+func TestJSTSLocaleModuleParserDecodesSurrogatePairEscapes(t *testing.T) {
+	got, err := (JSTSLocaleModuleParser{}).Parse([]byte(`export default {
+  emoji: "\uD83D\uDE00",
+};`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["emoji"] != "\U0001F600" {
+		t.Fatalf("unexpected emoji value: %q", got["emoji"])
 	}
 }
 

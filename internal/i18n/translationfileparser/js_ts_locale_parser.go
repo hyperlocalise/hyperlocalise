@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -428,10 +429,10 @@ func parseJSTSStrictFormatJSObject(src string, props []jstsObjectProperty) ([]js
 			}
 			lit, err := parseJSTSStringLiteral(src, skipJSTSWhitespaceAndComments(src, child.valueStart))
 			if err != nil {
-				return nil, false, fmt.Errorf("js/ts locale module key %q field defaultMessage: %w", prop.key, err)
+				return nil, false, nil
 			}
 			if lit.end != child.valueEnd {
-				return nil, false, fmt.Errorf("js/ts locale module key %q field defaultMessage must be a static string literal", prop.key)
+				return nil, false, nil
 			}
 			hasDefaultMessage = true
 		}
@@ -785,7 +786,7 @@ func writeJSTSUnicodeEscape(b *strings.Builder, raw string, index int) (int, err
 		}
 		hex := raw[index+2 : index+2+end]
 		value, err := strconv.ParseInt(hex, 16, 32)
-		if err != nil {
+		if err != nil || !utf8.ValidRune(rune(value)) {
 			return index, fmt.Errorf("invalid \\u escape")
 		}
 		b.WriteRune(rune(value))
@@ -794,12 +795,46 @@ func writeJSTSUnicodeEscape(b *strings.Builder, raw string, index int) (int, err
 	if index+4 >= len(raw) {
 		return index, fmt.Errorf("invalid \\u escape")
 	}
-	value, err := strconv.ParseInt(raw[index+1:index+5], 16, 32)
+	value, err := parseJSTSFixedUnicodeEscape(raw, index)
 	if err != nil {
 		return index, fmt.Errorf("invalid \\u escape")
 	}
-	b.WriteRune(rune(value))
+	if isJSTSHighSurrogate(value) {
+		lowIndex := index + 5
+		if lowIndex+5 >= len(raw) || raw[lowIndex] != '\\' || raw[lowIndex+1] != 'u' {
+			return index, fmt.Errorf("invalid surrogate pair in \\u escape")
+		}
+		low, err := parseJSTSFixedUnicodeEscape(raw, lowIndex+1)
+		if err != nil || !isJSTSLowSurrogate(low) {
+			return index, fmt.Errorf("invalid surrogate pair in \\u escape")
+		}
+		b.WriteRune(utf16.DecodeRune(value, low))
+		return lowIndex + 5, nil
+	}
+	if isJSTSLowSurrogate(value) {
+		return index, fmt.Errorf("invalid surrogate pair in \\u escape")
+	}
+	b.WriteRune(value)
 	return index + 4, nil
+}
+
+func parseJSTSFixedUnicodeEscape(raw string, index int) (rune, error) {
+	if index+4 >= len(raw) {
+		return 0, fmt.Errorf("invalid \\u escape")
+	}
+	value, err := strconv.ParseUint(raw[index+1:index+5], 16, 16)
+	if err != nil {
+		return 0, err
+	}
+	return rune(value), nil
+}
+
+func isJSTSHighSurrogate(r rune) bool {
+	return r >= 0xD800 && r <= 0xDBFF
+}
+
+func isJSTSLowSurrogate(r rune) bool {
+	return r >= 0xDC00 && r <= 0xDFFF
 }
 
 func encodeJSTSStringLiteral(value string, quote byte) string {
