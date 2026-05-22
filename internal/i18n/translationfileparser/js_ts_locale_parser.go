@@ -899,7 +899,7 @@ func skipJSTSValueExpression(src string, index, end int) int {
 				return i
 			}
 			depth--
-		case ',':
+		case ',', ';':
 			if depth == 0 {
 				return i
 			}

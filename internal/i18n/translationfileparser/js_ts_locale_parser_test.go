@@ -49,6 +49,13 @@ func TestJSTSLocaleModuleParserParsesNamedAndCommonJSExports(t *testing.T) {
 };`,
 		},
 		{
+			name: "non-locale export before named export",
+			content: `export const LOCALE_CODE = "en-US";
+export const messages = {
+  hello: "Hello",
+};`,
+		},
+		{
 			name: "commonjs module exports",
 			content: `module.exports = {
   hello: "Hello",
