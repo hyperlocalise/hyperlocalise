@@ -27,7 +27,7 @@ import { env } from "@/lib/env";
 const authorizationQuerySchema = z.object({
   response_type: z.literal("code"),
   client_id: z.string().min(1).max(128),
-  redirect_uri: z.url(),
+  redirect_uri: z.url().max(2048),
   code_challenge: z.string().min(32).max(128),
   code_challenge_method: z.literal("S256"),
   scope: z.string().max(128).optional().default("mcp"),
@@ -38,14 +38,14 @@ const authorizationQuerySchema = z.object({
 const tokenRequestSchema = z.discriminatedUnion("grant_type", [
   z.object({
     grant_type: z.literal("authorization_code"),
-    code: z.string().min(1).max(256),
-    redirect_uri: z.url(),
+    code: z.string().min(1).max(2048),
+    redirect_uri: z.url().max(2048),
     client_id: z.string().min(1).max(128),
     code_verifier: z.string().min(43).max(128),
   }),
   z.object({
     grant_type: z.literal("refresh_token"),
-    refresh_token: z.string().min(1).max(256),
+    refresh_token: z.string().min(1).max(2048),
     client_id: z.string().min(1).max(128).optional(),
   }),
 ]);
