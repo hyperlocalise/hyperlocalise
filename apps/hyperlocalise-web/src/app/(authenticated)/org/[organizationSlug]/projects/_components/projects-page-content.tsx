@@ -271,7 +271,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
               value={sourceFilter}
               onValueChange={(value) => {
                 setSourceFilter(value ?? "all");
-                if (value === "native") setProviderFilter("all");
+                if (value === "native") {
+                  setProviderFilter("all");
+                  setStatusFilter("all");
+                }
               }}
             >
               <SelectTrigger className="w-fit min-w-[8rem]">
@@ -302,16 +305,21 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
               </Select>
             ) : null}
 
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value ?? "all")}>
-              <SelectTrigger className="w-fit min-w-[8rem]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            {hasExternalProjects && sourceFilter !== "native" ? (
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value ?? "all")}
+              >
+                <SelectTrigger className="w-fit min-w-[8rem]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : null}
 
             {activeFilterCount > 0 ? (
               <Button

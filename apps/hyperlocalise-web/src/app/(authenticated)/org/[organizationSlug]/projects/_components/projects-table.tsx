@@ -286,49 +286,47 @@ export function ProjectsTable({
                 </div>
               </div>
 
-              <Link href={`/org/${organizationSlug}/projects/${project.id}/files`}>
-                <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
+              <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                    Created
+                  </dt>
+                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.created}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                    Updated
+                  </dt>
+                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.updated}</dd>
+                </div>
+                {project.source === "external_tms" ? (
                   <div className="min-w-0">
                     <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Created
-                    </dt>
-                    <dd className="mt-1 truncate text-sm text-foreground/54">{project.created}</dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Updated
-                    </dt>
-                    <dd className="mt-1 truncate text-sm text-foreground/54">{project.updated}</dd>
-                  </div>
-                  {project.source === "external_tms" ? (
-                    <div className="min-w-0">
-                      <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Last sync
-                      </dt>
-                      <dd className="mt-1 truncate text-sm text-foreground/54">
-                        <SyncInfo project={project} />
-                      </dd>
-                    </div>
-                  ) : null}
-                  <div className="min-w-0">
-                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Open jobs
+                      Last sync
                     </dt>
                     <dd className="mt-1 truncate text-sm text-foreground/54">
-                      {project.openJobCount > 0 ? (
-                        <Link
-                          href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
-                          className="text-foreground/72 hover:text-foreground hover:underline"
-                        >
-                          {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
-                        </Link>
-                      ) : (
-                        <span>None</span>
-                      )}
+                      <SyncInfo project={project} />
                     </dd>
                   </div>
-                </dl>
-              </Link>
+                ) : null}
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                    Open jobs
+                  </dt>
+                  <dd className="mt-1 truncate text-sm text-foreground/54">
+                    {project.openJobCount > 0 ? (
+                      <Link
+                        href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
+                        className="text-foreground/72 hover:text-foreground hover:underline"
+                      >
+                        {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
+                      </Link>
+                    ) : (
+                      <span>None</span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
             </article>
           ))}
         </div>
