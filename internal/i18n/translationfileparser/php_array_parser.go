@@ -302,7 +302,7 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 				return phpStringToken{}, fmt.Errorf("php locale array: unterminated unicode escape at line %d", lineNumberAt(s.text, i-2))
 			}
 			hex := s.text[i+1 : i+1+end]
-			v, err := strconv.ParseInt(hex, 16, 32)
+			v, err := strconv.ParseUint(hex, 16, 32)
 			if err != nil || v > 0x10FFFF {
 				return phpStringToken{}, fmt.Errorf("php locale array: invalid unicode escape at line %d", lineNumberAt(s.text, i-2))
 			}
@@ -436,6 +436,7 @@ func encodePHPStringLiteral(value string, quote byte) string {
 			"\r", "\\r",
 			"\t", "\\t",
 			"\v", "\\v",
+			"\x1b", "\\e",
 			"\f", "\\f",
 			"\"", "\\\"",
 			"$", "\\$",

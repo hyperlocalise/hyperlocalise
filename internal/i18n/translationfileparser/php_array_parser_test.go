@@ -89,6 +89,20 @@ return [
 	}
 }
 
+func TestMarshalPHPArrayLocaleEscapesDoubleQuotedEscapeBytes(t *testing.T) {
+	template := []byte(`<?php return ['alert' => "Alert"];`)
+
+	out, err := MarshalPHPArrayLocale(template, map[string]string{
+		"alert": "\x1b[31mAlert",
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if got, want := string(out), `<?php return ['alert' => "\e[31mAlert"];`; got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
 func TestPHPArrayParserSupportsLegacyArraySyntax(t *testing.T) {
 	content := []byte(`<?php
 return array(
@@ -147,6 +161,14 @@ func TestPHPArrayParserRejectsOutOfRangeUnicodeEscapes(t *testing.T) {
 	_, err := (PHPArrayParser{}).Parse([]byte(`<?php return ['bad' => "\u{110000}"];`))
 	if err == nil {
 		t.Fatalf("expected error")
+	}
+	if !strings.Contains(err.Error(), "invalid unicode escape") {
+		t.Fatalf("expected invalid unicode escape error, got %v", err)
+	}
+
+	_, err = (PHPArrayParser{}).Parse([]byte(`<?php return ['bad' => "\u{-1}"];`))
+	if err == nil {
+		t.Fatalf("expected negative unicode escape error")
 	}
 	if !strings.Contains(err.Error(), "invalid unicode escape") {
 		t.Fatalf("expected invalid unicode escape error, got %v", err)
