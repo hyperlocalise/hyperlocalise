@@ -345,16 +345,29 @@ export class CrowdinApiClient {
   /**
    * List source strings for a given project, optionally filtered by file.
    */
-  async listSourceStrings(projectId: number, fileId?: number): Promise<CrowdinSourceString[]> {
+  async listSourceStrings(
+    projectId: number,
+    fileId?: number,
+    stringIds?: number[],
+  ): Promise<CrowdinSourceString[]> {
     const strings: CrowdinSourceString[] = [];
     let offset = 0;
     const limit = 500;
 
-    const fileParam = fileId !== undefined ? `&fileId=${fileId}` : "";
-
     while (true) {
+      const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+      });
+      if (fileId !== undefined) {
+        params.append("fileId", String(fileId));
+      }
+      if (stringIds?.length) {
+        params.append("stringIds", stringIds.join(","));
+      }
+
       const response = await this.get<CrowdinListResponse<CrowdinSourceString>>(
-        `/projects/${projectId}/strings?limit=${limit}&offset=${offset}${fileParam}`,
+        `/projects/${projectId}/strings?${params.toString()}`,
       );
       const page = response.data.map((item) => item.data);
       strings.push(...page);
@@ -452,16 +465,31 @@ export class CrowdinApiClient {
     stringId: number,
     languageId: string,
   ): Promise<CrowdinStringTranslation[]> {
-    const params = new URLSearchParams({
-      stringId: String(stringId),
-      languageId,
-      limit: "500",
-      offset: "0",
-    });
-    const response = await this.get<CrowdinListResponse<CrowdinStringTranslation>>(
-      `/projects/${projectId}/translations?${params.toString()}`,
-    );
-    return response.data.map((item) => item.data);
+    const translations: CrowdinStringTranslation[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const params = new URLSearchParams({
+        stringId: String(stringId),
+        languageId,
+        limit: String(limit),
+        offset: String(offset),
+      });
+      const response = await this.get<CrowdinListResponse<CrowdinStringTranslation>>(
+        `/projects/${projectId}/translations?${params.toString()}`,
+      );
+      const page = response.data.map((item) => item.data);
+      translations.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return translations;
   }
 
   /**
@@ -660,8 +688,8 @@ export class CrowdinApiClient {
     buildId: number,
     options?: { maxAttempts?: number; delayMs?: number },
   ): Promise<CrowdinTranslationBuild> {
-    const maxAttempts = options?.maxAttempts ?? 20;
-    const delayMs = options?.delayMs ?? 250;
+    const maxAttempts = options?.maxAttempts ?? 90;
+    const delayMs = options?.delayMs ?? 2000;
 
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const build = await this.getTranslationBuildStatus(projectId, buildId);

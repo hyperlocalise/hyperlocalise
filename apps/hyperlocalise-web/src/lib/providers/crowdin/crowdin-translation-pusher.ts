@@ -12,6 +12,9 @@ type FileUploadGroup = {
 function buildJsonUpload(entries: Array<{ key: string; text: string }>) {
   const payload: Record<string, string> = {};
   for (const entry of entries) {
+    if (Object.prototype.hasOwnProperty.call(payload, entry.key)) {
+      console.warn(`buildJsonUpload: duplicate key "${entry.key}" – later value kept`);
+    }
     payload[entry.key] = entry.text;
   }
   const serialized = `${JSON.stringify(payload, null, 2)}\n`;
@@ -127,10 +130,7 @@ export const pushCrowdinTranslations: ExternalTmsTranslationPusher = async ({
       exportApprovedOnly: true,
     });
 
-    const finishedBuild = await client.waitForTranslationBuild(projectId, build.id, {
-      maxAttempts: 10,
-      delayMs: 100,
-    });
+    const finishedBuild = await client.waitForTranslationBuild(projectId, build.id);
 
     const downloadLink = await client.downloadTranslationBuild(projectId, finishedBuild.id);
     asyncOperations.push({

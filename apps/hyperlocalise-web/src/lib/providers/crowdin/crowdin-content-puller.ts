@@ -2,6 +2,14 @@ import type { ExternalTmsContentPuller } from "@/lib/providers/external-tms-cont
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 function sourceTextValue(text: string | Record<string, string>): string {
   if (typeof text === "string") {
     return text;
@@ -47,9 +55,9 @@ export const pullCrowdinTaskContent: ExternalTmsContentPuller = async ({
   const sourceStrings: Awaited<ReturnType<typeof client.listSourceStrings>> = [];
 
   if (stringIds.length > 0) {
-    const allStrings = await client.listSourceStrings(projectId);
-    const allowed = new Set(stringIds);
-    sourceStrings.push(...allStrings.filter((entry) => allowed.has(entry.id)));
+    for (const chunk of chunkArray(stringIds, 25)) {
+      sourceStrings.push(...(await client.listSourceStrings(projectId, undefined, chunk)));
+    }
   } else if (fileIds.length > 0) {
     for (const fileId of fileIds) {
       sourceStrings.push(...(await client.listSourceStrings(projectId, fileId)));

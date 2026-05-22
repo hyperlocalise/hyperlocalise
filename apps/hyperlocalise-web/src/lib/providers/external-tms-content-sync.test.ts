@@ -122,4 +122,35 @@ describe("external TMS content sync", () => {
     expect(syncRun?.status).toBe("failed");
     expect(syncRun?.errorMessage).toContain("failed");
   });
+
+  it("marks push_translations as failed when only the build step fails", async () => {
+    const { organization, project } = await createExternalTmsProject();
+    const pushTranslations: ExternalTmsTranslationPusher = async () => ({
+      uploaded: 1,
+      failed: 0,
+      asyncOperations: [
+        { type: "crowdin_upload_translations", status: "finished" },
+        { type: "crowdin_translation_build", status: "failed" },
+      ],
+      failures: [{ locale: "fr", message: "crowdin translation build timed out", fileId: null }],
+    });
+
+    const result = await pushExternalTmsTranslations({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "2001",
+      translations: [{ locale: "fr", text: "Bonjour", fileId: "101", key: "hello" }],
+      pushTranslations,
+    });
+
+    expect(result.status).toBe("failed");
+
+    const [syncRun] = await db
+      .select()
+      .from(schema.providerSyncRuns)
+      .where(eq(schema.providerSyncRuns.id, result.runId));
+
+    expect(syncRun?.status).toBe("failed");
+  });
 });

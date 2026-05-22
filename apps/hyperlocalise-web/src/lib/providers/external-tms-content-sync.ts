@@ -304,7 +304,7 @@ export async function pushExternalTmsTranslations(input: {
       asyncOperations: pushResult.asyncOperations.length,
     };
 
-    const status = pushResult.failed > 0 ? "failed" : "succeeded";
+    const status = pushResult.failed > 0 || pushResult.failures.length > 0 ? "failed" : "succeeded";
     const finishInput = {
       runId: run.id,
       organizationId: run.organizationId,
@@ -320,7 +320,7 @@ export async function pushExternalTmsTranslations(input: {
     if (status === "failed") {
       await failProviderSyncRun({
         ...finishInput,
-        errorMessage: "One or more provider translation uploads failed",
+        errorMessage: "One or more provider translation uploads or build steps failed",
         errorDetails: {
           failures: pushResult.failures,
           asyncOperations: pushResult.asyncOperations,
