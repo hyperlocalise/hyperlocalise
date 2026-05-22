@@ -3815,6 +3815,8 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
 		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
+		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
+		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -3839,6 +3841,8 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
 		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
+		{target: "/tmp/out.xml", source: "/tmp/source.xml"},
+		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 	}
 
 	for _, tc := range cases {
@@ -3862,6 +3866,93 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		}
 		if len(warnings) != 0 {
 			t.Fatalf("marshal %s returned unexpected warnings: %+v", tc.target, warnings)
+		}
+	}
+}
+
+func TestMarshalGenericXMLTargetPreservesExistingTargetByKey(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.xml"
+	targetPath := "/tmp/out.xml"
+	source := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<locale code="en-US">
+  <section id="home">
+    <string name="title">Welcome back</string>
+    <body>Browse the catalog</body>
+  </section>
+</locale>`)
+	target := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<locale code="fr-FR">
+  <!-- keep target metadata -->
+  <section id="home">
+    <string name="title">Bon retour</string>
+    <body>Ancien catalogue</body>
+  </section>
+</locale>`)
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	values := map[string]string{
+		"home.title": "Bon retour",
+		"home.body":  "Parcourir le catalogue",
+	}
+	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "en", "fr", values, map[string]string{"home.body": "Parcourir le catalogue"}, nil)
+	if err != nil {
+		t.Fatalf("marshal xml target: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %+v", warnings)
+	}
+	out := string(content)
+	if !strings.Contains(out, `<locale code="fr-FR">`) || !strings.Contains(out, `<!-- keep target metadata -->`) {
+		t.Fatalf("expected existing target structure preserved, got %q", out)
+	}
+	if !strings.Contains(out, `<string name="title">Bon retour</string>`) {
+		t.Fatalf("expected existing target title preserved, got %q", out)
+	}
+	if !strings.Contains(out, `<body>Parcourir le catalogue</body>`) {
+		t.Fatalf("expected staged XML body translation, got %q", out)
+	}
+}
+
+func TestMarshalGenericXMLTargetRewritesSourceLocaleAttributeOnFirstRun(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.xml"
+	targetPath := "/tmp/out.xml"
+	source := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<locale locale="en-US" xml:lang="en">
+  <message key="hello">Hello</message>
+</locale>`)
+	svc.readFile = func(path string) ([]byte, error) {
+		if path == sourcePath {
+			return source, nil
+		}
+		return nil, os.ErrNotExist
+	}
+
+	content, warnings, err := svc.marshalTargetFile(targetPath, sourcePath, "en-US", "fr-FR", map[string]string{"hello": "Bonjour"}, map[string]string{"hello": "Bonjour"}, nil)
+	if err != nil {
+		t.Fatalf("marshal xml target: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("unexpected warnings: %+v", warnings)
+	}
+	out := string(content)
+	for _, want := range []string{
+		`locale="fr-FR"`,
+		`xml:lang="fr"`,
+		`<message key="hello">Bonjour</message>`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %q in XML output, got %q", want, out)
 		}
 	}
 }

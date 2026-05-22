@@ -16,6 +16,7 @@
 - `.strings` via `AppleStringsParser` (Apple/Xcode strings files)
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
 
 ## Strategy API
 
@@ -112,6 +113,23 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### Generic XML (`.xml`, `.resx`)
+
+- Parses non-Android XML locale files with text-only leaf entries.
+- Keyed leaves use `key`, `id`, or `name` attributes.
+  - Example: `<message key="checkout.cta">Checkout now</message>` -> `checkout.cta=Checkout now`
+- Nested leaves without key attributes use dotted element paths.
+  - Example: `<home><title>Welcome</title></home>` -> `home.title=Welcome`
+- `.resx`-style entries are supported.
+  - Example: `<data name="home.title"><value>Welcome</value></data>` -> `home.title=Welcome`
+- Comments, attributes, and metadata elements such as `<metadata>`, `<comment>`, and `<resheader>` are preserved.
+- Android `<resources>`, XLIFF `<xliff>`, plist `<plist>`, and mixed-content XML values are rejected with clear errors rather than rewritten as generic XML.
+- CDATA values can be parsed, but changed translations are written back as escaped XML text rather than preserving the CDATA wrapper.
+- `MarshalGenericXML(template, values)` preserves the template structure and replaces only supported text leaf content.
+- `MarshalGenericXMLWithTargetLocale(template, values, sourceLocale, targetLocale)` also rewrites root-element locale attributes (`xml:lang`, `lang`, `locale`, `language`, `code`) whose values match `sourceLocale`, adapting the original separator style (for example `en_US` -> `vi_VN`, `en` -> `vi`).
+- XML marshal values must be decoded plain text, not pre-escaped XML; the serializer escapes translated text and attributes during writeback.
+- Surrounding whitespace inside text-only leaf values is treated as part of the source value and replacement range, so translation providers that trim values may normalize that formatting.
 
 ## Minimal usage
 
