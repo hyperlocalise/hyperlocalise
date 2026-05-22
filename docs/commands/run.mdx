@@ -37,6 +37,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.stringsdict`
 - `.csv`
 - `.xml` and `.resx` for generic XML locale files
+- `.properties`
 
 For JSON (`.json`), `run` supports:
 
@@ -76,6 +77,9 @@ For Liquid (`.liquid`), `run` translates hardcoded visible template text and pre
 - HTML-shaped Liquid templates use the same visible-text extraction behavior as HTML
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
+
+
+For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
 
 
 For CSV (`.csv`), `run` supports two layouts:

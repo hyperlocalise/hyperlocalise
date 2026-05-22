@@ -47,6 +47,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".csv", CSVParser{})
 	s.Register(".xml", GenericXMLParser{})
 	s.Register(".resx", GenericXMLParser{})
+	s.Register(".properties", JavaPropertiesParser{})
 	return s
 }
 

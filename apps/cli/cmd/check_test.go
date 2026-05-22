@@ -171,6 +171,42 @@ func TestCheckCommandJSONReportIncludesDefaultFindings(t *testing.T) {
 	}
 }
 
+func TestCheckCommandPropertiesFileRecognized(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "messages.properties")
+	targetPath := filepath.Join(dir, "dist", "fr", "messages.properties")
+
+	for _, path := range []string{sourcePath, targetPath} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create dir for %s: %v", path, err)
+		}
+	}
+	if err := os.WriteFile(sourcePath, []byte("welcome.message=Hello {0}\n"), 0o600); err != nil {
+		t.Fatalf("write source properties: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("welcome.message=Bonjour\nextra=Ancien\n"), 0o600); err != nil {
+		t.Fatalf("write target properties: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkPlaceholder)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
 func TestCollectEntryCheckFindingsSkipsRedundantChecksForWhitespaceOnlyNotLocalizedValues(t *testing.T) {
 	findings := collectEntryCheckFindings(
 		&checkLocationResolver{},

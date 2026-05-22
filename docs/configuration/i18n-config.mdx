@@ -100,6 +100,20 @@ Shared multi-locale file:
 
 For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
+### Java properties file mapping patterns
+
+Use `.properties` mappings for Java resource bundles with one file per locale:
+
+```yaml
+buckets:
+  java:
+    files:
+      - from: src/main/resources/messages_{{source}}.properties
+        to: src/main/resources/messages_{{target}}.properties
+```
+
+Supported entries are flat Java properties keys with string values. Hyperlocalise preserves comments, separators, and key order on write; translated values are written as escaped single-line `.properties` values.
+
 ## Groups
 
 `groups.<name>` defines what to process together.

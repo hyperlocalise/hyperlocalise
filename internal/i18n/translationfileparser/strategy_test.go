@@ -272,6 +272,24 @@ func TestStrategyParsesGenericXML(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesJavaProperties(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("messages_fr.properties", []byte(`# Checkout
+welcome.message = Bonjour {0}
+escaped\ key: Ligne un\nLigne deux
+`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["welcome.message"] != "Bonjour {0}" {
+		t.Fatalf("unexpected welcome.message translation: %q", got["welcome.message"])
+	}
+	if got["escaped key"] != "Ligne un\nLigne deux" {
+		t.Fatalf("unexpected escaped key translation: %q", got["escaped key"])
+	}
+}
+
 func TestStrategyRegistersLiquidParser(t *testing.T) {
 	s := NewDefaultStrategy()
 
