@@ -38,6 +38,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.stringsdict`
 - `.xcstrings`
 - `.csv`
+- `.ftl`
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml` and `.resx` for generic XML locale files
 - `.properties`
@@ -112,6 +113,13 @@ For CSV (`.csv`), `run` supports two layouts:
 - per-locale column layout (for example: `id,en,fr,de`)
 
 When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+
+For Mozilla Fluent (`.ftl`), `run` supports top-level messages, message attributes, multiline values, and select/plural patterns represented as full message values:
+
+- attributes are exposed as dotted keys such as `brand.title`
+- comments, blank lines, and unparsed metadata are preserved when values are replaced in an existing template
+- Fluent terms (`-brand = ...`) and term references are not supported and fail with a clear parser error
+- newly appended message keys are sorted deterministically; new attributes can only be appended when their parent message is not already present in the template
 
 For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
 

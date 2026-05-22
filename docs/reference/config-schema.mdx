@@ -58,6 +58,14 @@ Use `buckets.*.files[].from` and `to` to point at `.csv` files when you run CSV-
 - Per-locale files typically use `[locale]` in the `to` path.
 - Shared CSV files can reuse the same `from` and `to` path.
 
+## Fluent workflow note
+
+Use `buckets.*.files[].from` and `to` to point at `.ftl` files for Mozilla Fluent localization flows.
+
+- Per-locale files typically use `[locale]` in the `to` path, for example `locales/[locale]/messages.ftl`.
+- Supported entries include messages, attributes, multiline values, and select/plural patterns represented as full values.
+- Fluent terms are not supported and fail parsing instead of being rewritten.
+
 ## Java properties workflow note
 
 Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.

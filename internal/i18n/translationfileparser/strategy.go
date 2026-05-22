@@ -49,6 +49,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".stringsdict", AppleStringsdictParser{})
 	s.Register(".xcstrings", XCStringsParser{})
 	s.Register(".csv", CSVParser{})
+	s.Register(".ftl", FluentParser{})
 	s.Register(".xml", XMLParser{})
 	s.Register(".resx", GenericXMLParser{})
 	s.Register(".properties", JavaPropertiesParser{})

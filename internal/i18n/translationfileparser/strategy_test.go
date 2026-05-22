@@ -305,6 +305,18 @@ hello,bonjour
 	}
 }
 
+func TestStrategyParsesFluent(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("fr.ftl", []byte("hello = Bonjour { $name }\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["hello"] != "Bonjour { $name }" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+}
+
 func TestStrategyParsesGenericXML(t *testing.T) {
 	s := NewDefaultStrategy()
 
