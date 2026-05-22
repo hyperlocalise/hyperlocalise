@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { createApiClient } from "@/lib/api-client";
+import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { cn } from "@/lib/utils";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -268,24 +269,9 @@ function toneClass(tone: Tone) {
   }
 }
 
-type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
-
-type ExternalTmsCredentialSummary = {
-  id: string;
-  providerKind: ExternalTmsProviderKind;
-  displayName: string;
-  region: string | null;
-  baseUrl: string | null;
-  validationStatus: string;
-  validationMessage: string | null;
-  lastValidatedAt: string | null;
-  maskedSecretSuffix: string;
-  createdAt: string;
-  updatedAt: string;
-};
+const api = createApiClient();
 
 function TmsProviderSummary({ organizationSlug }: { organizationSlug: string }) {
-  const api = createApiClient();
   const { data: credentials, isLoading } = useQuery({
     queryKey: ["external-tms-credentials", organizationSlug],
     queryFn: async () => {
@@ -294,7 +280,7 @@ function TmsProviderSummary({ organizationSlug }: { organizationSlug: string }) 
       });
       if (!res.ok) throw new Error("Failed to fetch TMS credentials");
       const data = await res.json();
-      return data.externalTmsProviderCredentials as ExternalTmsCredentialSummary[];
+      return data.externalTmsProviderCredentials as ExternalTmsProviderCredentialSummary[];
     },
   });
 

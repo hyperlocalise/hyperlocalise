@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
 import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
+import type { ExternalTmsProviderCredentialSummary } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { createApiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,20 +57,6 @@ type ManagedProviderId = "hyperlocalise-go";
 type ProviderOptionId = LlmProvider | ManagedProviderId;
 
 type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
-
-type ExternalTmsCredentialSummary = {
-  id: string;
-  providerKind: ExternalTmsProviderKind;
-  displayName: string;
-  region: string | null;
-  baseUrl: string | null;
-  validationStatus: string;
-  validationMessage: string | null;
-  lastValidatedAt: string | null;
-  maskedSecretSuffix: string;
-  createdAt: string;
-  updatedAt: string;
-};
 
 const hyperlocaliseGoProvider = {
   id: "hyperlocalise-go",
@@ -195,7 +182,7 @@ function useExternalTmsCredentials(organizationSlug: string) {
       }
 
       const data = await res.json();
-      return data.externalTmsProviderCredentials as ExternalTmsCredentialSummary[];
+      return data.externalTmsProviderCredentials as ExternalTmsProviderCredentialSummary[];
     },
   });
 }
@@ -225,7 +212,7 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
       }
 
       const data = await res.json();
-      return data.externalTmsProviderCredential as ExternalTmsCredentialSummary;
+      return data.externalTmsProviderCredential as ExternalTmsProviderCredentialSummary;
     },
     onSuccess: async (_, payload) => {
       await queryClient.invalidateQueries({

@@ -18,17 +18,16 @@ export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRol
 
 export type ExternalTmsProviderCredentialSummary = {
   id: string;
-  organizationId: string;
   providerKind: ExternalTmsProviderKind;
   displayName: string;
   region: string | null;
   baseUrl: string | null;
   validationStatus: string;
   validationMessage: string | null;
-  lastValidatedAt: Date | null;
+  lastValidatedAt: string | null;
   maskedSecretSuffix: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function summarizeExternalCredential(
@@ -36,17 +35,16 @@ function summarizeExternalCredential(
 ): ExternalTmsProviderCredentialSummary {
   return {
     id: credential.id,
-    organizationId: credential.organizationId,
     providerKind: credential.providerKind as ExternalTmsProviderKind,
     displayName: credential.displayName,
     region: credential.region,
     baseUrl: credential.baseUrl,
     validationStatus: credential.validationStatus,
     validationMessage: credential.validationMessage,
-    lastValidatedAt: credential.lastValidatedAt,
+    lastValidatedAt: credential.lastValidatedAt?.toISOString() ?? null,
     maskedSecretSuffix: credential.maskedSecretSuffix,
-    createdAt: credential.createdAt,
-    updatedAt: credential.updatedAt,
+    createdAt: credential.createdAt.toISOString(),
+    updatedAt: credential.updatedAt.toISOString(),
   };
 }
 

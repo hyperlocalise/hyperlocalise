@@ -253,7 +253,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
     );
 
     expect(response.status).toBe(200);
-    const data = await response.json();
+    const data = (await response.json()) as {
+      externalTmsProviderCredentials: { providerKind: string }[];
+    };
     expect(data.externalTmsProviderCredentials).toHaveLength(2);
     const kinds = data.externalTmsProviderCredentials.map(
       (c: { providerKind: string }) => c.providerKind,

@@ -3,6 +3,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
+  assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
   listOrganizationExternalTmsProviderCredentialSummaries,
   revealOrganizationExternalTmsProviderCredential,
@@ -33,11 +34,19 @@ export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      const providerCredentials = await listOrganizationExternalTmsProviderCredentialSummaries(
-        c.var.auth.organization.localOrganizationId,
-      );
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+        const providerCredentials = await listOrganizationExternalTmsProviderCredentialSummaries(
+          c.var.auth.organization.localOrganizationId,
+        );
 
-      return c.json({ externalTmsProviderCredentials: providerCredentials }, 200);
+        return c.json({ externalTmsProviderCredentials: providerCredentials }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        throw error;
+      }
     })
     .put("/", validateUpsertBody, async (c) => {
       try {
