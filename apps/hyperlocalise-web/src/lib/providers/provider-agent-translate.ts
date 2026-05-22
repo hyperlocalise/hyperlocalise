@@ -34,6 +34,7 @@ export type ProviderAgentTranslationResult =
       unitsProcessed: number;
       skippedApprovedLocales: number;
       pullRunId: string;
+      alreadyCompleted?: boolean;
     }
   | {
       ok: false;
@@ -47,6 +48,22 @@ const defaultSourceLocale = "en";
 function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>): string | null {
   const projectId = inputSnapshot.projectId;
   return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
+}
+
+function readOutputSummaryNumber(
+  outputSummary: Record<string, unknown>,
+  key: string,
+): number {
+  const value = outputSummary[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readOutputSummaryString(
+  outputSummary: Record<string, unknown>,
+  key: string,
+): string {
+  const value = outputSummary[key];
+  return typeof value === "string" ? value : "";
 }
 
 function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: string) {
@@ -207,12 +224,26 @@ export async function executeProviderAgentTranslation(input: {
     };
   }
 
-  if (run.status !== "queued" && run.status !== "running") {
+  if (run.status === "succeeded") {
+    const outputSummary = run.outputSummary ?? {};
+    return {
+      ok: true,
+      agentRunId: input.agentRunId,
+      proposedCount: readOutputSummaryNumber(outputSummary, "proposedCount"),
+      unitsProcessed: readOutputSummaryNumber(outputSummary, "unitsProcessed"),
+      skippedApprovedLocales: readOutputSummaryNumber(outputSummary, "skippedApprovedLocales"),
+      pullRunId: readOutputSummaryString(outputSummary, "pullRunId"),
+      alreadyCompleted: true,
+    };
+  }
+
+  if (run.status === "failed" || run.status === "cancelled") {
     return {
       ok: false,
       agentRunId: input.agentRunId,
-      code: "agent_run_not_queued",
-      message: `Agent run is ${run.status}, expected queued`,
+      code:
+        run.status === "failed" ? "agent_run_already_failed" : "agent_run_already_cancelled",
+      message: `Agent run is ${run.status}, expected queued or running`,
     };
   }
 

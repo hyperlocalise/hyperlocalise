@@ -8,7 +8,7 @@ import type { ExternalTmsTaskContent } from "@/lib/providers/external-tms-conten
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
 import * as agentRuns from "./agent-runs";
-import { createAgentRun, getAgentRun, startAgentRun } from "./agent-runs";
+import { completeAgentRun, createAgentRun, getAgentRun, startAgentRun } from "./agent-runs";
 import { executeProviderAgentTranslation } from "./provider-agent-translate";
 
 const projectFixture = createProjectTestFixture();
@@ -285,6 +285,49 @@ describe("executeProviderAgentTranslation", () => {
       pullRunId: "pull-run-missing-project",
     });
     expect(failed?.warnings).toEqual(expect.arrayContaining([expect.stringContaining(project.id)]));
+  });
+
+  it("returns idempotent success when the agent run already completed", async () => {
+    const project = await createExternalTmsProject();
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-already-done",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    await startAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+      outputSummary: {
+        pullRunId: "pull-run-done",
+        proposedCount: 2,
+        unitsProcessed: 3,
+        skippedApprovedLocales: 1,
+      },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      alreadyCompleted: true,
+      proposedCount: 2,
+      unitsProcessed: 3,
+      skippedApprovedLocales: 1,
+      pullRunId: "pull-run-done",
+    });
+    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
   });
 
   it("retries a running agent run after a worker crash", async () => {
