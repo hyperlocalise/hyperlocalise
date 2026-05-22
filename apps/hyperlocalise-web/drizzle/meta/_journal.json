@@ -78,6 +78,13 @@
       "when": 1779408620362,
       "tag": "0010_third_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779411315313,
+      "tag": "0011_spicy_molly_hayes",
+      "breakpoints": true
     }
   ]
 }
