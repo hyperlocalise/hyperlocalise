@@ -428,8 +428,15 @@ func normalizeFluentValue(raw string) string {
 	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
 		lines = lines[:len(lines)-1]
 	}
+	// Inline multiline values start beside "=", so derive structural indent
+	// from continuation lines and let encodeFluentValue add it back once.
+	indentFrom := 0
+	if len(lines) > 1 && !fluentLineIndented(lines[0]) {
+		indentFrom = 1
+	}
+
 	commonIndent := -1
-	for _, line := range lines {
+	for _, line := range lines[indentFrom:] {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -441,7 +448,12 @@ func normalizeFluentValue(raw string) string {
 	if commonIndent < 0 {
 		commonIndent = 0
 	}
-	for i, line := range lines {
+
+	if indentFrom > 0 {
+		lines[0] = strings.TrimRight(lines[0], " \t")
+	}
+	for i := indentFrom; i < len(lines); i++ {
+		line := lines[i]
 		if len(line) >= commonIndent {
 			lines[i] = strings.TrimRight(line[commonIndent:], " \t")
 		} else {

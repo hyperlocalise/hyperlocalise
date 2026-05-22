@@ -78,6 +78,37 @@ func TestFluentParserKeepsIndentedHashContinuationLines(t *testing.T) {
 	}
 }
 
+func TestMarshalFluentInlineMultilineValuesAreIdempotent(t *testing.T) {
+	template := []byte(`hello = First line
+    continuation
+`)
+
+	values, err := FluentParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse fluent: %v", err)
+	}
+	if got, want := values["hello"], "First line\ncontinuation"; got != want {
+		t.Fatalf("parsed inline multiline value mismatch\n got: %q\nwant: %q", got, want)
+	}
+
+	first, err := MarshalFluent(template, values)
+	if err != nil {
+		t.Fatalf("marshal fluent: %v", err)
+	}
+	second, err := MarshalFluent(first, values)
+	if err != nil {
+		t.Fatalf("marshal fluent again: %v", err)
+	}
+
+	want := string(template)
+	if string(first) != want {
+		t.Fatalf("first marshal changed inline multiline indentation\n got: %q\nwant: %q", string(first), want)
+	}
+	if string(second) != want {
+		t.Fatalf("second marshal changed inline multiline indentation\n got: %q\nwant: %q", string(second), want)
+	}
+}
+
 func TestMarshalFluentPreservesCommentsAndReplacesValues(t *testing.T) {
 	template := []byte(`# Greeting
 hello = Hello { $name }
