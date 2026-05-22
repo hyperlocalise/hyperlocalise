@@ -317,11 +317,11 @@ export class SmartlingApiClient {
   }
 
   async listProjectFiles(projectId: string): Promise<SmartlingFileSummary[]> {
-    const token = await this.getAccessToken();
     const files: SmartlingFileSummary[] = [];
 
     await paginateSmartlingList({
       fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
         const params = new URLSearchParams({
           limit: String(limit),
           offset: String(offset),
@@ -365,11 +365,11 @@ export class SmartlingApiClient {
     projectId: string,
     options?: { fileUri?: string },
   ): Promise<SmartlingSourceString[]> {
-    const token = await this.getAccessToken();
     const strings: SmartlingSourceString[] = [];
 
     await paginateSmartlingList({
       fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
         const params = new URLSearchParams({
           limit: String(limit),
           offset: String(offset),
@@ -393,11 +393,11 @@ export class SmartlingApiClient {
   }
 
   async listJobs(projectId: string): Promise<SmartlingJobSummary[]> {
-    const token = await this.getAccessToken();
     const jobs: SmartlingJobSummary[] = [];
 
     await paginateSmartlingList({
       fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
         const params = new URLSearchParams({
           limit: String(limit),
           offset: String(offset),

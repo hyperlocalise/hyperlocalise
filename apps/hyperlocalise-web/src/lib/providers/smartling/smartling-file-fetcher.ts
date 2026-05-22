@@ -1,7 +1,8 @@
 import type { ExternalTmsFileKeyFetcher } from "@/lib/providers/external-tms-file-sync";
 
 import { parseSmartlingCredentials } from "./smartling-credentials";
-import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
+import { SmartlingApiClient } from "./smartling-api";
+import { mapSmartlingFetcherError } from "./smartling-errors";
 
 export const fetchSmartlingFileKeys: ExternalTmsFileKeyFetcher = async ({
   credential,
@@ -109,8 +110,9 @@ export const fetchSmartlingFileKeys: ExternalTmsFileKeyFetcher = async ({
         });
       }
     } catch (error) {
-      if (error instanceof SmartlingApiError && error.status === 401) {
-        throw new Error("smartling_auth_invalid");
+      const mapped = mapSmartlingFetcherError(error);
+      if (mapped.message === "smartling_auth_invalid") {
+        throw mapped;
       }
 
       results.push({
@@ -118,7 +120,7 @@ export const fetchSmartlingFileKeys: ExternalTmsFileKeyFetcher = async ({
         resourceType: "key",
         sourcePath: `${file.fileUri}/keys`,
         displayName: `${displayNameOf(file.fileUri)} keys`,
-        syncErrorMessage: `Failed to list source strings for ${file.fileUri}: ${errorMessageOf(error)}`,
+        syncErrorMessage: `Failed to list source strings for ${file.fileUri}: ${mapped.message}`,
         providerPayload: {
           fileUri: file.fileUri,
           fileType: file.fileType,
@@ -137,20 +139,4 @@ function displayNameOf(fileUri: string) {
 function buildSmartlingFileUrl(accountUid: string, projectId: string, fileUri: string) {
   const params = new URLSearchParams({ fileUri });
   return `https://dashboard.smartling.com/app/accounts/${encodeURIComponent(accountUid)}/project/${encodeURIComponent(projectId)}/files?${params.toString()}`;
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "unknown error";
-}
-
-function mapSmartlingFetcherError(error: unknown): Error {
-  if (error instanceof SmartlingApiError) {
-    if (error.code === "smartling_auth_invalid" || error.status === 401) {
-      return new Error("smartling_auth_invalid");
-    }
-    if (error.code === "smartling_api_unavailable") {
-      return new Error("smartling_api_unavailable");
-    }
-  }
-  return error instanceof Error ? error : new Error("smartling_request_failed");
 }

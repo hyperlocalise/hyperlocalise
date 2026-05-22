@@ -1,7 +1,8 @@
 import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/external-tms-job-sync";
 
 import { parseSmartlingCredentials } from "./smartling-credentials";
-import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
+import { SmartlingApiClient } from "./smartling-api";
+import { mapSmartlingFetcherError } from "./smartling-errors";
 
 export const fetchSmartlingJobTasks: ExternalTmsJobTaskFetcher = async ({
   credential,
@@ -64,16 +65,4 @@ function mapSmartlingJobKind(jobStatus: string): "translation" | "review" {
     return "review";
   }
   return "translation";
-}
-
-function mapSmartlingFetcherError(error: unknown): Error {
-  if (error instanceof SmartlingApiError) {
-    if (error.code === "smartling_auth_invalid" || error.status === 401) {
-      return new Error("smartling_auth_invalid");
-    }
-    if (error.code === "smartling_api_unavailable") {
-      return new Error("smartling_api_unavailable");
-    }
-  }
-  return error instanceof Error ? error : new Error("smartling_request_failed");
 }
