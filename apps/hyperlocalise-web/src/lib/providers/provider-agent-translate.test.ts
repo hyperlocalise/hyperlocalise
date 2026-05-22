@@ -108,7 +108,7 @@ describe("executeProviderAgentTranslation", () => {
       ok: true,
       proposedCount: 1,
       unitsProcessed: 2,
-      skippedApproved: 1,
+      skippedApprovedLocales: 1,
       pullRunId: "pull-run-1",
     });
 
@@ -132,7 +132,7 @@ describe("executeProviderAgentTranslation", () => {
       pullRunId: "pull-run-1",
       proposedCount: 1,
       unitsProcessed: 2,
-      skippedApproved: 1,
+      skippedApprovedLocales: 1,
     });
   });
 

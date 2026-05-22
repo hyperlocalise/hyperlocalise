@@ -2,7 +2,10 @@ import { getWorkflowMetadata } from "workflow";
 
 import type { ProviderAgentTranslationEventData } from "@/lib/workflow/types";
 
-import { executeProviderAgentTranslationStep } from "./steps/provider-agent-translation";
+import {
+  executeProviderAgentTranslationStep,
+  failProviderAgentTranslationStep,
+} from "./steps/provider-agent-translation";
 
 function formatExecutionError(error: unknown) {
   return error instanceof Error ? error.message : "provider agent translation failed";
@@ -21,11 +24,15 @@ export async function providerAgentTranslationWorkflow(event: ProviderAgentTrans
       workflowRunId,
     };
   } catch (error) {
-    return {
-      ok: false as const,
+    const failure = await failProviderAgentTranslationStep({
       agentRunId: event.agentRunId,
+      organizationId: event.organizationId,
       code: "provider_agent_translation_failed",
       message: formatExecutionError(error),
+    });
+
+    return {
+      ...failure,
       workflowRunId,
     };
   }

@@ -32,7 +32,7 @@ export type ProviderAgentTranslationResult =
       agentRunId: string;
       proposedCount: number;
       unitsProcessed: number;
-      skippedApproved: number;
+      skippedApprovedLocales: number;
       pullRunId: string;
     }
   | {
@@ -91,7 +91,7 @@ async function translateProviderUnits(input: {
   const changedItems: ProviderAgentTranslationChangedItem[] = [];
   const warnings: string[] = [];
   let unitsProcessed = 0;
-  let skippedApproved = 0;
+  let skippedApprovedLocales = 0;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -100,7 +100,7 @@ async function translateProviderUnits(input: {
       changedItems,
       warnings: [`Translation project ${input.projectId} was not found`],
       unitsProcessed: 0,
-      skippedApproved: 0,
+      skippedApprovedLocales: 0,
     };
   }
 
@@ -113,7 +113,7 @@ async function translateProviderUnits(input: {
     const targetLocales = input.content.targetLocales.filter((locale) => {
       const existing = existingTranslationForLocale(unit, locale);
       if (shouldSkipApprovedTranslation(existing)) {
-        skippedApproved += 1;
+        skippedApprovedLocales += 1;
         return false;
       }
       return true;
@@ -175,7 +175,7 @@ async function translateProviderUnits(input: {
     changedItems,
     warnings,
     unitsProcessed,
-    skippedApproved,
+    skippedApprovedLocales,
   };
 }
 
@@ -388,7 +388,7 @@ export async function executeProviderAgentTranslation(input: {
       unitsDiscovered: pullResult.counts.unitsDiscovered,
       unitsProcessed: translationResult.unitsProcessed,
       proposedCount: translationResult.changedItems.length,
-      skippedApproved: translationResult.skippedApproved,
+      skippedApprovedLocales: translationResult.skippedApprovedLocales,
       targetLocales: pullResult.content.targetLocales,
       sourceLocale: pullResult.content.sourceLocale ?? defaultSourceLocale,
     },
@@ -401,7 +401,7 @@ export async function executeProviderAgentTranslation(input: {
     agentRunId: input.agentRunId,
     proposedCount: translationResult.changedItems.length,
     unitsProcessed: translationResult.unitsProcessed,
-    skippedApproved: translationResult.skippedApproved,
+    skippedApprovedLocales: translationResult.skippedApprovedLocales,
     pullRunId: pullResult.runId,
   };
 }
