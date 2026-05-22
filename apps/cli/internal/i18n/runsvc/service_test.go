@@ -411,11 +411,11 @@ func TestRunFailsWhenSourceFileMissing(t *testing.T) {
 func TestRunFailsOnUnsupportedSourceFormat(t *testing.T) {
 	svc := newTestService()
 	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
-		cfg := testConfig("/tmp/source.yaml", "/tmp/out.json")
+		cfg := testConfig("/tmp/source.toml", "/tmp/out.json")
 		return &cfg, nil
 	}
 	svc.readFile = func(_ string) ([]byte, error) {
-		return []byte("hello: world"), nil
+		return []byte(`hello = "world"`), nil
 	}
 
 	_, err := svc.Run(context.Background(), Input{})

@@ -242,3 +242,140 @@ func TestMarshalTargetFileJSONC(t *testing.T) {
 		t.Fatalf("expected translated value in output: %s", content)
 	}
 }
+
+func TestMarshalTargetFileYAMLUsesTargetTemplate(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("# target comment\nhello: Salut\nhome:\n  title: Accueil ancien\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  title: Welcome\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, warnings, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":      "Bonjour",
+		"home.title": "Accueil",
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target file: %v", err)
+	}
+	if warnings != nil {
+		t.Fatalf("expected no warnings, got %#v", warnings)
+	}
+	text := string(content)
+	if !strings.Contains(text, "# target comment") {
+		t.Fatalf("expected target comment to be preserved: %s", text)
+	}
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "title: Accueil") {
+		t.Fatalf("expected translated values in output: %s", text)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackToSourceTemplate(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yml":
+			return []byte("count: 3\n"), nil
+		case "/tmp/source.yml":
+			return []byte("hello: Hello\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yml", "/tmp/source.yml", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target fallback: %v", err)
+	}
+	if !strings.Contains(string(content), "hello: Bonjour") {
+		t.Fatalf("expected source-template fallback content, got: %s", content)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackWhenTargetHasDuplicateKeys(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\nhello: Ancien\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{"hello": "Bonjour"}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml duplicate-key fallback: %v", err)
+	}
+	if got := strings.Count(string(content), "hello:"); got != 1 {
+		t.Fatalf("expected source-template fallback to remove duplicate key, got %d hello keys in: %s", got, content)
+	}
+	if !strings.Contains(string(content), "hello: Bonjour") {
+		t.Fatalf("expected translated source-template fallback content, got: %s", content)
+	}
+}
+
+func TestMarshalTargetFileYAMLFallsBackWhenTargetMissesNewSourceKey(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  subtitle: New\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":         "Bonjour",
+		"home.subtitle": "Nouveau",
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("marshal yaml target fallback for missing key: %v", err)
+	}
+	text := string(content)
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "subtitle: Nouveau") {
+		t.Fatalf("expected source-template fallback with translated values, got: %s", text)
+	}
+}
+
+func TestMarshalTargetFileYAMLPrunesStaleMappingKeys(t *testing.T) {
+	svc := newTestService()
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case "/tmp/target.yaml":
+			return []byte("hello: Salut\nold: Ancien\nhome:\n  title: Vieil accueil\n  old: Vieux\n"), nil
+		case "/tmp/source.yaml":
+			return []byte("hello: Hello\nhome:\n  title: Welcome\n"), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, _, err := svc.marshalTargetFile("/tmp/target.yaml", "/tmp/source.yaml", "en", "fr", map[string]string{
+		"hello":      "Bonjour",
+		"home.title": "Accueil",
+	}, nil, map[string]struct{}{
+		"hello":      {},
+		"home.title": {},
+	})
+	if err != nil {
+		t.Fatalf("marshal yaml target with prune: %v", err)
+	}
+	text := string(content)
+	if strings.Contains(text, "old:") {
+		t.Fatalf("expected stale yaml keys to be pruned, got: %s", text)
+	}
+	if !strings.Contains(text, "hello: Bonjour") || !strings.Contains(text, "title: Accueil") {
+		t.Fatalf("expected translated values in output: %s", text)
+	}
+}
