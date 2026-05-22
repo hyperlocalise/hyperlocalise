@@ -8,6 +8,7 @@ import {
 export type JobProviderActionId =
   | "translate_with_agent"
   | "review_with_agent"
+  | "run_qa_checks"
   | "fix_qa_issues"
   | "leave_provider_comment"
   | "push_approved_changes";
@@ -31,7 +32,13 @@ export const jobProviderActionDefinitions: JobProviderActionDefinition[] = [
     id: "review_with_agent",
     label: "Review with agent",
     agentRunKind: "review",
-    requiredCapabilities: ["jobs.read", "comments.read"],
+    requiredCapabilities: ["jobs.read", "qa.run", "keys.read"],
+  },
+  {
+    id: "run_qa_checks",
+    label: "Run QA checks",
+    agentRunKind: "review",
+    requiredCapabilities: ["jobs.read", "qa.run", "keys.read"],
   },
   {
     id: "fix_qa_issues",
