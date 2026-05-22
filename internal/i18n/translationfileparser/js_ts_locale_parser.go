@@ -333,10 +333,31 @@ func parseJSTSVariableObject(src string, start int) (next int, found bool, name 
 	}
 
 	i = skipJSTSWhitespaceAndComments(src, next)
-	for i < len(src) && src[i] != '=' && src[i] != ',' && src[i] != ';' {
+	for i < len(src) && src[i] != '=' {
 		if nextIgnored, ok := skipJSTSIgnoredToken(src, i); ok {
 			i = nextIgnored
 			continue
+		}
+		if src[i] == ',' || src[i] == ';' {
+			return i, false, "", jstsExportObject{}, nil
+		}
+		if src[i] == '{' {
+			if typeEnd, ok := findJSTSMatchingDelimiter(src, i, '{', '}'); ok {
+				i = typeEnd + 1
+				continue
+			}
+		}
+		if src[i] == '[' {
+			if typeEnd, ok := findJSTSMatchingDelimiter(src, i, '[', ']'); ok {
+				i = typeEnd + 1
+				continue
+			}
+		}
+		if src[i] == '(' {
+			if typeEnd, ok := findJSTSMatchingDelimiter(src, i, '(', ')'); ok {
+				i = typeEnd + 1
+				continue
+			}
 		}
 		if src[i] == '<' {
 			if typeEnd, ok := findJSTSMatchingDelimiter(src, i, '<', '>'); ok {

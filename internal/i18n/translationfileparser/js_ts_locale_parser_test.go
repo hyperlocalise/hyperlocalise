@@ -80,6 +80,14 @@ export default {
 
 export default messages;`,
 		},
+		{
+			name: "inline object type annotation with separators",
+			content: `const messages: { hello: string; cta: string } = {
+  hello: "Hello",
+};
+
+export default messages;`,
+		},
 	}
 
 	for _, tt := range tests {
