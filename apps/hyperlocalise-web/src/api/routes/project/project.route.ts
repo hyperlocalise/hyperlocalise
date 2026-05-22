@@ -14,11 +14,20 @@ import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetch
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
 import { pushCrowdinTranslations } from "@/lib/providers/crowdin/crowdin-translation-pusher";
 import {
+  syncExternalTmsFileKeys,
+  type ExternalTmsFileKeyFetcher,
+} from "@/lib/providers/external-tms-file-sync";
+import {
+  syncExternalTmsJobTasks,
+  type ExternalTmsJobTaskFetcher,
+} from "@/lib/providers/external-tms-job-sync";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
+import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
+import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
 } from "@/lib/providers/external-tms-content-sync";
-import { syncExternalTmsFileKeys } from "@/lib/providers/external-tms-file-sync";
-import { syncExternalTmsJobTasks } from "@/lib/providers/external-tms-job-sync";
 import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
@@ -286,6 +295,20 @@ async function inlineTextContent(input: {
     text: new TextDecoder("utf-8", { fatal: false }).decode(buffer),
   };
 }
+
+const fileKeyFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsFileKeyFetcher>
+> = {
+  crowdin: fetchCrowdinFileKeys,
+  smartling: fetchSmartlingFileKeys,
+};
+
+const jobTaskFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsJobTaskFetcher>
+> = {
+  crowdin: fetchCrowdinJobTasks,
+  smartling: fetchSmartlingJobTasks,
+};
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
@@ -790,15 +813,20 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      if (project.externalProviderKind !== "crowdin") {
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchFileKeys = fileKeyFetchersByProvider[project.externalProviderKind];
+      if (!fetchFileKeys) {
         return c.json({ error: "provider_sync_not_implemented" }, 501);
       }
 
       const result = await syncExternalTmsFileKeys({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectId: project.id,
-        providerKind: "crowdin",
-        fetchFileKeys: fetchCrowdinFileKeys,
+        providerKind: project.externalProviderKind,
+        fetchFileKeys,
       });
 
       return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
@@ -815,15 +843,20 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      if (project.externalProviderKind !== "crowdin") {
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchJobTasks = jobTaskFetchersByProvider[project.externalProviderKind];
+      if (!fetchJobTasks) {
         return c.json({ error: "provider_sync_not_implemented" }, 501);
       }
 
       const result = await syncExternalTmsJobTasks({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectId: project.id,
-        providerKind: "crowdin",
-        fetchJobTasks: fetchCrowdinJobTasks,
+        providerKind: project.externalProviderKind,
+        fetchJobTasks,
       });
 
       return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
