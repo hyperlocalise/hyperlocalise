@@ -340,6 +340,11 @@ func TestJSTSLocaleModuleParserRejectsUnsupportedPatterns(t *testing.T) {
 			want:    "unsupported value",
 		},
 		{
+			name:    "concatenated string value",
+			content: `export default { hello: "Hello" + " world" };`,
+			want:    "static string literal",
+		},
+		{
 			name:    "interpolated template literal",
 			content: "export default { hello: `Hello ${name}` };",
 			want:    "interpolated template literals",
