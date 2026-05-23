@@ -46,6 +46,7 @@ export async function providerAgentQaWorkflow(event: ProviderAgentQaEventData) {
       agentRunId: event.agentRunId,
       organizationId: event.organizationId,
       projectId: prepared.projectId,
+      providerKind: prepared.providerKind,
       pullRunId: prepared.pullRunId,
       content: prepared.content,
       pullFailures: prepared.pullFailures,

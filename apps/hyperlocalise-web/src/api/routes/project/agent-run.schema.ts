@@ -34,6 +34,27 @@ export const agentRunProposalWarningsSchema = z.object({
   confidence: z.boolean().optional(),
 });
 
+export const translationMemoryMatchSourceSchema = z.enum(["synced_database", "live_provider"]);
+
+export const agentRunTranslationMemoryMatchUsageSchema = z.object({
+  memoryId: z.string(),
+  memoryName: z.string(),
+  sourceText: z.string(),
+  targetText: z.string(),
+  targetLocale: z.string(),
+  matchScore: z.number().nullable(),
+  matchSource: translationMemoryMatchSourceSchema,
+  providerKind: z.enum(schema.externalTmsProviderKindEnum.enumValues).nullable(),
+  resourceId: z.string(),
+  externalResourceId: z.string().nullable(),
+});
+
+export const agentRunTranslationMemoryUsageEntrySchema = z.object({
+  externalStringId: z.string(),
+  key: z.string(),
+  matches: z.array(agentRunTranslationMemoryMatchUsageSchema),
+});
+
 export const agentRunProposalItemSchema = z.object({
   itemId: z.string(),
   externalStringId: z.string(),
@@ -45,6 +66,7 @@ export const agentRunProposalItemSchema = z.object({
   reviewState: agentRunProposalReviewStateSchema,
   changedFields: z.array(z.string()),
   warnings: agentRunProposalWarningsSchema,
+  translationMemoryMatchesUsed: z.array(agentRunTranslationMemoryMatchUsageSchema).optional(),
 });
 
 export const workspaceAgentRunParamsSchema = z.object({

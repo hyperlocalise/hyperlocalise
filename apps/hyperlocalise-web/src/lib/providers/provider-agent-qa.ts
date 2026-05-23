@@ -10,6 +10,7 @@ import {
   type ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {
@@ -133,6 +134,7 @@ export type PreparedProviderAgentQaRun =
   | {
       ok: true;
       projectId: string;
+      providerKind: ExternalTmsProviderKind;
       pullRunId: string;
       content: ExternalTmsTaskContent;
       pullFailures: ExternalTmsContentSyncFailure[];
@@ -262,6 +264,7 @@ export async function prepareProviderAgentQaRun(input: {
     return {
       ok: true,
       projectId,
+      providerKind: run.providerKind,
       pullRunId: pullResult.runId,
       content: pullResult.content,
       pullFailures: pullResult.failures,
@@ -289,6 +292,7 @@ export async function completeProviderAgentQaRun(input: {
   agentRunId: string;
   organizationId: string;
   projectId: string;
+  providerKind: ExternalTmsProviderKind;
   pullRunId: string;
   content: ExternalTmsTaskContent;
   pullFailures: ExternalTmsContentSyncFailure[];
@@ -296,6 +300,18 @@ export async function completeProviderAgentQaRun(input: {
   hlResult: RunHlCheckResult;
 }): Promise<ProviderAgentQaResult> {
   const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const translationMemoryUsage = await collectTranslationMemoryUsageForUnits({
+    projectId: input.projectId,
+    organizationId: input.organizationId,
+    providerKind: input.providerKind,
+    sourceLocale: input.content.sourceLocale ?? "en",
+    targetLocales: input.content.targetLocales,
+    units: input.content.units.map((unit) => ({
+      externalStringId: unit.externalStringId,
+      key: unit.key,
+      sourceText: unit.sourceText,
+    })),
+  });
   const report = await buildProviderJobQaReport(
     input.content,
     {
@@ -317,6 +333,7 @@ export async function completeProviderAgentQaRun(input: {
       summary: report.summary,
       targetLocales: input.content.targetLocales,
       sourceLocale: input.content.sourceLocale ?? null,
+      translationMemoryUsage,
     },
     changedItems: [],
     warnings: input.pullFailures.map((failure) => failure.message),
@@ -353,10 +370,25 @@ export async function executeProviderAgentQa(input: {
     targetLocales: prepared.content.targetLocales,
   });
 
+  const run = await getAgentRun({
+    runId: input.agentRunId,
+    organizationId: input.organizationId,
+  });
+
+  if (!run) {
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: "agent_run_not_found",
+      message: "Agent run not found",
+    };
+  }
+
   return completeProviderAgentQaRun({
     agentRunId: input.agentRunId,
     organizationId: input.organizationId,
     projectId: prepared.projectId,
+    providerKind: run.providerKind,
     pullRunId: prepared.pullRunId,
     content: prepared.content,
     pullFailures: prepared.pullFailures,

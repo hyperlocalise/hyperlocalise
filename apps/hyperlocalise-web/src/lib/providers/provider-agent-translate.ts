@@ -21,7 +21,9 @@ import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
 } from "@/lib/translation/assemble-translation-context";
+import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/translation/translation-memory-match";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
 export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
@@ -91,6 +93,7 @@ function buildJobInputForUnit(input: {
 }
 
 async function translateProviderUnits(input: {
+  organizationId: string;
   projectId: string;
   providerKind: string;
   content: ExternalTmsTaskContent;
@@ -101,6 +104,11 @@ async function translateProviderUnits(input: {
   const sourceLocale = input.content.sourceLocale ?? defaultSourceLocale;
   const changedItems: ProviderAgentTranslationChangedItem[] = [];
   const warnings: string[] = [];
+  const translationMemoryUsageByUnit: Array<{
+    externalStringId: string;
+    key: string;
+    matches: AgentRunTranslationMemoryMatchUsage[];
+  }> = [];
   let unitsProcessed = 0;
   let skippedApprovedLocales = 0;
 
@@ -112,6 +120,7 @@ async function translateProviderUnits(input: {
       warnings: [`Translation project ${input.projectId} was not found`],
       unitsProcessed: 0,
       skippedApprovedLocales: 0,
+      translationMemoryUsageByUnit: [],
     };
   }
 
@@ -145,10 +154,33 @@ async function translateProviderUnits(input: {
       input.projectId,
       jobInput,
       project,
+      {
+        organizationId: input.organizationId,
+        providerKind: input.providerKind as ExternalTmsProviderKind,
+      },
     );
     if (!contextSnapshot.ok) {
       warnings.push(`Skipped ${unit.key}: ${contextSnapshot.message}`);
       continue;
+    }
+
+    if (contextSnapshot.snapshot.translationMemoryMatches.length > 0) {
+      translationMemoryUsageByUnit.push({
+        externalStringId: unit.externalStringId,
+        key: unit.key,
+        matches: contextSnapshot.snapshot.translationMemoryMatches.map((match) => ({
+          memoryId: match.memoryId,
+          memoryName: match.memoryName,
+          sourceText: match.sourceText,
+          targetText: match.targetText,
+          targetLocale: match.targetLocale,
+          matchScore: match.matchScore,
+          matchSource: match.matchSource,
+          providerKind: match.providerKind,
+          resourceId: match.resourceId,
+          externalResourceId: match.externalResourceId,
+        })),
+      });
     }
 
     try {
@@ -184,6 +216,21 @@ async function translateProviderUnits(input: {
             })),
         });
 
+        const localeMatches = contextSnapshot.snapshot.translationMemoryMatches
+          .filter((match) => match.targetLocale === translation.locale)
+          .map((match) => ({
+            memoryId: match.memoryId,
+            memoryName: match.memoryName,
+            sourceText: match.sourceText,
+            targetText: match.targetText,
+            targetLocale: match.targetLocale,
+            matchScore: match.matchScore,
+            matchSource: match.matchSource,
+            providerKind: match.providerKind,
+            resourceId: match.resourceId,
+            externalResourceId: match.externalResourceId,
+          }));
+
         changedItems.push(
           serializeAgentRunProposalItem({
             itemId: buildAgentRunProposalItemId({
@@ -199,6 +246,7 @@ async function translateProviderUnits(input: {
             reviewState: "pending",
             changedFields: deriveChangedFields(from, translation.text),
             warnings: proposalWarnings,
+            translationMemoryMatchesUsed: localeMatches.length > 0 ? localeMatches : undefined,
           }),
         );
       }
@@ -213,6 +261,7 @@ async function translateProviderUnits(input: {
     warnings,
     unitsProcessed,
     skippedApprovedLocales,
+    translationMemoryUsageByUnit,
   };
 }
 
@@ -398,6 +447,7 @@ export async function executeProviderAgentTranslation(input: {
   }
 
   const translationResult = await translateProviderUnits({
+    organizationId: input.organizationId,
     projectId,
     providerKind: run.providerKind,
     content: pullResult.content,
@@ -441,6 +491,7 @@ export async function executeProviderAgentTranslation(input: {
       skippedApprovedLocales: translationResult.skippedApprovedLocales,
       targetLocales: pullResult.content.targetLocales,
       sourceLocale: pullResult.content.sourceLocale ?? defaultSourceLocale,
+      translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
     },
     changedItems: translationResult.changedItems,
     warnings: translationResult.warnings,

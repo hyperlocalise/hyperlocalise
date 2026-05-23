@@ -3,6 +3,7 @@ import {
   translationUnitHasGlossaryViolations,
   validateGlossaryForTranslationUnits,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/translation/translation-memory-match";
 
 export type AgentRunProposalReviewState = "pending" | "accepted" | "rejected";
 
@@ -21,6 +22,7 @@ export type AgentRunProposalItem = {
   reviewState: AgentRunProposalReviewState;
   changedFields: string[];
   warnings: AgentRunProposalWarnings;
+  translationMemoryMatchesUsed?: AgentRunTranslationMemoryMatchUsage[];
 };
 
 type AgentRunProposalGlossaryTermInput = {
@@ -240,6 +242,16 @@ export function enrichAgentRunProposalItem(
     ? raw.changedFields.filter((field): field is string => typeof field === "string")
     : deriveChangedFields(from, to);
 
+  const translationMemoryMatchesUsed = Array.isArray(raw.translationMemoryMatchesUsed)
+    ? raw.translationMemoryMatchesUsed.filter(
+        (match): match is AgentRunTranslationMemoryMatchUsage =>
+          typeof match === "object" &&
+          match !== null &&
+          typeof (match as AgentRunTranslationMemoryMatchUsage).memoryId === "string" &&
+          typeof (match as AgentRunTranslationMemoryMatchUsage).targetLocale === "string",
+      )
+    : undefined;
+
   const warnings =
     raw.warnings && typeof raw.warnings === "object" && !Array.isArray(raw.warnings)
       ? (raw.warnings as AgentRunProposalWarnings)
@@ -271,6 +283,7 @@ export function enrichAgentRunProposalItem(
     reviewState,
     changedFields: changedFields.length > 0 ? changedFields : deriveChangedFields(from, to),
     warnings,
+    translationMemoryMatchesUsed,
   };
 }
 
@@ -324,6 +337,9 @@ export function serializeAgentRunProposalItem(item: AgentRunProposalItem) {
     reviewState: item.reviewState,
     changedFields: item.changedFields,
     warnings: item.warnings,
+    ...(item.translationMemoryMatchesUsed?.length
+      ? { translationMemoryMatchesUsed: item.translationMemoryMatchesUsed }
+      : {}),
   };
 }
 
