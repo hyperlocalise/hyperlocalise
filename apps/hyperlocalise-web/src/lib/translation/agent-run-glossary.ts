@@ -87,9 +87,5 @@ export function formatGlossaryTermStatusLabel(match: AgentRunGlossaryMatchUsage)
     return "Forbidden";
   }
 
-  if (match.preferred) {
-    return "Preferred";
-  }
-
-  return "Term";
+  return "Preferred";
 }

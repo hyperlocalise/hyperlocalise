@@ -196,7 +196,7 @@ export function mergeGlossaryMatches(
   const byKey = new Map<string, NormalizedGlossaryMatch>();
 
   for (const match of matches) {
-    const key = `${match.glossaryId}:${match.targetLocale}:${match.sourceTerm}:${match.targetTerm}`;
+    const key = `${match.glossaryId}\x00${match.targetLocale}\x00${match.sourceTerm}\x00${match.targetTerm}`;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, match);

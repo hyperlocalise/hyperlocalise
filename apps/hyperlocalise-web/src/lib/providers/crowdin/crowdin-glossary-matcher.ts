@@ -1,7 +1,19 @@
+import { createHash } from "node:crypto";
+
 import type { ExternalTmsGlossaryMatcher } from "@/lib/providers/provider-glossary-matchers";
 import { normalizeProviderGlossaryMatch } from "@/lib/translation/glossary-match";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+
+function stableConcordanceTermId(
+  glossaryId: string,
+  sourceTerm: string,
+  targetLocale: string,
+): string {
+  return createHash("sha256")
+    .update(`${glossaryId}\0${sourceTerm}\0${targetLocale}`, "utf8")
+    .digest("hex");
+}
 
 function pickTermText(
   terms: Array<{ languageId: string; text: string }>,
@@ -77,6 +89,12 @@ export const searchCrowdinGlossaryMatches: ExternalTmsGlossaryMatcher = async ({
       pickTermStatus(result.targetTerms, targetLocale) ??
       pickTermStatus(result.sourceTerms, sourceLocale);
 
+    const providerTermId = result.sourceTerms[0]?.id ?? result.targetTerms[0]?.id;
+    const externalTermId =
+      providerTermId != null
+        ? String(providerTermId)
+        : stableConcordanceTermId(glossary.id, sourceTerm, targetLocale);
+
     liveMatches.push(
       normalizeProviderGlossaryMatch({
         sourceTerm,
@@ -86,7 +104,7 @@ export const searchCrowdinGlossaryMatches: ExternalTmsGlossaryMatcher = async ({
         providerKind: "crowdin",
         resourceId: glossary.id,
         externalResourceId: String(result.glossary.id),
-        externalTermId: String(result.sourceTerms[0]?.id ?? result.targetTerms[0]?.id ?? index),
+        externalTermId,
         glossaryName: glossary.name,
         rank: 1 - index * 0.01,
         status: { status },
