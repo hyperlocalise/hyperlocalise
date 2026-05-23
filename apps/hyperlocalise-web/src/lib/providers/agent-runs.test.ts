@@ -312,10 +312,7 @@ describe("agent runs", () => {
     const updated = await updateAgentRunChangedItems({
       runId: created.id,
       organizationId: project.organizationId,
-      changedItems: (run) => [
-        ...run.changedItems,
-        { itemId: "b", reviewState: "rejected" },
-      ],
+      changedItems: (run) => [...run.changedItems, { itemId: "b", reviewState: "rejected" }],
     });
 
     expect(updated.changedItems).toEqual([

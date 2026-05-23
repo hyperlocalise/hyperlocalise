@@ -281,7 +281,9 @@ export async function updateAgentRunChangedItems(input: {
     }
 
     const changedItems =
-      typeof input.changedItems === "function" ? input.changedItems(currentRun) : input.changedItems;
+      typeof input.changedItems === "function"
+        ? input.changedItems(currentRun)
+        : input.changedItems;
     const now = new Date();
     const [run] = await tx
       .update(schema.agentRuns)
