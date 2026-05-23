@@ -11,8 +11,7 @@ export function resolvePhraseTmsBaseUrl(input: { baseUrl?: string | null }): str
   try {
     const parsed = new URL(normalized);
     const hostname = parsed.hostname.toLowerCase();
-    const isMemsourceHost =
-      hostname === "memsource.com" || hostname.endsWith(".memsource.com");
+    const isMemsourceHost = hostname === "memsource.com" || hostname.endsWith(".memsource.com");
 
     if (isMemsourceHost) {
       return normalized;
