@@ -78,7 +78,9 @@ export function matchesLokaliseGlossaryTerm(
     return true;
   }
 
-  return sourceText.trim() === term.term.trim();
+  const trimmedTerm = term.term.trim();
+  const trimmedSource = sourceText.trim();
+  return trimmedSource === trimmedTerm || trimmedSource.includes(trimmedTerm);
 }
 
 export function pickLokaliseGlossaryTranslation(

@@ -30,6 +30,16 @@ describe("matchesLokaliseGlossaryTerm", () => {
     expect(matchesLokaliseGlossaryTerm("checkout", term)).toBe(false);
     expect(matchesLokaliseGlossaryTerm("Checkout", term)).toBe(true);
   });
+
+  it("matches case-sensitive terms embedded in longer source text", () => {
+    const term: Pick<LokaliseGlossaryTerm, "term" | "caseSensitive"> = {
+      term: "iOS",
+      caseSensitive: true,
+    };
+
+    expect(matchesLokaliseGlossaryTerm("Update iOS settings", term)).toBe(true);
+    expect(matchesLokaliseGlossaryTerm("Update ios settings", term)).toBe(false);
+  });
 });
 
 describe("pickLokaliseGlossaryTranslation", () => {

@@ -5,7 +5,7 @@ import {
   buildLokaliseProjectTranslationMemoryExternalId,
   buildLokaliseTranslationMemorySegmentCandidates,
 } from "./normalize-lokalise-context-matches";
-import { LokaliseApiClient, LokaliseApiError } from "./lokalise-api";
+import { LokaliseApiClient, LokaliseApiError, LOKALISE_TM_SYNC_MAX_KEYS } from "./lokalise-api";
 
 export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemoryMatcher = async ({
   credential,
@@ -32,9 +32,9 @@ export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemor
     baseUrl: credential.baseUrl,
   });
 
-  let keys;
+  let allKeys;
   try {
-    keys = await client.listKeys(projectId, { includeTranslations: true });
+    allKeys = await client.listKeys(projectId, { includeTranslations: true });
   } catch (error) {
     if (error instanceof LokaliseApiError && error.status === 401) {
       throw new Error("lokalise_auth_invalid");
@@ -42,6 +42,7 @@ export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemor
     throw error;
   }
 
+  const keys = allKeys.slice(0, LOKALISE_TM_SYNC_MAX_KEYS);
   const candidates = buildLokaliseTranslationMemorySegmentCandidates(keys, {
     sourceLocale,
     targetLocale,
