@@ -9,6 +9,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
 import { upsertExternalTmsFile } from "@/lib/providers/organization-external-tms-files";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
@@ -933,11 +934,15 @@ describe("projectRoutes", () => {
       olderVersion.id,
     ]);
     expect(body.file.versions[0]).toMatchObject({
+      origin: "repository",
       sourceHash: "sha256:newer",
+      revision: null,
       commitSha: "2222222222",
       workflowRunId: "run_newer",
       content: { text: '{"hello":"Hello world"}' },
     });
+    expect(body.file.provider).toBeNull();
+    expect(body.file.providerJobsByLocale).toEqual([]);
     expect(body.file.jobsByLocale).toEqual([
       {
         locale: "fr",
@@ -957,6 +962,131 @@ describe("projectRoutes", () => {
                 content: { text: '{"hello":"Bonjour le monde"}' },
               }),
             ],
+          }),
+        ],
+      },
+    ]);
+  });
+
+  it("returns provider-backed file detail with versions and linked provider jobs", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+    const sourcePath = "locales/en/home.json";
+
+    const olderSource = await createStoredFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      role: "source",
+      sourceKind: "tms_file",
+      filename: "home.json",
+      contentType: "application/json",
+      content: Buffer.from('{"title":"Hello"}'),
+      metadata: {},
+      adapter: fileStorageAdapter,
+    });
+    const newerSource = await createStoredFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      role: "source",
+      sourceKind: "tms_file",
+      filename: "home.json",
+      contentType: "application/json",
+      content: Buffer.from('{"title":"Hello world"}'),
+      metadata: {},
+      adapter: fileStorageAdapter,
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath,
+      displayName: "home.json",
+      format: "json",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceHash: "rev:one",
+      revision: "one",
+      storedFileId: olderSource.id,
+      syncState: "synced",
+      localeReadiness: { fr: "ready" },
+      providerPayload: { id: "file-1" },
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath,
+      displayName: "home.json",
+      format: "json",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceHash: "rev:two",
+      revision: "two",
+      storedFileId: newerSource.id,
+      syncState: "synced",
+      localeReadiness: { fr: "ready" },
+      providerPayload: { id: "file-1" },
+    });
+
+    const externalJob = await upsertExternalJob({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalJobId: "phrase-job-1",
+      externalStatus: "in_progress",
+      title: "Homepage copy",
+      targetLocales: ["fr"],
+      providerPayload: { fileIds: ["file-1"] },
+    });
+
+    const response = await fileDetailClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { sourcePath },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileDetailResponse;
+    expect(body.file.provider).toMatchObject({
+      kind: "phrase",
+      externalResourceId: "file-1",
+      revision: "two",
+    });
+    expect(body.file.versions).toHaveLength(3);
+    expect(body.file.versions[0]).toMatchObject({
+      origin: "provider",
+      revision: "two",
+      content: { text: '{"title":"Hello world"}' },
+    });
+    expect(body.file.versions[1]).toMatchObject({
+      origin: "provider",
+      revision: "one",
+      content: { text: '{"title":"Hello"}' },
+    });
+    expect(body.file.providerJobsByLocale).toEqual([
+      {
+        locale: "fr",
+        jobs: [
+          expect.objectContaining({
+            id: externalJob.id,
+            externalJobId: "phrase-job-1",
+            title: "Homepage copy",
           }),
         ],
       },

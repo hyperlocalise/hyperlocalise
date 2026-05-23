@@ -43,6 +43,7 @@ import { TypographyH3, TypographyP } from "@/components/ui/typography";
 import type {
   ProjectFileDetailResponse,
   ProjectFileJobRecord,
+  ProjectFileProviderJobRecord,
   ProjectFileRecord,
   ProjectFileVersionRecord,
 } from "@/api/routes/project/project.schema";
@@ -141,7 +142,9 @@ function shortSha(value: string | null) {
 
 function versionLabel(version: ProjectFileVersionRecord, index: number, total: number) {
   const date = new Date(version.uploadedAt).toLocaleString();
-  return `v${total - index} · ${date} · ${shortSha(version.sourceHash)}`;
+  const originLabel = version.origin === "provider" ? "provider" : "repo";
+  const revisionLabel = version.revision ? ` · rev ${version.revision}` : "";
+  return `${originLabel} v${total - index} · ${date}${revisionLabel} · ${shortSha(version.sourceHash)}`;
 }
 
 function toDiffFile(version: ProjectFileVersionRecord): FileContents | null {
@@ -223,6 +226,96 @@ function VersionDiff({
           themeType: "system",
         }}
       />
+    </div>
+  );
+}
+
+function LocaleReadinessTable({ localeReadiness }: { localeReadiness: Record<string, unknown> }) {
+  const entries = Object.entries(localeReadiness);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-md border border-foreground/8">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-foreground/4 text-foreground/42">
+          <tr>
+            <th className="px-3 py-2 font-medium">Locale</th>
+            <th className="px-3 py-2 font-medium">Readiness</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map(([locale, value]) => (
+            <tr key={locale} className="border-t border-foreground/8">
+              <td className="px-3 py-2 font-mono text-foreground/72">{locale}</td>
+              <td className="px-3 py-2 text-foreground/72">{String(value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ProviderJobGroup({
+  organizationSlug,
+  locale,
+  jobs,
+}: {
+  organizationSlug: string;
+  locale: string;
+  jobs: ProjectFileProviderJobRecord[];
+}) {
+  return (
+    <div className="rounded-md border border-foreground/8 bg-background/40 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <TypographyP className="font-medium text-foreground">{locale}</TypographyP>
+        <TypographyP className="text-xs text-foreground/42">
+          {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
+        </TypographyP>
+      </div>
+
+      <div className="mt-3 flex flex-col gap-3">
+        {jobs.map((job) => (
+          <div
+            key={job.id}
+            className="border-t border-foreground/8 pt-3 first:border-t-0 first:pt-0"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <ProviderKindBadge kind={job.providerKind} />
+              <Badge variant="outline" className="rounded-full">
+                {job.externalStatus}
+              </Badge>
+              <SyncStateBadge syncState={job.syncState} />
+            </div>
+            <TypographyP className="mt-1 text-sm font-medium text-foreground">
+              {job.title}
+            </TypographyP>
+            <TypographyP className="mt-1 font-mono text-xs text-foreground/52">
+              {job.id}
+            </TypographyP>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="xs"
+                render={<Link href={`/org/${organizationSlug}/jobs/${job.id}`} />}
+              >
+                View job
+              </Button>
+              {job.externalUrl ? (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  render={<a href={job.externalUrl} target="_blank" />}
+                >
+                  Open in provider
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -458,7 +551,7 @@ export function ProjectFilesPageContent({
   const compareVersion =
     versions.find((version) => version.id === compareVersionId) ?? selectedVersion ?? versions[0];
   const selectedVersionJobs = useMemo(() => {
-    if (!fileDetail || !selectedVersion) {
+    if (!fileDetail || !selectedVersion || selectedVersion.origin === "provider") {
       return [];
     }
 
@@ -469,6 +562,8 @@ export function ProjectFilesPageContent({
       }))
       .filter((group) => group.jobs.length > 0);
   }, [fileDetail, selectedVersion]);
+
+  const providerJobsByLocale = fileDetail?.providerJobsByLocale ?? [];
 
   useEffect(() => {
     if (versions.length === 0) {
@@ -573,7 +668,7 @@ export function ProjectFilesPageContent({
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_24rem]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_min(32rem,42vw)]">
         <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
           {filesQuery.isLoading ? (
             <TypographyP className="text-sm text-foreground/52">Loading files…</TypographyP>
@@ -670,10 +765,22 @@ export function ProjectFilesPageContent({
                           : null
                       }
                     />
-                    <DetailRow
-                      label="Locale readiness"
-                      value={summarizeLocaleReadiness(selectedFile.provider.localeReadiness)}
-                    />
+                    <div>
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Locale readiness
+                      </TypographyP>
+                      <div className="mt-2">
+                        <LocaleReadinessTable
+                          localeReadiness={selectedFile.provider.localeReadiness}
+                        />
+                        {Object.keys(selectedFile.provider.localeReadiness).length === 0 ? (
+                          <TypographyP className="text-sm text-foreground/52">
+                            {summarizeLocaleReadiness(selectedFile.provider.localeReadiness) ??
+                              "No locale readiness data yet."}
+                          </TypographyP>
+                        ) : null}
+                      </div>
+                    </div>
                     {selectedFile.provider.externalUrl ? (
                       <Button
                         variant="outline"
@@ -736,7 +843,7 @@ export function ProjectFilesPageContent({
                     Failed to load file detail.
                   </TypographyP>
                 </div>
-              ) : fileDetail && selectedVersion ? (
+              ) : fileDetail && versions.length > 0 && selectedVersion ? (
                 <div className="flex flex-col gap-5 border-t border-foreground/8 pt-4">
                   <div className="flex flex-col gap-2">
                     <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
@@ -757,11 +864,22 @@ export function ProjectFilesPageContent({
 
                   <div className="grid gap-3">
                     <DetailRow label="Version ID" value={selectedVersion.id} />
-                    <DetailRow label="Source hash" value={selectedVersion.sourceHash} />
-                    <DetailRow label="Commit" value={selectedVersion.commitSha} />
-                    <DetailRow label="Workflow run" value={selectedVersion.workflowRunId} />
                     <DetailRow
-                      label="Uploaded"
+                      label="Origin"
+                      value={selectedVersion.origin === "provider" ? "Provider" : "Repository"}
+                    />
+                    <DetailRow label="Source hash" value={selectedVersion.sourceHash} />
+                    {selectedVersion.revision ? (
+                      <DetailRow label="Revision" value={selectedVersion.revision} />
+                    ) : null}
+                    {selectedVersion.origin === "repository" ? (
+                      <>
+                        <DetailRow label="Commit" value={selectedVersion.commitSha} />
+                        <DetailRow label="Workflow run" value={selectedVersion.workflowRunId} />
+                      </>
+                    ) : null}
+                    <DetailRow
+                      label="Captured"
                       value={new Date(selectedVersion.uploadedAt).toLocaleString()}
                     />
                   </div>
@@ -773,51 +891,93 @@ export function ProjectFilesPageContent({
                     <SourceViewer version={selectedVersion} />
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Diff
-                    </TypographyP>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <select
-                        value={baseVersion?.id ?? ""}
-                        onChange={(event) => setBaseVersionId(event.target.value)}
-                        className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
-                      >
-                        {versions.map((version, index) => (
-                          <option key={version.id} value={version.id}>
-                            Base {versionLabel(version, index, versions.length)}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={compareVersion?.id ?? ""}
-                        onChange={(event) => setCompareVersionId(event.target.value)}
-                        className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
-                      >
-                        {versions.map((version, index) => (
-                          <option key={version.id} value={version.id}>
-                            Compare {versionLabel(version, index, versions.length)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <VersionDiff before={baseVersion} after={compareVersion} />
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Translation jobs
-                    </TypographyP>
-                    {selectedVersionJobs.length > 0 ? (
-                      selectedVersionJobs.map((group) => (
-                        <JobGroup key={group.locale} locale={group.locale} jobs={group.jobs} />
-                      ))
-                    ) : (
-                      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
-                        No translation jobs for this source version yet.
+                  {versions.length > 1 ? (
+                    <div className="flex flex-col gap-3">
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Diff
                       </TypographyP>
-                    )}
-                  </div>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <select
+                          value={baseVersion?.id ?? ""}
+                          onChange={(event) => setBaseVersionId(event.target.value)}
+                          className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
+                        >
+                          {versions.map((version, index) => (
+                            <option key={version.id} value={version.id}>
+                              Base {versionLabel(version, index, versions.length)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={compareVersion?.id ?? ""}
+                          onChange={(event) => setCompareVersionId(event.target.value)}
+                          className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
+                        >
+                          {versions.map((version, index) => (
+                            <option key={version.id} value={version.id}>
+                              Compare {versionLabel(version, index, versions.length)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <VersionDiff before={baseVersion} after={compareVersion} />
+                    </div>
+                  ) : null}
+
+                  {selectedVersion.origin === "repository" ? (
+                    <div className="flex flex-col gap-3">
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Translation jobs
+                      </TypographyP>
+                      {selectedVersionJobs.length > 0 ? (
+                        selectedVersionJobs.map((group) => (
+                          <JobGroup key={group.locale} locale={group.locale} jobs={group.jobs} />
+                        ))
+                      ) : (
+                        <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
+                          No translation jobs for this source version yet.
+                        </TypographyP>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {providerJobsByLocale.length > 0 ? (
+                    <div className="flex flex-col gap-3">
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Provider jobs
+                      </TypographyP>
+                      {providerJobsByLocale.map((group) => (
+                        <ProviderJobGroup
+                          key={group.locale}
+                          organizationSlug={organizationSlug}
+                          locale={group.locale}
+                          jobs={group.jobs}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : fileDetail ? (
+                <div className="border-t border-foreground/8 pt-4">
+                  <TypographyP className="text-xs text-foreground/42">
+                    No stored source versions yet. Sync provider content or upload a repository file
+                    to enable preview and diff.
+                  </TypographyP>
+                  {providerJobsByLocale.length > 0 ? (
+                    <div className="mt-4 flex flex-col gap-3">
+                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                        Provider jobs
+                      </TypographyP>
+                      {providerJobsByLocale.map((group) => (
+                        <ProviderJobGroup
+                          key={group.locale}
+                          organizationSlug={organizationSlug}
+                          locale={group.locale}
+                          jobs={group.jobs}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="border-t border-foreground/8 pt-4">

@@ -3,6 +3,7 @@ import { and, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 
+import { snapshotExternalTmsFileVersion } from "./organization-external-tms-file-versions";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
 const defaultExternalTmsFilesLimit = 500;
@@ -49,9 +50,60 @@ function normalizeLimit(limit?: number) {
   return Math.min(Math.max(limit ?? defaultExternalTmsFilesLimit, 1), maxExternalTmsFilesLimit);
 }
 
+function providerRevisionChanged(
+  existing: { revision: string | null; sourceHash: string | null },
+  incoming: { revision?: string | null; sourceHash?: string | null },
+) {
+  const nextRevision = incoming.revision ?? null;
+  const nextSourceHash = incoming.sourceHash ?? null;
+
+  if (existing.revision !== nextRevision) {
+    return true;
+  }
+
+  if (existing.sourceHash !== nextSourceHash) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
   const now = new Date();
   const sourcePath = normalizeSourcePath(input.sourcePath);
+
+  const [existing] = await db
+    .select()
+    .from(schema.externalTmsFiles)
+    .where(
+      and(
+        eq(schema.externalTmsFiles.organizationId, input.organizationId),
+        eq(schema.externalTmsFiles.providerKind, input.providerKind),
+        eq(schema.externalTmsFiles.externalProjectId, input.externalProjectId),
+        eq(schema.externalTmsFiles.resourceType, input.resourceType),
+        eq(schema.externalTmsFiles.externalResourceId, input.externalResourceId),
+      ),
+    )
+    .limit(1);
+
+  if (
+    existing &&
+    providerRevisionChanged(existing, input) &&
+    (existing.revision || existing.sourceHash || existing.storedFileId)
+  ) {
+    await snapshotExternalTmsFileVersion({
+      organizationId: existing.organizationId,
+      projectId: existing.projectId,
+      externalTmsFileId: existing.id,
+      sourcePath: existing.sourcePath,
+      revision: existing.revision,
+      sourceHash: existing.sourceHash,
+      storedFileId: existing.storedFileId,
+      format: existing.format,
+      capturedAt: existing.lastSyncedAt ?? existing.updatedAt,
+    });
+  }
+
   const [file] = await db
     .insert(schema.externalTmsFiles)
     .values({
