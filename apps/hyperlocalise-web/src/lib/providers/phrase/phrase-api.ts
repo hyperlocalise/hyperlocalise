@@ -208,6 +208,56 @@ export class PhraseApiClient {
     });
   }
 
+  async createKey(
+    projectId: string,
+    input: {
+      name: string;
+      description?: string | null;
+      tags?: string[];
+      branch?: string | null;
+    },
+  ): Promise<PhraseKey> {
+    const payload: Record<string, unknown> = {
+      name: input.name,
+      description: input.description ?? null,
+      tags: input.tags ?? [],
+    };
+
+    const record = await this.post<PhraseKeyApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/keys`,
+      payload,
+      { branch: input.branch },
+    );
+
+    return normalizePhraseKey(record);
+  }
+
+  async upsertTranslation(
+    projectId: string,
+    input: {
+      keyId: string;
+      localeName: string;
+      content: string;
+      branch?: string | null;
+      unverified?: boolean;
+    },
+  ): Promise<PhraseTranslation> {
+    const payload: Record<string, unknown> = {
+      key_id: input.keyId,
+      locale_name: input.localeName,
+      content: input.content,
+      unverified: input.unverified ?? false,
+    };
+
+    const record = await this.post<PhraseTranslationApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/translations`,
+      payload,
+      { branch: input.branch },
+    );
+
+    return normalizePhraseTranslation(record);
+  }
+
   buildLocaleDownloadMetadata(input: {
     projectId: string;
     locale: PhraseLocale;
@@ -283,6 +333,21 @@ export class PhraseApiClient {
     return this.request<T>(path, {
       method: "GET",
       headers: this.authHeaders(),
+    });
+  }
+
+  private async post<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    query: Record<string, string | null | undefined> = {},
+  ): Promise<T> {
+    return this.request<T>(this.buildPath(path, query), {
+      method: "POST",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
   }
 

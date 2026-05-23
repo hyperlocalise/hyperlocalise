@@ -1,5 +1,6 @@
 import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/external-tms-job-sync";
 
+import { buildPhraseExternalJobId } from "./phrase-job-context";
 import {
   mapPhraseTmsFetcherError,
   PhraseTmsApiClient,
@@ -48,8 +49,7 @@ export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
       });
 
       const targetLocale = jobPart.targetLang;
-      const taskSuffix = normalizeTaskLocaleSuffix(targetLocale);
-      const externalJobId = `${jobPart.innerId}-task-${taskSuffix}`;
+      const externalJobId = buildPhraseExternalJobId(jobPart.innerId, targetLocale);
       const assignedUsers = [jobPart.owner?.userName?.trim(), jobPart.owner?.email?.trim()].filter(
         (value): value is string => Boolean(value),
       );
@@ -152,15 +152,6 @@ function buildPhraseJobTitle(jobPart: PhraseTmsJobPart) {
   }
 
   return `${filename} (${jobPart.targetLang})`;
-}
-
-function normalizeTaskLocaleSuffix(targetLang: string) {
-  const normalized = targetLang.trim().toLowerCase();
-  if (!normalized) {
-    return "unknown";
-  }
-
-  return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 function buildPhraseTmsJobUrl(baseUrl: string, projectUid: string, jobUid: string) {
