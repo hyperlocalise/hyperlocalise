@@ -9,10 +9,8 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
-import { pullCrowdinTaskContent } from "@/lib/providers/crowdin/crowdin-content-puller";
 import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
-import { pushCrowdinTranslations } from "@/lib/providers/crowdin/crowdin-translation-pusher";
 import {
   syncExternalTmsFileKeys,
   type ExternalTmsFileKeyFetcher,
@@ -22,6 +20,8 @@ import {
   type ExternalTmsJobTaskFetcher,
 } from "@/lib/providers/external-tms-job-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
 import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
@@ -723,16 +723,21 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        if (project.externalProviderKind !== "crowdin") {
+        if (!project.externalProviderKind) {
+          return c.json({ error: "provider_sync_not_implemented" }, 501);
+        }
+
+        const pullContent = getProviderContentPuller(project.externalProviderKind);
+        if (!pullContent) {
           return c.json({ error: "provider_sync_not_implemented" }, 501);
         }
 
         const result = await pullExternalTmsTaskContent({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
-          providerKind: "crowdin",
+          providerKind: project.externalProviderKind,
           externalJobId: payload.externalJobId,
-          pullContent: pullCrowdinTaskContent,
+          pullContent,
         });
 
         return c.json({ externalTmsContentPull: result }, result.status === "failed" ? 207 : 200);
@@ -755,17 +760,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        if (project.externalProviderKind !== "crowdin") {
+        if (!project.externalProviderKind) {
+          return c.json({ error: "provider_sync_not_implemented" }, 501);
+        }
+
+        const pushTranslations = getProviderTranslationPusher(project.externalProviderKind);
+        if (!pushTranslations) {
           return c.json({ error: "provider_sync_not_implemented" }, 501);
         }
 
         const result = await pushExternalTmsTranslations({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: project.id,
-          providerKind: "crowdin",
+          providerKind: project.externalProviderKind,
           externalJobId: payload.externalJobId,
           translations: payload.translations,
-          pushTranslations: pushCrowdinTranslations,
+          pushTranslations,
         });
 
         return c.json(

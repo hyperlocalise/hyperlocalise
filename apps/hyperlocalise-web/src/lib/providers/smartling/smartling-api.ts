@@ -2,7 +2,7 @@
  * Smartling API client for authentication and project discovery.
  *
  * This module intentionally implements only the endpoints required for
- * credential validation and the TMS connector project-scan flow.
+ * credential validation, TMS connector scans, and job-scoped content pull/write-back.
  */
 
 import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
@@ -96,6 +96,46 @@ export interface SmartlingJobSummary {
   modifiedDate?: string | null;
   referenceNumber?: string | null;
   jobNumber?: string | null;
+}
+
+export type SmartlingJobDetails = SmartlingJobSummary;
+
+export interface SmartlingJobFile {
+  fileUri: string;
+  fileName?: string | null;
+}
+
+export interface SmartlingLocaleTranslation {
+  hashcode?: string | null;
+  stringText?: string | null;
+  parsedStringText?: string | null;
+  translation?: string | null;
+  instruction?: string | null;
+  fileUri?: string | null;
+  targetLocaleId?: string | null;
+  authorized?: boolean | null;
+  published?: boolean | null;
+  publishStatus?: string | null;
+}
+
+export interface SmartlingUpsertTranslationItem {
+  hashcode: string;
+  translation: string;
+  stringText?: string | null;
+  instruction?: string | null;
+}
+
+export interface SmartlingJobProgress {
+  totalWordCount?: number;
+  completedWordCount?: number;
+  percentComplete?: number;
+}
+
+export interface SmartlingAsyncProcessStatus {
+  processUid?: string;
+  processState?: string;
+  processStatus?: string;
+  percentComplete?: number;
 }
 
 type SmartlingEnvelope<T> = {
@@ -417,6 +457,147 @@ export class SmartlingApiClient {
     return jobs;
   }
 
+  async getJob(projectId: string, translationJobUid: string): Promise<SmartlingJobDetails> {
+    const token = await this.getAccessToken();
+    const data = await this.get<SmartlingJobDetails>(
+      `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}`,
+      token,
+    );
+    return normalizeSmartlingJobSummary(data);
+  }
+
+  async listJobFiles(projectId: string, translationJobUid: string): Promise<SmartlingJobFile[]> {
+    const files: SmartlingJobFile[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{ items?: SmartlingJobFile[]; totalCount?: number }>(
+          `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}/files?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map((item) => ({
+            fileUri: item.fileUri,
+            fileName: item.fileName ?? null,
+          })),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => files.push(...page),
+    });
+
+    return files;
+  }
+
+  async listLocaleTranslations(
+    projectId: string,
+    localeId: string,
+    options?: { fileUri?: string },
+  ): Promise<SmartlingLocaleTranslation[]> {
+    const translations: SmartlingLocaleTranslation[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          targetLocaleId: localeId,
+          limit: String(limit),
+          offset: String(offset),
+        });
+        if (options?.fileUri) {
+          params.set("fileUri", options.fileUri);
+        }
+        const data = await this.get<{ items?: SmartlingLocaleTranslation[]; totalCount?: number }>(
+          `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/translations?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingLocaleTranslation),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => translations.push(...page),
+    });
+
+    return translations;
+  }
+
+  async upsertLocaleTranslations(
+    projectId: string,
+    localeId: string,
+    items: SmartlingUpsertTranslationItem[],
+  ): Promise<void> {
+    if (items.length === 0) {
+      return;
+    }
+
+    const token = await this.getAccessToken();
+    await this.put(
+      `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/locales/${encodeURIComponent(localeId)}/translations`,
+      token,
+      { items },
+    );
+  }
+
+  async authorizeJob(
+    projectId: string,
+    translationJobUid: string,
+    targetLocaleIds: string[],
+  ): Promise<Record<string, unknown>> {
+    const token = await this.getAccessToken();
+    return this.post<Record<string, unknown>>(
+      `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}/authorize`,
+      token,
+      { targetLocaleIds },
+    );
+  }
+
+  async getJobProgress(
+    projectId: string,
+    translationJobUid: string,
+    targetLocaleId?: string,
+  ): Promise<SmartlingJobProgress> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams();
+    if (targetLocaleId) {
+      params.set("targetLocaleId", targetLocaleId);
+    }
+    const query = params.toString();
+    const url = `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}/progress${query ? `?${query}` : ""}`;
+    const data = await this.get<{
+      progress?: SmartlingJobProgress;
+      totalWordCount?: number;
+      completedWordCount?: number;
+      percentComplete?: number;
+    }>(url, token);
+
+    if (data.progress) {
+      return data.progress;
+    }
+
+    return {
+      totalWordCount: data.totalWordCount,
+      completedWordCount: data.completedWordCount,
+      percentComplete: data.percentComplete,
+    };
+  }
+
+  async getAsyncProcessStatus(
+    projectId: string,
+    processUid: string,
+  ): Promise<SmartlingAsyncProcessStatus> {
+    const token = await this.getAccessToken();
+    return this.get<SmartlingAsyncProcessStatus>(
+      `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/processes/${encodeURIComponent(processUid)}`,
+      token,
+    );
+  }
+
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
@@ -434,6 +615,19 @@ export class SmartlingApiClient {
       method: "POST",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return parseSmartlingResponse<T>(response, url);
+  }
+
+  private async put<T>(url: string, token: string, payload: unknown): Promise<T> {
+    const response = await this.fetchFn(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -651,5 +845,22 @@ function normalizeSmartlingJobSummary(item: SmartlingJobSummary): SmartlingJobSu
     modifiedDate: item.modifiedDate ?? null,
     referenceNumber: item.referenceNumber ?? null,
     jobNumber: item.jobNumber ?? null,
+  };
+}
+
+function normalizeSmartlingLocaleTranslation(
+  item: SmartlingLocaleTranslation,
+): SmartlingLocaleTranslation {
+  return {
+    hashcode: item.hashcode ?? null,
+    stringText: item.stringText ?? null,
+    parsedStringText: item.parsedStringText ?? null,
+    translation: item.translation ?? null,
+    instruction: item.instruction ?? null,
+    fileUri: item.fileUri ?? null,
+    targetLocaleId: item.targetLocaleId ?? null,
+    authorized: item.authorized ?? null,
+    published: item.published ?? null,
+    publishStatus: item.publishStatus ?? null,
   };
 }

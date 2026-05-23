@@ -141,8 +141,8 @@ describe("executeProviderAgentTranslation", () => {
 
     const run = await createAgentRun({
       organizationId: project.organizationId,
-      providerKind: "smartling",
-      externalJobId: "smartling-job-1",
+      providerKind: "phrase",
+      externalJobId: "phrase-job-1",
       kind: "translate",
       inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
     });
@@ -164,6 +164,60 @@ describe("executeProviderAgentTranslation", () => {
 
     expect(failed?.status).toBe("failed");
     expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
+  });
+
+  it("pulls Smartling job content through the provider-neutral sync layer", async () => {
+    const project = await createExternalTmsProject();
+    await db
+      .update(schema.projects)
+      .set({
+        externalProviderKind: "smartling",
+      })
+      .where(eq(schema.projects.id, project.id));
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-smartling",
+      status: "succeeded",
+      providerKind: "smartling",
+      providerCredentialId: "cred-smartling",
+      projectId: project.id,
+      content: pulledContent,
+      counts: {
+        unitsDiscovered: 2,
+        translationsDiscovered: 1,
+        approvedTranslations: 1,
+      },
+      failures: [],
+    });
+
+    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
+      translateStringJob: vi.fn(async () => ({
+        translations: [{ locale: "fr", text: "Bonjour" }],
+      })),
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "smartling",
+      externalJobId: "smartling-job-1",
+      kind: "translate",
+      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
+    });
+
+    const result = await executeProviderAgentTranslation({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(pullExternalTmsTaskContentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerKind: "smartling",
+        externalJobId: "smartling-job-1",
+      }),
+    );
   });
 
   it("fails when projectId is missing from the input snapshot", async () => {
