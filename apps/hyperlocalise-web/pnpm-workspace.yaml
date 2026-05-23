@@ -15,9 +15,9 @@ ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
 overrides:
-  vite: "8.0.5"
+  vite: "8.0.13"
   vitest: "catalog:"
-  undici: "7.24.0"
+  undici: "7.25.0"
 peerDependencyRules:
   allowAny:
     - vite
