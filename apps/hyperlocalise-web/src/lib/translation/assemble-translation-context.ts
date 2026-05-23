@@ -2,6 +2,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
+import { loadCrowdinTranslationContextMatches } from "@/lib/providers/crowdin/load-crowdin-translation-context-matches";
+import { mergeTranslationContextMatches } from "@/lib/providers/crowdin/normalize-crowdin-context-matches";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 const maxContextSearchTerms = 50;
@@ -218,7 +220,7 @@ export async function assembleStringTranslationContextSnapshot(
     } as const;
   }
 
-  const [glossaryTerms, translationMemoryMatches] = await Promise.all([
+  const [glossaryTerms, translationMemoryMatches, crowdinMatches] = await Promise.all([
     loadGlossaryTermsForContext({
       projectId,
       sourceLocale: jobInput.sourceLocale,
@@ -226,6 +228,12 @@ export async function assembleStringTranslationContextSnapshot(
       sourceText: jobInput.sourceText,
     }),
     loadMemoryMatchesForContext({
+      projectId,
+      sourceLocale: jobInput.sourceLocale,
+      targetLocales: jobInput.targetLocales,
+      sourceText: jobInput.sourceText,
+    }),
+    loadCrowdinTranslationContextMatches({
       projectId,
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
@@ -239,8 +247,16 @@ export async function assembleStringTranslationContextSnapshot(
       assembledAt: new Date().toISOString(),
       project,
       job: jobInput,
-      glossaryTerms,
-      translationMemoryMatches,
+      glossaryTerms: mergeTranslationContextMatches(
+        glossaryTerms,
+        crowdinMatches.glossaryTerms,
+        20,
+      ),
+      translationMemoryMatches: mergeTranslationContextMatches(
+        translationMemoryMatches,
+        crowdinMatches.translationMemoryMatches,
+        10,
+      ),
     } satisfies StringTranslationContextSnapshot,
   } as const;
 }

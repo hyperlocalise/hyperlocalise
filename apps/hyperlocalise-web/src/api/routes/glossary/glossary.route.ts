@@ -6,15 +6,20 @@ import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
-import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
+import {
+  listGlossaryTermsByGlossaryId,
+  listWorkspaceGlossaryTerms,
+} from "@/lib/glossary/query-glossary-terms";
 
 import {
   createGlossaryBodySchema,
   glossaryIdParamsSchema,
   listGlossaryQuerySchema,
+  listWorkspaceGlossaryTermsQuerySchema,
   updateGlossaryBodySchema,
   type CreateGlossaryBody,
   type ListGlossaryQuery,
+  type ListWorkspaceGlossaryTermsQuery,
   type UpdateGlossaryBody,
 } from "./glossary.schema";
 import {
@@ -132,6 +137,16 @@ const validateListGlossaryQuery = validator("query", (value, _c) => {
   return parsed.data;
 });
 
+const validateListWorkspaceGlossaryTermsQuery = validator("query", (value, _c) => {
+  const parsed = listWorkspaceGlossaryTermsQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return undefined;
+  }
+
+  return parsed.data;
+});
+
 export function createGlossaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -139,6 +154,15 @@ export function createGlossaryRoutes() {
       const query = c.req.valid("query");
       const glossaries = await glossaryStore.list(c.var.auth, query);
       return c.json({ glossaries: glossaries.map(toGlossaryRecord) }, 200);
+    })
+    .get("/workspace-terms", validateListWorkspaceGlossaryTermsQuery, async (c) => {
+      const query: ListWorkspaceGlossaryTermsQuery | undefined = c.req.valid("query");
+      const glossaryTerms = await listWorkspaceGlossaryTerms({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        limit: query?.limit,
+      });
+
+      return c.json({ glossaryTerms }, 200);
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {

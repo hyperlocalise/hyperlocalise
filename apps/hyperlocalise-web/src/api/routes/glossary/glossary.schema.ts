@@ -13,6 +13,12 @@ export const listGlossaryQuerySchema = z
   })
   .optional();
 
+export const listWorkspaceGlossaryTermsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .optional();
+
 export const createGlossaryBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(10_000).optional(),
@@ -115,6 +121,7 @@ export const glossaryTermsResponseSchema = z.object({
 
 export type GlossaryIdParams = z.infer<typeof glossaryIdParamsSchema>;
 export type ListGlossaryQuery = z.infer<typeof listGlossaryQuerySchema>;
+export type ListWorkspaceGlossaryTermsQuery = z.infer<typeof listWorkspaceGlossaryTermsQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
 export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
 export type GlossaryRecord = z.infer<typeof glossaryRecordSchema>;

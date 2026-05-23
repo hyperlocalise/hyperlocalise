@@ -10,11 +10,21 @@ import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
+import { fetchCrowdinGlossaries } from "@/lib/providers/crowdin/crowdin-glossary-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
+import { fetchCrowdinTranslationMemories } from "@/lib/providers/crowdin/crowdin-tm-fetcher";
+import {
+  syncExternalTmsGlossaries,
+  type ExternalTmsGlossaryFetcher,
+} from "@/lib/providers/external-tms-glossary-sync";
 import {
   syncExternalTmsFileKeys,
   type ExternalTmsFileKeyFetcher,
 } from "@/lib/providers/external-tms-file-sync";
+import {
+  syncExternalTmsTranslationMemories,
+  type ExternalTmsTranslationMemoryFetcher,
+} from "@/lib/providers/external-tms-tm-sync";
 import {
   syncExternalTmsJobTasks,
   type ExternalTmsJobTaskFetcher,
@@ -313,6 +323,18 @@ const jobTaskFetchersByProvider: Partial<
   crowdin: fetchCrowdinJobTasks,
   phrase: fetchPhraseJobTasks,
   smartling: fetchSmartlingJobTasks,
+};
+
+const glossaryFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsGlossaryFetcher>
+> = {
+  crowdin: fetchCrowdinGlossaries,
+};
+
+const translationMemoryFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsTranslationMemoryFetcher>
+> = {
+  crowdin: fetchCrowdinTranslationMemories,
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
@@ -707,6 +729,70 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       });
 
       return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-glossaries", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchGlossaries = glossaryFetchersByProvider[project.externalProviderKind];
+      if (!fetchGlossaries) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsGlossaries({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: project.externalProviderKind,
+        fetchGlossaries,
+      });
+
+      return c.json({ externalTmsGlossarySync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-translation-memories", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchTranslationMemories =
+        translationMemoryFetchersByProvider[project.externalProviderKind];
+      if (!fetchTranslationMemories) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsTranslationMemories({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: project.externalProviderKind,
+        fetchTranslationMemories,
+      });
+
+      return c.json(
+        { externalTmsTranslationMemorySync: result },
+        result.status === "failed" ? 207 : 200,
+      );
     })
     .post(
       "/:projectId/sync-pull-content",

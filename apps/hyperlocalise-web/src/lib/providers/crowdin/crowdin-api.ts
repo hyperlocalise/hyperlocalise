@@ -163,6 +163,69 @@ export interface CrowdinDownloadLink {
   expireIn?: string;
 }
 
+export interface CrowdinGlossary {
+  id: number;
+  name: string;
+  description: string | null;
+  languageId: string;
+  languageIds: string[];
+  terms: number;
+  projectIds: number[];
+  defaultProjectIds: number[];
+  webUrl: string;
+}
+
+export interface CrowdinGlossaryTerm {
+  id: number;
+  glossaryId: number;
+  languageId: string;
+  text: string;
+  description: string;
+  partOfSpeech: string;
+  status: string;
+  conceptId: number;
+  note: string;
+}
+
+export interface CrowdinTranslationMemory {
+  id: number;
+  name: string;
+  description: string | null;
+  languageId: string;
+  languageIds: string[];
+  segmentsCount: number;
+  projectIds: number[];
+  defaultProjectIds: number[];
+  webUrl: string;
+}
+
+export interface CrowdinTranslationMemorySegmentRecord {
+  id: number;
+  languageId: string;
+  text: string;
+}
+
+export interface CrowdinTranslationMemorySegment {
+  id: number;
+  records: CrowdinTranslationMemorySegmentRecord[];
+}
+
+export interface CrowdinGlossaryConcordanceResult {
+  glossary: { id: number; name: string };
+  concept: { id: number };
+  sourceTerms: CrowdinGlossaryTerm[];
+  targetTerms: CrowdinGlossaryTerm[];
+}
+
+export interface CrowdinTranslationMemoryConcordanceResult {
+  tm: { id: number; name: string };
+  recordId: number;
+  source: string;
+  target: string;
+  relevant: number;
+  substituted: string;
+}
+
 interface CrowdinListResponse<T> {
   data: Array<{ data: T }>;
   pagination?: {
@@ -736,6 +799,99 @@ export class CrowdinApiClient {
     }
 
     return progress;
+  }
+
+  async listGlossaries(): Promise<CrowdinGlossary[]> {
+    return this.listPaginated<CrowdinGlossary>("/glossaries");
+  }
+
+  async listGlossaryTerms(glossaryId: number): Promise<CrowdinGlossaryTerm[]> {
+    return this.listPaginated<CrowdinGlossaryTerm>(`/glossaries/${glossaryId}/terms`);
+  }
+
+  async listTranslationMemories(): Promise<CrowdinTranslationMemory[]> {
+    return this.listPaginated<CrowdinTranslationMemory>("/tms");
+  }
+
+  async listTranslationMemorySegments(tmId: number): Promise<CrowdinTranslationMemorySegment[]> {
+    return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`);
+  }
+
+  async searchGlossaryConcordance(
+    projectId: number,
+    input: {
+      sourceLanguageId: string;
+      targetLanguageId: string;
+      expressions: string[];
+    },
+  ): Promise<CrowdinGlossaryConcordanceResult[]> {
+    if (input.expressions.length === 0) {
+      return [];
+    }
+
+    const response = await this.post<
+      CrowdinListResponse<{
+        glossary: { id: number; name: string };
+        concept: { id: number };
+        sourceTerms: CrowdinGlossaryTerm[];
+        targetTerms: CrowdinGlossaryTerm[];
+      }>
+    >(`/projects/${projectId}/glossaries/concordance`, {
+      sourceLanguageId: input.sourceLanguageId,
+      targetLanguageId: input.targetLanguageId,
+      expressions: input.expressions,
+    });
+
+    return response.data.map((item) => item.data);
+  }
+
+  async searchTranslationMemoryConcordance(
+    projectId: number,
+    input: {
+      sourceLanguageId: string;
+      targetLanguageId: string;
+      expressions: string[];
+      minRelevant?: number;
+    },
+  ): Promise<CrowdinTranslationMemoryConcordanceResult[]> {
+    if (input.expressions.length === 0) {
+      return [];
+    }
+
+    const response = await this.post<
+      CrowdinListResponse<CrowdinTranslationMemoryConcordanceResult>
+    >(`/projects/${projectId}/tms/concordance`, {
+      sourceLanguageId: input.sourceLanguageId,
+      targetLanguageId: input.targetLanguageId,
+      autoSubstitution: true,
+      minRelevant: input.minRelevant ?? 60,
+      expressions: input.expressions,
+    });
+
+    return response.data.map((item) => item.data);
+  }
+
+  private async listPaginated<T>(path: string): Promise<T[]> {
+    const items: T[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const separator = path.includes("?") ? "&" : "?";
+      const response = await this.get<CrowdinListResponse<T>>(
+        `${path}${separator}limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      items.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return items;
   }
 
   private authHeaders(contentType = "application/json"): Record<string, string> {
