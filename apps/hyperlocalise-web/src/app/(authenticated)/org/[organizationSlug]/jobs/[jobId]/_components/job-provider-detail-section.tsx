@@ -19,6 +19,10 @@ import { cn } from "@/lib/utils";
 import { toneClass } from "../../../_components/workspace-resource-shared";
 
 import {
+  countGlossaryMatchesInUsage,
+  parseGlossaryUsageFromOutputSummary,
+} from "@/lib/translation/agent-run-glossary";
+import {
   countTranslationMemoryMatchesInUsage,
   parseTranslationMemoryUsageFromOutputSummary,
 } from "@/lib/translation/agent-run-translation-memory";
@@ -362,6 +366,8 @@ export function JobProviderDetailSection({
               );
               const translationMemoryMatchCount =
                 countTranslationMemoryMatchesInUsage(translationMemoryUsage);
+              const glossaryUsage = parseGlossaryUsageFromOutputSummary(run.outputSummary);
+              const glossaryMatchCount = countGlossaryMatchesInUsage(glossaryUsage);
 
               return (
                 <li
@@ -377,6 +383,9 @@ export function JobProviderDetailSection({
                       {hasProposals ? ` · ${proposedCount} proposals` : null}
                       {translationMemoryMatchCount > 0
                         ? ` · ${translationMemoryMatchCount} TM match${translationMemoryMatchCount === 1 ? "" : "es"}`
+                        : null}
+                      {glossaryMatchCount > 0
+                        ? ` · ${glossaryMatchCount} glossary match${glossaryMatchCount === 1 ? "" : "es"}`
                         : null}
                     </p>
                   </div>

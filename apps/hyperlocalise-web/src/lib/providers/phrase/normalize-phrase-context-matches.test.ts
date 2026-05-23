@@ -122,6 +122,10 @@ describe("normalizePhraseTermBaseSearchMatches", () => {
       sourceTerm: "Hyperlocalise",
       targetTerm: "Hyperlocalise",
       forbidden: false,
+      matchSource: "live_provider",
+      providerKind: "phrase",
+      resourceId: "phrase:tb-1",
+      externalResourceId: "tb-1",
     });
   });
 

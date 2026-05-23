@@ -55,6 +55,28 @@ export const agentRunTranslationMemoryUsageEntrySchema = z.object({
   matches: z.array(agentRunTranslationMemoryMatchUsageSchema),
 });
 
+export const glossaryMatchSourceSchema = z.enum(["synced_database", "live_provider"]);
+
+export const agentRunGlossaryMatchUsageSchema = z.object({
+  glossaryId: z.string(),
+  glossaryName: z.string(),
+  sourceTerm: z.string(),
+  targetTerm: z.string(),
+  targetLocale: z.string(),
+  forbidden: z.boolean(),
+  preferred: z.boolean(),
+  matchSource: glossaryMatchSourceSchema,
+  providerKind: z.enum(schema.externalTmsProviderKindEnum.enumValues).nullable(),
+  resourceId: z.string(),
+  externalResourceId: z.string().nullable(),
+});
+
+export const agentRunGlossaryUsageEntrySchema = z.object({
+  externalStringId: z.string(),
+  key: z.string(),
+  matches: z.array(agentRunGlossaryMatchUsageSchema),
+});
+
 export const agentRunProposalItemSchema = z.object({
   itemId: z.string(),
   externalStringId: z.string(),
@@ -67,6 +89,7 @@ export const agentRunProposalItemSchema = z.object({
   changedFields: z.array(z.string()),
   warnings: agentRunProposalWarningsSchema,
   translationMemoryMatchesUsed: z.array(agentRunTranslationMemoryMatchUsageSchema).optional(),
+  glossaryMatchesUsed: z.array(agentRunGlossaryMatchUsageSchema).optional(),
 });
 
 export const workspaceAgentRunParamsSchema = z.object({

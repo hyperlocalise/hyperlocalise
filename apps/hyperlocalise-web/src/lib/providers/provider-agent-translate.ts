@@ -21,6 +21,7 @@ import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
 } from "@/lib/translation/assemble-translation-context";
+import type { AgentRunGlossaryMatchUsage } from "@/lib/translation/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/translation/translation-memory-match";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
@@ -109,6 +110,11 @@ async function translateProviderUnits(input: {
     key: string;
     matches: AgentRunTranslationMemoryMatchUsage[];
   }> = [];
+  const glossaryUsageByUnit: Array<{
+    externalStringId: string;
+    key: string;
+    matches: AgentRunGlossaryMatchUsage[];
+  }> = [];
   let unitsProcessed = 0;
   let skippedApprovedLocales = 0;
 
@@ -121,6 +127,7 @@ async function translateProviderUnits(input: {
       unitsProcessed: 0,
       skippedApprovedLocales: 0,
       translationMemoryUsageByUnit: [],
+      glossaryUsageByUnit: [],
     };
   }
 
@@ -184,6 +191,26 @@ async function translateProviderUnits(input: {
       });
     }
 
+    if (contextSnapshot.snapshot.glossaryTerms.length > 0) {
+      glossaryUsageByUnit.push({
+        externalStringId: unit.externalStringId,
+        key: unit.key,
+        matches: contextSnapshot.snapshot.glossaryTerms.map((term) => ({
+          glossaryId: term.glossaryId,
+          glossaryName: term.glossaryName,
+          sourceTerm: term.sourceTerm,
+          targetTerm: term.targetTerm,
+          targetLocale: term.targetLocale,
+          forbidden: term.forbidden ?? false,
+          preferred: !(term.forbidden ?? false),
+          matchSource: term.matchSource,
+          providerKind: term.providerKind,
+          resourceId: term.resourceId,
+          externalResourceId: term.externalResourceId,
+        })),
+      });
+    }
+
     try {
       const result = await input.translateStringJob({
         projectName: input.projectName,
@@ -214,6 +241,7 @@ async function translateProviderUnits(input: {
               targetTerm: term.targetTerm,
               targetLocale: term.targetLocale,
               forbidden: term.forbidden,
+              caseSensitive: term.caseSensitive,
             })),
         });
 
@@ -232,6 +260,22 @@ async function translateProviderUnits(input: {
             externalResourceId: match.externalResourceId,
           }));
 
+        const localeGlossaryMatches = contextSnapshot.snapshot.glossaryTerms
+          .filter((term) => term.targetLocale === translation.locale)
+          .map((term) => ({
+            glossaryId: term.glossaryId,
+            glossaryName: term.glossaryName,
+            sourceTerm: term.sourceTerm,
+            targetTerm: term.targetTerm,
+            targetLocale: term.targetLocale,
+            forbidden: term.forbidden ?? false,
+            preferred: !(term.forbidden ?? false),
+            matchSource: term.matchSource,
+            providerKind: term.providerKind,
+            resourceId: term.resourceId,
+            externalResourceId: term.externalResourceId,
+          }));
+
         changedItems.push(
           serializeAgentRunProposalItem({
             itemId: buildAgentRunProposalItemId({
@@ -248,6 +292,8 @@ async function translateProviderUnits(input: {
             changedFields: deriveChangedFields(from, translation.text),
             warnings: proposalWarnings,
             translationMemoryMatchesUsed: localeMatches.length > 0 ? localeMatches : undefined,
+            glossaryMatchesUsed:
+              localeGlossaryMatches.length > 0 ? localeGlossaryMatches : undefined,
           }),
         );
       }
@@ -263,6 +309,7 @@ async function translateProviderUnits(input: {
     unitsProcessed,
     skippedApprovedLocales,
     translationMemoryUsageByUnit,
+    glossaryUsageByUnit,
   };
 }
 
@@ -493,6 +540,7 @@ export async function executeProviderAgentTranslation(input: {
       targetLocales: pullResult.content.targetLocales,
       sourceLocale: pullResult.content.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
+      glossaryUsage: translationResult.glossaryUsageByUnit,
     },
     changedItems: translationResult.changedItems,
     warnings: translationResult.warnings,

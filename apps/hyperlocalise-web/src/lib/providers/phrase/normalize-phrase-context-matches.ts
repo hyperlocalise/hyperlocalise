@@ -89,7 +89,12 @@ export function normalizePhraseTermBaseSearchMatches(
       targetLocale: input.targetLocale,
       description: match.description,
       forbidden: match.forbidden,
+      caseSensitive: false,
       rank: Math.max(1, 100 - index),
+      matchSource: "live_provider",
+      providerKind: "phrase",
+      resourceId: `phrase:${termBaseUid}`,
+      externalResourceId: termBaseUid,
     });
     index += 1;
   }
