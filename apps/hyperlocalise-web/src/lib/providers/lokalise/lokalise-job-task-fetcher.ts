@@ -4,18 +4,15 @@ import {
   buildLokaliseTaskUrl,
   collectLokaliseTaskAssignees,
   collectLokaliseTaskTargetLocales,
+  LOKALISE_COMPLETED_TASK_MAX_PAGES,
+  LOKALISE_RECENT_COMPLETED_WINDOW_MS,
   LokaliseApiClient,
   LokaliseApiError,
+  type LokaliseTask,
   parseLokaliseTaskDueDate,
 } from "./lokalise-api";
 
-/** Lokalise task statuses for open and recently completed work. */
-const LOKALISE_OPEN_AND_RECENT_TASK_STATUSES = [
-  "created",
-  "queued",
-  "in_progress",
-  "completed",
-] as const;
+const LOKALISE_OPEN_TASK_STATUSES = ["created", "queued", "in_progress"] as const;
 
 export const fetchLokaliseJobTasks: ExternalTmsJobTaskFetcher = async ({
   credential,
@@ -27,11 +24,9 @@ export const fetchLokaliseJobTasks: ExternalTmsJobTaskFetcher = async ({
     baseUrl: credential.baseUrl ?? undefined,
   });
 
-  let tasks: Awaited<ReturnType<typeof client.listTasks>>;
+  let tasks: LokaliseTask[];
   try {
-    tasks = await client.listTasks(externalProjectId, {
-      filterStatuses: [...LOKALISE_OPEN_AND_RECENT_TASK_STATUSES],
-    });
+    tasks = await listOpenAndRecentLokaliseTasks(client, externalProjectId);
   } catch (error) {
     if (error instanceof LokaliseApiError && error.status === 401) {
       throw new Error("lokalise_auth_invalid");
@@ -67,6 +62,26 @@ export const fetchLokaliseJobTasks: ExternalTmsJobTaskFetcher = async ({
     kind: mapLokaliseTaskKind(task.taskType),
   }));
 };
+
+async function listOpenAndRecentLokaliseTasks(client: LokaliseApiClient, projectId: string) {
+  const completedAfterMs = Date.now() - LOKALISE_RECENT_COMPLETED_WINDOW_MS;
+
+  const [openTasks, recentCompletedTasks] = await Promise.all([
+    client.listTasks(projectId, { filterStatuses: [...LOKALISE_OPEN_TASK_STATUSES] }),
+    client.listTasks(projectId, {
+      filterStatuses: ["completed"],
+      maxPages: LOKALISE_COMPLETED_TASK_MAX_PAGES,
+      completedAfterMs,
+    }),
+  ]);
+
+  const tasksById = new Map<number, LokaliseTask>();
+  for (const task of [...openTasks, ...recentCompletedTasks]) {
+    tasksById.set(task.taskId, task);
+  }
+
+  return [...tasksById.values()];
+}
 
 function mapLokaliseTaskKind(
   taskType: string,

@@ -6,6 +6,8 @@ import {
   collectLokaliseTaskAssignees,
   collectLokaliseTaskTargetLocales,
   extractLokaliseKeyName,
+  getLokaliseTaskCompletionMs,
+  isLokaliseTaskCompletedAfter,
   inferFormatFromFilename,
   listLokaliseFilenameEntries,
   LokaliseApiClient,
@@ -205,6 +207,53 @@ describe("LokaliseApiClient", () => {
     );
   });
 
+  it("filters completed tasks by completion time and caps pagination", async () => {
+    const recentCompletedAt = Math.floor(Date.now() / 1000) - 60;
+    const staleCompletedAt = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 60;
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (!path.includes("filter_statuses=completed")) {
+        return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+      }
+
+      if (path.includes("page=1")) {
+        return new Response(
+          JSON.stringify({
+            tasks: [
+              {
+                task_id: 1,
+                title: "Recent",
+                status: "completed",
+                completed_at_timestamp: recentCompletedAt,
+              },
+              {
+                task_id: 2,
+                title: "Stale",
+                status: "completed",
+                completed_at_timestamp: staleCompletedAt,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const tasks = await client.listTasks("proj.123", {
+      filterStatuses: ["completed"],
+      maxPages: 1,
+      completedAfterMs: cutoffMs,
+    });
+
+    expect(tasks.map((task) => task.taskId)).toEqual([1]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("throws LokaliseApiError on auth failure", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
@@ -258,6 +307,33 @@ describe("buildLokaliseTaskUrl", () => {
     expect(buildLokaliseTaskUrl("proj.123", 55392)).toBe(
       "https://app.lokalise.com/project/proj.123/?task=55392",
     );
+  });
+});
+
+describe("isLokaliseTaskCompletedAfter", () => {
+  it("uses completed_at_timestamp when available", () => {
+    const task = {
+      taskId: 1,
+      title: "Done",
+      description: null,
+      status: "completed",
+      progress: 100,
+      taskType: "translation",
+      dueDate: null,
+      dueDateTimestamp: null,
+      sourceLanguageIso: null,
+      languages: [],
+      keysCount: 0,
+      wordsCount: 0,
+      createdAt: null,
+      createdAtTimestamp: null,
+      completedAt: null,
+      completedAtTimestamp: 1_700_000_000,
+    };
+
+    expect(isLokaliseTaskCompletedAfter(task, 1_699_000_000_000)).toBe(true);
+    expect(isLokaliseTaskCompletedAfter(task, 1_701_000_000_000)).toBe(false);
+    expect(getLokaliseTaskCompletionMs(task)).toBe(1_700_000_000_000);
   });
 });
 

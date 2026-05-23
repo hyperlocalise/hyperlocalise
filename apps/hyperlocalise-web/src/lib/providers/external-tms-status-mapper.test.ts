@@ -54,6 +54,8 @@ const cases: ProviderCase[] = [
   // Lokalise
   { provider: "lokalise", status: "created", expected: "queued" },
   { provider: "lokalise", status: "queued", expected: "queued" },
+  { provider: "lokalise", status: "not_started", expected: "queued" },
+  { provider: "lokalise", status: "not-started", expected: "queued" },
   { provider: "lokalise", status: "unassigned", expected: "queued" },
   { provider: "lokalise", status: "in_progress", expected: "running" },
   { provider: "lokalise", status: "in_translation", expected: "running" },

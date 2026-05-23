@@ -4,6 +4,23 @@
 
 export const LOKALISE_DEFAULT_BASE_URL = "https://api.lokalise.com/api2";
 
+/** How far back completed tasks are included in job sync. */
+export const LOKALISE_RECENT_COMPLETED_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** Caps completed-task API pagination when no server-side recency filter exists. */
+export const LOKALISE_COMPLETED_TASK_MAX_PAGES = 2;
+
+export type LokaliseListTasksOptions = {
+  filterStatuses?: string[];
+  /** Stops pagination after this many pages (inclusive). */
+  maxPages?: number;
+  /**
+   * When set, only returns completed tasks completed at or after this Unix ms.
+   * Stops paging early when an entire page is older than the cutoff (newest-first).
+   */
+  completedAfterMs?: number;
+};
+
 export interface LokaliseApiClientOptions {
   token: string;
   baseUrl?: string | null;
@@ -182,14 +199,13 @@ export class LokaliseApiClient {
     return keys;
   }
 
-  async listTasks(
-    projectId: string,
-    options?: { filterStatuses?: string[] },
-  ): Promise<LokaliseTask[]> {
+  async listTasks(projectId: string, options?: LokaliseListTasksOptions): Promise<LokaliseTask[]> {
     const tasks: LokaliseTask[] = [];
     let page = 1;
     const limit = 500;
     const filterStatuses = options?.filterStatuses?.join(",") ?? null;
+    const maxPages = options?.maxPages;
+    const completedAfterMs = options?.completedAfterMs;
 
     while (true) {
       const params = new URLSearchParams({
@@ -204,9 +220,25 @@ export class LokaliseApiClient {
         `/projects/${encodeURIComponent(projectId)}/tasks?${params.toString()}`,
       );
       const pageItems = (response.tasks ?? []).map(normalizeLokaliseTask);
-      tasks.push(...pageItems);
+      const acceptedItems =
+        completedAfterMs == null
+          ? pageItems
+          : pageItems.filter((task) => isLokaliseTaskCompletedAfter(task, completedAfterMs));
+      tasks.push(...acceptedItems);
 
       if (pageItems.length < limit) {
+        break;
+      }
+
+      if (maxPages != null && page >= maxPages) {
+        break;
+      }
+
+      if (
+        completedAfterMs != null &&
+        pageItems.length > 0 &&
+        pageItems.every((task) => !isLokaliseTaskCompletedAfter(task, completedAfterMs))
+      ) {
         break;
       }
 
@@ -579,6 +611,24 @@ export function partitionLokaliseLocales(
     .filter((locale): locale is string => Boolean(locale));
 
   return { sourceLocale, targetLocales };
+}
+
+export function getLokaliseTaskCompletionMs(task: LokaliseTask) {
+  if (task.completedAtTimestamp != null && task.completedAtTimestamp > 0) {
+    return task.completedAtTimestamp * 1000;
+  }
+
+  if (!task.completedAt) {
+    return null;
+  }
+
+  const parsed = Date.parse(task.completedAt);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+export function isLokaliseTaskCompletedAfter(task: LokaliseTask, afterMs: number) {
+  const completedMs = getLokaliseTaskCompletionMs(task);
+  return completedMs != null && completedMs >= afterMs;
 }
 
 export function buildLokaliseProjectUrl(projectId: string) {

@@ -17,7 +17,7 @@ describe("fetchLokaliseJobTasks", () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
-      if (path.includes("/projects/proj.123/tasks?")) {
+      if (path.includes("filter_statuses=created%2Cqueued%2Cin_progress")) {
         return new Response(
           JSON.stringify({
             project_id: "proj.123",
@@ -57,6 +57,10 @@ describe("fetchLokaliseJobTasks", () => {
         );
       }
 
+      if (path.includes("filter_statuses=completed")) {
+        return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+      }
+
       return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
     }) as unknown as typeof fetch;
 
@@ -88,8 +92,16 @@ describe("fetchLokaliseJobTasks", () => {
       progress: 25,
       sourceLanguageIso: "en",
     });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.lokalise.test/api2/projects/proj.123/tasks?page=1&limit=500&filter_statuses=created%2Cqueued%2Cin_progress%2Ccompleted",
+      "https://api.lokalise.test/api2/projects/proj.123/tasks?page=1&limit=500&filter_statuses=created%2Cqueued%2Cin_progress",
+      expect.objectContaining({
+        method: "GET",
+        headers: { "X-Api-Token": "test-token" },
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lokalise.test/api2/projects/proj.123/tasks?page=1&limit=500&filter_statuses=completed",
       expect.objectContaining({
         method: "GET",
         headers: { "X-Api-Token": "test-token" },
