@@ -510,7 +510,7 @@ export function ProjectFilesPageContent({
 
   const stats = {
     total: files.length,
-    provider: files.filter((f) => f.origin === "provider").length,
+    provider: files.filter((f) => f.provider !== null).length,
     withJobs: files.filter((f) => f.latestJob !== null).length,
     latestUpload:
       files.length > 0

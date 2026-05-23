@@ -9,7 +9,6 @@ import type {
 import { db, schema } from "@/lib/database";
 import {
   listExternalTmsFilesForProject,
-  maxExternalTmsFilesLimit,
   type ExternalTmsResourceType,
 } from "@/lib/providers/organization-external-tms-files";
 
@@ -28,21 +27,6 @@ type ProjectFileFilterQuery = Pick<
   "origin" | "resourceType" | "providerKind" | "locale" | "syncState" | "search"
 >;
 
-export function hasActiveProjectFileFilters(query: ProjectFileFilterQuery) {
-  return Boolean(
-    query.search?.trim() ||
-    (query.origin && query.origin !== "all") ||
-    (query.resourceType && query.resourceType !== "all") ||
-    (query.providerKind && query.providerKind !== "all") ||
-    (query.locale && query.locale !== "all") ||
-    (query.syncState && query.syncState !== "all"),
-  );
-}
-
-function resolveProviderFetchLimit(query: ProjectFileFilterQuery, responseLimit: number) {
-  return hasActiveProjectFileFilters(query) ? maxExternalTmsFilesLimit : responseLimit;
-}
-
 function matchesLocale(file: ProjectFileRecord, locale: string) {
   if (file.provider?.sourceLocale === locale) {
     return true;
@@ -50,11 +34,24 @@ function matchesLocale(file: ProjectFileRecord, locale: string) {
   return file.provider?.targetLocales.includes(locale) ?? false;
 }
 
+function matchesOrigin(
+  file: ProjectFileRecord,
+  origin: NonNullable<ProjectFileFilterQuery["origin"]>,
+) {
+  if (origin === "all") {
+    return true;
+  }
+  if (origin === "repository") {
+    return file.origin === "repository" || file.origin === "combined";
+  }
+  return file.origin === "provider" || file.origin === "combined";
+}
+
 export function filterProjectFiles(files: ProjectFileRecord[], query: ProjectFileFilterQuery) {
   const search = query.search?.trim().toLowerCase();
 
   return files.filter((file) => {
-    if (query.origin && query.origin !== "all" && file.origin !== query.origin) {
+    if (query.origin && !matchesOrigin(file, query.origin)) {
       return false;
     }
 
@@ -111,7 +108,8 @@ export async function listFilteredProjectFiles(input: {
   const mergedFiles = await listProjectFilesForProject({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    providerFetchLimit: resolveProviderFetchLimit(input.query, input.query.limit),
+    providerFetchLimit: input.query.limit,
+    providerFilters: input.query,
     resourceTypes: input.resourceTypes,
   });
 
@@ -122,6 +120,7 @@ export async function listProjectFilesForProject(input: {
   organizationId: string;
   projectId: string;
   providerFetchLimit?: number;
+  providerFilters?: ProjectFileFilterQuery;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
   const versionsSubquery = db
@@ -177,7 +176,8 @@ export async function listProjectFilesForProject(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     resourceTypes: input.resourceTypes,
-    limit: input.providerFetchLimit ?? maxExternalTmsFilesLimit,
+    filters: input.providerFilters,
+    limit: input.providerFetchLimit,
   });
 
   const latestJobs = new Map<
@@ -260,10 +260,35 @@ export async function listProjectFilesForProject(input: {
   });
 
   const nativeFileByStoredFileId = new Map(nativeFiles.map((file) => [file.storedFileId, file]));
+  const nativeFileBySourcePath = new Map(nativeFiles.map((file) => [file.sourcePath, file]));
+  const combinedSourcePaths = new Set<string>();
   const providerBackedFiles: ProjectFileRecord[] = providerFiles.map((file) => {
-    const linkedNativeFile = file.storedFileId
-      ? nativeFileByStoredFileId.get(file.storedFileId)
-      : undefined;
+    const linkedNativeFile =
+      nativeFileBySourcePath.get(file.sourcePath) ??
+      (file.storedFileId ? nativeFileByStoredFileId.get(file.storedFileId) : undefined);
+    const provider = {
+      kind: file.providerKind,
+      resourceType: file.resourceType,
+      externalProjectId: file.externalProjectId,
+      externalResourceId: file.externalResourceId,
+      externalUrl: file.externalUrl,
+      syncState: file.syncState,
+      sourceLocale: file.sourceLocale,
+      targetLocales: file.targetLocales,
+      localeReadiness: file.localeReadiness as Record<string, unknown>,
+      revision: file.revision,
+      format: file.format,
+      lastSyncedAt: file.lastSyncedAt?.toISOString() ?? null,
+    };
+
+    if (linkedNativeFile) {
+      combinedSourcePaths.add(linkedNativeFile.sourcePath);
+      return {
+        ...linkedNativeFile,
+        origin: "combined" as const,
+        provider,
+      };
+    }
 
     return {
       origin: "provider" as const,
@@ -271,35 +296,20 @@ export async function listProjectFilesForProject(input: {
       sourceHash: file.sourceHash,
       commitSha: null,
       workflowRunId: null,
-      uploadedAt:
-        file.lastSyncedAt?.toISOString() ??
-        linkedNativeFile?.uploadedAt ??
-        file.updatedAt.toISOString(),
+      uploadedAt: file.lastSyncedAt?.toISOString() ?? file.updatedAt.toISOString(),
       storedFileId: file.storedFileId,
       metadata: file.providerPayload as Record<string, unknown>,
       filename: file.displayName,
-      byteSize: linkedNativeFile?.byteSize ?? null,
-      provider: {
-        kind: file.providerKind,
-        resourceType: file.resourceType,
-        externalProjectId: file.externalProjectId,
-        externalResourceId: file.externalResourceId,
-        externalUrl: file.externalUrl,
-        syncState: file.syncState,
-        sourceLocale: file.sourceLocale,
-        targetLocales: file.targetLocales,
-        localeReadiness: file.localeReadiness as Record<string, unknown>,
-        revision: file.revision,
-        format: file.format,
-        lastSyncedAt: file.lastSyncedAt?.toISOString() ?? null,
-      },
-      latestJob: linkedNativeFile?.latestJob ?? null,
+      byteSize: null,
+      provider,
+      latestJob: null,
     };
   });
 
-  return [...nativeFiles, ...providerBackedFiles].sort((a, b) =>
-    a.sourcePath.localeCompare(b.sourcePath),
-  );
+  return [
+    ...nativeFiles.filter((file) => !combinedSourcePaths.has(file.sourcePath)),
+    ...providerBackedFiles,
+  ].sort((a, b) => a.sourcePath.localeCompare(b.sourcePath));
 }
 
 export async function listWorkspaceFiles(input: {
@@ -317,8 +327,6 @@ export async function listWorkspaceFiles(input: {
       ? input.projects.filter((project) => project.projectId === input.query.projectId)
       : input.projects;
 
-  const providerFetchLimit = resolveProviderFetchLimit(input.query, input.query.limit);
-
   const fileGroups = await mapWithConcurrency(
     projectIds,
     workspaceFilesProjectConcurrency,
@@ -326,7 +334,8 @@ export async function listWorkspaceFiles(input: {
       const files = await listProjectFilesForProject({
         organizationId: input.organizationId,
         projectId: project.projectId,
-        providerFetchLimit,
+        providerFetchLimit: input.query.limit,
+        providerFilters: input.query,
         resourceTypes,
       });
 

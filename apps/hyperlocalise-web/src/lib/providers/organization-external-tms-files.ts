@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
@@ -32,6 +32,13 @@ export type ExternalTmsFileInput = {
   localeReadiness?: Record<string, unknown>;
   providerPayload?: Record<string, unknown>;
   lastSyncedAt?: Date | null;
+};
+
+export type ExternalTmsFileListFilters = {
+  providerKind?: ExternalTmsProviderKind | "all";
+  locale?: string;
+  syncState?: string;
+  search?: string;
 };
 
 function defaultDisplayName(sourcePath: string) {
@@ -109,15 +116,51 @@ export async function listExternalTmsFilesForProject(input: {
   organizationId: string;
   projectId: string;
   resourceTypes?: ExternalTmsResourceType[];
+  filters?: ExternalTmsFileListFilters;
   limit?: number;
 }) {
-  const filters = [
+  const filters: SQL[] = [
     eq(schema.externalTmsFiles.organizationId, input.organizationId),
     eq(schema.externalTmsFiles.projectId, input.projectId),
   ];
 
   if (input.resourceTypes && input.resourceTypes.length > 0) {
     filters.push(inArray(schema.externalTmsFiles.resourceType, input.resourceTypes));
+  }
+
+  if (input.filters?.providerKind && input.filters.providerKind !== "all") {
+    filters.push(eq(schema.externalTmsFiles.providerKind, input.filters.providerKind));
+  }
+
+  const syncState = input.filters?.syncState?.trim();
+  if (syncState && syncState !== "all") {
+    filters.push(eq(schema.externalTmsFiles.syncState, syncState));
+  }
+
+  const locale = input.filters?.locale?.trim();
+  if (locale && locale !== "all") {
+    const localeFilter = or(
+      eq(schema.externalTmsFiles.sourceLocale, locale),
+      sql`${schema.externalTmsFiles.targetLocales} @> ${JSON.stringify([locale])}::jsonb`,
+    );
+    if (localeFilter) {
+      filters.push(localeFilter);
+    }
+  }
+
+  const search = input.filters?.search?.trim();
+  if (search) {
+    const pattern = `%${search}%`;
+    const searchFilter = or(
+      ilike(schema.externalTmsFiles.sourcePath, pattern),
+      ilike(schema.externalTmsFiles.displayName, pattern),
+      ilike(schema.externalTmsFiles.externalResourceId, pattern),
+      sql`${schema.externalTmsFiles.providerKind}::text ILIKE ${pattern}`,
+      sql`${schema.externalTmsFiles.resourceType}::text ILIKE ${pattern}`,
+    );
+    if (searchFilter) {
+      filters.push(searchFilter);
+    }
   }
 
   return db

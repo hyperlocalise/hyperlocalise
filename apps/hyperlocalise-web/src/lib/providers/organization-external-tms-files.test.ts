@@ -233,4 +233,59 @@ describe("organizationExternalTmsFiles", () => {
 
     expect(files.map((file) => file.sourcePath)).toEqual(["keys/one", "keys/three"]);
   });
+
+  it("applies provider filters before limiting rows", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "key",
+      externalResourceId: "early-key",
+      sourcePath: "keys/aaa",
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      syncState: "synced",
+    });
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "key",
+      externalResourceId: "middle-key",
+      sourcePath: "keys/bbb",
+      sourceLocale: "en",
+      targetLocales: ["es"],
+      syncState: "synced",
+    });
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "key",
+      externalResourceId: "needle-key",
+      sourcePath: "keys/zzz",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      syncState: "changed",
+    });
+
+    const files = await listExternalTmsFilesForProject({
+      organizationId,
+      projectId,
+      limit: 1,
+      filters: {
+        providerKind: "crowdin",
+        locale: "fr",
+        syncState: "changed",
+        search: "needle",
+      },
+    });
+
+    expect(files.map((file) => file.externalResourceId)).toEqual(["needle-key"]);
+  });
 });

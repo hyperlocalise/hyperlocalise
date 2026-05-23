@@ -83,7 +83,7 @@ export const projectsResponseSchema = z.object({
 });
 
 export const projectFileRecordSchema = z.object({
-  origin: z.enum(["repository", "provider"]).default("repository"),
+  origin: z.enum(["repository", "provider", "combined"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
   commitSha: z.string().nullable(),

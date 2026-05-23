@@ -154,9 +154,16 @@ export function ProviderKindBadge({ kind }: { kind: string }) {
 }
 
 export function SourceOriginBadge({ origin }: { origin: ProjectFileRecord["origin"] }) {
+  const label =
+    origin === "combined"
+      ? "Repository + Provider"
+      : origin === "provider"
+        ? "Provider"
+        : "Repository";
+
   return (
     <Badge variant="outline" className="rounded-full text-[10px]">
-      {origin === "provider" ? "Provider" : "Repository"}
+      {label}
     </Badge>
   );
 }
