@@ -234,4 +234,69 @@ describe("pushPhraseTranslations", () => {
         ),
     ).toBe(false);
   });
+
+  it("rejects stale externalStringId values that no longer match the key name", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+
+      if (parsedUrl.hostname === "api.phrase.com" && parsedUrl.pathname.includes("/keys")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-hello",
+              name: "hello",
+              description: null,
+              tags: [],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (parsedUrl.hostname === "api.phrase.com" && parsedUrl.pathname.includes("/translations")) {
+        throw new Error("translation API should not be called for mismatched key ids");
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await pushPhraseTranslations({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "phrase",
+      externalProjectId: "strings-project-1",
+      externalJobId: "phrase-job-1-task-fr-fr",
+      credential: {
+        id: "cred_1",
+        region: null,
+        baseUrl: null,
+      } as never,
+      project: {
+        providerMetadata: {
+          stringsProjectId: "strings-project-1",
+        },
+      } as never,
+      secretMaterial: "token",
+      translations: [
+        {
+          locale: "fr-FR",
+          key: "hello",
+          externalStringId: "stale-key-id",
+          text: "Bonjour",
+        },
+      ],
+    });
+
+    expect(result.uploaded).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.failures).toEqual([
+      {
+        locale: "fr-FR",
+        fileId: null,
+        message: "phrase_translation_key_id_mismatch",
+      },
+    ]);
+  });
 });

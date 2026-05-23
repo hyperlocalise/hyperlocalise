@@ -54,6 +54,7 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 func parseJSONCKeyComments(content []byte) map[string]string {
 	lines := bytes.Split(content, []byte("\n"))
 	stack := []string{}
+	stackPrefix := ""
 	pendingComments := []string{}
 	contexts := map[string]string{}
 	inBlockComment := false
@@ -121,6 +122,11 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		for len(line) > 0 && line[0] == '}' {
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
+				if len(stack) > 0 {
+					stackPrefix = strings.Join(stack, ".") + "."
+				} else {
+					stackPrefix = ""
+				}
 				pendingComments = nil
 			}
 			line = strings.TrimSpace(line[1:])
@@ -135,10 +141,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		if err != nil {
 			continue
 		}
-		fullKey := decodedKey
-		if len(stack) > 0 {
-			fullKey = strings.Join(append(append([]string(nil), stack...), decodedKey), ".")
-		}
+		fullKey := stackPrefix + decodedKey
 
 		if len(pendingComments) > 0 {
 			contexts[fullKey] = strings.Join(pendingComments, "\n")
@@ -155,6 +158,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		valuePart := strings.TrimSpace(matches[2])
 		if strings.HasPrefix(valuePart, "{") && jsoncObjectValueSpansMultipleLines(valuePart) {
 			stack = append(stack, decodedKey)
+			stackPrefix = strings.Join(stack, ".") + "."
 		}
 	}
 
@@ -165,6 +169,12 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 }
 
 func decodeJSONKey(raw string) (string, error) {
+	// BOLT OPTIMIZATION: Fast-path for simple keys without escape sequences or quotes.
+	// This avoids expensive json.Unmarshal for the majority of keys.
+	if strings.IndexByte(raw, '\\') == -1 && strings.IndexByte(raw, '"') == -1 {
+		return raw, nil
+	}
+
 	var decoded string
 	err := json.Unmarshal([]byte("\""+raw+"\""), &decoded)
 	if err != nil {

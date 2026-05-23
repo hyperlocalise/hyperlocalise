@@ -1,0 +1,35 @@
+import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+
+export type ProviderQaFeedbackUpload = {
+  findingId: string;
+  finding: ProviderQaFinding;
+};
+
+export type ProviderCommentChangedItem = {
+  type: "provider_comment";
+  findingId: string;
+  status: "posted" | "skipped" | "failed";
+  externalIssueUid?: string | null;
+  externalCommentUid?: string | null;
+  hashcode?: string | null;
+  locale?: string | null;
+  message?: string | null;
+};
+
+export type ExternalTmsCommentPusher = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  externalJobId: string;
+  secretMaterial: string;
+  feedback: ProviderQaFeedbackUpload[];
+  knownExternalIds: Map<string, { issueUid: string; commentUid?: string | null }>;
+}) => Promise<{
+  posted: number;
+  skipped: number;
+  failed: number;
+  changedItems: ProviderCommentChangedItem[];
+  failures: Array<{ findingId: string; message: string }>;
+}>;

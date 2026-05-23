@@ -21,6 +21,7 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type {
   JobQueue,
+  ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   TranslationJobEventData,
@@ -76,6 +77,7 @@ type CreateWorkspaceJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue: ProviderAgentTranslationQueue;
   providerAgentQaQueue: ProviderAgentQaQueue;
+  providerAgentCommentQueue: ProviderAgentCommentQueue;
 };
 
 const providerQaAgentActions = new Set(["review_with_agent", "run_qa_checks"]);
@@ -894,6 +896,30 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               c,
               "agent_run_queue_unavailable",
               "Agent QA queue is unavailable",
+            );
+          }
+        }
+
+        if (payload.action === "leave_provider_comment") {
+          try {
+            await options.providerAgentCommentQueue.enqueue({
+              agentRunId: agentRun.id,
+              organizationId,
+            });
+          } catch (error) {
+            await failAgentRun({
+              runId: agentRun.id,
+              organizationId,
+              outputSummary: { code: "agent_run_queue_unavailable" },
+              warnings: [
+                error instanceof Error ? error.message : "agent comment queue unavailable",
+              ],
+            });
+
+            return serviceUnavailableResponse(
+              c,
+              "agent_run_queue_unavailable",
+              "Agent comment queue is unavailable",
             );
           }
         }

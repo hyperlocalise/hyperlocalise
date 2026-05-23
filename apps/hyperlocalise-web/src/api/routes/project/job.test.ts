@@ -10,6 +10,7 @@ import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import type {
   JobQueue,
+  ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   TranslationJobEventData,
@@ -67,11 +68,20 @@ function createInlineTestProviderAgentQaQueue(): ProviderAgentQaQueue {
   };
 }
 
+function createInlineTestProviderAgentCommentQueue(): ProviderAgentCommentQueue {
+  return {
+    async enqueue(event) {
+      return { ids: [event.agentRunId] };
+    },
+  };
+}
+
 const client = testClient(
   createApp({
     jobQueue: createInlineTestJobQueue(),
     providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
     providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
+    providerAgentCommentQueue: createInlineTestProviderAgentCommentQueue(),
   }),
 );
 const appClient = client;
@@ -1567,6 +1577,156 @@ describe("jobRoutes", () => {
         status: "failed",
         outputSummary: { code: "agent_run_queue_unavailable" },
         warnings: ["qa queue down"],
+      }),
+    ]);
+  });
+
+  it("creates comment_only agent runs for leave_provider_comment", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-comment-agent",
+      externalStatus: "todo",
+      title: "Comment write-back copy",
+    });
+
+    const selectedFindings = [
+      {
+        checkType: "glossary_violation" as const,
+        severity: "warning" as const,
+        message: "Use approved term",
+        item: {
+          externalStringId: "hash-1",
+          key: "cta.label",
+          locale: "fr-FR",
+          field: "target" as const,
+        },
+      },
+    ];
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: {
+          action: "leave_provider_comment",
+          selectedFindings,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      agentRun: {
+        kind: string;
+        status: string;
+        inputSnapshot: Record<string, unknown>;
+      };
+    };
+    expect(body.agentRun).toMatchObject({
+      kind: "comment_only",
+      status: "queued",
+      inputSnapshot: expect.objectContaining({
+        action: "leave_provider_comment",
+        selectedFindings,
+      }),
+    });
+  });
+
+  it("marks the agent run failed when provider comment queueing fails", async () => {
+    const failingClient = testClient(
+      createApp({
+        jobQueue: createInlineTestJobQueue(),
+        providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+        providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
+        providerAgentCommentQueue: {
+          async enqueue() {
+            throw new Error("comment queue down");
+          },
+        },
+      }),
+    );
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-comment-queue-fail",
+      externalStatus: "todo",
+      title: "Comment queue failure copy",
+    });
+
+    const response = await failingClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: {
+          action: "leave_provider_comment",
+          selectedFindings: [
+            {
+              checkType: "glossary_violation",
+              severity: "warning",
+              message: "Use approved term",
+              item: {
+                externalStringId: "hash-1",
+                key: "cta.label",
+                locale: "fr-FR",
+                field: "target",
+              },
+            },
+          ],
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "agent_run_queue_unavailable",
+      message: expect.any(String),
+    });
+
+    const agentRuns = await db
+      .select({
+        status: schema.agentRuns.status,
+        outputSummary: schema.agentRuns.outputSummary,
+        warnings: schema.agentRuns.warnings,
+      })
+      .from(schema.agentRuns)
+      .where(eq(schema.agentRuns.hyperlocaliseJobId, externalJob.id));
+
+    expect(agentRuns).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        outputSummary: { code: "agent_run_queue_unavailable" },
+        warnings: ["comment queue down"],
       }),
     ]);
   });
