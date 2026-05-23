@@ -74,7 +74,10 @@ describe("pullPhraseTaskContent", () => {
         );
       }
 
-      if (requestUrl.pathname.includes("/translations") && requestUrl.searchParams.get("locale_name") === "en") {
+      if (
+        requestUrl.pathname.includes("/translations") &&
+        requestUrl.searchParams.get("locale_name") === "en"
+      ) {
         return new Response(
           JSON.stringify([
             {
@@ -90,7 +93,10 @@ describe("pullPhraseTaskContent", () => {
         );
       }
 
-      if (requestUrl.pathname.includes("/translations") && requestUrl.searchParams.get("locale_name") === "fr") {
+      if (
+        requestUrl.pathname.includes("/translations") &&
+        requestUrl.searchParams.get("locale_name") === "fr"
+      ) {
         return new Response(
           JSON.stringify([
             {

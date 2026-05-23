@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { requestBodyString, requestUrlString } from "../fetch-mock-helpers";
 import { pushPhraseTranslations } from "./phrase-translation-pusher";
 
 describe("pushPhraseTranslations", () => {
@@ -48,7 +49,7 @@ describe("pushPhraseTranslations", () => {
             {
               id: "key-1",
               name: "hello",
-              description: null,
+              description: "Greeting",
               tags: ["hyperlocalise:job:phrase-job-1"],
             },
           ]),
@@ -106,7 +107,7 @@ describe("pushPhraseTranslations", () => {
       } as never,
       secretMaterial: "token",
       translations: [
-        { locale: "fr-FR", key: "hello", externalStringId: "key-1", text: "Bonjour" },
+        { locale: "fr-FR", key: "hello", text: "Bonjour" },
         { locale: "fr-FR", key: "world", text: "Monde" },
       ],
     });
@@ -136,16 +137,28 @@ describe("pushPhraseTranslations", () => {
     const translationRequests = vi
       .mocked(fetchMock)
       .mock.calls.filter(([requestUrl, requestInit]) => {
-        return String(requestUrl).includes("/translations") && requestInit?.method === "POST";
+        return (
+          requestUrlString(requestUrl).includes("/translations") && requestInit?.method === "POST"
+        );
       });
 
     expect(translationRequests).toHaveLength(2);
-    expect(String(translationRequests[0]?.[0])).toContain("branch=main");
-    expect(JSON.parse(String(translationRequests[0]?.[1]?.body))).toMatchObject({
+    expect(requestUrlString(translationRequests[0]![0])).toContain("branch=main");
+    expect(JSON.parse(requestBodyString(translationRequests[0]?.[1]?.body))).toMatchObject({
       key_id: "key-1",
       locale_name: "fr-FR",
       content: "Bonjour",
       unverified: false,
+    });
+
+    const createKeyRequests = vi
+      .mocked(fetchMock)
+      .mock.calls.filter(([requestUrl, requestInit]) => {
+        return requestUrlString(requestUrl).includes("/keys") && requestInit?.method === "POST";
+      });
+    expect(createKeyRequests).toHaveLength(1);
+    expect(JSON.parse(requestBodyString(createKeyRequests[0]?.[1]?.body))).toMatchObject({
+      name: "world",
     });
   });
 });

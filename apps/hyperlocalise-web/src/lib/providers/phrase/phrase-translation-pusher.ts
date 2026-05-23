@@ -137,7 +137,7 @@ async function loadKeysByName(
   const keysByName = new Map<string, { id: string; tags: string[] }>();
 
   for (const key of keys) {
-    keysByName.set(buildKeyLookup(key.name, key.description), {
+    keysByName.set(buildKeyLookup(key.name), {
       id: key.id,
       tags: key.tags,
     });
@@ -161,7 +161,7 @@ async function resolvePhraseKeyId(input: {
     return input.entry.keyId;
   }
 
-  const lookup = buildKeyLookup(input.entry.key, null);
+  const lookup = buildKeyLookup(input.entry.key);
   const existing = input.keysByName.get(lookup);
   if (existing) {
     return existing.id;
@@ -178,8 +178,8 @@ async function resolvePhraseKeyId(input: {
   return created.id;
 }
 
-function buildKeyLookup(name: string, description: string | null) {
-  return `${name.trim()}\x00${description?.trim() ?? ""}`;
+function buildKeyLookup(name: string) {
+  return name.trim();
 }
 
 function mapPhraseStringsError(error: unknown) {

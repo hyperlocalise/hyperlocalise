@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { requestUrlString } from "../fetch-mock-helpers";
 import { fetchLokaliseFileKeys } from "./lokalise-file-fetcher";
 
 describe("fetchLokaliseFileKeys", () => {
@@ -373,13 +374,3 @@ describe("fetchLokaliseFileKeys", () => {
     ).rejects.toThrow("lokalise_auth_invalid");
   });
 });
-
-function requestUrlString(url: Parameters<typeof fetch>[0]) {
-  if (typeof url === "string") {
-    return url;
-  }
-  if (url instanceof URL) {
-    return url.toString();
-  }
-  return url.url;
-}

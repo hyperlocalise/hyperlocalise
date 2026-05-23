@@ -178,7 +178,9 @@ async function loadTranslationsByKeyId(input: {
   const keyIdSet = new Set(input.keyIds);
   const translationsByKeyId = new Map<string, Map<string, PhraseTranslation>>();
   const listOptions = input.branch ? { branch: input.branch } : {};
-  const localesToFetch = input.locales.filter((locale) => keyIdSet.size > 0);
+  if (keyIdSet.size === 0) return translationsByKeyId;
+
+  const localesToFetch = input.locales;
 
   await mapWithConcurrency(localesToFetch, LOCALE_FETCH_CONCURRENCY, async (locale) => {
     try {
