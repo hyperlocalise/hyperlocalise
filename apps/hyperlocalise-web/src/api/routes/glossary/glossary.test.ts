@@ -7,6 +7,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
+import { upsertOrganizationExternalTmsGlossary } from "@/lib/providers/organization-external-tms-glossaries";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 import { createGlossaryTestFixture } from "./glossary.fixture";
 
@@ -122,6 +124,8 @@ describe("glossaryRoutes", () => {
     expect(body.glossary.description).toBe("Marketing terminology list");
     expect(body.glossary.sourceLocale).toBe("en");
     expect(body.glossary.targetLocale).toBe("fr");
+    expect(body.glossary.source).toBe("native");
+    expect(body.glossary.externalProviderKind).toBeNull();
   });
 
   it("fills default values for optional create fields", async () => {
@@ -491,5 +495,61 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(403);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "forbidden", message: expect.any(String) });
+  });
+
+  it("lists native and provider-backed glossaries together", async () => {
+    const identity = createWorkosIdentity();
+    const { organization, user } = await glossaryFixture.createLocalWorkosIdentity(identity);
+    await createGlossaryViaApi(identity, { name: "Native Glossary" });
+
+    const organizationId = organization.id;
+    const userId = user.id;
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "phrase",
+      displayName: "Phrase",
+      secretMaterial: "phrase-token",
+    });
+
+    await upsertOrganizationExternalTmsGlossary({
+      organizationId,
+      providerCredentialId: credential.id,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      externalResourceType: "term_base",
+      externalGlossaryId: "tb-42",
+      name: "Phrase Term Base",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      externalUrl: "https://phrase.com/term-bases/tb-42",
+    });
+
+    const response = await client.api.glossary.$get(
+      { query: { limit: "50", offset: "0" } },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
+
+    expect(body.glossaries).toHaveLength(2);
+    expect(body.glossaries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "Native Glossary", source: "native" }),
+        expect.objectContaining({
+          name: "Phrase Term Base",
+          source: "external_tms",
+          externalProviderKind: "phrase",
+          externalResourceType: "term_base",
+          externalGlossaryId: "tb-42",
+          externalUrl: "https://phrase.com/term-bases/tb-42",
+        }),
+      ]),
+    );
   });
 });

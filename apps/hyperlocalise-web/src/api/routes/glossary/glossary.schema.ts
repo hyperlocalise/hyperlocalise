@@ -69,8 +69,36 @@ export const glossaryRecordSchema = z.object({
   sourceLocale: z.string(),
   targetLocale: z.string(),
   status: z.string(),
+  source: z.enum(["native", "external_tms"]),
+  externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
+  externalProjectId: z.string().nullable(),
+  externalResourceType: z.enum(["glossary", "term_base"]).nullable(),
+  externalGlossaryId: z.string().nullable(),
+  localeCoverage: z.array(z.string()),
+  termCount: z.number().int().nullable(),
+  syncState: z.string().nullable(),
+  termCapabilities: z.record(z.string(), z.unknown()),
+  externalUrl: z.string().nullable(),
+  lastSyncedAt: z.string().datetime().nullable(),
+  lastSyncErrorAt: z.string().datetime().nullable(),
+  lastSyncErrorMessage: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+});
+
+export const glossaryTermRecordSchema = z.object({
+  id: z.string(),
+  glossaryId: z.string(),
+  glossaryName: z.string(),
+  sourceTerm: z.string(),
+  targetTerm: z.string(),
+  targetLocale: z.string(),
+  description: z.string(),
+  forbidden: z.boolean(),
+  caseSensitive: z.boolean(),
+  provenance: z.string(),
+  externalKey: z.string().nullable(),
+  reviewStatus: z.string(),
 });
 
 export const glossaryResponseSchema = z.object({
@@ -81,6 +109,10 @@ export const glossariesResponseSchema = z.object({
   glossaries: z.array(glossaryRecordSchema),
 });
 
+export const glossaryTermsResponseSchema = z.object({
+  glossaryTerms: z.array(glossaryTermRecordSchema),
+});
+
 export type GlossaryIdParams = z.infer<typeof glossaryIdParamsSchema>;
 export type ListGlossaryQuery = z.infer<typeof listGlossaryQuerySchema>;
 export type CreateGlossaryBody = z.infer<typeof createGlossaryBodySchema>;
@@ -88,3 +120,5 @@ export type UpdateGlossaryBody = z.infer<typeof updateGlossaryBodySchema>;
 export type GlossaryRecord = z.infer<typeof glossaryRecordSchema>;
 export type GlossaryResponse = z.infer<typeof glossaryResponseSchema>;
 export type GlossariesResponse = z.infer<typeof glossariesResponseSchema>;
+export type GlossaryTermRecord = z.infer<typeof glossaryTermRecordSchema>;
+export type GlossaryTermsResponse = z.infer<typeof glossaryTermsResponseSchema>;

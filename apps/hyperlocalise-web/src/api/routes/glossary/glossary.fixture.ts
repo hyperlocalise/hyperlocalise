@@ -59,6 +59,7 @@ export function createGlossaryTestFixture(client?: Client) {
     cleanup: authFixture.cleanup,
     createGlossaryViaApi,
     createStoredGlossaryFixture,
+    createLocalWorkosIdentity: authFixture.createLocalWorkosIdentity,
     createWorkosIdentity: authFixture.createWorkosIdentity,
     createWorkosIdentityForOrganization: authFixture.createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole: authFixture.createWorkosIdentityWithRole,
