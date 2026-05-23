@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -18,6 +18,7 @@ import {
   type UpdateGlossaryBody,
 } from "./glossary.schema";
 import {
+  externalTmsGlossaryImmutableResponse,
   forbiddenResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryMutationAllowed,
@@ -25,8 +26,13 @@ import {
   glossaryNotFoundResponse,
 } from "./glossary.shared";
 
+type GlossaryListResult = {
+  glossaries: Glossary[];
+  total: number;
+};
+
 type GlossaryStore = {
-  list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<Glossary[]>;
+  list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<GlossaryListResult>;
   create(auth: ApiAuthContext, payload: CreateGlossaryBody): Promise<Glossary>;
   getById(auth: ApiAuthContext, glossaryId: string): Promise<Glossary | null>;
   update(
@@ -41,13 +47,20 @@ const glossaryStore: GlossaryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    return db
-      .select()
-      .from(schema.glossaries)
-      .where(eq(schema.glossaries.organizationId, auth.organization.localOrganizationId))
-      .orderBy(desc(schema.glossaries.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const where = eq(schema.glossaries.organizationId, auth.organization.localOrganizationId);
+
+    const [glossaries, totalRow] = await Promise.all([
+      db
+        .select()
+        .from(schema.glossaries)
+        .where(where)
+        .orderBy(desc(schema.glossaries.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ value: count() }).from(schema.glossaries).where(where),
+    ]);
+
+    return { glossaries, total: totalRow[0]?.value ?? 0 };
   },
   async create(auth, payload) {
     const [glossary] = await db
@@ -137,8 +150,8 @@ export function createGlossaryRoutes() {
     .use("*", workosAuthMiddleware)
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
-      const glossaries = await glossaryStore.list(c.var.auth, query);
-      return c.json({ glossaries: glossaries.map(toGlossaryRecord) }, 200);
+      const { glossaries, total } = await glossaryStore.list(c.var.auth, query);
+      return c.json({ glossaries: glossaries.map(toGlossaryRecord), total }, 200);
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
@@ -181,13 +194,23 @@ export function createGlossaryRoutes() {
 
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const glossary = await glossaryStore.update(c.var.auth, params.glossaryId, payload);
+      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
+      if (glossary.source === "external_tms") {
+        return externalTmsGlossaryImmutableResponse(c);
+      }
+
+      const updated = await glossaryStore.update(c.var.auth, params.glossaryId, payload);
+
+      if (!updated) {
+        return glossaryNotFoundResponse(c);
+      }
+
+      return c.json({ glossary: toGlossaryRecord(updated) }, 200);
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
@@ -195,6 +218,16 @@ export function createGlossaryRoutes() {
       }
 
       const params = c.req.valid("param");
+      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+
+      if (!glossary) {
+        return glossaryNotFoundResponse(c);
+      }
+
+      if (glossary.source === "external_tms") {
+        return externalTmsGlossaryImmutableResponse(c);
+      }
+
       const deleted = await glossaryStore.delete(c.var.auth, params.glossaryId);
 
       if (!deleted) {

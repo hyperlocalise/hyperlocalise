@@ -538,6 +538,7 @@ describe("glossaryRoutes", () => {
     if ("error" in body) throw new Error(String(body.error));
 
     expect(body.glossaries).toHaveLength(2);
+    expect(body.total).toBe(2);
     expect(body.glossaries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Native Glossary", source: "native" }),
@@ -551,5 +552,55 @@ describe("glossaryRoutes", () => {
         }),
       ]),
     );
+  });
+
+  it("forbids mutating provider-backed glossaries", async () => {
+    const identity = createWorkosIdentity();
+    const { organization, user } = await glossaryFixture.createLocalWorkosIdentity(identity);
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: organization.id,
+      userId: user.id,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-token",
+    });
+
+    const externalGlossary = await upsertOrganizationExternalTmsGlossary({
+      organizationId: organization.id,
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      externalResourceType: "glossary",
+      externalGlossaryId: "glossary-99",
+      name: "Crowdin Glossary",
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    const headers = await authHeadersFor(identity);
+
+    const patchResponse = await client.api.glossary[":glossaryId"].$patch(
+      {
+        param: { glossaryId: externalGlossary.id },
+        json: { name: "Renamed" },
+      },
+      { headers },
+    );
+    expect(patchResponse.status).toBe(403);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: "external_tms_glossary_immutable",
+    });
+
+    const deleteResponse = await client.api.glossary[":glossaryId"].$delete(
+      {
+        param: { glossaryId: externalGlossary.id },
+      },
+      { headers },
+    );
+    expect(deleteResponse.status).toBe(403);
+    await expect(deleteResponse.json()).resolves.toMatchObject({
+      error: "external_tms_glossary_immutable",
+    });
   });
 });

@@ -23,6 +23,14 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
+export function externalTmsGlossaryImmutableResponse(c: { json: JsonContext["json"] }) {
+  return sharedForbiddenResponse(
+    c,
+    "external_tms_glossary_immutable",
+    "This glossary is managed by an external TMS and cannot be edited directly",
+  );
+}
+
 export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
   return allowedMutationRoles.has(role);
 }

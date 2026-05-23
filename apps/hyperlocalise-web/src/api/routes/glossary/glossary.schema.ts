@@ -107,6 +107,7 @@ export const glossaryResponseSchema = z.object({
 
 export const glossariesResponseSchema = z.object({
   glossaries: z.array(glossaryRecordSchema),
+  total: z.number().int().nonnegative(),
 });
 
 export const glossaryTermsResponseSchema = z.object({
