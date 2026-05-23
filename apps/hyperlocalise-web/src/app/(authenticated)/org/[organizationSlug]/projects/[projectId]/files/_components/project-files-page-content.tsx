@@ -406,6 +406,7 @@ export function ProjectFilesPageContent({
 
   const localeDiscoveryQuery = useQuery({
     queryKey: ["project-files-locales", organizationSlug, projectId, filtersForLocaleOptions],
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"

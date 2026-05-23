@@ -77,6 +77,7 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
 
   const localeDiscoveryQuery = useQuery({
     queryKey: ["workspace-files-locales", organizationSlug, filtersForLocaleOptions],
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["workspace-files"].$get({
         param: { organizationSlug },
