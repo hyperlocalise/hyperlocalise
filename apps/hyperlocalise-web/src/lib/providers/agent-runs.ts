@@ -87,6 +87,7 @@ export async function failAgentRun(input: {
   runId: string;
   organizationId: string;
   outputSummary?: AgentRunOutputSummary;
+  changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
   return finishAgentRun({
@@ -94,6 +95,7 @@ export async function failAgentRun(input: {
     organizationId: input.organizationId,
     status: "failed",
     outputSummary: input.outputSummary,
+    changedItems: input.changedItems,
     warnings: input.warnings,
     sourceStatuses: ["queued", "running"],
   });
@@ -222,6 +224,7 @@ export async function listAgentRuns(input: {
   actorUserId?: string;
   hyperlocaliseJobId?: string;
   limit?: number;
+  offset?: number;
 }) {
   const filters: SQL[] = [eq(schema.agentRuns.organizationId, input.organizationId)];
 
@@ -252,7 +255,8 @@ export async function listAgentRuns(input: {
     .from(schema.agentRuns)
     .where(and(...filters))
     .orderBy(desc(schema.agentRuns.createdAt))
-    .limit(input.limit ?? 50);
+    .limit(input.limit ?? 50)
+    .offset(input.offset ?? 0);
 }
 
 export async function updateAgentRunChangedItems(input: {

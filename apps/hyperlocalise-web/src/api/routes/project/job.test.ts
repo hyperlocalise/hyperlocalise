@@ -13,6 +13,7 @@ import type {
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
+  ProviderAgentWritebackQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
@@ -76,12 +77,21 @@ function createInlineTestProviderAgentCommentQueue(): ProviderAgentCommentQueue 
   };
 }
 
+function createInlineTestProviderAgentWritebackQueue(): ProviderAgentWritebackQueue {
+  return {
+    async enqueue(event) {
+      return { ids: [event.agentRunId] };
+    },
+  };
+}
+
 const client = testClient(
   createApp({
     jobQueue: createInlineTestJobQueue(),
     providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
     providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
     providerAgentCommentQueue: createInlineTestProviderAgentCommentQueue(),
+    providerAgentWritebackQueue: createInlineTestProviderAgentWritebackQueue(),
   }),
 );
 const appClient = client;
@@ -1647,6 +1657,128 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("creates translate agent runs for push_approved_changes", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-writeback-agent",
+      externalStatus: "todo",
+      title: "Write-back copy",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: {
+          action: "push_approved_changes",
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      agentRun: {
+        kind: string;
+        status: string;
+        inputSnapshot: Record<string, unknown>;
+      };
+    };
+    expect(body.agentRun).toMatchObject({
+      kind: "translate",
+      status: "queued",
+      inputSnapshot: expect.objectContaining({
+        action: "push_approved_changes",
+      }),
+    });
+  });
+
+  it("marks the agent run failed when provider write-back queueing fails", async () => {
+    const failingClient = testClient(
+      createApp({
+        jobQueue: createInlineTestJobQueue(),
+        providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+        providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
+        providerAgentCommentQueue: createInlineTestProviderAgentCommentQueue(),
+        providerAgentWritebackQueue: {
+          async enqueue() {
+            throw new Error("write-back queue down");
+          },
+        },
+      }),
+    );
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-writeback-queue-fail",
+      externalStatus: "todo",
+      title: "Write-back queue failure copy",
+    });
+
+    const response = await failingClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: {
+          action: "push_approved_changes",
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "agent_run_queue_unavailable",
+      message: expect.any(String),
+    });
+
+    const agentRuns = await db
+      .select({
+        status: schema.agentRuns.status,
+        outputSummary: schema.agentRuns.outputSummary,
+        warnings: schema.agentRuns.warnings,
+      })
+      .from(schema.agentRuns)
+      .where(eq(schema.agentRuns.hyperlocaliseJobId, externalJob.id));
+
+    expect(agentRuns).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        outputSummary: { code: "agent_run_queue_unavailable" },
+        warnings: ["write-back queue down"],
+      }),
+    ]);
+  });
+
   it("marks the agent run failed when provider comment queueing fails", async () => {
     const failingClient = testClient(
       createApp({
@@ -1658,6 +1790,7 @@ describe("jobRoutes", () => {
             throw new Error("comment queue down");
           },
         },
+        providerAgentWritebackQueue: createInlineTestProviderAgentWritebackQueue(),
       }),
     );
     const identity = createWorkosIdentity();

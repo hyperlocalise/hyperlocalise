@@ -24,6 +24,7 @@ import type {
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
+  ProviderAgentWritebackQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
@@ -78,6 +79,7 @@ type CreateWorkspaceJobRoutesOptions = {
   providerAgentTranslationQueue: ProviderAgentTranslationQueue;
   providerAgentQaQueue: ProviderAgentQaQueue;
   providerAgentCommentQueue: ProviderAgentCommentQueue;
+  providerAgentWritebackQueue: ProviderAgentWritebackQueue;
 };
 
 const providerQaAgentActions = new Set(["review_with_agent", "run_qa_checks"]);
@@ -920,6 +922,30 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
               c,
               "agent_run_queue_unavailable",
               "Agent comment queue is unavailable",
+            );
+          }
+        }
+
+        if (payload.action === "push_approved_changes") {
+          try {
+            await options.providerAgentWritebackQueue.enqueue({
+              agentRunId: agentRun.id,
+              organizationId,
+            });
+          } catch (error) {
+            await failAgentRun({
+              runId: agentRun.id,
+              organizationId,
+              outputSummary: { code: "agent_run_queue_unavailable" },
+              warnings: [
+                error instanceof Error ? error.message : "agent write-back queue unavailable",
+              ],
+            });
+
+            return serviceUnavailableResponse(
+              c,
+              "agent_run_queue_unavailable",
+              "Agent write-back queue is unavailable",
             );
           }
         }

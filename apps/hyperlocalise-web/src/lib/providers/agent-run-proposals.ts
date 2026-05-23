@@ -414,6 +414,54 @@ export function countAgentRunProposalReviewStates(items: AgentRunProposalItem[])
   );
 }
 
+export type AcceptedAgentRunProposal = AgentRunProposalItem & {
+  sourceAgentRunId: string;
+};
+
+export function isPushApprovedWritebackAgentRun(inputSnapshot: Record<string, unknown>) {
+  return inputSnapshot.action === "push_approved_changes";
+}
+
+export function collectAcceptedAgentRunProposalsForJob(input: {
+  runs: Array<{
+    id: string;
+    kind: string;
+    status: string;
+    inputSnapshot: Record<string, unknown>;
+    changedItems: Record<string, unknown>[];
+    createdAt: Date;
+  }>;
+}) {
+  const proposalRuns = input.runs
+    .filter(
+      (run) =>
+        run.status === "succeeded" &&
+        (run.kind === "translate" || run.kind === "qa_fix") &&
+        !isPushApprovedWritebackAgentRun(run.inputSnapshot),
+    )
+    .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+
+  const acceptedByItemId = new Map<string, AcceptedAgentRunProposal>();
+
+  for (const run of proposalRuns) {
+    const proposals = parseAgentRunProposalItems(run.changedItems);
+    for (const proposal of proposals) {
+      if (proposal.reviewState !== "accepted") {
+        continue;
+      }
+
+      if (!acceptedByItemId.has(proposal.itemId)) {
+        acceptedByItemId.set(proposal.itemId, {
+          ...proposal,
+          sourceAgentRunId: run.id,
+        });
+      }
+    }
+  }
+
+  return [...acceptedByItemId.values()];
+}
+
 export function agentRunHasReviewableProposals(input: {
   kind: string;
   status: string;

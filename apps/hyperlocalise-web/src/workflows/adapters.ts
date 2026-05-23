@@ -6,6 +6,7 @@ import { githubFixWorkflow } from "./github-fix";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
+import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
 import { repoTmsAgentWorkflow } from "./repo-tms-agent";
 import { translationJobWorkflow } from "./translation-job";
 import type {
@@ -15,6 +16,7 @@ import type {
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
+  ProviderAgentWritebackQueue,
   RepoTmsAgentTaskQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -87,6 +89,15 @@ export function createProviderAgentCommentQueue(): ProviderAgentCommentQueue {
   return {
     async enqueue(event) {
       const run = await start(providerAgentCommentWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createProviderAgentWritebackQueue(): ProviderAgentWritebackQueue {
+  return {
+    async enqueue(event) {
+      const run = await start(providerAgentWritebackWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };
