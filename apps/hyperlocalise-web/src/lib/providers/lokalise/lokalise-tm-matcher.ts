@@ -66,7 +66,7 @@ export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemor
   );
 };
 
-export function memorySupportsLokaliseLiveSearch(memory: {
+export function memorySupportsLiveSearch(memory: {
   capabilityMode: string | null;
   externalProviderKind: string | null;
 }) {

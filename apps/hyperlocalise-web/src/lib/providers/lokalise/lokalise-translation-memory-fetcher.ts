@@ -3,6 +3,7 @@ import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/extern
 import {
   buildLokaliseProjectTranslationMemoryExternalId,
   pickLokaliseKeyTranslation,
+  uniqueLocales,
 } from "./normalize-lokalise-context-matches";
 import {
   buildLokaliseProjectUrl,
@@ -109,19 +110,3 @@ export const fetchLokaliseTranslationMemories: ExternalTmsTranslationMemoryFetch
     },
   ];
 };
-
-function uniqueLocales(locales: string[]): string[] {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-
-  for (const locale of locales) {
-    const trimmed = locale.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    unique.push(trimmed);
-  }
-
-  return unique;
-}

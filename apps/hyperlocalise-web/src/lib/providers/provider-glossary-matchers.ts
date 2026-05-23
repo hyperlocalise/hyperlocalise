@@ -17,6 +17,7 @@ export type ExternalTmsGlossaryMatcherInput = {
     id: string;
     name: string;
     externalGlossaryId: string | null;
+    targetLocale: string | null;
     termCapabilities: Record<string, unknown>;
   }>;
   sourceLocale: string;

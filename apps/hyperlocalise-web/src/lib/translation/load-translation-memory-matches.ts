@@ -4,7 +4,7 @@ import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { memorySupportsLokaliseLiveSearch } from "@/lib/providers/lokalise/lokalise-tm-matcher";
+import { memorySupportsLiveSearch } from "@/lib/providers/lokalise/lokalise-tm-matcher";
 import { getProviderTranslationMemoryMatcher } from "@/lib/providers/provider-translation-memory-matchers";
 import { loadSyncedTranslationMemoryMatchesForContext } from "@/lib/translation/load-synced-translation-memory-matches";
 import {
@@ -136,7 +136,7 @@ async function searchLiveProviderMatches(input: {
   const liveMatches: NormalizedTranslationMemoryMatch[] = [];
 
   for (const memory of input.memories) {
-    if (!memorySupportsLokaliseLiveSearch(memory)) {
+    if (!memorySupportsLiveSearch(memory)) {
       continue;
     }
 
@@ -236,7 +236,7 @@ export async function loadTranslationMemoryMatchesForContext(input: {
   );
   const liveSearchMemories = attachedMemories.filter(
     (memory) =>
-      memorySupportsLokaliseLiveSearch(memory) &&
+      memorySupportsLiveSearch(memory) &&
       memory.externalProviderKind &&
       input.targetLocales.some(
         (locale) => !syncedCoveredKeys.has(syncedCoverageKey(memory.id, locale)),

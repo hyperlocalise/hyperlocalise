@@ -3,6 +3,22 @@ import type { LokaliseGlossaryTerm, LokaliseKey, LokaliseTranslation } from "./l
 export const LOKALISE_PROJECT_GLOSSARY_EXTERNAL_ID_SUFFIX = ":glossary";
 export const LOKALISE_PROJECT_TM_EXTERNAL_ID_SUFFIX = ":translation-memory";
 
+export function uniqueLocales(locales: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const locale of locales) {
+    const trimmed = locale.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    unique.push(trimmed);
+  }
+
+  return unique;
+}
+
 export function buildLokaliseProjectGlossaryExternalId(projectId: string) {
   return `${projectId.trim()}${LOKALISE_PROJECT_GLOSSARY_EXTERNAL_ID_SUFFIX}`;
 }

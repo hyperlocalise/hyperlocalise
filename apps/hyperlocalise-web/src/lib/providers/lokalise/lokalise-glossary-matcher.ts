@@ -24,12 +24,15 @@ export const searchLokaliseGlossaryMatches: ExternalTmsGlossaryMatcher = async (
   }
 
   const expectedExternalGlossaryId = buildLokaliseProjectGlossaryExternalId(projectId);
-  const glossaryByExternalId = new Map(
-    glossaries
-      .filter((glossary) => glossary.externalGlossaryId)
-      .map((glossary) => [glossary.externalGlossaryId, glossary]),
-  );
-  const glossary = glossaryByExternalId.get(expectedExternalGlossaryId);
+  const normalizedTargetLocale = targetLocale.trim().toLowerCase();
+  const glossary = glossaries.find((candidate) => {
+    if (candidate.externalGlossaryId !== expectedExternalGlossaryId) {
+      return false;
+    }
+
+    const candidateTargetLocale = candidate.targetLocale?.trim().toLowerCase();
+    return !candidateTargetLocale || candidateTargetLocale === normalizedTargetLocale;
+  });
   if (!glossary) {
     return [];
   }
@@ -85,7 +88,7 @@ export const searchLokaliseGlossaryMatches: ExternalTmsGlossaryMatcher = async (
         externalResourceId: expectedExternalGlossaryId,
         externalTermId: String(term.id),
         glossaryName: glossary.name,
-        rank: 1 - index * 0.01,
+        rank: Math.max(0, 1 - index * 0.01),
         status: {
           forbidden: term.forbidden,
         },

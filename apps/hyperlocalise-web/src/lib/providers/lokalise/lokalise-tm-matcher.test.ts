@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
-  memorySupportsLokaliseLiveSearch,
+  memorySupportsLiveSearch,
   searchLokaliseTranslationMemoryMatches,
 } from "./lokalise-tm-matcher";
 
-describe("memorySupportsLokaliseLiveSearch", () => {
+describe("memorySupportsLiveSearch", () => {
   it("allows synced Lokalise memories to fall back to live key scans", () => {
     expect(
-      memorySupportsLokaliseLiveSearch({
+      memorySupportsLiveSearch({
         capabilityMode: "synced_import",
         externalProviderKind: "lokalise",
       }),
@@ -17,7 +17,7 @@ describe("memorySupportsLokaliseLiveSearch", () => {
 
   it("keeps other providers on live_search only", () => {
     expect(
-      memorySupportsLokaliseLiveSearch({
+      memorySupportsLiveSearch({
         capabilityMode: "synced_import",
         externalProviderKind: "phrase",
       }),
