@@ -9,16 +9,22 @@ export async function mapWithConcurrency<T, R>(
 
   const results: R[] = Array.from({ length: items.length });
   let nextIndex = 0;
+  const abortController = new AbortController();
 
   async function worker() {
-    while (true) {
+    while (!abortController.signal.aborted) {
       const currentIndex = nextIndex;
       nextIndex += 1;
       if (currentIndex >= items.length) {
         return;
       }
 
-      results[currentIndex] = await mapper(items[currentIndex] as T);
+      try {
+        results[currentIndex] = await mapper(items[currentIndex] as T);
+      } catch (error) {
+        abortController.abort();
+        throw error;
+      }
     }
   }
 

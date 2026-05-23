@@ -93,6 +93,58 @@ describe("fetchLokaliseProjects", () => {
     });
   });
 
+  it("stops locale fetches after an auth failure during concurrent project mapping", async () => {
+    const projects = Array.from({ length: 20 }, (_, index) => ({
+      project_id: `proj.${index}`,
+      name: `Project ${index}`,
+      project_type: "localization_files",
+      team_id: 42,
+      base_language_id: 640,
+      base_language_iso: "en",
+    }));
+
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes("/projects?page=1")) {
+        return new Response(JSON.stringify({ projects }), { status: 200 });
+      }
+
+      if (String(url).includes("/projects/proj.0/languages")) {
+        return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
+          status: 401,
+        });
+      }
+
+      if (String(url).includes("/projects/") && String(url).includes("/languages")) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.1",
+            languages: [{ lang_id: 640, lang_iso: "en", lang_name: "English", is_rtl: false }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ projects: [], languages: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      fetchLokaliseProjects({
+        organizationId: "org-1",
+        providerKind: "lokalise",
+        credential,
+        secretMaterial: "invalid-token",
+      }),
+    ).rejects.toThrow("lokalise_auth_invalid");
+
+    const languageFetches = vi
+      .mocked(fetchMock)
+      .mock.calls.filter((call) => String(call[0]).includes("/languages"));
+    expect(languageFetches.length).toBeLessThan(20);
+  });
+
   it("throws lokalise_auth_invalid when authentication fails", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {

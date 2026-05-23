@@ -196,7 +196,7 @@ export function partitionLokaliseLocales(
       if (sourceLocale) {
         return language.langIso !== sourceLocale;
       }
-      return true;
+      return false;
     })
     .map((language) => language.langIso.trim())
     .filter((locale): locale is string => Boolean(locale));

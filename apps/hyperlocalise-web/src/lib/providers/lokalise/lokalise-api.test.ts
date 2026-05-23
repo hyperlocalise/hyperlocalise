@@ -112,6 +112,19 @@ describe("partitionLokaliseLocales", () => {
     expect(sourceLocale).toBe("en");
     expect(targetLocales).toEqual(["fr"]);
   });
+
+  it("returns no target locales when the source language cannot be determined", () => {
+    const { sourceLocale, targetLocales } = partitionLokaliseLocales(
+      { baseLanguageId: null, baseLanguageIso: null },
+      [
+        { langId: 640, langIso: "en", langName: "English", isRtl: false },
+        { langId: 673, langIso: "fr", langName: "French", isRtl: false },
+      ],
+    );
+
+    expect(sourceLocale).toBeNull();
+    expect(targetLocales).toEqual([]);
+  });
 });
 
 describe("buildLokaliseProjectUrl", () => {
