@@ -61,7 +61,12 @@ async function loadAttachedGlossariesForProject(
     })
     .from(schema.projectGlossaries)
     .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
-    .where(eq(schema.projectGlossaries.projectId, projectId));
+    .where(
+      and(
+        eq(schema.projectGlossaries.projectId, projectId),
+        eq(schema.glossaries.status, "active"),
+      ),
+    );
 }
 
 async function loadExternalTmsProject(input: {
