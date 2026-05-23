@@ -3,8 +3,6 @@ import { eq } from "drizzle-orm";
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { loadPhraseTranslationContextMatches } from "@/lib/providers/phrase/load-phrase-translation-context-matches";
-import { mergeTranslationContextMatches } from "@/lib/providers/phrase/normalize-phrase-context-matches";
 import {
   toContextGlossaryMatch,
   type ContextGlossaryMatch,
@@ -93,7 +91,7 @@ export async function assembleStringTranslationContextSnapshot(
 
   const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-  const [glossaryTerms, translationMemoryMatches, phraseLiveGlossaryTerms] = await Promise.all([
+  const [glossaryTerms, translationMemoryMatches] = await Promise.all([
     loadGlossaryMatchesForContext({
       projectId,
       organizationId: options?.organizationId,
@@ -111,22 +109,7 @@ export async function assembleStringTranslationContextSnapshot(
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
     }).then((matches) => matches.map(toContextTranslationMemoryMatch)),
-    providerKind === "phrase"
-      ? loadPhraseTranslationContextMatches({
-          project,
-          externalJobUid: options?.externalJobUid,
-          sourceLocale: jobInput.sourceLocale,
-          targetLocales: jobInput.targetLocales,
-          sourceText: jobInput.sourceText,
-        }).then((result) => result.glossaryTerms)
-      : Promise.resolve([]),
   ]);
-
-  const mergedGlossaryTerms = mergeTranslationContextMatches(
-    glossaryTerms,
-    phraseLiveGlossaryTerms,
-    20,
-  );
 
   return {
     ok: true,
@@ -138,7 +121,7 @@ export async function assembleStringTranslationContextSnapshot(
         translationContext: project.translationContext,
       },
       job: jobInput,
-      glossaryTerms: mergedGlossaryTerms,
+      glossaryTerms,
       translationMemoryMatches,
     } satisfies StringTranslationContextSnapshot,
   } as const;
