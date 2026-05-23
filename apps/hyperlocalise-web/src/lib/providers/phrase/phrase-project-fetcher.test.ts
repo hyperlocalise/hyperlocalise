@@ -105,7 +105,9 @@ describe("fetchPhraseProjects", () => {
       secretMaterial: "phrase-token",
     });
 
-    expect(String(vi.mocked(fetchMock).mock.calls[0]?.[0])).toContain(PHRASE_US_BASE_URL);
+    const requestUrl = vi.mocked(fetchMock).mock.calls[0]?.[0];
+    expect(requestUrl).toBeTypeOf("string");
+    expect(requestUrl).toContain(PHRASE_US_BASE_URL);
   });
 
   it("throws phrase_auth_invalid when authentication fails", async () => {

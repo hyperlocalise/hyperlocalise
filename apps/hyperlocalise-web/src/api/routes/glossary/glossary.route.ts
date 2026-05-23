@@ -5,6 +5,8 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
+import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
+import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 
 import {
   createGlossaryBodySchema,
@@ -136,7 +138,7 @@ export function createGlossaryRoutes() {
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
       const glossaries = await glossaryStore.list(c.var.auth, query);
-      return c.json({ glossaries }, 200);
+      return c.json({ glossaries: glossaries.map(toGlossaryRecord) }, 200);
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
@@ -145,7 +147,7 @@ export function createGlossaryRoutes() {
 
       const payload = c.req.valid("json");
       const glossary = await glossaryStore.create(c.var.auth, payload);
-      return c.json({ glossary }, 201);
+      return c.json({ glossary: toGlossaryRecord(glossary) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -155,7 +157,22 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary }, 200);
+      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
+    })
+    .get("/:glossaryId/terms", validateGlossaryParams, async (c) => {
+      const params = c.req.valid("param");
+      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+
+      if (!glossary) {
+        return glossaryNotFoundResponse(c);
+      }
+
+      const glossaryTerms = await listGlossaryTermsByGlossaryId({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        glossaryId: params.glossaryId,
+      });
+
+      return c.json({ glossaryTerms }, 200);
     })
     .patch("/:glossaryId", validateGlossaryParams, validateUpdateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
@@ -170,7 +187,7 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary }, 200);
+      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {

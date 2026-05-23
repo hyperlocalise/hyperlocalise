@@ -87,7 +87,18 @@ export const externalTmsProviderKindEnum = pgEnum("external_tms_provider_kind", 
   "lokalise",
 ]);
 export const externalTmsResourceTypeEnum = pgEnum("external_tms_resource_type", ["file", "key"]);
+export const externalTmsTerminologyResourceTypeEnum = pgEnum(
+  "external_tms_terminology_resource_type",
+  ["glossary", "term_base"],
+);
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
+export const glossarySyncStateEnum = pgEnum("glossary_sync_state", [
+  "synced",
+  "stale",
+  "syncing",
+  "error",
+]);
+export const glossaryTermProvenanceEnum = pgEnum("glossary_term_provenance", ["manual", "sync"]);
 export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
   "project_scan",
   "file_key_scan",
@@ -365,6 +376,47 @@ export const glossaries = pgTable(
     targetLocale: text("target_locale").notNull(),
     // Lifecycle state for draft, active, and archived libraries.
     status: assetStatusEnum("status").notNull().default("active"),
+    // Where this glossary originated from.
+    source: projectSourceEnum("source").notNull().default("native"),
+    // Provider kind when sourced from external TMS.
+    externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
+    // External provider credential backing this glossary.
+    externalProviderCredentialId: uuid("external_provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    // Provider project that scopes this glossary or term base.
+    externalProjectId: text("external_project_id"),
+    // Whether the synced resource is a glossary or term base.
+    externalResourceType: externalTmsTerminologyResourceTypeEnum("external_resource_type"),
+    // Stable glossary or term-base ID from the external TMS provider.
+    externalGlossaryId: text("external_glossary_id"),
+    // Locales covered by the synced terminology resource.
+    localeCoverage: jsonb("locale_coverage")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Term count reported by the provider when available.
+    termCount: integer("term_count"),
+    // Sync lifecycle for provider-backed glossaries.
+    syncState: glossarySyncStateEnum("sync_state"),
+    // Provider-reported term capabilities such as import/export support.
+    termCapabilities: jsonb("term_capabilities")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Optional direct glossary URL in provider UI.
+    externalUrl: text("external_url"),
+    // Last successful sync timestamp.
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    // Last sync failure timestamp and message.
+    lastSyncErrorAt: timestamp("last_sync_error_at", { withTimezone: true }),
+    lastSyncErrorMessage: text("last_sync_error_message"),
+    // Raw provider metadata for debugging and forward compatibility.
+    providerMetadata: jsonb("provider_metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // When the glossary was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When glossary metadata last changed.
@@ -375,6 +427,15 @@ export const glossaries = pgTable(
   },
   (table) => [
     uniqueIndex("glossaries_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("glossaries_org_provider_external_resource_key").on(
+      table.organizationId,
+      table.externalProviderKind,
+      table.externalProjectId,
+      table.externalResourceType,
+      table.externalGlossaryId,
+      table.sourceLocale,
+      table.targetLocale,
+    ),
     index("idx_glossaries_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_glossaries_org_locale_pair").on(
       table.organizationId,
@@ -382,6 +443,12 @@ export const glossaries = pgTable(
       table.targetLocale,
     ),
     index("idx_glossaries_created_by_user_id").on(table.createdByUserId),
+    index("idx_glossaries_sync_state").on(table.syncState),
+    index("idx_glossaries_external_provider").on(
+      table.organizationId,
+      table.externalProviderKind,
+      table.externalProjectId,
+    ),
   ],
 );
 
@@ -406,6 +473,10 @@ export const glossaryTerms = pgTable(
     caseSensitive: boolean("case_sensitive").notNull().default(false),
     // Whether the source term is explicitly forbidden in output.
     forbidden: boolean("forbidden").notNull().default(false),
+    // Optional external identifier retained for later sync or dedupe.
+    externalKey: text("external_key"),
+    // Optional source label such as manual or sync.
+    provenance: glossaryTermProvenanceEnum("provenance").notNull().default("manual"),
     // Review status for agent suggestions vs human-approved terms.
     reviewStatus: text("review_status").notNull().default("approved"),
     // Extensible metadata for tags, domains, or import provenance.
@@ -433,7 +504,9 @@ export const glossaryTerms = pgTable(
     uniqueIndex("glossary_terms_glossary_source_term_ci_key")
       .on(table.glossaryId, sql`lower(${table.sourceTerm})`)
       .where(sql`${table.caseSensitive} = false`),
+    uniqueIndex("glossary_terms_glossary_external_key").on(table.glossaryId, table.externalKey),
     index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
+    index("idx_glossary_terms_external_key").on(table.externalKey),
     index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],
 );
