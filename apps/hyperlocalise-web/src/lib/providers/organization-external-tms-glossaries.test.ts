@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import { validateGlossaryTermsInTranslation } from "@/workflows/file-translation-job";
+import { validateGlossaryTermsInTranslation } from "@/lib/glossary/validate-glossary-terms-in-translation";
 
 import {
   listOrganizationExternalTmsGlossaries,

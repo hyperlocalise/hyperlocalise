@@ -172,6 +172,8 @@ async function translateProviderUnits(input: {
           from,
           to: translation.text,
           locale: translation.locale,
+          externalStringId: unit.externalStringId,
+          key: unit.key,
           glossaryTerms: contextSnapshot.snapshot.glossaryTerms
             .filter((term) => term.targetLocale === translation.locale)
             .map((term) => ({

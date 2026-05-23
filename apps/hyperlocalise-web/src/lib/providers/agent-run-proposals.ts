@@ -1,4 +1,8 @@
-import { validateGlossaryTermsInTranslation } from "@/workflows/file-translation-job";
+import {
+  type GlossaryTermConstraint,
+  translationUnitHasGlossaryViolations,
+  validateGlossaryForTranslationUnits,
+} from "@/lib/glossary/validate-glossary-terms-in-translation";
 
 export type AgentRunProposalReviewState = "pending" | "accepted" | "rejected";
 
@@ -19,9 +23,13 @@ export type AgentRunProposalItem = {
   warnings: AgentRunProposalWarnings;
 };
 
-type GlossaryTermConstraint = Parameters<
-  typeof validateGlossaryTermsInTranslation
->[0]["terms"][number];
+type AgentRunProposalGlossaryTermInput = {
+  sourceTerm: string;
+  targetTerm: string;
+  targetLocale?: string;
+  forbidden?: boolean | null;
+  caseSensitive?: boolean | null;
+};
 
 const placeholderPattern = /\{[^}]+\}|%\d*\$?[sdif]|%\([^)]+\)[sdif]|\{\{[^}]+\}\}|%\w+/g;
 
@@ -47,22 +55,70 @@ function extractHtmlTagNames(text: string) {
   return tags.sort();
 }
 
-function hasGlossaryWarning(input: {
+function normalizeGlossaryTerms(
+  glossaryTerms: AgentRunProposalGlossaryTermInput[] | undefined,
+  locale: string,
+): GlossaryTermConstraint[] {
+  return (glossaryTerms ?? []).map((term) => ({
+    sourceTerm: term.sourceTerm,
+    targetTerm: term.targetTerm,
+    targetLocale: term.targetLocale ?? locale,
+    forbidden: term.forbidden ?? null,
+    caseSensitive: term.caseSensitive ?? null,
+  }));
+}
+
+function toProposalTranslationUnit(input: {
+  externalStringId: string;
+  key: string;
+  locale: string;
   sourceText: string;
   translatedText: string;
-  glossaryTerms: GlossaryTermConstraint[];
 }) {
-  if (input.glossaryTerms.length === 0) {
-    return false;
+  return {
+    externalStringId: input.externalStringId,
+    key: input.key,
+    locale: input.locale,
+    sourceText: input.sourceText,
+    translatedText: input.translatedText,
+  };
+}
+
+function collectGlossaryWarningsForProposalUnits(
+  units: ReturnType<typeof toProposalTranslationUnit>[],
+  glossaryTerms: GlossaryTermConstraint[],
+) {
+  const failuresByUnitKey = validateGlossaryForTranslationUnits(units, glossaryTerms);
+  const warnedUnitKeys = new Set<string>();
+
+  for (const unit of units) {
+    const unitKey = buildAgentRunProposalItemId({
+      externalStringId: unit.externalStringId,
+      locale: unit.locale,
+    });
+    if (failuresByUnitKey.has(`${unit.externalStringId}:${unit.locale}`)) {
+      warnedUnitKeys.add(unitKey);
+    }
   }
 
-  return (
-    validateGlossaryTermsInTranslation({
-      sourceText: input.sourceText,
-      translatedText: input.translatedText,
-      terms: input.glossaryTerms,
-    }).length > 0
-  );
+  return warnedUnitKeys;
+}
+
+function toGlossaryTermConstraints(
+  glossaryTerms: AgentRunProposalGlossaryTermInput[] | undefined,
+): GlossaryTermConstraint[] {
+  return (glossaryTerms ?? [])
+    .filter(
+      (term): term is AgentRunProposalGlossaryTermInput & { targetLocale: string } =>
+        typeof term.targetLocale === "string" && term.targetLocale.length > 0,
+    )
+    .map((term) => ({
+      sourceTerm: term.sourceTerm,
+      targetTerm: term.targetTerm,
+      targetLocale: term.targetLocale,
+      forbidden: term.forbidden ?? null,
+      caseSensitive: term.caseSensitive ?? null,
+    }));
 }
 
 function hasPlaceholderWarning(sourceText: string, translatedText: string) {
@@ -110,26 +166,27 @@ export function detectAgentRunProposalWarnings(input: {
   from: string;
   to: string;
   locale: string;
-  glossaryTerms?: Array<{
-    sourceTerm: string;
-    targetTerm: string;
-    targetLocale?: string;
-    forbidden?: boolean | null;
-    caseSensitive?: boolean | null;
-  }>;
+  externalStringId?: string;
+  key?: string;
+  glossaryTerms?: AgentRunProposalGlossaryTermInput[];
 }): AgentRunProposalWarnings {
-  const glossaryTerms: GlossaryTermConstraint[] = (input.glossaryTerms ?? []).map((term) => ({
-    sourceTerm: term.sourceTerm,
-    targetTerm: term.targetTerm,
-    targetLocale: term.targetLocale ?? input.locale,
-    forbidden: term.forbidden ?? null,
-    caseSensitive: term.caseSensitive ?? null,
-  }));
+  const glossaryTerms = normalizeGlossaryTerms(input.glossaryTerms, input.locale);
   const warnings: AgentRunProposalWarnings = {};
 
-  if (hasGlossaryWarning({ ...input, translatedText: input.to, glossaryTerms })) {
-    warnings.glossary = true;
+  if (glossaryTerms.length > 0) {
+    const unit = toProposalTranslationUnit({
+      externalStringId: input.externalStringId ?? "proposal",
+      key: input.key ?? "proposal",
+      locale: input.locale,
+      sourceText: input.sourceText,
+      translatedText: input.to,
+    });
+
+    if (translationUnitHasGlossaryViolations(unit, glossaryTerms)) {
+      warnings.glossary = true;
+    }
   }
+
   if (hasPlaceholderWarning(input.sourceText, input.to)) {
     warnings.placeholder = true;
   }
@@ -153,7 +210,8 @@ export function deriveChangedFields(from: string, to: string) {
 
 export function enrichAgentRunProposalItem(
   raw: Record<string, unknown>,
-  glossaryTerms?: Parameters<typeof detectAgentRunProposalWarnings>[0]["glossaryTerms"],
+  glossaryTerms?: AgentRunProposalGlossaryTermInput[],
+  glossaryWarningsByUnitKey?: Set<string>,
 ): AgentRunProposalItem | null {
   const externalStringId = typeof raw.externalStringId === "string" ? raw.externalStringId : null;
   const key = typeof raw.key === "string" ? raw.key : null;
@@ -185,13 +243,22 @@ export function enrichAgentRunProposalItem(
   const warnings =
     raw.warnings && typeof raw.warnings === "object" && !Array.isArray(raw.warnings)
       ? (raw.warnings as AgentRunProposalWarnings)
-      : detectAgentRunProposalWarnings({
-          sourceText,
-          from,
-          to,
-          locale,
-          glossaryTerms,
-        });
+      : {
+          ...detectAgentRunProposalWarnings({
+            sourceText,
+            from,
+            to,
+            locale,
+            externalStringId,
+            key,
+            glossaryTerms: glossaryWarningsByUnitKey ? undefined : glossaryTerms,
+          }),
+          ...(glossaryWarningsByUnitKey?.has(
+            buildAgentRunProposalItemId({ externalStringId, locale }),
+          )
+            ? { glossary: true }
+            : {}),
+        };
 
   return {
     itemId,
@@ -209,10 +276,39 @@ export function enrichAgentRunProposalItem(
 
 export function parseAgentRunProposalItems(
   changedItems: Record<string, unknown>[],
-  glossaryTerms?: Parameters<typeof detectAgentRunProposalWarnings>[0]["glossaryTerms"],
+  glossaryTerms?: AgentRunProposalGlossaryTermInput[],
 ) {
+  const glossaryConstraintTerms = toGlossaryTermConstraints(glossaryTerms);
+  const proposalUnits = changedItems
+    .map((raw) => {
+      const externalStringId =
+        typeof raw.externalStringId === "string" ? raw.externalStringId : null;
+      const key = typeof raw.key === "string" ? raw.key : null;
+      const locale = typeof raw.locale === "string" ? raw.locale : null;
+      const sourceText = typeof raw.sourceText === "string" ? raw.sourceText : "";
+      const to = typeof raw.to === "string" ? raw.to : "";
+
+      if (!externalStringId || !key || !locale) {
+        return null;
+      }
+
+      return toProposalTranslationUnit({
+        externalStringId,
+        key,
+        locale,
+        sourceText,
+        translatedText: to,
+      });
+    })
+    .filter((unit): unit is NonNullable<typeof unit> => unit !== null);
+
+  const glossaryWarningsByUnitKey =
+    glossaryConstraintTerms.length > 0
+      ? collectGlossaryWarningsForProposalUnits(proposalUnits, glossaryConstraintTerms)
+      : undefined;
+
   return changedItems
-    .map((item) => enrichAgentRunProposalItem(item, glossaryTerms))
+    .map((item) => enrichAgentRunProposalItem(item, glossaryTerms, glossaryWarningsByUnitKey))
     .filter((item): item is AgentRunProposalItem => item !== null);
 }
 
