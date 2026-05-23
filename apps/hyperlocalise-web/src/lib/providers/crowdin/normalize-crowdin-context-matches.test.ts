@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  mergeTranslationContextMatches,
   normalizeCrowdinGlossaryConcordanceMatches,
   normalizeCrowdinTranslationMemoryConcordanceMatches,
 } from "./normalize-crowdin-context-matches";
@@ -101,8 +102,6 @@ describe("normalizeCrowdinTranslationMemoryConcordanceMatches", () => {
 
 describe("mergeTranslationContextMatches", () => {
   it("deduplicates by id and respects the limit", async () => {
-    const { mergeTranslationContextMatches } = await import("./normalize-crowdin-context-matches");
-
     const merged = mergeTranslationContextMatches(
       [{ id: "a", rank: 90 }],
       [
@@ -116,6 +115,22 @@ describe("mergeTranslationContextMatches", () => {
     expect(merged).toEqual([
       { id: "a", rank: 90 },
       { id: "b", rank: 80 },
+    ]);
+  });
+
+  it("keeps the highest ranked matches before applying the limit", () => {
+    const merged = mergeTranslationContextMatches(
+      [
+        { id: "low-1", rank: 10 },
+        { id: "low-2", rank: 20 },
+      ],
+      [{ id: "high", rank: 100 }],
+      2,
+    );
+
+    expect(merged).toEqual([
+      { id: "high", rank: 100 },
+      { id: "low-2", rank: 20 },
     ]);
   });
 });

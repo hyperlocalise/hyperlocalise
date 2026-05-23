@@ -10,6 +10,7 @@ import { validateGlossaryTermsInTranslation } from "@/workflows/file-translation
 
 import {
   listOrganizationExternalTmsGlossaries,
+  pruneOrganizationExternalTmsGlossaryTerms,
   upsertOrganizationExternalTmsGlossary,
   upsertOrganizationExternalTmsGlossaryTerm,
 } from "./organization-external-tms-glossaries";
@@ -206,6 +207,64 @@ describe("organizationExternalTmsGlossaries", () => {
     });
     expect(listed).toHaveLength(1);
     expect(listed[0]?.id).toBe(created.id);
+  });
+
+  it("prunes stale provider glossary terms after re-sync", async () => {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-token",
+    });
+    const glossary = await upsertOrganizationExternalTmsGlossary({
+      organizationId,
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      externalResourceType: "glossary",
+      externalGlossaryId: "glossary-77",
+      name: "Product Glossary",
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    await upsertOrganizationExternalTmsGlossaryTerm({
+      glossaryId: glossary.id,
+      externalKey: "concept-9:fr",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+    await upsertOrganizationExternalTmsGlossaryTerm({
+      glossaryId: glossary.id,
+      externalKey: "concept-10:fr",
+      sourceTerm: "sign in",
+      targetTerm: "connexion",
+    });
+
+    await pruneOrganizationExternalTmsGlossaryTerms({
+      glossaryId: glossary.id,
+      externalKeys: ["concept-9:fr"],
+    });
+
+    const remaining = await db
+      .select({ externalKey: schema.glossaryTerms.externalKey })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(remaining).toEqual([{ externalKey: "concept-9:fr" }]);
+
+    await pruneOrganizationExternalTmsGlossaryTerms({
+      glossaryId: glossary.id,
+      externalKeys: [],
+    });
+
+    const emptied = await db
+      .select()
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+    expect(emptied).toHaveLength(0);
   });
 
   it("feeds normalized provider terms into glossary violation checks", async () => {

@@ -138,14 +138,14 @@ export function mergeTranslationContextMatches<T extends { id: string; rank: num
   const merged: T[] = [];
 
   for (const item of [...primary, ...supplemental]) {
-    if (seen.has(item.id) || merged.length >= limit) {
+    if (seen.has(item.id)) {
       continue;
     }
     seen.add(item.id);
     merged.push(item);
   }
 
-  return merged.sort((left, right) => right.rank - left.rank);
+  return merged.sort((left, right) => right.rank - left.rank).slice(0, limit);
 }
 
 function pickPrimaryTermText(terms: CrowdinGlossaryConcordanceMatch["sourceTerms"]): string | null {

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -192,6 +192,25 @@ export async function upsertOrganizationExternalTmsGlossaryTerm(
   }
 
   return term;
+}
+
+export async function pruneOrganizationExternalTmsGlossaryTerms(input: {
+  glossaryId: string;
+  externalKeys: string[];
+}) {
+  const uniqueExternalKeys = [...new Set(input.externalKeys)];
+
+  if (uniqueExternalKeys.length === 0) {
+    await db.delete(schema.glossaryTerms).where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
+    return;
+  }
+
+  await db.delete(schema.glossaryTerms).where(
+    and(
+      eq(schema.glossaryTerms.glossaryId, input.glossaryId),
+      notInArray(schema.glossaryTerms.externalKey, uniqueExternalKeys),
+    ),
+  );
 }
 
 export async function listOrganizationExternalTmsGlossaries(input: {

@@ -5,6 +5,7 @@ import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 
 import {
+  pruneOrganizationExternalTmsGlossaryTerms,
   upsertOrganizationExternalTmsGlossary,
   upsertOrganizationExternalTmsGlossaryTerms,
 } from "./organization-external-tms-glossaries";
@@ -173,6 +174,11 @@ export async function syncExternalTmsGlossaries(input: {
         });
 
         const terms = glossary.terms ?? [];
+        await pruneOrganizationExternalTmsGlossaryTerms({
+          glossaryId: record.id,
+          externalKeys: terms.map((term) => term.externalKey),
+        });
+
         if (terms.length > 0) {
           await upsertOrganizationExternalTmsGlossaryTerms(
             terms.map((term) => ({

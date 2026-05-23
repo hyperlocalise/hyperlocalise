@@ -5,6 +5,7 @@ import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 
 import {
+  pruneOrganizationExternalTmsMemoryEntries,
   upsertOrganizationExternalTmsMemory,
   upsertOrganizationExternalTmsMemoryEntries,
 } from "./organization-external-tms-memories";
@@ -168,6 +169,11 @@ export async function syncExternalTmsTranslationMemories(input: {
         });
 
         const entries = memory.entries ?? [];
+        await pruneOrganizationExternalTmsMemoryEntries({
+          memoryId: record.id,
+          externalKeys: entries.map((entry) => entry.externalKey),
+        });
+
         if (entries.length > 0) {
           await upsertOrganizationExternalTmsMemoryEntries(
             entries.map((entry) => ({
