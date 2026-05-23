@@ -98,11 +98,15 @@ function indexKnownExternalIdsFromChangedItems(
 
 async function loadKnownProviderCommentExternalIds(input: {
   organizationId: string;
-  hyperlocaliseJobId: string;
+  hyperlocaliseJobId: string | null;
   currentRunId: string;
   currentChangedItems: Record<string, unknown>[];
 }) {
   const known = indexKnownExternalIdsFromChangedItems(input.currentChangedItems);
+
+  if (!input.hyperlocaliseJobId) {
+    return known;
+  }
 
   const priorRuns = await listAgentRuns({
     organizationId: input.organizationId,
@@ -351,7 +355,7 @@ export async function executeProviderAgentComment(input: {
 
   const knownExternalIds = await loadKnownProviderCommentExternalIds({
     organizationId: input.organizationId,
-    hyperlocaliseJobId: run.hyperlocaliseJobId ?? "",
+    hyperlocaliseJobId: run.hyperlocaliseJobId,
     currentRunId: run.id,
     currentChangedItems,
   });

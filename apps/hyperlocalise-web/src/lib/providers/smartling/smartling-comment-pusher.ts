@@ -21,8 +21,10 @@ export const pushSmartlingProviderComments: ExternalTmsCommentPusher = async ({
     throw new Error("invalid_smartling_project_id");
   }
 
-  const defaultLocaleId =
-    feedback.find((item) => item.finding.item.locale?.trim())?.finding.item.locale?.trim() ?? null;
+  const locales = new Set(
+    feedback.map((item) => item.finding.item.locale?.trim()).filter(Boolean),
+  );
+  const defaultLocaleId = locales.size === 1 ? ([...locales][0] ?? null) : null;
 
   const { entries, failures: validationFailures } = buildSmartlingCommentWriteBackEntries({
     findings: feedback.map((item) => item.finding),
@@ -35,6 +37,22 @@ export const pushSmartlingProviderComments: ExternalTmsCommentPusher = async ({
   let posted = 0;
   let skipped = 0;
   let failed = validationFailures.length;
+
+  const feedbackByFindingId = new Map(
+    feedback.map((item) => [item.findingId || buildFindingId(item.finding), item]),
+  );
+
+  for (const failure of validationFailures) {
+    const item = feedbackByFindingId.get(failure.findingId);
+    changedItems.push({
+      type: "provider_comment",
+      findingId: failure.findingId,
+      status: "failed",
+      hashcode: item?.finding.item.externalStringId?.trim() || null,
+      locale: item?.finding.item.locale?.trim() || null,
+      message: failure.message,
+    });
+  }
 
   const hashcodes = [
     ...new Set(

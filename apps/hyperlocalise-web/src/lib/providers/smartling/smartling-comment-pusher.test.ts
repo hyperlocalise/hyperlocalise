@@ -315,4 +315,130 @@ describe("pushSmartlingProviderComments", () => {
       findingId,
     });
   });
+
+  it("records validation failures in changedItems before posting", async () => {
+    const finding = sampleFinding({
+      item: { externalStringId: "  ", key: "k1", locale: "fr-FR" },
+    });
+    const findingId = buildFindingId(finding);
+    const fetchMock = vi.fn();
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pushSmartlingProviderComments({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "smartling",
+      externalProjectId: "proj-1",
+      externalJobId: "job-1",
+      secretMaterial: "user:secret:acct-1",
+      feedback: [{ findingId, finding }],
+      knownExternalIds: new Map(),
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.failed).toBe(1);
+    expect(result.changedItems).toEqual([
+      expect.objectContaining({
+        findingId,
+        status: "failed",
+        message: "smartling_comment_missing_hashcode",
+      }),
+    ]);
+  });
+
+  it("does not infer a default locale when feedback spans multiple locales", async () => {
+    const frFinding = sampleFinding({
+      item: { externalStringId: "hash-fr", key: "k1", locale: "fr-FR" },
+    });
+    const deFinding = sampleFinding({
+      item: { externalStringId: "hash-de", key: "k2", locale: "de-DE" },
+    });
+    const missingLocale = sampleFinding({
+      item: { externalStringId: "hash-missing", key: "k3" },
+    });
+    const missingLocaleId = buildFindingId(missingLocale);
+    let createIssueCalls = 0;
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.endsWith("/authenticate") && method === "POST") {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/issues/list") && method === "POST") {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { items: [], totalCount: 0 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/issues") && method === "POST" && !path.endsWith("/issues/list")) {
+        createIssueCalls += 1;
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { issueUid: `issue-${createIssueCalls}` },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pushSmartlingProviderComments({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "smartling",
+      externalProjectId: "proj-1",
+      externalJobId: "job-1",
+      secretMaterial: "user:secret:acct-1",
+      feedback: [
+        { findingId: buildFindingId(frFinding), finding: frFinding },
+        { findingId: buildFindingId(deFinding), finding: deFinding },
+        { findingId: missingLocaleId, finding: missingLocale },
+      ],
+      knownExternalIds: new Map(),
+    });
+
+    expect(createIssueCalls).toBe(2);
+    expect(result.posted).toBe(2);
+    expect(result.failures).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          findingId: missingLocaleId,
+          message: "smartling_comment_missing_locale",
+        }),
+      ]),
+    );
+    expect(result.changedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          findingId: missingLocaleId,
+          status: "failed",
+          message: "smartling_comment_missing_locale",
+        }),
+      ]),
+    );
+  });
 });

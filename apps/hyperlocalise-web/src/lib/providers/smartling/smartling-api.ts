@@ -155,13 +155,6 @@ export interface SmartlingIssue {
   string?: SmartlingIssueStringReference | null;
 }
 
-export interface SmartlingIssueComment {
-  issueCommentUid: string;
-  commentText?: string | null;
-  createdDate?: string | null;
-  createdByUserUid?: string | null;
-}
-
 export interface SmartlingIssueTemplate {
   string: SmartlingIssueStringReference;
   issueTypeCode: string;
@@ -693,29 +686,6 @@ export class SmartlingApiClient {
       token,
       template,
     );
-  }
-
-  async createIssueComment(
-    projectId: string,
-    issueUid: string,
-    commentText: string,
-  ): Promise<SmartlingIssueComment> {
-    const token = await this.getAccessToken();
-    return this.post<SmartlingIssueComment>(
-      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/comments`,
-      token,
-      { commentText },
-    );
-  }
-
-  async listIssueComments(projectId: string, issueUid: string): Promise<SmartlingIssueComment[]> {
-    const token = await this.getAccessToken();
-    const data = await this.get<{ items?: SmartlingIssueComment[] }>(
-      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/comments`,
-      token,
-    );
-
-    return data.items ?? [];
   }
 
   private async get<T>(url: string, token: string): Promise<T> {
