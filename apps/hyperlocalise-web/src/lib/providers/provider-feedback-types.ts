@@ -1,9 +1,11 @@
+import type { ProviderReviewContext } from "@/lib/providers/provider-job-review/types";
 import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 export type ProviderQaFeedbackUpload = {
   findingId: string;
   finding: ProviderQaFinding;
+  providerReviewContext?: ProviderReviewContext | null;
 };
 
 export type ProviderCommentChangedItem = {
@@ -15,6 +17,7 @@ export type ProviderCommentChangedItem = {
   hashcode?: string | null;
   locale?: string | null;
   message?: string | null;
+  providerReviewContext?: ProviderReviewContext | null;
 };
 
 export type ExternalTmsCommentPusher = (input: {

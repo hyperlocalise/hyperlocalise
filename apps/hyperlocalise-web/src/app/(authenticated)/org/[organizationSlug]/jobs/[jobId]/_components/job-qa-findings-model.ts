@@ -1,4 +1,7 @@
-import { providerQaReportSchema } from "@/api/routes/project/job-qa.schema";
+import {
+  providerQaReportSchema,
+  providerReviewReportSchema,
+} from "@/api/routes/project/job-qa.schema";
 import { buildFindingId } from "@/lib/providers/provider-job-qa/build-finding-id";
 import type {
   ProviderQaCheckType,
@@ -6,10 +9,23 @@ import type {
   ProviderQaReport,
   ProviderQaSeverity,
 } from "@/lib/providers/provider-job-qa/types";
+import type {
+  ProviderReviewReport,
+  ProviderReviewThread,
+  ProviderReviewThreadKind,
+  ProviderReviewThreadState,
+} from "@/lib/providers/provider-job-review/types";
 
 export { buildFindingId };
 
-export type { ProviderQaFinding, ProviderQaReport, ProviderQaCheckType, ProviderQaSeverity };
+export type {
+  ProviderQaFinding,
+  ProviderQaReport,
+  ProviderQaCheckType,
+  ProviderQaSeverity,
+  ProviderReviewReport,
+  ProviderReviewThread,
+};
 
 export type QaFindingGroupBy = "severity" | "locale" | "checkType" | "key";
 
@@ -45,6 +61,43 @@ export function parseQaReportFromOutputSummary(
   }
 
   return parsed.data;
+}
+
+export function parseProviderReviewReportFromOutputSummary(
+  outputSummary: Record<string, unknown> | undefined,
+): ProviderReviewReport | null {
+  if (!outputSummary) {
+    return null;
+  }
+
+  const parsed = providerReviewReportSchema.safeParse({
+    threads: outputSummary.reviewThreads,
+    summary: outputSummary.reviewSummary,
+  });
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
+
+export function formatReviewThreadKindLabel(kind: ProviderReviewThreadKind) {
+  return kind.replaceAll("_", " ");
+}
+
+export function formatReviewThreadStateLabel(state: ProviderReviewThreadState) {
+  return state;
+}
+
+export function formatReviewAuthorLabel(
+  author: ProviderReviewThread["author"] | undefined | null,
+): string | null {
+  if (!author) {
+    return null;
+  }
+
+  return author.displayName?.trim() || author.username?.trim() || author.externalUserId || null;
 }
 
 export function isQaChecksAgentRun(inputSnapshot: Record<string, unknown> | undefined) {

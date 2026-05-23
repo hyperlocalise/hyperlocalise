@@ -1,4 +1,4 @@
-import { failAgentRun } from "@/lib/providers/agent-runs";
+import { failAgentRun, getAgentRun } from "@/lib/providers/agent-runs";
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
@@ -18,6 +18,11 @@ export async function prepareProviderAgentQaStep(input: {
   return prepareProviderAgentQaRun(input);
 }
 
+function readInputSnapshotAction(inputSnapshot: Record<string, unknown> | undefined) {
+  const action = inputSnapshot?.action;
+  return typeof action === "string" ? action : null;
+}
+
 export async function completeProviderAgentQaStep(input: {
   agentRunId: string;
   organizationId: string;
@@ -30,7 +35,18 @@ export async function completeProviderAgentQaStep(input: {
   hlResult: RunHlCheckResult;
 }) {
   "use step";
-  return completeProviderAgentQaRun(input);
+
+  const run = await getAgentRun({
+    runId: input.agentRunId,
+    organizationId: input.organizationId,
+  });
+
+  return completeProviderAgentQaRun({
+    ...input,
+    externalJobId: run?.externalJobId ?? "",
+    syncProviderReview: readInputSnapshotAction(run?.inputSnapshot ?? {}) === "review_with_agent",
+    hyperlocaliseJobId: run?.hyperlocaliseJobId ?? null,
+  });
 }
 
 export async function failProviderAgentQaStep(input: {
