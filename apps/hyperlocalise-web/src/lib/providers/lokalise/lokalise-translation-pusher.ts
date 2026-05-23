@@ -6,6 +6,7 @@ import {
   LokaliseApiClient,
   LokaliseApiError,
   parseLokaliseExternalJobId,
+  summarizeLokaliseBulkUpdateChunkResult,
 } from "./lokalise-api";
 import { buildLokaliseTranslationWriteBackBatches } from "./lokalise-write-back";
 
@@ -56,12 +57,18 @@ export const pushLokaliseTranslations: ExternalTmsTranslationPusher = async ({
     const chunk = batches.slice(index, index + BULK_UPDATE_CHUNK_SIZE);
     try {
       const response = await client.bulkUpdateKeys(projectId, chunk);
-      uploaded += chunk.reduce((count, batch) => count + batch.translations.length, 0);
+      const chunkResult = summarizeLokaliseBulkUpdateChunkResult(chunk, response);
+      uploaded += chunkResult.uploaded;
+      failed += chunkResult.failed;
+      failures.push(...chunkResult.failures);
+
       asyncOperations.push({
         type: "lokalise_bulk_update_keys",
         keysRequested: chunk.length,
-        keysUpdated: response.keys?.length ?? chunk.length,
-        status: "succeeded",
+        keysUpdated: response.keys?.length ?? 0,
+        keysFailed: chunkResult.failedKeyCount,
+        status:
+          chunkResult.failed > 0 ? (chunkResult.uploaded > 0 ? "partial" : "failed") : "succeeded",
       });
     } catch (error) {
       failed += chunk.reduce((count, batch) => count + batch.translations.length, 0);

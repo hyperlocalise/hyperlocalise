@@ -299,9 +299,15 @@ export class LokaliseApiClient {
     return normalizeLokaliseDetailedTask(response.task);
   }
 
-  async bulkUpdateKeys(projectId: string, keys: LokaliseBulkUpdateKey[]) {
+  async bulkUpdateKeys(
+    projectId: string,
+    keys: LokaliseBulkUpdateKey[],
+  ): Promise<LokaliseBulkUpdateKeysResponse> {
     if (keys.length === 0) {
-      return { keys: [] as LokaliseKey[], errors: {} as Record<string, unknown> };
+      return {
+        keys: [] as LokaliseKeyApiRecord[],
+        errors: [] as LokaliseBulkUpdateKeyErrorRecord[],
+      };
     }
 
     const body = {
@@ -481,10 +487,17 @@ type LokaliseDetailedTaskLanguageApiRecord = LokaliseTaskLanguageApiRecord & {
   keys?: number[];
 };
 
+type LokaliseBulkUpdateKeyErrorRecord = {
+  message?: string;
+  code?: number | string;
+  key?: { key_id?: number; key_name?: unknown };
+  key_id?: number;
+};
+
 type LokaliseBulkUpdateKeysResponse = {
   project_id?: string;
   keys?: LokaliseKeyApiRecord[];
-  errors?: Record<string, unknown>;
+  errors?: LokaliseBulkUpdateKeyErrorRecord[] | Record<string, unknown>;
 };
 
 type LokaliseFileDownloadResponse = {
@@ -596,7 +609,7 @@ function normalizeLokaliseDetailedTask(
   const task = normalizeLokaliseTask(record);
   return {
     ...task,
-    languages: (record.languages ?? task.languages).map(normalizeLokaliseDetailedTaskLanguage),
+    languages: (record.languages ?? []).map(normalizeLokaliseDetailedTaskLanguage),
   };
 }
 
@@ -853,6 +866,120 @@ export function collectLokaliseTaskKeyIds(task: Pick<LokaliseDetailedTask, "lang
     }
   }
   return [...keyIds];
+}
+
+export function summarizeLokaliseBulkUpdateChunkResult(
+  chunk: LokaliseBulkUpdateKey[],
+  response: {
+    keys?: Array<{ key_id?: number }>;
+    errors?: LokaliseBulkUpdateKeysResponse["errors"];
+  },
+): {
+  uploaded: number;
+  failed: number;
+  failedKeyCount: number;
+  failures: Array<{ locale: string; fileId: string | null; message: string }>;
+} {
+  const failedKeyIds = collectLokaliseBulkUpdateFailedKeyIds({
+    requestedKeyIds: chunk.map((batch) => batch.keyId),
+    responseKeys: response.keys,
+    errors: response.errors,
+  });
+  const errorMessageByKeyId = buildLokaliseBulkUpdateErrorMessages(response.errors);
+
+  let uploaded = 0;
+  let failed = 0;
+  let failedKeyCount = 0;
+  const failures: Array<{ locale: string; fileId: string | null; message: string }> = [];
+
+  for (const batch of chunk) {
+    if (!failedKeyIds.has(batch.keyId)) {
+      uploaded += batch.translations.length;
+      continue;
+    }
+
+    failedKeyCount += 1;
+    const message = errorMessageByKeyId.get(batch.keyId) ?? "lokalise_bulk_update_key_failed";
+    failed += batch.translations.length;
+    for (const translation of batch.translations) {
+      failures.push({
+        locale: translation.languageIso,
+        fileId: null,
+        message,
+      });
+    }
+  }
+
+  return { uploaded, failed, failedKeyCount, failures };
+}
+
+function collectLokaliseBulkUpdateFailedKeyIds(input: {
+  requestedKeyIds: number[];
+  responseKeys?: Array<{ key_id?: number }>;
+  errors?: LokaliseBulkUpdateKeysResponse["errors"];
+}) {
+  const failed = new Set<number>();
+
+  for (const entry of listLokaliseBulkUpdateErrors(input.errors)) {
+    const keyId = extractLokaliseBulkUpdateErrorKeyId(entry);
+    if (keyId != null) {
+      failed.add(keyId);
+    }
+  }
+
+  const updatedKeyIds = new Set(
+    (input.responseKeys ?? [])
+      .map((key) => key.key_id)
+      .filter((keyId): keyId is number => typeof keyId === "number" && Number.isFinite(keyId)),
+  );
+
+  const errorEntries = listLokaliseBulkUpdateErrors(input.errors);
+  const shouldInferMissingKeysAsFailed = errorEntries.length > 0 || input.responseKeys != null;
+
+  if (shouldInferMissingKeysAsFailed) {
+    for (const keyId of input.requestedKeyIds) {
+      if (!updatedKeyIds.has(keyId)) {
+        failed.add(keyId);
+      }
+    }
+  }
+
+  return failed;
+}
+
+function buildLokaliseBulkUpdateErrorMessages(errors: LokaliseBulkUpdateKeysResponse["errors"]) {
+  const messages = new Map<number, string>();
+  for (const entry of listLokaliseBulkUpdateErrors(errors)) {
+    const keyId = extractLokaliseBulkUpdateErrorKeyId(entry);
+    const message = entry.message?.trim();
+    if (keyId != null && message) {
+      messages.set(keyId, message);
+    }
+  }
+  return messages;
+}
+
+function listLokaliseBulkUpdateErrors(
+  errors: LokaliseBulkUpdateKeysResponse["errors"],
+): LokaliseBulkUpdateKeyErrorRecord[] {
+  if (!errors) {
+    return [];
+  }
+  if (Array.isArray(errors)) {
+    return errors;
+  }
+  return Object.values(errors).filter(
+    (entry): entry is LokaliseBulkUpdateKeyErrorRecord =>
+      entry != null && typeof entry === "object",
+  );
+}
+
+function extractLokaliseBulkUpdateErrorKeyId(entry: LokaliseBulkUpdateKeyErrorRecord) {
+  const keyId = entry.key?.key_id ?? entry.key_id;
+  if (typeof keyId !== "number" || !Number.isFinite(keyId)) {
+    return null;
+  }
+  return keyId;
 }
 
 export function parseLokaliseExternalJobId(externalJobId: string) {
