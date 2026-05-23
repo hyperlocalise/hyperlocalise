@@ -17,7 +17,7 @@ import type {
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
-import { completeAgentRun, createAgentRun } from "@/lib/providers/agent-runs";
+import { completeAgentRun, createAgentRun, startAgentRun } from "@/lib/providers/agent-runs";
 import { serializeAgentRunProposalItem } from "@/lib/providers/agent-run-proposals";
 import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
 
@@ -1632,6 +1632,11 @@ describe("jobRoutes", () => {
       kind: "translate",
       hyperlocaliseJobId: externalJob.id,
       inputSnapshot: { action: "translate_with_agent", projectId: project.id },
+    });
+
+    await startAgentRun({
+      runId: agentRun.id,
+      organizationId: organization!.id,
     });
 
     await completeAgentRun({
