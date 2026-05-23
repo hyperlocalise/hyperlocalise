@@ -14,10 +14,7 @@ export type LokaliseListTasksOptions = {
   filterStatuses?: string[];
   /** Stops pagination after this many pages (inclusive). */
   maxPages?: number;
-  /**
-   * When set, only returns completed tasks completed at or after this Unix ms.
-   * Stops paging early when an entire page is older than the cutoff (newest-first).
-   */
+  /** When set, only returns completed tasks completed at or after this Unix ms. */
   completedAfterMs?: number;
 };
 
@@ -231,14 +228,6 @@ export class LokaliseApiClient {
       }
 
       if (maxPages != null && page >= maxPages) {
-        break;
-      }
-
-      if (
-        completedAfterMs != null &&
-        pageItems.length > 0 &&
-        pageItems.every((task) => !isLokaliseTaskCompletedAfter(task, completedAfterMs))
-      ) {
         break;
       }
 

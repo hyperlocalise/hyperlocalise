@@ -254,6 +254,57 @@ describe("LokaliseApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("fetches the next page when a full page has only stale completed tasks", async () => {
+    const recentCompletedAt = Math.floor(Date.now() / 1000) - 60;
+    const staleCompletedAt = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 60;
+    const stalePage = Array.from({ length: 500 }, (_, index) => ({
+      task_id: index + 100,
+      title: `Stale ${index}`,
+      status: "completed",
+      completed_at_timestamp: staleCompletedAt,
+    }));
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (!path.includes("filter_statuses=completed")) {
+        return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+      }
+
+      if (path.includes("page=1")) {
+        return new Response(JSON.stringify({ tasks: stalePage }), { status: 200 });
+      }
+
+      if (path.includes("page=2")) {
+        return new Response(
+          JSON.stringify({
+            tasks: [
+              {
+                task_id: 99,
+                title: "Recent on page two",
+                status: "completed",
+                completed_at_timestamp: recentCompletedAt,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const cutoffMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const tasks = await client.listTasks("proj.123", {
+      filterStatuses: ["completed"],
+      maxPages: 2,
+      completedAfterMs: cutoffMs,
+    });
+
+    expect(tasks.map((task) => task.taskId)).toEqual([99]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("throws LokaliseApiError on auth failure", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
