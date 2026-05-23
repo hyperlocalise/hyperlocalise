@@ -109,7 +109,7 @@ func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
 	}
 	scanner.skipTrivia()
 
-	if err := scanner.parseArrayLiteral(nil); err != nil {
+	if err := scanner.parseArrayLiteral(""); err != nil {
 		return phpArrayDocument{}, err
 	}
 	scanner.skipTrivia()
@@ -129,7 +129,7 @@ func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
 	return phpArrayDocument{template: scanner.text, entries: scanner.entries}, nil
 }
 
-func (s *phpArrayScanner) parseArrayLiteral(prefix []string) error {
+func (s *phpArrayScanner) parseArrayLiteral(prefix string) error {
 	closeByte, err := s.consumeArrayOpen()
 	if err != nil {
 		return err
@@ -156,7 +156,10 @@ func (s *phpArrayScanner) parseArrayLiteral(prefix []string) error {
 		s.pos += len("=>")
 		s.skipTrivia()
 
-		nextPath := append(append([]string{}, prefix...), key.decoded)
+		nextPath := key.decoded
+		if prefix != "" {
+			nextPath = prefix + "." + key.decoded
+		}
 		if err := s.parseArrayValue(nextPath); err != nil {
 			return err
 		}
@@ -173,9 +176,9 @@ func (s *phpArrayScanner) parseArrayLiteral(prefix []string) error {
 	}
 }
 
-func (s *phpArrayScanner) parseArrayValue(path []string) error {
+func (s *phpArrayScanner) parseArrayValue(path string) error {
 	if s.pos >= len(s.text) {
-		return fmt.Errorf("php locale array: missing value for key %q", strings.Join(path, "."))
+		return fmt.Errorf("php locale array: missing value for key %q", path)
 	}
 
 	switch {
@@ -184,7 +187,7 @@ func (s *phpArrayScanner) parseArrayValue(path []string) error {
 		if err != nil {
 			return err
 		}
-		key := strings.Join(path, ".")
+		key := path
 		if _, ok := s.seen[key]; ok {
 			return fmt.Errorf("php locale array: duplicate key %q", key)
 		}
@@ -201,7 +204,7 @@ func (s *phpArrayScanner) parseArrayValue(path []string) error {
 	case s.startsArrayLiteral():
 		return s.parseArrayLiteral(path)
 	default:
-		return fmt.Errorf("php locale array: unsupported value for key %q at line %d; only string literals and nested arrays are supported", strings.Join(path, "."), lineNumberAt(s.text, s.pos))
+		return fmt.Errorf("php locale array: unsupported value for key %q at line %d; only string literals and nested arrays are supported", path, lineNumberAt(s.text, s.pos))
 	}
 }
 
