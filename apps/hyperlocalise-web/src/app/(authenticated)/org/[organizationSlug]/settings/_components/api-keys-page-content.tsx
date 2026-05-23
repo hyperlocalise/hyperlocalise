@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 
@@ -141,6 +141,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
       .writeText(key)
       .then(() => {
         setCopied(true);
+        toast.success("API key copied to clipboard");
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
@@ -280,10 +281,10 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
             </div>
           ) : (
             <form onSubmit={handleCreateSubmit} className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="key-name" className="text-sm text-foreground/72">
+              <Field className="gap-2">
+                <FieldLabel htmlFor="key-name" className="text-sm text-foreground/72">
                   Key name
-                </Label>
+                </FieldLabel>
                 <Input
                   id="key-name"
                   value={newKeyName}
@@ -291,7 +292,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   placeholder="e.g. Production CI"
                   className="h-10 rounded-lg border-foreground/10 bg-foreground/4 text-foreground"
                 />
-              </div>
+              </Field>
             </form>
           )}
 

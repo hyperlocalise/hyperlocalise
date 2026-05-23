@@ -31,6 +31,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { createApiClient } from "@/lib/api-client";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
@@ -248,16 +249,23 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                   />
                 )}
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-foreground/46 hover:bg-foreground/8 hover:text-foreground"
-                    onClick={copyEmailAddress}
-                    disabled={!emailAgent?.enabled || !emailAddress}
-                    aria-label="Copy email address"
-                  >
-                    <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
-                  </InputGroupButton>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <InputGroupButton
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-foreground/46 hover:bg-foreground/8 hover:text-foreground"
+                          onClick={copyEmailAddress}
+                          disabled={!emailAgent?.enabled || !emailAddress}
+                          aria-label={copied ? "Copied!" : "Copy email address"}
+                        >
+                          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
+                        </InputGroupButton>
+                      }
+                    />
+                    <TooltipContent>{copied ? "Copied!" : "Copy email address"}</TooltipContent>
+                  </Tooltip>
                 </InputGroupAddon>
               </InputGroup>
             </div>
