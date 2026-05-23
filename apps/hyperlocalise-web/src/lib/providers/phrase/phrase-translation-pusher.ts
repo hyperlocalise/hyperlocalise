@@ -158,6 +158,24 @@ async function resolvePhraseKeyId(input: {
   };
 }) {
   if (input.entry.keyId) {
+    const lookup = buildKeyLookup(input.entry.key);
+    const byName = input.keysByName.get(lookup);
+    if (byName && byName.id !== input.entry.keyId) {
+      throw new Error("phrase_translation_key_id_mismatch");
+    }
+
+    let keyNameForId: string | null = null;
+    for (const [name, key] of input.keysByName) {
+      if (key.id === input.entry.keyId) {
+        keyNameForId = name;
+        break;
+      }
+    }
+
+    if (keyNameForId !== null && keyNameForId !== lookup) {
+      throw new Error("phrase_translation_key_id_mismatch");
+    }
+
     return input.entry.keyId;
   }
 

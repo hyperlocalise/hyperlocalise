@@ -69,11 +69,22 @@ export const pushSmartlingTranslations: ExternalTmsTranslationPusher = async ({
       continue;
     }
 
+    const text = translation.text.trim();
+    if (!text) {
+      failed += 1;
+      failures.push({
+        locale,
+        fileId: translation.fileId ?? null,
+        message: "smartling_translation_missing_text",
+      });
+      continue;
+    }
+
     const key = locale;
     const existing = groups.get(key) ?? { locale, entries: [] };
     existing.entries.push({
       hashcode,
-      translation: translation.text,
+      translation: text,
       stringText: translation.key ?? null,
     });
     groups.set(key, existing);

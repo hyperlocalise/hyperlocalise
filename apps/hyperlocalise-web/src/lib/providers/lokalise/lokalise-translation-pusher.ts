@@ -35,10 +35,11 @@ export const pushLokaliseTranslations: ExternalTmsTranslationPusher = async ({
   });
 
   let defaultTargetLocale: string | null = null;
+  let taskTargetLocales: string[] = [];
   try {
     const task = await client.getTask(projectId, parsedJobId.taskId);
-    const targetLocales = collectLokaliseTaskTargetLocales(task);
-    defaultTargetLocale = targetLocales[0] ?? null;
+    taskTargetLocales = collectLokaliseTaskTargetLocales(task);
+    defaultTargetLocale = taskTargetLocales[0] ?? null;
   } catch (error) {
     throw mapLokaliseFetcherError(error);
   }
@@ -46,6 +47,7 @@ export const pushLokaliseTranslations: ExternalTmsTranslationPusher = async ({
   const { batches, failures: payloadFailures } = buildLokaliseTranslationWriteBackBatches({
     translations,
     defaultTargetLocale,
+    taskTargetLocales,
   });
 
   let uploaded = 0;

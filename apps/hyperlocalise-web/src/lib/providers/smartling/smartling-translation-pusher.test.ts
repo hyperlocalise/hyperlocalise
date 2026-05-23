@@ -104,4 +104,70 @@ describe("pushSmartlingTranslations", () => {
       ]),
     );
   });
+
+  it("rejects empty translation text instead of clearing Smartling strings", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.endsWith("/authenticate") && method === "POST") {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/projects/proj-1/jobs/job-1") && method === "GET") {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                translationJobUid: "job-1",
+                jobName: "French rollout",
+                jobStatus: "in_progress",
+                targetLocaleIds: ["fr-FR"],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pushSmartlingTranslations({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "smartling",
+      externalProjectId: "proj-1",
+      externalJobId: "job-1",
+      credential: { id: "cred_1" } as never,
+      project: {} as never,
+      secretMaterial: "user:secret:acct-1",
+      translations: [{ locale: "fr-FR", text: "   ", externalStringId: "hash-1" }],
+    });
+
+    expect(result.uploaded).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.failures).toEqual([
+      {
+        locale: "fr-FR",
+        fileId: null,
+        message: "smartling_translation_missing_text",
+      },
+    ]);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/locales/fr-FR/translations"),
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
 });
