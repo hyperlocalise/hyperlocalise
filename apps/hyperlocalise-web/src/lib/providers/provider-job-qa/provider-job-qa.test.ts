@@ -263,6 +263,7 @@ describe("runProviderJobQa summary", () => {
     expect(report.findings[0]).toMatchObject({
       severity: expect.any(String),
       message: expect.any(String),
+      confidence: 1,
       item: expect.objectContaining({ key: "greeting" }),
     });
   });

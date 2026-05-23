@@ -1,5 +1,9 @@
 import type { ExternalTmsTranslationUnit } from "@/lib/providers/external-tms-content-sync";
 
+import {
+  confidenceForProviderCheckType,
+  normalizeProviderQaFinding,
+} from "./normalize-provider-findings";
 import type {
   ProviderQaFinding,
   ProviderQaGlossaryTerm,
@@ -58,13 +62,14 @@ function checkStaleUnchangedTarget(
     return null;
   }
 
-  return {
+  return normalizeProviderQaFinding({
     checkType: "stale_unchanged_target",
     severity: "warning",
     message: "Target was not updated after the source string changed",
     suggestedFix: "Re-translate this string so the target reflects the updated source.",
+    confidence: confidenceForProviderCheckType("stale_unchanged_target"),
     item: itemRef(unit, { locale, field: "target" }),
-  };
+  });
 }
 
 function checkLengthExpansion(
@@ -90,13 +95,14 @@ function checkLengthExpansion(
 
   const severity = ratio >= errorRatio ? "error" : "warning";
 
-  return {
+  return normalizeProviderQaFinding({
     checkType: "length_expansion",
     severity,
     message: `Target is ${Math.round(ratio * 100)}% of source length (${targetLength} vs ${sourceLength} characters)`,
     suggestedFix: "Shorten the translation or confirm the extra length is intentional.",
+    confidence: confidenceForProviderCheckType("length_expansion"),
     item: itemRef(unit, { locale, field: "target" }),
-  };
+  });
 }
 
 function checkGlossaryViolations(
@@ -110,13 +116,16 @@ function checkGlossaryViolations(
 
   for (const term of glossaryTerms) {
     if (term.forbidden && findGlossaryMatches(targetText, term)) {
-      findings.push({
-        checkType: "glossary_violation",
-        severity: "error",
-        message: `Forbidden term "${term.sourceTerm}" appears in the target`,
-        suggestedFix: `Remove or replace "${term.sourceTerm}" in the target translation.`,
-        item: itemRef(unit, { locale, field: "target" }),
-      });
+      findings.push(
+        normalizeProviderQaFinding({
+          checkType: "glossary_violation",
+          severity: "error",
+          message: `Forbidden term "${term.sourceTerm}" appears in the target`,
+          suggestedFix: `Remove or replace "${term.sourceTerm}" in the target translation.`,
+          confidence: confidenceForProviderCheckType("glossary_violation"),
+          item: itemRef(unit, { locale, field: "target" }),
+        }),
+      );
       continue;
     }
 
@@ -134,13 +143,16 @@ function checkGlossaryViolations(
       : new RegExp(`\\b${escapeRegExp(expected)}\\b`, "i");
 
     if (!pattern.test(targetText)) {
-      findings.push({
-        checkType: "glossary_violation",
-        severity: "warning",
-        message: `Glossary term "${term.sourceTerm}" requires target rendering "${term.targetTerm}"`,
-        suggestedFix: `Use "${term.targetTerm}" when translating "${term.sourceTerm}".`,
-        item: itemRef(unit, { locale, field: "target" }),
-      });
+      findings.push(
+        normalizeProviderQaFinding({
+          checkType: "glossary_violation",
+          severity: "warning",
+          message: `Glossary term "${term.sourceTerm}" requires target rendering "${term.targetTerm}"`,
+          suggestedFix: `Use "${term.targetTerm}" when translating "${term.sourceTerm}".`,
+          confidence: confidenceForProviderCheckType("glossary_violation"),
+          item: itemRef(unit, { locale, field: "target" }),
+        }),
+      );
     }
   }
 

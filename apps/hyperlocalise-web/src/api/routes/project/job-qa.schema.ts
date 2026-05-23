@@ -17,6 +17,7 @@ export const providerQaFindingSchema = z.object({
   severity: z.enum(providerQaSeverityLevels),
   message: z.string(),
   suggestedFix: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
   item: providerQaItemReferenceSchema,
 });
 

@@ -1,5 +1,6 @@
 import type { HlCheckFinding, HlCheckReport } from "./hl-check-types";
 import type { HlCheckKeyManifest } from "./materialize-hl-check-workspace";
+import { confidenceForHlCheckType } from "./normalize-provider-findings";
 import type { ProviderQaCheckType, ProviderQaFinding, ProviderQaSeverity } from "./types";
 
 const hlCheckTypeMap: Partial<Record<string, ProviderQaCheckType>> = {
@@ -8,6 +9,8 @@ const hlCheckTypeMap: Partial<Record<string, ProviderQaCheckType>> = {
   icu_shape_mismatch: "icu_shape_mismatch",
   markdown_ast_mismatch: "markdown_link",
   html_tag_mismatch: "html_tag_mismatch",
+  same_as_source: "tone_style_issue",
+  whitespace_only: "whitespace_only_translation",
 };
 
 const hlSuggestedFixes: Partial<Record<ProviderQaCheckType, string>> = {
@@ -17,6 +20,10 @@ const hlSuggestedFixes: Partial<Record<ProviderQaCheckType, string>> = {
     "Mirror plural, select, and selectordinal blocks from the source in the target.",
   markdown_link: "Preserve markdown link structure and destinations from the source.",
   html_tag_mismatch: "Mirror HTML tags from the source in the target translation.",
+  tone_style_issue:
+    "Translate the string instead of copying the source text, unless the source should remain untranslated.",
+  whitespace_only_translation:
+    "Replace whitespace-only content with a meaningful translation or remove the entry.",
 };
 
 function mapSeverity(severity: string): ProviderQaSeverity {
@@ -63,6 +70,7 @@ export function mapHlFindingToProviderFinding(
     severity: mapSeverity(finding.severity),
     message: finding.message?.trim() || `hl check reported ${finding.type}`,
     suggestedFix: hlSuggestedFixes[checkType],
+    confidence: confidenceForHlCheckType(finding.type),
     item: {
       externalStringId: entry.externalStringId,
       key: entry.key,

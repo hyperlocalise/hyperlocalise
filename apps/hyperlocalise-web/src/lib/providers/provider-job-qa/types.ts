@@ -7,6 +7,8 @@ export const providerQaCheckTypes = [
   "markdown_link",
   "html_tag_mismatch",
   "glossary_violation",
+  "tone_style_issue",
+  "whitespace_only_translation",
 ] as const;
 
 export type ProviderQaCheckType = (typeof providerQaCheckTypes)[number];
@@ -27,6 +29,7 @@ export type ProviderQaFinding = {
   severity: ProviderQaSeverity;
   message: string;
   suggestedFix?: string;
+  confidence?: number;
   item: ProviderQaItemReference;
 };
 
