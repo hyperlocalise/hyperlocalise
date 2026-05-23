@@ -4,6 +4,7 @@ import {
   buildLokaliseProjectUrl,
   buildLokaliseTaskUrl,
   collectLokaliseTaskAssignees,
+  collectLokaliseTaskKeyIds,
   collectLokaliseTaskTargetLocales,
   extractLokaliseKeyName,
   getLokaliseTaskCompletionMs,
@@ -14,6 +15,7 @@ import {
   LokaliseApiError,
   parseLokaliseTaskDueDate,
   partitionLokaliseLocales,
+  summarizeLokaliseBulkUpdateChunkResult,
 } from "./lokalise-api";
 
 describe("LokaliseApiClient", () => {
@@ -305,6 +307,31 @@ describe("LokaliseApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("preserves per-language key ids from detailed task responses", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          task: {
+            task_id: 42,
+            title: "Homepage",
+            status: "in_progress",
+            languages: [
+              { language_iso: "fr", keys: [100, 200] },
+              { language_iso: "de", keys: [200, 300] },
+            ],
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const task = await client.getTask("proj.123", 42);
+
+    expect(collectLokaliseTaskKeyIds(task).sort((a, b) => a - b)).toEqual([100, 200, 300]);
+    expect(task.languages[0]?.keyIds).toEqual([100, 200]);
+  });
+
   it("throws LokaliseApiError on auth failure", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
@@ -316,6 +343,33 @@ describe("LokaliseApiClient", () => {
 
     await expect(client.listProjects()).rejects.toBeInstanceOf(LokaliseApiError);
     await expect(client.listProjects()).rejects.toMatchObject({ status: 401 });
+  });
+});
+
+describe("summarizeLokaliseBulkUpdateChunkResult", () => {
+  it("counts only successful keys when the bulk response reports per-key errors", () => {
+    const chunk = [
+      {
+        keyId: 4242,
+        translations: [{ languageIso: "fr", translation: "Bonjour" }],
+      },
+      {
+        keyId: 9999,
+        translations: [{ languageIso: "fr", translation: "Échec" }],
+      },
+    ];
+
+    const result = summarizeLokaliseBulkUpdateChunkResult(chunk, {
+      keys: [{ key_id: 4242 }],
+      errors: [{ message: "Key not found", key: { key_id: 9999 } }],
+    });
+
+    expect(result).toMatchObject({
+      uploaded: 1,
+      failed: 1,
+      failedKeyCount: 1,
+      failures: [{ locale: "fr", message: "Key not found" }],
+    });
   });
 });
 
