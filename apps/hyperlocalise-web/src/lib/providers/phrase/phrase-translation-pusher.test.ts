@@ -15,10 +15,12 @@ describe("pushPhraseTranslations", () => {
 
   it("upserts approved translations with branch and job tag context", async () => {
     const fetchMock = vi.fn(async (url, init) => {
-      const path = String(url);
+      const parsedUrl = new URL(String(url));
+      const host = parsedUrl.hostname;
+      const pathname = parsedUrl.pathname;
 
-      if (path.includes("cloud.memsource.com") && path.includes("/jobs")) {
-        const workflowLevel = Number(new URL(path).searchParams.get("workflowLevel") ?? "0");
+      if (host === "cloud.memsource.com" && pathname.includes("/jobs")) {
+        const workflowLevel = Number(parsedUrl.searchParams.get("workflowLevel") ?? "0");
         if (workflowLevel === 1) {
           return new Response(
             JSON.stringify({
@@ -40,7 +42,7 @@ describe("pushPhraseTranslations", () => {
         return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
       }
 
-      if (path.includes("api.phrase.com") && path.includes("/keys") && init?.method !== "POST") {
+      if (host === "api.phrase.com" && pathname.includes("/keys") && init?.method !== "POST") {
         return new Response(
           JSON.stringify([
             {
@@ -54,7 +56,7 @@ describe("pushPhraseTranslations", () => {
         );
       }
 
-      if (path.includes("api.phrase.com") && path.includes("/keys") && init?.method === "POST") {
+      if (host === "api.phrase.com" && pathname.includes("/keys") && init?.method === "POST") {
         return new Response(
           JSON.stringify({
             id: "key-2",
@@ -66,7 +68,7 @@ describe("pushPhraseTranslations", () => {
         );
       }
 
-      if (path.includes("api.phrase.com") && path.includes("/translations")) {
+      if (host === "api.phrase.com" && pathname.includes("/translations")) {
         return new Response(
           JSON.stringify({
             id: "tr-fr-2",
