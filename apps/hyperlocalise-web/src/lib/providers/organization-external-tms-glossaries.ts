@@ -201,16 +201,20 @@ export async function pruneOrganizationExternalTmsGlossaryTerms(input: {
   const uniqueExternalKeys = [...new Set(input.externalKeys)];
 
   if (uniqueExternalKeys.length === 0) {
-    await db.delete(schema.glossaryTerms).where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
+    await db
+      .delete(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
     return;
   }
 
-  await db.delete(schema.glossaryTerms).where(
-    and(
-      eq(schema.glossaryTerms.glossaryId, input.glossaryId),
-      notInArray(schema.glossaryTerms.externalKey, uniqueExternalKeys),
-    ),
-  );
+  await db
+    .delete(schema.glossaryTerms)
+    .where(
+      and(
+        eq(schema.glossaryTerms.glossaryId, input.glossaryId),
+        notInArray(schema.glossaryTerms.externalKey, uniqueExternalKeys),
+      ),
+    );
 }
 
 export async function listOrganizationExternalTmsGlossaries(input: {

@@ -139,9 +139,10 @@ describe("fetchLokaliseProjects", () => {
       }),
     ).rejects.toThrow("lokalise_auth_invalid");
 
-    const languageFetches = vi
-      .mocked(fetchMock)
-      .mock.calls.filter((call) => String(call[0]).includes("/languages"));
+    const languageFetches = vi.mocked(fetchMock).mock.calls.filter((call) => {
+      const url = call[0];
+      return typeof url === "string" && url.includes("/languages");
+    });
     expect(languageFetches.length).toBeLessThan(20);
   });
 

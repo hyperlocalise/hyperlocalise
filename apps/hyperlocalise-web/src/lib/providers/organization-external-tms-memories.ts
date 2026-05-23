@@ -157,12 +157,14 @@ export async function pruneOrganizationExternalTmsMemoryEntries(input: {
     return;
   }
 
-  await db.delete(schema.memoryEntries).where(
-    and(
-      eq(schema.memoryEntries.memoryId, input.memoryId),
-      notInArray(schema.memoryEntries.externalKey, uniqueExternalKeys),
-    ),
-  );
+  await db
+    .delete(schema.memoryEntries)
+    .where(
+      and(
+        eq(schema.memoryEntries.memoryId, input.memoryId),
+        notInArray(schema.memoryEntries.externalKey, uniqueExternalKeys),
+      ),
+    );
 }
 
 export async function listOrganizationExternalTmsMemories(input: {

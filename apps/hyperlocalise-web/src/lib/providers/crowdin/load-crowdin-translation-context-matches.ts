@@ -89,22 +89,22 @@ export async function loadCrowdinTranslationContextMatches(input: {
 
   const matchesByLocale = await Promise.all(
     input.targetLocales.map(async (targetLocale) => {
-    const [glossaryConcordance, memoryConcordance] = await Promise.all([
-      client
-        .searchGlossaryConcordance(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: targetLocale,
-          expressions,
-        })
-        .catch(() => []),
-      client
-        .searchTranslationMemoryConcordance(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: targetLocale,
-          expressions,
-        })
-        .catch(() => []),
-    ]);
+      const [glossaryConcordance, memoryConcordance] = await Promise.all([
+        client
+          .searchGlossaryConcordance(crowdinProjectId, {
+            sourceLanguageId: input.sourceLocale,
+            targetLanguageId: targetLocale,
+            expressions,
+          })
+          .catch(() => []),
+        client
+          .searchTranslationMemoryConcordance(crowdinProjectId, {
+            sourceLanguageId: input.sourceLocale,
+            targetLanguageId: targetLocale,
+            expressions,
+          })
+          .catch(() => []),
+      ]);
 
       return {
         glossaryMatches: normalizeCrowdinGlossaryConcordanceMatches(glossaryConcordance, {
