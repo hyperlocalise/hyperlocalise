@@ -162,4 +162,50 @@ describe("pullPhraseTaskContent", () => {
       ],
     });
   });
+
+  it("throws when the job target locale cannot be resolved", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const requestUrl = new URL(String(url));
+
+      if (requestUrl.hostname === "api.phrase.com" && requestUrl.pathname.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+            { id: "loc-es", name: "es", code: "es-ES", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (requestUrl.hostname === "api.phrase.com" && requestUrl.pathname.includes("/keys")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      pullPhraseTaskContent({
+        organizationId: "org_1",
+        projectId: "proj_1",
+        providerKind: "phrase",
+        externalProjectId: "strings-project-1",
+        externalJobId: "phrase-job-1-task-fr-fr",
+        credential: {
+          id: "cred_1",
+          region: null,
+          baseUrl: "https://cloud.memsource.com/web",
+        } as never,
+        project: {
+          providerMetadata: {
+            stringsProjectId: "strings-project-1",
+          },
+        } as never,
+        secretMaterial: "token",
+      }),
+    ).rejects.toThrow("phrase_task_missing_target_language");
+  });
 });

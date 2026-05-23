@@ -7,6 +7,7 @@ import {
   findPhraseTmsJobPart,
   normalizePhraseTaskLocaleSuffix,
   parsePhraseExternalJobId,
+  resolvePhraseTmsProjectUid,
 } from "./phrase-job-context";
 
 describe("phrase job context", () => {
@@ -43,6 +44,19 @@ describe("phrase job context", () => {
     });
 
     expect(jobPart?.uid).toBe("task-fr");
+  });
+
+  it("returns null when TMS project uid is absent from metadata", () => {
+    expect(
+      resolvePhraseTmsProjectUid({
+        providerMetadata: {},
+      }),
+    ).toBeNull();
+    expect(
+      resolvePhraseTmsProjectUid({
+        providerMetadata: { tmsProjectUid: "tms-project-1" },
+      }),
+    ).toBe("tms-project-1");
   });
 
   it("filters keys by job tag with fallback to all keys", () => {

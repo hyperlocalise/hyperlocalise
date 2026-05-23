@@ -242,20 +242,61 @@ export class PhraseApiClient {
       unverified?: boolean;
     },
   ): Promise<PhraseTranslation> {
-    const payload: Record<string, unknown> = {
-      key_id: input.keyId,
-      locale_name: input.localeName,
+    const listOptions = input.branch ? { branch: input.branch } : {};
+    const updatePayload = {
       content: input.content,
       unverified: input.unverified ?? false,
     };
 
-    const record = await this.post<PhraseTranslationApiRecord>(
-      `/projects/${encodeURIComponent(projectId)}/translations`,
-      payload,
+    try {
+      const record = await this.post<PhraseTranslationApiRecord>(
+        `/projects/${encodeURIComponent(projectId)}/translations`,
+        {
+          key_id: input.keyId,
+          locale_name: input.localeName,
+          ...updatePayload,
+        },
+        { branch: input.branch },
+      );
+
+      return normalizePhraseTranslation(record);
+    } catch (error) {
+      if (!isPhraseTranslationConflict(error)) {
+        throw error;
+      }
+    }
+
+    const existing = await this.findTranslationForKey(
+      projectId,
+      input.keyId,
+      input.localeName,
+      listOptions,
+    );
+    if (!existing) {
+      throw new PhraseApiError(
+        `Phrase translation already exists for key ${input.keyId} in locale ${input.localeName}, but it could not be resolved for update`,
+        409,
+        null,
+      );
+    }
+
+    const record = await this.patch<PhraseTranslationApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/translations/${encodeURIComponent(existing.id)}`,
+      updatePayload,
       { branch: input.branch },
     );
 
     return normalizePhraseTranslation(record);
+  }
+
+  private async findTranslationForKey(
+    projectId: string,
+    keyId: string,
+    localeName: string,
+    options: PhraseListOptions,
+  ): Promise<PhraseTranslation | null> {
+    const translations = await this.listTranslations(projectId, localeName, options);
+    return translations.find((translation) => translation.keyId === keyId) ?? null;
   }
 
   buildLocaleDownloadMetadata(input: {
@@ -351,6 +392,21 @@ export class PhraseApiClient {
     });
   }
 
+  private async patch<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    query: Record<string, string | null | undefined> = {},
+  ): Promise<T> {
+    return this.request<T>(this.buildPath(path, query), {
+      method: "PATCH",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const response = await this.fetchFn(url, init);
@@ -372,6 +428,10 @@ export class PhraseApiClient {
 
     return response.json() as Promise<T>;
   }
+}
+
+function isPhraseTranslationConflict(error: unknown): boolean {
+  return error instanceof PhraseApiError && (error.status === 409 || error.status === 422);
 }
 
 type PhraseProjectApiRecord = {

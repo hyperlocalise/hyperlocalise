@@ -5,6 +5,10 @@ import { fetchPhraseJobTasks } from "./phrase-job-task-fetcher";
 describe("fetchPhraseJobTasks", () => {
   let originalFetch: typeof fetch;
 
+  const tmsProject = {
+    providerMetadata: { tmsProjectUid: "phrase-project-1" },
+  } as never;
+
   const credential = {
     id: "cred-1",
     organizationId: "org-1",
@@ -94,9 +98,7 @@ describe("fetchPhraseJobTasks", () => {
       providerKind: "phrase",
       externalProjectId: "phrase-project-1",
       credential,
-      project: {
-        providerMetadata: {},
-      } as never,
+      project: tmsProject,
       secretMaterial: "secret-token",
     });
 
@@ -158,7 +160,7 @@ describe("fetchPhraseJobTasks", () => {
       providerKind: "phrase",
       externalProjectId: "phrase-project-1",
       credential,
-      project: { providerMetadata: {} } as never,
+      project: tmsProject,
       secretMaterial: "secret-token",
     });
 
@@ -210,7 +212,7 @@ describe("fetchPhraseJobTasks", () => {
       providerKind: "phrase",
       externalProjectId: "phrase-project-1",
       credential,
-      project: { providerMetadata: {} } as never,
+      project: tmsProject,
       secretMaterial: "secret-token",
     });
 
@@ -260,9 +262,11 @@ describe("fetchPhraseJobTasks", () => {
       organizationId: "org-1",
       projectId: "project-1",
       providerKind: "phrase",
-      externalProjectId: "phrase-project-eu",
+      externalProjectId: "strings-project-eu",
       credential: euCredential,
-      project: { providerMetadata: {} } as never,
+      project: {
+        providerMetadata: { tmsProjectUid: "phrase-project-eu" },
+      } as never,
       secretMaterial: "secret-token",
     });
 
@@ -325,7 +329,7 @@ describe("fetchPhraseJobTasks", () => {
         providerKind: "phrase",
         externalProjectId: "phrase-project-1",
         credential,
-        project: { providerMetadata: {} } as never,
+        project: tmsProject,
         secretMaterial: "secret-token",
       }),
     ).rejects.toThrow("phrase_auth_invalid");

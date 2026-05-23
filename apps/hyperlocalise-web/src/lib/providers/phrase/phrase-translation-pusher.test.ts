@@ -161,4 +161,76 @@ describe("pushPhraseTranslations", () => {
       name: "world",
     });
   });
+
+  it("skips TMS lookups when tmsProjectUid is absent from metadata", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+
+      if (parsedUrl.hostname === "cloud.memsource.com") {
+        throw new Error("TMS API should not be called for Strings-only projects");
+      }
+
+      if (parsedUrl.hostname === "api.phrase.com" && parsedUrl.pathname.includes("/keys")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-1",
+              name: "hello",
+              description: null,
+              tags: [],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (parsedUrl.hostname === "api.phrase.com" && parsedUrl.pathname.includes("/translations")) {
+        return new Response(
+          JSON.stringify({
+            id: "tr-fr-1",
+            key_id: "key-1",
+            locale_name: "fr-FR",
+            content: "Bonjour",
+            state: "translated",
+            unverified: false,
+          }),
+          { status: 201 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await pushPhraseTranslations({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "phrase",
+      externalProjectId: "strings-project-1",
+      externalJobId: "phrase-job-1-task-fr-fr",
+      credential: {
+        id: "cred_1",
+        region: null,
+        baseUrl: "https://cloud.memsource.com/web",
+      } as never,
+      project: {
+        providerMetadata: {
+          stringsProjectId: "strings-project-1",
+          defaultBranch: "main",
+        },
+      } as never,
+      secretMaterial: "token",
+      translations: [{ locale: "fr-FR", key: "hello", text: "Bonjour" }],
+    });
+
+    expect(result.uploaded).toBe(1);
+    expect(
+      vi
+        .mocked(fetchMock)
+        .mock.calls.some(([requestUrl]) =>
+          requestUrlString(requestUrl).includes("cloud.memsource.com"),
+        ),
+    ).toBe(false);
+  });
 });

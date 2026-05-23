@@ -61,7 +61,7 @@ export const pullPhraseTaskContent: ExternalTmsContentPuller = async ({
   }
 
   let jobPart = null;
-  const tmsProjectUid = resolvePhraseTmsProjectUid(project, externalProjectId);
+  const tmsProjectUid = resolvePhraseTmsProjectUid(project);
   if (tmsProjectUid) {
     const tmsClient = new PhraseTmsApiClient({
       token: secretMaterial,
@@ -83,8 +83,7 @@ export const pullPhraseTaskContent: ExternalTmsContentPuller = async ({
         !locale.default &&
         normalizePhraseTaskLocaleSuffix(locale.code ?? locale.name) ===
           parsedJobId.taskLocaleSuffix,
-    ) ??
-    locales.find((locale) => !locale.default);
+    );
   if (!targetLocale) {
     throw new Error("phrase_task_missing_target_language");
   }

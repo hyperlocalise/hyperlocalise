@@ -46,10 +46,9 @@ export function resolvePhraseStringsProjectId(
   return externalProjectId.trim();
 }
 
-export function resolvePhraseTmsProjectUid(
-  project: { providerMetadata: Record<string, unknown> },
-  externalProjectId: string,
-) {
+export function resolvePhraseTmsProjectUid(project: {
+  providerMetadata: Record<string, unknown>;
+}): string | null {
   const metadata = project.providerMetadata ?? {};
   const tmsProjectUid =
     typeof metadata.tmsProjectUid === "string" ? metadata.tmsProjectUid.trim() : "";
@@ -57,7 +56,7 @@ export function resolvePhraseTmsProjectUid(
     return tmsProjectUid;
   }
 
-  return externalProjectId.trim();
+  return null;
 }
 
 export function resolvePhraseBranch(project: { providerMetadata: Record<string, unknown> }) {

@@ -153,6 +153,65 @@ describe("PhraseApiClient", () => {
     expect(typeof keysRequestUrl === "string" ? keysRequestUrl : "").toContain("branch=feature");
   });
 
+  it("updates an existing translation when POST conflicts", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.includes("/translations") && method === "POST") {
+        return new Response(JSON.stringify({ message: "already exists" }), { status: 422 });
+      }
+
+      if (path.includes("/translations") && method === "GET") {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "tr-existing",
+              key_id: "key-1",
+              locale_name: "fr",
+              content: "Ancien",
+              state: "translated",
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations/tr-existing") && method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            id: "tr-existing",
+            key_id: "key-1",
+            locale_name: "fr",
+            content: "Bonjour",
+            state: "translated",
+            unverified: false,
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const translation = await client.upsertTranslation("proj-1", {
+      keyId: "key-1",
+      localeName: "fr",
+      content: "Bonjour",
+    });
+
+    expect(translation).toMatchObject({
+      id: "tr-existing",
+      keyId: "key-1",
+      localeName: "fr",
+      content: "Bonjour",
+    });
+
+    const methods = vi.mocked(fetchMock).mock.calls.map(([, requestInit]) => requestInit?.method);
+    expect(methods).toEqual(expect.arrayContaining(["POST", "GET", "PATCH"]));
+  });
+
   it("throws PhraseApiError for non-success responses", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });

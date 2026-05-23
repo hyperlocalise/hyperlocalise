@@ -1,6 +1,6 @@
 import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/external-tms-job-sync";
 
-import { buildPhraseExternalJobId } from "./phrase-job-context";
+import { buildPhraseExternalJobId, resolvePhraseTmsProjectUid } from "./phrase-job-context";
 import {
   mapPhraseTmsFetcherError,
   PhraseTmsApiClient,
@@ -10,16 +10,13 @@ import {
 
 export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
   credential,
-  externalProjectId,
+  externalProjectId: _externalProjectId,
   project,
   secretMaterial,
 }) => {
-  const tmsProjectUid = resolvePhraseTmsProjectUid({
-    externalProjectId,
-    providerMetadata: project.providerMetadata,
-  });
+  const tmsProjectUid = resolvePhraseTmsProjectUid(project);
 
-  if (!tmsProjectUid.trim()) {
+  if (!tmsProjectUid) {
     throw new Error("invalid_phrase_project_id");
   }
 
@@ -84,21 +81,6 @@ type JobResourceBundle = {
   translationMemories: PhraseTmsResourceReference[];
   termBases: PhraseTmsResourceReference[];
 };
-
-function resolvePhraseTmsProjectUid(input: {
-  externalProjectId: string;
-  providerMetadata: Record<string, unknown>;
-}) {
-  const metadataUid =
-    typeof input.providerMetadata.tmsProjectUid === "string"
-      ? input.providerMetadata.tmsProjectUid.trim()
-      : "";
-  if (metadataUid) {
-    return metadataUid;
-  }
-
-  return input.externalProjectId.trim();
-}
 
 async function loadProjectTermBases(client: PhraseTmsApiClient, projectUid: string) {
   try {
