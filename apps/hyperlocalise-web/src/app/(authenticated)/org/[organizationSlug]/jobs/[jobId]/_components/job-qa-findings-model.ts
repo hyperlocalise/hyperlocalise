@@ -1,10 +1,13 @@
 import { providerQaReportSchema } from "@/api/routes/project/job-qa.schema";
+import { buildFindingId } from "@/lib/providers/provider-job-qa/build-finding-id";
 import type {
   ProviderQaCheckType,
   ProviderQaFinding,
   ProviderQaReport,
   ProviderQaSeverity,
 } from "@/lib/providers/provider-job-qa/types";
+
+export { buildFindingId };
 
 export type { ProviderQaFinding, ProviderQaReport, ProviderQaCheckType, ProviderQaSeverity };
 
@@ -17,18 +20,6 @@ export type QaFindingGroup = {
   label: string;
   findings: QaFindingWithId[];
 };
-
-export function buildFindingId(finding: ProviderQaFinding): string {
-  const { externalStringId, key, locale, field } = finding.item;
-  return [
-    externalStringId,
-    key,
-    locale ?? "",
-    field ?? "",
-    finding.checkType,
-    finding.message,
-  ].join("|");
-}
 
 export function attachFindingIds(findings: ProviderQaFinding[]): QaFindingWithId[] {
   return findings.map((finding) => ({
