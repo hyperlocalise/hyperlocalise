@@ -2,6 +2,8 @@ import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+type SnapshotDbClient = Pick<typeof db, "select" | "insert">;
+
 export type ExternalTmsFileVersionSnapshot = {
   organizationId: string;
   projectId: string;
@@ -18,8 +20,11 @@ function versionIdentity(revision: string | null, sourceHash: string | null) {
   return `${revision ?? ""}:${sourceHash ?? ""}`;
 }
 
-export async function snapshotExternalTmsFileVersion(input: ExternalTmsFileVersionSnapshot) {
-  const [latest] = await db
+export async function snapshotExternalTmsFileVersion(
+  input: ExternalTmsFileVersionSnapshot,
+  dbClient: SnapshotDbClient = db,
+) {
+  const [latest] = await dbClient
     .select({
       revision: schema.externalTmsFileVersions.revision,
       sourceHash: schema.externalTmsFileVersions.sourceHash,
@@ -40,7 +45,7 @@ export async function snapshotExternalTmsFileVersion(input: ExternalTmsFileVersi
     return null;
   }
 
-  const [version] = await db
+  const [version] = await dbClient
     .insert(schema.externalTmsFileVersions)
     .values({
       organizationId: input.organizationId,

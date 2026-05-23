@@ -73,15 +73,17 @@ export async function resolveProviderSourceFiles(input: {
 
 function providerFileIdMatchExpressions(externalResourceId: string) {
   const numericId = Number(externalResourceId);
-  const candidates = [externalResourceId];
+  const expressions = [
+    sql`${schema.externalJobDetails.providerPayload}->'fileIds' @> ${JSON.stringify([externalResourceId])}::jsonb`,
+  ];
+
   if (!Number.isNaN(numericId)) {
-    candidates.push(String(numericId));
+    expressions.push(
+      sql`${schema.externalJobDetails.providerPayload}->'fileIds' @> ${JSON.stringify([numericId])}::jsonb`,
+    );
   }
 
-  return candidates.flatMap((fileId) => [
-    sql`${schema.externalJobDetails.providerPayload}->'fileIds' @> ${JSON.stringify([fileId])}::jsonb`,
-    sql`${schema.externalJobDetails.providerPayload}->'fileIds' @> ${JSON.stringify([Number(fileId)])}::jsonb`,
-  ]);
+  return expressions;
 }
 
 export async function resolveProviderJobsForFile(input: {

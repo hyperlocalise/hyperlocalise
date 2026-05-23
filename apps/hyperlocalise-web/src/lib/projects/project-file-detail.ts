@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 
+import { mapWithConcurrency } from "@/lib/async/map-with-concurrency";
 import type {
   ProjectFileContent,
   ProjectFileDetailResponse,
@@ -16,6 +17,7 @@ import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const maxInlineTextBytes = 512 * 1024;
+const fileDetailStorageReadConcurrency = 5;
 
 type PublicJobOutputFile = {
   fileId: string;
@@ -240,8 +242,10 @@ export async function getProjectFileDetail(input: {
 
   const providerStoredFileById = new Map(providerStoredFiles.map((file) => [file.id, file]));
 
-  const repositoryVersionRecords: ProjectFileVersionRecord[] = await Promise.all(
-    repositoryVersions.map(async (version) => ({
+  const repositoryVersionRecords: ProjectFileVersionRecord[] = await mapWithConcurrency(
+    repositoryVersions,
+    fileDetailStorageReadConcurrency,
+    async (version) => ({
       id: version.id,
       origin: "repository" as const,
       sourcePath: version.sourcePath,
@@ -257,11 +261,13 @@ export async function getProjectFileDetail(input: {
       sha256: version.sha256,
       metadata: version.metadata as Record<string, unknown>,
       content: await inlineProjectFileTextContent({ adapter: input.adapter, file: version }),
-    })),
+    }),
   );
 
-  const providerHistoryRecords: ProjectFileVersionRecord[] = await Promise.all(
-    providerVersionRows.map(async (version) => {
+  const providerHistoryRecords: ProjectFileVersionRecord[] = await mapWithConcurrency(
+    providerVersionRows,
+    fileDetailStorageReadConcurrency,
+    async (version) => {
       const storedFile = version.storedFileId
         ? providerStoredFileById.get(version.storedFileId)
         : undefined;
@@ -289,7 +295,7 @@ export async function getProjectFileDetail(input: {
           ? await inlineProjectFileTextContent({ adapter: input.adapter, file: storedFile })
           : null,
       };
-    }),
+    },
   );
 
   const currentProviderStoredFile = providerFile?.storedFileId
@@ -400,10 +406,14 @@ export async function getProjectFileDetail(input: {
       : [];
   const outputFileById = new Map(outputFiles.map((file) => [file.id, file]));
 
-  const jobRecords: ProjectFileJobRecord[] = await Promise.all(
-    jobRows.map(async (job) => {
-      const outputs = await Promise.all(
-        fileJobOutputFiles(job).map(async (output) => {
+  const jobRecords: ProjectFileJobRecord[] = await mapWithConcurrency(
+    jobRows,
+    fileDetailStorageReadConcurrency,
+    async (job) => {
+      const outputs = await mapWithConcurrency(
+        fileJobOutputFiles(job),
+        fileDetailStorageReadConcurrency,
+        async (output) => {
           const file = outputFileById.get(output.fileId);
           return {
             fileId: output.fileId,
@@ -417,7 +427,7 @@ export async function getProjectFileDetail(input: {
               ? await inlineProjectFileTextContent({ adapter: input.adapter, file })
               : null,
           };
-        }),
+        },
       );
 
       return {
@@ -431,7 +441,7 @@ export async function getProjectFileDetail(input: {
         targetLocales: fileJobLocales(job.inputPayload),
         outputs,
       };
-    }),
+    },
   );
 
   const jobsByLocale = groupJobsByLocale(jobRecords, (job) => {
