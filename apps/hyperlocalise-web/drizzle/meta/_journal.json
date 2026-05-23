@@ -127,13 +127,6 @@
       "when": 1779506888250,
       "tag": "0017_open_wither",
       "breakpoints": true
-    },
-    {
-      "idx": 18,
-      "version": "7",
-      "when": 1779512170214,
-      "tag": "0018_needy_galactus",
-      "breakpoints": true
     }
   ]
 }
