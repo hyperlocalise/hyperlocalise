@@ -97,12 +97,18 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  "<img src=\"/b.png\" alt=\"image\">",
 			want: false,
 		},
+		{
+			name: "ignores path-like tokens that are known atoms",
+			src:  "Path <id> and <name>",
+			tgt:  "Path <id> and <name>",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Mismatch(tt.src, tt.tgt); got != tt.want {
-				t.Errorf("Mismatch() = %v, want %v", got, tt.want)
+				t.Errorf("%s: Mismatch() = %v, want %v", tt.name, got, tt.want)
 			}
 		})
 	}
