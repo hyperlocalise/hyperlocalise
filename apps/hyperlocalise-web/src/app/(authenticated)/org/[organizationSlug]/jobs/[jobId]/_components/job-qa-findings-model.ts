@@ -20,9 +20,14 @@ export type QaFindingGroup = {
 
 export function buildFindingId(finding: ProviderQaFinding): string {
   const { externalStringId, key, locale, field } = finding.item;
-  return [externalStringId, key, locale ?? "", field ?? "", finding.checkType, finding.message].join(
-    "|",
-  );
+  return [
+    externalStringId,
+    key,
+    locale ?? "",
+    field ?? "",
+    finding.checkType,
+    finding.message,
+  ].join("|");
 }
 
 export function attachFindingIds(findings: ProviderQaFinding[]): QaFindingWithId[] {
