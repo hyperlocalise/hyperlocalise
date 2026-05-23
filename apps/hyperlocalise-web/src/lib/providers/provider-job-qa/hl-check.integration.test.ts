@@ -1,39 +1,88 @@
-import { access } from "node:fs/promises";
-import { constants } from "node:fs";
-import path from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { describe, expect, it } from "vite-plus/test";
+vi.hoisted(() => {
+  process.env.CI = "true";
+});
 
-import { findMonorepoRoot } from "./find-repo-root";
-import { runHlCheckOnProviderContent } from "./run-hl-check";
+vi.mock("@/lib/env", () => ({
+  env: {
+    OPENAI_API_KEY: "test-openai-api-key",
+    FILE_STORAGE_PROVIDER: "vercel_blob",
+    FILE_STORAGE_ACCESS: "private",
+  },
+}));
+
 import { mapHlCheckReportToProviderFindings } from "./map-hl-findings";
+import { runHlCheckOnProviderContent } from "./run-hl-check";
 
-async function resolveHlBinary(): Promise<string | null> {
-  const candidates = [
-    process.env.HL_CLI_PATH,
-    path.join(await findMonorepoRoot(), "bin", "hl"),
-    "/tmp/hl",
-  ].filter((value): value is string => Boolean(value?.trim()));
+const sandboxMocks = vi.hoisted(() => {
+  const output = vi.fn();
+  const runCommand = vi.fn();
+  const writeFiles = vi.fn();
+  const get = vi.fn();
+  const create = vi.fn();
+  const stop = vi.fn();
 
-  for (const candidate of candidates) {
-    try {
-      await access(candidate, constants.X_OK);
-      return candidate;
-    } catch {
-      // try next candidate
-    }
-  }
+  return { create, get, output, runCommand, stop, writeFiles };
+});
 
-  return null;
-}
+vi.mock("@vercel/sandbox", () => ({
+  Sandbox: {
+    create: sandboxMocks.create,
+    get: sandboxMocks.get,
+  },
+}));
 
-describe("hl check integration", () => {
-  it("runs hl check against materialized provider content", async () => {
-    const hlPath = await resolveHlBinary();
-    if (!hlPath) {
-      return;
-    }
+vi.mock("@/lib/translation/sandbox-translation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/translation/sandbox-translation")>();
+  return {
+    ...actual,
+    createTranslationSandbox: vi.fn(async () => ({ sandboxId: "sandbox_qa_1" })),
+    prepareSandbox: vi.fn(async () => undefined),
+    stopTranslationSandbox: vi.fn(async () => undefined),
+    runSandboxCommand: vi.fn(async (_sandboxId: string, command: string, args: string[]) => {
+      if (command === "bash" && args[0] === "-lc" && args[1]?.includes("hl check")) {
+        return { exitCode: 0, output: "" };
+      }
+      if (command === "cat") {
+        return {
+          exitCode: 0,
+          output: JSON.stringify({
+            checks: ["placeholder_mismatch"],
+            findings: [
+              {
+                type: "placeholder_mismatch",
+                severity: "error",
+                locale: "fr",
+                sourceFile: "content/en/strings.json",
+                targetFile: "content/fr/strings.json",
+                key: "greeting",
+                message: "Placeholder mismatch",
+              },
+            ],
+            summary: { total: 1 },
+          }),
+        };
+      }
+      return { exitCode: 0, output: "" };
+    }),
+  };
+});
 
+describe("hl check sandbox integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sandboxMocks.create.mockResolvedValue({ sandboxId: "sandbox_qa_1", stop: sandboxMocks.stop });
+    sandboxMocks.get.mockResolvedValue({
+      runCommand: sandboxMocks.runCommand,
+      writeFiles: sandboxMocks.writeFiles,
+      stop: sandboxMocks.stop,
+    });
+    sandboxMocks.writeFiles.mockResolvedValue(undefined);
+    sandboxMocks.stop.mockResolvedValue(undefined);
+  });
+
+  it("runs hl check in a sandbox and maps findings", async () => {
     const result = await runHlCheckOnProviderContent({
       content: {
         externalJobId: "job-1",
@@ -49,11 +98,6 @@ describe("hl check integration", () => {
         ],
       },
       targetLocales: ["fr"],
-      resolveInvocation: async () => ({
-        command: hlPath,
-        prefixArgs: [],
-        cwd: await findMonorepoRoot(),
-      }),
     });
 
     const findings = mapHlCheckReportToProviderFindings({
@@ -63,5 +107,7 @@ describe("hl check integration", () => {
     });
 
     expect(findings.some((finding) => finding.checkType === "placeholder_mismatch")).toBe(true);
+    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+    expect(stopTranslationSandbox).toHaveBeenCalledWith("sandbox_qa_1");
   });
 });

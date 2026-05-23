@@ -1,4 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -13,6 +12,21 @@ export type HlCheckKeyManifestEntry = {
 
 export type HlCheckKeyManifest = Record<string, HlCheckKeyManifestEntry>;
 
+export type HlCheckWorkspaceFile = {
+  path: string;
+  content: string;
+};
+
+export type HlCheckWorkspaceBundle = {
+  workspaceRoot: string;
+  configPath: string;
+  reportPath: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  keyManifest: HlCheckKeyManifest;
+  files: HlCheckWorkspaceFile[];
+};
+
 export type MaterializedHlCheckWorkspace = {
   rootDir: string;
   configPath: string;
@@ -22,6 +36,7 @@ export type MaterializedHlCheckWorkspace = {
 };
 
 const STRINGS_FILE = "strings.json";
+const WORKSPACE_ROOT = "/tmp/hl-provider-qa";
 
 function uniqueCheckKey(unit: ExternalTmsTranslationUnit, usedKeys: Set<string>): string {
   const base = unit.key.trim() || unit.externalStringId;
@@ -55,61 +70,63 @@ function buildJsonMap(
   return { payload, manifest };
 }
 
-function writeCheckConfig(
-  configPath: string,
+function buildCheckConfigContent(
   sourcePath: string,
   targetPathTemplate: string,
   sourceLocale: string,
   targetLocales: string[],
 ) {
   const quotedLocales = targetLocales.map((locale) => JSON.stringify(locale));
-  const content = `{
+  return `{
   "locales": {"source":${JSON.stringify(sourceLocale)},"targets":[${quotedLocales.join(",")}]},
   "buckets": {"provider":{"files":[{"from":${JSON.stringify(sourcePath)},"to":${JSON.stringify(targetPathTemplate)}}]}},
   "groups": {"default":{"targets":[${quotedLocales.join(",")}],"buckets":["provider"]}},
   "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate {{input}}"}}}
 }`;
-  return writeFile(configPath, content, "utf8");
 }
 
-export async function materializeHlCheckWorkspace(
+export function buildHlCheckWorkspaceBundle(
   content: ExternalTmsTaskContent,
-  rootDir: string,
   targetLocales: string[],
-): Promise<MaterializedHlCheckWorkspace> {
+  workspaceRoot = WORKSPACE_ROOT,
+): HlCheckWorkspaceBundle {
   const sourceLocale = content.sourceLocale?.trim() || "en";
-  const sourceRelative = path.join("content", sourceLocale, STRINGS_FILE);
+  const sourceRelative = path.join("content", sourceLocale, STRINGS_FILE).replaceAll("\\", "/");
   const targetTemplate = path.join("content", "{{target}}", STRINGS_FILE).replaceAll("\\", "/");
-  const sourcePath = path.join(rootDir, sourceRelative);
-  const configPath = path.join(rootDir, "i18n.jsonc");
+  const configPath = path.join(workspaceRoot, "i18n.jsonc").replaceAll("\\", "/");
+  const reportPath = path.join(workspaceRoot, "report.json").replaceAll("\\", "/");
 
   const sourceBundle = buildJsonMap(content.units, (unit) => unit.sourceText ?? "");
-  await mkdir(path.dirname(sourcePath), { recursive: true });
-  await writeFile(sourcePath, `${JSON.stringify(sourceBundle.payload, null, 2)}\n`, "utf8");
+  const files: HlCheckWorkspaceFile[] = [
+    {
+      path: path.join(workspaceRoot, sourceRelative).replaceAll("\\", "/"),
+      content: `${JSON.stringify(sourceBundle.payload, null, 2)}\n`,
+    },
+    {
+      path: configPath,
+      content: buildCheckConfigContent(sourceRelative, targetTemplate, sourceLocale, targetLocales),
+    },
+  ];
 
   for (const locale of targetLocales) {
-    const targetPath = path.join(rootDir, "content", locale, STRINGS_FILE);
+    const targetRelative = path.join("content", locale, STRINGS_FILE).replaceAll("\\", "/");
     const targetBundle = buildJsonMap(content.units, (unit) => {
       const match = unit.translations.find((translation) => translation.locale === locale);
       return match?.text ?? "";
     });
-    await mkdir(path.dirname(targetPath), { recursive: true });
-    await writeFile(targetPath, `${JSON.stringify(targetBundle.payload, null, 2)}\n`, "utf8");
+    files.push({
+      path: path.join(workspaceRoot, targetRelative).replaceAll("\\", "/"),
+      content: `${JSON.stringify(targetBundle.payload, null, 2)}\n`,
+    });
   }
 
-  await writeCheckConfig(
-    configPath,
-    sourceRelative.replaceAll("\\", "/"),
-    targetTemplate,
-    sourceLocale,
-    targetLocales,
-  );
-
   return {
-    rootDir,
+    workspaceRoot,
     configPath,
+    reportPath,
     sourceLocale,
     targetLocales,
     keyManifest: sourceBundle.manifest,
+    files,
   };
 }

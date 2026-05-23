@@ -30,15 +30,7 @@ vi.mock("./run-hl-check", () => ({
     keyManifest: {
       greeting: { externalStringId: "1", key: "greeting" },
     },
-    workspace: {
-      rootDir: "/tmp/hl-provider-qa-test",
-      configPath: "/tmp/hl-provider-qa-test/i18n.jsonc",
-      sourceLocale: "en",
-      targetLocales: ["fr"],
-      keyManifest: {
-        greeting: { externalStringId: "1", key: "greeting" },
-      },
-    },
+    workspaceRoot: "/tmp/hl-provider-qa",
   })),
 }));
 

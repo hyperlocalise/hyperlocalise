@@ -6,12 +6,20 @@ import {
 } from "@/lib/providers/agent-runs";
 import {
   pullExternalTmsTaskContent,
+  type ExternalTmsContentSyncFailure,
   type ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
-import { runProviderJobQa } from "@/lib/providers/provider-job-qa/run-provider-job-qa";
+import {
+  buildProviderJobQaReport,
+  runProviderJobQa,
+} from "@/lib/providers/provider-job-qa/run-provider-job-qa";
+import {
+  runHlCheckOnProviderContent,
+  type RunHlCheckResult,
+} from "@/lib/providers/provider-job-qa/run-hl-check";
 import type { ProviderQaReport } from "@/lib/providers/provider-job-qa/types";
 
 export type ProviderAgentQaResult =
@@ -108,10 +116,33 @@ export async function executeProviderJobQaForContent(input: {
   };
 }
 
-export async function executeProviderAgentQa(input: {
+export type PreparedProviderAgentQaRun =
+  | {
+      ok: false;
+      agentRunId: string;
+      code: string;
+      message: string;
+    }
+  | {
+      ok: true;
+      agentRunId: string;
+      pullRunId: string;
+      report: ProviderQaReport;
+      alreadyCompleted: true;
+    }
+  | {
+      ok: true;
+      projectId: string;
+      pullRunId: string;
+      content: ExternalTmsTaskContent;
+      pullFailures: ExternalTmsContentSyncFailure[];
+      unitsDiscovered: number;
+    };
+
+export async function prepareProviderAgentQaRun(input: {
   agentRunId: string;
   organizationId: string;
-}): Promise<ProviderAgentQaResult> {
+}): Promise<PreparedProviderAgentQaRun> {
   const run = await getAgentRun({
     runId: input.agentRunId,
     organizationId: input.organizationId,
@@ -142,16 +173,10 @@ export async function executeProviderAgentQa(input: {
       ok: true,
       agentRunId: input.agentRunId,
       pullRunId: readOutputSummaryString(outputSummary, "pullRunId"),
-      report:
-        storedReport ??
-        (await runProviderJobQa(
-          {
-            externalJobId: run.externalJobId,
-            targetLocales: [],
-            units: [],
-          },
-          { targetLocales: [] },
-        )),
+      report: storedReport ?? {
+        findings: [],
+        summary: { total: 0, byCheckType: {}, bySeverity: {} },
+      },
       alreadyCompleted: true,
     };
   }
@@ -225,15 +250,23 @@ export async function executeProviderAgentQa(input: {
     }
   }
 
-  let pullResult;
   try {
-    pullResult = await pullExternalTmsTaskContent({
+    const pullResult = await pullExternalTmsTaskContent({
       organizationId: input.organizationId,
       projectId,
       providerKind: run.providerKind,
       externalJobId: run.externalJobId,
       pullContent,
     });
+
+    return {
+      ok: true,
+      projectId,
+      pullRunId: pullResult.runId,
+      content: pullResult.content,
+      pullFailures: pullResult.failures,
+      unitsDiscovered: pullResult.counts.unitsDiscovered,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Provider content pull failed";
     await failAgentRun({
@@ -250,36 +283,84 @@ export async function executeProviderAgentQa(input: {
       message,
     };
   }
+}
 
-  const qaResult = await executeProviderJobQaForContent({
-    organizationId: input.organizationId,
-    projectId,
-    providerKind: run.providerKind,
-    externalJobId: run.externalJobId,
-    content: pullResult.content,
-    pullRunId: pullResult.runId,
-  });
+export async function completeProviderAgentQaRun(input: {
+  agentRunId: string;
+  organizationId: string;
+  projectId: string;
+  pullRunId: string;
+  content: ExternalTmsTaskContent;
+  pullFailures: ExternalTmsContentSyncFailure[];
+  unitsDiscovered: number;
+  hlResult: RunHlCheckResult;
+}): Promise<ProviderAgentQaResult> {
+  const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
+  const report = await buildProviderJobQaReport(
+    input.content,
+    {
+      targetLocales: input.content.targetLocales,
+      sourceLocale: input.content.sourceLocale,
+      glossaryTerms,
+    },
+    input.hlResult,
+  );
 
   await completeAgentRun({
-    runId: run.id,
+    runId: input.agentRunId,
     organizationId: input.organizationId,
     outputSummary: {
-      pullRunId: qaResult.pullRunId,
-      unitsDiscovered: pullResult.counts.unitsDiscovered,
-      findingCount: qaResult.report.summary.total,
-      findings: qaResult.report.findings,
-      summary: qaResult.report.summary,
-      targetLocales: pullResult.content.targetLocales,
-      sourceLocale: pullResult.content.sourceLocale ?? null,
+      pullRunId: input.pullRunId,
+      unitsDiscovered: input.unitsDiscovered,
+      findingCount: report.summary.total,
+      findings: report.findings,
+      summary: report.summary,
+      targetLocales: input.content.targetLocales,
+      sourceLocale: input.content.sourceLocale ?? null,
     },
     changedItems: [],
-    warnings: pullResult.failures.map((failure) => failure.message),
+    warnings: input.pullFailures.map((failure) => failure.message),
   });
 
   return {
     ok: true,
     agentRunId: input.agentRunId,
-    pullRunId: qaResult.pullRunId,
-    report: qaResult.report,
+    pullRunId: input.pullRunId,
+    report,
   };
+}
+
+export async function executeProviderAgentQa(input: {
+  agentRunId: string;
+  organizationId: string;
+}): Promise<ProviderAgentQaResult> {
+  const prepared = await prepareProviderAgentQaRun(input);
+  if (!prepared.ok) {
+    return prepared;
+  }
+  if ("alreadyCompleted" in prepared) {
+    return {
+      ok: true,
+      agentRunId: prepared.agentRunId,
+      pullRunId: prepared.pullRunId,
+      report: prepared.report,
+      alreadyCompleted: true,
+    };
+  }
+
+  const hlResult = await runHlCheckOnProviderContent({
+    content: prepared.content,
+    targetLocales: prepared.content.targetLocales,
+  });
+
+  return completeProviderAgentQaRun({
+    agentRunId: input.agentRunId,
+    organizationId: input.organizationId,
+    projectId: prepared.projectId,
+    pullRunId: prepared.pullRunId,
+    content: prepared.content,
+    pullFailures: prepared.pullFailures,
+    unitsDiscovered: prepared.unitsDiscovered,
+    hlResult,
+  });
 }

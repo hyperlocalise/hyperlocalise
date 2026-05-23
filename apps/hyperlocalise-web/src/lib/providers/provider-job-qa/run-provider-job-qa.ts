@@ -6,18 +6,14 @@ import { collectSupplementalQaFindings } from "./supplemental-checks";
 import { buildProviderQaReport } from "./summarize";
 import type { ProviderQaReport, ProviderQaRunOptions } from "./types";
 
-export async function runProviderJobQa(
+export async function buildProviderJobQaReport(
   content: ExternalTmsTaskContent,
   options: ProviderQaRunOptions,
+  hlResult: Awaited<ReturnType<typeof runHlCheckOnProviderContent>>,
 ): Promise<ProviderQaReport> {
   const targetLocales =
     options.targetLocales.length > 0 ? options.targetLocales : content.targetLocales;
   const sourceLocale = options.sourceLocale ?? content.sourceLocale ?? "en";
-
-  const hlResult = await runHlCheckOnProviderContent({
-    content,
-    targetLocales,
-  });
 
   const hlFindings = mapHlCheckReportToProviderFindings({
     report: hlResult.report,
@@ -34,4 +30,19 @@ export async function runProviderJobQa(
   );
 
   return buildProviderQaReport([...hlFindings, ...supplementalFindings]);
+}
+
+export async function runProviderJobQa(
+  content: ExternalTmsTaskContent,
+  options: ProviderQaRunOptions,
+): Promise<ProviderQaReport> {
+  const targetLocales =
+    options.targetLocales.length > 0 ? options.targetLocales : content.targetLocales;
+
+  const hlResult = await runHlCheckOnProviderContent({
+    content,
+    targetLocales,
+  });
+
+  return buildProviderJobQaReport(content, options, hlResult);
 }

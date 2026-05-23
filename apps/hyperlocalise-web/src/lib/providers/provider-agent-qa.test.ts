@@ -13,6 +13,11 @@ import { executeProviderAgentQa } from "./provider-agent-qa";
 
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
+const runHlCheckOnProviderContentMock = vi.fn();
+
+vi.mock("@/lib/providers/provider-job-qa/run-hl-check", () => ({
+  runHlCheckOnProviderContent: (...args: unknown[]) => runHlCheckOnProviderContentMock(...args),
+}));
 
 vi.mock("@/lib/providers/external-tms-content-sync", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/providers/external-tms-content-sync")>();
@@ -29,6 +34,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
+  runHlCheckOnProviderContentMock.mockReset();
 });
 
 async function createExternalTmsProject() {
@@ -69,6 +75,27 @@ describe("executeProviderAgentQa", () => {
       counts: { unitsDiscovered: 1, translationsDiscovered: 1, approvedTranslations: 0 },
       content: pulledContent,
       failures: [],
+    });
+    runHlCheckOnProviderContentMock.mockResolvedValue({
+      report: {
+        checks: ["placeholder_mismatch"],
+        findings: [
+          {
+            type: "placeholder_mismatch",
+            severity: "error",
+            locale: "fr",
+            sourceFile: "content/en/strings.json",
+            targetFile: "content/fr/strings.json",
+            key: "hello",
+            message: "Placeholder mismatch",
+          },
+        ],
+        summary: { total: 1 },
+      },
+      keyManifest: {
+        hello: { externalStringId: "1", key: "hello" },
+      },
+      workspaceRoot: "/tmp/hl-provider-qa",
     });
 
     const run = await createAgentRun({
