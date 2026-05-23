@@ -222,14 +222,17 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 	return b.String(), nil
 }
 
+var appleStringsReplacer = strings.NewReplacer(
+	"\\", "\\\\",
+	"\n", "\\n",
+	"\r", "\\r",
+	"\t", "\\t",
+	"\"", "\\\"",
+)
+
 func encodeAppleStringsQuoted(s string) string {
-	escaped := strings.NewReplacer(
-		"\\", "\\\\",
-		"\n", "\\n",
-		"\r", "\\r",
-		"\t", "\\t",
-		"\"", "\\\"",
-	).Replace(s)
+	// BOLT OPTIMIZATION: Use global strings.Replacer to avoid trie construction.
+	escaped := appleStringsReplacer.Replace(s)
 	return "\"" + escaped + "\""
 }
 

@@ -431,25 +431,28 @@ func isPHPOctalDigit(ch byte) bool {
 	return ch >= '0' && ch <= '7'
 }
 
-func encodePHPStringLiteral(value string, quote byte) string {
-	if quote == '"' {
-		escaped := strings.NewReplacer(
-			"\\", "\\\\",
-			"\n", "\\n",
-			"\r", "\\r",
-			"\t", "\\t",
-			"\v", "\\v",
-			"\x1b", "\\e",
-			"\f", "\\f",
-			"\"", "\\\"",
-			"$", "\\$",
-		).Replace(value)
-		return `"` + escaped + `"`
-	}
-
-	escaped := strings.NewReplacer(
+var (
+	phpDoubleQuoteReplacer = strings.NewReplacer(
+		"\\", "\\\\",
+		"\n", "\\n",
+		"\r", "\\r",
+		"\t", "\\t",
+		"\v", "\\v",
+		"\x1b", "\\e",
+		"\f", "\\f",
+		"\"", "\\\"",
+		"$", "\\$",
+	)
+	phpSingleQuoteReplacer = strings.NewReplacer(
 		"\\", "\\\\",
 		"'", "\\'",
-	).Replace(value)
-	return "'" + escaped + "'"
+	)
+)
+
+func encodePHPStringLiteral(value string, quote byte) string {
+	// BOLT OPTIMIZATION: Use global strings.Replacer instances to avoid trie construction.
+	if quote == '"' {
+		return "\"" + phpDoubleQuoteReplacer.Replace(value) + "\""
+	}
+	return "'" + phpSingleQuoteReplacer.Replace(value) + "'"
 }

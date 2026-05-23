@@ -135,9 +135,10 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		if err != nil {
 			continue
 		}
+		// BOLT OPTIMIZATION: Use string concatenation instead of strings.Join with slice allocations.
 		fullKey := decodedKey
 		if len(stack) > 0 {
-			fullKey = strings.Join(append(append([]string(nil), stack...), decodedKey), ".")
+			fullKey = strings.Join(stack, ".") + "." + decodedKey
 		}
 
 		if len(pendingComments) > 0 {

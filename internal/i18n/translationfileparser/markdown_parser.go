@@ -712,15 +712,17 @@ func yamlPlainScalarNeedsQuotes(value string) bool {
 	return strings.Contains(trimmed, ": ")
 }
 
+var yamlReplacer = strings.NewReplacer(
+	"\\", "\\\\",
+	"\"", "\\\"",
+	"\n", "\\n",
+	"\r", "\\r",
+	"\t", "\\t",
+)
+
 func yamlDoubleQuoteScalar(value string) string {
-	replacer := strings.NewReplacer(
-		`\\`, `\\\\`,
-		`"`, `\"`,
-		"\n", `\n`,
-		"\r", `\r`,
-		"\t", `\t`,
-	)
-	return `"` + replacer.Replace(value) + `"`
+	// BOLT OPTIMIZATION: Use global strings.Replacer to avoid trie construction.
+	return "\"" + yamlReplacer.Replace(value) + "\""
 }
 
 func normalizeMarkdownTableRowBoundaries(part markdownPart, rendered string) string {
