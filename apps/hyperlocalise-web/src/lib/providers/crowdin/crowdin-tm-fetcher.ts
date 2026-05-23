@@ -45,14 +45,24 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
   const results = await Promise.all(
     scoped.map(async (memory) => {
       try {
-        const segments = await client.listTranslationMemorySegments(memory.id);
+        const entryTargetLocales = uniqueLocales([
+          ...targetLocales,
+          ...memory.languageIds.filter((locale) => locale !== memory.languageId),
+        ]);
+        const sourceLanguageId = memory.languageId || sourceLocale;
+        const segments = await client.listTranslationMemorySegments(memory.id, {
+          shouldStop: (fetchedSegments) =>
+            buildTranslationMemoryEntries({
+              memoryId: memory.id,
+              sourceLanguageId,
+              targetLocales: entryTargetLocales,
+              segments: fetchedSegments,
+            }).length >= maxSegmentsPerMemory,
+        });
         const entries = buildTranslationMemoryEntries({
           memoryId: memory.id,
-          sourceLanguageId: memory.languageId || sourceLocale,
-          targetLocales: uniqueLocales([
-            ...targetLocales,
-            ...memory.languageIds.filter((locale) => locale !== memory.languageId),
-          ]),
+          sourceLanguageId,
+          targetLocales: entryTargetLocales,
           segments,
         }).slice(0, maxSegmentsPerMemory);
 

@@ -5,7 +5,8 @@ export function isCrowdinResourceLinkedToProject(input: {
 }): boolean {
   const linkedProjectIds = [...(input.projectIds ?? []), ...(input.defaultProjectIds ?? [])];
   if (linkedProjectIds.length === 0) {
-    return true;
+    // Crowdin returns empty projectIds when a TM/glossary is not assigned to any project.
+    return false;
   }
 
   return linkedProjectIds.includes(input.projectId);
