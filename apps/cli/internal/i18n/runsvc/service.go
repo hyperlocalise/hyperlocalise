@@ -969,6 +969,8 @@ func parserModeForSource(path string, content []byte) string {
 	switch {
 	case strings.HasSuffix(normalized, ".arb"):
 		return "arb"
+	case strings.HasSuffix(normalized, ".php"):
+		return "php_array"
 	case translationfileparser.IsAndroidStringResourcePath(path):
 		return "android_xml"
 	case strings.HasSuffix(normalized, ".json"):

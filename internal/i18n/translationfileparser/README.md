@@ -18,6 +18,7 @@
 - `.stringsdict` via `AppleStringsdictParser` (Apple/Xcode plural dictionaries)
 - `.xcstrings` via `XCStringsParser` (Apple/Xcode string catalogs)
 - `.csv` via `CSVParser` (key/value and per-locale column layouts)
+- `.php` via `PHPArrayParser` (static PHP locale arrays)
 - `.ftl` via `FluentParser` (Mozilla Fluent messages and attributes)
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
@@ -25,7 +26,7 @@
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, Fluent, Android XML strings, generic XML/RESX, and Java properties parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, and Java properties parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -127,6 +128,18 @@
 - Validates that every `%#@token@` in `NSStringLocalizedFormatKey` matches a sibling substitution dictionary key.
 - Preserves plural category keys (`zero`, `one`, `two`, `few`, `many`, `other`) as part of flattened key paths.
 - `MarshalAppleStringsdict(template, values)` preserves plist/XML layout and replaces only `<string>` text values.
+
+### PHP Array Locales (`.php`)
+
+- Parses PHP files that begin with `<?php` and return one static array literal.
+- Supports short arrays (`return [ ... ];`) and legacy arrays (`return array(...);`).
+- Requires quoted string keys and string-literal values; nested arrays are flattened with dotted keys.
+  - Example: `['auth' => ['failed' => 'Invalid']]` -> `auth.failed=Invalid`
+- PHP keywords such as `return` and `array` are matched case-insensitively.
+- Double-quoted PHP string escapes are decoded, including byte truncation for octal escapes above `\377`.
+- Preserves comments, whitespace, key order, quote style, and array syntax on marshal by replacing only existing string value literals.
+- Supports plural/select-style variants represented as nested keys such as `items.one` and `items.other`.
+- Rejects executable or dynamic PHP constructs, including variables, function calls, constants, `declare(...)`, and double-quoted interpolation.
 
 ### Fluent (`.ftl`)
 

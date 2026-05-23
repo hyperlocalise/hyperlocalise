@@ -52,7 +52,23 @@ Each file mapping uses:
 
 Use `{{source}}`, `{{target}}`, and `{{localeDir}}` in templates. `{{localeDir}}` resolves to an empty segment when target equals source, and to the target locale otherwise.
 
-Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, and `.csv`.
+### PHP array locale mapping patterns
+
+Laravel-style locale arrays can be mapped directly when each file returns one static PHP array.
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+      - from: resources/lang/en/validation.php
+        to: resources/lang/{{target}}/validation.php
+```
+
+Supported PHP locale files must begin with `<?php` and return a static `[...]` or `array(...)` literal. Hyperlocalise translates string leaves, flattens nested keys with dotted paths, and preserves comments, ordering, and array syntax when writing. Dynamic PHP such as variables, function calls, constants, `declare(...)`, or interpolated double-quoted strings is intentionally rejected.
+
+Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.php`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, and `.csv`.
 
 YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
 
