@@ -17,7 +17,7 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
   });
 
   const crowdinProjectId = Number(externalProjectId);
-  if (!Number.isFinite(crowdinProjectId)) {
+  if (!Number.isFinite(crowdinProjectId) || crowdinProjectId <= 0) {
     throw new Error("invalid_crowdin_project_id");
   }
 
@@ -50,25 +50,21 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
           ...memory.languageIds.filter((locale) => locale !== memory.languageId),
         ]);
         const sourceLanguageId = memory.languageId || sourceLocale;
-        let fetchedSegmentCount = 0;
-        const entries: ReturnType<typeof buildTranslationMemoryEntries> = [];
-        await client.listTranslationMemorySegments(memory.id, {
-          shouldStop: (fetchedSegments) => {
-            const newSegments = fetchedSegments.slice(fetchedSegmentCount);
-            fetchedSegmentCount = fetchedSegments.length;
-            entries.push(
-              ...buildTranslationMemoryEntries({
-                memoryId: memory.id,
-                sourceLanguageId,
-                targetLocales: entryTargetLocales,
-                segments: newSegments,
-              }),
-            );
+        const buildEntries = (
+          segments: Parameters<typeof buildTranslationMemoryEntries>[0]["segments"],
+        ) =>
+          buildTranslationMemoryEntries({
+            memoryId: memory.id,
+            sourceLanguageId,
+            targetLocales: entryTargetLocales,
+            segments,
+          });
 
-            return entries.length >= maxSegmentsPerMemory;
-          },
+        const segments = await client.listTranslationMemorySegments(memory.id, {
+          shouldStop: (fetchedSegments) =>
+            buildEntries(fetchedSegments).length >= maxSegmentsPerMemory,
         });
-        const syncedEntries = entries.slice(0, maxSegmentsPerMemory);
+        const syncedEntries = buildEntries(segments).slice(0, maxSegmentsPerMemory);
 
         return {
           externalMemoryId: String(memory.id),

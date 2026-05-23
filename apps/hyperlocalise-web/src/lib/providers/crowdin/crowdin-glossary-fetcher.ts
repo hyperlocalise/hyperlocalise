@@ -15,7 +15,7 @@ export const fetchCrowdinGlossaries: ExternalTmsGlossaryFetcher = async ({
   });
 
   const crowdinProjectId = Number(externalProjectId);
-  if (!Number.isFinite(crowdinProjectId)) {
+  if (!Number.isFinite(crowdinProjectId) || crowdinProjectId <= 0) {
     throw new Error("invalid_crowdin_project_id");
   }
 
@@ -160,9 +160,7 @@ function buildGlossaryTermRows(input: {
   for (const [conceptId, sourceTerm] of sourceTermsByConcept) {
     const targets = targetTermsByConcept.get(conceptId) ?? [];
     for (const targetLocale of input.targetLocales) {
-      const targetTerm =
-        targets.find((term) => term.languageId === targetLocale) ??
-        targets.find((term) => term.text.trim().length > 0);
+      const targetTerm = targets.find((term) => term.languageId === targetLocale);
 
       if (!targetTerm?.text.trim()) {
         continue;
