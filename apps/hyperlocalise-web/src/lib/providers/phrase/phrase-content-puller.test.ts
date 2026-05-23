@@ -15,10 +15,10 @@ describe("pullPhraseTaskContent", () => {
 
   it("pulls scoped keys and translations for a Phrase TMS job", async () => {
     const fetchMock = vi.fn(async (url, init) => {
-      const path = String(url);
+      const requestUrl = new URL(String(url));
 
-      if (path.includes("cloud.memsource.com") && path.includes("/jobs")) {
-        const workflowLevel = Number(new URL(path).searchParams.get("workflowLevel") ?? "0");
+      if (requestUrl.hostname === "cloud.memsource.com" && requestUrl.pathname.includes("/jobs")) {
+        const workflowLevel = Number(requestUrl.searchParams.get("workflowLevel") ?? "0");
         if (workflowLevel === 1) {
           return new Response(
             JSON.stringify({
@@ -40,7 +40,7 @@ describe("pullPhraseTaskContent", () => {
         return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
       }
 
-      if (path.includes("api.phrase.com") && path.includes("/locales")) {
+      if (requestUrl.hostname === "api.phrase.com" && requestUrl.pathname.includes("/locales")) {
         return new Response(
           JSON.stringify([
             { id: "loc-en", name: "en", code: "en-US", default: true },
@@ -50,7 +50,11 @@ describe("pullPhraseTaskContent", () => {
         );
       }
 
-      if (path.includes("api.phrase.com") && path.includes("/keys") && init?.method !== "POST") {
+      if (
+        requestUrl.hostname === "api.phrase.com" &&
+        requestUrl.pathname.includes("/keys") &&
+        init?.method !== "POST"
+      ) {
         return new Response(
           JSON.stringify([
             {
@@ -70,7 +74,7 @@ describe("pullPhraseTaskContent", () => {
         );
       }
 
-      if (path.includes("/translations?") && path.includes("locale_name=en")) {
+      if (requestUrl.pathname.includes("/translations") && requestUrl.searchParams.get("locale_name") === "en") {
         return new Response(
           JSON.stringify([
             {
@@ -86,7 +90,7 @@ describe("pullPhraseTaskContent", () => {
         );
       }
 
-      if (path.includes("/translations?") && path.includes("locale_name=fr")) {
+      if (requestUrl.pathname.includes("/translations") && requestUrl.searchParams.get("locale_name") === "fr") {
         return new Response(
           JSON.stringify([
             {
