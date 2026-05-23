@@ -8,6 +8,10 @@ import type { ExternalTmsProviderKind } from "./organization-external-tms-provid
 export type ExternalTmsTerminologyResourceType =
   (typeof schema.externalTmsTerminologyResourceTypeEnum.enumValues)[number];
 
+export type GlossarySyncState = (typeof schema.glossarySyncStateEnum.enumValues)[number];
+
+const defaultGlossarySyncState: GlossarySyncState = "synced";
+
 export type ExternalTmsGlossaryMetadata = {
   organizationId: string;
   providerCredentialId: string;
@@ -21,7 +25,7 @@ export type ExternalTmsGlossaryMetadata = {
   targetLocale: string;
   localeCoverage?: string[];
   termCount?: number | null;
-  syncState?: string;
+  syncState?: GlossarySyncState;
   termCapabilities?: Record<string, unknown>;
   externalUrl?: string | null;
   syncErrorMessage?: string | null;
@@ -61,7 +65,7 @@ export async function upsertOrganizationExternalTmsGlossary(input: ExternalTmsGl
       externalGlossaryId: input.externalGlossaryId,
       localeCoverage: input.localeCoverage ?? [input.sourceLocale, input.targetLocale],
       termCount: input.termCount ?? null,
-      syncState: input.syncState ?? "synced",
+      syncState: input.syncState ?? defaultGlossarySyncState,
       termCapabilities: input.termCapabilities ?? {},
       externalUrl: input.externalUrl ?? null,
       lastSyncedAt: input.syncErrorMessage ? undefined : now,
@@ -86,7 +90,7 @@ export async function upsertOrganizationExternalTmsGlossary(input: ExternalTmsGl
         externalProviderCredentialId: input.providerCredentialId,
         localeCoverage: input.localeCoverage ?? [input.sourceLocale, input.targetLocale],
         termCount: input.termCount ?? null,
-        syncState: input.syncState ?? "synced",
+        syncState: input.syncState ?? defaultGlossarySyncState,
         termCapabilities: input.termCapabilities ?? {},
         externalUrl: input.externalUrl ?? null,
         lastSyncedAt: input.syncErrorMessage ? undefined : now,
