@@ -103,7 +103,8 @@ function mapSmartlingStatus(status: string): NormalizedJobStatus {
 }
 
 function mapPhraseStatus(status: string): NormalizedJobStatus {
-  if (["completed", "done", "closed", "finished", "delivered"].includes(status)) return "succeeded";
+  if (["completed", "done", "closed", "finished", "delivered", "emailed"].includes(status))
+    return "succeeded";
   if (
     [
       "in_progress",

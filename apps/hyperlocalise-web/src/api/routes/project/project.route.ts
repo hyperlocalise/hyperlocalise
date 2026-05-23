@@ -23,6 +23,7 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/organization-exter
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
 import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
+import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
 import {
@@ -310,6 +311,7 @@ const jobTaskFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsJobTaskFetcher>
 > = {
   crowdin: fetchCrowdinJobTasks,
+  phrase: fetchPhraseJobTasks,
   smartling: fetchSmartlingJobTasks,
 };
 
