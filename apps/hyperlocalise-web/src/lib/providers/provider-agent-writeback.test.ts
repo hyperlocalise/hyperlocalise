@@ -76,6 +76,8 @@ describe("provider-agent-writeback", () => {
       inputSnapshot: { projectId },
     });
 
+    await startAgentRun({ runId: sourceRun.id, organizationId });
+
     await completeAgentRun({
       runId: sourceRun.id,
       organizationId,
@@ -208,6 +210,8 @@ describe("provider-agent-writeback", () => {
       hyperlocaliseJobId: job.id,
       inputSnapshot: { projectId },
     });
+
+    await startAgentRun({ runId: sourceRun.id, organizationId });
 
     await completeAgentRun({
       runId: sourceRun.id,
