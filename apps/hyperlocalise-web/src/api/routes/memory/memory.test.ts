@@ -205,6 +205,9 @@ describe("memoryRoutes", () => {
       { headers },
     );
     expect(patchResponse.status).toBe(403);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      error: "external_tms_memory_immutable",
+    });
 
     const deleteResponse = await client.api.memory[":memoryId"].$delete(
       {
@@ -213,6 +216,9 @@ describe("memoryRoutes", () => {
       { headers },
     );
     expect(deleteResponse.status).toBe(403);
+    await expect(deleteResponse.json()).resolves.toMatchObject({
+      error: "external_tms_memory_immutable",
+    });
   });
 
   it("forbids members from creating translation memories", async () => {

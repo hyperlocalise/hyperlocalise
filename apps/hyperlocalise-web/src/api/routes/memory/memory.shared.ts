@@ -23,6 +23,14 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
+export function externalTmsMemoryImmutableResponse(c: { json: JsonContext["json"] }) {
+  return sharedForbiddenResponse(
+    c,
+    "external_tms_memory_immutable",
+    "This translation memory is managed by an external TMS and cannot be edited directly",
+  );
+}
+
 export function isMemoryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
   return allowedMutationRoles.has(role);
 }

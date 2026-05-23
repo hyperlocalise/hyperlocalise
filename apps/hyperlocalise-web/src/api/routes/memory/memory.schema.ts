@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { schema } from "@/lib/database";
+
 export const memoryIdParamsSchema = z.object({
   memoryId: z.string().trim().min(1).max(128),
 });
@@ -33,7 +35,7 @@ export const memoryRecordSchema = z.object({
   description: z.string(),
   status: z.string(),
   source: z.enum(["native", "external_tms"]),
-  externalProviderKind: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).nullable(),
+  externalProviderKind: z.enum(schema.externalTmsProviderKindEnum.enumValues).nullable(),
   externalProjectId: z.string().nullable(),
   externalMemoryId: z.string().nullable(),
   localeCoverage: z.array(z.string()),

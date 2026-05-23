@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -155,7 +155,11 @@ export async function listOrganizationExternalTmsMemories(input: {
   organizationId: string;
   providerKind?: ExternalTmsProviderKind;
   externalProjectId?: string;
+  limit?: number;
+  offset?: number;
 }) {
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+  const offset = Math.max(input.offset ?? 0, 0);
   const conditions = [
     eq(schema.memories.organizationId, input.organizationId),
     eq(schema.memories.source, "external_tms"),
@@ -172,5 +176,8 @@ export async function listOrganizationExternalTmsMemories(input: {
   return db
     .select()
     .from(schema.memories)
-    .where(and(...conditions));
+    .where(and(...conditions))
+    .orderBy(desc(schema.memories.createdAt))
+    .limit(limit)
+    .offset(offset);
 }

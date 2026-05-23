@@ -17,6 +17,7 @@ import {
   type UpdateMemoryBody,
 } from "./memory.schema";
 import {
+  externalTmsMemoryImmutableResponse,
   forbiddenResponse,
   invalidMemoryPayloadResponse,
   isMemoryMutationAllowed,
@@ -166,7 +167,7 @@ export function createMemoryRoutes() {
       }
 
       if (memory.source === "external_tms") {
-        return forbiddenResponse(c);
+        return externalTmsMemoryImmutableResponse(c);
       }
 
       const updated = await memoryStore.update(c.var.auth, params.memoryId, payload);
@@ -190,7 +191,7 @@ export function createMemoryRoutes() {
       }
 
       if (memory.source === "external_tms") {
-        return forbiddenResponse(c);
+        return externalTmsMemoryImmutableResponse(c);
       }
 
       const deleted = await memoryStore.delete(c.var.auth, params.memoryId);
