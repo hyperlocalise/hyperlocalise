@@ -260,7 +260,10 @@ export function AgentPageContent({ organizationSlug }: AgentPageContentProps) {
                           disabled={!emailAgent?.enabled || !emailAddress}
                           aria-label={copied ? "Copied!" : "Copy email address"}
                         >
-                          <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
+                          <HugeiconsIcon
+                            icon={copied ? Tick02Icon : Copy01Icon}
+                            strokeWidth={1.8}
+                          />
                         </InputGroupButton>
                       }
                     />
