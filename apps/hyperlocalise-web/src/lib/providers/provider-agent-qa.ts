@@ -370,25 +370,11 @@ export async function executeProviderAgentQa(input: {
     targetLocales: prepared.content.targetLocales,
   });
 
-  const run = await getAgentRun({
-    runId: input.agentRunId,
-    organizationId: input.organizationId,
-  });
-
-  if (!run) {
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: "agent_run_not_found",
-      message: "Agent run not found",
-    };
-  }
-
   return completeProviderAgentQaRun({
     agentRunId: input.agentRunId,
     organizationId: input.organizationId,
     projectId: prepared.projectId,
-    providerKind: run.providerKind,
+    providerKind: prepared.providerKind,
     pullRunId: prepared.pullRunId,
     content: prepared.content,
     pullFailures: prepared.pullFailures,

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderTranslationMemoryMatcher } from "@/lib/providers/provider-translation-memory-matchers";
@@ -11,6 +12,12 @@ import {
   type AgentRunTranslationMemoryMatchUsage,
   type NormalizedTranslationMemoryMatch,
 } from "@/lib/translation/translation-memory-match";
+
+const logger = createLogger("translation-memory-matches");
+
+function syncedCoverageKey(memoryId: string, targetLocale: string) {
+  return `${memoryId}:${targetLocale}`;
+}
 
 type AttachedMemoryRecord = {
   id: string;
@@ -94,6 +101,7 @@ async function searchLiveProviderMatches(input: {
   externalProjectId: string;
   credentialId: string;
   memories: AttachedMemoryRecord[];
+  syncedCoveredKeys: Set<string>;
   sourceLocale: string;
   targetLocales: string[];
   sourceText: string;
@@ -129,6 +137,10 @@ async function searchLiveProviderMatches(input: {
     }
 
     for (const targetLocale of input.targetLocales) {
+      if (input.syncedCoveredKeys.has(syncedCoverageKey(memory.id, targetLocale))) {
+        continue;
+      }
+
       const matches = await matcher({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -207,12 +219,16 @@ export async function loadTranslationMemoryMatchesForContext(input: {
     limit,
   });
 
-  const syncedMemoryIds = new Set(syncedMatches.map((match) => match.memoryId));
+  const syncedCoveredKeys = new Set(
+    syncedMatches.map((match) => syncedCoverageKey(match.memoryId, match.targetLocale)),
+  );
   const liveSearchMemories = attachedMemories.filter(
     (memory) =>
       memory.capabilityMode === "live_search" &&
       memory.externalProviderKind &&
-      !syncedMemoryIds.has(memory.id),
+      input.targetLocales.some(
+        (locale) => !syncedCoveredKeys.has(syncedCoverageKey(memory.id, locale)),
+      ),
   );
 
   if (liveSearchMemories.length === 0 || !organizationId || !providerKind) {
@@ -242,12 +258,22 @@ export async function loadTranslationMemoryMatchesForContext(input: {
       externalProjectId,
       credentialId,
       memories: liveSearchMemories,
+      syncedCoveredKeys,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       sourceText: input.sourceText,
       limit,
     });
-  } catch {
+  } catch (error) {
+    logger.error(
+      {
+        err: error,
+        projectId: input.projectId,
+        organizationId,
+        providerKind,
+      },
+      "Live translation memory search failed; returning synced matches only",
+    );
     return mergeTranslationMemoryMatches(syncedMatches, limit);
   }
 
