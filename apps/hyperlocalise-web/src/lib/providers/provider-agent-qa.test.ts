@@ -160,8 +160,8 @@ describe("executeProviderAgentQa", () => {
 
     const run = await createAgentRun({
       organizationId: project.organizationId,
-      providerKind: "smartling",
-      externalJobId: "smartling-job-qa-1",
+      providerKind: "phrase",
+      externalJobId: "phrase-job-qa-1",
       kind: "review",
       inputSnapshot: { projectId: project.id, action: "run_qa_checks" },
     });
