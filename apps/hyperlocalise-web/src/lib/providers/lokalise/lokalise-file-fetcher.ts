@@ -108,9 +108,12 @@ export const fetchLokaliseFileKeys: ExternalTmsFileKeyFetcher = async ({
   }
 
   const results: Awaited<ReturnType<ExternalTmsFileKeyFetcher>> = [];
+  const keyById = new Map(keys.map((key) => [key.keyId, key]));
 
   for (const file of filesByResourceId.values()) {
-    const scopedKeys = keys.filter((key) => file.keyIds.has(key.keyId));
+    const scopedKeys = [...file.keyIds]
+      .map((id) => keyById.get(id))
+      .filter((key): key is LokaliseKey => key != null);
     results.push({
       externalResourceId: buildLokaliseFileExternalResourceId(file.platform, file.filename),
       resourceType: "file",
@@ -242,12 +245,12 @@ function buildFileLocaleReadiness(input: { keys: LokaliseKey[]; targetLocales: s
       continue;
     }
 
-    if (activeStatuses.some((status) => status === "ready" || status === "unverified")) {
-      localeReadiness[locale] = "unverified";
+    if (activeStatuses.some((status) => status === "missing")) {
+      localeReadiness[locale] = "missing";
       continue;
     }
 
-    localeReadiness[locale] = "missing";
+    localeReadiness[locale] = "unverified";
   }
 
   return localeReadiness;
