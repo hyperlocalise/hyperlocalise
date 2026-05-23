@@ -137,7 +137,9 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		}
 		fullKey := decodedKey
 		if len(stack) > 0 {
-			fullKey = strings.Join(append(append([]string(nil), stack...), decodedKey), ".")
+			// BOLT OPTIMIZATION: Use strings.Join and concatenation instead of slice cloning
+			// to reduce allocations and complexity.
+			fullKey = strings.Join(stack, ".") + "." + decodedKey
 		}
 
 		if len(pendingComments) > 0 {
@@ -165,6 +167,12 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 }
 
 func decodeJSONKey(raw string) (string, error) {
+	// BOLT OPTIMIZATION: Fast-path for simple keys without escape sequences.
+	// This avoids expensive json.Unmarshal for the majority of keys.
+	if strings.IndexByte(raw, '\\') == -1 {
+		return raw, nil
+	}
+
 	var decoded string
 	err := json.Unmarshal([]byte("\""+raw+"\""), &decoded)
 	if err != nil {
