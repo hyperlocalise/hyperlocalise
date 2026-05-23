@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
@@ -216,12 +216,14 @@ describe("organizationExternalTmsGlossaries", () => {
         {
           sourceTerm: "checkout",
           targetTerm: "paiement",
+          targetLocale: "fr-FR",
           forbidden: false,
           caseSensitive: false,
         },
         {
           sourceTerm: "smart routing",
           targetTerm: "smart routing",
+          targetLocale: "fr-FR",
           forbidden: true,
           caseSensitive: false,
         },

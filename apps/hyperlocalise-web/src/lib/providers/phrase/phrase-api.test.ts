@@ -76,7 +76,8 @@ describe("PhraseApiClient", () => {
     await client.listProjects();
 
     expect(client.resolvedBaseUrl).toBe(PHRASE_US_BASE_URL);
-    expect(String(vi.mocked(fetchMock).mock.calls[0]?.[0])).toContain(PHRASE_US_BASE_URL);
+    const requestUrl = vi.mocked(fetchMock).mock.calls[0]?.[0];
+    expect(typeof requestUrl === "string" ? requestUrl : "").toContain(PHRASE_US_BASE_URL);
   });
 
   it("lists keys, uploads, and translations with branch filters", async () => {
@@ -147,7 +148,8 @@ describe("PhraseApiClient", () => {
       content: "Bonjour",
       state: "translated",
     });
-    expect(String(vi.mocked(fetchMock).mock.calls[0]?.[0])).toContain("branch=feature");
+    const keysRequestUrl = vi.mocked(fetchMock).mock.calls[0]?.[0];
+    expect(typeof keysRequestUrl === "string" ? keysRequestUrl : "").toContain("branch=feature");
   });
 
   it("throws PhraseApiError for non-success responses", async () => {
