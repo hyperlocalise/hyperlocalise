@@ -15,6 +15,34 @@ const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
 const loadOrganizationOpenAITranslationGeneratorMock = vi.fn();
 
+const providerContentPullerMocks = vi.hoisted(() => {
+  type GetProviderContentPuller = (
+    providerKind: import("./organization-external-tms-provider-credentials").ExternalTmsProviderKind,
+  ) => import("@/lib/providers/external-tms-content-sync").ExternalTmsContentPuller | null;
+
+  const state: { actual: GetProviderContentPuller } = {
+    actual: () => null,
+  };
+  const getProviderContentPullerMock = vi.fn((...args: Parameters<GetProviderContentPuller>) =>
+    state.actual(...args),
+  );
+
+  return { state, getProviderContentPullerMock };
+});
+
+vi.mock("@/lib/providers/provider-content-pullers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/provider-content-pullers")>();
+  providerContentPullerMocks.state.actual = actual.getProviderContentPuller;
+  providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
+    actual.getProviderContentPuller,
+  );
+  return {
+    ...actual,
+    getProviderContentPuller: (...args: Parameters<typeof actual.getProviderContentPuller>) =>
+      providerContentPullerMocks.getProviderContentPullerMock(...args),
+  };
+});
+
 vi.mock("@/lib/providers/external-tms-content-sync", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/providers/external-tms-content-sync")>();
   return {
@@ -36,6 +64,9 @@ afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
   loadOrganizationOpenAITranslationGeneratorMock.mockReset();
+  providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
+    providerContentPullerMocks.state.actual,
+  );
 });
 
 async function createExternalTmsProject() {
@@ -140,6 +171,8 @@ describe("executeProviderAgentTranslation", () => {
   });
 
   it("fails when the provider does not support content pull", async () => {
+    providerContentPullerMocks.getProviderContentPullerMock.mockReturnValue(null);
+
     const project = await createExternalTmsProject();
 
     const run = await createAgentRun({
