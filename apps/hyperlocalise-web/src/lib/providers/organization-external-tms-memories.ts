@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -158,6 +158,27 @@ export async function upsertOrganizationExternalTmsMemoryEntry(
   input: ExternalTmsMemoryEntryMetadata,
 ) {
   await upsertOrganizationExternalTmsMemoryEntries([input]);
+}
+
+export async function pruneOrganizationExternalTmsMemoryEntries(input: {
+  memoryId: string;
+  externalKeys: string[];
+}) {
+  const uniqueExternalKeys = [...new Set(input.externalKeys)];
+
+  if (uniqueExternalKeys.length === 0) {
+    await db.delete(schema.memoryEntries).where(eq(schema.memoryEntries.memoryId, input.memoryId));
+    return;
+  }
+
+  await db
+    .delete(schema.memoryEntries)
+    .where(
+      and(
+        eq(schema.memoryEntries.memoryId, input.memoryId),
+        notInArray(schema.memoryEntries.externalKey, uniqueExternalKeys),
+      ),
+    );
 }
 
 export async function listOrganizationExternalTmsMemories(input: {

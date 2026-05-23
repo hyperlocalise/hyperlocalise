@@ -87,41 +87,46 @@ export async function loadCrowdinTranslationContextMatches(input: {
     };
   }
 
-  const glossaryMatchesByLocale: Awaited<
-    ReturnType<typeof normalizeCrowdinGlossaryConcordanceMatches>
-  >[] = [];
-  const memoryMatchesByLocale: Awaited<
-    ReturnType<typeof normalizeCrowdinTranslationMemoryConcordanceMatches>
-  >[] = [];
+  const matchesByLocale = await Promise.all(
+    input.targetLocales.map(async (targetLocale) => {
+      const [glossaryConcordance, memoryConcordance] = await Promise.all([
+        client
+          .searchGlossaryConcordance(crowdinProjectId, {
+            sourceLanguageId: input.sourceLocale,
+            targetLanguageId: targetLocale,
+            expressions,
+          })
+          .catch(() => []),
+        client
+          .searchTranslationMemoryConcordance(crowdinProjectId, {
+            sourceLanguageId: input.sourceLocale,
+            targetLanguageId: targetLocale,
+            expressions,
+          })
+          .catch(() => []),
+      ]);
 
-  for (const targetLocale of input.targetLocales) {
-    const [glossaryConcordance, memoryConcordance] = await Promise.all([
-      client
-        .searchGlossaryConcordance(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: targetLocale,
-          expressions,
-        })
-        .catch(() => []),
-      client
-        .searchTranslationMemoryConcordance(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: targetLocale,
-          expressions,
-        })
-        .catch(() => []),
-    ]);
-
-    glossaryMatchesByLocale.push(
-      normalizeCrowdinGlossaryConcordanceMatches(glossaryConcordance, { targetLocale }),
-    );
-    memoryMatchesByLocale.push(
-      normalizeCrowdinTranslationMemoryConcordanceMatches(memoryConcordance, { targetLocale }),
-    );
-  }
+      return {
+        glossaryMatches: normalizeCrowdinGlossaryConcordanceMatches(glossaryConcordance, {
+          targetLocale,
+        }),
+        memoryMatches: normalizeCrowdinTranslationMemoryConcordanceMatches(memoryConcordance, {
+          targetLocale,
+        }),
+      };
+    }),
+  );
 
   return {
-    glossaryTerms: mergeTranslationContextMatches([], glossaryMatchesByLocale.flat(), 20),
-    translationMemoryMatches: mergeTranslationContextMatches([], memoryMatchesByLocale.flat(), 10),
+    glossaryTerms: mergeTranslationContextMatches(
+      [],
+      matchesByLocale.flatMap((match) => match.glossaryMatches),
+      20,
+    ),
+    translationMemoryMatches: mergeTranslationContextMatches(
+      [],
+      matchesByLocale.flatMap((match) => match.memoryMatches),
+      10,
+    ),
   };
 }
