@@ -98,17 +98,18 @@ describe("tmsProviderCapabilityRegistry", () => {
     ["crowdin", "projects.write", true],
     ["crowdin", "translation_memory.export", true],
     ["lokalise", "glossary.export", true],
-    ["lokalise", "translation_memory.export", false],
+    ["lokalise", "translation_memory.export", true],
+    ["lokalise", "translation_memory.import", true],
   ] as const)("answers whether %s supports %s", (provider, action, supported) => {
     expect(providerSupportsTmsAction(provider, action)).toBe(supported);
   });
 
   it("exposes disabled metadata for unsupported provider actions", () => {
-    expect(getTmsProviderActionCapability("lokalise", "translation_memory.import")).toMatchObject({
+    expect(getTmsProviderActionCapability("phrase", "qa.run")).toMatchObject({
       supported: false,
       ui: {
         state: "disabled",
-        disabledReason: "Lokalise translation memory support is not wired into this connector yet.",
+        disabledReason: "Phrase QA is not wired into this connector yet.",
       },
     });
   });
