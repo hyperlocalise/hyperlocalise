@@ -21,13 +21,28 @@ vi.mock("./external-tms-content-sync", async (importOriginal) => {
   };
 });
 
+async function createTestJob(input: { organizationId: string; projectId: string }) {
+  const [job] = await db
+    .insert(schema.jobs)
+    .values({
+      id: `job_test_${randomUUID()}`,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      kind: "translation",
+      status: "queued",
+      inputPayload: {},
+    })
+    .returning();
+
+  return job!;
+}
+
 describe("provider-agent-writeback", () => {
   afterEach(() => {
     pushExternalTmsTranslationsMock.mockReset();
   });
 
   it("pushes accepted proposals and records per-item write-back results", async () => {
-    const hyperlocaliseJobId = randomUUID();
     const projectId = randomUUID();
     const orgSuffix = randomUUID();
 
@@ -50,12 +65,14 @@ describe("provider-agent-writeback", () => {
       externalProjectId: "123",
     });
 
+    const job = await createTestJob({ organizationId, projectId });
+
     const sourceRun = await createAgentRun({
       organizationId,
       providerKind: "crowdin",
       externalJobId: "task-1",
       kind: "translate",
-      hyperlocaliseJobId,
+      hyperlocaliseJobId: job.id,
       inputSnapshot: { projectId },
     });
 
@@ -84,11 +101,11 @@ describe("provider-agent-writeback", () => {
       providerKind: "crowdin",
       externalJobId: "task-1",
       kind: "translate",
-      hyperlocaliseJobId,
+      hyperlocaliseJobId: job.id,
       inputSnapshot: {
         action: "push_approved_changes",
         projectId,
-        hyperlocaliseJobId,
+        hyperlocaliseJobId: job.id,
       },
     });
 
@@ -159,7 +176,6 @@ describe("provider-agent-writeback", () => {
   });
 
   it("completes with partial success when some locales fail", async () => {
-    const hyperlocaliseJobId = randomUUID();
     const projectId = randomUUID();
     const orgSuffix = randomUUID();
 
@@ -182,12 +198,14 @@ describe("provider-agent-writeback", () => {
       externalProjectId: "123",
     });
 
+    const job = await createTestJob({ organizationId, projectId });
+
     const sourceRun = await createAgentRun({
       organizationId,
       providerKind: "crowdin",
       externalJobId: "task-2",
       kind: "translate",
-      hyperlocaliseJobId,
+      hyperlocaliseJobId: job.id,
       inputSnapshot: { projectId },
     });
 
@@ -228,11 +246,11 @@ describe("provider-agent-writeback", () => {
       providerKind: "crowdin",
       externalJobId: "task-2",
       kind: "translate",
-      hyperlocaliseJobId,
+      hyperlocaliseJobId: job.id,
       inputSnapshot: {
         action: "push_approved_changes",
         projectId,
-        hyperlocaliseJobId,
+        hyperlocaliseJobId: job.id,
       },
     });
 
