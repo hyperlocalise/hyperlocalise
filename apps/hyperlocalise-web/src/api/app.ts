@@ -18,6 +18,7 @@ import { authRoutes } from "./routes/auth/auth.route";
 import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
@@ -103,6 +104,7 @@ function createLegacyAppRoutes(
 ) {
   return new Hono()
     .route("/glossary", createGlossaryRoutes())
+    .route("/memory", createMemoryRoutes())
     .route("/project", createProjectRoutes(options));
 }
 
@@ -115,6 +117,7 @@ function createOrgScopedAppRoutes(
 ) {
   return new Hono()
     .route("/glossaries", createGlossaryRoutes())
+    .route("/translation-memories", createMemoryRoutes())
     .route("/projects", createProjectRoutes(options))
     .route(
       "/jobs",
