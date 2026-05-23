@@ -79,8 +79,11 @@ export async function pullCrowdinProviderReview(
     stringComments.push(...(await client.listStringComments(projectId)));
   } else {
     for (const chunk of chunkArray(stringIdList, 25)) {
-      for (const stringId of chunk) {
-        stringComments.push(...(await client.listStringComments(projectId, { stringId })));
+      const chunkResults = await Promise.all(
+        chunk.map((stringId) => client.listStringComments(projectId, { stringId })),
+      );
+      for (const comments of chunkResults) {
+        stringComments.push(...comments);
       }
     }
   }

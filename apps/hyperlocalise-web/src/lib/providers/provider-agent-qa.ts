@@ -407,13 +407,13 @@ export async function completeProviderAgentQaRun(input: {
   let reviewReport: ProviderReviewReport = buildProviderReviewReport([]);
 
   if (input.syncProviderReview) {
-    try {
-      const previousReport = await loadPreviousProviderReviewReport({
-        organizationId: input.organizationId,
-        hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
-        currentRunId: input.agentRunId,
-      });
+    const previousReport = await loadPreviousProviderReviewReport({
+      organizationId: input.organizationId,
+      hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
+      currentRunId: input.agentRunId,
+    });
 
+    try {
       reviewReport =
         (await pullProviderReviewForJob({
           organizationId: input.organizationId,
@@ -427,14 +427,7 @@ export async function completeProviderAgentQaRun(input: {
       const message =
         error instanceof Error ? error.message : "Provider review comment sync failed";
       reviewWarnings.push(message);
-      reviewReport = mergeProviderReviewReports(
-        await loadPreviousProviderReviewReport({
-          organizationId: input.organizationId,
-          hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
-          currentRunId: input.agentRunId,
-        }),
-        buildProviderReviewReport([]),
-      );
+      reviewReport = mergeProviderReviewReports(previousReport, buildProviderReviewReport([]));
     }
   }
 

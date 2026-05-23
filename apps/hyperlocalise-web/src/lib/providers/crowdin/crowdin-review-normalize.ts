@@ -84,7 +84,7 @@ export function normalizeCrowdinStringCommentToThread(input: {
         body: input.comment.text,
         author: mapCrowdinUser(input.comment.user),
         createdAt: input.comment.createdAt ?? null,
-        updatedAt: input.comment.resolvedAt ?? null,
+        updatedAt: input.comment.resolvedAt ?? input.comment.createdAt ?? null,
       },
     ],
     author: mapCrowdinUser(input.comment.user),
