@@ -50,21 +50,25 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
           ...memory.languageIds.filter((locale) => locale !== memory.languageId),
         ]);
         const sourceLanguageId = memory.languageId || sourceLocale;
-        const segments = await client.listTranslationMemorySegments(memory.id, {
-          shouldStop: (fetchedSegments) =>
-            buildTranslationMemoryEntries({
-              memoryId: memory.id,
-              sourceLanguageId,
-              targetLocales: entryTargetLocales,
-              segments: fetchedSegments,
-            }).length >= maxSegmentsPerMemory,
+        let fetchedSegmentCount = 0;
+        const entries: ReturnType<typeof buildTranslationMemoryEntries> = [];
+        await client.listTranslationMemorySegments(memory.id, {
+          shouldStop: (fetchedSegments) => {
+            const newSegments = fetchedSegments.slice(fetchedSegmentCount);
+            fetchedSegmentCount = fetchedSegments.length;
+            entries.push(
+              ...buildTranslationMemoryEntries({
+                memoryId: memory.id,
+                sourceLanguageId,
+                targetLocales: entryTargetLocales,
+                segments: newSegments,
+              }),
+            );
+
+            return entries.length >= maxSegmentsPerMemory;
+          },
         });
-        const entries = buildTranslationMemoryEntries({
-          memoryId: memory.id,
-          sourceLanguageId,
-          targetLocales: entryTargetLocales,
-          segments,
-        }).slice(0, maxSegmentsPerMemory);
+        const syncedEntries = entries.slice(0, maxSegmentsPerMemory);
 
         return {
           externalMemoryId: String(memory.id),
@@ -77,9 +81,9 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
           metadata: {
             crowdinTranslationMemoryId: memory.id,
             crowdinProjectId,
-            importedSegmentCount: entries.length,
+            importedSegmentCount: syncedEntries.length,
           },
-          entries,
+          entries: syncedEntries,
         };
       } catch (error) {
         if (error instanceof CrowdinApiError && error.status === 401) {
