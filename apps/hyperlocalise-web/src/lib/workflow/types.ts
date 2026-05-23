@@ -104,3 +104,10 @@ export type ProviderAgentTranslationEventData = {
 };
 
 export type ProviderAgentTranslationQueue = JobQueue<ProviderAgentTranslationEventData>;
+
+export type ProviderAgentQaEventData = {
+  agentRunId: string;
+  organizationId: string;
+};
+
+export type ProviderAgentQaQueue = JobQueue<ProviderAgentQaEventData>;

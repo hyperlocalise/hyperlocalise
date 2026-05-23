@@ -10,6 +10,7 @@ import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import type {
   JobQueue,
+  ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -18,18 +19,27 @@ import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
 import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, runProviderJobQaForJobMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  runProviderJobQaForJobMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({
   resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
 }));
+
+vi.mock("@/lib/providers/provider-agent-qa", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/provider-agent-qa")>();
+  return {
+    ...actual,
+    runProviderJobQaForJob: (...args: unknown[]) => runProviderJobQaForJobMock(...args),
+  };
+});
 
 function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   return {
@@ -47,10 +57,19 @@ function createInlineTestProviderAgentTranslationQueue(): ProviderAgentTranslati
   };
 }
 
+function createInlineTestProviderAgentQaQueue(): ProviderAgentQaQueue {
+  return {
+    async enqueue(event) {
+      return { ids: [event.agentRunId] };
+    },
+  };
+}
+
 const client = testClient(
   createApp({
     jobQueue: createInlineTestJobQueue(),
     providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+    providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
   }),
 );
 const appClient = client;
@@ -1105,6 +1124,166 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("runs synchronous QA checks for provider-backed jobs", async () => {
+    runProviderJobQaForJobMock.mockResolvedValue({
+      pullRunId: "pull-run-manual-qa",
+      report: {
+        findings: [
+          {
+            checkType: "placeholder_mismatch",
+            severity: "error",
+            message: "Target is missing placeholder {name}",
+            suggestedFix: "Add {name} to the French translation",
+            item: {
+              externalStringId: "1",
+              key: "hello",
+              locale: "fr",
+              field: "target",
+            },
+          },
+        ],
+        summary: {
+          total: 1,
+          byCheckType: { placeholder_mismatch: 1 },
+          bySeverity: { error: 1 },
+        },
+      },
+      unitsDiscovered: 1,
+    });
+
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-manual-qa",
+      externalStatus: "todo",
+      title: "Manual QA copy",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      qaReport: {
+        pullRunId: "pull-run-manual-qa",
+        findings: [
+          expect.objectContaining({
+            checkType: "placeholder_mismatch",
+            severity: "error",
+            item: expect.objectContaining({ key: "hello" }),
+          }),
+        ],
+        summary: expect.objectContaining({ total: 1 }),
+      },
+    });
+    expect(runProviderJobQaForJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization!.id,
+        projectId: project.id,
+        providerKind: "crowdin",
+        externalJobId: "crowdin-job-manual-qa",
+      }),
+    );
+  });
+
+  it("returns 500 when synchronous QA fails due to sandbox execution", async () => {
+    runProviderJobQaForJobMock.mockRejectedValue(new Error("hl check failed (exit 1): boom"));
+
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-manual-qa-failure",
+      externalStatus: "todo",
+      title: "Manual QA failure",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_qa_failed",
+      message: "hl check failed (exit 1): boom",
+    });
+  });
+
+  it("returns 503 when synchronous QA fails due to transient provider errors", async () => {
+    runProviderJobQaForJobMock.mockRejectedValue(
+      new Error("Phrase returned HTTP 429 while listing files"),
+    );
+
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-manual-qa-unavailable",
+      externalStatus: "todo",
+      title: "Manual QA unavailable",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_qa_unavailable",
+      message: "Phrase returned HTTP 429 while listing files",
+    });
+  });
+
   it("creates agent runs for supported provider actions", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -1164,6 +1343,48 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("creates review agent runs for QA actions", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-qa-agent",
+      externalStatus: "todo",
+      title: "QA copy",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: { action: "run_qa_checks" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      agentRun: { kind: string; status: string; externalJobId: string };
+    };
+    expect(body.agentRun).toMatchObject({
+      kind: "review",
+      status: "queued",
+      externalJobId: "crowdin-job-qa-agent",
+    });
+  });
+
   it("marks the agent run failed when provider translation queueing fails", async () => {
     const failingClient = testClient(
       createApp({
@@ -1173,6 +1394,7 @@ describe("jobRoutes", () => {
             throw new Error("agent queue down");
           },
         },
+        providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
       }),
     );
     const identity = createWorkosIdentity();
@@ -1227,6 +1449,74 @@ describe("jobRoutes", () => {
         status: "failed",
         outputSummary: { code: "agent_run_queue_unavailable" },
         warnings: ["agent queue down"],
+      }),
+    ]);
+  });
+
+  it("marks the agent run failed when provider QA queueing fails", async () => {
+    const failingClient = testClient(
+      createApp({
+        jobQueue: createInlineTestJobQueue(),
+        providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+        providerAgentQaQueue: {
+          async enqueue() {
+            throw new Error("qa queue down");
+          },
+        },
+      }),
+    );
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-qa-queue-fail",
+      externalStatus: "todo",
+      title: "QA queue failure copy",
+    });
+
+    const response = await failingClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: { action: "run_qa_checks" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "agent_run_queue_unavailable",
+      message: expect.any(String),
+    });
+
+    const agentRuns = await db
+      .select({
+        status: schema.agentRuns.status,
+        outputSummary: schema.agentRuns.outputSummary,
+        warnings: schema.agentRuns.warnings,
+      })
+      .from(schema.agentRuns)
+      .where(eq(schema.agentRuns.hyperlocaliseJobId, externalJob.id));
+
+    expect(agentRuns).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        outputSummary: { code: "agent_run_queue_unavailable" },
+        warnings: ["qa queue down"],
       }),
     ]);
   });

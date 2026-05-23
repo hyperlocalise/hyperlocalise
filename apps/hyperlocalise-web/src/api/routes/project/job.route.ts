@@ -8,6 +8,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
   conflictResponse,
+  internalErrorResponse,
   notFoundResponse,
   serviceUnavailableResponse,
   validationErrorResponse,
@@ -20,6 +21,7 @@ import {
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type {
   JobQueue,
+  ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -37,8 +39,12 @@ import {
   isJobProviderActionAvailable,
 } from "@/lib/providers/job-provider-actions";
 import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
+import { runProviderJobQaForJob } from "@/lib/providers/provider-agent-qa";
+import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 
 import { createJobAgentRunBodySchema } from "./agent-run.schema";
+import { providerQaReportResponseSchema } from "./job-qa.schema";
 import {
   createJobBodySchema,
   jobListQuerySchema,
@@ -54,7 +60,10 @@ type CreateJobRoutesOptions = {
 type CreateWorkspaceJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue: ProviderAgentTranslationQueue;
+  providerAgentQaQueue: ProviderAgentQaQueue;
 };
+
+const providerQaAgentActions = new Set(["review_with_agent", "run_qa_checks"]);
 
 const jobSelect = {
   id: schema.jobs.id,
@@ -718,9 +727,119 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           }
         }
 
+        if (providerQaAgentActions.has(payload.action)) {
+          try {
+            await options.providerAgentQaQueue.enqueue({
+              agentRunId: agentRun.id,
+              organizationId,
+            });
+          } catch (error) {
+            await failAgentRun({
+              runId: agentRun.id,
+              organizationId,
+              outputSummary: { code: "agent_run_queue_unavailable" },
+              warnings: [error instanceof Error ? error.message : "agent QA queue unavailable"],
+            });
+
+            return serviceUnavailableResponse(
+              c,
+              "agent_run_queue_unavailable",
+              "Agent QA queue is unavailable",
+            );
+          }
+        }
+
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
       },
     )
+    .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+
+      const [job] = await db
+        .select({
+          projectId: schema.jobs.projectId,
+          externalProviderKind: schema.externalJobDetails.providerKind,
+          externalJobId: schema.externalJobDetails.externalJobId,
+        })
+        .from(schema.jobs)
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .where(
+          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+        )
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (!job.externalProviderKind || !job.externalJobId) {
+        return conflictResponse(
+          c,
+          "provider_job_required",
+          "QA checks are only available for provider-backed jobs",
+        );
+      }
+
+      if (!isJobProviderActionAvailable(job.externalProviderKind, "run_qa_checks")) {
+        return conflictResponse(
+          c,
+          "provider_action_unavailable",
+          "QA checks are not available for the connected TMS",
+        );
+      }
+
+      if (!getProviderContentPuller(job.externalProviderKind)) {
+        return conflictResponse(
+          c,
+          "unsupported_provider_pull",
+          `Provider ${job.externalProviderKind} does not support content pull yet`,
+        );
+      }
+
+      if (!job.projectId) {
+        return badRequestResponse(c, "invalid_job_project", "Job is missing project context");
+      }
+
+      try {
+        const result = await runProviderJobQaForJob({
+          organizationId,
+          projectId: job.projectId,
+          providerKind: job.externalProviderKind,
+          externalJobId: job.externalJobId,
+        });
+
+        const qaReport = {
+          pullRunId: result.pullRunId,
+          findings: result.report.findings,
+          summary: result.report.summary,
+        };
+        const parsed = providerQaReportResponseSchema.safeParse({ qaReport });
+
+        if (!parsed.success) {
+          return internalErrorResponse(c, "invalid_qa_report", "QA report failed validation");
+        }
+
+        return c.json(parsed.data, 200);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Provider QA failed";
+        const status = mapProviderQaErrorToHttpStatus(error);
+
+        if (status === 503) {
+          return serviceUnavailableResponse(c, "provider_qa_unavailable", message);
+        }
+
+        if (status === 500) {
+          return internalErrorResponse(c, "provider_qa_failed", message);
+        }
+
+        return badRequestResponse(c, "provider_qa_failed", message);
+      }
+    })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
