@@ -118,7 +118,7 @@ func (s *AIService) GetFineTuningJobStatus(ctx context.Context, aiPromptID int, 
 // For the Enterprise client, set the userID to 0.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.ai.prompts.getMany
-func (s *AIService) ListPrompts(ctx context.Context, userID int, opt *model.AIPromtsListOptions) ([]*model.Prompt, *Response, error) {
+func (s *AIService) ListPrompts(ctx context.Context, userID int, opt *model.AIPromptsListOptions) ([]*model.Prompt, *Response, error) {
 	res := new(model.PromptsListResponse)
 	resp, err := s.client.Get(ctx, s.getPath("prompts", userID), opt, res)
 	if err != nil {

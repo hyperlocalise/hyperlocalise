@@ -140,10 +140,10 @@ func TestFineTuningJobCreateRequestValidate(t *testing.T) {
 	}
 }
 
-func TestAIPromtsListOptionsValues(t *testing.T) {
+func TestAIPromptsListOptionsValues(t *testing.T) {
 	tests := []struct {
 		name string
-		opt  *AIPromtsListOptions
+		opt  *AIPromptsListOptions
 		out  string
 	}{
 		{
@@ -152,21 +152,21 @@ func TestAIPromtsListOptionsValues(t *testing.T) {
 		},
 		{
 			name: "empty options",
-			opt:  &AIPromtsListOptions{},
+			opt:  &AIPromptsListOptions{},
 		},
 		{
 			name: "with project ID",
-			opt:  &AIPromtsListOptions{ProjectID: 1},
+			opt:  &AIPromptsListOptions{ProjectID: 1},
 			out:  "projectId=1",
 		},
 		{
 			name: "with action",
-			opt:  &AIPromtsListOptions{Action: ActionAssist},
+			opt:  &AIPromptsListOptions{Action: ActionAssist},
 			out:  "action=assist",
 		},
 		{
 			name: "with all options",
-			opt:  &AIPromtsListOptions{ProjectID: 2, Action: ActionPreTranslate},
+			opt:  &AIPromptsListOptions{ProjectID: 2, Action: ActionPreTranslate},
 			out:  "action=pre_translate&projectId=2",
 		},
 	}
