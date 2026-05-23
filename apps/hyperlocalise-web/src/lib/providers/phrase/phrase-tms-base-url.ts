@@ -7,8 +7,18 @@ export function resolvePhraseTmsBaseUrl(input: { baseUrl?: string | null }): str
   }
 
   const normalized = explicitBaseUrl.replace(/\/+$/, "");
-  if (normalized.includes("memsource.com") || normalized.endsWith("/web")) {
-    return normalized;
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase();
+    const isMemsourceHost =
+      hostname === "memsource.com" || hostname.endsWith(".memsource.com");
+
+    if (isMemsourceHost) {
+      return normalized;
+    }
+  } catch {
+    // Invalid URL: fall back to default base URL.
   }
 
   return PHRASE_TMS_DEFAULT_BASE_URL;
