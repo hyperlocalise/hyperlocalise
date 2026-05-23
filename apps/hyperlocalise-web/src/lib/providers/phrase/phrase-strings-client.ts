@@ -23,8 +23,15 @@ function resolvePhraseStringsApiBaseUrl(baseUrl?: string | null) {
     return trimmed;
   }
 
-  if (trimmed.includes("api.phrase.com") || trimmed.includes("api.us.app.phrase.com")) {
-    return trimmed.replace(/\/+$/, "");
+  try {
+    const parsed = new URL(trimmed);
+    const allowedHosts = new Set(["api.phrase.com", "api.us.app.phrase.com"]);
+
+    if (parsed.protocol === "https:" && allowedHosts.has(parsed.hostname)) {
+      return trimmed.replace(/\/+$/, "");
+    }
+  } catch {
+    return null;
   }
 
   return null;
