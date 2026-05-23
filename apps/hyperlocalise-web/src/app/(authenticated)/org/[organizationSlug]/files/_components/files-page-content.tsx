@@ -21,8 +21,10 @@ import {
   SourceOriginBadge,
   summarizeLocaleReadiness,
   SyncStateBadge,
+  useStaleLocaleFilterReset,
   WorkspaceFilesFilterBar,
   toProjectFilesApiQuery,
+  workspaceFileFiltersWithoutLocale,
   type WorkspaceFileFilters,
 } from "../../_components/workspace-files-shared";
 import { PageHeader } from "../../_components/workspace-resource-shared";
@@ -52,6 +54,11 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
     },
   });
 
+  const filtersForLocaleOptions = useMemo(
+    () => workspaceFileFiltersWithoutLocale(filters),
+    [filters],
+  );
+
   const filesQuery = useQuery({
     queryKey: ["workspace-files", organizationSlug, filters],
     queryFn: async () => {
@@ -68,8 +75,29 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
     },
   });
 
+  const localeDiscoveryQuery = useQuery({
+    queryKey: ["workspace-files-locales", organizationSlug, filtersForLocaleOptions],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["workspace-files"].$get({
+        param: { organizationSlug },
+        query: toProjectFilesApiQuery(filtersForLocaleOptions),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load locale options (${response.status})`);
+      }
+
+      return (await response.json()) as WorkspaceFilesResponse;
+    },
+  });
+
   const files = filesQuery.data?.files ?? [];
-  const localeOptions = useMemo(() => collectLocaleOptions(files), [files]);
+  const localeOptions = useMemo(
+    () => collectLocaleOptions(localeDiscoveryQuery.data?.files ?? []),
+    [localeDiscoveryQuery.data],
+  );
+
+  useStaleLocaleFilterReset(filters, setFilters, localeOptions);
   const projectOptions = useMemo(
     () =>
       (projectsQuery.data ?? []).map((project) => ({

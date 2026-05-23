@@ -29,7 +29,9 @@ import {
   summarizeLocaleReadiness,
   SyncStateBadge,
   toProjectFilesApiQuery,
+  useStaleLocaleFilterReset,
   WorkspaceFilesFilterBar,
+  workspaceFileFiltersWithoutLocale,
   type WorkspaceFileFilters,
 } from "../../../../_components/workspace-files-shared";
 import {
@@ -380,6 +382,11 @@ export function ProjectFilesPageContent({
     },
   });
 
+  const filtersForLocaleOptions = useMemo(
+    () => workspaceFileFiltersWithoutLocale(filters),
+    [filters],
+  );
+
   const filesQuery = useQuery({
     queryKey: ["project-files", organizationSlug, projectId, filters],
     queryFn: async () => {
@@ -391,6 +398,23 @@ export function ProjectFilesPageContent({
       });
       if (!response.ok) {
         throw new Error(`Failed to load files (${response.status})`);
+      }
+      const body = await response.json();
+      return body.files as ProjectFileRecord[];
+    },
+  });
+
+  const localeDiscoveryQuery = useQuery({
+    queryKey: ["project-files-locales", organizationSlug, projectId, filtersForLocaleOptions],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.$get({
+        param: { organizationSlug, projectId },
+        query: toProjectFilesApiQuery(filtersForLocaleOptions),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load locale options (${response.status})`);
       }
       const body = await response.json();
       return body.files as ProjectFileRecord[];
@@ -415,7 +439,12 @@ export function ProjectFilesPageContent({
   });
 
   const files = filesQuery.data ?? [];
-  const localeOptions = useMemo(() => collectLocaleOptions(files), [files]);
+  const localeOptions = useMemo(
+    () => collectLocaleOptions(localeDiscoveryQuery.data ?? []),
+    [localeDiscoveryQuery.data],
+  );
+
+  useStaleLocaleFilterReset(filters, setFilters, localeOptions);
   const tree = buildTree(files);
   const selectedFile = files.find((f) => f.sourcePath === selectedPath);
   const fileDetail = fileDetailQuery.data?.file;

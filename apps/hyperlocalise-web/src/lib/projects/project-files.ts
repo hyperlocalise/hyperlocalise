@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
+import { mapWithConcurrency } from "@/lib/async/map-with-concurrency";
 import type {
   ProjectFileRecord,
   ProjectFilesQuery,
@@ -16,6 +17,8 @@ export type ProjectFileListContext = {
   projectId: string;
   projectName: string;
 };
+
+const workspaceFilesProjectConcurrency = 5;
 
 type ProjectFileJobStatus = NonNullable<ProjectFileRecord["latestJob"]>["status"];
 type ProjectFileJobType = NonNullable<ProjectFileRecord["latestJob"]>["type"];
@@ -316,8 +319,10 @@ export async function listWorkspaceFiles(input: {
 
   const providerFetchLimit = resolveProviderFetchLimit(input.query, input.query.limit);
 
-  const fileGroups = await Promise.all(
-    projectIds.map(async (project) => {
+  const fileGroups = await mapWithConcurrency(
+    projectIds,
+    workspaceFilesProjectConcurrency,
+    async (project) => {
       const files = await listProjectFilesForProject({
         organizationId: input.organizationId,
         projectId: project.projectId,
@@ -334,7 +339,7 @@ export async function listWorkspaceFiles(input: {
           projectName: project.projectName,
         }),
       );
-    }),
+    },
   );
 
   const files = fileGroups

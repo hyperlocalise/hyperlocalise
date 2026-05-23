@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -78,6 +79,28 @@ export const defaultWorkspaceFileFilters: WorkspaceFileFilters = {
   syncState: "all",
   projectId: "all",
 };
+
+export function workspaceFileFiltersWithoutLocale(
+  filters: WorkspaceFileFilters,
+): WorkspaceFileFilters {
+  return { ...filters, locale: "all" };
+}
+
+export function useStaleLocaleFilterReset(
+  filters: WorkspaceFileFilters,
+  onFiltersChange: (next: WorkspaceFileFilters) => void,
+  localeOptions: string[],
+) {
+  useEffect(() => {
+    if (filters.locale === "all") {
+      return;
+    }
+
+    if (!localeOptions.includes(filters.locale)) {
+      onFiltersChange({ ...filters, locale: "all" });
+    }
+  }, [filters, localeOptions, onFiltersChange]);
+}
 
 const PROVIDER_LABELS: Record<string, string> = {
   crowdin: "Crowdin",
