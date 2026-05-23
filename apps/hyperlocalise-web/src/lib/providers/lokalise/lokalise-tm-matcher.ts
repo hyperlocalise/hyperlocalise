@@ -23,7 +23,7 @@ export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemor
   }
 
   const expectedExternalMemoryId = buildLokaliseProjectTranslationMemoryExternalId(projectId);
-  if (memory.externalMemoryId && memory.externalMemoryId !== expectedExternalMemoryId) {
+  if (!memory.externalMemoryId || memory.externalMemoryId !== expectedExternalMemoryId) {
     return [];
   }
 
@@ -62,7 +62,7 @@ export const searchLokaliseTranslationMemoryMatches: ExternalTmsTranslationMemor
       externalResourceId: expectedExternalMemoryId,
       externalSegmentId: String(candidate.keyId),
       memoryName: memory.name,
-      rank: 1 - index * 0.01,
+      rank: Math.max(0, 1 - index * 0.01),
     }),
   );
 };

@@ -88,6 +88,38 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("returns no matches when external memory id is missing", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const matches = await searchLokaliseTranslationMemoryMatches({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "lokalise",
+      externalProjectId: "proj.123",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.lokalise.test/api2",
+      } as never,
+      secretMaterial: "token",
+      memory: {
+        id: "memory_local_1",
+        name: "Lokalise TM",
+        externalMemoryId: null,
+        capabilityMode: "synced_import",
+      },
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "Hello",
+      limit: 5,
+    });
+
+    vi.unstubAllGlobals();
+
+    expect(matches).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns no matches for a different external memory id", async () => {
     const matches = await searchLokaliseTranslationMemoryMatches({
       organizationId: "org_1",

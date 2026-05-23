@@ -73,22 +73,8 @@ export const fetchLokaliseGlossaries: ExternalTmsGlossaryFetcher = async ({
   const externalGlossaryId = buildLokaliseProjectGlossaryExternalId(projectId);
   const glossaryName = `Lokalise glossary (${projectId})`;
 
-  return glossaryTargetLocales.map((targetLocale) => ({
-    externalGlossaryId,
-    name: glossaryName,
-    description: "Project glossary synced from Lokalise",
-    sourceLocale,
-    targetLocale,
-    externalResourceType: "glossary" as const,
-    localeCoverage: uniqueLocales([sourceLocale, ...glossaryTargetLocales]),
-    termCount: terms.length,
-    termCapabilities: { mode: "synced_import", search: true },
-    metadata: {
-      lokaliseProjectId: projectId,
-      lokaliseGlossaryKind: "project_glossary",
-    },
-    externalUrl: buildLokaliseProjectUrl(projectId),
-    terms: terms.flatMap((term) => {
+  return glossaryTargetLocales.map((targetLocale) => {
+    const localeTerms = terms.flatMap((term) => {
       const sourceTerm = term.term.trim();
       const targetTerm = pickLokaliseGlossaryTranslation(term, targetLocale, languageIsoById);
       if (!sourceTerm || !targetTerm) {
@@ -117,6 +103,24 @@ export const fetchLokaliseGlossaries: ExternalTmsGlossaryFetcher = async ({
           },
         },
       ];
-    }),
-  }));
+    });
+
+    return {
+      externalGlossaryId,
+      name: glossaryName,
+      description: "Project glossary synced from Lokalise",
+      sourceLocale,
+      targetLocale,
+      externalResourceType: "glossary" as const,
+      localeCoverage: uniqueLocales([sourceLocale, ...glossaryTargetLocales]),
+      termCount: localeTerms.length,
+      termCapabilities: { mode: "synced_import", search: true },
+      metadata: {
+        lokaliseProjectId: projectId,
+        lokaliseGlossaryKind: "project_glossary",
+      },
+      externalUrl: buildLokaliseProjectUrl(projectId),
+      terms: localeTerms,
+    };
+  });
 };
