@@ -10,6 +10,7 @@ import {
   type ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
 import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
@@ -300,18 +301,32 @@ export async function completeProviderAgentQaRun(input: {
   hlResult: RunHlCheckResult;
 }): Promise<ProviderAgentQaResult> {
   const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
-  const translationMemoryUsage = await collectTranslationMemoryUsageForUnits({
-    projectId: input.projectId,
-    organizationId: input.organizationId,
-    providerKind: input.providerKind,
-    sourceLocale: input.content.sourceLocale ?? "en",
-    targetLocales: input.content.targetLocales,
-    units: input.content.units.map((unit) => ({
-      externalStringId: unit.externalStringId,
-      key: unit.key,
-      sourceText: unit.sourceText,
-    })),
-  });
+  const [translationMemoryUsage, glossaryUsage] = await Promise.all([
+    collectTranslationMemoryUsageForUnits({
+      projectId: input.projectId,
+      organizationId: input.organizationId,
+      providerKind: input.providerKind,
+      sourceLocale: input.content.sourceLocale ?? "en",
+      targetLocales: input.content.targetLocales,
+      units: input.content.units.map((unit) => ({
+        externalStringId: unit.externalStringId,
+        key: unit.key,
+        sourceText: unit.sourceText,
+      })),
+    }),
+    collectGlossaryUsageForUnits({
+      projectId: input.projectId,
+      organizationId: input.organizationId,
+      providerKind: input.providerKind,
+      sourceLocale: input.content.sourceLocale ?? "en",
+      targetLocales: input.content.targetLocales,
+      units: input.content.units.map((unit) => ({
+        externalStringId: unit.externalStringId,
+        key: unit.key,
+        sourceText: unit.sourceText,
+      })),
+    }),
+  ]);
   const report = await buildProviderJobQaReport(
     input.content,
     {
@@ -334,6 +349,7 @@ export async function completeProviderAgentQaRun(input: {
       targetLocales: input.content.targetLocales,
       sourceLocale: input.content.sourceLocale ?? null,
       translationMemoryUsage,
+      glossaryUsage,
     },
     changedItems: [],
     warnings: input.pullFailures.map((failure) => failure.message),

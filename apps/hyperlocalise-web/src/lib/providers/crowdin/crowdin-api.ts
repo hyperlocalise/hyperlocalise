@@ -184,6 +184,29 @@ export interface CrowdinTmConcordanceSearchResult {
   updatedAt: string;
 }
 
+export interface CrowdinGlossaryConcordanceSearchRequest {
+  sourceLanguageId: string;
+  targetLanguageId: string;
+  expressions: string[];
+}
+
+export interface CrowdinGlossaryConcordanceTerm {
+  id: number;
+  languageId: string;
+  text: string;
+  description?: string | null;
+  status?: string | null;
+}
+
+export interface CrowdinGlossaryConcordanceSearchResult {
+  glossary: {
+    id: number;
+    name: string;
+  };
+  sourceTerms: CrowdinGlossaryConcordanceTerm[];
+  targetTerms: CrowdinGlossaryConcordanceTerm[];
+}
+
 interface CrowdinListResponse<T> {
   data: Array<{ data: T }>;
   pagination?: {
@@ -452,6 +475,25 @@ export class CrowdinApiClient {
         targetLanguageId: input.targetLanguageId,
         autoSubstitution: input.autoSubstitution,
         minRelevant: input.minRelevant,
+        expressions: input.expressions,
+      },
+    );
+
+    return response.data.map((item) => item.data);
+  }
+
+  /**
+   * Search glossary concordance for source expressions.
+   */
+  async glossaryConcordanceSearch(
+    projectId: number,
+    input: CrowdinGlossaryConcordanceSearchRequest,
+  ): Promise<CrowdinGlossaryConcordanceSearchResult[]> {
+    const response = await this.post<CrowdinListResponse<CrowdinGlossaryConcordanceSearchResult>>(
+      `/projects/${projectId}/glossaries/concordance`,
+      {
+        sourceLanguageId: input.sourceLanguageId,
+        targetLanguageId: input.targetLanguageId,
         expressions: input.expressions,
       },
     );

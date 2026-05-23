@@ -3,6 +3,7 @@ import {
   translationUnitHasGlossaryViolations,
   validateGlossaryForTranslationUnits,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import type { AgentRunGlossaryMatchUsage } from "@/lib/translation/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/translation/translation-memory-match";
 
 export type AgentRunProposalReviewState = "pending" | "accepted" | "rejected";
@@ -23,6 +24,7 @@ export type AgentRunProposalItem = {
   changedFields: string[];
   warnings: AgentRunProposalWarnings;
   translationMemoryMatchesUsed?: AgentRunTranslationMemoryMatchUsage[];
+  glossaryMatchesUsed?: AgentRunGlossaryMatchUsage[];
 };
 
 type AgentRunProposalGlossaryTermInput = {
@@ -252,6 +254,16 @@ export function enrichAgentRunProposalItem(
       )
     : undefined;
 
+  const glossaryMatchesUsed = Array.isArray(raw.glossaryMatchesUsed)
+    ? raw.glossaryMatchesUsed.filter(
+        (match): match is AgentRunGlossaryMatchUsage =>
+          typeof match === "object" &&
+          match !== null &&
+          typeof (match as AgentRunGlossaryMatchUsage).glossaryId === "string" &&
+          typeof (match as AgentRunGlossaryMatchUsage).targetLocale === "string",
+      )
+    : undefined;
+
   const warnings =
     raw.warnings && typeof raw.warnings === "object" && !Array.isArray(raw.warnings)
       ? (raw.warnings as AgentRunProposalWarnings)
@@ -284,6 +296,7 @@ export function enrichAgentRunProposalItem(
     changedFields: changedFields.length > 0 ? changedFields : deriveChangedFields(from, to),
     warnings,
     translationMemoryMatchesUsed,
+    glossaryMatchesUsed,
   };
 }
 
@@ -340,6 +353,7 @@ export function serializeAgentRunProposalItem(item: AgentRunProposalItem) {
     ...(item.translationMemoryMatchesUsed?.length
       ? { translationMemoryMatchesUsed: item.translationMemoryMatchesUsed }
       : {}),
+    ...(item.glossaryMatchesUsed?.length ? { glossaryMatchesUsed: item.glossaryMatchesUsed } : {}),
   };
 }
 

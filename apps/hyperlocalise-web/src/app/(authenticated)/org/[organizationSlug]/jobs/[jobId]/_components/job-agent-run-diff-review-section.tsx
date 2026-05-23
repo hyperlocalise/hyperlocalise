@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 
 import { toneClass, type Tone } from "../../../_components/workspace-resource-shared";
 
+import { GlossaryMatchBadges, GlossaryMatchesDetail } from "./job-agent-run-glossary";
 import {
   TranslationMemoryMatchBadges,
   TranslationMemoryMatchesDetail,
@@ -135,6 +136,7 @@ function ProposalDiffRow({
             ) : null}
           </div>
           <WarningBadges item={item} />
+          <GlossaryMatchBadges matches={item.glossaryMatchesUsed ?? []} />
           <TranslationMemoryMatchBadges matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
@@ -156,6 +158,7 @@ function ProposalDiffRow({
               <p className="text-sm whitespace-pre-wrap text-foreground/86">{item.to}</p>
             </div>
           </div>
+          <GlossaryMatchesDetail matches={item.glossaryMatchesUsed ?? []} />
           <TranslationMemoryMatchesDetail matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="flex flex-wrap gap-2">
             <Button

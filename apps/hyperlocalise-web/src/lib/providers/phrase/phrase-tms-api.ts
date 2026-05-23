@@ -50,16 +50,6 @@ export interface PhraseTmsSearchSegmentResult {
   transMemoryName: string | null;
 }
 
-export interface PhraseTmsTermBaseSearchResult {
-  termBaseUid: string | null;
-  termBaseName: string | null;
-  sourceTerm: string;
-  targetTerm: string;
-  targetLocale: string | null;
-  description: string | null;
-  forbidden: boolean | null;
-}
-
 export class PhraseTmsApiError extends Error {
   constructor(
     message: string,
@@ -164,18 +154,6 @@ export class PhraseTmsApiClient {
       scoreThreshold: input.scoreThreshold ?? 0.5,
     });
     return normalizePhraseTmsSearchSegmentResults(response.searchResults);
-  }
-
-  async searchJobTermBasesInText(input: {
-    projectUid: string;
-    jobUid: string;
-    text: string;
-  }): Promise<PhraseTmsTermBaseSearchResult[]> {
-    const path = `/api2/v1/projects/${encodeURIComponent(input.projectUid)}/jobs/${encodeURIComponent(input.jobUid)}/termBases/searchInTextByJob`;
-    const response = await this.post<PhraseTmsTermBaseSearchResponseApiRecord>(path, {
-      text: input.text,
-    });
-    return normalizePhraseTmsTermBaseSearchResults(response.terms);
   }
 
   private buildPath(
@@ -315,17 +293,6 @@ type PhraseTmsSearchSegmentApiRecord = {
   transMemory?: { uid?: string; name?: string };
 };
 
-type PhraseTmsTermBaseSearchResponseApiRecord = {
-  terms?: PhraseTmsTermBaseSearchApiRecord[];
-};
-
-type PhraseTmsTermBaseSearchApiRecord = {
-  termBase?: { uid?: string; name?: string };
-  sourceTerm?: { text?: string };
-  targetTerms?: Array<{ text?: string; lang?: string; forbidden?: boolean }>;
-  description?: string;
-};
-
 function normalizePhraseTmsSearchSegmentResults(
   results: PhraseTmsSearchSegmentApiRecord[] | undefined,
 ): PhraseTmsSearchSegmentResult[] {
@@ -356,42 +323,6 @@ function normalizePhraseTmsSearchSegmentResults(
       targetLocale: targetTranslation?.lang?.trim() || null,
       transMemoryUid: result.transMemory?.uid?.trim() || null,
       transMemoryName: result.transMemory?.name?.trim() || null,
-    });
-  }
-
-  return normalized;
-}
-
-function normalizePhraseTmsTermBaseSearchResults(
-  terms: PhraseTmsTermBaseSearchApiRecord[] | undefined,
-): PhraseTmsTermBaseSearchResult[] {
-  if (!terms?.length) {
-    return [];
-  }
-
-  const normalized: PhraseTmsTermBaseSearchResult[] = [];
-
-  for (const term of terms) {
-    const sourceTerm = term.sourceTerm?.text?.trim() ?? "";
-    if (!sourceTerm) {
-      continue;
-    }
-
-    const targetTermRecord =
-      term.targetTerms?.find((target) => target.text?.trim()) ?? term.targetTerms?.[0];
-    const targetTerm = targetTermRecord?.text?.trim() ?? "";
-    if (!targetTerm) {
-      continue;
-    }
-
-    normalized.push({
-      termBaseUid: term.termBase?.uid?.trim() || null,
-      termBaseName: term.termBase?.name?.trim() || null,
-      sourceTerm,
-      targetTerm,
-      targetLocale: targetTermRecord?.lang?.trim() || null,
-      description: term.description?.trim() || null,
-      forbidden: targetTermRecord?.forbidden ?? null,
     });
   }
 

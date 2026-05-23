@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  mergeTranslationContextMatches,
   normalizePhraseMatchScore,
-  normalizePhraseTermBaseSearchMatches,
   normalizePhraseTranslationMemorySearchMatches,
 } from "./normalize-phrase-context-matches";
 
@@ -95,79 +93,5 @@ describe("normalizePhraseTranslationMemorySearchMatches", () => {
     );
 
     expect(matches).toEqual([]);
-  });
-});
-
-describe("normalizePhraseTermBaseSearchMatches", () => {
-  it("maps term-base hits into glossary context terms", () => {
-    const terms = normalizePhraseTermBaseSearchMatches(
-      [
-        {
-          termBaseUid: "tb-1",
-          termBaseName: "Brand terms",
-          sourceTerm: "Hyperlocalise",
-          targetTerm: "Hyperlocalise",
-          targetLocale: "fr-FR",
-          description: "Product name",
-          forbidden: false,
-        },
-      ],
-      { targetLocale: "fr-FR" },
-    );
-
-    expect(terms).toHaveLength(1);
-    expect(terms[0]).toMatchObject({
-      glossaryId: "phrase:tb-1",
-      glossaryName: "Brand terms",
-      sourceTerm: "Hyperlocalise",
-      targetTerm: "Hyperlocalise",
-      forbidden: false,
-    });
-  });
-
-  it("returns empty when term base uid is missing", () => {
-    const terms = normalizePhraseTermBaseSearchMatches(
-      [
-        {
-          termBaseUid: null,
-          termBaseName: null,
-          sourceTerm: "a",
-          targetTerm: "b",
-          targetLocale: "fr-FR",
-          description: null,
-          forbidden: null,
-        },
-      ],
-      { targetLocale: "fr-FR" },
-    );
-
-    expect(terms).toEqual([]);
-  });
-});
-
-describe("mergeTranslationContextMatches", () => {
-  it("deduplicates by id and sorts by rank", () => {
-    const merged = mergeTranslationContextMatches(
-      [{ id: "a", rank: 50 }],
-      [
-        { id: "b", rank: 90 },
-        { id: "a", rank: 10 },
-      ],
-      10,
-    );
-
-    expect(merged.map((item) => item.id)).toEqual(["b", "a"]);
-  });
-
-  it("includes high-ranked supplemental items after sorting when primary fills the limit", () => {
-    const primary = Array.from({ length: 3 }, (_, index) => ({
-      id: `db-${index}`,
-      rank: 1,
-    }));
-    const supplemental = [{ id: "phrase-live", rank: 99 }];
-
-    const merged = mergeTranslationContextMatches(primary, supplemental, 3);
-
-    expect(merged.map((item) => item.id)).toEqual(["phrase-live", "db-0", "db-1"]);
   });
 });

@@ -1,17 +1,18 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { loadPhraseTranslationContextMatches } from "@/lib/providers/phrase/load-phrase-translation-context-matches";
-import { mergeTranslationContextMatches } from "@/lib/providers/phrase/normalize-phrase-context-matches";
+import {
+  toContextGlossaryMatch,
+  type ContextGlossaryMatch,
+} from "@/lib/translation/glossary-match";
+import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 import {
   toContextTranslationMemoryMatch,
   type ContextTranslationMemoryMatch,
 } from "@/lib/translation/translation-memory-match";
-
-const maxContextSearchTerms = 50;
 
 export type StringTranslationContextSnapshot = {
   assembledAt: string;
@@ -21,30 +22,9 @@ export type StringTranslationContextSnapshot = {
     translationContext: string;
   };
   job: StringTranslationJobInput;
-  glossaryTerms: Array<{
-    id: string;
-    glossaryId: string;
-    glossaryName: string;
-    sourceTerm: string;
-    targetTerm: string;
-    targetLocale: string;
-    description: string | null;
-    forbidden: boolean | null;
-    rank: number;
-  }>;
+  glossaryTerms: ContextGlossaryMatch[];
   translationMemoryMatches: ContextTranslationMemoryMatch[];
 };
-
-function buildTsQuery(input: string): string {
-  return input
-    .replace(/[&|!():*<>'"-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, maxContextSearchTerms)
-    .map((word) => `${word}:*`)
-    .join(" & ");
-}
 
 export type TranslationContextProject = {
   id: string;
@@ -85,55 +65,6 @@ async function loadProjectForContext(
   return project ?? null;
 }
 
-async function loadGlossaryTermsForContext(input: {
-  projectId: string;
-  sourceLocale: string;
-  targetLocales: string[];
-  sourceText: string;
-}) {
-  const tsQuery = buildTsQuery(input.sourceText);
-  if (!tsQuery) {
-    return [];
-  }
-
-  const attached = await db
-    .select({ glossaryId: schema.projectGlossaries.glossaryId })
-    .from(schema.projectGlossaries)
-    .where(eq(schema.projectGlossaries.projectId, input.projectId));
-  const glossaryIds = attached.map((item) => item.glossaryId);
-  if (glossaryIds.length === 0) {
-    return [];
-  }
-
-  return db
-    .select({
-      id: schema.glossaryTerms.id,
-      glossaryId: schema.glossaryTerms.glossaryId,
-      glossaryName: schema.glossaries.name,
-      sourceTerm: schema.glossaryTerms.sourceTerm,
-      targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
-      description: schema.glossaryTerms.description,
-      forbidden: schema.glossaryTerms.forbidden,
-      rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-        "rank",
-      ),
-    })
-    .from(schema.glossaryTerms)
-    .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-    .where(
-      and(
-        inArray(schema.glossaryTerms.glossaryId, glossaryIds),
-        eq(schema.glossaries.sourceLocale, input.sourceLocale),
-        inArray(schema.glossaries.targetLocale, input.targetLocales),
-        eq(schema.glossaries.status, "active"),
-        sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-      ),
-    )
-    .orderBy(desc(sql`rank`))
-    .limit(20);
-}
-
 export async function loadTranslationContextProject(projectId: string) {
   return loadProjectForContext(projectId);
 }
@@ -160,13 +91,15 @@ export async function assembleStringTranslationContextSnapshot(
 
   const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-  const [glossaryTerms, translationMemoryMatches, phraseLiveGlossaryTerms] = await Promise.all([
-    loadGlossaryTermsForContext({
+  const [glossaryTerms, translationMemoryMatches] = await Promise.all([
+    loadGlossaryMatchesForContext({
       projectId,
+      organizationId: options?.organizationId,
+      providerKind,
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
-    }),
+    }).then((matches) => matches.map(toContextGlossaryMatch)),
     loadTranslationMemoryMatchesForContext({
       projectId,
       organizationId: options?.organizationId,
@@ -176,22 +109,7 @@ export async function assembleStringTranslationContextSnapshot(
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
     }).then((matches) => matches.map(toContextTranslationMemoryMatch)),
-    providerKind === "phrase"
-      ? loadPhraseTranslationContextMatches({
-          project,
-          externalJobUid: options?.externalJobUid,
-          sourceLocale: jobInput.sourceLocale,
-          targetLocales: jobInput.targetLocales,
-          sourceText: jobInput.sourceText,
-        }).then((result) => result.glossaryTerms)
-      : Promise.resolve([]),
   ]);
-
-  const mergedGlossaryTerms = mergeTranslationContextMatches(
-    glossaryTerms,
-    phraseLiveGlossaryTerms,
-    20,
-  );
 
   return {
     ok: true,
@@ -203,7 +121,7 @@ export async function assembleStringTranslationContextSnapshot(
         translationContext: project.translationContext,
       },
       job: jobInput,
-      glossaryTerms: mergedGlossaryTerms,
+      glossaryTerms,
       translationMemoryMatches,
     } satisfies StringTranslationContextSnapshot,
   } as const;
