@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -16,6 +16,39 @@ export type GlossaryTermQueryRow = {
   externalKey: string | null;
   reviewStatus: string;
 };
+
+export async function listWorkspaceGlossaryTerms(input: {
+  organizationId: string;
+  limit?: number;
+}): Promise<GlossaryTermQueryRow[]> {
+  const limit = input.limit ?? 20;
+
+  return db
+    .select({
+      id: schema.glossaryTerms.id,
+      glossaryId: schema.glossaryTerms.glossaryId,
+      glossaryName: schema.glossaries.name,
+      sourceTerm: schema.glossaryTerms.sourceTerm,
+      targetTerm: schema.glossaryTerms.targetTerm,
+      targetLocale: schema.glossaries.targetLocale,
+      description: schema.glossaryTerms.description,
+      forbidden: schema.glossaryTerms.forbidden,
+      caseSensitive: schema.glossaryTerms.caseSensitive,
+      provenance: schema.glossaryTerms.provenance,
+      externalKey: schema.glossaryTerms.externalKey,
+      reviewStatus: schema.glossaryTerms.reviewStatus,
+    })
+    .from(schema.glossaryTerms)
+    .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+    .where(
+      and(
+        eq(schema.glossaries.organizationId, input.organizationId),
+        eq(schema.glossaries.status, "active"),
+      ),
+    )
+    .orderBy(desc(schema.glossaryTerms.updatedAt))
+    .limit(limit);
+}
 
 export async function listGlossaryTermsByGlossaryId(input: {
   organizationId: string;
