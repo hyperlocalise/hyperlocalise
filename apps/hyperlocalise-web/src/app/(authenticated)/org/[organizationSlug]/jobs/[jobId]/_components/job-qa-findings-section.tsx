@@ -493,7 +493,7 @@ export function JobQaFindingsSection({
         </p>
       ) : null}
 
-      {report ? (
+      {report && report.summary.total > 0 ? (
         <div className="mt-4 space-y-4">
           <QaSummaryChips summary={report.summary} />
 

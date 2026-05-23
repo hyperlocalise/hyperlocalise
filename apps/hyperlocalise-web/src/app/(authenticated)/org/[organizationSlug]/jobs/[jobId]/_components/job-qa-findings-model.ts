@@ -1,3 +1,4 @@
+import { providerQaReportSchema } from "@/api/routes/project/job-qa.schema";
 import type {
   ProviderQaCheckType,
   ProviderQaFinding,
@@ -19,7 +20,9 @@ export type QaFindingGroup = {
 
 export function buildFindingId(finding: ProviderQaFinding): string {
   const { externalStringId, key, locale, field } = finding.item;
-  return [externalStringId, key, locale ?? "", field ?? "", finding.checkType].join("|");
+  return [externalStringId, key, locale ?? "", field ?? "", finding.checkType, finding.message].join(
+    "|",
+  );
 }
 
 export function attachFindingIds(findings: ProviderQaFinding[]): QaFindingWithId[] {
@@ -36,17 +39,16 @@ export function parseQaReportFromOutputSummary(
     return null;
   }
 
-  const findings = outputSummary.findings;
-  const summary = outputSummary.summary;
+  const parsed = providerQaReportSchema.safeParse({
+    findings: outputSummary.findings,
+    summary: outputSummary.summary,
+  });
 
-  if (!Array.isArray(findings) || typeof summary !== "object" || summary === null) {
+  if (!parsed.success) {
     return null;
   }
 
-  return {
-    findings: findings as ProviderQaFinding[],
-    summary: summary as ProviderQaReport["summary"],
-  };
+  return parsed.data;
 }
 
 export function isQaChecksAgentRun(inputSnapshot: Record<string, unknown> | undefined) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   attachFindingIds,
+  buildFindingId,
   buildProjectFilesHref,
   filterFindings,
   groupFindings,
@@ -29,6 +30,32 @@ describe("job-qa-findings-model", () => {
 
     expect(report?.findings).toHaveLength(1);
     expect(report?.summary.total).toBe(1);
+  });
+
+  it("rejects malformed QA reports in output summaries", () => {
+    expect(
+      parseQaReportFromOutputSummary({
+        findings: [{ ...sampleFinding, severity: 42 }],
+        summary: { total: 1, byCheckType: {}, bySeverity: { error: 1 } },
+      }),
+    ).toBeNull();
+  });
+
+  it("assigns distinct ids when the same check fires twice on one item", () => {
+    const first = buildFindingId(sampleFinding);
+    const second = buildFindingId({
+      ...sampleFinding,
+      message: "Different placeholder detail",
+    });
+
+    expect(first).not.toBe(second);
+
+    const withIds = attachFindingIds([
+      sampleFinding,
+      { ...sampleFinding, message: "Different placeholder detail" },
+    ]);
+
+    expect(new Set(withIds.map((finding) => finding.id)).size).toBe(2);
   });
 
   it("filters findings by severity and search query", () => {
