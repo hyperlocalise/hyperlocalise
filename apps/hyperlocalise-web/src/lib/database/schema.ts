@@ -99,6 +99,11 @@ export const glossarySyncStateEnum = pgEnum("glossary_sync_state", [
   "error",
 ]);
 export const glossaryTermProvenanceEnum = pgEnum("glossary_term_provenance", ["manual", "sync"]);
+export const externalTmsMemoryCapabilityModeEnum = pgEnum("external_tms_memory_capability_mode", [
+  "live_search",
+  "synced_import",
+  "reference_only",
+]);
 export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
   "project_scan",
   "file_key_scan",
@@ -530,6 +535,47 @@ export const memories = pgTable(
     description: text("description").notNull().default(""),
     // Lifecycle state for the TM library.
     status: assetStatusEnum("status").notNull().default("active"),
+    // Where this translation memory originated from.
+    source: projectSourceEnum("source").notNull().default("native"),
+    // Provider kind when sourced from external TMS.
+    externalProviderKind: externalTmsProviderKindEnum("external_provider_kind"),
+    // External provider credential backing this TM resource.
+    externalProviderCredentialId: uuid("external_provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    // Provider project that scopes this TM resource.
+    externalProjectId: text("external_project_id"),
+    // Stable translation memory ID from the external TMS provider.
+    externalMemoryId: text("external_memory_id"),
+    // Locales covered by the synced TM resource.
+    localeCoverage: jsonb("locale_coverage")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Segment count reported by the provider when available.
+    segmentCount: integer("segment_count"),
+    // Sync lifecycle for provider-backed translation memories.
+    syncState: glossarySyncStateEnum("sync_state"),
+    // How segments can be accessed: live search, synced import, or reference-only.
+    capabilityMode: externalTmsMemoryCapabilityModeEnum("capability_mode"),
+    // Provider-reported segment capabilities such as search/import support.
+    segmentCapabilities: jsonb("segment_capabilities")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Optional direct TM URL in provider UI.
+    externalUrl: text("external_url"),
+    // Last successful sync timestamp.
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    // Last sync failure timestamp and message.
+    lastSyncErrorAt: timestamp("last_sync_error_at", { withTimezone: true }),
+    lastSyncErrorMessage: text("last_sync_error_message"),
+    // Raw provider metadata for debugging and forward compatibility.
+    providerMetadata: jsonb("provider_metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // When the TM was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When TM metadata last changed.
@@ -540,8 +586,20 @@ export const memories = pgTable(
   },
   (table) => [
     uniqueIndex("memories_id_organization_id_key").on(table.id, table.organizationId),
+    uniqueIndex("memories_org_provider_external_memory_key").on(
+      table.organizationId,
+      table.externalProviderKind,
+      table.externalProjectId,
+      table.externalMemoryId,
+    ),
     index("idx_memories_org_created_at").on(table.organizationId, table.createdAt),
     index("idx_memories_created_by_user_id").on(table.createdByUserId),
+    index("idx_memories_sync_state").on(table.syncState),
+    index("idx_memories_external_provider").on(
+      table.organizationId,
+      table.externalProviderKind,
+      table.externalProjectId,
+    ),
   ],
 );
 
@@ -601,6 +659,7 @@ export const memoryEntries = pgTable(
       table.targetLocale,
       table.normalizedSourceText,
     ),
+    uniqueIndex("memory_entries_memory_external_key").on(table.memoryId, table.externalKey),
     index("idx_memory_entries_memory_locale_pair").on(
       table.memoryId,
       table.sourceLocale,

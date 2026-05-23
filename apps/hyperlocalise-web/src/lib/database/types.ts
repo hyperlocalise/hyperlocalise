@@ -4,6 +4,7 @@ import type {
   agentRunStatusEnum,
   githubInstallations,
   glossaries,
+  memories,
   jobs,
   jobKindEnum,
   jobStatusEnum,
@@ -32,6 +33,9 @@ import type {
 
 export type Glossary = typeof glossaries.$inferSelect;
 export type NewGlossary = typeof glossaries.$inferInsert;
+
+export type Memory = typeof memories.$inferSelect;
+export type NewMemory = typeof memories.$inferInsert;
 
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
