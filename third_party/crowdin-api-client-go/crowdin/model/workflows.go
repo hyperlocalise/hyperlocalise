@@ -1,8 +1,8 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // WorkflowStep represents a workflow step in a project.
@@ -133,7 +133,7 @@ func (o *WorkflowTemplatesListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 
 	if o.GroupID != nil {
-		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
+		v.Add("groupId", strconv.Itoa(*o.GroupID))
 	}
 
 	return v, len(v) > 0

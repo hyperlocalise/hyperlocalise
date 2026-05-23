@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // MachineTranslation represents a machine translation engine (MTE).
@@ -56,7 +56,7 @@ func (o *MTListOptions) Values() (url.Values, bool) {
 
 	v, _ := o.ListOptions.Values()
 	if o.GroupID != nil {
-		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
+		v.Add("groupId", strconv.Itoa(*o.GroupID))
 	}
 
 	return v, len(v) > 0

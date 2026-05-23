@@ -1,8 +1,8 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // ListOptions specifies the optional parameters to methods that support pagination.
@@ -23,10 +23,10 @@ func (o *ListOptions) Values() (url.Values, bool) {
 	}
 
 	if o.Limit > 0 {
-		v.Add("limit", fmt.Sprintf("%d", o.Limit))
+		v.Add("limit", strconv.Itoa(o.Limit))
 	}
 	if o.Offset > 0 {
-		v.Add("offset", fmt.Sprintf("%d", o.Offset))
+		v.Add("offset", strconv.Itoa(o.Offset))
 	}
 
 	return v, len(v) > 0

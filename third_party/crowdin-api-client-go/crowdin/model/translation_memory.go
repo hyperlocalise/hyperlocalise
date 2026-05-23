@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // TranslationMemory represents a Crowdin Translation Memory (TM).
@@ -63,10 +64,10 @@ func (o *TranslationMemoriesListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.UserID > 0 {
-		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+		v.Add("userId", strconv.Itoa(o.UserID))
 	}
 	if o.GroupID != nil {
-		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
+		v.Add("groupId", strconv.Itoa(*o.GroupID))
 	}
 
 	return v, len(v) > 0

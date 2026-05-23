@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Screenshot represents a screenshot, which provides translators
@@ -99,7 +99,7 @@ func (o *ScreenshotListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.StringID > 0 { // TODO: StringID is deprecated
-		v.Add("stringId", fmt.Sprintf("%d", o.StringID))
+		v.Add("stringId", strconv.Itoa(o.StringID))
 	}
 	if len(o.StringIDs) > 0 {
 		v.Add("stringIds", JoinSlice(o.StringIDs))

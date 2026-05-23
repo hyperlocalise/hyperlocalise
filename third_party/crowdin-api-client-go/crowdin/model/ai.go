@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // FineTuningDataset represents a fine-tuning dataset.
@@ -322,7 +322,7 @@ func (o *AIPromtsListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 
 	if o.ProjectID > 0 {
-		v.Add("projectId", fmt.Sprintf("%d", o.ProjectID))
+		v.Add("projectId", strconv.Itoa(o.ProjectID))
 	}
 	if o.Action != "" {
 		v.Add("action", string(o.Action))
