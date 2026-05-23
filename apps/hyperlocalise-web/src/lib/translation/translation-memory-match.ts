@@ -187,6 +187,11 @@ export function mergeTranslationMemoryMatches(
       continue;
     }
 
+    // Never let a live_provider result overwrite an already-stored synced_database entry.
+    if (existing.matchSource === "synced_database" && match.matchSource === "live_provider") {
+      continue;
+    }
+
     if (match.rank > existing.rank || (match.matchScore ?? 0) > (existing.matchScore ?? 0)) {
       byKey.set(key, match);
     }
