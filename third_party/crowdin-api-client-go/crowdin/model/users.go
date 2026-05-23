@@ -139,7 +139,7 @@ func (o *ProjectMembersListOptions) Values() (url.Values, bool) {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.WorkflowStepID > 0 {
-		v.Add("workflowStepId", fmt.Sprintf("%d", o.WorkflowStepID))
+		v.Add("workflowStepId", strconv.Itoa(o.WorkflowStepID))
 	}
 
 	return v, len(v) > 0
@@ -331,7 +331,7 @@ func (o *UsersListOptions) Values() (url.Values, bool) {
 	}
 
 	if o.TeamID != 0 {
-		v.Add("teamId", fmt.Sprintf("%d", o.TeamID))
+		v.Add("teamId", strconv.Itoa(o.TeamID))
 	}
 
 	if o.ProjectIDs != "" {

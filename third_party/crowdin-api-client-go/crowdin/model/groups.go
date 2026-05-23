@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Group represents a Crowdin group.
@@ -37,7 +37,7 @@ func (o *GroupsListOptions) Values() (url.Values, bool) {
 
 	v, _ := o.ListOptions.Values()
 	if o.ParentID > 0 {
-		v.Add("parentId", fmt.Sprintf("%d", o.ParentID))
+		v.Add("parentId", strconv.Itoa(o.ParentID))
 	}
 
 	return v, len(v) > 0

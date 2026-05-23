@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Approval represents a Crowdin translation approval.
@@ -69,7 +70,7 @@ func (o *ApprovalsListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.FileID > 0 {
-		v.Add("fileId", fmt.Sprintf("%d", o.FileID))
+		v.Add("fileId", strconv.Itoa(o.FileID))
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
@@ -78,13 +79,13 @@ func (o *ApprovalsListOptions) Values() (url.Values, bool) {
 		v.Add("excludeLabelIds", JoinSlice(o.ExcludeLabelIDs))
 	}
 	if o.StringID > 0 {
-		v.Add("stringId", fmt.Sprintf("%d", o.StringID))
+		v.Add("stringId", strconv.Itoa(o.StringID))
 	}
 	if o.LanguageID != "" {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.TranslationID > 0 {
-		v.Add("translationId", fmt.Sprintf("%d", o.TranslationID))
+		v.Add("translationId", strconv.Itoa(o.TranslationID))
 	}
 
 	return v, len(v) > 0
@@ -229,20 +230,20 @@ func (o *LanguageTranslationsListOptions) Values() (url.Values, bool) {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
 	}
 	if o.FileID > 0 {
-		v.Add("fileId", fmt.Sprintf("%d", o.FileID))
+		v.Add("fileId", strconv.Itoa(o.FileID))
 	}
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 	if o.DirectoryID > 0 {
-		v.Add("directoryId", fmt.Sprintf("%d", o.DirectoryID))
+		v.Add("directoryId", strconv.Itoa(o.DirectoryID))
 	}
 	if o.CroQL != "" {
 		v.Add("croql", o.CroQL)
 	}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
-		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
 	}
 
 	return v, len(v) > 0
@@ -290,7 +291,7 @@ func (o *TranslationGetOptions) Values() (url.Values, bool) {
 	v := url.Values{}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
-		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
 	}
 	return v, len(v) > 0
 }
@@ -328,14 +329,14 @@ func (o *StringTranslationsListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.StringID > 0 {
-		v.Add("stringId", fmt.Sprintf("%d", o.StringID))
+		v.Add("stringId", strconv.Itoa(o.StringID))
 	}
 	if o.LanguageID != "" {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
-		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
 	}
 
 	return v, len(v) > 0
@@ -432,16 +433,16 @@ func (o *VotesListOptions) Values() (url.Values, bool) {
 
 	v, _ := o.ListOptions.Values()
 	if o.StringID > 0 {
-		v.Add("stringId", fmt.Sprintf("%d", o.StringID))
+		v.Add("stringId", strconv.Itoa(o.StringID))
 	}
 	if o.LanguageID != "" {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.TranslationID > 0 {
-		v.Add("translationId", fmt.Sprintf("%d", o.TranslationID))
+		v.Add("translationId", strconv.Itoa(o.TranslationID))
 	}
 	if o.FileID > 0 {
-		v.Add("fileId", fmt.Sprintf("%d", o.FileID))
+		v.Add("fileId", strconv.Itoa(o.FileID))
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))

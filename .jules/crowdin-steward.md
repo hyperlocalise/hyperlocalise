@@ -68,12 +68,12 @@
 
 ## 2026-07-03 - Improve Project and TM parity for Enterprise fields and GroupID filtering
 
-**Learning:** Crowdin Enterprise API v2 includes several fields in the Project response model (, , ) that were missing from the SDK. Additionally, listing projects and translation memories supports filtering by `groupId`. Using `*int` for the GroupID field allows the SDK to explicitly send `groupId=0` (for root group) while omitting it when nil.
-
-**Action:** Added `TemplateID`, `VendorID`, and `MTEngineID` to the `Project` struct in `model/projects.go`. Added `GroupID (*int)` to `ProjectsListOptions` and `TranslationMemoriesListOptions`. Updated `Values()` methods to correctly encode the `groupId` parameter. Verified with updated contract tests in `projects_test.go` and `model/translation_memory_test.go`.
-
-## 2026-07-03 - Improve Project and TM parity for Enterprise fields and GroupID filtering
-
 **Learning:** Crowdin Enterprise API v2 includes several fields in the Project response model (`templateId`, `vendorId`, `mtEngineId`) that were missing from the SDK. Additionally, listing projects and translation memories supports filtering by `groupId`. Using `*int` for the GroupID field allows the SDK to explicitly send `groupId=0` (for root group) while omitting it when nil.
 
 **Action:** Added `TemplateID`, `VendorID`, and `MTEngineID` to the `Project` struct in `model/projects.go`. Added `GroupID (*int)` to `ProjectsListOptions` and `TranslationMemoriesListOptions`. Updated `Values()` methods to correctly encode the `groupId` parameter. Verified with updated contract tests in `projects_test.go` and `model/translation_memory_test.go`.
+
+## 2026-05-23 - Optimize Values() allocations and fix AI model typos
+
+**Learning:** Using `fmt.Sprintf("%d", id)` in `Values()` methods for query parameter serialization causes unnecessary allocations in hot paths. Replacing it with `strconv.Itoa(id)` is more efficient. Additionally, several typos (e.g., `AIPromtsListOptions`, `configuraion`) and duplicate fields (`MaxExamplesCount`) were identified in the AI model.
+
+**Action:** Optimized `Values()` methods across all model files using `strconv.Itoa`. Fixed typos and removed duplicate fields in `model/ai.go`, propagating the corrected `AIPromptsListOptions` name throughout the fork. Corrected `ProjectsListResponse` documentation comment and removed redundant `Languages` field from `ProjectsAddRequest`. Verified with full test suite passing in the fork.

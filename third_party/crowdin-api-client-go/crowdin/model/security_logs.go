@@ -1,8 +1,8 @@
 package model
 
 import (
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // SecurityLog represents a security log.
@@ -98,7 +98,7 @@ func (o *SecurityLogsListOptions) Values() (url.Values, bool) {
 		v.Add("ipAddress", o.IPAddress)
 	}
 	if o.UserID != 0 {
-		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+		v.Add("userId", strconv.Itoa(o.UserID))
 	}
 
 	return v, len(v) > 0

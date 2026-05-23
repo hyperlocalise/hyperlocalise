@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Directory represents a project directory.
@@ -72,10 +73,10 @@ func (o *DirectoryListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 	if o.DirectoryID > 0 {
-		v.Add("directoryId", fmt.Sprintf("%d", o.DirectoryID))
+		v.Add("directoryId", strconv.Itoa(o.DirectoryID))
 	}
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
@@ -201,10 +202,10 @@ func (o *FileListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 	if o.DirectoryID > 0 {
-		v.Add("directoryId", fmt.Sprintf("%d", o.DirectoryID))
+		v.Add("directoryId", strconv.Itoa(o.DirectoryID))
 	}
 	if o.Filter != "" {
 		v.Add("filter", o.Filter)
@@ -582,7 +583,7 @@ func (o *ReviewedBuildListOptions) Values() (url.Values, bool) {
 
 	v, _ := o.ListOptions.Values()
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 
 	return v, len(v) > 0

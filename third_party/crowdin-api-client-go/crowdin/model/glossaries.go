@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 type (
@@ -171,10 +171,10 @@ func (o *GlossariesListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.GroupID != nil {
-		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
+		v.Add("groupId", strconv.Itoa(*o.GroupID))
 	}
 	if o.UserID != 0 {
-		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+		v.Add("userId", strconv.Itoa(o.UserID))
 	}
 
 	return v, len(v) > 0
@@ -452,13 +452,13 @@ func (o *TermsListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.UserID != 0 {
-		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+		v.Add("userId", strconv.Itoa(o.UserID))
 	}
 	if o.LanguageID != "" {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.ConceptID != 0 {
-		v.Add("conceptId", fmt.Sprintf("%d", o.ConceptID))
+		v.Add("conceptId", strconv.Itoa(o.ConceptID))
 	}
 	if o.CroQL != "" {
 		v.Add("croql", o.CroQL)
@@ -538,7 +538,7 @@ func (o *ClearGlossaryOptions) Values() (url.Values, bool) {
 		v.Add("languageId", o.LanguageID)
 	}
 	if o.ConceptID != 0 {
-		v.Add("conceptId", fmt.Sprintf("%d", o.ConceptID))
+		v.Add("conceptId", strconv.Itoa(o.ConceptID))
 	}
 
 	return v, len(v) > 0

@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // ReportFormat represents the format of a report
@@ -122,7 +122,7 @@ func (o *ReportArchivesListOptions) Values() (url.Values, bool) {
 		v.Add("scopeType", string(o.ScopeType))
 	}
 	if o.ScopeID != 0 {
-		v.Add("scopeId", fmt.Sprintf("%d", o.ScopeID))
+		v.Add("scopeId", strconv.Itoa(o.ScopeID))
 	}
 
 	return v, len(v) > 0
@@ -854,10 +854,10 @@ func (o *ReportSettingsTemplatesListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 
 	if o.ProjectID != 0 {
-		v.Add("projectId", fmt.Sprintf("%d", o.ProjectID))
+		v.Add("projectId", strconv.Itoa(o.ProjectID))
 	}
 	if o.GroupID != 0 {
-		v.Add("groupId", fmt.Sprintf("%d", o.GroupID))
+		v.Add("groupId", strconv.Itoa(o.GroupID))
 	}
 
 	return v, len(v) > 0

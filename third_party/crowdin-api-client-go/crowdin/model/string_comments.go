@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // StringComment represents a Crowdin string comment.
@@ -92,7 +92,7 @@ func (o *StringCommentsListOptions) Values() (url.Values, bool) {
 		v.Set("orderBy", o.OrderBy)
 	}
 	if o.StringID != 0 {
-		v.Set("stringId", fmt.Sprintf("%d", o.StringID))
+		v.Set("stringId", strconv.Itoa(o.StringID))
 	}
 	if o.Type != "" {
 		v.Set("type", o.Type)

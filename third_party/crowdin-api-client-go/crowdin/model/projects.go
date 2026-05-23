@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 type (
@@ -168,17 +168,17 @@ func (o *ProjectsListOptions) Values() (url.Values, bool) {
 		v.Add("orderBy", o.OrderBy)
 	}
 	if o.UserID > 0 {
-		v.Add("userId", fmt.Sprintf("%d", o.UserID))
+		v.Add("userId", strconv.Itoa(o.UserID))
 	}
 	if o.HasManagerAccess != nil &&
 		(*o.HasManagerAccess == 0 || *o.HasManagerAccess == 1) {
-		v.Add("hasManagerAccess", fmt.Sprintf("%d", *o.HasManagerAccess))
+		v.Add("hasManagerAccess", strconv.Itoa(*o.HasManagerAccess))
 	}
 	if o.Type != nil && (*o.Type == 0 || *o.Type == 1) {
-		v.Add("type", fmt.Sprintf("%d", *o.Type))
+		v.Add("type", strconv.Itoa(*o.Type))
 	}
 	if o.GroupID != nil {
-		v.Add("groupId", fmt.Sprintf("%d", *o.GroupID))
+		v.Add("groupId", strconv.Itoa(*o.GroupID))
 	}
 	return v, len(v) > 0
 }

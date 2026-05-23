@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // SourceString represents the text units for translation.
@@ -93,10 +93,10 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
-		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
 	}
 	if o.IsIcu != nil && (*o.IsIcu == 0 || *o.IsIcu == 1) {
-		v.Add("isIcu", fmt.Sprintf("%d", *o.IsIcu))
+		v.Add("isIcu", strconv.Itoa(*o.IsIcu))
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
@@ -105,16 +105,16 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 		v.Add("excludeLabelIds", JoinSlice(o.ExcludeLabelIDs))
 	}
 	if o.FileID > 0 {
-		v.Add("fileId", fmt.Sprintf("%d", o.FileID))
+		v.Add("fileId", strconv.Itoa(o.FileID))
 	}
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 	if o.DirectoryID > 0 {
-		v.Add("directoryId", fmt.Sprintf("%d", o.DirectoryID))
+		v.Add("directoryId", strconv.Itoa(o.DirectoryID))
 	}
 	if o.TaskID > 0 {
-		v.Add("taskId", fmt.Sprintf("%d", o.TaskID))
+		v.Add("taskId", strconv.Itoa(o.TaskID))
 	}
 	if o.CroQL != "" {
 		v.Add("croql", o.CroQL)
@@ -145,7 +145,7 @@ func (o *SourceStringsGetOptions) Values() (url.Values, bool) {
 	v := url.Values{}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
-		v.Add("denormalizePlaceholders", fmt.Sprintf("%d", *o.DenormalizePlaceholders))
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
 	}
 
 	return v, len(v) > 0

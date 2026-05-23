@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // TaskStatus represents the status of a task.
@@ -130,10 +131,10 @@ func (o *TasksListOptions) Values() (url.Values, bool) {
 		v.Add("status", JoinSlice(o.Status))
 	}
 	if o.AssigneeID > 0 {
-		v.Add("assigneeId", fmt.Sprintf("%d", o.AssigneeID))
+		v.Add("assigneeId", strconv.Itoa(o.AssigneeID))
 	}
 	if o.WorkflowStepID > 0 {
-		v.Add("workflowStepId", fmt.Sprintf("%d", o.WorkflowStepID))
+		v.Add("workflowStepId", strconv.Itoa(o.WorkflowStepID))
 	}
 
 	return v, len(v) > 0
@@ -947,7 +948,7 @@ func (o *UserTasksListOptions) Values() (url.Values, bool) {
 		v.Add("status", JoinSlice(o.Status))
 	}
 	if o.IsArchived != nil {
-		v.Add("isArchived", fmt.Sprintf("%d", *o.IsArchived))
+		v.Add("isArchived", strconv.Itoa(*o.IsArchived))
 	}
 
 	return v, len(v) > 0

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 type (
@@ -337,7 +338,7 @@ func (o *TranslationsBuildsListOptions) Values() (url.Values, bool) {
 
 	v, _ := o.ListOptions.Values()
 	if o.BranchID > 0 {
-		v.Add("branchId", fmt.Sprintf("%d", o.BranchID))
+		v.Add("branchId", strconv.Itoa(o.BranchID))
 	}
 
 	return v, len(v) > 0

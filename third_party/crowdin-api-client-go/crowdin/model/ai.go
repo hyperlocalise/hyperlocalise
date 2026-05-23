@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // FineTuningDataset represents a fine-tuning dataset.
@@ -26,7 +26,7 @@ type FineTuningDatasetAttributes struct {
 	ProjectIDs []int `json:"projectIds,omitempty"`
 	// TM identifiers from which the dataset will be generated.
 	// Note: This parameter is not supported for the prompt with the
-	// external configuraion.
+	// external configuration.
 	TMIDs []int `json:"tmIds,omitempty"`
 	// Purpose of the dataset. Enum: training, validation. Default: training.
 	Purpose string `json:"purpose,omitempty"`
@@ -38,7 +38,6 @@ type FineTuningDatasetAttributes struct {
 	// Note: If not provided, default limits based on the model will be applied.
 	MaxFileSize int `json:"maxFileSize,omitempty"`
 	// Minimum number of examples in the dataset.
-	// Note: If not provided, default limits based on the model will be applied.
 	MinExamplesCount int `json:"minExamplesCount,omitempty"`
 	// Maximum number of examples in the dataset.
 	// Note: If not provided, default limits based on the model will be applied.
@@ -140,8 +139,8 @@ type (
 		// Note: Required if `tmIds` is not provided.
 		ProjectIDs []int `json:"projectIds,omitempty"`
 		// TM identifiers from which the dataset will be generated.
-		// Note: This parameteris not supported for the prompt with
-		// external configuraion.
+		// Note: This parameter is not supported for the prompt with
+		// external configuration.
 		TMIDs []int `json:"tmIds,omitempty"`
 		// Start date for the dataset generation.
 		DateFrom string `json:"dateFrom,omitempty"`
@@ -151,14 +150,12 @@ type (
 		// Note: If not provided, default limits based on the model will be applied.
 		MaxFileSize int `json:"maxFileSize,omitempty"`
 		// Minimum number of examples in the dataset.
-		// Note: If not provided, default limits based on the model will be applied.
 		MinExamplesCount int `json:"minExamplesCount,omitempty"`
 		// Maximum number of examples in the dataset.
 		// Note: If not provided, default limits based on the model will be applied.
 		MaxExamplesCount int `json:"maxExamplesCount,omitempty"`
 	}
 
-	// FineTuningJobMetadata represents the metadata of a fine-tuning job.
 	FineTuningJobMetadata struct {
 		Cost         float64 `json:"cost"`
 		CostCurrency string  `json:"costCurrency"`
@@ -300,9 +297,9 @@ type PromptsListResponse struct {
 	Data []*PromptResponse `json:"data"`
 }
 
-// AIPromtsListOptions specifies the optional parameters to the
+// AIPromptsListOptions specifies the optional parameters to the
 // AIService.ListPrompts method.
-type AIPromtsListOptions struct {
+type AIPromptsListOptions struct {
 	// Allows to filter the prompts available for the specific action.
 	ProjectID int `json:"projectId,omitempty"`
 	// Allows to filter the prompts available for the specific action.
@@ -312,9 +309,9 @@ type AIPromtsListOptions struct {
 	ListOptions
 }
 
-// Values returns the url.Values encoding of AIPromtsListOptions.
+// Values returns the url.Values encoding of AIPromptsListOptions.
 // It implements the crowdin.ListOptionsProvider interface.
-func (o *AIPromtsListOptions) Values() (url.Values, bool) {
+func (o *AIPromptsListOptions) Values() (url.Values, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -322,7 +319,7 @@ func (o *AIPromtsListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 
 	if o.ProjectID > 0 {
-		v.Add("projectId", fmt.Sprintf("%d", o.ProjectID))
+		v.Add("projectId", strconv.Itoa(o.ProjectID))
 	}
 	if o.Action != "" {
 		v.Add("action", string(o.Action))

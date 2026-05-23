@@ -656,7 +656,7 @@ func TestAIService_GetPrompt(t *testing.T) {
 func TestAIService_ListPrompts(t *testing.T) {
 	tests := []struct {
 		name          string
-		opts          *model.AIPromtsListOptions
+		opts          *model.AIPromptsListOptions
 		expectedQuery string
 	}{
 		{
@@ -665,11 +665,11 @@ func TestAIService_ListPrompts(t *testing.T) {
 		},
 		{
 			name: "empty options",
-			opts: &model.AIPromtsListOptions{},
+			opts: &model.AIPromptsListOptions{},
 		},
 		{
 			name: "with options",
-			opts: &model.AIPromtsListOptions{
+			opts: &model.AIPromptsListOptions{
 				ProjectID:   1,
 				Action:      model.ActionAssist,
 				ListOptions: model.ListOptions{Offset: 1, Limit: 25},
