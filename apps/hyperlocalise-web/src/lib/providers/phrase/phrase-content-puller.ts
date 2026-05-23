@@ -61,7 +61,7 @@ export const pullPhraseTaskContent: ExternalTmsContentPuller = async ({
   }
 
   let jobPart = null;
-  const tmsProjectUid = resolvePhraseTmsProjectUid(project);
+  const tmsProjectUid = resolvePhraseTmsProjectUid(project, externalProjectId);
   if (tmsProjectUid) {
     const tmsClient = new PhraseTmsApiClient({
       token: secretMaterial,

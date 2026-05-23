@@ -34,7 +34,7 @@ export const pushPhraseTranslations: ExternalTmsTranslationPusher = async ({
   const branch = resolvePhraseBranch(project);
   let defaultTargetLocale: string | null = null;
 
-  const tmsProjectUid = resolvePhraseTmsProjectUid(project);
+  const tmsProjectUid = resolvePhraseTmsProjectUid(project, externalProjectId);
   if (tmsProjectUid) {
     const tmsClient = new PhraseTmsApiClient({
       token: secretMaterial,

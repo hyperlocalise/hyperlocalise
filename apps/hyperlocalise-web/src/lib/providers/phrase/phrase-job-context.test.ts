@@ -46,25 +46,48 @@ describe("phrase job context", () => {
     expect(jobPart?.uid).toBe("task-fr");
   });
 
-  it("returns null when TMS project uid is absent from metadata", () => {
+  it("prefers tmsProjectUid from metadata and falls back to externalProjectId", () => {
     expect(
-      resolvePhraseTmsProjectUid({
-        providerMetadata: {},
-      }),
+      resolvePhraseTmsProjectUid(
+        {
+          providerMetadata: { tmsProjectUid: "tms-project-1" },
+        },
+        "legacy-project-id",
+      ),
+    ).toBe("tms-project-1");
+    expect(
+      resolvePhraseTmsProjectUid(
+        {
+          providerMetadata: {},
+        },
+        "legacy-project-id",
+      ),
+    ).toBe("legacy-project-id");
+    expect(
+      resolvePhraseTmsProjectUid(
+        {
+          providerMetadata: {},
+        },
+        "",
+      ),
     ).toBeNull();
     expect(
-      resolvePhraseTmsProjectUid({
-        providerMetadata: { tmsProjectUid: "tms-project-1" },
-      }),
-    ).toBe("tms-project-1");
+      resolvePhraseTmsProjectUid(
+        {
+          providerMetadata: { stringsProjectId: "strings-project-1" },
+        },
+        "strings-project-1",
+      ),
+    ).toBeNull();
   });
 
-  it("filters keys by job tag with fallback to all keys", () => {
+  it("filters keys by job tag and returns none when no keys match", () => {
     const keys = [{ tags: ["hyperlocalise:job:job-1"] }, { tags: ["other"] }];
 
     expect(filterPhraseKeysForJobScope({ keys, jobTag: "hyperlocalise:job:job-1" })).toHaveLength(
       1,
     );
-    expect(filterPhraseKeysForJobScope({ keys, jobTag: "missing" })).toHaveLength(2);
+    expect(filterPhraseKeysForJobScope({ keys, jobTag: "missing" })).toHaveLength(0);
+    expect(filterPhraseKeysForJobScope({ keys, jobTag: null })).toHaveLength(2);
   });
 });

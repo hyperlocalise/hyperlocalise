@@ -212,6 +212,36 @@ describe("PhraseApiClient", () => {
     expect(methods).toEqual(expect.arrayContaining(["POST", "GET", "PATCH"]));
   });
 
+  it("rethrows non-conflict 422 responses from translation POST", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.includes("/translations") && method === "POST") {
+        return new Response(JSON.stringify({ message: "Invalid content encoding" }), {
+          status: 422,
+        });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+
+    await expect(
+      client.upsertTranslation("proj-1", {
+        keyId: "key-1",
+        localeName: "fr",
+        content: "Bonjour",
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+    });
+
+    const methods = vi.mocked(fetchMock).mock.calls.map(([, requestInit]) => requestInit?.method);
+    expect(methods).not.toContain("PATCH");
+  });
+
   it("throws PhraseApiError for non-success responses", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });

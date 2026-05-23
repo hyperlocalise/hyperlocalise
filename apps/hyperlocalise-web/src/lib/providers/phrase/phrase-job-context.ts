@@ -46,9 +46,10 @@ export function resolvePhraseStringsProjectId(
   return externalProjectId.trim();
 }
 
-export function resolvePhraseTmsProjectUid(project: {
-  providerMetadata: Record<string, unknown>;
-}): string | null {
+export function resolvePhraseTmsProjectUid(
+  project: { providerMetadata: Record<string, unknown> },
+  externalProjectId: string,
+): string | null {
   const metadata = project.providerMetadata ?? {};
   const tmsProjectUid =
     typeof metadata.tmsProjectUid === "string" ? metadata.tmsProjectUid.trim() : "";
@@ -56,7 +57,14 @@ export function resolvePhraseTmsProjectUid(project: {
     return tmsProjectUid;
   }
 
-  return null;
+  const stringsProjectId =
+    typeof metadata.stringsProjectId === "string" ? metadata.stringsProjectId.trim() : "";
+  if (stringsProjectId) {
+    return null;
+  }
+
+  const fallback = externalProjectId.trim();
+  return fallback || null;
 }
 
 export function resolvePhraseBranch(project: { providerMetadata: Record<string, unknown> }) {
@@ -122,6 +130,5 @@ export function filterPhraseKeysForJobScope<T extends { tags: string[] }>(input:
     return input.keys;
   }
 
-  const scoped = input.keys.filter((key) => key.tags.includes(input.jobTag as string));
-  return scoped.length > 0 ? scoped : input.keys;
+  return input.keys.filter((key) => key.tags.includes(input.jobTag as string));
 }

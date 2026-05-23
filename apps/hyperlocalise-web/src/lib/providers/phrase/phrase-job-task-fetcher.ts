@@ -10,11 +10,11 @@ import {
 
 export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
   credential,
-  externalProjectId: _externalProjectId,
+  externalProjectId,
   project,
   secretMaterial,
 }) => {
-  const tmsProjectUid = resolvePhraseTmsProjectUid(project);
+  const tmsProjectUid = resolvePhraseTmsProjectUid(project, externalProjectId);
 
   if (!tmsProjectUid) {
     throw new Error("invalid_phrase_project_id");

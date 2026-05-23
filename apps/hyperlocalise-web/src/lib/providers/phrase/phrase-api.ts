@@ -431,7 +431,13 @@ export class PhraseApiClient {
 }
 
 function isPhraseTranslationConflict(error: unknown): boolean {
-  return error instanceof PhraseApiError && (error.status === 409 || error.status === 422);
+  if (!(error instanceof PhraseApiError)) return false;
+  if (error.status === 409) return true;
+  if (error.status === 422) {
+    const body = error.responseBody as { message?: string } | null;
+    return typeof body?.message === "string" && /already exist/i.test(body.message);
+  }
+  return false;
 }
 
 type PhraseProjectApiRecord = {
