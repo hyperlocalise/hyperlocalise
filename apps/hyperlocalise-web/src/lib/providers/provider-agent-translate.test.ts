@@ -144,8 +144,8 @@ describe("executeProviderAgentTranslation", () => {
 
     const run = await createAgentRun({
       organizationId: project.organizationId,
-      providerKind: "phrase",
-      externalJobId: "phrase-job-1",
+      providerKind: "lokalise",
+      externalJobId: "lokalise-job-1",
       kind: "translate",
       inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
     });

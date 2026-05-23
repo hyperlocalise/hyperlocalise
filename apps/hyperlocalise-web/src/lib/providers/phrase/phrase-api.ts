@@ -208,6 +208,97 @@ export class PhraseApiClient {
     });
   }
 
+  async createKey(
+    projectId: string,
+    input: {
+      name: string;
+      description?: string | null;
+      tags?: string[];
+      branch?: string | null;
+    },
+  ): Promise<PhraseKey> {
+    const payload: Record<string, unknown> = {
+      name: input.name,
+      description: input.description ?? null,
+      tags: input.tags ?? [],
+    };
+
+    const record = await this.post<PhraseKeyApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/keys`,
+      payload,
+      { branch: input.branch },
+    );
+
+    return normalizePhraseKey(record);
+  }
+
+  async upsertTranslation(
+    projectId: string,
+    input: {
+      keyId: string;
+      localeName: string;
+      content: string;
+      branch?: string | null;
+      unverified?: boolean;
+    },
+  ): Promise<PhraseTranslation> {
+    const listOptions = input.branch ? { branch: input.branch } : {};
+    const updatePayload = {
+      content: input.content,
+      unverified: input.unverified ?? false,
+    };
+
+    try {
+      const record = await this.post<PhraseTranslationApiRecord>(
+        `/projects/${encodeURIComponent(projectId)}/translations`,
+        {
+          key_id: input.keyId,
+          locale_name: input.localeName,
+          ...updatePayload,
+        },
+        { branch: input.branch },
+      );
+
+      return normalizePhraseTranslation(record);
+    } catch (error) {
+      if (!isPhraseTranslationConflict(error)) {
+        throw error;
+      }
+    }
+
+    const existing = await this.findTranslationForKey(
+      projectId,
+      input.keyId,
+      input.localeName,
+      listOptions,
+    );
+    if (!existing) {
+      throw new PhraseApiError(
+        `Phrase translation already exists for key ${input.keyId} in locale ${input.localeName}, but it could not be resolved for update`,
+        409,
+        null,
+      );
+    }
+
+    const record = await this.patch<PhraseTranslationApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/translations/${encodeURIComponent(existing.id)}`,
+      updatePayload,
+      { branch: input.branch },
+    );
+
+    return normalizePhraseTranslation(record);
+  }
+
+  private async findTranslationForKey(
+    projectId: string,
+    keyId: string,
+    localeName: string,
+    options: PhraseListOptions,
+  ): Promise<PhraseTranslation | null> {
+    const translations = await this.listTranslations(projectId, localeName, options);
+    return translations.find((translation) => translation.keyId === keyId) ?? null;
+  }
+
   buildLocaleDownloadMetadata(input: {
     projectId: string;
     locale: PhraseLocale;
@@ -286,6 +377,36 @@ export class PhraseApiClient {
     });
   }
 
+  private async post<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    query: Record<string, string | null | undefined> = {},
+  ): Promise<T> {
+    return this.request<T>(this.buildPath(path, query), {
+      method: "POST",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  private async patch<T>(
+    path: string,
+    payload: Record<string, unknown>,
+    query: Record<string, string | null | undefined> = {},
+  ): Promise<T> {
+    return this.request<T>(this.buildPath(path, query), {
+      method: "PATCH",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const response = await this.fetchFn(url, init);
@@ -307,6 +428,16 @@ export class PhraseApiClient {
 
     return response.json() as Promise<T>;
   }
+}
+
+function isPhraseTranslationConflict(error: unknown): boolean {
+  if (!(error instanceof PhraseApiError)) return false;
+  if (error.status === 409) return true;
+  if (error.status === 422) {
+    const body = error.responseBody as { message?: string } | null;
+    return typeof body?.message === "string" && /already exist/i.test(body.message);
+  }
+  return false;
 }
 
 type PhraseProjectApiRecord = {

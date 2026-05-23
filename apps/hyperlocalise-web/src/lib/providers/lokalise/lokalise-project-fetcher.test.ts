@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { requestUrlString } from "../fetch-mock-helpers";
 import { fetchLokaliseProjects } from "./lokalise-project-fetcher";
 
 describe("fetchLokaliseProjects", () => {
@@ -141,7 +142,7 @@ describe("fetchLokaliseProjects", () => {
 
     const languageFetches = vi
       .mocked(fetchMock)
-      .mock.calls.filter((call) => String(call[0]).includes("/languages"));
+      .mock.calls.filter((call) => requestUrlString(call[0]).includes("/languages"));
     expect(languageFetches.length).toBeLessThan(20);
   });
 
