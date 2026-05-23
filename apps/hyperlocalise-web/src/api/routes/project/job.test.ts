@@ -1385,6 +1385,54 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("creates review agent runs for review_with_agent", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-review-agent",
+      externalStatus: "todo",
+      title: "Review copy",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: { action: "review_with_agent" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      agentRun: {
+        kind: string;
+        status: string;
+        externalJobId: string;
+        inputSnapshot: Record<string, unknown>;
+      };
+    };
+    expect(body.agentRun).toMatchObject({
+      kind: "review",
+      status: "queued",
+      externalJobId: "crowdin-job-review-agent",
+      inputSnapshot: expect.objectContaining({ action: "review_with_agent" }),
+    });
+  });
+
   it("marks the agent run failed when provider translation queueing fails", async () => {
     const failingClient = testClient(
       createApp({

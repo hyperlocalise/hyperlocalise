@@ -60,6 +60,18 @@ export function isQaChecksAgentRun(inputSnapshot: Record<string, unknown> | unde
   return inputSnapshot?.action === "run_qa_checks";
 }
 
+export function isReviewWithAgentRun(inputSnapshot: Record<string, unknown> | undefined) {
+  return inputSnapshot?.action === "review_with_agent";
+}
+
+/** Agent runs that produce inspectable QA/review findings (hl check + supplemental checks). */
+export function isProviderReviewFindingsAgentRun(
+  inputSnapshot: Record<string, unknown> | undefined,
+) {
+  const action = inputSnapshot?.action;
+  return action === "review_with_agent" || action === "run_qa_checks";
+}
+
 export function formatCheckTypeLabel(checkType: ProviderQaCheckType) {
   return checkType.replaceAll("_", " ");
 }

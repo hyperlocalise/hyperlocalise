@@ -47,7 +47,7 @@ import {
   filterFindings,
   formatCheckTypeLabel,
   groupFindings,
-  isQaChecksAgentRun,
+  isProviderReviewFindingsAgentRun,
   parseQaReportFromOutputSummary,
   type QaFindingGroupBy,
   type QaFindingWithId,
@@ -167,6 +167,11 @@ function FindingRow({
                 {finding.item.field}
               </Badge>
             ) : null}
+            {typeof finding.confidence === "number" ? (
+              <Badge variant="outline" className="rounded-full text-foreground/62">
+                {Math.round(finding.confidence * 100)}% confidence
+              </Badge>
+            ) : null}
           </div>
           <p className="text-sm text-foreground/82">{finding.message}</p>
           {finding.suggestedFix ? (
@@ -237,7 +242,7 @@ export function JobQaFindingsSection({
 
     return (
       agentRuns.find(
-        (run) => isQaChecksAgentRun(run.inputSnapshot) && run.status === "succeeded",
+        (run) => isProviderReviewFindingsAgentRun(run.inputSnapshot) && run.status === "succeeded",
       ) ?? null
     );
   }, [agentRuns]);
@@ -250,7 +255,7 @@ export function JobQaFindingsSection({
     return (
       agentRuns.find(
         (run) =>
-          isQaChecksAgentRun(run.inputSnapshot) &&
+          isProviderReviewFindingsAgentRun(run.inputSnapshot) &&
           (run.status === "queued" || run.status === "running"),
       ) ?? null
     );
@@ -414,11 +419,11 @@ export function JobQaFindingsSection({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            QA Findings
+            Review findings
           </TypographyH2>
           <p className="mt-1 text-sm text-foreground/48">
-            Review issues from the latest QA run, filter by locale or check type, and act on
-            selected findings.
+            Inspect issues from agent review or QA checks before writing back to the TMS. Filter by
+            locale or check type, then act on selected findings.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
