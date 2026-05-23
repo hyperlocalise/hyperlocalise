@@ -175,6 +175,74 @@ describe("pushSmartlingProviderComments", () => {
     });
   });
 
+  it("requests only OPENED issues when checking remote duplicates", async () => {
+    const finding = sampleFinding();
+    const findingId = buildFindingId(finding);
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.endsWith("/authenticate") && method === "POST") {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/issues/list") && method === "POST") {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          issueStateCodes?: string[];
+        };
+        expect(body.issueStateCodes).toEqual(["OPENED"]);
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { items: [], totalCount: 0 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/issues") && method === "POST" && !path.endsWith("/issues/list")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { issueUid: "issue-new-1" },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pushSmartlingProviderComments({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "smartling",
+      externalProjectId: "proj-1",
+      externalJobId: "job-1",
+      secretMaterial: "user:secret:acct-1",
+      feedback: [{ findingId, finding }],
+      knownExternalIds: new Map(),
+    });
+
+    expect(result.posted).toBe(1);
+    expect(result.skipped).toBe(0);
+  });
+
   it("skips creation when Smartling already has a matching marker issue", async () => {
     const finding = sampleFinding();
     const findingId = buildFindingId(finding);

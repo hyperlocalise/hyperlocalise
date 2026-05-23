@@ -21,9 +21,7 @@ export const pushSmartlingProviderComments: ExternalTmsCommentPusher = async ({
     throw new Error("invalid_smartling_project_id");
   }
 
-  const locales = new Set(
-    feedback.map((item) => item.finding.item.locale?.trim()).filter(Boolean),
-  );
+  const locales = new Set(feedback.map((item) => item.finding.item.locale?.trim()).filter(Boolean));
   const defaultLocaleId = locales.size === 1 ? ([...locales][0] ?? null) : null;
 
   const { entries, failures: validationFailures } = buildSmartlingCommentWriteBackEntries({
@@ -67,6 +65,7 @@ export const pushSmartlingProviderComments: ExternalTmsCommentPusher = async ({
     try {
       const remoteIssues = await client.listIssues(projectId, {
         stringFilter: { hashcodes },
+        issueStateCodes: ["OPENED"],
         limit: 500,
       });
 
