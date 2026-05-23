@@ -2,11 +2,15 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   buildLokaliseProjectUrl,
+  buildLokaliseTaskUrl,
+  collectLokaliseTaskAssignees,
+  collectLokaliseTaskTargetLocales,
   extractLokaliseKeyName,
   inferFormatFromFilename,
   listLokaliseFilenameEntries,
   LokaliseApiClient,
   LokaliseApiError,
+  parseLokaliseTaskDueDate,
   partitionLokaliseLocales,
 } from "./lokalise-api";
 
@@ -149,6 +153,58 @@ describe("LokaliseApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("lists tasks with pagination and status filters", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes("/projects/proj.123/tasks?page=1")) {
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.123",
+            tasks: [
+              {
+                task_id: 42,
+                title: "Homepage",
+                status: "queued",
+                task_type: "translation",
+                languages: [
+                  {
+                    language_iso: "de",
+                    language_id: 666,
+                    language_name: "German",
+                    users: [{ user_id: 1, email: "de@example.com", fullname: "DE User" }],
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ tasks: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listTasks("proj.123", {
+      filterStatuses: ["created", "queued", "in_progress"],
+    });
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      taskId: 42,
+      title: "Homepage",
+      status: "queued",
+      taskType: "translation",
+    });
+    expect(collectLokaliseTaskTargetLocales(tasks[0]!)).toEqual(["de"]);
+    expect(collectLokaliseTaskAssignees(tasks[0]!)).toEqual(["DE User"]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lokalise.test/api2/projects/proj.123/tasks?page=1&limit=500&filter_statuses=created%2Cqueued%2Cin_progress",
+      expect.objectContaining({
+        headers: { "X-Api-Token": "test-token" },
+      }),
+    );
+  });
+
   it("throws LokaliseApiError on auth failure", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
@@ -194,6 +250,39 @@ describe("partitionLokaliseLocales", () => {
 describe("buildLokaliseProjectUrl", () => {
   it("builds the app URL for a project", () => {
     expect(buildLokaliseProjectUrl("proj.123")).toBe("https://app.lokalise.com/project/proj.123/");
+  });
+});
+
+describe("buildLokaliseTaskUrl", () => {
+  it("builds the app URL for a task", () => {
+    expect(buildLokaliseTaskUrl("proj.123", 55392)).toBe(
+      "https://app.lokalise.com/project/proj.123/?task=55392",
+    );
+  });
+});
+
+describe("parseLokaliseTaskDueDate", () => {
+  it("prefers due_date_timestamp when present", () => {
+    const dueDate = parseLokaliseTaskDueDate({
+      taskId: 1,
+      title: "Task",
+      description: null,
+      status: "queued",
+      progress: 0,
+      taskType: "translation",
+      dueDate: null,
+      dueDateTimestamp: 1_700_000_000,
+      sourceLanguageIso: null,
+      languages: [],
+      keysCount: 0,
+      wordsCount: 0,
+      createdAt: null,
+      createdAtTimestamp: null,
+      completedAt: null,
+      completedAtTimestamp: null,
+    });
+
+    expect(dueDate).toEqual(new Date(1_700_000_000 * 1000));
   });
 });
 

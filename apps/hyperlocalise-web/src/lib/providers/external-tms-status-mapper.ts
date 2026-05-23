@@ -152,7 +152,18 @@ function mapLokaliseStatus(status: string): NormalizedJobStatus {
     ].includes(status)
   )
     return "running";
-  if (["new", "pending", "created", "draft", "queued", "unassigned"].includes(status))
+  if (
+    [
+      "new",
+      "pending",
+      "created",
+      "draft",
+      "queued",
+      "unassigned",
+      "not_started",
+      "not-started",
+    ].includes(status)
+  )
     return "queued";
   if (["failed", "rejected", "error"].includes(status)) return "failed";
   if (

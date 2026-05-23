@@ -46,6 +46,40 @@ export interface LokaliseTranslation {
   isUnverified: boolean;
 }
 
+export interface LokaliseTaskLanguageUser {
+  userId: number;
+  email: string;
+  fullname: string;
+}
+
+export interface LokaliseTaskLanguage {
+  languageIso: string;
+  languageId: number;
+  languageName: string;
+  status: string;
+  progress: number;
+  users: LokaliseTaskLanguageUser[];
+}
+
+export interface LokaliseTask {
+  taskId: number;
+  title: string;
+  description: string | null;
+  status: string;
+  progress: number;
+  taskType: string;
+  dueDate: string | null;
+  dueDateTimestamp: number | null;
+  sourceLanguageIso: string | null;
+  languages: LokaliseTaskLanguage[];
+  keysCount: number;
+  wordsCount: number;
+  createdAt: string | null;
+  createdAtTimestamp: number | null;
+  completedAt: string | null;
+  completedAtTimestamp: number | null;
+}
+
 export interface LokaliseKey {
   keyId: number;
   keyName: LokalisePlatformStrings;
@@ -148,6 +182,40 @@ export class LokaliseApiClient {
     return keys;
   }
 
+  async listTasks(
+    projectId: string,
+    options?: { filterStatuses?: string[] },
+  ): Promise<LokaliseTask[]> {
+    const tasks: LokaliseTask[] = [];
+    let page = 1;
+    const limit = 500;
+    const filterStatuses = options?.filterStatuses?.join(",") ?? null;
+
+    while (true) {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+      });
+      if (filterStatuses) {
+        params.set("filter_statuses", filterStatuses);
+      }
+
+      const response = await this.get<LokaliseTasksListResponse>(
+        `/projects/${encodeURIComponent(projectId)}/tasks?${params.toString()}`,
+      );
+      const pageItems = (response.tasks ?? []).map(normalizeLokaliseTask);
+      tasks.push(...pageItems);
+
+      if (pageItems.length < limit) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return tasks;
+  }
+
   async listProjectLanguages(projectId: string): Promise<LokaliseLanguage[]> {
     const languages: LokaliseLanguage[] = [];
     let page = 1;
@@ -222,6 +290,45 @@ type LokaliseProjectsListResponse = {
   projects?: LokaliseProjectApiRecord[];
 };
 
+type LokaliseTasksListResponse = {
+  project_id?: string;
+  tasks?: LokaliseTaskApiRecord[];
+};
+
+type LokaliseTaskLanguageUserApiRecord = {
+  user_id?: number;
+  email?: string;
+  fullname?: string;
+};
+
+type LokaliseTaskLanguageApiRecord = {
+  language_iso?: string;
+  language_id?: number;
+  language_name?: string;
+  status?: string;
+  progress?: number;
+  users?: LokaliseTaskLanguageUserApiRecord[];
+};
+
+type LokaliseTaskApiRecord = {
+  task_id: number;
+  title: string;
+  description?: string | null;
+  status: string;
+  progress?: number;
+  task_type?: string;
+  due_date?: string | null;
+  due_date_timestamp?: number | null;
+  source_language_iso?: string | null;
+  languages?: LokaliseTaskLanguageApiRecord[];
+  keys_count?: number;
+  words_count?: number;
+  created_at?: string | null;
+  created_at_timestamp?: number | null;
+  completed_at?: string | null;
+  completed_at_timestamp?: number | null;
+};
+
 type LokaliseLanguagesListResponse = {
   project_id?: string;
   languages?: LokaliseLanguageApiRecord[];
@@ -284,6 +391,50 @@ type LokaliseLanguageApiRecord = {
   lang_name: string;
   is_rtl?: boolean;
 };
+
+function normalizeLokaliseTask(record: LokaliseTaskApiRecord): LokaliseTask {
+  return {
+    taskId: record.task_id,
+    title: record.title,
+    description: record.description ?? null,
+    status: record.status,
+    progress: record.progress ?? 0,
+    taskType: record.task_type ?? "translation",
+    dueDate: record.due_date ?? null,
+    dueDateTimestamp: record.due_date_timestamp ?? null,
+    sourceLanguageIso: record.source_language_iso ?? null,
+    languages: (record.languages ?? []).map(normalizeLokaliseTaskLanguage),
+    keysCount: record.keys_count ?? 0,
+    wordsCount: record.words_count ?? 0,
+    createdAt: record.created_at ?? null,
+    createdAtTimestamp: record.created_at_timestamp ?? null,
+    completedAt: record.completed_at ?? null,
+    completedAtTimestamp: record.completed_at_timestamp ?? null,
+  };
+}
+
+function normalizeLokaliseTaskLanguage(
+  record: LokaliseTaskLanguageApiRecord,
+): LokaliseTaskLanguage {
+  return {
+    languageIso: record.language_iso?.trim() ?? "",
+    languageId: record.language_id ?? 0,
+    languageName: record.language_name?.trim() ?? "",
+    status: record.status?.trim() ?? "",
+    progress: record.progress ?? 0,
+    users: (record.users ?? []).map(normalizeLokaliseTaskLanguageUser),
+  };
+}
+
+function normalizeLokaliseTaskLanguageUser(
+  record: LokaliseTaskLanguageUserApiRecord,
+): LokaliseTaskLanguageUser {
+  return {
+    userId: record.user_id ?? 0,
+    email: record.email?.trim() ?? "",
+    fullname: record.fullname?.trim() ?? "",
+  };
+}
 
 function normalizeLokaliseProject(record: LokaliseProjectApiRecord): LokaliseProject {
   return {
@@ -432,4 +583,40 @@ export function partitionLokaliseLocales(
 
 export function buildLokaliseProjectUrl(projectId: string) {
   return `https://app.lokalise.com/project/${encodeURIComponent(projectId)}/`;
+}
+
+export function buildLokaliseTaskUrl(projectId: string, taskId: number | string) {
+  return `https://app.lokalise.com/project/${encodeURIComponent(projectId)}/?task=${encodeURIComponent(String(taskId))}`;
+}
+
+export function collectLokaliseTaskAssignees(task: LokaliseTask) {
+  const assignees = new Set<string>();
+  for (const language of task.languages) {
+    for (const user of language.users) {
+      const label = user.fullname || user.email;
+      if (label) {
+        assignees.add(label);
+      }
+    }
+  }
+  return [...assignees];
+}
+
+export function collectLokaliseTaskTargetLocales(task: LokaliseTask) {
+  return task.languages
+    .map((language) => language.languageIso.trim())
+    .filter((locale): locale is string => Boolean(locale));
+}
+
+export function parseLokaliseTaskDueDate(task: LokaliseTask) {
+  if (task.dueDateTimestamp != null && task.dueDateTimestamp > 0) {
+    return new Date(task.dueDateTimestamp * 1000);
+  }
+
+  if (!task.dueDate) {
+    return null;
+  }
+
+  const parsed = new Date(task.dueDate);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
