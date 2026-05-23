@@ -6,6 +6,7 @@
  */
 
 import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
+import { uniqueLocales } from "./smartling-locales";
 
 const DEFAULT_AUTH_BASE_URL = "https://api.smartling.com/auth-api/v2";
 const DEFAULT_ACCOUNTS_BASE_URL = "https://api.smartling.com/accounts-api/v2";
@@ -704,7 +705,10 @@ export class SmartlingApiClient {
           limit: String(limit),
           offset: String(offset),
         });
-        const data = await this.get<{ items?: SmartlingGlossaryEntry[]; totalCount?: number }>(
+        const data = await this.get<{
+          items?: Array<Record<string, unknown>>;
+          totalCount?: number;
+        }>(
           `${this.glossaryBaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/entries?${params.toString()}`,
           token,
         );
@@ -731,7 +735,7 @@ export class SmartlingApiClient {
 
     const token = await this.getAccessToken();
     try {
-      const data = await this.post<{ items?: SmartlingGlossaryEntry[] }>(
+      const data = await this.post<{ items?: Array<Record<string, unknown>> }>(
         `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(input.accountUid)}/glossaries/${encodeURIComponent(input.glossaryUid)}/entries/search`,
         token,
         { query },
@@ -783,11 +787,11 @@ export class SmartlingApiClient {
     options: {
       sourceLocaleId: string;
       targetLocaleIds: string[];
-      shouldStop?: (entries: SmartlingTranslationMemoryEntry[]) => boolean;
+      shouldStop?: (page: SmartlingTranslationMemoryEntry[]) => boolean;
     },
   ): Promise<SmartlingTranslationMemoryEntry[]> {
     const entries: SmartlingTranslationMemoryEntry[] = [];
-    const targetLocaleIds = uniqueSmartlingLocales(options.targetLocaleIds);
+    const targetLocaleIds = uniqueLocales(options.targetLocaleIds);
     const targetLocaleParam = targetLocaleIds.length > 0 ? targetLocaleIds.join(",") : "";
 
     await paginateSmartlingList({
@@ -802,7 +806,7 @@ export class SmartlingApiClient {
           params.set("targetLocaleIds", targetLocaleParam);
         }
         const data = await this.get<{
-          items?: SmartlingTranslationMemoryEntry[];
+          items?: Array<Record<string, unknown>>;
           totalCount?: number;
         }>(
           `${this.tmBaseUrl}/accounts/${encodeURIComponent(accountUid)}/translation-memories/${encodeURIComponent(translationMemoryUid)}/entries?${params.toString()}`,
@@ -815,7 +819,7 @@ export class SmartlingApiClient {
       },
       onPage: (page) => {
         entries.push(...page);
-        if (options.shouldStop?.(entries)) {
+        if (options.shouldStop?.(page)) {
           return true;
         }
         return false;
@@ -1084,9 +1088,7 @@ function readSmartlingLocaleIds(item: Record<string, unknown>) {
     return [];
   }
 
-  return uniqueSmartlingLocales(
-    localeIds.filter((locale): locale is string => typeof locale === "string"),
-  );
+  return uniqueLocales(localeIds.filter((locale): locale is string => typeof locale === "string"));
 }
 
 function normalizeSmartlingGlossarySummary(
@@ -1102,18 +1104,34 @@ function normalizeSmartlingGlossarySummary(
   };
 }
 
-function normalizeSmartlingGlossaryEntry(item: SmartlingGlossaryEntry): SmartlingGlossaryEntry {
+function normalizeSmartlingGlossaryEntry(item: Record<string, unknown>): SmartlingGlossaryEntry {
+  const translationsRaw = item.translations;
+  const translations = Array.isArray(translationsRaw)
+    ? translationsRaw
+        .filter(
+          (translation): translation is Record<string, unknown> =>
+            typeof translation === "object" && translation !== null,
+        )
+        .map(normalizeSmartlingGlossaryTranslation)
+    : [];
+
   return {
-    entryUid: item.entryUid,
-    term: item.term ?? "",
-    definition: item.definition ?? null,
-    partOfSpeech: item.partOfSpeech ?? null,
-    translations: (item.translations ?? []).map((translation) => ({
-      localeId: translation.localeId,
-      term: translation.term ?? "",
-      notes: translation.notes ?? null,
-      definition: translation.definition ?? null,
-    })),
+    entryUid: readSmartlingUid(item, "entryUid", "entryUID", "uid"),
+    term: readSmartlingString(item, "term") ?? "",
+    definition: readSmartlingString(item, "definition"),
+    partOfSpeech: readSmartlingString(item, "partOfSpeech"),
+    translations,
+  };
+}
+
+function normalizeSmartlingGlossaryTranslation(
+  item: Record<string, unknown>,
+): SmartlingGlossaryTranslation {
+  return {
+    localeId: readSmartlingString(item, "localeId") ?? "",
+    term: readSmartlingString(item, "term") ?? "",
+    notes: readSmartlingString(item, "notes"),
+    definition: readSmartlingString(item, "definition"),
   };
 }
 
@@ -1137,33 +1155,34 @@ function normalizeSmartlingTranslationMemorySummary(
 }
 
 function normalizeSmartlingTranslationMemoryEntry(
-  item: SmartlingTranslationMemoryEntry,
+  item: Record<string, unknown>,
 ): SmartlingTranslationMemoryEntry {
+  const translationsRaw = item.translations;
+  const translations = Array.isArray(translationsRaw)
+    ? translationsRaw
+        .filter(
+          (translation): translation is Record<string, unknown> =>
+            typeof translation === "object" && translation !== null,
+        )
+        .map(normalizeSmartlingTranslationMemoryTranslation)
+    : [];
+
   return {
-    entryUid: item.entryUid,
-    sourceText: item.sourceText ?? "",
-    sourceLocaleId: item.sourceLocaleId,
-    translations: (item.translations ?? []).map((translation) => ({
-      targetLocaleId: translation.targetLocaleId,
-      translationText: translation.translationText ?? "",
-    })),
+    entryUid: readSmartlingUid(item, "entryUid", "entryUID", "uid"),
+    sourceText: readSmartlingString(item, "sourceText") ?? "",
+    sourceLocaleId: readSmartlingString(item, "sourceLocaleId") ?? "",
+    translations,
   };
 }
 
-export function uniqueSmartlingLocales(locales: string[]): string[] {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-
-  for (const locale of locales) {
-    const trimmed = locale.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    unique.push(trimmed);
-  }
-
-  return unique;
+function normalizeSmartlingTranslationMemoryTranslation(
+  item: Record<string, unknown>,
+): SmartlingTranslationMemoryTranslation {
+  return {
+    targetLocaleId:
+      readSmartlingString(item, "targetLocaleId") ?? readSmartlingString(item, "localeId") ?? "",
+    translationText: readSmartlingString(item, "translationText") ?? "",
+  };
 }
 
 export function scoreSmartlingTextMatch(sourceText: string, candidateText: string) {

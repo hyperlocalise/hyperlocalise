@@ -1,6 +1,8 @@
 import { parseSmartlingCredentials } from "./smartling-credentials";
 import { SmartlingApiClient } from "./smartling-api";
 
+export { uniqueLocales } from "./smartling-locales";
+
 type SmartlingProjectLike = {
   sourceLocale?: string | null;
   targetLocales?: string[] | null;
@@ -39,20 +41,4 @@ export async function resolveSmartlingAccountUid(input: {
 function readMetadataAccountUid(metadata: Record<string, unknown> | null | undefined) {
   const accountUid = metadata?.accountUid;
   return typeof accountUid === "string" && accountUid.trim() ? accountUid.trim() : null;
-}
-
-export function uniqueLocales(locales: string[]): string[] {
-  const seen = new Set<string>();
-  const unique: string[] = [];
-
-  for (const locale of locales) {
-    const trimmed = locale.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    unique.push(trimmed);
-  }
-
-  return unique;
 }
