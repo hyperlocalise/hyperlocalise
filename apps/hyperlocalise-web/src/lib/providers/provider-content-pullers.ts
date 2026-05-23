@@ -1,5 +1,6 @@
 import { pullCrowdinTaskContent } from "@/lib/providers/crowdin/crowdin-content-puller";
 import type { ExternalTmsContentPuller } from "@/lib/providers/external-tms-content-sync";
+import { pullLokaliseTaskContent } from "@/lib/providers/lokalise/lokalise-content-puller";
 import { pullPhraseTaskContent } from "@/lib/providers/phrase/phrase-content-puller";
 import { pullSmartlingTaskContent } from "@/lib/providers/smartling/smartling-content-puller";
 
@@ -15,6 +16,8 @@ export function getProviderContentPuller(
       return pullPhraseTaskContent;
     case "smartling":
       return pullSmartlingTaskContent;
+    case "lokalise":
+      return pullLokaliseTaskContent;
     default:
       return null;
   }

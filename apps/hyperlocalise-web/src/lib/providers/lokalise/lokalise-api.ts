@@ -94,6 +94,39 @@ export interface LokaliseTask {
   completedAtTimestamp: number | null;
 }
 
+export interface LokaliseDetailedTaskLanguage extends LokaliseTaskLanguage {
+  keyIds: number[];
+}
+
+export interface LokaliseDetailedTask extends LokaliseTask {
+  languages: LokaliseDetailedTaskLanguage[];
+}
+
+export type LokaliseBulkUpdateTranslation = {
+  languageIso: string;
+  translation: string;
+  isUnverified?: boolean;
+  isReviewed?: boolean;
+};
+
+export type LokaliseBulkUpdateKey = {
+  keyId: number;
+  translations: LokaliseBulkUpdateTranslation[];
+};
+
+export type LokaliseFileDownloadRequest = {
+  format: string;
+  originalFilenames?: boolean;
+  bundleStructure?: string;
+  filterLangs?: string[];
+  filterFilenames?: string[];
+};
+
+export type LokaliseFileDownloadResult = {
+  bundleUrl: string;
+  warning: string | null;
+};
+
 export interface LokaliseKey {
   keyId: number;
   keyName: LokalisePlatformStrings;
@@ -163,12 +196,20 @@ export class LokaliseApiClient {
 
   async listKeys(
     projectId: string,
-    options?: { includeTranslations?: boolean },
+    options?: {
+      includeTranslations?: boolean;
+      filterKeyIds?: number[];
+      filterTranslationLangIds?: number[];
+    },
   ): Promise<LokaliseKey[]> {
     const keys: LokaliseKey[] = [];
     let cursor = "";
     const limit = 500;
     const includeTranslations = options?.includeTranslations ?? true;
+    const filterKeyIds = options?.filterKeyIds?.length ? options.filterKeyIds.join(",") : null;
+    const filterTranslationLangIds = options?.filterTranslationLangIds?.length
+      ? options.filterTranslationLangIds.join(",")
+      : null;
 
     while (true) {
       const params = new URLSearchParams({
@@ -178,6 +219,12 @@ export class LokaliseApiClient {
       });
       if (cursor) {
         params.set("cursor", cursor);
+      }
+      if (filterKeyIds) {
+        params.set("filter_key_ids", filterKeyIds);
+      }
+      if (filterTranslationLangIds) {
+        params.set("filter_translation_lang_ids", filterTranslationLangIds);
       }
 
       const { body, nextCursor } = await this.getWithPagination<LokaliseKeysListResponse>(
@@ -235,6 +282,87 @@ export class LokaliseApiClient {
     }
 
     return tasks;
+  }
+
+  async getTask(projectId: string, taskId: number): Promise<LokaliseDetailedTask> {
+    const response = await this.get<LokaliseTaskGetResponse>(
+      `/projects/${encodeURIComponent(projectId)}/tasks/${encodeURIComponent(String(taskId))}`,
+    );
+    if (!response.task) {
+      throw new LokaliseApiError(
+        `Lokalise task ${taskId} was not found in project ${projectId}`,
+        404,
+        response,
+      );
+    }
+
+    return normalizeLokaliseDetailedTask(response.task);
+  }
+
+  async bulkUpdateKeys(projectId: string, keys: LokaliseBulkUpdateKey[]) {
+    if (keys.length === 0) {
+      return { keys: [] as LokaliseKey[], errors: {} as Record<string, unknown> };
+    }
+
+    const body = {
+      keys: keys.map((key) => ({
+        key_id: key.keyId,
+        translations: key.translations.map((translation) => ({
+          language_iso: translation.languageIso,
+          translation: translation.translation,
+          ...(translation.isUnverified != null ? { is_unverified: translation.isUnverified } : {}),
+          ...(translation.isReviewed != null ? { is_reviewed: translation.isReviewed } : {}),
+        })),
+      })),
+    };
+
+    return this.put<LokaliseBulkUpdateKeysResponse>(
+      `/projects/${encodeURIComponent(projectId)}/keys`,
+      body,
+    );
+  }
+
+  async requestFileDownload(
+    projectId: string,
+    request: LokaliseFileDownloadRequest,
+  ): Promise<LokaliseFileDownloadResult> {
+    const response = await this.post<LokaliseFileDownloadResponse>(
+      `/projects/${encodeURIComponent(projectId)}/files/download`,
+      {
+        format: request.format,
+        original_filenames: request.originalFilenames ?? false,
+        bundle_structure: request.bundleStructure ?? LOKALISE_DEFAULT_BUNDLE_STRUCTURE,
+        ...(request.filterLangs?.length ? { filter_langs: request.filterLangs } : {}),
+        ...(request.filterFilenames?.length ? { filter_filenames: request.filterFilenames } : {}),
+      },
+    );
+
+    const bundleUrl = response.bundle_url?.trim() ?? "";
+    if (!bundleUrl) {
+      throw new LokaliseApiError(
+        `Lokalise file download for project ${projectId} did not return a bundle URL`,
+        502,
+        response,
+      );
+    }
+
+    return {
+      bundleUrl,
+      warning: response.warning?.trim() || null,
+    };
+  }
+
+  async downloadUrl(url: string): Promise<ArrayBuffer> {
+    const response = await this.fetchFn(url, { method: "GET" });
+    if (!response.ok) {
+      throw new LokaliseApiError(
+        `Failed to download Lokalise bundle from ${url}`,
+        response.status,
+        null,
+      );
+    }
+
+    return response.arrayBuffer();
   }
 
   async listProjectLanguages(projectId: string): Promise<LokaliseLanguage[]> {
@@ -305,6 +433,30 @@ export class LokaliseApiClient {
     const nextCursor = response.headers.get("X-Pagination-Next-Cursor")?.trim() || null;
     return { body, nextCursor };
   }
+
+  private async post<T>(path: string, payload: unknown): Promise<T> {
+    const { body } = await this.request<T>(path, {
+      method: "POST",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return body;
+  }
+
+  private async put<T>(path: string, payload: unknown): Promise<T> {
+    const { body } = await this.request<T>(path, {
+      method: "PUT",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return body;
+  }
 }
 
 type LokaliseProjectsListResponse = {
@@ -314,6 +466,31 @@ type LokaliseProjectsListResponse = {
 type LokaliseTasksListResponse = {
   project_id?: string;
   tasks?: LokaliseTaskApiRecord[];
+};
+
+type LokaliseTaskGetResponse = {
+  project_id?: string;
+  task?: LokaliseDetailedTaskApiRecord;
+};
+
+type LokaliseDetailedTaskApiRecord = LokaliseTaskApiRecord & {
+  languages?: LokaliseDetailedTaskLanguageApiRecord[];
+};
+
+type LokaliseDetailedTaskLanguageApiRecord = LokaliseTaskLanguageApiRecord & {
+  keys?: number[];
+};
+
+type LokaliseBulkUpdateKeysResponse = {
+  project_id?: string;
+  keys?: LokaliseKeyApiRecord[];
+  errors?: Record<string, unknown>;
+};
+
+type LokaliseFileDownloadResponse = {
+  project_id?: string;
+  bundle_url?: string;
+  warning?: string | null;
 };
 
 type LokaliseTaskLanguageUserApiRecord = {
@@ -412,6 +589,25 @@ type LokaliseLanguageApiRecord = {
   lang_name: string;
   is_rtl?: boolean;
 };
+
+function normalizeLokaliseDetailedTask(
+  record: LokaliseDetailedTaskApiRecord,
+): LokaliseDetailedTask {
+  const task = normalizeLokaliseTask(record);
+  return {
+    ...task,
+    languages: (record.languages ?? task.languages).map(normalizeLokaliseDetailedTaskLanguage),
+  };
+}
+
+function normalizeLokaliseDetailedTaskLanguage(
+  record: LokaliseDetailedTaskLanguageApiRecord,
+): LokaliseDetailedTaskLanguage {
+  return {
+    ...normalizeLokaliseTaskLanguage(record),
+    keyIds: record.keys ?? [],
+  };
+}
 
 function normalizeLokaliseTask(record: LokaliseTaskApiRecord): LokaliseTask {
   return {
@@ -645,6 +841,32 @@ export function collectLokaliseTaskTargetLocales(task: LokaliseTask) {
   return task.languages
     .map((language) => language.languageIso.trim())
     .filter((locale): locale is string => Boolean(locale));
+}
+
+export function collectLokaliseTaskKeyIds(task: Pick<LokaliseDetailedTask, "languages">) {
+  const keyIds = new Set<number>();
+  for (const language of task.languages) {
+    for (const keyId of language.keyIds) {
+      if (keyId > 0) {
+        keyIds.add(keyId);
+      }
+    }
+  }
+  return [...keyIds];
+}
+
+export function parseLokaliseExternalJobId(externalJobId: string) {
+  const trimmed = externalJobId.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const taskId = Number(trimmed);
+  if (!Number.isInteger(taskId) || taskId <= 0) {
+    return null;
+  }
+
+  return { taskId };
 }
 
 export function parseLokaliseTaskDueDate(task: LokaliseTask) {
