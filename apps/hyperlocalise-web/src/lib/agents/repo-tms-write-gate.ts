@@ -20,8 +20,8 @@ const adminRoles = new Set(["owner", "admin"]);
  *
  * Rules:
  * - read_only: all writes are denied.
- * - slack: repo/TMS workflows are read-only from Slack, so writes are denied
- *   even if a malformed or legacy task carries a write-capable mode.
+ * - slack: allow write actions for workspace admins/owners; regular members
+ *   should be enqueued in read_only mode and are denied if a task is malformed.
  * - write: allow GitHub requests that passed adapter-level permission checks.
  * - approval_required: keep GitHub admin-gated.
  *
@@ -49,17 +49,34 @@ export function checkRepoTmsWriteGate(input: {
     return checkGitHubWriteGate(input.workMode, input.actor);
   }
 
-  // chat_ui: same as Slack — require a verified workspace member role.
-  return checkSlackWriteGate(input.workMode, input.actor);
+  // chat_ui: require a verified workspace member role.
+  return checkVerifiedMemberWriteGate(input.actor);
 }
 
 function checkSlackWriteGate(
   _workMode: RepoTmsAgentWorkMode,
-  _actor: RepoTmsAgentActor,
+  actor: RepoTmsAgentActor,
 ): WriteGateResult {
+  if (actor.role && adminRoles.has(actor.role)) {
+    return { allowed: true };
+  }
+
   return {
     allowed: false,
-    reason: "Slack-triggered repo/TMS workflows are read-only. Write actions are not permitted.",
+    reason:
+      "Slack-triggered write actions require admin or owner privileges. Regular members run in read-only mode.",
+  };
+}
+
+function checkVerifiedMemberWriteGate(actor: RepoTmsAgentActor): WriteGateResult {
+  const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
+  if (isMember) {
+    return { allowed: true };
+  }
+
+  return {
+    allowed: false,
+    reason: "Write actions require a verified workspace member.",
   };
 }
 

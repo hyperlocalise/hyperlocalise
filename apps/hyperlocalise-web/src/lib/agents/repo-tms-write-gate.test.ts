@@ -31,7 +31,7 @@ describe("checkRepoTmsWriteGate", () => {
     expect(deniedReason(result)).toContain("read-only");
   });
 
-  it("denies Slack write for admin role in write mode", () => {
+  it("allows Slack write for admin role in write mode", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "write",
       source: "slack",
@@ -39,11 +39,10 @@ describe("checkRepoTmsWriteGate", () => {
       action: "commit_changes",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(result.allowed).toBe(true);
   });
 
-  it("denies Slack write for owner role in write mode", () => {
+  it("allows Slack write for owner role in write mode", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "write",
       source: "slack",
@@ -51,8 +50,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "push_to_branch",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(result.allowed).toBe(true);
   });
 
   it("denies Slack write for member role in write mode", () => {
@@ -64,7 +62,7 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(deniedReason(result)).toContain("admin or owner privileges");
   });
 
   it("denies Slack write when role is missing in write mode", () => {
@@ -76,10 +74,10 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(deniedReason(result)).toContain("admin or owner privileges");
   });
 
-  it("denies Slack approval_required for admin role", () => {
+  it("allows Slack approval_required for admin role", () => {
     const result = checkRepoTmsWriteGate({
       workMode: "approval_required",
       source: "slack",
@@ -87,8 +85,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "upload_sources",
     });
 
-    expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(result.allowed).toBe(true);
   });
 
   it("denies legacy Slack approval_required for member role", () => {
@@ -100,7 +97,7 @@ describe("checkRepoTmsWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("Slack-triggered repo/TMS workflows are read-only");
+    expect(deniedReason(result)).toContain("admin or owner privileges");
   });
 
   it("allows GitHub write mode for any role", () => {
@@ -145,7 +142,7 @@ describe("checkRepoTmsWriteGate", () => {
       action: "apply_fixes",
     });
 
-    expect(result.allowed).toBe(false);
+    expect(result.allowed).toBe(true);
   });
 });
 
