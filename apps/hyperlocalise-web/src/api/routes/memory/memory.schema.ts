@@ -57,6 +57,7 @@ export const memoryResponseSchema = z.object({
 
 export const memoriesResponseSchema = z.object({
   memories: z.array(memoryRecordSchema),
+  total: z.number().int().nonnegative(),
 });
 
 export type MemoryIdParams = z.infer<typeof memoryIdParamsSchema>;
