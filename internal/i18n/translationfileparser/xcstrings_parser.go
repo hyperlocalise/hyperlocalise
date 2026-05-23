@@ -59,7 +59,8 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 	out := map[string]string{}
 	contextByKey := map[string]string{}
 	for _, key := range sortedXCStringsKeys(stringsNode) {
-		entry, err := xcstringsObjectValue(stringsNode[key], fmt.Sprintf("strings.%s", key))
+		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+		entry, err := xcstringsObjectValue(stringsNode[key], "strings."+key)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -97,7 +98,8 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 		if !ok {
 			continue
 		}
-		loc, err := xcstringsObjectValue(locRaw, fmt.Sprintf("strings.%s.localizations.%s", key, locale))
+		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+		loc, err := xcstringsObjectValue(locRaw, "strings."+key+".localizations."+locale)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -174,7 +176,8 @@ func xcstringsSourceLeafRefs(entryKey string, entry map[string]any, sourceLangua
 
 	if sourceLanguage != "" {
 		if raw, ok := locs[sourceLanguage]; ok {
-			loc, err := xcstringsObjectValue(raw, fmt.Sprintf("localizations.%s", sourceLanguage))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			loc, err := xcstringsObjectValue(raw, "localizations."+sourceLanguage)
 			if err != nil {
 				return nil, err
 			}
@@ -197,7 +200,8 @@ func xcstringsSourceLeafRefs(entryKey string, entry map[string]any, sourceLangua
 
 	if len(locs) == 1 {
 		for locName, raw := range locs {
-			loc, err := xcstringsObjectValue(raw, fmt.Sprintf("localizations.%s", locName))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			loc, err := xcstringsObjectValue(raw, "localizations."+locName)
 			if err != nil {
 				return nil, err
 			}
@@ -227,7 +231,8 @@ func xcstringsValueForRef(entry map[string]any, sourceLanguage string, ref xcstr
 
 	if sourceLanguage != "" {
 		if raw, ok := locs[sourceLanguage]; ok {
-			loc, err := xcstringsObjectValue(raw, fmt.Sprintf("localizations.%s", sourceLanguage))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			loc, err := xcstringsObjectValue(raw, "localizations."+sourceLanguage)
 			if err != nil {
 				return "", false, err
 			}
@@ -238,7 +243,8 @@ func xcstringsValueForRef(entry map[string]any, sourceLanguage string, ref xcstr
 
 	if len(locs) == 1 {
 		for locName, raw := range locs {
-			loc, err := xcstringsObjectValue(raw, fmt.Sprintf("localizations.%s", locName))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			loc, err := xcstringsObjectValue(raw, "localizations."+locName)
 			if err != nil {
 				return "", false, err
 			}
@@ -307,12 +313,14 @@ func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstri
 	}
 	if ok {
 		for _, dimension := range sortedXCStringsKeys(variations) {
-			options, err := xcstringsObjectValue(variations[dimension], fmt.Sprintf("variations.%s", dimension))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			options, err := xcstringsObjectValue(variations[dimension], "variations."+dimension)
 			if err != nil {
 				return 0, err
 			}
 			for _, option := range sortedXCStringsKeys(options) {
-				child, err := xcstringsObjectValue(options[option], fmt.Sprintf("variations.%s.%s", dimension, option))
+				// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+				child, err := xcstringsObjectValue(options[option], "variations."+dimension+"."+option)
 				if err != nil {
 					return 0, err
 				}
@@ -332,7 +340,8 @@ func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstri
 	}
 	if ok {
 		for _, name := range sortedXCStringsKeys(substitutions) {
-			child, err := xcstringsObjectValue(substitutions[name], fmt.Sprintf("substitutions.%s", name))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			child, err := xcstringsObjectValue(substitutions[name], "substitutions."+name)
 			if err != nil {
 				return 0, err
 			}
@@ -359,12 +368,14 @@ func collectXCStringsVariationLeaves(baseKey string, loc map[string]any, out map
 
 	count := 0
 	for _, dimension := range sortedXCStringsKeys(variations) {
-		options, err := xcstringsObjectValue(variations[dimension], fmt.Sprintf("variations.%s", dimension))
+		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+		options, err := xcstringsObjectValue(variations[dimension], "variations."+dimension)
 		if err != nil {
 			return 0, err
 		}
 		for _, option := range sortedXCStringsKeys(options) {
-			child, err := xcstringsObjectValue(options[option], fmt.Sprintf("variations.%s.%s", dimension, option))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			child, err := xcstringsObjectValue(options[option], "variations."+dimension+"."+option)
 			if err != nil {
 				return 0, err
 			}
@@ -390,7 +401,8 @@ func collectXCStringsSubstitutionLeaves(baseKey string, loc map[string]any, out 
 
 	count := 0
 	for _, name := range sortedXCStringsKeys(substitutions) {
-		child, err := xcstringsObjectValue(substitutions[name], fmt.Sprintf("substitutions.%s", name))
+		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+		child, err := xcstringsObjectValue(substitutions[name], "substitutions."+name)
 		if err != nil {
 			return 0, err
 		}
@@ -429,7 +441,8 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 			if !ok {
 				return "", false, nil
 			}
-			options, err := xcstringsObjectValue(rawOptions, fmt.Sprintf("variations.%s", step.name))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			options, err := xcstringsObjectValue(rawOptions, "variations."+step.name)
 			if err != nil {
 				return "", false, err
 			}
@@ -437,7 +450,8 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 			if !ok {
 				return "", false, nil
 			}
-			next, err := xcstringsObjectValue(rawNext, fmt.Sprintf("variations.%s.%s", step.name, step.option))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			next, err := xcstringsObjectValue(rawNext, "variations."+step.name+"."+step.option)
 			if err != nil {
 				return "", false, err
 			}
@@ -451,7 +465,8 @@ func xcstringsValueAtSteps(loc map[string]any, steps []xcstringsPathStep) (strin
 			if !ok {
 				return "", false, nil
 			}
-			next, err := xcstringsObjectValue(rawNext, fmt.Sprintf("substitutions.%s", step.name))
+			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			next, err := xcstringsObjectValue(rawNext, "substitutions."+step.name)
 			if err != nil {
 				return "", false, err
 			}
@@ -577,7 +592,8 @@ func MarshalXCStrings(template, sourceTemplate []byte, values map[string]string,
 	}
 
 	for _, key := range sortedXCStringsKeys(sourceStrings) {
-		sourceEntry, err := xcstringsObjectValue(sourceStrings[key], fmt.Sprintf("source strings.%s", key))
+		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+		sourceEntry, err := xcstringsObjectValue(sourceStrings[key], "source strings."+key)
 		if err != nil {
 			return nil, err
 		}

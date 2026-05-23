@@ -163,6 +163,21 @@ describe("repoTmsAgentWorkflow", () => {
     );
   });
 
+  it("adds read-only guidance to read-only repo workflows", async () => {
+    await repoTmsAgentWorkflow({
+      ...baseTask,
+      githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
+    } as never);
+
+    expect(buildHyperlocaliseAgentInstructionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalInstructions: expect.stringContaining(
+          "This workflow is read-only. Gather repository and TMS context",
+        ),
+      }),
+    );
+  });
+
   it("captures failures from tool execution", async () => {
     generateMock.mockRejectedValueOnce(new Error("tool failed"));
 

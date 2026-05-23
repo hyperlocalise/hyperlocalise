@@ -670,6 +670,46 @@ func TestFileAdapterDownloadTranslationsMergeApprovedEmptyPayloadPreservesExisti
 	}
 }
 
+func TestFileAdapterDownloadTranslationsMergeApprovedSkipsMissingTargetWhenOnlySourceFallbacks(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello","bye":"Bye"}`)
+	targetPath := filepath.Join(base, "download", "fr", "messages.json")
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:     map[string]int{"src": 1},
+		failFindMissing: true,
+		downloadPayload: []byte(`{"hello":"Hello","bye":"Bye"}`),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/*.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	if _, err := adapter.UploadSources(context.Background(), storage.FileUploadSourcesRequest{}); err != nil {
+		t.Fatalf("upload sources: %v", err)
+	}
+	result, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{MergeApproved: true})
+	if err != nil {
+		t.Fatalf("download translations: %v", err)
+	}
+	if len(result.Processed) != 0 {
+		t.Fatalf("processed = %#v, want none", result.Processed)
+	}
+	if got, want := result.Skipped, []string{"src/messages.json@fr"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("skipped = %#v, want %#v", got, want)
+	}
+	if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+		t.Fatalf("target file should not be created, stat err=%v", err)
+	}
+}
+
 func TestFileAdapterDownloadTranslationsMergeApprovedRejectsDownloadedJSONArray(t *testing.T) {
 	base := t.TempDir()
 	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)

@@ -954,6 +954,7 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	if err != nil {
 		return UpsertTranslationsResult{}, err
 	}
+	var languageIDByLocale map[string]string
 	translationsByTarget := make(map[translationLookupKey]map[string]struct{}, len(in.Entries))
 	result := UpsertTranslationsResult{
 		Applied:  make([]int, 0, len(in.Entries)),
@@ -962,7 +963,7 @@ func (c *HTTPClient) UpsertTranslations(ctx context.Context, in UpsertTranslatio
 	}
 
 	for idx, entry := range in.Entries {
-		outcome, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, translationsByTarget)
+		outcome, upsertErr := c.upsertTranslationEntry(ctx, projectID, entry, sourceByKey, &languageIDByLocale, translationsByTarget)
 		if upsertErr != nil {
 			return result, &partialUpsertError{sentIndexes: result.Applied, cause: upsertErr}
 		}
@@ -998,6 +999,7 @@ func (c *HTTPClient) upsertTranslationEntry(
 	projectID int,
 	entry StringTranslation,
 	sourceByKey map[sourceStringKey]int,
+	languageIDByLocale *map[string]string,
 	translationsByTarget map[translationLookupKey]map[string]struct{},
 ) (upsertTranslationOutcome, error) {
 	key, locale := strings.TrimSpace(entry.Key), strings.TrimSpace(entry.Locale)
@@ -1010,7 +1012,11 @@ func (c *HTTPClient) upsertTranslationEntry(
 		return upsertTranslationOutcome{conflict: classifySourceStringConflict(err)}, nil
 	}
 
-	knownTexts, err := c.ensureKnownTranslationTexts(ctx, projectID, stringID, locale, translationsByTarget)
+	languageID, err := c.resolveCrowdinLanguageID(ctx, projectID, locale, languageIDByLocale)
+	if err != nil {
+		return upsertTranslationOutcome{}, err
+	}
+	knownTexts, err := c.ensureKnownTranslationTexts(ctx, projectID, stringID, languageID, translationsByTarget)
 	if err != nil {
 		return upsertTranslationOutcome{}, err
 	}
@@ -1018,7 +1024,7 @@ func (c *HTTPClient) upsertTranslationEntry(
 		return upsertTranslationOutcome{}, nil
 	}
 
-	if err := c.addTranslationWithRetry(ctx, projectID, stringID, locale, entry.Value); err != nil {
+	if err := c.addTranslationWithRetry(ctx, projectID, stringID, languageID, entry.Value); err != nil {
 		return upsertTranslationOutcome{}, fmt.Errorf("add translation: %w", err)
 	}
 
@@ -1036,6 +1042,58 @@ func resolveSourceStringID(sourceByKey map[sourceStringKey]int, key, context str
 		return 0, fmt.Errorf("ambiguous source string for key=%q context=%q", key, ctx)
 	}
 	return stringID, nil
+}
+
+func (c *HTTPClient) resolveCrowdinLanguageID(ctx context.Context, projectID int, locale string, languageIDByLocale *map[string]string) (string, error) {
+	locale = strings.TrimSpace(locale)
+	if !mayBeCrowdinFolderLocale(locale) {
+		return locale, nil
+	}
+	if languageIDByLocale == nil {
+		return locale, nil
+	}
+	if *languageIDByLocale == nil {
+		lookup, err := c.languageIDLookupByLocale(ctx, projectID)
+		if err != nil {
+			return "", err
+		}
+		*languageIDByLocale = lookup
+	}
+	if languageID := strings.TrimSpace((*languageIDByLocale)[locale]); languageID != "" {
+		return languageID, nil
+	}
+	return locale, nil
+}
+
+func mayBeCrowdinFolderLocale(locale string) bool {
+	return strings.ContainsAny(locale, "-_")
+}
+
+func (c *HTTPClient) languageIDLookupByLocale(ctx context.Context, projectID int) (map[string]string, error) {
+	project, _, err := c.client.Projects.Get(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("get project: %w", err)
+	}
+	if project == nil {
+		return nil, fmt.Errorf("get project: empty response")
+	}
+
+	languages, err := c.supportedLanguageLookup(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(project.TargetLanguageIDs)*2)
+	for _, languageID := range project.TargetLanguageIDs {
+		trimmedID := strings.TrimSpace(languageID)
+		if trimmedID == "" {
+			continue
+		}
+		out[trimmedID] = trimmedID
+		if locale := strings.TrimSpace(resolveFolderLocale(trimmedID, project.TargetLanguages, languages.localeByID)); locale != "" {
+			out[locale] = trimmedID
+		}
+	}
+	return out, nil
 }
 
 func isConflictError(err error) bool {

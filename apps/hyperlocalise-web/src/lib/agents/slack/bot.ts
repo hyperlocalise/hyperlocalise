@@ -189,6 +189,8 @@ async function processSlackMessage(
     }
 
     if (intent.kind === "repo_tms") {
+      const repoTmsWorkMode =
+        membership.role === "owner" || membership.role === "admin" ? "write" : "read_only";
       const repoTmsTask: RepoTmsAgentTask = {
         id: randomUUID(),
         source: "slack",
@@ -202,7 +204,7 @@ async function processSlackMessage(
         },
         organizationId,
         projectId,
-        workMode: "write",
+        workMode: repoTmsWorkMode,
         instructions: message.text,
         githubContext: resolvedRepoTmsContext,
         createdAt: new Date().toISOString(),
@@ -220,7 +222,9 @@ async function processSlackMessage(
       wrapThreadPost(thread, interactionId);
       await thread.post({
         markdown:
-          "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+          repoTmsWorkMode === "write"
+            ? "Queued your repo/TMS workflow. I'll post progress and final results in this thread."
+            : "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
       });
       return;
     }

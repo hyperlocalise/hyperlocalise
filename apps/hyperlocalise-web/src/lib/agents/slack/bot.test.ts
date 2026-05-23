@@ -535,7 +535,7 @@ describe("handleNewConversation", () => {
         },
         organizationId: "org-123",
         projectId: "project-123",
-        workMode: "write",
+        workMode: "read_only",
         instructions: "Can you check https://github.com/acme/web/pull/42",
         githubContext: {
           resolved: true,
@@ -555,6 +555,56 @@ describe("handleNewConversation", () => {
             pullRequestNumber: 42,
           },
         }),
+      }),
+    );
+    expect(posts).toEqual([
+      {
+        markdown:
+          "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
+      },
+    ]);
+  });
+
+  it("queues write-mode repo/TMS Slack tasks for workspace admins", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Please fix https://github.com/acme/web/pull/42",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    resolveSlackRepoTmsGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_pr_url",
+      context: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+        pullRequestNumber: 42,
+      },
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "admin",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({ role: "admin" }),
+        workMode: "write",
       }),
     );
     expect(posts).toEqual([

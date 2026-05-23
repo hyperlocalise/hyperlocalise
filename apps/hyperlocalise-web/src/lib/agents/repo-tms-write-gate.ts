@@ -20,10 +20,10 @@ const adminRoles = new Set(["owner", "admin"]);
  *
  * Rules:
  * - read_only: all writes are denied.
- * - write: allow Slack workspace members and GitHub requests that passed
- *   adapter-level permission checks.
- * - approval_required: keep GitHub admin-gated and allow legacy Slack tasks
- *   for verified workspace members.
+ * - slack: allow write actions for workspace admins/owners; regular members
+ *   should be enqueued in read_only mode and are denied if a task is malformed.
+ * - write: allow GitHub requests that passed adapter-level permission checks.
+ * - approval_required: keep GitHub admin-gated.
  *
  * GitHub-sourced write-mode tasks are assumed to have passed bot-level
  * permission checks (requesterCanRunFix) before enqueuing.
@@ -49,34 +49,34 @@ export function checkRepoTmsWriteGate(input: {
     return checkGitHubWriteGate(input.workMode, input.actor);
   }
 
-  // chat_ui: same as Slack — require a verified workspace member role.
-  return checkSlackWriteGate(input.workMode, input.actor);
+  // chat_ui: require a verified workspace member role.
+  return checkVerifiedMemberWriteGate(input.actor);
 }
 
 function checkSlackWriteGate(
-  workMode: RepoTmsAgentWorkMode,
+  _workMode: RepoTmsAgentWorkMode,
   actor: RepoTmsAgentActor,
 ): WriteGateResult {
-  const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
-
-  if (workMode === "write") {
-    if (isMember) {
-      return { allowed: true };
-    }
-    return {
-      allowed: false,
-      reason: "Slack-triggered write actions require a verified workspace member.",
-    };
+  if (actor.role && adminRoles.has(actor.role)) {
+    return { allowed: true };
   }
 
-  // Legacy Slack tasks may still carry approval_required from before the
-  // approval placeholder was removed.
+  return {
+    allowed: false,
+    reason:
+      "Slack-triggered write actions require admin or owner privileges. Regular members run in read-only mode.",
+  };
+}
+
+function checkVerifiedMemberWriteGate(actor: RepoTmsAgentActor): WriteGateResult {
+  const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
   if (isMember) {
     return { allowed: true };
   }
+
   return {
     allowed: false,
-    reason: "Slack-triggered write actions require a verified workspace member.",
+    reason: "Write actions require a verified workspace member.",
   };
 }
 

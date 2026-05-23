@@ -2722,6 +2722,77 @@ func TestRunWritesAppleStringsUsingSourceTemplateWhenTargetMissing(t *testing.T)
 	}
 }
 
+func TestRunWritesPHPArrayLocaleUsingSourceTemplateWhenTargetMissing(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.php"
+	targetPath := "/tmp/out.php"
+	source := `<?php
+
+return [
+    // Authentication copy.
+    'auth' => [
+        'failed' => 'These credentials do not match our records.',
+    ],
+    'items' => [
+        'one' => ':count item',
+        'other' => ':count items',
+    ],
+];
+`
+
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(source), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		switch req.Source {
+		case "These credentials do not match our records.":
+			return "Ces identifiants ne correspondent pas a nos dossiers.", nil
+		case ":count item":
+			return ":count element", nil
+		case ":count items":
+			return ":count elements", nil
+		default:
+			t.Fatalf("unexpected translation request: %q", req.Source)
+			return "", nil
+		}
+	}
+
+	var written []byte
+	svc.writeFile = func(path string, content []byte) error {
+		if path != targetPath {
+			t.Fatalf("unexpected write path %q", path)
+		}
+		written = append([]byte(nil), content...)
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run execution: %v", err)
+	}
+
+	out := string(written)
+	for _, needle := range []string{
+		"// Authentication copy.",
+		"'failed' => 'Ces identifiants ne correspondent pas a nos dossiers.'",
+		"'one' => ':count element'",
+		"'other' => ':count elements'",
+	} {
+		if !strings.Contains(out, needle) {
+			t.Fatalf("expected PHP output to contain %q, got:\n%s", needle, out)
+		}
+	}
+}
+
 func TestRunWritesAppleStringsWithInsertedKeyWhenExistingTargetPresent(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.strings"
@@ -4031,6 +4102,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.csv":         []byte("key,source,target\nhello,Hello,Hello\n"),
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
+		"/tmp/source.ftl":         []byte("hello = Hello\n"),
 		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
 		"/tmp/source.ts":          []byte(`export default { hello: "Hello" };`),
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
@@ -4060,6 +4132,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.csv", source: "/tmp/source.csv"},
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
+		{target: "/tmp/out.ftl", source: "/tmp/source.ftl"},
 		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
 		{target: "/tmp/out.ts", source: "/tmp/source.ts"},
 		{target: "/tmp/out.js", source: "/tmp/source.ts"},
@@ -4706,6 +4779,36 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsWhenAllKeysPr
 	out := string(content)
 	if !strings.Contains(out, "target-comment") || strings.Contains(out, "source-comment") {
 		t.Fatalf("expected target template comment preserved, got %q", out)
+	}
+}
+
+func TestMarshalSourceTemplateTargetPrefersTargetTemplateForFluentWhenAllKeysPresent(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ftl"
+	targetPath := "/tmp/out.ftl"
+	source := []byte("# source-comment\nhello = Hello\n")
+	target := []byte("# target-comment\nhello = Bonjour\n")
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	if err != nil {
+		t.Fatalf("marshal source-template target: %v", err)
+	}
+	out := string(content)
+	if !strings.Contains(out, "target-comment") || strings.Contains(out, "source-comment") {
+		t.Fatalf("expected target template comment preserved, got %q", out)
+	}
+	if !strings.Contains(out, "hello = Salut") {
+		t.Fatalf("expected fluent value replacement, got %q", out)
 	}
 }
 

@@ -38,6 +38,8 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - `.stringsdict`
 - `.xcstrings`
 - `.csv`
+- `.php`
+- `.ftl`
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml` and `.resx` for generic XML locale files
 - `.properties`
@@ -92,6 +94,24 @@ For Liquid (`.liquid`), `run` translates hardcoded visible template text and pre
 
 For Apple/Xcode Strings (`.strings`), `run` preserves comments and key/value formatting from the template while replacing value literals with translated text.
 
+For PHP locale arrays (`.php`), `run` supports files that consist of a PHP opening tag and a single static return array:
+
+- `return [ ... ];` and `return array(...);` are supported
+- quoted string keys are flattened with dotted paths, such as `auth.failed`
+- string values may use single or double quotes; comments, whitespace, key order, and array syntax are preserved when writing
+- nested arrays can model plural or select variants with keys such as `items.one` and `items.other`
+- executable PHP, variables, function calls, constants, `declare(...)`, and double-quoted interpolation are rejected with a clear parse error
+
+Example config mapping:
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+```
+
 For Apple/Xcode String Catalogs (`.xcstrings`), `run` reads catalog entries from `strings[*].localizations[sourceLanguage]` when present, falls back to the catalog key for simple source-only entries, and writes translated values under `localizations[targetLocale]`. Plural, device, and substitution leaves are exposed as stable keys such as `item_count::plural.one`, `search_label::device.mac`, and `count_label::substitution.total::plural.other`. Output is normalized as deterministic JSON; comments, extraction state, string-unit state, and unrelated catalog metadata are preserved as JSON fields, but original whitespace and object ordering are not byte-preserved.
 
 For Android XML string resources (`**/res/values*/strings.xml`), `run` translates:
@@ -112,6 +132,13 @@ For CSV (`.csv`), `run` supports two layouts:
 - per-locale column layout (for example: `id,en,fr,de`)
 
 When writing CSV targets, `run` preserves the existing header and non-target columns, updates matching keys in place, and appends new keys in deterministic sorted order.
+
+For Mozilla Fluent (`.ftl`), `run` supports top-level messages, message attributes, multiline values, and select/plural patterns represented as full message values:
+
+- attributes are exposed as dotted keys such as `brand.title`
+- comments, blank lines, and unparsed metadata are preserved when values are replaced in an existing template
+- Fluent terms (`-brand = ...`) and term references are not supported and fail with a clear parser error
+- newly appended message keys are sorted deterministically; new attributes can only be appended when their parent message is not already present in the template
 
 For generic XML (`.xml`, `.resx`), `run` translates text-only leaf elements and preserves unrelated XML structure:
 

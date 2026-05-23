@@ -8,7 +8,11 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import type {
+  JobQueue,
+  ProviderAgentTranslationQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
@@ -35,7 +39,20 @@ function createInlineTestJobQueue(): JobQueue<TranslationJobEventData> {
   };
 }
 
-const client = testClient(createApp({ jobQueue: createInlineTestJobQueue() }));
+function createInlineTestProviderAgentTranslationQueue(): ProviderAgentTranslationQueue {
+  return {
+    async enqueue(event) {
+      return { ids: [event.agentRunId] };
+    },
+  };
+}
+
+const client = testClient(
+  createApp({
+    jobQueue: createInlineTestJobQueue(),
+    providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+  }),
+);
 const appClient = client;
 const projectFixture = createProjectTestFixture(client);
 const {
@@ -1145,6 +1162,73 @@ describe("jobRoutes", () => {
     await expect(listResponse.json()).resolves.toEqual({
       agentRuns: [expect.objectContaining({ kind: "translate", status: "queued" })],
     });
+  });
+
+  it("marks the agent run failed when provider translation queueing fails", async () => {
+    const failingClient = testClient(
+      createApp({
+        jobQueue: createInlineTestJobQueue(),
+        providerAgentTranslationQueue: {
+          async enqueue() {
+            throw new Error("agent queue down");
+          },
+        },
+      }),
+    );
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-queue-fail",
+      externalStatus: "todo",
+      title: "Queue failure copy",
+    });
+
+    const response = await failingClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+        json: { action: "translate_with_agent" },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "agent_run_queue_unavailable",
+      message: expect.any(String),
+    });
+
+    const agentRuns = await db
+      .select({
+        status: schema.agentRuns.status,
+        outputSummary: schema.agentRuns.outputSummary,
+        warnings: schema.agentRuns.warnings,
+      })
+      .from(schema.agentRuns)
+      .where(eq(schema.agentRuns.hyperlocaliseJobId, externalJob.id));
+
+    expect(agentRuns).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        outputSummary: { code: "agent_run_queue_unavailable" },
+        warnings: ["agent queue down"],
+      }),
+    ]);
   });
 
   it("rejects agent runs for native jobs", async () => {

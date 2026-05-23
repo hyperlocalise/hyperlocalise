@@ -299,6 +299,94 @@ func TestStatusCommandBucketFilterUsesLocalstoreNamespace(t *testing.T) {
 	}
 }
 
+func TestStatusCommandPHPArrayLocale(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "resources", "lang", "en", "messages.php")
+	targetPath := filepath.Join(dir, "resources", "lang", "fr", "messages.php")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	source := `<?php return ['auth' => ['failed' => 'These credentials do not match our records.']];`
+	target := `<?php return ['auth' => ['failed' => 'Ces identifiants ne correspondent pas a nos dossiers.']];`
+	if err := os.WriteFile(sourcePath, []byte(source), 0o600); err != nil {
+		t.Fatalf("write source php: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o600); err != nil {
+		t.Fatalf("write target php: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(filepath.Join(dir, "resources", "lang", "[locale]", "messages.php")) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "auth.failed") || !strings.Contains(got, ",fr,translated,unknown,") {
+		t.Fatalf("expected PHP locale status row, got: %s", got)
+	}
+}
+
+func TestStatusCommandRecognizesFluentFiles(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en.ftl")
+	targetPath := filepath.Join(dir, "dist", "fr.ftl")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("mkdir source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("hello = Hello { $name }\n"), 0o600); err != nil {
+		t.Fatalf("write source fluent: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("hello = Bonjour { $name }\n"), 0o600); err != nil {
+		t.Fatalf("write target fluent: %v", err)
+	}
+
+	content := `{
+  "locales": {"source":"en","targets":["fr"]},
+  "buckets": {"ui":{"files":[{"from":"` + filepath.ToSlash(sourcePath) + `","to":"` + filepath.ToSlash(targetPath) + `"}]}},
+  "groups": {"default":{"targets":["fr"],"buckets":["ui"]}},
+  "llm": {"profiles":{"default":{"provider":"openai","model":"gpt-4.1-mini","prompt":"Translate"}}}
+}`
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"status", "--config", configPath, "--bucket", "ui"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute status command: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "hello,") || !strings.Contains(got, ",fr,translated,unknown,") {
+		t.Fatalf("expected translated fluent status row, got: %s", got)
+	}
+}
+
 func TestStatusCommandXCStringsReadsRequestedTargetLocale(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
