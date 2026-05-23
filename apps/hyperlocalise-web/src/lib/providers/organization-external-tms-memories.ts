@@ -157,7 +157,46 @@ export async function upsertOrganizationExternalTmsMemoryEntries(
 export async function upsertOrganizationExternalTmsMemoryEntry(
   input: ExternalTmsMemoryEntryMetadata,
 ) {
-  await upsertOrganizationExternalTmsMemoryEntries([input]);
+  const now = new Date();
+  const normalizedSourceText = normalizeTranslationMemorySourceText(input.sourceText);
+
+  const [entry] = await db
+    .insert(schema.memoryEntries)
+    .values({
+      memoryId: input.memoryId,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      sourceText: input.sourceText,
+      normalizedSourceText,
+      targetText: input.targetText,
+      matchScore: input.matchScore ?? 100,
+      provenance: "sync",
+      externalKey: input.externalKey,
+      reviewStatus: "approved",
+      metadata: input.metadata ?? {},
+    })
+    .onConflictDoUpdate({
+      target: [schema.memoryEntries.memoryId, schema.memoryEntries.externalKey],
+      set: {
+        sourceLocale: sql`excluded.source_locale`,
+        targetLocale: sql`excluded.target_locale`,
+        sourceText: sql`excluded.source_text`,
+        normalizedSourceText: sql`excluded.normalized_source_text`,
+        targetText: sql`excluded.target_text`,
+        matchScore: sql`excluded.match_score`,
+        provenance: sql`excluded.provenance`,
+        reviewStatus: sql`excluded.review_status`,
+        metadata: sql`excluded.metadata`,
+        updatedAt: now,
+      },
+    })
+    .returning();
+
+  if (!entry) {
+    throw new Error("Failed to upsert external TMS translation memory entry");
+  }
+
+  return entry;
 }
 
 export async function pruneOrganizationExternalTmsMemoryEntries(input: {

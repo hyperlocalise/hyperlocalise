@@ -11,7 +11,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
-import type { TranslationMemoriesResponse } from "@/api/routes/translation-memory/translation-memory.schema";
+import type { MemoriesResponse } from "@/api/routes/memory/memory.schema";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
@@ -56,11 +56,11 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
         throw new Error(`Failed to load translation memories (${response.status})`);
       }
 
-      return (await response.json()) as TranslationMemoriesResponse;
+      return (await response.json()) as MemoriesResponse;
     },
   });
 
-  const memories = memoriesQuery.data?.translationMemories ?? [];
+  const memories = memoriesQuery.data?.memories ?? [];
 
   const metrics = useMemo(() => {
     const segments = memories.reduce((total, memory) => total + (memory.segmentCount ?? 0), 0);
