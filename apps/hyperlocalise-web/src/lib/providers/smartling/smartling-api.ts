@@ -13,6 +13,7 @@ const DEFAULT_PROJECTS_BASE_URL = "https://api.smartling.com/projects-api/v2";
 const DEFAULT_FILES_BASE_URL = "https://api.smartling.com/files-api/v2";
 const DEFAULT_STRINGS_BASE_URL = "https://api.smartling.com/strings-api/v2";
 const DEFAULT_JOBS_BASE_URL = "https://api.smartling.com/jobs-api/v3";
+const DEFAULT_ISSUES_BASE_URL = "https://api.smartling.com/issues-api/v2";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const DEFAULT_PAGE_SIZE = 500;
 
@@ -24,6 +25,7 @@ export interface SmartlingApiClientOptions {
   filesBaseUrl?: string;
   stringsBaseUrl?: string;
   jobsBaseUrl?: string;
+  issuesBaseUrl?: string;
   fetchFn?: typeof fetch;
 }
 
@@ -138,6 +140,46 @@ export interface SmartlingAsyncProcessStatus {
   percentComplete?: number;
 }
 
+export interface SmartlingIssueStringReference {
+  hashcode: string;
+  localeId: string;
+}
+
+export interface SmartlingIssue {
+  issueUid: string;
+  issueText?: string | null;
+  issueTypeCode?: string | null;
+  issueSubTypeCode?: string | null;
+  issueSeverityLevelCode?: string | null;
+  issueStateCode?: string | null;
+  string?: SmartlingIssueStringReference | null;
+}
+
+export interface SmartlingIssueComment {
+  issueCommentUid: string;
+  commentText?: string | null;
+  createdDate?: string | null;
+  createdByUserUid?: string | null;
+}
+
+export interface SmartlingIssueTemplate {
+  string: SmartlingIssueStringReference;
+  issueTypeCode: string;
+  issueSubTypeCode?: string | null;
+  issueText: string;
+  issueSeverityLevelCode: string;
+}
+
+export interface SmartlingIssuesListFilter {
+  stringFilter?: {
+    hashcodes?: string[];
+    localeIds?: string[];
+  };
+  issueStateCodes?: string[];
+  offset?: number;
+  limit?: number;
+}
+
 type SmartlingEnvelope<T> = {
   response: {
     code: string;
@@ -186,6 +228,7 @@ export class SmartlingApiClient {
   private readonly filesBaseUrl: string;
   private readonly stringsBaseUrl: string;
   private readonly jobsBaseUrl: string;
+  private readonly issuesBaseUrl: string;
   private readonly fetchFn: typeof fetch;
   private tokens: SmartlingAuthTokens | null = null;
 
@@ -214,6 +257,10 @@ export class SmartlingApiClient {
     this.jobsBaseUrl = normalizeServiceBaseUrl(
       options.jobsBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "jobs"),
       DEFAULT_JOBS_BASE_URL,
+    );
+    this.issuesBaseUrl = normalizeServiceBaseUrl(
+      options.issuesBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "issues"),
+      DEFAULT_ISSUES_BASE_URL,
     );
     this.fetchFn = options.fetchFn ?? fetch;
   }
@@ -598,6 +645,79 @@ export class SmartlingApiClient {
     );
   }
 
+  async listIssues(
+    projectId: string,
+    filter: SmartlingIssuesListFilter,
+  ): Promise<SmartlingIssue[]> {
+    const token = await this.getAccessToken();
+    const issues: SmartlingIssue[] = [];
+    let offset = filter.offset ?? 0;
+    const limit = filter.limit ?? DEFAULT_PAGE_SIZE;
+
+    while (true) {
+      const data = await this.post<{ items?: SmartlingIssue[]; totalCount?: number }>(
+        `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/list`,
+        token,
+        {
+          ...filter,
+          offset,
+          limit,
+        },
+      );
+
+      const page = data.items ?? [];
+      issues.push(...page);
+      offset += page.length;
+
+      if (page.length === 0) {
+        break;
+      }
+
+      const totalCount = data.totalCount;
+      if (typeof totalCount === "number") {
+        if (offset >= totalCount) {
+          break;
+        }
+      } else if (page.length < limit) {
+        break;
+      }
+    }
+
+    return issues;
+  }
+
+  async createIssue(projectId: string, template: SmartlingIssueTemplate): Promise<SmartlingIssue> {
+    const token = await this.getAccessToken();
+    return this.post<SmartlingIssue>(
+      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues`,
+      token,
+      template,
+    );
+  }
+
+  async createIssueComment(
+    projectId: string,
+    issueUid: string,
+    commentText: string,
+  ): Promise<SmartlingIssueComment> {
+    const token = await this.getAccessToken();
+    return this.post<SmartlingIssueComment>(
+      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/comments`,
+      token,
+      { commentText },
+    );
+  }
+
+  async listIssueComments(projectId: string, issueUid: string): Promise<SmartlingIssueComment[]> {
+    const token = await this.getAccessToken();
+    const data = await this.get<{ items?: SmartlingIssueComment[] }>(
+      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/comments`,
+      token,
+    );
+
+    return data.items ?? [];
+  }
+
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
@@ -639,7 +759,7 @@ export class SmartlingApiClient {
 
 export function deriveServiceBaseUrl(
   authBaseUrl: string,
-  service: "accounts" | "projects" | "files" | "strings" | "jobs",
+  service: "accounts" | "projects" | "files" | "strings" | "jobs" | "issues",
 ) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
   if (normalized.includes("/auth-api/")) {
@@ -658,6 +778,8 @@ export function deriveServiceBaseUrl(
       return DEFAULT_STRINGS_BASE_URL;
     case "jobs":
       return DEFAULT_JOBS_BASE_URL;
+    case "issues":
+      return DEFAULT_ISSUES_BASE_URL;
   }
 }
 
