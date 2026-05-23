@@ -15,16 +15,26 @@ import {
   type ExternalTmsFileKeyFetcher,
 } from "@/lib/providers/external-tms-file-sync";
 import {
+  syncExternalTmsGlossaries,
+  type ExternalTmsGlossaryFetcher,
+} from "@/lib/providers/external-tms-glossary-sync";
+import {
   syncExternalTmsJobTasks,
   type ExternalTmsJobTaskFetcher,
 } from "@/lib/providers/external-tms-job-sync";
+import {
+  syncExternalTmsTranslationMemories,
+  type ExternalTmsTranslationMemoryFetcher,
+} from "@/lib/providers/external-tms-tm-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
 import { fetchLokaliseFileKeys } from "@/lib/providers/lokalise/lokalise-file-fetcher";
 import { fetchLokaliseJobTasks } from "@/lib/providers/lokalise/lokalise-job-task-fetcher";
+import { fetchPhraseGlossaries } from "@/lib/providers/phrase/phrase-glossary-fetcher";
 import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
 import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
+import { fetchPhraseTranslationMemories } from "@/lib/providers/phrase/phrase-translation-memory-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
 import {
@@ -229,6 +239,18 @@ const jobTaskFetchersByProvider: Partial<
   smartling: fetchSmartlingJobTasks,
 };
 
+const glossaryFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsGlossaryFetcher>
+> = {
+  phrase: fetchPhraseGlossaries,
+};
+
+const translationMemoryFetchersByProvider: Partial<
+  Record<ExternalTmsProviderKind, ExternalTmsTranslationMemoryFetcher>
+> = {
+  phrase: fetchPhraseTranslationMemories,
+};
+
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
 
@@ -424,6 +446,70 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       });
 
       return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-glossaries", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchGlossaries = glossaryFetchersByProvider[project.externalProviderKind];
+      if (!fetchGlossaries) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsGlossaries({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: project.externalProviderKind,
+        fetchGlossaries,
+      });
+
+      return c.json({ externalTmsGlossarySync: result }, result.status === "failed" ? 207 : 200);
+    })
+    .post("/:projectId/sync-translation-memories", validateProjectParams, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await projectStore.getById(c.var.auth, params.projectId);
+
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      if (!project.externalProviderKind) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const fetchTranslationMemories =
+        translationMemoryFetchersByProvider[project.externalProviderKind];
+      if (!fetchTranslationMemories) {
+        return c.json({ error: "provider_sync_not_implemented" }, 501);
+      }
+
+      const result = await syncExternalTmsTranslationMemories({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        providerKind: project.externalProviderKind,
+        fetchTranslationMemories,
+      });
+
+      return c.json(
+        { externalTmsTranslationMemorySync: result },
+        result.status === "failed" ? 207 : 200,
+      );
     })
     .post(
       "/:projectId/sync-pull-content",

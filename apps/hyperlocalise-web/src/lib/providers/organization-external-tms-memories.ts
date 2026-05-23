@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -106,49 +106,96 @@ export async function upsertOrganizationExternalTmsMemory(input: ExternalTmsMemo
   return memory;
 }
 
+const memoryEntryBatchSize = 200;
+
+export async function upsertOrganizationExternalTmsMemoryEntries(
+  entries: ExternalTmsMemoryEntryMetadata[],
+) {
+  if (entries.length === 0) {
+    return;
+  }
+
+  const now = new Date();
+
+  for (let index = 0; index < entries.length; index += memoryEntryBatchSize) {
+    const chunk = entries.slice(index, index + memoryEntryBatchSize);
+    const values = chunk.map((entry) => ({
+      memoryId: entry.memoryId,
+      sourceLocale: entry.sourceLocale,
+      targetLocale: entry.targetLocale,
+      sourceText: entry.sourceText,
+      normalizedSourceText: normalizeTranslationMemorySourceText(entry.sourceText),
+      targetText: entry.targetText,
+      matchScore: entry.matchScore ?? 100,
+      provenance: "sync" as const,
+      externalKey: entry.externalKey,
+      reviewStatus: "approved" as const,
+      metadata: entry.metadata ?? {},
+    }));
+
+    await db
+      .insert(schema.memoryEntries)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [schema.memoryEntries.memoryId, schema.memoryEntries.externalKey],
+        set: {
+          sourceLocale: sql`excluded.source_locale`,
+          targetLocale: sql`excluded.target_locale`,
+          sourceText: sql`excluded.source_text`,
+          normalizedSourceText: sql`excluded.normalized_source_text`,
+          targetText: sql`excluded.target_text`,
+          matchScore: sql`excluded.match_score`,
+          provenance: sql`excluded.provenance`,
+          reviewStatus: sql`excluded.review_status`,
+          metadata: sql`excluded.metadata`,
+          updatedAt: now,
+        },
+      });
+  }
+}
+
 export async function upsertOrganizationExternalTmsMemoryEntry(
   input: ExternalTmsMemoryEntryMetadata,
 ) {
-  const now = new Date();
-  const normalizedSourceText = normalizeTranslationMemorySourceText(input.sourceText);
+  await upsertOrganizationExternalTmsMemoryEntries([input]);
 
   const [entry] = await db
-    .insert(schema.memoryEntries)
-    .values({
-      memoryId: input.memoryId,
-      sourceLocale: input.sourceLocale,
-      targetLocale: input.targetLocale,
-      sourceText: input.sourceText,
-      normalizedSourceText,
-      targetText: input.targetText,
-      matchScore: input.matchScore ?? 100,
-      provenance: "sync",
-      externalKey: input.externalKey,
-      reviewStatus: "approved",
-      metadata: input.metadata ?? {},
-    })
-    .onConflictDoUpdate({
-      target: [schema.memoryEntries.memoryId, schema.memoryEntries.externalKey],
-      set: {
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
-        sourceText: input.sourceText,
-        normalizedSourceText,
-        targetText: input.targetText,
-        matchScore: input.matchScore ?? 100,
-        provenance: "sync",
-        reviewStatus: "approved",
-        metadata: input.metadata ?? {},
-        updatedAt: now,
-      },
-    })
-    .returning();
+    .select()
+    .from(schema.memoryEntries)
+    .where(
+      and(
+        eq(schema.memoryEntries.memoryId, input.memoryId),
+        eq(schema.memoryEntries.externalKey, input.externalKey),
+      ),
+    )
+    .limit(1);
 
   if (!entry) {
     throw new Error("Failed to upsert external TMS translation memory entry");
   }
 
   return entry;
+}
+
+export async function pruneOrganizationExternalTmsMemoryEntries(input: {
+  memoryId: string;
+  externalKeys: string[];
+}) {
+  const uniqueExternalKeys = [...new Set(input.externalKeys)];
+
+  if (uniqueExternalKeys.length === 0) {
+    await db.delete(schema.memoryEntries).where(eq(schema.memoryEntries.memoryId, input.memoryId));
+    return;
+  }
+
+  await db
+    .delete(schema.memoryEntries)
+    .where(
+      and(
+        eq(schema.memoryEntries.memoryId, input.memoryId),
+        notInArray(schema.memoryEntries.externalKey, uniqueExternalKeys),
+      ),
+    );
 }
 
 export async function listOrganizationExternalTmsMemories(input: {
