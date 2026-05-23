@@ -18,7 +18,11 @@ import {
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import type {
+  JobQueue,
+  ProviderAgentTranslationQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
 
 import {
   forbiddenResponse,
@@ -26,7 +30,7 @@ import {
   isProjectMutationAllowed,
   projectNotFoundResponse,
 } from "./project.shared";
-import { createAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
+import { createAgentRun, failAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
 import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
@@ -49,6 +53,7 @@ type CreateJobRoutesOptions = {
 
 type CreateWorkspaceJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
+  providerAgentTranslationQueue: ProviderAgentTranslationQueue;
 };
 
 const jobSelect = {
@@ -688,6 +693,30 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           },
           hyperlocaliseJobId: job.id,
         });
+
+        if (payload.action === "translate_with_agent") {
+          try {
+            await options.providerAgentTranslationQueue.enqueue({
+              agentRunId: agentRun.id,
+              organizationId,
+            });
+          } catch (error) {
+            await failAgentRun({
+              runId: agentRun.id,
+              organizationId,
+              outputSummary: { code: "agent_run_queue_unavailable" },
+              warnings: [
+                error instanceof Error ? error.message : "agent translation queue unavailable",
+              ],
+            });
+
+            return serviceUnavailableResponse(
+              c,
+              "agent_run_queue_unavailable",
+              "Agent translation queue is unavailable",
+            );
+          }
+        }
 
         return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
       },

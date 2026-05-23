@@ -138,6 +138,11 @@ func TestParseInvariantMustacheNormalization(t *testing.T) {
 			msg:  "Value: {{my-dash-id}}",
 			want: []string{"my-dash-id"},
 		},
+		{
+			name: "mustache with unicode",
+			msg:  "Hello {{π}}",
+			want: []string{"π"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -242,6 +247,27 @@ func TestSelectArgumentInPlaceholders(t *testing.T) {
 
 	if !found {
 		t.Errorf("expected 'gender' in placeholders, got %v", inv.Placeholders)
+	}
+}
+
+func TestUnicodePlaceholderInPlaceholders(t *testing.T) {
+	// Unicode letters (e.g. π) MUST be supported in placeholders.
+	msg := "Hello {π}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	found := false
+	for _, p := range inv.Placeholders {
+		if p == "π" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("expected 'π' in placeholders, got %v", inv.Placeholders)
 	}
 }
 

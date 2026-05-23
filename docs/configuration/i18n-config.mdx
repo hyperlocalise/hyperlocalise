@@ -116,6 +116,19 @@ Shared multi-locale file:
 
 For shared multi-locale CSV files, keep one key column and one target locale column that `run` can update consistently.
 
+### Fluent file mapping patterns
+
+Use `.ftl` mappings for Mozilla Fluent locale files:
+
+```json
+{
+  "from": "locales/en-US/messages.ftl",
+  "to": "locales/[locale]/messages.ftl"
+}
+```
+
+Hyperlocalise supports Fluent messages, attributes, multiline values, and select/plural values as full translation units. Attributes use dotted keys such as `brand.title`. Fluent terms are not supported and fail during parsing.
+
 ### JS/TS locale module patterns
 
 Use JavaScript or TypeScript locale module mappings when your app imports locale objects directly:

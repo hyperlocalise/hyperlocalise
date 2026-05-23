@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Invariant struct {
@@ -321,15 +322,11 @@ func isASCIIDigit(b byte) bool {
 }
 
 func isPlaceholderFirstRune(r rune) bool {
-	return isASCIILetter(r) || isASCIIDigitRune(r) || r == '_' || r == '$'
+	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '$'
 }
 
 func isPlaceholderSubsequentRune(r rune) bool {
-	return isASCIILetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
-}
-
-func isASCIILetter(r rune) bool {
-	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
 }
 
 func isASCIIDigitRune(r rune) bool {

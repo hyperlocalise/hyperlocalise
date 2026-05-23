@@ -4102,6 +4102,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.csv":         []byte("key,source,target\nhello,Hello,Hello\n"),
 		"/tmp/source.json":        []byte(`{"hello":"Hello"}`),
 		"/tmp/source.arb":         []byte(`{"@@locale":"en","hello":"Hello","@hello":{"description":"Greeting"}}`),
+		"/tmp/source.ftl":         []byte("hello = Hello\n"),
 		"/tmp/source.liquid":      []byte("<p>Hello</p>\n"),
 		"/tmp/source.ts":          []byte(`export default { hello: "Hello" };`),
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
@@ -4131,6 +4132,7 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.csv", source: "/tmp/source.csv"},
 		{target: "/tmp/out.json", source: "/tmp/source.json"},
 		{target: "/tmp/out.arb", source: "/tmp/source.arb"},
+		{target: "/tmp/out.ftl", source: "/tmp/source.ftl"},
 		{target: "/tmp/out.liquid", source: "/tmp/source.liquid"},
 		{target: "/tmp/out.ts", source: "/tmp/source.ts"},
 		{target: "/tmp/out.js", source: "/tmp/source.ts"},
@@ -4777,6 +4779,36 @@ func TestMarshalSourceTemplateTargetPrefersTargetTemplateForStringsWhenAllKeysPr
 	out := string(content)
 	if !strings.Contains(out, "target-comment") || strings.Contains(out, "source-comment") {
 		t.Fatalf("expected target template comment preserved, got %q", out)
+	}
+}
+
+func TestMarshalSourceTemplateTargetPrefersTargetTemplateForFluentWhenAllKeysPresent(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.ftl"
+	targetPath := "/tmp/out.ftl"
+	source := []byte("# source-comment\nhello = Hello\n")
+	target := []byte("# target-comment\nhello = Bonjour\n")
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return source, nil
+		case targetPath:
+			return target, nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
+
+	content, err := svc.marshalSourceTemplateTarget(".ftl", targetPath, sourcePath, "en", "fr", map[string]string{"hello": "Salut"})
+	if err != nil {
+		t.Fatalf("marshal source-template target: %v", err)
+	}
+	out := string(content)
+	if !strings.Contains(out, "target-comment") || strings.Contains(out, "source-comment") {
+		t.Fatalf("expected target template comment preserved, got %q", out)
+	}
+	if !strings.Contains(out, "hello = Salut") {
+		t.Fatalf("expected fluent value replacement, got %q", out)
 	}
 }
 

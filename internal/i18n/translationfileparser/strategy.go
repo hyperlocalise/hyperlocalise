@@ -50,6 +50,7 @@ func NewDefaultStrategy() *Strategy {
 	s.Register(".xcstrings", XCStringsParser{})
 	s.Register(".csv", CSVParser{})
 	s.Register(".php", PHPArrayParser{})
+	s.Register(".ftl", FluentParser{})
 	s.Register(".xml", XMLParser{})
 	s.Register(".resx", GenericXMLParser{})
 	s.Register(".properties", JavaPropertiesParser{})

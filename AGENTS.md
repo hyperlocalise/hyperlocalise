@@ -26,3 +26,43 @@ In apps/hyperlocalise-web, if we change these folders:
 - Run `vp check --fix`
 
 Do not finalize work until all commands complete successfully.
+
+## Cursor Cloud specific instructions
+
+### Prerequisites
+
+Docker must be running for the web app (PostgreSQL). Start the daemon and compose stack:
+
+```
+sudo dockerd &>/tmp/dockerd.log &
+sudo chmod 666 /var/run/docker.sock
+docker compose up -d          # starts Postgres 18 on :5432
+```
+
+Ensure `$(go env GOPATH)/bin` is on PATH for `golangci-lint`. The Makefile `bootstrap` target installs it, but it may build with a lower Go version. If `make lint` fails with a Go version mismatch, rebuild it from the workspace module:
+
+```
+go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+```
+
+### Web app (apps/hyperlocalise-web)
+
+- Use `vp run dev` (not `vp dev`) to start the Next.js dev server — `vp dev` starts Vite directly.
+- Before the dev server works, create `apps/hyperlocalise-web/.env` with at minimum:
+  ```
+  DATABASE_URL=postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise
+  PROVIDER_CREDENTIALS_MASTER_KEY=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+  NEXT_PUBLIC_WAITLIST_URL=https://example.com/waitlist
+  WORKOS_API_KEY=sk_test_placeholder
+  WORKOS_CLIENT_ID=client_placeholder
+  WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
+  WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
+  ```
+- Run `vp run db:migrate` after starting Postgres to apply Drizzle migrations.
+- The `make test` target uses coverage flags that may warn about a missing `covdata` tool — all actual tests still pass. Use `go test ./...` if you want a clean exit code without coverage.
+
+### CLI (Go)
+
+- Standard commands per `AGENTS.md`: `make bootstrap`, `make fmt`, `make lint`, `make test`.
+- Run the CLI with `go run ./apps/cli <command>`.

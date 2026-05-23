@@ -68,6 +68,15 @@ func TestSyncPullRequiresHyperlocaliseConfig(t *testing.T) {
 	}
 }
 
+func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
+	if got := inferHyperlocaliseFileFormat("locales/en.ftl"); got != "fluent" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.ftl) = %q, want fluent", got)
+	}
+	if got := contentTypeForPath("locales/en.ftl"); got != "text/plain" {
+		t.Fatalf("contentTypeForPath(.ftl) = %q, want text/plain", got)
+	}
+}
+
 func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T) {
 	dir := t.TempDir()
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")

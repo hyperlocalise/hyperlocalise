@@ -1133,10 +1133,41 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(runs[0]?.status).toBe("failed");
   });
 
-  it("returns 501 for providers that do not yet support project sync", async () => {
+  it("syncs phrase projects and locales into connected TMS project records", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
+
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("/projects?page=1")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "proj-1",
+              name: "Marketing Website",
+              slug: "marketing-website",
+              main_format: "json",
+              account: { id: "acct-1", name: "Acme", slug: "acme" },
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes("/projects/proj-1/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
 
     await upsertOrganizationExternalTmsProviderCredential({
       organizationId: authContext.organization.localOrganizationId,
@@ -1154,6 +1185,74 @@ describe("externalTmsProviderCredentialRoutes", () => {
         param: {
           organizationSlug: identity.organization.slug ?? "missing",
           providerKind: "phrase",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      externalTmsProjectSync: {
+        status: string;
+        counts: {
+          projectsDiscovered: number;
+          projectsSynced: number;
+          projectsFailed: number;
+          localesSynced: number;
+        };
+      };
+    };
+    expect(data.externalTmsProjectSync.status).toBe("succeeded");
+    expect(data.externalTmsProjectSync.counts).toEqual({
+      projectsDiscovered: 1,
+      projectsSynced: 1,
+      projectsFailed: 0,
+      localesSynced: 2,
+    });
+
+    const projects = await db
+      .select()
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, authContext.organization.localOrganizationId),
+          eq(schema.projects.externalProviderKind, "phrase"),
+        ),
+      );
+
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      name: "Marketing Website",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      externalProjectId: "proj-1",
+      externalProjectUrl: "https://app.phrase.com/accounts/acme/projects/marketing-website",
+      isActive: true,
+      source: "external_tms",
+    });
+  });
+
+  it("returns 501 for providers that do not yet support project sync", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: authContext.membership.role,
+      providerKind: "lokalise",
+      displayName: "Lokalise",
+      secretMaterial: "lokalise-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+      ":providerKind"
+    ]["sync-projects"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          providerKind: "lokalise",
         },
       },
       { headers },

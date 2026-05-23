@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { UIMessage } from "ai";
 import { ArrowDownIcon, DownloadIcon } from "lucide-react";
@@ -76,19 +77,27 @@ export const ConversationScrollButton = ({
 
   return (
     !isAtBottom && (
-      <Button
-        className={cn(
-          "absolute bottom-4 start-[50%] translate-x-[-50%] rtl:-translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
-          className,
-        )}
-        onClick={handleScrollToBottom}
-        size="icon"
-        type="button"
-        variant="outline"
-        {...props}
-      >
-        <ArrowDownIcon className="size-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label="Scroll to bottom"
+              className={cn(
+                "absolute bottom-4 start-[50%] translate-x-[-50%] rtl:-translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
+                className,
+              )}
+              onClick={handleScrollToBottom}
+              size="icon"
+              type="button"
+              variant="outline"
+              {...props}
+            >
+              <ArrowDownIcon className="size-4" />
+            </Button>
+          }
+        />
+        <TooltipContent side="top">Scroll to bottom</TooltipContent>
+      </Tooltip>
     )
   );
 };
@@ -137,18 +146,28 @@ export const ConversationDownload = ({
   }, [messages, filename, formatMessage]);
 
   return (
-    <Button
-      className={cn(
-        "absolute top-4 end-4 rounded-full dark:bg-background dark:hover:bg-muted",
-        className,
-      )}
-      onClick={handleDownload}
-      size="icon"
-      type="button"
-      variant="outline"
-      {...props}
-    >
-      {children ?? <DownloadIcon className="size-4" />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label="Download conversation"
+            className={cn(
+              "absolute top-4 end-4 rounded-full dark:bg-background dark:hover:bg-muted",
+              className,
+            )}
+            onClick={handleDownload}
+            size="icon"
+            type="button"
+            variant="outline"
+            {...props}
+          >
+            {children ?? <DownloadIcon className="size-4" />}
+          </Button>
+        }
+      />
+      <TooltipContent side="bottom" align="end">
+        Download conversation
+      </TooltipContent>
+    </Tooltip>
   );
 };

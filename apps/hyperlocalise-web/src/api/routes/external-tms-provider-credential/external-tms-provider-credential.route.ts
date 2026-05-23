@@ -4,6 +4,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { notFoundResponse } from "@/api/response.schema";
 import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
+import { fetchPhraseProjects } from "@/lib/providers/phrase/phrase-project-fetcher";
 import { fetchSmartlingProjects } from "@/lib/providers/smartling/smartling-project-fetcher";
 import {
   syncExternalTmsProjects,
@@ -168,6 +169,7 @@ export function createExternalTmsProviderCredentialRoutes() {
           Record<(typeof providerKind)["data"], ExternalTmsProjectFetcher>
         > = {
           crowdin: fetchCrowdinProjects,
+          phrase: fetchPhraseProjects,
           smartling: fetchSmartlingProjects,
         };
 
