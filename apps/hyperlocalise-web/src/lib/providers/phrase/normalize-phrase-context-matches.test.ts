@@ -158,4 +158,16 @@ describe("mergeTranslationContextMatches", () => {
 
     expect(merged.map((item) => item.id)).toEqual(["b", "a"]);
   });
+
+  it("includes high-ranked supplemental items after sorting when primary fills the limit", () => {
+    const primary = Array.from({ length: 3 }, (_, index) => ({
+      id: `db-${index}`,
+      rank: 1,
+    }));
+    const supplemental = [{ id: "phrase-live", rank: 99 }];
+
+    const merged = mergeTranslationContextMatches(primary, supplemental, 3);
+
+    expect(merged.map((item) => item.id)).toEqual(["phrase-live", "db-0", "db-1"]);
+  });
 });

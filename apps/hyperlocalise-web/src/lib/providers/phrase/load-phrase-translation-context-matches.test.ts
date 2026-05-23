@@ -6,7 +6,6 @@ const { mockDbSelect, mockDecrypt, mockPhraseClient } = vi.hoisted(() => ({
   mockDbSelect: vi.fn(),
   mockDecrypt: vi.fn(() => "secret-token"),
   mockPhraseClient: {
-    searchJobTranslationMemorySegment: vi.fn(),
     searchJobTermBasesInText: vi.fn(),
   },
 }));
@@ -21,8 +20,6 @@ vi.mock("@/lib/database", () => ({
       organizationId: "organizationId",
       providerKind: "providerKind",
     },
-    projectMemories: { projectId: "projectId", memoryId: "memoryId" },
-    memories: { id: "id", externalMemoryId: "externalMemoryId" },
   },
 }));
 
@@ -32,7 +29,6 @@ vi.mock("@/lib/security/provider-credential-crypto", () => ({
 
 vi.mock("./phrase-tms-api", () => ({
   PhraseTmsApiClient: class {
-    searchJobTranslationMemorySegment = mockPhraseClient.searchJobTranslationMemorySegment;
     searchJobTermBasesInText = mockPhraseClient.searchJobTermBasesInText;
   },
 }));
@@ -61,12 +57,6 @@ function createSelectBuilder(result: unknown) {
     from: vi.fn(() => ({
       where: vi.fn(() => ({
         limit: vi.fn(async () => result),
-        innerJoin: vi.fn(() => ({
-          where: vi.fn(async () => result),
-        })),
-      })),
-      innerJoin: vi.fn(() => ({
-        where: vi.fn(async () => result),
       })),
     })),
   };
@@ -75,11 +65,10 @@ function createSelectBuilder(result: unknown) {
 describe("loadPhraseTranslationContextMatches", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPhraseClient.searchJobTranslationMemorySegment.mockResolvedValue([]);
     mockPhraseClient.searchJobTermBasesInText.mockResolvedValue([]);
   });
 
-  it("returns empty matches when external job uid is missing", async () => {
+  it("returns empty glossary terms when external job uid is missing", async () => {
     const result = await loadPhraseTranslationContextMatches({
       project: phraseProject(),
       externalJobUid: null,
@@ -88,11 +77,11 @@ describe("loadPhraseTranslationContextMatches", () => {
       sourceText: "Hello",
     });
 
-    expect(result).toEqual({ glossaryTerms: [], translationMemoryMatches: [] });
-    expect(mockPhraseClient.searchJobTranslationMemorySegment).not.toHaveBeenCalled();
+    expect(result).toEqual({ glossaryTerms: [] });
+    expect(mockPhraseClient.searchJobTermBasesInText).not.toHaveBeenCalled();
   });
 
-  it("returns empty matches for non-phrase projects", async () => {
+  it("returns empty glossary terms for non-phrase projects", async () => {
     const result = await loadPhraseTranslationContextMatches({
       project: phraseProject({ externalProviderKind: "crowdin" }),
       externalJobUid: "job-1",
@@ -101,11 +90,11 @@ describe("loadPhraseTranslationContextMatches", () => {
       sourceText: "Hello",
     });
 
-    expect(result).toEqual({ glossaryTerms: [], translationMemoryMatches: [] });
+    expect(result).toEqual({ glossaryTerms: [] });
     expect(mockDbSelect).not.toHaveBeenCalled();
   });
 
-  it("returns empty matches when provider credential is missing", async () => {
+  it("returns empty glossary terms when provider credential is missing", async () => {
     mockDbSelect.mockReturnValueOnce(createSelectBuilder([]));
 
     const result = await loadPhraseTranslationContextMatches({
@@ -116,11 +105,11 @@ describe("loadPhraseTranslationContextMatches", () => {
       sourceText: "Hello",
     });
 
-    expect(result).toEqual({ glossaryTerms: [], translationMemoryMatches: [] });
-    expect(mockPhraseClient.searchJobTranslationMemorySegment).not.toHaveBeenCalled();
+    expect(result).toEqual({ glossaryTerms: [] });
+    expect(mockPhraseClient.searchJobTermBasesInText).not.toHaveBeenCalled();
   });
 
-  it("normalizes live TM and term-base hits for attached memories", async () => {
+  it("normalizes live term-base hits", async () => {
     const credential = {
       id: "cred_1",
       encryptionAlgorithm: "aes-256-gcm",
@@ -131,29 +120,8 @@ describe("loadPhraseTranslationContextMatches", () => {
       baseUrl: "https://cloud.memsource.com/web",
     };
 
-    mockDbSelect
-      .mockReturnValueOnce(createSelectBuilder([credential]))
-      .mockReturnValueOnce(
-        createSelectBuilder([{ id: "memory_local_1", externalMemoryId: "tm-uid-1" }]),
-      );
+    mockDbSelect.mockReturnValueOnce(createSelectBuilder([credential]));
 
-    mockPhraseClient.searchJobTranslationMemorySegment.mockResolvedValue([
-      {
-        transMemoryUid: "tm-uid-1",
-        transMemoryName: "Product TM",
-        sourceText: "Hello",
-        targetText: "Bonjour",
-        targetLocale: "fr-FR",
-        score: 0.9,
-      },
-      {
-        transMemoryUid: "tm-not-synced",
-        sourceText: "Hello",
-        targetText: "Hola",
-        targetLocale: "es-ES",
-        score: 0.7,
-      },
-    ]);
     mockPhraseClient.searchJobTermBasesInText.mockResolvedValue([
       {
         termBaseUid: "tb-1",
@@ -172,13 +140,11 @@ describe("loadPhraseTranslationContextMatches", () => {
       sourceText: "Hello",
     });
 
-    expect(mockPhraseClient.searchJobTranslationMemorySegment).toHaveBeenCalledWith({
+    expect(mockPhraseClient.searchJobTermBasesInText).toHaveBeenCalledWith({
       projectUid: "phrase-project-uid",
       jobUid: "job-1",
-      segment: "Hello",
+      text: "Hello",
     });
-    expect(result.translationMemoryMatches).toHaveLength(1);
-    expect(result.translationMemoryMatches[0]?.memoryId).toBe("memory_local_1");
     expect(result.glossaryTerms).toHaveLength(1);
     expect(result.glossaryTerms[0]?.glossaryId).toBe("phrase:tb-1");
   });

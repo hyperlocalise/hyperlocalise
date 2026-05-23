@@ -160,7 +160,7 @@ export async function assembleStringTranslationContextSnapshot(
 
   const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-  const [glossaryTerms, translationMemoryMatches, phraseLiveMatches] = await Promise.all([
+  const [glossaryTerms, translationMemoryMatches, phraseLiveGlossaryTerms] = await Promise.all([
     loadGlossaryTermsForContext({
       projectId,
       sourceLocale: jobInput.sourceLocale,
@@ -183,20 +183,14 @@ export async function assembleStringTranslationContextSnapshot(
           sourceLocale: jobInput.sourceLocale,
           targetLocales: jobInput.targetLocales,
           sourceText: jobInput.sourceText,
-        })
-      : Promise.resolve({ glossaryTerms: [], translationMemoryMatches: [] }),
+        }).then((result) => result.glossaryTerms)
+      : Promise.resolve([]),
   ]);
 
   const mergedGlossaryTerms = mergeTranslationContextMatches(
     glossaryTerms,
-    phraseLiveMatches.glossaryTerms,
+    phraseLiveGlossaryTerms,
     20,
-  );
-
-  const mergedTranslationMemoryMatches = mergeTranslationContextMatches(
-    translationMemoryMatches,
-    phraseLiveMatches.translationMemoryMatches,
-    10,
   );
 
   return {
@@ -210,7 +204,7 @@ export async function assembleStringTranslationContextSnapshot(
       },
       job: jobInput,
       glossaryTerms: mergedGlossaryTerms,
-      translationMemoryMatches: mergedTranslationMemoryMatches,
+      translationMemoryMatches,
     } satisfies StringTranslationContextSnapshot,
   } as const;
 }

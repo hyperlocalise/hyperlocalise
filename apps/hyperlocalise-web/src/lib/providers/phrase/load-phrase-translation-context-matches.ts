@@ -8,7 +8,6 @@ import { resolvePhraseTmsProjectUid } from "./phrase-job-context";
 import {
   mergeTranslationContextMatches,
   normalizePhraseTermBaseSearchMatches,
-  normalizePhraseTranslationMemorySearchMatches,
 } from "./normalize-phrase-context-matches";
 import { PhraseTmsApiClient } from "./phrase-tms-api";
 
@@ -27,26 +26,17 @@ export async function loadPhraseTranslationContextMatches(input: {
     !project.externalProjectId ||
     !project.externalProviderCredentialId
   ) {
-    return {
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-    };
+    return { glossaryTerms: [] };
   }
 
   const jobUid = input.externalJobUid?.trim();
   if (!jobUid) {
-    return {
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-    };
+    return { glossaryTerms: [] };
   }
 
   const tmsProjectUid = resolvePhraseTmsProjectUid(project, project.externalProjectId);
   if (!tmsProjectUid) {
-    return {
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-    };
+    return { glossaryTerms: [] };
   }
 
   const [credential] = await db
@@ -68,10 +58,7 @@ export async function loadPhraseTranslationContextMatches(input: {
     .limit(1);
 
   if (!credential) {
-    return {
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-    };
+    return { glossaryTerms: [] };
   }
 
   const secretMaterial = decryptProviderCredential({
@@ -89,57 +76,22 @@ export async function loadPhraseTranslationContextMatches(input: {
 
   const segment = input.sourceText.trim();
   if (!segment) {
-    return {
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-    };
+    return { glossaryTerms: [] };
   }
 
-  const attachedMemories = await db
-    .select({
-      id: schema.memories.id,
-      externalMemoryId: schema.memories.externalMemoryId,
+  const termBaseSearchResults = await client
+    .searchJobTermBasesInText({
+      projectUid: tmsProjectUid,
+      jobUid,
+      text: segment,
     })
-    .from(schema.projectMemories)
-    .innerJoin(schema.memories, eq(schema.projectMemories.memoryId, schema.memories.id))
-    .where(eq(schema.projectMemories.projectId, project.id));
-
-  const memoryIdByExternalUid = new Map(
-    attachedMemories
-      .filter((memory) => memory.externalMemoryId)
-      .map((memory) => [memory.externalMemoryId as string, memory.id]),
-  );
-
-  const [tmSearchResults, termBaseSearchResults] = await Promise.all([
-    client
-      .searchJobTranslationMemorySegment({
-        projectUid: tmsProjectUid,
-        jobUid,
-        segment,
-      })
-      .catch(() => []),
-    client
-      .searchJobTermBasesInText({
-        projectUid: tmsProjectUid,
-        jobUid,
-        text: segment,
-      })
-      .catch(() => []),
-  ]);
+    .catch(() => []);
 
   const glossaryTerms = input.targetLocales.flatMap((targetLocale) =>
     normalizePhraseTermBaseSearchMatches(termBaseSearchResults, { targetLocale }),
   );
 
-  const translationMemoryMatches = input.targetLocales.flatMap((targetLocale) =>
-    normalizePhraseTranslationMemorySearchMatches(tmSearchResults, {
-      targetLocale,
-      memoryIdByExternalUid,
-    }),
-  );
-
   return {
     glossaryTerms: mergeTranslationContextMatches([], glossaryTerms, 20),
-    translationMemoryMatches: mergeTranslationContextMatches([], translationMemoryMatches, 10),
   };
 }

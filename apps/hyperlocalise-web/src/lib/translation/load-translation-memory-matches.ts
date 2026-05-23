@@ -262,13 +262,7 @@ export async function loadTranslationMemoryMatchesForContext(input: {
 
   let liveMatches: NormalizedTranslationMemoryMatch[] = [];
   try {
-    const projectRecord =
-      project ??
-      (await loadExternalTmsProject({
-        organizationId,
-        projectId: input.projectId,
-        providerKind,
-      }));
+    const projectRecord = project;
 
     liveMatches = await searchLiveProviderMatches({
       organizationId,
