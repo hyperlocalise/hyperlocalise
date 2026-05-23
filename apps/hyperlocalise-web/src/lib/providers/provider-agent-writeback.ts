@@ -13,6 +13,7 @@ import {
 import {
   pushExternalTmsTranslations,
   type ExternalTmsApprovedTranslationUpload,
+  type ExternalTmsContentSyncFailure,
 } from "./external-tms-content-sync";
 import type { ProviderTranslationWritebackChangedItem } from "./provider-feedback-types";
 import { getProviderTranslationPusher } from "./provider-translation-pushers";
@@ -95,18 +96,89 @@ function loadPreviouslyUploadedItemIds(input: {
   return uploaded;
 }
 
+const JOB_AGENT_RUNS_PAGE_SIZE = 200;
+
+async function listAllAgentRunsForJob(input: {
+  organizationId: string;
+  hyperlocaliseJobId: string;
+}) {
+  const runs: Awaited<ReturnType<typeof listAgentRuns>> = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await listAgentRuns({
+      organizationId: input.organizationId,
+      hyperlocaliseJobId: input.hyperlocaliseJobId,
+      limit: JOB_AGENT_RUNS_PAGE_SIZE,
+      offset,
+    });
+
+    runs.push(...page);
+
+    if (page.length < JOB_AGENT_RUNS_PAGE_SIZE) {
+      break;
+    }
+
+    offset += JOB_AGENT_RUNS_PAGE_SIZE;
+  }
+
+  return runs;
+}
+
+function resolveWritebackItemStatus(input: {
+  proposal: AcceptedAgentRunProposal;
+  uploaded: number;
+  failed: number;
+  failures: ExternalTmsContentSyncFailure[];
+  failureByExternalStringId: Map<string, ExternalTmsContentSyncFailure>;
+  localeOnlyFailedLocales: Set<string>;
+  defaultFailureMessage: string;
+}): Pick<ProviderTranslationWritebackChangedItem, "status" | "message"> {
+  if (input.failed > 0 && input.uploaded === 0) {
+    return { status: "failed", message: input.defaultFailureMessage };
+  }
+
+  const stringFailure = input.failureByExternalStringId.get(input.proposal.externalStringId);
+  if (stringFailure) {
+    return { status: "failed", message: stringFailure.message };
+  }
+
+  if (input.failed > 0 && input.localeOnlyFailedLocales.has(input.proposal.locale)) {
+    const localeFailure = input.failures.find(
+      (failure) => !failure.externalStringId && failure.locale === input.proposal.locale,
+    );
+    return {
+      status: "failed",
+      message: localeFailure?.message ?? input.defaultFailureMessage,
+    };
+  }
+
+  return { status: "uploaded", message: null };
+}
+
 function buildWritebackChangedItems(input: {
   proposals: AcceptedAgentRunProposal[];
   skippedItemIds: Set<string>;
   uploaded: number;
   failed: number;
-  failures: Array<{ locale: string | null; message: string }>;
+  failures: ExternalTmsContentSyncFailure[];
 }): ProviderTranslationWritebackChangedItem[] {
   const changedItems: ProviderTranslationWritebackChangedItem[] = [];
-  const failedLocales = new Set(
-    input.failures.map((failure) => failure.locale).filter((locale): locale is string => !!locale),
-  );
-  const failureMessage =
+  const failureByExternalStringId = new Map<string, ExternalTmsContentSyncFailure>();
+  const localeOnlyFailedLocales = new Set<string>();
+
+  for (const failure of input.failures) {
+    if (failure.externalStringId) {
+      failureByExternalStringId.set(failure.externalStringId, failure);
+      continue;
+    }
+
+    if (failure.locale) {
+      localeOnlyFailedLocales.add(failure.locale);
+    }
+  }
+
+  const defaultFailureMessage =
     input.failures[0]?.message ?? "One or more provider translation uploads failed";
 
   for (const proposal of input.proposals) {
@@ -124,18 +196,15 @@ function buildWritebackChangedItems(input: {
       continue;
     }
 
-    let status: ProviderTranslationWritebackChangedItem["status"] = "uploaded";
-    let message: string | null = null;
-
-    if (input.failed > 0 && input.uploaded === 0) {
-      status = "failed";
-      message = failureMessage;
-    } else if (input.failed > 0 && failedLocales.has(proposal.locale)) {
-      status = "failed";
-      message =
-        input.failures.find((failure) => failure.locale === proposal.locale)?.message ??
-        failureMessage;
-    }
+    const { status, message } = resolveWritebackItemStatus({
+      proposal,
+      uploaded: input.uploaded,
+      failed: input.failed,
+      failures: input.failures,
+      failureByExternalStringId,
+      localeOnlyFailedLocales,
+      defaultFailureMessage,
+    });
 
     changedItems.push({
       type: "provider_translation_writeback",
@@ -277,10 +346,9 @@ export async function executeProviderAgentWriteback(input: {
     }
   }
 
-  const jobRuns = await listAgentRuns({
+  const jobRuns = await listAllAgentRunsForJob({
     organizationId: input.organizationId,
     hyperlocaliseJobId: run.hyperlocaliseJobId,
-    limit: 200,
   });
 
   const acceptedProposals = collectAcceptedAgentRunProposalsForJob({ runs: jobRuns });
@@ -388,6 +456,7 @@ export async function executeProviderAgentWriteback(input: {
         runId: run.id,
         organizationId: input.organizationId,
         outputSummary: { ...outputSummary, code: "provider_translation_push_failed" },
+        changedItems,
         warnings,
       });
 
@@ -424,7 +493,7 @@ export async function executeProviderAgentWriteback(input: {
       skippedItemIds: previouslyUploadedItemIds,
       uploaded: 0,
       failed: proposalsToPush.length,
-      failures: [{ locale: null, message }],
+      failures: [{ externalStringId: null, locale: null, message }],
     });
 
     await failAgentRun({

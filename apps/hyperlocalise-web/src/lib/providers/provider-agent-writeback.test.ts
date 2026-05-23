@@ -272,7 +272,7 @@ describe("provider-agent-writeback", () => {
         translationsFailed: 1,
         asyncOperations: 0,
       },
-      failures: [{ externalStringId: null, locale: "de-DE", message: "upload failed" }],
+      failures: [{ externalStringId: "hash-2", locale: "de-DE", message: "upload failed" }],
       asyncOperations: [],
     });
 
