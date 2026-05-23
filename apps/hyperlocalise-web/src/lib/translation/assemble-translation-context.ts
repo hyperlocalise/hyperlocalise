@@ -63,12 +63,29 @@ export type TranslationContextProject = {
   translationContext: string;
 };
 
-async function loadProjectForContext(projectId: string): Promise<TranslationContextProject | null> {
+export type TranslationContextProjectRecord = TranslationContextProject &
+  Pick<
+    typeof schema.projects.$inferSelect,
+    | "organizationId"
+    | "source"
+    | "externalProviderKind"
+    | "externalProjectId"
+    | "externalProviderCredentialId"
+  >;
+
+async function loadProjectForContext(
+  projectId: string,
+): Promise<TranslationContextProjectRecord | null> {
   const [project] = await db
     .select({
       id: schema.projects.id,
       name: schema.projects.name,
       translationContext: schema.projects.translationContext,
+      organizationId: schema.projects.organizationId,
+      source: schema.projects.source,
+      externalProviderKind: schema.projects.externalProviderKind,
+      externalProjectId: schema.projects.externalProjectId,
+      externalProviderCredentialId: schema.projects.externalProviderCredentialId,
     })
     .from(schema.projects)
     .where(eq(schema.projects.id, projectId))
@@ -208,7 +225,7 @@ export async function loadTranslationContextProject(projectId: string) {
 export async function assembleStringTranslationContextSnapshot(
   projectId: string,
   jobInput: StringTranslationJobInput,
-  projectOverride?: TranslationContextProject | null,
+  projectOverride?: TranslationContextProjectRecord | null,
 ) {
   const project =
     projectOverride === undefined ? await loadProjectForContext(projectId) : projectOverride;
@@ -234,7 +251,7 @@ export async function assembleStringTranslationContextSnapshot(
       sourceText: jobInput.sourceText,
     }),
     loadCrowdinTranslationContextMatches({
-      projectId,
+      project,
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
@@ -245,7 +262,11 @@ export async function assembleStringTranslationContextSnapshot(
     ok: true,
     snapshot: {
       assembledAt: new Date().toISOString(),
-      project,
+      project: {
+        id: project.id,
+        name: project.name,
+        translationContext: project.translationContext,
+      },
       job: jobInput,
       glossaryTerms: mergeTranslationContextMatches(
         glossaryTerms,

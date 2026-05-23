@@ -813,8 +813,13 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemory>("/tms");
   }
 
-  async listTranslationMemorySegments(tmId: number): Promise<CrowdinTranslationMemorySegment[]> {
-    return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`);
+  async listTranslationMemorySegments(
+    tmId: number,
+    options?: {
+      shouldStop?: (segments: CrowdinTranslationMemorySegment[]) => boolean;
+    },
+  ): Promise<CrowdinTranslationMemorySegment[]> {
+    return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`, options);
   }
 
   async searchGlossaryConcordance(
@@ -871,7 +876,10 @@ export class CrowdinApiClient {
     return response.data.map((item) => item.data);
   }
 
-  private async listPaginated<T>(path: string): Promise<T[]> {
+  private async listPaginated<T>(
+    path: string,
+    options?: { shouldStop?: (items: T[]) => boolean },
+  ): Promise<T[]> {
     const items: T[] = [];
     let offset = 0;
     const limit = 500;
@@ -884,7 +892,7 @@ export class CrowdinApiClient {
       const page = response.data.map((item) => item.data);
       items.push(...page);
 
-      if (page.length < limit) {
+      if (options?.shouldStop?.(items) || page.length < limit) {
         break;
       }
 

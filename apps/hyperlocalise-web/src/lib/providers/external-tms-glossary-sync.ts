@@ -6,7 +6,7 @@ import { decryptProviderCredential } from "@/lib/security/provider-credential-cr
 
 import {
   upsertOrganizationExternalTmsGlossary,
-  upsertOrganizationExternalTmsGlossaryTerm,
+  upsertOrganizationExternalTmsGlossaryTerms,
 } from "./organization-external-tms-glossaries";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import {
@@ -172,20 +172,23 @@ export async function syncExternalTmsGlossaries(input: {
           glossaryId: record.id,
         });
 
-        for (const term of glossary.terms ?? []) {
-          await upsertOrganizationExternalTmsGlossaryTerm({
-            glossaryId: record.id,
-            externalKey: term.externalKey,
-            sourceTerm: term.sourceTerm,
-            targetTerm: term.targetTerm,
-            description: term.description,
-            partOfSpeech: term.partOfSpeech,
-            status: term.status,
-            forbidden: term.forbidden,
-            notes: term.notes,
-            metadata: term.metadata,
-          });
-          counts.termsSynced += 1;
+        const terms = glossary.terms ?? [];
+        if (terms.length > 0) {
+          await upsertOrganizationExternalTmsGlossaryTerms(
+            terms.map((term) => ({
+              glossaryId: record.id,
+              externalKey: term.externalKey,
+              sourceTerm: term.sourceTerm,
+              targetTerm: term.targetTerm,
+              description: term.description,
+              partOfSpeech: term.partOfSpeech,
+              status: term.status,
+              forbidden: term.forbidden,
+              notes: term.notes,
+              metadata: term.metadata,
+            })),
+          );
+          counts.termsSynced += terms.length;
         }
 
         counts.glossariesSynced += 1;

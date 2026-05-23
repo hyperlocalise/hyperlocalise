@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { TranslationContextProjectRecord } from "@/lib/translation/assemble-translation-context";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 
 import { CrowdinApiClient } from "./crowdin-api";
@@ -13,26 +14,14 @@ import {
 const maxConcordanceExpressions = 1;
 
 export async function loadCrowdinTranslationContextMatches(input: {
-  projectId: string;
+  project: TranslationContextProjectRecord;
   sourceLocale: string;
   targetLocales: string[];
   sourceText: string;
 }) {
-  const [project] = await db
-    .select({
-      id: schema.projects.id,
-      organizationId: schema.projects.organizationId,
-      externalProviderKind: schema.projects.externalProviderKind,
-      externalProjectId: schema.projects.externalProjectId,
-      externalProviderCredentialId: schema.projects.externalProviderCredentialId,
-      source: schema.projects.source,
-    })
-    .from(schema.projects)
-    .where(eq(schema.projects.id, input.projectId))
-    .limit(1);
+  const { project } = input;
 
   if (
-    !project ||
     project.source !== "external_tms" ||
     project.externalProviderKind !== "crowdin" ||
     !project.externalProjectId ||

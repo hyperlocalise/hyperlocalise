@@ -6,7 +6,7 @@ import { decryptProviderCredential } from "@/lib/security/provider-credential-cr
 
 import {
   upsertOrganizationExternalTmsMemory,
-  upsertOrganizationExternalTmsMemoryEntry,
+  upsertOrganizationExternalTmsMemoryEntries,
 } from "./organization-external-tms-memories";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import {
@@ -174,18 +174,21 @@ export async function syncExternalTmsTranslationMemories(input: {
           memoryId: record.id,
         });
 
-        for (const entry of memory.entries ?? []) {
-          await upsertOrganizationExternalTmsMemoryEntry({
-            memoryId: record.id,
-            externalKey: entry.externalKey,
-            sourceLocale: entry.sourceLocale,
-            targetLocale: entry.targetLocale,
-            sourceText: entry.sourceText,
-            targetText: entry.targetText,
-            matchScore: entry.matchScore,
-            metadata: entry.metadata,
-          });
-          counts.entriesSynced += 1;
+        const entries = memory.entries ?? [];
+        if (entries.length > 0) {
+          await upsertOrganizationExternalTmsMemoryEntries(
+            entries.map((entry) => ({
+              memoryId: record.id,
+              externalKey: entry.externalKey,
+              sourceLocale: entry.sourceLocale,
+              targetLocale: entry.targetLocale,
+              sourceText: entry.sourceText,
+              targetText: entry.targetText,
+              matchScore: entry.matchScore,
+              metadata: entry.metadata,
+            })),
+          );
+          counts.entriesSynced += entries.length;
         }
 
         counts.memoriesSynced += 1;
