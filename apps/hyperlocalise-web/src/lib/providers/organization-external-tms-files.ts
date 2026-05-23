@@ -3,6 +3,7 @@ import { and, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 
+import { snapshotExternalTmsFileVersion } from "./organization-external-tms-file-versions";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
 const defaultExternalTmsFilesLimit = 500;
@@ -49,44 +50,75 @@ function normalizeLimit(limit?: number) {
   return Math.min(Math.max(limit ?? defaultExternalTmsFilesLimit, 1), maxExternalTmsFilesLimit);
 }
 
+function providerRevisionChanged(
+  existing: { revision: string | null; sourceHash: string | null },
+  incoming: { revision?: string | null; sourceHash?: string | null },
+) {
+  const nextRevision = incoming.revision ?? null;
+  const nextSourceHash = incoming.sourceHash ?? null;
+
+  if (existing.revision !== nextRevision) {
+    return true;
+  }
+
+  if (existing.sourceHash !== nextSourceHash) {
+    return true;
+  }
+
+  return false;
+}
+
 export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
   const now = new Date();
   const sourcePath = normalizeSourcePath(input.sourcePath);
-  const [file] = await db
-    .insert(schema.externalTmsFiles)
-    .values({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      providerCredentialId: input.providerCredentialId ?? null,
-      providerKind: input.providerKind,
-      externalProjectId: input.externalProjectId,
-      resourceType: input.resourceType,
-      externalResourceId: input.externalResourceId,
-      sourcePath,
-      displayName: input.displayName?.trim() || defaultDisplayName(sourcePath),
-      format: input.format ?? null,
-      sourceLocale: input.sourceLocale ?? null,
-      targetLocales: input.targetLocales ?? [],
-      sourceHash: input.sourceHash ?? null,
-      revision: input.revision ?? null,
-      storedFileId: input.storedFileId ?? null,
-      externalUrl: input.externalUrl ?? null,
-      syncState: input.syncState ?? "pending",
-      localeReadiness: input.localeReadiness ?? {},
-      providerPayload: input.providerPayload ?? {},
-      lastSyncedAt: input.lastSyncedAt ?? now,
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.externalTmsFiles.organizationId,
-        schema.externalTmsFiles.providerKind,
-        schema.externalTmsFiles.externalProjectId,
-        schema.externalTmsFiles.resourceType,
-        schema.externalTmsFiles.externalResourceId,
-      ],
-      set: {
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(schema.externalTmsFiles)
+      .where(
+        and(
+          eq(schema.externalTmsFiles.organizationId, input.organizationId),
+          eq(schema.externalTmsFiles.providerKind, input.providerKind),
+          eq(schema.externalTmsFiles.externalProjectId, input.externalProjectId),
+          eq(schema.externalTmsFiles.resourceType, input.resourceType),
+          eq(schema.externalTmsFiles.externalResourceId, input.externalResourceId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (
+      existing &&
+      providerRevisionChanged(existing, input) &&
+      (existing.revision || existing.sourceHash || existing.storedFileId)
+    ) {
+      await snapshotExternalTmsFileVersion(
+        {
+          organizationId: existing.organizationId,
+          projectId: existing.projectId,
+          externalTmsFileId: existing.id,
+          sourcePath: existing.sourcePath,
+          revision: existing.revision,
+          sourceHash: existing.sourceHash,
+          storedFileId: existing.storedFileId,
+          format: existing.format,
+          capturedAt: existing.lastSyncedAt ?? existing.updatedAt,
+        },
+        tx,
+      );
+    }
+
+    const [file] = await tx
+      .insert(schema.externalTmsFiles)
+      .values({
+        organizationId: input.organizationId,
         projectId: input.projectId,
         providerCredentialId: input.providerCredentialId ?? null,
+        providerKind: input.providerKind,
+        externalProjectId: input.externalProjectId,
+        resourceType: input.resourceType,
+        externalResourceId: input.externalResourceId,
         sourcePath,
         displayName: input.displayName?.trim() || defaultDisplayName(sourcePath),
         format: input.format ?? null,
@@ -99,17 +131,43 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
         syncState: input.syncState ?? "pending",
         localeReadiness: input.localeReadiness ?? {},
         providerPayload: input.providerPayload ?? {},
-        ...(input.lastSyncedAt !== undefined && { lastSyncedAt: input.lastSyncedAt }),
-        updatedAt: now,
-      },
-    })
-    .returning();
+        lastSyncedAt: input.lastSyncedAt ?? now,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.externalTmsFiles.organizationId,
+          schema.externalTmsFiles.providerKind,
+          schema.externalTmsFiles.externalProjectId,
+          schema.externalTmsFiles.resourceType,
+          schema.externalTmsFiles.externalResourceId,
+        ],
+        set: {
+          projectId: input.projectId,
+          providerCredentialId: input.providerCredentialId ?? null,
+          sourcePath,
+          displayName: input.displayName?.trim() || defaultDisplayName(sourcePath),
+          format: input.format ?? null,
+          sourceLocale: input.sourceLocale ?? null,
+          targetLocales: input.targetLocales ?? [],
+          sourceHash: input.sourceHash ?? null,
+          revision: input.revision ?? null,
+          storedFileId: input.storedFileId ?? null,
+          externalUrl: input.externalUrl ?? null,
+          syncState: input.syncState ?? "pending",
+          localeReadiness: input.localeReadiness ?? {},
+          providerPayload: input.providerPayload ?? {},
+          ...(input.lastSyncedAt !== undefined && { lastSyncedAt: input.lastSyncedAt }),
+          updatedAt: now,
+        },
+      })
+      .returning();
 
-  if (!file) {
-    throw new Error("Failed to upsert external TMS file");
-  }
+    if (!file) {
+      throw new Error("Failed to upsert external TMS file");
+    }
 
-  return file;
+    return file;
+  });
 }
 
 export async function listExternalTmsFilesForProject(input: {

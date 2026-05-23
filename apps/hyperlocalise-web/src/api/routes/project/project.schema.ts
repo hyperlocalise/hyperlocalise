@@ -167,16 +167,18 @@ export const projectFileContentSchema = z.object({
 
 export const projectFileVersionRecordSchema = z.object({
   id: z.string(),
+  origin: z.enum(["repository", "provider"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
+  revision: z.string().nullable(),
   commitSha: z.string().nullable(),
   workflowRunId: z.string().nullable(),
   uploadedAt: z.string(),
-  storedFileId: z.string(),
+  storedFileId: z.string().nullable(),
   filename: z.string(),
-  contentType: z.string(),
-  byteSize: z.number(),
-  sha256: z.string(),
+  contentType: z.string().nullable(),
+  byteSize: z.number().nullable(),
+  sha256: z.string().nullable(),
   metadata: z.record(z.string(), z.unknown()),
   content: projectFileContentSchema.nullable(),
 });
@@ -204,15 +206,37 @@ export const projectFileJobRecordSchema = z.object({
   outputs: z.array(projectFileOutputRecordSchema),
 });
 
+export const projectFileProviderJobRecordSchema = z.object({
+  id: z.string(),
+  externalJobId: z.string(),
+  externalTaskId: z.string().nullable(),
+  providerKind: z.string(),
+  title: z.string(),
+  externalStatus: z.string(),
+  syncState: z.string(),
+  targetLocales: z.array(z.string()),
+  externalUrl: z.string().nullable(),
+  linkedJobId: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
 export const projectFileDetailResponseSchema = z.object({
   file: z.object({
     sourcePath: z.string(),
     filename: z.string(),
+    provider: projectFileRecordSchema.shape.provider,
     versions: z.array(projectFileVersionRecordSchema),
     jobsByLocale: z.array(
       z.object({
         locale: z.string(),
         jobs: z.array(projectFileJobRecordSchema),
+      }),
+    ),
+    providerJobsByLocale: z.array(
+      z.object({
+        locale: z.string(),
+        jobs: z.array(projectFileProviderJobRecordSchema),
       }),
     ),
   }),
@@ -232,6 +256,7 @@ export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;
 export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSchema>;
 export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
+export type ProjectFileProviderJobRecord = z.infer<typeof projectFileProviderJobRecordSchema>;
 export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;
 export type WorkspaceFileRecord = z.infer<typeof workspaceFileRecordSchema>;
 export type WorkspaceFilesResponse = z.infer<typeof workspaceFilesResponseSchema>;

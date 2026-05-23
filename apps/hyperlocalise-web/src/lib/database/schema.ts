@@ -1688,6 +1688,41 @@ export const externalTmsFiles = pgTable(
   ],
 );
 
+export const externalTmsFileVersions = pgTable(
+  "external_tms_file_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    externalTmsFileId: uuid("external_tms_file_id")
+      .notNull()
+      .references(() => externalTmsFiles.id, { onDelete: "cascade" }),
+    sourcePath: text("source_path").notNull(),
+    revision: text("revision"),
+    sourceHash: text("source_hash"),
+    storedFileId: text("stored_file_id").references(() => storedFiles.id, {
+      onDelete: "set null",
+    }),
+    format: text("format"),
+    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_external_tms_file_versions_file_captured").on(
+      table.externalTmsFileId,
+      table.capturedAt,
+    ),
+    index("idx_external_tms_file_versions_org_project_path").on(
+      table.organizationId,
+      table.projectId,
+      table.sourcePath,
+    ),
+  ],
+);
+
 export const repoTmsMutationLogActionEnum = pgEnum("repo_tms_mutation_log_action", [
   "upload_sources",
   "apply_fixes",

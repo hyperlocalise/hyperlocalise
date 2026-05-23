@@ -8,7 +8,6 @@ import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
 import {
@@ -31,10 +30,9 @@ import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
 } from "@/lib/providers/external-tms-content-sync";
+import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import type { ExternalTmsResourceType } from "@/lib/providers/organization-external-tms-files";
-import { bufferFromStream } from "@/lib/streams";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
@@ -47,7 +45,6 @@ import {
   projectIdParamsSchema,
   updateProjectBodySchema,
   type CreateProjectBody,
-  type ProjectFileContent,
   type UpdateProjectBody,
 } from "./project.schema";
 import {
@@ -213,93 +210,6 @@ type CreateProjectRoutesOptions = {
   fileStorageAdapter?: FileStorageAdapter;
 };
 
-const maxInlineTextBytes = 512 * 1024;
-
-type PublicJobOutputFile = {
-  fileId: string;
-  locale: string;
-  filename: string;
-};
-
-function hasValue(value: unknown): value is string {
-  return typeof value === "string" && value.trim() !== "";
-}
-
-function isPublicJobOutputFile(value: unknown): value is PublicJobOutputFile {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return hasValue(candidate.fileId) && hasValue(candidate.locale) && hasValue(candidate.filename);
-}
-
-function fileJobOutputFiles(input: { outcomeKind: string | null; outcomePayload: unknown }) {
-  if (input.outcomeKind !== "file_result") {
-    return [];
-  }
-
-  if (!input.outcomePayload || typeof input.outcomePayload !== "object") {
-    return [];
-  }
-
-  const outputFiles = (input.outcomePayload as Record<string, unknown>).outputFiles;
-  if (!Array.isArray(outputFiles) || !outputFiles.every(isPublicJobOutputFile)) {
-    return [];
-  }
-
-  return outputFiles.map((outputFile) => ({
-    fileId: outputFile.fileId,
-    locale: outputFile.locale,
-    filename: outputFile.filename,
-  }));
-}
-
-function fileJobLocales(inputPayload: unknown) {
-  if (!inputPayload || typeof inputPayload !== "object") {
-    return [];
-  }
-
-  const targetLocales = (inputPayload as Record<string, unknown>).targetLocales;
-  if (!Array.isArray(targetLocales)) {
-    return [];
-  }
-
-  return targetLocales.filter((locale): locale is string => hasValue(locale));
-}
-
-function sourceLocale(inputPayload: unknown) {
-  if (!inputPayload || typeof inputPayload !== "object") {
-    return null;
-  }
-
-  const value = (inputPayload as Record<string, unknown>).sourceLocale;
-  return hasValue(value) ? value : null;
-}
-
-async function inlineTextContent(input: {
-  adapter: FileStorageAdapter;
-  file: { storageKey: string; filename: string; byteSize: number };
-}): Promise<ProjectFileContent | null> {
-  if (input.file.byteSize > maxInlineTextBytes) {
-    return null;
-  }
-
-  if (!inferSupportedFileTranslationFileFormat(input.file.filename)) {
-    return null;
-  }
-
-  const object = await input.adapter.get({ keyOrUrl: input.file.storageKey });
-  if (!object) {
-    return null;
-  }
-
-  const buffer = await bufferFromStream(object.body);
-  return {
-    text: new TextDecoder("utf-8", { fatal: false }).decode(buffer),
-  };
-}
-
 const fileKeyFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsFileKeyFetcher>
 > = {
@@ -378,219 +288,22 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        const sourcePath = normalizeSourcePath(query.sourcePath);
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const file = await getProjectFileDetail({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          organizationSlug,
+          adapter,
+        });
 
-        const versions = await db
-          .select({
-            id: schema.repositorySourceFileVersions.id,
-            sourcePath: schema.repositorySourceFileVersions.sourcePath,
-            sourceHash: schema.repositorySourceFileVersions.sourceHash,
-            commitSha: schema.repositorySourceFileVersions.commitSha,
-            workflowRunId: schema.repositorySourceFileVersions.workflowRunId,
-            uploadedAt: schema.repositorySourceFileVersions.createdAt,
-            storedFileId: schema.repositorySourceFileVersions.storedFileId,
-            filename: schema.storedFiles.filename,
-            contentType: schema.storedFiles.contentType,
-            byteSize: schema.storedFiles.byteSize,
-            sha256: schema.storedFiles.sha256,
-            storageKey: schema.storedFiles.storageKey,
-            metadata: schema.storedFiles.metadata,
-          })
-          .from(schema.repositorySourceFileVersions)
-          .innerJoin(
-            schema.storedFiles,
-            eq(schema.storedFiles.id, schema.repositorySourceFileVersions.storedFileId),
-          )
-          .where(
-            and(
-              eq(schema.repositorySourceFileVersions.projectId, params.projectId),
-              eq(
-                schema.repositorySourceFileVersions.organizationId,
-                c.var.auth.organization.localOrganizationId,
-              ),
-              eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-              eq(schema.storedFiles.role, "source"),
-              eq(schema.storedFiles.sourceKind, "repository_file"),
-            ),
-          )
-          .orderBy(
-            desc(schema.repositorySourceFileVersions.createdAt),
-            desc(schema.repositorySourceFileVersions.id),
-          )
-          .limit(50);
-
-        if (versions.length === 0) {
-          const [providerFile] = await db
-            .select()
-            .from(schema.externalTmsFiles)
-            .where(
-              and(
-                eq(schema.externalTmsFiles.projectId, params.projectId),
-                eq(
-                  schema.externalTmsFiles.organizationId,
-                  c.var.auth.organization.localOrganizationId,
-                ),
-                eq(schema.externalTmsFiles.sourcePath, sourcePath),
-              ),
-            )
-            .limit(1);
-
-          if (!providerFile) {
-            return projectNotFoundResponse(c);
-          }
-
-          return c.json(
-            {
-              file: {
-                sourcePath,
-                filename: providerFile.displayName,
-                versions: [],
-                jobsByLocale: [],
-              },
-            },
-            200,
-          );
+        if (!file) {
+          return projectNotFoundResponse(c);
         }
 
-        const versionIds = versions.map((version) => version.id);
-        const jobRows = await db
-          .select({
-            sourceFileVersionId: schema.translationJobDetails.sourceFileVersionId,
-            id: schema.jobs.id,
-            status: schema.jobs.status,
-            createdAt: schema.jobs.createdAt,
-            completedAt: schema.jobs.completedAt,
-            workflowRunId: schema.jobs.workflowRunId,
-            inputPayload: schema.jobs.inputPayload,
-            outcomePayload: schema.jobs.outcomePayload,
-            outcomeKind: schema.translationJobDetails.outcomeKind,
-          })
-          .from(schema.jobs)
-          .innerJoin(
-            schema.translationJobDetails,
-            eq(schema.translationJobDetails.jobId, schema.jobs.id),
-          )
-          .where(
-            and(
-              eq(schema.jobs.projectId, params.projectId),
-              eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-              eq(schema.translationJobDetails.type, "file"),
-              inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
-            ),
-          )
-          .orderBy(desc(schema.jobs.createdAt), desc(schema.jobs.id))
-          .limit(100);
-
-        const outputFileIds = Array.from(
-          new Set(jobRows.flatMap((job) => fileJobOutputFiles(job).map((file) => file.fileId))),
-        );
-        const outputFiles =
-          outputFileIds.length > 0
-            ? await db
-                .select({
-                  id: schema.storedFiles.id,
-                  filename: schema.storedFiles.filename,
-                  contentType: schema.storedFiles.contentType,
-                  byteSize: schema.storedFiles.byteSize,
-                  sha256: schema.storedFiles.sha256,
-                  storageKey: schema.storedFiles.storageKey,
-                })
-                .from(schema.storedFiles)
-                .where(
-                  and(
-                    eq(
-                      schema.storedFiles.organizationId,
-                      c.var.auth.organization.localOrganizationId,
-                    ),
-                    eq(schema.storedFiles.projectId, params.projectId),
-                    eq(schema.storedFiles.role, "output"),
-                    inArray(schema.storedFiles.id, outputFileIds),
-                  ),
-                )
-            : [];
-        const outputFileById = new Map(outputFiles.map((file) => [file.id, file]));
-
-        const versionRecords = await Promise.all(
-          versions.map(async (version, _index) => ({
-            id: version.id,
-            sourcePath: version.sourcePath,
-            sourceHash: version.sourceHash,
-            commitSha: version.commitSha,
-            workflowRunId: version.workflowRunId,
-            uploadedAt: version.uploadedAt.toISOString(),
-            storedFileId: version.storedFileId,
-            filename: version.filename,
-            contentType: version.contentType,
-            byteSize: version.byteSize,
-            sha256: version.sha256,
-            metadata: version.metadata as Record<string, unknown>,
-            content: await inlineTextContent({ adapter, file: version }),
-          })),
-        );
-
-        const jobRecords = await Promise.all(
-          jobRows.map(async (job) => {
-            const outputs = await Promise.all(
-              fileJobOutputFiles(job).map(async (output) => {
-                const file = outputFileById.get(output.fileId);
-                const organizationSlug =
-                  c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
-                return {
-                  fileId: output.fileId,
-                  locale: output.locale,
-                  filename: file?.filename ?? output.filename,
-                  byteSize: file?.byteSize ?? null,
-                  sha256: file?.sha256 ?? null,
-                  contentType: file?.contentType ?? null,
-                  downloadPath: `/api/orgs/${organizationSlug}/files/${output.fileId}`,
-                  content: file ? await inlineTextContent({ adapter, file }) : null,
-                };
-              }),
-            );
-
-            return {
-              id: job.id,
-              sourceFileVersionId: job.sourceFileVersionId ?? "",
-              status: job.status,
-              createdAt: job.createdAt.toISOString(),
-              completedAt: job.completedAt?.toISOString() ?? null,
-              workflowRunId: job.workflowRunId,
-              sourceLocale: sourceLocale(job.inputPayload),
-              targetLocales: fileJobLocales(job.inputPayload),
-              outputs,
-            };
-          }),
-        );
-
-        const jobsByLocaleMap = new Map<string, typeof jobRecords>();
-        for (const job of jobRecords) {
-          const locales =
-            job.outputs.length > 0 ? job.outputs.map((output) => output.locale) : job.targetLocales;
-          for (const locale of locales.length > 0 ? locales : ["unassigned"]) {
-            const jobs = jobsByLocaleMap.get(locale) ?? [];
-            if (!jobs.some((existing) => existing.id === job.id)) {
-              jobs.push(job);
-            }
-            jobsByLocaleMap.set(locale, jobs);
-          }
-        }
-
-        const jobsByLocale = Array.from(jobsByLocaleMap.entries())
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([locale, jobs]) => ({ locale, jobs }));
-
-        return c.json(
-          {
-            file: {
-              sourcePath,
-              filename: versionRecords[0]?.filename ?? sourcePath.split("/").at(-1) ?? sourcePath,
-              versions: versionRecords,
-              jobsByLocale,
-            },
-          },
-          200,
-        );
+        return c.json({ file }, 200);
       },
     )
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
