@@ -157,6 +157,7 @@ async function translateProviderUnits(input: {
       {
         organizationId: input.organizationId,
         providerKind: input.providerKind as ExternalTmsProviderKind,
+        externalJobUid: input.content.externalTaskId,
       },
     );
     if (!contextSnapshot.ok) {

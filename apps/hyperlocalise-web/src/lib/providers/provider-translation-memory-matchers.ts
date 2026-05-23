@@ -1,5 +1,6 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { searchCrowdinTranslationMemoryMatches } from "@/lib/providers/crowdin/crowdin-tm-matcher";
+import { searchPhraseTranslationMemoryMatches } from "@/lib/providers/phrase/phrase-tm-matcher";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/translation/translation-memory-match";
 
 type ExternalTmsCredential =
@@ -22,6 +23,11 @@ export type ExternalTmsTranslationMemoryMatcherInput = {
   targetLocale: string;
   sourceText: string;
   limit: number;
+  externalJobUid?: string | null;
+  project?: {
+    providerMetadata: Record<string, unknown>;
+    externalProjectId: string | null;
+  };
 };
 
 export type ExternalTmsTranslationMemoryMatcher = (
@@ -34,6 +40,8 @@ export function getProviderTranslationMemoryMatcher(
   switch (providerKind) {
     case "crowdin":
       return searchCrowdinTranslationMemoryMatches;
+    case "phrase":
+      return searchPhraseTranslationMemoryMatches;
     default:
       return null;
   }

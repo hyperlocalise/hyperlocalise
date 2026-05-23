@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -109,10 +109,9 @@ export async function upsertOrganizationExternalTmsGlossary(input: ExternalTmsGl
   return glossary;
 }
 
-export async function upsertOrganizationExternalTmsGlossaryTerm(
-  input: ExternalTmsGlossaryTermMetadata,
-) {
-  const now = new Date();
+const glossaryTermBatchSize = 200;
+
+function buildGlossaryTermInsertValue(input: ExternalTmsGlossaryTermMetadata) {
   const { forbidden } = normalizeProviderGlossaryTermFlags({
     status: input.status,
     forbidden: input.forbidden,
@@ -123,43 +122,99 @@ export async function upsertOrganizationExternalTmsGlossaryTerm(
     ...(input.status ? { providerStatus: input.status } : {}),
   };
 
+  return {
+    glossaryId: input.glossaryId,
+    sourceTerm: input.sourceTerm,
+    targetTerm: input.targetTerm,
+    description: input.description ?? "",
+    partOfSpeech: input.partOfSpeech ?? "",
+    caseSensitive: input.caseSensitive ?? false,
+    forbidden,
+    externalKey: input.externalKey,
+    provenance: "sync" as const,
+    reviewStatus: "approved" as const,
+    metadata,
+  };
+}
+
+export async function upsertOrganizationExternalTmsGlossaryTerms(
+  terms: ExternalTmsGlossaryTermMetadata[],
+) {
+  if (terms.length === 0) {
+    return;
+  }
+
+  const now = new Date();
+
+  for (let index = 0; index < terms.length; index += glossaryTermBatchSize) {
+    const chunk = terms.slice(index, index + glossaryTermBatchSize);
+    const values = chunk.map(buildGlossaryTermInsertValue);
+
+    await db
+      .insert(schema.glossaryTerms)
+      .values(values)
+      .onConflictDoUpdate({
+        target: [schema.glossaryTerms.glossaryId, schema.glossaryTerms.externalKey],
+        set: {
+          sourceTerm: sql`excluded.source_term`,
+          targetTerm: sql`excluded.target_term`,
+          description: sql`excluded.description`,
+          partOfSpeech: sql`excluded.part_of_speech`,
+          caseSensitive: sql`excluded.case_sensitive`,
+          forbidden: sql`excluded.forbidden`,
+          provenance: sql`excluded.provenance`,
+          reviewStatus: sql`excluded.review_status`,
+          metadata: sql`excluded.metadata`,
+          updatedAt: now,
+        },
+      });
+  }
+}
+
+export async function upsertOrganizationExternalTmsGlossaryTerm(
+  input: ExternalTmsGlossaryTermMetadata,
+) {
+  await upsertOrganizationExternalTmsGlossaryTerms([input]);
+
   const [term] = await db
-    .insert(schema.glossaryTerms)
-    .values({
-      glossaryId: input.glossaryId,
-      sourceTerm: input.sourceTerm,
-      targetTerm: input.targetTerm,
-      description: input.description ?? "",
-      partOfSpeech: input.partOfSpeech ?? "",
-      caseSensitive: input.caseSensitive ?? false,
-      forbidden,
-      externalKey: input.externalKey,
-      provenance: "sync",
-      reviewStatus: "approved",
-      metadata,
-    })
-    .onConflictDoUpdate({
-      target: [schema.glossaryTerms.glossaryId, schema.glossaryTerms.externalKey],
-      set: {
-        sourceTerm: input.sourceTerm,
-        targetTerm: input.targetTerm,
-        description: input.description ?? "",
-        partOfSpeech: input.partOfSpeech ?? "",
-        caseSensitive: input.caseSensitive ?? false,
-        forbidden,
-        provenance: "sync",
-        reviewStatus: "approved",
-        metadata,
-        updatedAt: now,
-      },
-    })
-    .returning();
+    .select()
+    .from(schema.glossaryTerms)
+    .where(
+      and(
+        eq(schema.glossaryTerms.glossaryId, input.glossaryId),
+        eq(schema.glossaryTerms.externalKey, input.externalKey),
+      ),
+    )
+    .limit(1);
 
   if (!term) {
     throw new Error("Failed to upsert external TMS glossary term");
   }
 
   return term;
+}
+
+export async function pruneOrganizationExternalTmsGlossaryTerms(input: {
+  glossaryId: string;
+  externalKeys: string[];
+}) {
+  const uniqueExternalKeys = [...new Set(input.externalKeys)];
+
+  if (uniqueExternalKeys.length === 0) {
+    await db
+      .delete(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.glossaryId, input.glossaryId));
+    return;
+  }
+
+  await db
+    .delete(schema.glossaryTerms)
+    .where(
+      and(
+        eq(schema.glossaryTerms.glossaryId, input.glossaryId),
+        notInArray(schema.glossaryTerms.externalKey, uniqueExternalKeys),
+      ),
+    );
 }
 
 export async function listOrganizationExternalTmsGlossaries(input: {
