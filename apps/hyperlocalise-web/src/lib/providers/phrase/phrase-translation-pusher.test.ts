@@ -229,7 +229,7 @@ describe("pushPhraseTranslations", () => {
       vi
         .mocked(fetchMock)
         .mock.calls.some(([requestUrl]) =>
-          requestUrlString(requestUrl).includes("cloud.memsource.com"),
+          new URL(requestUrlString(requestUrl)).hostname === "cloud.memsource.com",
         ),
     ).toBe(false);
   });
