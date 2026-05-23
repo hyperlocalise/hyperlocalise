@@ -1068,7 +1068,7 @@ describe("projectRoutes", () => {
       externalResourceId: "file-1",
       revision: "two",
     });
-    expect(body.file.versions).toHaveLength(3);
+    expect(body.file.versions).toHaveLength(2);
     expect(body.file.versions[0]).toMatchObject({
       origin: "provider",
       revision: "two",
