@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 const concordanceSearch = vi.fn();
 
 vi.mock("./crowdin-api", () => ({
-  CrowdinApiClient: vi.fn(function CrowdinApiClientMock(this: {
-    concordanceSearch: typeof concordanceSearch;
-  }) {
-    this.concordanceSearch = concordanceSearch;
-  }),
+  CrowdinApiClient: vi.fn(
+    function CrowdinApiClientMock(this: { concordanceSearch: typeof concordanceSearch }) {
+      this.concordanceSearch = concordanceSearch;
+    },
+  ),
   CrowdinApiError: class CrowdinApiError extends Error {
     constructor(
       message: string,
