@@ -22,6 +22,7 @@ import {
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
+import { fetchLokaliseFileKeys } from "@/lib/providers/lokalise/lokalise-file-fetcher";
 import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
 import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
@@ -303,6 +304,7 @@ const fileKeyFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsFileKeyFetcher>
 > = {
   crowdin: fetchCrowdinFileKeys,
+  lokalise: fetchLokaliseFileKeys,
   phrase: fetchPhraseFileKeys,
   smartling: fetchSmartlingFileKeys,
 };

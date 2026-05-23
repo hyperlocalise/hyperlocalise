@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   buildLokaliseProjectUrl,
+  extractLokaliseKeyName,
+  inferFormatFromFilename,
+  listLokaliseFilenameEntries,
   LokaliseApiClient,
   LokaliseApiError,
   partitionLokaliseLocales,
@@ -85,6 +88,67 @@ describe("LokaliseApiClient", () => {
     expect(languages[1]).toMatchObject({ langId: 673, langIso: "fr", langName: "French" });
   });
 
+  it("lists keys with cursor pagination and translations", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes("/keys?") && !String(url).includes("cursor=")) {
+        const headers = new Headers({
+          "X-Pagination-Next-Cursor": "next-page",
+        });
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.123",
+            keys: [
+              {
+                key_id: 4242,
+                key_name: { web: "home.hero.title", ios: "", android: "", other: "" },
+                filenames: { web: "locales/en/home.json", ios: "", android: "", other: "" },
+                platforms: ["web"],
+                tags: ["app"],
+                translations: [
+                  {
+                    translation_id: 1,
+                    key_id: 4242,
+                    language_iso: "fr",
+                    translation: "Bonjour",
+                    is_reviewed: true,
+                    is_unverified: false,
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200, headers },
+        );
+      }
+
+      if (String(url).includes("cursor=next-page")) {
+        return new Response(JSON.stringify({ project_id: "proj.123", keys: [] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ keys: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const keys = await client.listKeys("proj.123");
+
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatchObject({
+      keyId: 4242,
+      platforms: ["web"],
+      tags: ["app"],
+      translations: [
+        expect.objectContaining({
+          languageIso: "fr",
+          translation: "Bonjour",
+          isReviewed: true,
+        }),
+      ],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("throws LokaliseApiError on auth failure", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
@@ -130,5 +194,35 @@ describe("partitionLokaliseLocales", () => {
 describe("buildLokaliseProjectUrl", () => {
   it("builds the app URL for a project", () => {
     expect(buildLokaliseProjectUrl("proj.123")).toBe("https://app.lokalise.com/project/proj.123/");
+  });
+});
+
+describe("lokalise key helpers", () => {
+  it("prefers web key names and lists filename entries", () => {
+    expect(
+      extractLokaliseKeyName({
+        web: "home.hero.title",
+        ios: "ios.title",
+        android: "",
+        other: "",
+      }),
+    ).toBe("home.hero.title");
+
+    expect(
+      listLokaliseFilenameEntries({
+        web: "locales/en/home.json",
+        ios: "",
+        android: "strings.xml",
+        other: "",
+      }),
+    ).toEqual([
+      { platform: "web", filename: "locales/en/home.json" },
+      { platform: "android", filename: "strings.xml" },
+    ]);
+  });
+
+  it("infers format from filename extension", () => {
+    expect(inferFormatFromFilename("locales/en/home.json")).toBe("json");
+    expect(inferFormatFromFilename("no-extension")).toBeNull();
   });
 });
