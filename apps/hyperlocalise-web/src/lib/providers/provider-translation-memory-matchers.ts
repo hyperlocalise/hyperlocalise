@@ -1,5 +1,6 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { searchCrowdinTranslationMemoryMatches } from "@/lib/providers/crowdin/crowdin-tm-matcher";
+import { searchLokaliseTranslationMemoryMatches } from "@/lib/providers/lokalise/lokalise-tm-matcher";
 import { searchPhraseTranslationMemoryMatches } from "@/lib/providers/phrase/phrase-tm-matcher";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/translation/translation-memory-match";
 
@@ -42,6 +43,8 @@ export function getProviderTranslationMemoryMatcher(
       return searchCrowdinTranslationMemoryMatches;
     case "phrase":
       return searchPhraseTranslationMemoryMatches;
+    case "lokalise":
+      return searchLokaliseTranslationMemoryMatches;
     default:
       return null;
   }

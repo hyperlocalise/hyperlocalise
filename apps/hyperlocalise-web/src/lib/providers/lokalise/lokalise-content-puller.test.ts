@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { requestUrlString } from "../fetch-mock-helpers";
 import { pullLokaliseTaskContent } from "./lokalise-content-puller";
 
 describe("pullLokaliseTaskContent", () => {
@@ -15,7 +16,7 @@ describe("pullLokaliseTaskContent", () => {
 
   it("pulls task-scoped keys and translations through the provider-neutral shape", async () => {
     const fetchMock = vi.fn(async (url, init) => {
-      const path = String(url);
+      const path = requestUrlString(url);
 
       if (path.endsWith("/tasks/42")) {
         return new Response(
@@ -138,7 +139,7 @@ describe("pullLokaliseTaskContent", () => {
     });
     const keyListRequest = vi
       .mocked(fetchMock)
-      .mock.calls.map(([requestUrl]) => String(requestUrl))
+      .mock.calls.map(([requestUrl]) => requestUrlString(requestUrl))
       .find((requestUrl) => requestUrl.includes("/keys?"));
     expect(keyListRequest).toContain("filter_key_ids=4242");
   });

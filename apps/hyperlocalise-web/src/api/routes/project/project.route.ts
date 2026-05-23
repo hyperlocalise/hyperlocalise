@@ -32,7 +32,9 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/organization-exter
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
 import { fetchLokaliseFileKeys } from "@/lib/providers/lokalise/lokalise-file-fetcher";
+import { fetchLokaliseGlossaries } from "@/lib/providers/lokalise/lokalise-glossary-fetcher";
 import { fetchLokaliseJobTasks } from "@/lib/providers/lokalise/lokalise-job-task-fetcher";
+import { fetchLokaliseTranslationMemories } from "@/lib/providers/lokalise/lokalise-translation-memory-fetcher";
 import { fetchPhraseGlossaries } from "@/lib/providers/phrase/phrase-glossary-fetcher";
 import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
 import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
@@ -244,6 +246,7 @@ const jobTaskFetchersByProvider: Partial<
 const glossaryFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsGlossaryFetcher>
 > = {
+  lokalise: fetchLokaliseGlossaries,
   crowdin: fetchCrowdinGlossaries,
   phrase: fetchPhraseGlossaries,
 };
@@ -251,6 +254,7 @@ const glossaryFetchersByProvider: Partial<
 const translationMemoryFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsTranslationMemoryFetcher>
 > = {
+  lokalise: fetchLokaliseTranslationMemories,
   crowdin: fetchCrowdinTranslationMemories,
   phrase: fetchPhraseTranslationMemories,
 };

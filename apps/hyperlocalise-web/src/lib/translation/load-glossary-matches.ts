@@ -27,6 +27,7 @@ type AttachedGlossaryRecord = {
   externalGlossaryId: string | null;
   externalProviderCredentialId: string | null;
   externalProjectId: string | null;
+  targetLocale: string;
   termCapabilities: Record<string, unknown>;
 };
 
@@ -57,6 +58,7 @@ async function loadAttachedGlossariesForProject(
       externalGlossaryId: schema.glossaries.externalGlossaryId,
       externalProviderCredentialId: schema.glossaries.externalProviderCredentialId,
       externalProjectId: schema.glossaries.externalProjectId,
+      targetLocale: schema.glossaries.targetLocale,
       termCapabilities: schema.glossaries.termCapabilities,
     })
     .from(schema.projectGlossaries)
@@ -177,6 +179,7 @@ async function searchLiveProviderMatches(input: {
         id: glossary.id,
         name: glossary.name,
         externalGlossaryId: glossary.externalGlossaryId,
+        targetLocale: glossary.targetLocale,
         termCapabilities: glossary.termCapabilities,
       })),
       sourceLocale: input.sourceLocale,
