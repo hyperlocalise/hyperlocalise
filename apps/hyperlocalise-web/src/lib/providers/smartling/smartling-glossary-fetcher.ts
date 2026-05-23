@@ -31,8 +31,10 @@ export const fetchSmartlingGlossaries: ExternalTmsGlossaryFetcher = async ({
 
   const sourceLocale = project.sourceLocale ?? "en";
   const targetLocales = project.targetLocales ?? [];
-  const glossaryTargetLocales =
-    targetLocales.length > 0 ? uniqueLocales(targetLocales) : [sourceLocale];
+  if (targetLocales.length === 0) {
+    return [];
+  }
+  const glossaryTargetLocales = uniqueLocales(targetLocales);
 
   return glossaries
     .filter((glossary) => glossary.glossaryUid)

@@ -3,7 +3,11 @@ import { normalizeProviderTranslationMemoryMatch } from "@/lib/translation/trans
 
 import { resolveSmartlingAccountUid } from "./smartling-account-context";
 import { buildSmartlingTranslationMemoryCandidates } from "./normalize-smartling-context-matches";
-import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
+import {
+  SmartlingApiClient,
+  SmartlingApiError,
+  SMARTLING_TM_SYNC_MAX_ENTRIES,
+} from "./smartling-api";
 
 export const searchSmartlingTranslationMemoryMatches: ExternalTmsTranslationMemoryMatcher = async ({
   secretMaterial,
@@ -33,9 +37,15 @@ export const searchSmartlingTranslationMemoryMatches: ExternalTmsTranslationMemo
 
   let entries;
   try {
+    let fetchedSegmentCount = 0;
+
     entries = await client.listTranslationMemoryEntries(accountUid, externalMemoryId, {
       sourceLocaleId: sourceLocale,
       targetLocaleIds: [targetLocale],
+      shouldStop: (page) => {
+        fetchedSegmentCount += page.length;
+        return fetchedSegmentCount >= SMARTLING_TM_SYNC_MAX_ENTRIES;
+      },
     });
   } catch (error) {
     if (error instanceof SmartlingApiError && error.status === 401) {
