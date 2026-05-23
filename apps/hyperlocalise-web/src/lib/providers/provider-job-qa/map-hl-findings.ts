@@ -1,9 +1,6 @@
 import type { HlCheckFinding, HlCheckReport } from "./hl-check-types";
 import type { HlCheckKeyManifest } from "./materialize-hl-check-workspace";
-import {
-  confidenceForHlCheckType,
-  normalizeProviderQaFinding,
-} from "./normalize-provider-findings";
+import { confidenceForHlCheckType } from "./normalize-provider-findings";
 import type { ProviderQaCheckType, ProviderQaFinding, ProviderQaSeverity } from "./types";
 
 const hlCheckTypeMap: Partial<Record<string, ProviderQaCheckType>> = {
@@ -68,22 +65,19 @@ export function mapHlFindingToProviderFinding(
   const field: "source" | "target" =
     finding.type === "markdown_ast_mismatch" && !finding.locale ? "source" : "target";
 
-  return normalizeProviderQaFinding(
-    {
-      checkType,
-      severity: mapSeverity(finding.severity),
-      message: finding.message?.trim() || `hl check reported ${finding.type}`,
-      suggestedFix: hlSuggestedFixes[checkType],
-      confidence: confidenceForHlCheckType(finding.type),
-      item: {
-        externalStringId: entry.externalStringId,
-        key: entry.key,
-        locale,
-        field,
-      },
+  return {
+    checkType,
+    severity: mapSeverity(finding.severity),
+    message: finding.message?.trim() || `hl check reported ${finding.type}`,
+    suggestedFix: hlSuggestedFixes[checkType],
+    confidence: confidenceForHlCheckType(finding.type),
+    item: {
+      externalStringId: entry.externalStringId,
+      key: entry.key,
+      locale,
+      field,
     },
-    { hlSourceType: finding.type },
-  );
+  };
 }
 
 export function mapHlCheckReportToProviderFindings(input: {

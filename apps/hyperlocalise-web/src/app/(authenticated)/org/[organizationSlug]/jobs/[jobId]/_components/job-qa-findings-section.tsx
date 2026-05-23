@@ -494,7 +494,9 @@ export function JobQaFindingsSection({
 
       {activeQaRun ? (
         <p className="mt-4 rounded-md border border-bud-500/20 bg-bud-500/8 px-3 py-2 text-sm text-bud-300">
-          QA checks are running. Results will refresh when the agent run completes.
+          {activeQaRun.inputSnapshot?.action === "review_with_agent"
+            ? "Agent review is running. Results will refresh when the run completes."
+            : "QA checks are running. Results will refresh when the agent run completes."}
         </p>
       ) : null}
 
@@ -657,8 +659,9 @@ export function JobQaFindingsSection({
             </EmptyMedia>
             <EmptyTitle>No QA findings yet</EmptyTitle>
             <EmptyDescription>
-              Run QA checks on this TMS job to surface placeholder, ICU, glossary, and translation
-              issues here. When checks pass, this section will show a clear no-issues state.
+              Run QA checks or an agent review on this TMS job to surface placeholder, ICU,
+              glossary, and translation issues here. When checks pass, this section will show a
+              clear no-issues state.
             </EmptyDescription>
           </EmptyHeader>
           {runQaChecksAction?.visible && runQaChecksAction.enabled ? (
