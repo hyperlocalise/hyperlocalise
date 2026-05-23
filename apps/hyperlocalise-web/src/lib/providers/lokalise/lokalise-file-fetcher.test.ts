@@ -187,6 +187,13 @@ describe("fetchLokaliseFileKeys", () => {
         tags: ["app", "marketing"],
       },
     });
+    expect(key?.providerPayload).toEqual(
+      expect.objectContaining({
+        filenames: {
+          web: "locales/en/home.json",
+        },
+      }),
+    );
 
     const file = result.find(
       (item) =>
@@ -212,18 +219,96 @@ describe("fetchLokaliseFileKeys", () => {
       }),
     });
 
-    const keyFetches = vi
+    const keyFetchUrls = vi
       .mocked(fetchMock)
-      .mock.calls.filter((call) => String(call[0]).includes("/keys?"));
-    expect(keyFetches.length).toBeGreaterThan(0);
-    expect(String(keyFetches[0]?.[0])).toContain("include_translations=1");
-    expect(String(keyFetches[0]?.[0])).toContain("pagination=cursor");
+      .mock.calls.map(([url]) => requestUrlString(url))
+      .filter((url) => url.includes("/keys?"));
+    expect(keyFetchUrls.length).toBeGreaterThan(0);
+    expect(keyFetchUrls[0]).toContain("include_translations=1");
+    expect(keyFetchUrls[0]).toContain("pagination=cursor");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/projects/proj.123/keys?"),
       expect.objectContaining({
         headers: { "X-Api-Token": "lokalise-secret" },
       }),
     );
+  });
+
+  it("excludes the source locale from implicit target locales when base language metadata is missing", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/projects/proj.123/languages")) {
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.123",
+            languages: [
+              { lang_id: 640, lang_iso: "en", lang_name: "English", is_rtl: false },
+              { lang_id: 673, lang_iso: "fr", lang_name: "French", is_rtl: false },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/proj.123/keys")) {
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.123",
+            keys: [
+              {
+                key_id: 4242,
+                key_name: {
+                  web: "home.hero.title",
+                  ios: "",
+                  android: "",
+                  other: "",
+                },
+                filenames: {
+                  web: "locales/en/home.json",
+                  ios: "",
+                  android: "",
+                  other: "",
+                },
+                platforms: ["web"],
+                tags: [],
+                translations: [
+                  {
+                    translation_id: 1,
+                    key_id: 4242,
+                    language_iso: "fr",
+                    translation: "Bonjour",
+                    is_reviewed: true,
+                    is_unverified: false,
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({}), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchLokaliseFileKeys({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "lokalise",
+      externalProjectId: "proj.123",
+      credential,
+      project: {
+        sourceLocale: "en",
+        targetLocales: [],
+        providerMetadata: {},
+      } as never,
+      secretMaterial: "lokalise-secret",
+    });
+
+    expect(result.map((item) => item.targetLocales)).toEqual([["fr"], ["fr"]]);
   });
 
   it("throws lokalise_auth_invalid for unauthorized responses", async () => {
@@ -246,3 +331,13 @@ describe("fetchLokaliseFileKeys", () => {
     ).rejects.toThrow("lokalise_auth_invalid");
   });
 });
+
+function requestUrlString(url: Parameters<typeof fetch>[0]) {
+  if (typeof url === "string") {
+    return url;
+  }
+  if (url instanceof URL) {
+    return url.toString();
+  }
+  return url.url;
+}

@@ -65,7 +65,15 @@ export const fetchLokaliseFileKeys: ExternalTmsFileKeyFetcher = async ({
     project.targetLocales.length > 0
       ? project.targetLocales
       : languages
-          .filter((language) => language.langId !== baseLanguageId)
+          .filter((language) => {
+            if (baseLanguageId != null) {
+              return language.langId !== baseLanguageId;
+            }
+            if (sourceLocale) {
+              return language.langIso.trim() !== sourceLocale;
+            }
+            return false;
+          })
           .map((language) => language.langIso.trim())
           .filter((locale): locale is string => Boolean(locale));
 
@@ -162,7 +170,7 @@ export const fetchLokaliseFileKeys: ExternalTmsFileKeyFetcher = async ({
         description: key.description,
         context: key.context,
         platforms: key.platforms,
-        filenames: key.filenames,
+        filenames: buildNonEmptyFilenamesPayload(key.filenames),
         tags: key.tags,
         isPlural: key.isPlural,
         isHidden: key.isHidden,
@@ -199,10 +207,16 @@ function buildKeyLocaleReadiness(input: { key: LokaliseKey; targetLocales: strin
 
 function buildFileLocaleReadiness(input: { keys: LokaliseKey[]; targetLocales: string[] }) {
   const localeReadiness: Record<string, string> = {};
+  const keysWithTranslations = input.keys.map((key) => ({
+    key,
+    translationsByLocale: new Map(
+      key.translations.map((translation) => [translation.languageIso, translation]),
+    ),
+  }));
 
   for (const locale of input.targetLocales) {
-    const statuses = input.keys.map((key) => {
-      const translation = key.translations.find((item) => item.languageIso === locale);
+    const statuses = keysWithTranslations.map(({ key, translationsByLocale }) => {
+      const translation = translationsByLocale.get(locale);
       return mapLokaliseTranslationReadiness({
         content: translation?.translation,
         isUnverified: translation?.isUnverified,
@@ -237,6 +251,12 @@ function buildFileLocaleReadiness(input: { keys: LokaliseKey[]; targetLocales: s
   }
 
   return localeReadiness;
+}
+
+function buildNonEmptyFilenamesPayload(filenames: LokaliseKey["filenames"]) {
+  return Object.fromEntries(
+    listLokaliseFilenameEntries(filenames).map((entry) => [entry.platform, entry.filename]),
+  );
 }
 
 function pickPrimaryFilename(key: LokaliseKey) {
