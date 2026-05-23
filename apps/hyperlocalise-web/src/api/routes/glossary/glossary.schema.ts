@@ -10,6 +10,11 @@ export const listGlossaryQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).default(0),
+    search: z.string().trim().max(200).optional(),
+    source: z.enum(["native", "external_tms"]).optional(),
+    provider: z.enum(["crowdin", "smartling", "phrase", "lokalise"]).optional(),
+    resourceType: z.enum(["glossary", "term_base"]).optional(),
+    sync: z.enum(["synced", "stale", "syncing", "error"]).optional(),
   })
   .optional();
 

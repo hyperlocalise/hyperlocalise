@@ -554,6 +554,59 @@ describe("glossaryRoutes", () => {
     );
   });
 
+  it("filters glossaries by search and source on the server", async () => {
+    const identity = createWorkosIdentity();
+    const { organization, user } = await glossaryFixture.createLocalWorkosIdentity(identity);
+    await createGlossaryViaApi(identity, { name: "Workspace Marketing Terms" });
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: organization.id,
+      userId: user.id,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-token",
+    });
+
+    await upsertOrganizationExternalTmsGlossary({
+      organizationId: organization.id,
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-9",
+      externalResourceType: "glossary",
+      externalGlossaryId: "glossary-9",
+      name: "Crowdin Product Glossary",
+      sourceLocale: "en",
+      targetLocale: "de",
+    });
+
+    const headers = await authHeadersFor(identity);
+
+    const searchResponse = await client.api.glossary.$get(
+      { query: { limit: "50", offset: "0", search: "marketing" } },
+      { headers },
+    );
+    expect(searchResponse.status).toBe(200);
+    const searchBody = await searchResponse.json();
+    if ("error" in searchBody) throw new Error(String(searchBody.error));
+    expect(searchBody.total).toBe(1);
+    expect(searchBody.glossaries).toEqual([
+      expect.objectContaining({ name: "Workspace Marketing Terms" }),
+    ]);
+
+    const providerResponse = await client.api.glossary.$get(
+      { query: { limit: "50", offset: "0", source: "external_tms" } },
+      { headers },
+    );
+    expect(providerResponse.status).toBe(200);
+    const providerBody = await providerResponse.json();
+    if ("error" in providerBody) throw new Error(String(providerBody.error));
+    expect(providerBody.total).toBe(1);
+    expect(providerBody.glossaries).toEqual([
+      expect.objectContaining({ name: "Crowdin Product Glossary", source: "external_tms" }),
+    ]);
+  });
+
   it("forbids mutating provider-backed glossaries", async () => {
     const identity = createWorkosIdentity();
     const { organization, user } = await glossaryFixture.createLocalWorkosIdentity(identity);

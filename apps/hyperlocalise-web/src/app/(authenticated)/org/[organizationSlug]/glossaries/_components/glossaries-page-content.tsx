@@ -29,61 +29,99 @@ import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 
 const GLOSSARIES_PAGE_SIZE = 100;
 
-const glossariesQueryKey = (organizationSlug: string, page: number) => [
-  "glossaries",
-  organizationSlug,
-  page,
-];
+type GlossaryListFilters = {
+  searchQuery: string;
+  sourceFilter: string;
+  providerFilter: string;
+  resourceTypeFilter: string;
+  syncFilter: string;
+};
+
+const glossariesQueryKey = (
+  organizationSlug: string,
+  page: number,
+  filters: GlossaryListFilters,
+) => ["glossaries", organizationSlug, page, filters];
+
+function buildGlossaryListQuery(page: number, filters: GlossaryListFilters) {
+  const query: {
+    limit: string;
+    offset: string;
+    search?: string;
+    source?: "native" | "external_tms";
+    provider?: "crowdin" | "smartling" | "phrase" | "lokalise";
+    resourceType?: "glossary" | "term_base";
+    sync?: "synced" | "stale" | "syncing" | "error";
+  } = {
+    limit: String(GLOSSARIES_PAGE_SIZE),
+    offset: String((page - 1) * GLOSSARIES_PAGE_SIZE),
+  };
+
+  const search = filters.searchQuery.trim();
+  if (search) {
+    query.search = search;
+  }
+  if (filters.sourceFilter === "native" || filters.sourceFilter === "external_tms") {
+    query.source = filters.sourceFilter;
+  }
+  if (
+    filters.providerFilter === "crowdin" ||
+    filters.providerFilter === "smartling" ||
+    filters.providerFilter === "phrase" ||
+    filters.providerFilter === "lokalise"
+  ) {
+    query.provider = filters.providerFilter;
+  }
+  if (filters.resourceTypeFilter === "glossary" || filters.resourceTypeFilter === "term_base") {
+    query.resourceType = filters.resourceTypeFilter;
+  }
+  if (
+    filters.syncFilter === "synced" ||
+    filters.syncFilter === "stale" ||
+    filters.syncFilter === "syncing" ||
+    filters.syncFilter === "error"
+  ) {
+    query.sync = filters.syncFilter;
+  }
+
+  return query;
+}
 const projectsQueryKey = (organizationSlug: string) => ["glossary-projects", organizationSlug];
 const credentialsQueryKey = (organizationSlug: string) => [
   "glossary-credentials",
   organizationSlug,
 ];
 
-function useGlossaryFilters(glossaries: GlossaryListRow[]) {
+function useGlossaryFilters() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [resourceTypeFilter, setResourceTypeFilter] = useState<string>("all");
   const [syncFilter, setSyncFilter] = useState<string>("all");
 
-  const filteredGlossaries = useMemo(() => {
-    return glossaries.filter((glossary) => {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesName = glossary.name.toLowerCase().includes(query);
-        const matchesProject = glossary.externalProjectId?.toLowerCase().includes(query);
-        const matchesGlossaryId = glossary.externalGlossaryId?.toLowerCase().includes(query);
-        if (!matchesName && !matchesProject && !matchesGlossaryId) return false;
-      }
+  const filters = useMemo(
+    () => ({
+      searchQuery,
+      sourceFilter,
+      providerFilter,
+      resourceTypeFilter,
+      syncFilter,
+    }),
+    [searchQuery, sourceFilter, providerFilter, resourceTypeFilter, syncFilter],
+  );
 
-      if (sourceFilter !== "all" && glossary.source !== sourceFilter) return false;
+  const activeFilterCount = [
+    searchQuery.trim() ? "search" : null,
+    sourceFilter,
+    providerFilter,
+    resourceTypeFilter,
+    syncFilter,
+  ].filter((value) => value && value !== "all").length;
 
-      if (providerFilter !== "all") {
-        if (glossary.externalProviderKind !== providerFilter) return false;
-      }
-
-      if (resourceTypeFilter !== "all") {
-        if (glossary.externalResourceType !== resourceTypeFilter) return false;
-      }
-
-      if (syncFilter !== "all") {
-        if (syncFilter === "error") {
-          if (!glossary.lastSyncErrorAt) return false;
-        } else if (glossary.syncState !== syncFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [glossaries, searchQuery, sourceFilter, providerFilter, resourceTypeFilter, syncFilter]);
-
-  const activeFilterCount = [sourceFilter, providerFilter, resourceTypeFilter, syncFilter].filter(
-    (f) => f !== "all",
-  ).length;
+  const hasActiveFilters = activeFilterCount > 0;
 
   return {
+    filters,
     searchQuery,
     setSearchQuery,
     sourceFilter,
@@ -94,8 +132,8 @@ function useGlossaryFilters(glossaries: GlossaryListRow[]) {
     setResourceTypeFilter,
     syncFilter,
     setSyncFilter,
-    filteredGlossaries,
     activeFilterCount,
+    hasActiveFilters,
   };
 }
 
@@ -121,10 +159,11 @@ function GlossariesMetrics({
           ? `${(termTotal / 1_000).toFixed(1)}k`
           : `${termTotal}`;
     const providerCountOnPage = providerGlossaries.length;
+    const providerNoun = providerCountOnPage === 1 ? "provider" : "providers";
     const providerDetail =
       total > glossaries.length
-        ? `${providerCountOnPage} provider on this page`
-        : `${providerCountOnPage} provider`;
+        ? `${providerCountOnPage} ${providerNoun} on this page`
+        : `${providerCountOnPage} ${providerNoun}`;
 
     return [
       {
@@ -136,7 +175,7 @@ function GlossariesMetrics({
       {
         label: "Locales covered",
         value: `${localeCount}`,
-        detail: `${termLabel} terms on page`,
+        detail: `${termLabel} terms on page (this page)`,
         tone: "safe" as const,
       },
       {
@@ -153,6 +192,21 @@ function GlossariesMetrics({
 
 export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
   const [page, setPage] = useState(1);
+  const {
+    filters,
+    searchQuery,
+    setSearchQuery,
+    sourceFilter,
+    setSourceFilter,
+    providerFilter,
+    setProviderFilter,
+    resourceTypeFilter,
+    setResourceTypeFilter,
+    syncFilter,
+    setSyncFilter,
+    activeFilterCount,
+    hasActiveFilters,
+  } = useGlossaryFilters();
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
@@ -189,14 +243,11 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
   });
 
   const glossariesQuery = useQuery({
-    queryKey: glossariesQueryKey(organizationSlug, page),
+    queryKey: glossariesQueryKey(organizationSlug, page, filters),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries.$get({
         param: { organizationSlug },
-        query: {
-          limit: String(GLOSSARIES_PAGE_SIZE),
-          offset: String((page - 1) * GLOSSARIES_PAGE_SIZE),
-        },
+        query: buildGlossaryListQuery(page, filters),
       });
 
       if (!response.ok) {
@@ -241,24 +292,9 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
 
   const hasResourceTypes = glossaries.some((glossary) => glossary.externalResourceType);
 
-  const {
-    searchQuery,
-    setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    resourceTypeFilter,
-    setResourceTypeFilter,
-    syncFilter,
-    setSyncFilter,
-    filteredGlossaries,
-    activeFilterCount,
-  } = useGlossaryFilters(glossaries);
-
   useEffect(() => {
     setPage(1);
-  }, [organizationSlug, searchQuery, sourceFilter, providerFilter, resourceTypeFilter, syncFilter]);
+  }, [organizationSlug, filters]);
 
   useEffect(() => {
     if (glossariesQuery.isSuccess && page > totalPages) {
@@ -290,7 +326,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
         <GlossariesMetrics glossaries={glossaries} total={glossaryTotal} />
       ) : null}
 
-      {glossariesQuery.isSuccess && glossaries.length > 0 ? (
+      {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex-1">
             <Input
@@ -392,7 +428,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
         </div>
       ) : null}
 
-      {glossariesQuery.isSuccess && glossaries.length > 0 && filteredGlossaries.length === 0 ? (
+      {glossariesQuery.isSuccess && hasActiveFilters && glossaryTotal === 0 ? (
         <div className="text-sm text-foreground/52">
           No glossaries match your filters.{" "}
           <button
@@ -426,7 +462,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
       </div>
 
       <GlossariesTable
-        glossaries={filteredGlossaries}
+        glossaries={glossaries}
         glossariesQuery={glossariesQuery}
         organizationSlug={organizationSlug}
         emptyTitle={emptyTitle}

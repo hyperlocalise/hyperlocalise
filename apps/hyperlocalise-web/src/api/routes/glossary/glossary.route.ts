@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -8,6 +8,7 @@ import type { Glossary } from "@/lib/database/types";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 
+import { buildGlossaryListWhere } from "./glossary-list-filters";
 import {
   createGlossaryBodySchema,
   glossaryIdParamsSchema,
@@ -47,7 +48,7 @@ const glossaryStore: GlossaryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    const where = eq(schema.glossaries.organizationId, auth.organization.localOrganizationId);
+    const where = buildGlossaryListWhere(auth.organization.localOrganizationId, query);
 
     const [glossaries, totalRow] = await Promise.all([
       db
