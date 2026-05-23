@@ -340,6 +340,26 @@ func TestJSTSLocaleModuleParserRejectsUnsupportedPatterns(t *testing.T) {
 			want:    "unsupported value",
 		},
 		{
+			name:    "concatenated string value",
+			content: `export default { hello: "Hello" + " world" };`,
+			want:    "static string literal",
+		},
+		{
+			name:    "concatenated single-quoted string value",
+			content: `export default { hello: 'Hello' + ' world' };`,
+			want:    "static string literal",
+		},
+		{
+			name:    "logical-or string fallback",
+			content: `export default { hello: "Hello" || "world" };`,
+			want:    "static string literal",
+		},
+		{
+			name:    "nullish-coalescing string fallback",
+			content: `export default { hello: "Hello" ?? "world" };`,
+			want:    "static string literal",
+		},
+		{
 			name:    "interpolated template literal",
 			content: "export default { hello: `Hello ${name}` };",
 			want:    "interpolated template literals",
