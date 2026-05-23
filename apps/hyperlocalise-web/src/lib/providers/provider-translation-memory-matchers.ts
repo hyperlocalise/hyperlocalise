@@ -2,6 +2,7 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/organization-exter
 import { searchCrowdinTranslationMemoryMatches } from "@/lib/providers/crowdin/crowdin-tm-matcher";
 import { searchLokaliseTranslationMemoryMatches } from "@/lib/providers/lokalise/lokalise-tm-matcher";
 import { searchPhraseTranslationMemoryMatches } from "@/lib/providers/phrase/phrase-tm-matcher";
+import { searchSmartlingTranslationMemoryMatches } from "@/lib/providers/smartling/smartling-tm-matcher";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/translation/translation-memory-match";
 
 type ExternalTmsCredential =
@@ -45,6 +46,8 @@ export function getProviderTranslationMemoryMatcher(
       return searchPhraseTranslationMemoryMatches;
     case "lokalise":
       return searchLokaliseTranslationMemoryMatches;
+    case "smartling":
+      return searchSmartlingTranslationMemoryMatches;
     default:
       return null;
   }
