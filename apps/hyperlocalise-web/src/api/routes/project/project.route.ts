@@ -40,7 +40,9 @@ import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher"
 import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
 import { fetchPhraseTranslationMemories } from "@/lib/providers/phrase/phrase-translation-memory-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
+import { fetchSmartlingGlossaries } from "@/lib/providers/smartling/smartling-glossary-fetcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
+import { fetchSmartlingTranslationMemories } from "@/lib/providers/smartling/smartling-translation-memory-fetcher";
 import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
@@ -249,6 +251,7 @@ const glossaryFetchersByProvider: Partial<
   lokalise: fetchLokaliseGlossaries,
   crowdin: fetchCrowdinGlossaries,
   phrase: fetchPhraseGlossaries,
+  smartling: fetchSmartlingGlossaries,
 };
 
 const translationMemoryFetchersByProvider: Partial<
@@ -257,6 +260,7 @@ const translationMemoryFetchersByProvider: Partial<
   lokalise: fetchLokaliseTranslationMemories,
   crowdin: fetchCrowdinTranslationMemories,
   phrase: fetchPhraseTranslationMemories,
+  smartling: fetchSmartlingTranslationMemories,
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {

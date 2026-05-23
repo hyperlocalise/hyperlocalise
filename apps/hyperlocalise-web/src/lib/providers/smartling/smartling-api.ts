@@ -2,7 +2,7 @@
  * Smartling API client for authentication and project discovery.
  *
  * This module intentionally implements only the endpoints required for
- * credential validation, TMS connector scans, and job-scoped content pull/write-back.
+ * credential validation, TMS connector scans, terminology resources, and job-scoped content pull/write-back.
  */
 
 import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
@@ -13,8 +13,13 @@ const DEFAULT_PROJECTS_BASE_URL = "https://api.smartling.com/projects-api/v2";
 const DEFAULT_FILES_BASE_URL = "https://api.smartling.com/files-api/v2";
 const DEFAULT_STRINGS_BASE_URL = "https://api.smartling.com/strings-api/v2";
 const DEFAULT_JOBS_BASE_URL = "https://api.smartling.com/jobs-api/v3";
+const DEFAULT_GLOSSARY_BASE_URL = "https://api.smartling.com/glossary-api/v2";
+const DEFAULT_GLOSSARY_V3_BASE_URL = "https://api.smartling.com/glossary-api/v3";
+const DEFAULT_TM_BASE_URL = "https://api.smartling.com/translation-memory-api/v2";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const DEFAULT_PAGE_SIZE = 500;
+
+export const SMARTLING_TM_SYNC_MAX_ENTRIES = 2_000;
 
 export interface SmartlingApiClientOptions {
   credentials: SmartlingCredentials | string;
@@ -24,7 +29,52 @@ export interface SmartlingApiClientOptions {
   filesBaseUrl?: string;
   stringsBaseUrl?: string;
   jobsBaseUrl?: string;
+  glossaryBaseUrl?: string;
+  glossaryV3BaseUrl?: string;
+  tmBaseUrl?: string;
   fetchFn?: typeof fetch;
+}
+
+export interface SmartlingGlossarySummary {
+  glossaryUid: string;
+  name: string;
+  description: string | null;
+  localeIds: string[];
+}
+
+export interface SmartlingGlossaryEntry {
+  entryUid: string;
+  term: string;
+  definition: string | null;
+  partOfSpeech: string | null;
+  translations: SmartlingGlossaryTranslation[];
+}
+
+export interface SmartlingGlossaryTranslation {
+  localeId: string;
+  term: string;
+  notes: string | null;
+  definition: string | null;
+}
+
+export interface SmartlingTranslationMemorySummary {
+  translationMemoryUid: string;
+  name: string;
+  description: string | null;
+  sourceLocaleId: string | null;
+  localeIds: string[];
+}
+
+export interface SmartlingTranslationMemoryEntry {
+  entryUid: string;
+  sourceText: string;
+  sourceLocaleId: string;
+  translations: SmartlingTranslationMemoryTranslation[];
+}
+
+export interface SmartlingTranslationMemoryTranslation {
+  targetLocaleId: string;
+  translationText: string;
 }
 
 export interface SmartlingAuthTokens {
@@ -186,6 +236,9 @@ export class SmartlingApiClient {
   private readonly filesBaseUrl: string;
   private readonly stringsBaseUrl: string;
   private readonly jobsBaseUrl: string;
+  private readonly glossaryBaseUrl: string;
+  private readonly glossaryV3BaseUrl: string;
+  private readonly tmBaseUrl: string;
   private readonly fetchFn: typeof fetch;
   private tokens: SmartlingAuthTokens | null = null;
 
@@ -214,6 +267,18 @@ export class SmartlingApiClient {
     this.jobsBaseUrl = normalizeServiceBaseUrl(
       options.jobsBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "jobs"),
       DEFAULT_JOBS_BASE_URL,
+    );
+    this.glossaryBaseUrl = normalizeServiceBaseUrl(
+      options.glossaryBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "glossary"),
+      DEFAULT_GLOSSARY_BASE_URL,
+    );
+    this.glossaryV3BaseUrl = normalizeServiceBaseUrl(
+      options.glossaryV3BaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "glossary-v3"),
+      DEFAULT_GLOSSARY_V3_BASE_URL,
+    );
+    this.tmBaseUrl = normalizeServiceBaseUrl(
+      options.tmBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "translation-memory"),
+      DEFAULT_TM_BASE_URL,
     );
     this.fetchFn = options.fetchFn ?? fetch;
   }
@@ -598,6 +663,168 @@ export class SmartlingApiClient {
     );
   }
 
+  async listAccountGlossaries(accountUid: string): Promise<SmartlingGlossarySummary[]> {
+    const glossaries: SmartlingGlossarySummary[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{
+          items?: Array<Record<string, unknown>>;
+          totalCount?: number;
+        }>(
+          `${this.glossaryBaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingGlossarySummary),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => glossaries.push(...page),
+    });
+
+    return glossaries;
+  }
+
+  async listGlossaryEntries(
+    accountUid: string,
+    glossaryUid: string,
+  ): Promise<SmartlingGlossaryEntry[]> {
+    const entries: SmartlingGlossaryEntry[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{ items?: SmartlingGlossaryEntry[]; totalCount?: number }>(
+          `${this.glossaryBaseUrl}/accounts/${encodeURIComponent(accountUid)}/glossaries/${encodeURIComponent(glossaryUid)}/entries?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingGlossaryEntry),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => entries.push(...page),
+    });
+
+    return entries;
+  }
+
+  async searchGlossaryEntries(input: {
+    accountUid: string;
+    glossaryUid: string;
+    query: string;
+  }): Promise<SmartlingGlossaryEntry[]> {
+    const query = input.query.trim();
+    if (!query) {
+      return [];
+    }
+
+    const token = await this.getAccessToken();
+    try {
+      const data = await this.post<{ items?: SmartlingGlossaryEntry[] }>(
+        `${this.glossaryV3BaseUrl}/accounts/${encodeURIComponent(input.accountUid)}/glossaries/${encodeURIComponent(input.glossaryUid)}/entries/search`,
+        token,
+        { query },
+      );
+      return (data.items ?? []).map(normalizeSmartlingGlossaryEntry);
+    } catch (error) {
+      if (!(error instanceof SmartlingApiError) || (error.status !== 404 && error.status !== 405)) {
+        throw error;
+      }
+    }
+
+    const entries = await this.listGlossaryEntries(input.accountUid, input.glossaryUid);
+    return entries.filter((entry) => matchesSmartlingGlossaryQuery(query, entry));
+  }
+
+  async listAccountTranslationMemories(
+    accountUid: string,
+  ): Promise<SmartlingTranslationMemorySummary[]> {
+    const memories: SmartlingTranslationMemorySummary[] = [];
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          limit: String(limit),
+          offset: String(offset),
+        });
+        const data = await this.get<{
+          items?: Array<Record<string, unknown>>;
+          totalCount?: number;
+        }>(
+          `${this.tmBaseUrl}/accounts/${encodeURIComponent(accountUid)}/translation-memories?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingTranslationMemorySummary),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => memories.push(...page),
+    });
+
+    return memories;
+  }
+
+  async listTranslationMemoryEntries(
+    accountUid: string,
+    translationMemoryUid: string,
+    options: {
+      sourceLocaleId: string;
+      targetLocaleIds: string[];
+      shouldStop?: (entries: SmartlingTranslationMemoryEntry[]) => boolean;
+    },
+  ): Promise<SmartlingTranslationMemoryEntry[]> {
+    const entries: SmartlingTranslationMemoryEntry[] = [];
+    const targetLocaleIds = uniqueSmartlingLocales(options.targetLocaleIds);
+    const targetLocaleParam = targetLocaleIds.length > 0 ? targetLocaleIds.join(",") : "";
+
+    await paginateSmartlingList({
+      fetchPage: async (offset, limit) => {
+        const token = await this.getAccessToken();
+        const params = new URLSearchParams({
+          sourceLocaleId: options.sourceLocaleId,
+          limit: String(limit),
+          offset: String(offset),
+        });
+        if (targetLocaleParam) {
+          params.set("targetLocaleIds", targetLocaleParam);
+        }
+        const data = await this.get<{
+          items?: SmartlingTranslationMemoryEntry[];
+          totalCount?: number;
+        }>(
+          `${this.tmBaseUrl}/accounts/${encodeURIComponent(accountUid)}/translation-memories/${encodeURIComponent(translationMemoryUid)}/entries?${params.toString()}`,
+          token,
+        );
+        return {
+          items: (data.items ?? []).map(normalizeSmartlingTranslationMemoryEntry),
+          totalCount: data.totalCount,
+        };
+      },
+      onPage: (page) => {
+        entries.push(...page);
+        if (options.shouldStop?.(entries)) {
+          return true;
+        }
+        return false;
+      },
+    });
+
+    return entries;
+  }
+
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
@@ -639,12 +866,28 @@ export class SmartlingApiClient {
 
 export function deriveServiceBaseUrl(
   authBaseUrl: string,
-  service: "accounts" | "projects" | "files" | "strings" | "jobs",
+  service:
+    | "accounts"
+    | "projects"
+    | "files"
+    | "strings"
+    | "jobs"
+    | "glossary"
+    | "glossary-v3"
+    | "translation-memory",
 ) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
   if (normalized.includes("/auth-api/")) {
-    const version = service === "jobs" ? "v3" : "v2";
-    return normalized.replace(/\/auth-api\/v\d+/, `/${service}-api/${version}`);
+    const version = service === "jobs" || service === "glossary-v3" ? "v3" : "v2";
+    const apiName =
+      service === "glossary"
+        ? "glossary"
+        : service === "glossary-v3"
+          ? "glossary"
+          : service === "translation-memory"
+            ? "translation-memory"
+            : service;
+    return normalized.replace(/\/auth-api\/v\d+/, `/${apiName}-api/${version}`);
   }
 
   switch (service) {
@@ -658,6 +901,12 @@ export function deriveServiceBaseUrl(
       return DEFAULT_STRINGS_BASE_URL;
     case "jobs":
       return DEFAULT_JOBS_BASE_URL;
+    case "glossary":
+      return DEFAULT_GLOSSARY_BASE_URL;
+    case "glossary-v3":
+      return DEFAULT_GLOSSARY_V3_BASE_URL;
+    case "translation-memory":
+      return DEFAULT_TM_BASE_URL;
   }
 }
 
@@ -787,14 +1036,18 @@ function collectSmartlingErrorMessage(responseBody: unknown) {
 
 async function paginateSmartlingList<T>(input: {
   fetchPage: (offset: number, limit: number) => Promise<{ items: T[]; totalCount?: number }>;
-  onPage: (items: T[]) => void;
+  onPage: (items: T[]) => unknown;
 }) {
   let offset = 0;
 
   while (true) {
     const page = await input.fetchPage(offset, DEFAULT_PAGE_SIZE);
-    input.onPage(page.items);
+    const shouldStop = input.onPage(page.items);
     offset += page.items.length;
+
+    if (shouldStop === true) {
+      break;
+    }
 
     if (page.items.length === 0) {
       break;
@@ -808,6 +1061,174 @@ async function paginateSmartlingList<T>(input: {
       break;
     }
   }
+}
+
+function readSmartlingUid(item: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = item[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function readSmartlingString(item: Record<string, unknown>, key: string) {
+  const value = item[key];
+  return typeof value === "string" ? value : null;
+}
+
+function readSmartlingLocaleIds(item: Record<string, unknown>) {
+  const localeIds = item.localeIds;
+  if (!Array.isArray(localeIds)) {
+    return [];
+  }
+
+  return uniqueSmartlingLocales(
+    localeIds.filter((locale): locale is string => typeof locale === "string"),
+  );
+}
+
+function normalizeSmartlingGlossarySummary(
+  item: Record<string, unknown>,
+): SmartlingGlossarySummary {
+  const glossaryUid = readSmartlingUid(item, "glossaryUid", "uid", "glossaryUID");
+  const name = readSmartlingString(item, "name") ?? glossaryUid;
+  return {
+    glossaryUid,
+    name,
+    description: readSmartlingString(item, "description"),
+    localeIds: readSmartlingLocaleIds(item),
+  };
+}
+
+function normalizeSmartlingGlossaryEntry(item: SmartlingGlossaryEntry): SmartlingGlossaryEntry {
+  return {
+    entryUid: item.entryUid,
+    term: item.term ?? "",
+    definition: item.definition ?? null,
+    partOfSpeech: item.partOfSpeech ?? null,
+    translations: (item.translations ?? []).map((translation) => ({
+      localeId: translation.localeId,
+      term: translation.term ?? "",
+      notes: translation.notes ?? null,
+      definition: translation.definition ?? null,
+    })),
+  };
+}
+
+function normalizeSmartlingTranslationMemorySummary(
+  item: Record<string, unknown>,
+): SmartlingTranslationMemorySummary {
+  const translationMemoryUid = readSmartlingUid(
+    item,
+    "translationMemoryUid",
+    "uid",
+    "translationMemoryUID",
+  );
+  const name = readSmartlingString(item, "name") ?? translationMemoryUid;
+  return {
+    translationMemoryUid,
+    name,
+    description: readSmartlingString(item, "description"),
+    sourceLocaleId: readSmartlingString(item, "sourceLocaleId"),
+    localeIds: readSmartlingLocaleIds(item),
+  };
+}
+
+function normalizeSmartlingTranslationMemoryEntry(
+  item: SmartlingTranslationMemoryEntry,
+): SmartlingTranslationMemoryEntry {
+  return {
+    entryUid: item.entryUid,
+    sourceText: item.sourceText ?? "",
+    sourceLocaleId: item.sourceLocaleId,
+    translations: (item.translations ?? []).map((translation) => ({
+      targetLocaleId: translation.targetLocaleId,
+      translationText: translation.translationText ?? "",
+    })),
+  };
+}
+
+export function uniqueSmartlingLocales(locales: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  for (const locale of locales) {
+    const trimmed = locale.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    unique.push(trimmed);
+  }
+
+  return unique;
+}
+
+export function scoreSmartlingTextMatch(sourceText: string, candidateText: string) {
+  const source = sourceText.trim();
+  const candidate = candidateText.trim();
+  if (!source || !candidate) {
+    return 0;
+  }
+
+  if (source === candidate) {
+    return 100;
+  }
+
+  const sourceLower = source.toLowerCase();
+  const candidateLower = candidate.toLowerCase();
+  if (sourceLower === candidateLower) {
+    return 98;
+  }
+
+  if (candidateLower.includes(sourceLower) || sourceLower.includes(candidateLower)) {
+    const ratio =
+      Math.min(source.length, candidate.length) / Math.max(source.length, candidate.length);
+    return Math.round(70 + ratio * 25);
+  }
+
+  const sourceTokens = tokenizeSmartlingText(sourceLower);
+  const candidateTokens = tokenizeSmartlingText(candidateLower);
+  if (sourceTokens.length === 0 || candidateTokens.length === 0) {
+    return 0;
+  }
+
+  const overlap = sourceTokens.filter((token) => candidateTokens.includes(token)).length;
+  if (overlap === 0) {
+    return 0;
+  }
+
+  const coverage = overlap / Math.max(sourceTokens.length, candidateTokens.length);
+  return Math.round(50 + coverage * 40);
+}
+
+function tokenizeSmartlingText(value: string) {
+  return value.split(/\s+/).filter(Boolean);
+}
+
+function matchesSmartlingGlossaryQuery(query: string, entry: SmartlingGlossaryEntry) {
+  return scoreSmartlingTextMatch(query, entry.term) >= 55;
+}
+
+export function pickSmartlingGlossaryTranslation(
+  entry: SmartlingGlossaryEntry,
+  targetLocale: string,
+) {
+  const normalizedTarget = targetLocale.trim().toLowerCase();
+  for (const translation of entry.translations) {
+    if (translation.localeId.trim().toLowerCase() !== normalizedTarget) {
+      continue;
+    }
+
+    const targetTerm = translation.term.trim();
+    if (targetTerm) {
+      return targetTerm;
+    }
+  }
+
+  return null;
 }
 
 function normalizeSmartlingFileSummary(item: SmartlingFileSummary): SmartlingFileSummary {

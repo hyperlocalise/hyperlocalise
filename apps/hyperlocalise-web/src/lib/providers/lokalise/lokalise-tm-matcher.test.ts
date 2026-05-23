@@ -15,6 +15,15 @@ describe("memorySupportsLiveSearch", () => {
     ).toBe(true);
   });
 
+  it("allows synced Smartling memories to fall back to live entry scans", () => {
+    expect(
+      memorySupportsLiveSearch({
+        capabilityMode: "synced_import",
+        externalProviderKind: "smartling",
+      }),
+    ).toBe(true);
+  });
+
   it("keeps other providers on live_search only", () => {
     expect(
       memorySupportsLiveSearch({

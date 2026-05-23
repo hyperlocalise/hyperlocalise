@@ -1,6 +1,7 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { searchCrowdinGlossaryMatches } from "@/lib/providers/crowdin/crowdin-glossary-matcher";
 import { searchLokaliseGlossaryMatches } from "@/lib/providers/lokalise/lokalise-glossary-matcher";
+import { searchSmartlingGlossaryMatches } from "@/lib/providers/smartling/smartling-glossary-matcher";
 import type { NormalizedGlossaryMatch } from "@/lib/translation/glossary-match";
 
 type ExternalTmsCredential =
@@ -38,6 +39,8 @@ export function getProviderGlossaryMatcher(
       return searchCrowdinGlossaryMatches;
     case "lokalise":
       return searchLokaliseGlossaryMatches;
+    case "smartling":
+      return searchSmartlingGlossaryMatches;
     default:
       return null;
   }
