@@ -127,6 +127,13 @@
       "when": 1779506888250,
       "tag": "0017_open_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1779515722341,
+      "tag": "0018_clear_grim_reaper",
+      "breakpoints": true
     }
   ]
 }
