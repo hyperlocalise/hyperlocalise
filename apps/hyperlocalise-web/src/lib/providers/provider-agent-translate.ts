@@ -1,4 +1,11 @@
 import {
+  detectAgentRunProposalWarnings,
+  deriveChangedFields,
+  buildAgentRunProposalItemId,
+  serializeAgentRunProposalItem,
+  type AgentRunProposalItem,
+} from "@/lib/providers/agent-run-proposals";
+import {
   completeAgentRun,
   failAgentRun,
   getAgentRun,
@@ -17,14 +24,7 @@ import {
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
-export type ProviderAgentTranslationChangedItem = {
-  externalStringId: string;
-  key: string;
-  locale: string;
-  sourceText: string;
-  from: string;
-  to: string;
-};
+export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
 
 export type ProviderAgentTranslationResult =
   | {
@@ -167,14 +167,40 @@ async function translateProviderUnits(input: {
           continue;
         }
 
-        changedItems.push({
-          externalStringId: unit.externalStringId,
-          key: unit.key,
-          locale: translation.locale,
+        const proposalWarnings = detectAgentRunProposalWarnings({
           sourceText: unit.sourceText,
           from,
           to: translation.text,
+          locale: translation.locale,
+          externalStringId: unit.externalStringId,
+          key: unit.key,
+          glossaryTerms: contextSnapshot.snapshot.glossaryTerms
+            .filter((term) => term.targetLocale === translation.locale)
+            .map((term) => ({
+              sourceTerm: term.sourceTerm,
+              targetTerm: term.targetTerm,
+              targetLocale: term.targetLocale,
+              forbidden: term.forbidden,
+            })),
         });
+
+        changedItems.push(
+          serializeAgentRunProposalItem({
+            itemId: buildAgentRunProposalItemId({
+              externalStringId: unit.externalStringId,
+              locale: translation.locale,
+            }),
+            externalStringId: unit.externalStringId,
+            key: unit.key,
+            locale: translation.locale,
+            sourceText: unit.sourceText,
+            from,
+            to: translation.text,
+            reviewState: "pending",
+            changedFields: deriveChangedFields(from, translation.text),
+            warnings: proposalWarnings,
+          }),
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "translation failed";

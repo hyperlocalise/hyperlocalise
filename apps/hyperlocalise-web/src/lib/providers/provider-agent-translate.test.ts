@@ -119,14 +119,17 @@ describe("executeProviderAgentTranslation", () => {
 
     expect(completed?.status).toBe("succeeded");
     expect(completed?.changedItems).toEqual([
-      {
+      expect.objectContaining({
+        itemId: "1:fr",
         externalStringId: "1",
         key: "hello",
         locale: "fr",
         sourceText: "Hello",
         from: "",
         to: "Bonjour",
-      },
+        reviewState: "pending",
+        changedFields: ["target"],
+      }),
     ]);
     expect(completed?.outputSummary).toMatchObject({
       pullRunId: "pull-run-1",

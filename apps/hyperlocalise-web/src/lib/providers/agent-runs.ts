@@ -255,6 +255,59 @@ export async function listAgentRuns(input: {
     .limit(input.limit ?? 50);
 }
 
+export async function updateAgentRunChangedItems(input: {
+  runId: string;
+  organizationId: string;
+  changedItems:
+    | AgentRunChangedItem[]
+    | ((run: typeof schema.agentRuns.$inferSelect) => AgentRunChangedItem[]);
+}) {
+  return db.transaction(async (tx) => {
+    const [currentRun] = await tx
+      .select()
+      .from(schema.agentRuns)
+      .where(
+        and(
+          eq(schema.agentRuns.id, input.runId),
+          eq(schema.agentRuns.organizationId, input.organizationId),
+          eq(schema.agentRuns.status, "succeeded"),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!currentRun) {
+      throw new Error("Agent run not found or not in reviewable state");
+    }
+
+    const changedItems =
+      typeof input.changedItems === "function"
+        ? input.changedItems(currentRun)
+        : input.changedItems;
+    const now = new Date();
+    const [run] = await tx
+      .update(schema.agentRuns)
+      .set({
+        changedItems,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.agentRuns.id, input.runId),
+          eq(schema.agentRuns.organizationId, input.organizationId),
+          eq(schema.agentRuns.status, "succeeded"),
+        ),
+      )
+      .returning();
+
+    if (!run) {
+      throw new Error("Agent run not found or not in reviewable state");
+    }
+
+    return run;
+  });
+}
+
 export async function getAgentRunsByExternalJob(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;

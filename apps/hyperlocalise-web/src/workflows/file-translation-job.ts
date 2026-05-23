@@ -22,6 +22,10 @@ import {
   writeFileToSandbox,
   writeTempConfig,
 } from "@/lib/translation/sandbox-translation";
+import {
+  sourceContainsTerm,
+  validateGlossaryTermsInTranslation,
+} from "@/lib/glossary/validate-glossary-terms-in-translation";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
@@ -140,77 +144,6 @@ async function logDiagnosticsStep(
     content,
     outputFilename,
   );
-}
-
-function sourceContainsTerm(
-  sourceText: string,
-  term: { sourceTerm: string; caseSensitive: boolean },
-) {
-  if (term.caseSensitive) {
-    return sourceText.includes(term.sourceTerm);
-  }
-
-  return sourceText.toLocaleLowerCase().includes(term.sourceTerm.toLocaleLowerCase());
-}
-
-type GlossaryTermConstraint = {
-  sourceTerm: string;
-  targetTerm: string;
-  targetLocale: string;
-  forbidden: boolean | null;
-  caseSensitive?: boolean | null;
-};
-
-type GlossaryValidationFailure = {
-  sourceTerm: string;
-  targetTerm: string;
-  forbidden: boolean;
-  reason: "missing_preferred_term" | "contains_forbidden_term";
-};
-
-function translationContainsTerm(text: string, term: string, caseSensitive: boolean) {
-  return caseSensitive
-    ? text.includes(term)
-    : text.toLocaleLowerCase().includes(term.toLocaleLowerCase());
-}
-
-export function validateGlossaryTermsInTranslation(input: {
-  sourceText: string;
-  translatedText: string;
-  terms: GlossaryTermConstraint[];
-}) {
-  const failures: GlossaryValidationFailure[] = [];
-
-  for (const term of input.terms) {
-    const caseSensitive = term.caseSensitive === true;
-    if (!sourceContainsTerm(input.sourceText, { sourceTerm: term.sourceTerm, caseSensitive })) {
-      continue;
-    }
-
-    const hasTarget = translationContainsTerm(input.translatedText, term.targetTerm, caseSensitive);
-    if (term.forbidden === true) {
-      if (hasTarget) {
-        failures.push({
-          sourceTerm: term.sourceTerm,
-          targetTerm: term.targetTerm,
-          forbidden: true,
-          reason: "contains_forbidden_term",
-        });
-      }
-      continue;
-    }
-
-    if (term.forbidden === false && !hasTarget) {
-      failures.push({
-        sourceTerm: term.sourceTerm,
-        targetTerm: term.targetTerm,
-        forbidden: false,
-        reason: "missing_preferred_term",
-      });
-    }
-  }
-
-  return failures;
 }
 
 async function assembleFileTranslationContextStep(input: {

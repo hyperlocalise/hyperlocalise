@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { validateGlossaryTermsInTranslation } from "./file-translation-job";
+import {
+  validateGlossaryForTranslationUnits,
+  validateGlossaryTermsInTranslation,
+} from "./validate-glossary-terms-in-translation";
 
 describe("validateGlossaryTermsInTranslation", () => {
   it("includes approved preferred terms only when source term appears", () => {
@@ -91,5 +94,52 @@ describe("validateGlossaryTermsInTranslation", () => {
         reason: "missing_preferred_term",
       },
     ]);
+  });
+});
+
+describe("validateGlossaryForTranslationUnits", () => {
+  it("validates each translation unit with locale-scoped glossary terms", () => {
+    const failuresByUnit = validateGlossaryForTranslationUnits(
+      [
+        {
+          externalStringId: "1",
+          key: "hello",
+          sourceText: "Hello {name}",
+          locale: "fr",
+          translatedText: "Bonjour",
+        },
+        {
+          externalStringId: "2",
+          key: "save",
+          sourceText: "Save",
+          locale: "de",
+          translatedText: "Speichern",
+        },
+      ],
+      [
+        {
+          sourceTerm: "Hello",
+          targetTerm: "Salut",
+          targetLocale: "fr",
+          forbidden: false,
+        },
+        {
+          sourceTerm: "Save",
+          targetTerm: "Speichern",
+          targetLocale: "de",
+          forbidden: false,
+        },
+      ],
+    );
+
+    expect(failuresByUnit.get("1:fr")).toEqual([
+      {
+        sourceTerm: "Hello",
+        targetTerm: "Salut",
+        forbidden: false,
+        reason: "missing_preferred_term",
+      },
+    ]);
+    expect(failuresByUnit.has("2:de")).toBe(false);
   });
 });

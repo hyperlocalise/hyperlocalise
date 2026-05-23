@@ -15,6 +15,7 @@ import {
   listAgentRuns,
   startAgentRun,
   updateAgentRun,
+  updateAgentRunChangedItems,
 } from "./agent-runs";
 
 const projectFixture = createProjectTestFixture();
@@ -279,6 +280,45 @@ describe("agent runs", () => {
     expect(updated.warnings).toEqual(["spelling mismatch"]);
     expect(updated.hyperlocaliseJobId).toBe(job.id);
     expect(updated.status).toBe("queued");
+  });
+
+  it("updates changed items from the current persisted run state", async () => {
+    const { project } = await createTestProject();
+
+    const created = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-review-callback",
+      kind: "translate",
+    });
+
+    await startAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+    });
+
+    await completeAgentRun({
+      runId: created.id,
+      organizationId: project.organizationId,
+      changedItems: [{ itemId: "a", reviewState: "pending" }],
+    });
+
+    await updateAgentRunChangedItems({
+      runId: created.id,
+      organizationId: project.organizationId,
+      changedItems: [{ itemId: "a", reviewState: "accepted" }],
+    });
+
+    const updated = await updateAgentRunChangedItems({
+      runId: created.id,
+      organizationId: project.organizationId,
+      changedItems: (run) => [...run.changedItems, { itemId: "b", reviewState: "rejected" }],
+    });
+
+    expect(updated.changedItems).toEqual([
+      { itemId: "a", reviewState: "accepted" },
+      { itemId: "b", reviewState: "rejected" },
+    ]);
   });
 
   it("does not update a terminal run", async () => {
