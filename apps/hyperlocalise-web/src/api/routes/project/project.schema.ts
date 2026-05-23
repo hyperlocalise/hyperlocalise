@@ -17,7 +17,7 @@ export const externalTmsTranslationPushBodySchema = z.object({
           externalStringId: z.string().trim().min(1).max(128).optional(),
           key: z.string().trim().min(1).max(512).optional(),
           locale: z.string().trim().min(1).max(32),
-          text: z.string(),
+          text: z.string().max(100_000),
           fileId: z.string().trim().min(1).max(128).optional(),
           fileName: z.string().trim().min(1).max(256).optional(),
           format: z.string().trim().min(1).max(64).optional(),
@@ -27,7 +27,8 @@ export const externalTmsTranslationPushBodySchema = z.object({
           path: ["key"],
         }),
     )
-    .min(1),
+    .min(1)
+    .max(1000),
 });
 
 export const createProjectBodySchema = z.object({
