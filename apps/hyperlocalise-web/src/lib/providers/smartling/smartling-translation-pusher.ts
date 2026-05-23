@@ -32,9 +32,8 @@ export const pushSmartlingTranslations: ExternalTmsTranslationPusher = async ({
     throw new Error("invalid_smartling_project_or_job_id");
   }
 
-  let job;
   try {
-    job = await client.getJob(projectId, jobUid);
+    await client.getJob(projectId, jobUid);
   } catch (error) {
     if (error instanceof SmartlingApiError && error.status === 401) {
       throw new Error("smartling_auth_invalid");
@@ -76,7 +75,6 @@ export const pushSmartlingTranslations: ExternalTmsTranslationPusher = async ({
       hashcode,
       translation: translation.text,
       stringText: translation.key ?? null,
-      instruction: translation.fileId ?? null,
     });
     groups.set(key, existing);
   }
@@ -161,11 +159,13 @@ export const pushSmartlingTranslations: ExternalTmsTranslationPusher = async ({
         status: "failed",
         error: error instanceof Error ? error.message : "smartling job authorization failed",
       });
-      failures.push({
-        locale: job.targetLocaleIds[0] ?? "unknown",
-        fileId: null,
-        message: error instanceof Error ? error.message : "smartling job authorization failed",
-      });
+      for (const locale of localesToAuthorize) {
+        failures.push({
+          locale,
+          fileId: null,
+          message: error instanceof Error ? error.message : "smartling job authorization failed",
+        });
+      }
     }
   }
 

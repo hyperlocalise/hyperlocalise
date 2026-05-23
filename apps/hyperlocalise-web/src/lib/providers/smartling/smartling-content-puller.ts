@@ -32,7 +32,12 @@ function isApprovedTranslation(translation: {
     return true;
   }
   const publishStatus = translation.publishStatus?.toLowerCase() ?? "";
-  return publishStatus.includes("publish") || publishStatus.includes("author");
+  return (
+    publishStatus === "published" ||
+    publishStatus === "authorized" ||
+    (publishStatus.includes("publish") && !publishStatus.startsWith("unpublish")) ||
+    (publishStatus.includes("author") && !publishStatus.startsWith("unauthor"))
+  );
 }
 
 export const pullSmartlingTaskContent: ExternalTmsContentPuller = async ({
@@ -91,21 +96,28 @@ export const pullSmartlingTaskContent: ExternalTmsContentPuller = async ({
   >();
 
   for (const locale of targetLocales) {
-    const localeTranslations = await client.listLocaleTranslations(projectId, locale);
-    for (const translation of localeTranslations) {
-      const key = translationLookupKey(translation);
-      if (!key || !translation.translation) {
-        continue;
-      }
-
-      const existing = translationsByKey.get(key) ?? [];
-      existing.push({
+    const fileScopes = fileUris.length > 0 ? fileUris : [undefined];
+    for (const fileUri of fileScopes) {
+      const localeTranslations = await client.listLocaleTranslations(
+        projectId,
         locale,
-        text: translation.translation,
-        isApproved: isApprovedTranslation(translation),
-        externalTranslationId: translation.hashcode ?? null,
-      });
-      translationsByKey.set(key, existing);
+        fileUri ? { fileUri } : undefined,
+      );
+      for (const translation of localeTranslations) {
+        const key = translationLookupKey(translation);
+        if (!key || !translation.translation) {
+          continue;
+        }
+
+        const existing = translationsByKey.get(key) ?? [];
+        existing.push({
+          locale,
+          text: translation.translation,
+          isApproved: isApprovedTranslation(translation),
+          externalTranslationId: translation.hashcode ?? null,
+        });
+        translationsByKey.set(key, existing);
+      }
     }
   }
 

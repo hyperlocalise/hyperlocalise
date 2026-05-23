@@ -99,7 +99,11 @@ describe("pullSmartlingTaskContent", () => {
         );
       }
 
-      if (path.includes("/translations?") && path.includes("targetLocaleId=fr-FR")) {
+      if (
+        path.includes("/translations?") &&
+        path.includes("targetLocaleId=fr-FR") &&
+        path.includes("fileUri=messages.json")
+      ) {
         return new Response(
           JSON.stringify({
             response: {

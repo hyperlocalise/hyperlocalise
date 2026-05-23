@@ -191,8 +191,10 @@ describe("executeProviderAgentTranslation", () => {
     });
 
     loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+      ok: true,
+      project: { name: project.name, translationContext: project.translationContext },
       translateStringJob: vi.fn(async () => ({
-        translations: [{ key: "hello", locale: "fr", text: "Bonjour" }],
+        translations: [{ locale: "fr", text: "Bonjour" }],
       })),
     });
 

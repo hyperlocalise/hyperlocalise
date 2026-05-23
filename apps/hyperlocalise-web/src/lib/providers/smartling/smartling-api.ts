@@ -497,6 +497,7 @@ export class SmartlingApiClient {
   async listLocaleTranslations(
     projectId: string,
     localeId: string,
+    options?: { fileUri?: string },
   ): Promise<SmartlingLocaleTranslation[]> {
     const translations: SmartlingLocaleTranslation[] = [];
 
@@ -508,6 +509,9 @@ export class SmartlingApiClient {
           limit: String(limit),
           offset: String(offset),
         });
+        if (options?.fileUri) {
+          params.set("fileUri", options.fileUri);
+        }
         const data = await this.get<{ items?: SmartlingLocaleTranslation[]; totalCount?: number }>(
           `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/translations?${params.toString()}`,
           token,
