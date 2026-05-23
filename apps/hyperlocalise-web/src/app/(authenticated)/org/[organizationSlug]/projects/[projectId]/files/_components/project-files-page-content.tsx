@@ -447,6 +447,8 @@ export function ProjectFilesPageContent({
   useStaleLocaleFilterReset(filters, setFilters, localeOptions);
   const tree = buildTree(files);
   const selectedFile = files.find((f) => f.sourcePath === selectedPath);
+  const providerOnlyFilterActive =
+    filters.origin === "all" && (filters.locale !== "all" || filters.syncState !== "all");
   const fileDetail = fileDetailQuery.data?.file;
   const versions = useMemo(() => fileDetail?.versions ?? [], [fileDetail?.versions]);
   const selectedVersion =
@@ -485,12 +487,6 @@ export function ProjectFilesPageContent({
       current && versions.some((version) => version.id === current) ? current : versions[1]?.id,
     );
   }, [versions]);
-
-  useEffect(() => {
-    if (initialSourcePath) {
-      setSelectedPath(initialSourcePath);
-    }
-  }, [initialSourcePath]);
 
   useEffect(() => {
     if (filesQuery.isLoading || filesQuery.isFetching) {
@@ -590,7 +586,9 @@ export function ProjectFilesPageContent({
                 className="size-8 text-foreground/24"
               />
               <TypographyP className="text-sm text-foreground/52">
-                No source files found for this project.
+                {providerOnlyFilterActive
+                  ? "No provider-backed files match these filters. Locale and sync-state filters do not include repository files."
+                  : "No source files found for this project."}
               </TypographyP>
             </div>
           ) : (
