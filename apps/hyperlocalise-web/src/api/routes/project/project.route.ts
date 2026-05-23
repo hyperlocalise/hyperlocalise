@@ -9,7 +9,9 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
+import { fetchCrowdinGlossaries } from "@/lib/providers/crowdin/crowdin-glossary-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
+import { fetchCrowdinTranslationMemories } from "@/lib/providers/crowdin/crowdin-tm-fetcher";
 import {
   syncExternalTmsFileKeys,
   type ExternalTmsFileKeyFetcher,
@@ -242,12 +244,14 @@ const jobTaskFetchersByProvider: Partial<
 const glossaryFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsGlossaryFetcher>
 > = {
+  crowdin: fetchCrowdinGlossaries,
   phrase: fetchPhraseGlossaries,
 };
 
 const translationMemoryFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsTranslationMemoryFetcher>
 > = {
+  crowdin: fetchCrowdinTranslationMemories,
   phrase: fetchPhraseTranslationMemories,
 };
 

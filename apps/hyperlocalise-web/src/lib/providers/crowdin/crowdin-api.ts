@@ -163,6 +163,53 @@ export interface CrowdinDownloadLink {
   expireIn?: string;
 }
 
+export interface CrowdinGlossary {
+  id: number;
+  name: string;
+  description: string | null;
+  languageId: string;
+  languageIds: string[];
+  terms: number;
+  projectIds: number[];
+  defaultProjectIds: number[];
+  webUrl: string;
+}
+
+export interface CrowdinGlossaryTerm {
+  id: number;
+  glossaryId: number;
+  languageId: string;
+  text: string;
+  description: string;
+  partOfSpeech: string;
+  status: string;
+  conceptId: number;
+  note: string;
+}
+
+export interface CrowdinTranslationMemory {
+  id: number;
+  name: string;
+  description: string | null;
+  languageId: string;
+  languageIds: string[];
+  segmentsCount: number;
+  projectIds: number[];
+  defaultProjectIds: number[];
+  webUrl: string;
+}
+
+export interface CrowdinTranslationMemorySegmentRecord {
+  id: number;
+  languageId: string;
+  text: string;
+}
+
+export interface CrowdinTranslationMemorySegment {
+  id: number;
+  records: CrowdinTranslationMemorySegmentRecord[];
+}
+
 export interface CrowdinTmConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
@@ -820,6 +867,53 @@ export class CrowdinApiClient {
     }
 
     return progress;
+  }
+
+  async listGlossaries(): Promise<CrowdinGlossary[]> {
+    return this.listPaginated<CrowdinGlossary>("/glossaries");
+  }
+
+  async listGlossaryTerms(glossaryId: number): Promise<CrowdinGlossaryTerm[]> {
+    return this.listPaginated<CrowdinGlossaryTerm>(`/glossaries/${glossaryId}/terms`);
+  }
+
+  async listTranslationMemories(): Promise<CrowdinTranslationMemory[]> {
+    return this.listPaginated<CrowdinTranslationMemory>("/tms");
+  }
+
+  async listTranslationMemorySegments(
+    tmId: number,
+    options?: {
+      shouldStop?: (segments: CrowdinTranslationMemorySegment[]) => boolean;
+    },
+  ): Promise<CrowdinTranslationMemorySegment[]> {
+    return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`, options);
+  }
+
+  private async listPaginated<T>(
+    path: string,
+    options?: { shouldStop?: (items: T[]) => boolean },
+  ): Promise<T[]> {
+    const items: T[] = [];
+    let offset = 0;
+    const limit = 500;
+
+    while (true) {
+      const separator = path.includes("?") ? "&" : "?";
+      const response = await this.get<CrowdinListResponse<T>>(
+        `${path}${separator}limit=${limit}&offset=${offset}`,
+      );
+      const page = response.data.map((item) => item.data);
+      items.push(...page);
+
+      if (options?.shouldStop?.(items) || page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return items;
   }
 
   private authHeaders(contentType = "application/json"): Record<string, string> {

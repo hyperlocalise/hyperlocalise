@@ -441,6 +441,69 @@ describe("CrowdinApiClient", () => {
     expect(upload.fileId).toBe(101);
   });
 
+  it("lists glossaries and translation memories with pagination", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/glossaries?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 7,
+                  name: "Product glossary",
+                  description: null,
+                  languageId: "en",
+                  languageIds: ["en", "fr"],
+                  terms: 12,
+                  projectIds: [42],
+                  defaultProjectIds: [],
+                  webUrl: "https://crowdin.com/glossary/7",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/tms?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 9,
+                  name: "Product TM",
+                  description: null,
+                  languageId: "en",
+                  languageIds: ["en", "fr"],
+                  segmentsCount: 100,
+                  projectIds: [42],
+                  defaultProjectIds: [],
+                  webUrl: "https://crowdin.com/tm/9",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const glossaries = await client.listGlossaries();
+    const memories = await client.listTranslationMemories();
+
+    expect(glossaries).toHaveLength(1);
+    expect(glossaries[0]?.projectIds).toEqual([42]);
+    expect(memories).toHaveLength(1);
+    expect(memories[0]?.segmentsCount).toBe(100);
+  });
+
   it("lists project language progress", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
