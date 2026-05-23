@@ -63,4 +63,6 @@
 ## 2026-06-20 - Optimizing XCStrings path and key construction
 **Learning:** XCStrings parsing involves frequent recursive construction of path labels (e.g., `strings.KEY.localizations.LOCALE`). Using `fmt.Sprintf` for these labels in loops or recursion introduces significant reflection overhead. String concatenation is a much more efficient alternative.
 **Action:** Replaced `fmt.Sprintf` with string concatenation in `internal/i18n/translationfileparser/xcstrings_parser.go`, resulting in ~10% faster parsing and ~14% fewer allocations.
-## 2026-05-23 - Optimizing PHP array path construction **Learning:** In recursive tree/array traversal (like PHP array parsing), using a `[]string` slice to track the path leads to $O(N^2)$ complexity and high allocations due to repeated slice copies and `strings.Join` calls. Passing a pre-concatenated `string` prefix is much more efficient. **Action:** Refactored `PHPArrayParser` to use a `string` prefix for pathing, consistent with other optimized parsers in the codebase.
+## 2026-05-23 - Optimizing PHP array path construction
+**Learning:** In recursive tree/array traversal (like PHP array parsing), using a `[]string` slice to track the path leads to $O(N^2)$ complexity and high allocations due to repeated slice copies and `strings.Join` calls. Passing a pre-concatenated `string` prefix is much more efficient.
+**Action:** Refactored `PHPArrayParser` to use a `string` prefix for pathing, consistent with other optimized parsers in the codebase.
