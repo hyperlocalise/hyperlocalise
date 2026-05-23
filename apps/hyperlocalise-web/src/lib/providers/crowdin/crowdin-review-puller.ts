@@ -36,7 +36,12 @@ export async function pullCrowdinProviderReview(
 
   const projectId = Number(input.externalProjectId);
   const taskId = Number(input.externalJobId);
-  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+  if (
+    !input.externalProjectId.trim() ||
+    !input.externalJobId.trim() ||
+    Number.isNaN(projectId) ||
+    Number.isNaN(taskId)
+  ) {
     throw new Error("invalid_crowdin_project_or_task_id");
   }
 

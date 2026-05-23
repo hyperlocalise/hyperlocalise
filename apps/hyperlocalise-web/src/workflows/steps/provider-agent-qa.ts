@@ -4,6 +4,7 @@ import type {
   ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
 import {
   completeProviderAgentQaRun,
   prepareProviderAgentQaRun,
@@ -16,11 +17,6 @@ export async function prepareProviderAgentQaStep(input: {
 }) {
   "use step";
   return prepareProviderAgentQaRun(input);
-}
-
-function readInputSnapshotAction(inputSnapshot: Record<string, unknown> | undefined) {
-  const action = inputSnapshot?.action;
-  return typeof action === "string" ? action : null;
 }
 
 export async function completeProviderAgentQaStep(input: {

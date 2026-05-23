@@ -14,7 +14,7 @@ export const pushCrowdinProviderComments: ExternalTmsCommentPusher = async ({
 }) => {
   const client = new CrowdinApiClient({ token: secretMaterial });
   const projectId = Number(externalProjectId.trim());
-  if (Number.isNaN(projectId)) {
+  if (!externalProjectId.trim() || Number.isNaN(projectId)) {
     throw new Error("invalid_crowdin_project_id");
   }
 

@@ -30,6 +30,7 @@ import {
 } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import { providerReviewReportSchema } from "@/api/routes/project/job-qa.schema";
+import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
 import { pullProviderReviewForJob } from "@/lib/providers/sync-provider-review";
 
 export type ProviderAgentQaResult =
@@ -55,11 +56,6 @@ function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>):
 function readOutputSummaryString(outputSummary: Record<string, unknown>, key: string): string {
   const value = outputSummary[key];
   return typeof value === "string" ? value : "";
-}
-
-function readInputSnapshotAction(inputSnapshot: Record<string, unknown>): string | null {
-  const action = inputSnapshot.action;
-  return typeof action === "string" ? action : null;
 }
 
 function readStoredReviewReport(
