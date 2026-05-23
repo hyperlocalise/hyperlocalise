@@ -32,7 +32,18 @@ import {
   isProjectMutationAllowed,
   projectNotFoundResponse,
 } from "./project.shared";
-import { createAgentRun, failAgentRun, listAgentRuns } from "@/lib/providers/agent-runs";
+import {
+  applyAgentRunProposalReviewUpdates,
+  applyBulkAgentRunProposalReview,
+  parseAgentRunProposalItems,
+} from "@/lib/providers/agent-run-proposals";
+import {
+  createAgentRun,
+  failAgentRun,
+  getAgentRun,
+  listAgentRuns,
+  updateAgentRunChangedItems,
+} from "@/lib/providers/agent-runs";
 import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
@@ -43,7 +54,11 @@ import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-
 import { runProviderJobQaForJob } from "@/lib/providers/provider-agent-qa";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 
-import { createJobAgentRunBodySchema } from "./agent-run.schema";
+import {
+  createJobAgentRunBodySchema,
+  updateAgentRunProposalReviewBodySchema,
+  workspaceAgentRunParamsSchema,
+} from "./agent-run.schema";
 import { providerQaReportResponseSchema } from "./job-qa.schema";
 import {
   createJobBodySchema,
@@ -223,6 +238,31 @@ const validateCreateJobAgentRunBody = validator("json", (value, c) => {
       c,
       "invalid_agent_run_payload",
       "Invalid agent run payload",
+      parsed.error.issues,
+    );
+  }
+
+  return parsed.data;
+});
+
+const validateWorkspaceAgentRunParams = validator("param", (value, c) => {
+  const parsed = workspaceAgentRunParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return notFoundResponse(c, "agent_run_not_found", "Agent run not found");
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateAgentRunProposalReviewBody = validator("json", (value, c) => {
+  const parsed = updateAgentRunProposalReviewBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_agent_run_review_payload",
+      "Invalid agent run review payload",
       parsed.error.issues,
     );
   }
@@ -609,6 +649,111 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
       return c.json({ agentRuns: agentRuns.map(serializeAgentRun) }, 200);
     })
+    .patch(
+      "/:jobId/agent-runs/:agentRunId/review",
+      validateWorkspaceAgentRunParams,
+      validateUpdateAgentRunProposalReviewBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        const [job] = await db
+          .select({
+            id: schema.jobs.id,
+            externalProviderKind: schema.externalJobDetails.providerKind,
+            externalJobId: schema.externalJobDetails.externalJobId,
+          })
+          .from(schema.jobs)
+          .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+          .where(
+            and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
+          )
+          .limit(1);
+
+        if (!job) {
+          return notFoundResponse(c, "job_not_found", "Job not found");
+        }
+
+        if (!job.externalProviderKind || !job.externalJobId) {
+          return conflictResponse(
+            c,
+            "provider_job_required",
+            "Agent run review is only available for provider-backed jobs",
+          );
+        }
+
+        const agentRun = await getAgentRun({
+          runId: params.agentRunId,
+          organizationId,
+        });
+
+        if (!agentRun || agentRun.hyperlocaliseJobId !== job.id) {
+          return notFoundResponse(c, "agent_run_not_found", "Agent run not found");
+        }
+
+        if (agentRun.status !== "succeeded") {
+          return conflictResponse(
+            c,
+            "agent_run_not_reviewable",
+            "Only completed agent runs can be reviewed",
+          );
+        }
+
+        if (agentRun.kind !== "translate" && agentRun.kind !== "qa_fix") {
+          return conflictResponse(
+            c,
+            "agent_run_not_reviewable",
+            "This agent run does not contain reviewable proposals",
+          );
+        }
+
+        const existingItems = parseAgentRunProposalItems(agentRun.changedItems);
+        if (existingItems.length === 0) {
+          return conflictResponse(
+            c,
+            "agent_run_not_reviewable",
+            "This agent run does not contain proposals to review",
+          );
+        }
+
+        let nextChangedItems = agentRun.changedItems;
+
+        if (payload.updates && payload.updates.length > 0) {
+          nextChangedItems = applyAgentRunProposalReviewUpdates({
+            changedItems: agentRun.changedItems,
+            updates: payload.updates,
+          });
+        } else if (payload.bulk) {
+          const scope = payload.bulk.scope ?? "pending";
+          const itemIds =
+            scope === "filtered"
+              ? payload.bulk.itemIdsFilter
+              : scope === "all"
+                ? undefined
+                : payload.bulk.itemIds;
+
+          nextChangedItems = applyBulkAgentRunProposalReview({
+            changedItems: agentRun.changedItems,
+            reviewState: payload.bulk.reviewState,
+            itemIds,
+            filter: scope === "all" ? "all" : "pending",
+          });
+        }
+
+        const updatedRun = await updateAgentRunChangedItems({
+          runId: agentRun.id,
+          organizationId,
+          changedItems: nextChangedItems,
+        });
+
+        return c.json({ agentRun: serializeAgentRun(updatedRun) }, 200);
+      },
+    )
     .get("/:jobId/provider-actions", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;

@@ -12,11 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { agentRunHasReviewableProposals } from "@/lib/providers/agent-run-proposals";
 import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
 import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 
+import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 
 export type ProviderSourceFile = {
@@ -60,6 +62,8 @@ export type AgentRunRecord = {
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
   inputSnapshot: Record<string, unknown>;
   outputSummary: Record<string, unknown>;
+  changedItems: Record<string, unknown>[];
+  warnings: string[];
   createdAt: string;
   completedAt: string | null;
 };
@@ -315,6 +319,13 @@ export function JobProviderDetailSection({
         }}
       />
 
+      <JobAgentRunDiffReviewSection
+        jobId={jobId}
+        organizationSlug={organizationSlug}
+        agentRuns={agentRunsQuery.data}
+        agentRunsLoading={agentRunsQuery.isLoading}
+      />
+
       <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
           Agent Activity
@@ -331,25 +342,47 @@ export function JobProviderDetailSection({
         ) : null}
         {agentRunsQuery.data && agentRunsQuery.data.length > 0 ? (
           <ul className="mt-4 space-y-2">
-            {agentRunsQuery.data.map((run) => (
-              <li
-                key={run.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium capitalize text-foreground/82">
-                    {run.kind.replaceAll("_", " ")}
-                  </p>
-                  <p className="text-xs text-foreground/48">Started {formatDate(run.createdAt)}</p>
-                </div>
-                <Badge
-                  variant="outline"
-                  className={cn("rounded-full capitalize", toneClass(agentRunTone(run.status)))}
+            {agentRunsQuery.data.map((run) => {
+              const hasProposals = agentRunHasReviewableProposals({
+                kind: run.kind,
+                status: run.status,
+                changedItems: run.changedItems,
+              });
+              const proposedCount =
+                typeof run.outputSummary.proposedCount === "number"
+                  ? run.outputSummary.proposedCount
+                  : run.changedItems.length;
+
+              return (
+                <li
+                  key={run.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-2"
                 >
-                  {run.status}
-                </Badge>
-              </li>
-            ))}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium capitalize text-foreground/82">
+                      {run.kind.replaceAll("_", " ")}
+                    </p>
+                    <p className="text-xs text-foreground/48">
+                      Started {formatDate(run.createdAt)}
+                      {hasProposals ? ` · ${proposedCount} proposals` : null}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {hasProposals ? (
+                      <Badge variant="outline" className="rounded-full">
+                        Review proposals
+                      </Badge>
+                    ) : null}
+                    <Badge
+                      variant="outline"
+                      className={cn("rounded-full capitalize", toneClass(agentRunTone(run.status)))}
+                    >
+                      {run.status}
+                    </Badge>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : null}
         {agentRunsQuery.data && agentRunsQuery.data.length === 0 ? (

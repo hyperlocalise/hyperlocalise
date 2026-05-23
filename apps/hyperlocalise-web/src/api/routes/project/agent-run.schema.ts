@@ -18,6 +18,64 @@ export const createJobAgentRunBodySchema = z.object({
   selectedFindings: z.array(providerQaFindingSchema).max(500).optional(),
 });
 
+export const agentRunProposalReviewStateSchema = z.enum(["pending", "accepted", "rejected"]);
+
+export const agentRunProposalWarningKindSchema = z.enum([
+  "glossary",
+  "placeholder",
+  "format",
+  "confidence",
+]);
+
+export const agentRunProposalWarningsSchema = z.object({
+  glossary: z.boolean().optional(),
+  placeholder: z.boolean().optional(),
+  format: z.boolean().optional(),
+  confidence: z.boolean().optional(),
+});
+
+export const agentRunProposalItemSchema = z.object({
+  itemId: z.string(),
+  externalStringId: z.string(),
+  key: z.string(),
+  locale: z.string(),
+  sourceText: z.string(),
+  from: z.string(),
+  to: z.string(),
+  reviewState: agentRunProposalReviewStateSchema,
+  changedFields: z.array(z.string()),
+  warnings: agentRunProposalWarningsSchema,
+});
+
+export const workspaceAgentRunParamsSchema = z.object({
+  jobId: z.string().trim().min(1).max(128),
+  agentRunId: z.string().uuid(),
+});
+
+export const updateAgentRunProposalReviewBodySchema = z
+  .object({
+    updates: z
+      .array(
+        z.object({
+          itemId: z.string().trim().min(1).max(256),
+          reviewState: z.enum(["accepted", "rejected"]),
+        }),
+      )
+      .max(500)
+      .optional(),
+    bulk: z
+      .object({
+        reviewState: z.enum(["accepted", "rejected"]),
+        itemIds: z.array(z.string().trim().min(1).max(256)).max(500).optional(),
+        scope: z.enum(["pending", "all", "filtered"]).optional(),
+        itemIdsFilter: z.array(z.string().trim().min(1).max(256)).max(500).optional(),
+      })
+      .optional(),
+  })
+  .refine((body) => (body.updates?.length ?? 0) > 0 || body.bulk, {
+    message: "Provide updates or bulk review instructions",
+  });
+
 export const agentRunRecordSchema = z.object({
   id: z.string().uuid(),
   organizationId: z.string().uuid(),
@@ -29,7 +87,7 @@ export const agentRunRecordSchema = z.object({
   actorUserId: z.string().uuid().nullable(),
   inputSnapshot: z.record(z.string(), z.unknown()),
   outputSummary: z.record(z.string(), z.unknown()),
-  changedItems: z.array(z.record(z.string(), z.unknown())),
+  changedItems: z.array(agentRunProposalItemSchema.or(z.record(z.string(), z.unknown()))),
   warnings: z.array(z.string()),
   hyperlocaliseJobId: z.string().nullable(),
   startedAt: z.string().nullable(),

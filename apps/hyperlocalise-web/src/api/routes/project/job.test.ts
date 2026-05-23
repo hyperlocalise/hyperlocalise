@@ -17,6 +17,8 @@ import type {
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
+import { completeAgentRun, createAgentRun } from "@/lib/providers/agent-runs";
+import { serializeAgentRunProposalItem } from "@/lib/providers/agent-run-proposals";
 import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
 
 const { resolveApiAuthContextFromSessionMock, runProviderJobQaForJobMock } = vi.hoisted(() => ({
@@ -1601,5 +1603,121 @@ describe("jobRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "provider_job_required",
     });
+  });
+
+  it("persists accept and reject decisions for agent run proposals", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-review-1",
+      externalStatus: "todo",
+      title: "Review copy",
+    });
+
+    const agentRun = await createAgentRun({
+      organizationId: organization!.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-review-1",
+      kind: "translate",
+      hyperlocaliseJobId: externalJob.id,
+      inputSnapshot: { action: "translate_with_agent", projectId: project.id },
+    });
+
+    await completeAgentRun({
+      runId: agentRun.id,
+      organizationId: organization!.id,
+      outputSummary: { proposedCount: 2 },
+      changedItems: [
+        serializeAgentRunProposalItem({
+          itemId: "1:fr",
+          externalStringId: "1",
+          key: "hello",
+          locale: "fr",
+          sourceText: "Hello {name}",
+          from: "",
+          to: "Bonjour",
+          reviewState: "pending",
+          changedFields: ["target"],
+          warnings: { placeholder: true },
+        }),
+        serializeAgentRunProposalItem({
+          itemId: "2:fr",
+          externalStringId: "2",
+          key: "world",
+          locale: "fr",
+          sourceText: "World",
+          from: "Monde",
+          to: "Le monde",
+          reviewState: "pending",
+          changedFields: ["target"],
+          warnings: {},
+        }),
+      ],
+    });
+
+    const acceptResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"][
+      ":agentRunId"
+    ].review.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+          agentRunId: agentRun.id,
+        },
+        json: {
+          updates: [{ itemId: "1:fr", reviewState: "accepted" }],
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(acceptResponse.status).toBe(200);
+    const acceptBody = (await acceptResponse.json()) as {
+      agentRun: { changedItems: Array<{ itemId: string; reviewState: string }> };
+    };
+    expect(acceptBody.agentRun.changedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemId: "1:fr", reviewState: "accepted" }),
+        expect.objectContaining({ itemId: "2:fr", reviewState: "pending" }),
+      ]),
+    );
+
+    const rejectResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"][
+      ":agentRunId"
+    ].review.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+          agentRunId: agentRun.id,
+        },
+        json: {
+          bulk: { reviewState: "rejected", scope: "pending" },
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(rejectResponse.status).toBe(200);
+    const rejectBody = (await rejectResponse.json()) as {
+      agentRun: { changedItems: Array<{ itemId: string; reviewState: string }> };
+    };
+    expect(rejectBody.agentRun.changedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemId: "1:fr", reviewState: "accepted" }),
+        expect.objectContaining({ itemId: "2:fr", reviewState: "rejected" }),
+      ]),
+    );
   });
 });

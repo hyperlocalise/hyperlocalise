@@ -255,6 +255,34 @@ export async function listAgentRuns(input: {
     .limit(input.limit ?? 50);
 }
 
+export async function updateAgentRunChangedItems(input: {
+  runId: string;
+  organizationId: string;
+  changedItems: AgentRunChangedItem[];
+}) {
+  const now = new Date();
+  const [run] = await db
+    .update(schema.agentRuns)
+    .set({
+      changedItems: input.changedItems,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.agentRuns.id, input.runId),
+        eq(schema.agentRuns.organizationId, input.organizationId),
+        eq(schema.agentRuns.status, "succeeded"),
+      ),
+    )
+    .returning();
+
+  if (!run) {
+    throw new Error("Agent run not found or not in reviewable state");
+  }
+
+  return run;
+}
+
 export async function getAgentRunsByExternalJob(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
