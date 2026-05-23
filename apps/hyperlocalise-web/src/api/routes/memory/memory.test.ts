@@ -64,6 +64,7 @@ describe("memoryRoutes", () => {
     expect(legacyResponse.status).toBe(200);
     await expect(legacyResponse.json()).resolves.toMatchObject({
       memories: [expect.objectContaining({ name: "Mounted TM" })],
+      total: 1,
     });
 
     const orgScopedResponse = await client.api.orgs[":organizationSlug"][
@@ -79,6 +80,7 @@ describe("memoryRoutes", () => {
     expect(orgScopedResponse.status).toBe(200);
     await expect(orgScopedResponse.json()).resolves.toMatchObject({
       memories: [expect.objectContaining({ name: "Mounted TM" })],
+      total: 1,
     });
   });
 
@@ -122,6 +124,7 @@ describe("memoryRoutes", () => {
     if ("error" in body) throw new Error(String(body.error));
 
     expect(body.memories).toHaveLength(2);
+    expect(body.total).toBe(2);
     expect(body.memories).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "Native TM", source: "native" }),

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -25,8 +25,13 @@ import {
   memoryNotFoundResponse,
 } from "./memory.shared";
 
+type MemoryListResult = {
+  memories: Memory[];
+  total: number;
+};
+
 type MemoryStore = {
-  list(auth: ApiAuthContext, query?: ListMemoryQuery): Promise<Memory[]>;
+  list(auth: ApiAuthContext, query?: ListMemoryQuery): Promise<MemoryListResult>;
   create(auth: ApiAuthContext, payload: CreateMemoryBody): Promise<Memory>;
   getById(auth: ApiAuthContext, memoryId: string): Promise<Memory | null>;
   update(auth: ApiAuthContext, memoryId: string, payload: UpdateMemoryBody): Promise<Memory | null>;
@@ -37,13 +42,20 @@ const memoryStore: MemoryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    return db
-      .select()
-      .from(schema.memories)
-      .where(eq(schema.memories.organizationId, auth.organization.localOrganizationId))
-      .orderBy(desc(schema.memories.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const where = eq(schema.memories.organizationId, auth.organization.localOrganizationId);
+
+    const [memories, totalRow] = await Promise.all([
+      db
+        .select()
+        .from(schema.memories)
+        .where(where)
+        .orderBy(desc(schema.memories.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ value: count() }).from(schema.memories).where(where),
+    ]);
+
+    return { memories, total: totalRow[0]?.value ?? 0 };
   },
   async create(auth, payload) {
     const [memory] = await db
@@ -131,8 +143,8 @@ export function createMemoryRoutes() {
     .use("*", workosAuthMiddleware)
     .get("/", validateListMemoryQuery, async (c) => {
       const query = c.req.valid("query");
-      const memories = await memoryStore.list(c.var.auth, query);
-      return c.json({ memories: memories.map(toMemoryRecord) }, 200);
+      const { memories, total } = await memoryStore.list(c.var.auth, query);
+      return c.json({ memories: memories.map(toMemoryRecord), total }, 200);
     })
     .post("/", validateCreateMemoryBody, async (c) => {
       if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {

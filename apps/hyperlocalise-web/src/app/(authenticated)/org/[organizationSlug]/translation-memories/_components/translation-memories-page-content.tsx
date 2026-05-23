@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -21,6 +21,7 @@ import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-sh
 import {
   buildProjectIdByExternalKey,
   mapMemoryToListRow,
+  providerLabel,
   type ApiMemory,
   type MemoryListRow,
 } from "./memory-list";
@@ -29,7 +30,13 @@ import {
   TranslationMemoriesTable,
 } from "./translation-memories-table";
 
-const memoriesQueryKey = (organizationSlug: string) => ["translation-memories", organizationSlug];
+const MEMORIES_PAGE_SIZE = 100;
+
+const memoriesQueryKey = (organizationSlug: string, page: number) => [
+  "translation-memories",
+  organizationSlug,
+  page,
+];
 const projectsQueryKey = (organizationSlug: string) => [
   "translation-memory-projects",
   organizationSlug,
@@ -91,7 +98,13 @@ function useMemoryFilters(memories: MemoryListRow[]) {
   };
 }
 
-function TranslationMemoriesMetrics({ memories }: { memories: MemoryListRow[] }) {
+function TranslationMemoriesMetrics({
+  memories,
+  total,
+}: {
+  memories: MemoryListRow[];
+  total: number;
+}) {
   const metrics = useMemo(() => {
     const providerMemories = memories.filter((memory) => memory.source === "external_tms");
     const syncedCount = providerMemories.filter(
@@ -106,12 +119,17 @@ function TranslationMemoriesMetrics({ memories }: { memories: MemoryListRow[] })
         : segmentTotal >= 1_000
           ? `${(segmentTotal / 1_000).toFixed(1)}k`
           : `${segmentTotal}`;
+    const providerCountOnPage = providerMemories.length;
+    const providerDetail =
+      total > memories.length
+        ? `${providerCountOnPage} provider on this page`
+        : `${providerCountOnPage} provider`;
 
     return [
       {
         label: "Memory stores",
-        value: `${memories.length}`,
-        detail: `${providerMemories.length} provider`,
+        value: `${total}`,
+        detail: providerDetail,
         tone: "info" as const,
       },
       {
@@ -127,12 +145,13 @@ function TranslationMemoriesMetrics({ memories }: { memories: MemoryListRow[] })
         tone: errorCount > 0 ? ("watch" as const) : ("safe" as const),
       },
     ] as const;
-  }, [memories]);
+  }, [memories, total]);
 
   return <MetricsGrid metrics={metrics} />;
 }
 
 export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const [page, setPage] = useState(1);
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
     queryFn: async () => {
@@ -168,11 +187,14 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
   });
 
   const memoriesQuery = useQuery({
-    queryKey: memoriesQueryKey(organizationSlug),
+    queryKey: memoriesQueryKey(organizationSlug, page),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
         param: { organizationSlug },
-        query: { limit: "100", offset: "0" },
+        query: {
+          limit: String(MEMORIES_PAGE_SIZE),
+          offset: String((page - 1) * MEMORIES_PAGE_SIZE),
+        },
       });
 
       if (!response.ok) {
@@ -180,7 +202,10 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
       }
 
       const body = await response.json();
-      return body.memories as ApiMemory[];
+      return {
+        memories: body.memories as ApiMemory[],
+        total: body.total as number,
+      };
     },
   });
 
@@ -191,11 +216,26 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
 
   const memories = useMemo(
     () =>
-      (memoriesQuery.data ?? []).map((memory) =>
+      (memoriesQuery.data?.memories ?? []).map((memory) =>
         mapMemoryToListRow(memory, projectIdByExternalKey),
       ),
-    [memoriesQuery.data, projectIdByExternalKey],
+    [memoriesQuery.data?.memories, projectIdByExternalKey],
   );
+
+  const memoryTotal = memoriesQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(memoryTotal / MEMORIES_PAGE_SIZE));
+  const pageStart = memoryTotal === 0 ? 0 : (page - 1) * MEMORIES_PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * MEMORIES_PAGE_SIZE, memoryTotal);
+
+  const providerKinds = useMemo(() => {
+    const kinds = new Set<string>();
+    for (const memory of memories) {
+      if (memory.externalProviderKind) {
+        kinds.add(memory.externalProviderKind);
+      }
+    }
+    return [...kinds].sort((a, b) => providerLabel(a).localeCompare(providerLabel(b)));
+  }, [memories]);
 
   const {
     searchQuery,
@@ -209,6 +249,16 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
     filteredMemories,
     activeFilterCount,
   } = useMemoryFilters(memories);
+
+  useEffect(() => {
+    setPage(1);
+  }, [organizationSlug, searchQuery, sourceFilter, providerFilter, syncFilter]);
+
+  useEffect(() => {
+    if (memoriesQuery.isSuccess && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [memoriesQuery.isSuccess, page, totalPages]);
 
   const hasExternalMemories = memories.some((memory) => memory.source === "external_tms");
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
@@ -232,7 +282,9 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
         description="Browse native workspace memories and synced provider translation memories with locale coverage, capabilities, and sync health in one place."
       />
 
-      {memoriesQuery.isSuccess ? <TranslationMemoriesMetrics memories={memories} /> : null}
+      {memoriesQuery.isSuccess ? (
+        <TranslationMemoriesMetrics memories={memories} total={memoryTotal} />
+      ) : null}
 
       {memoriesQuery.isSuccess && memories.length > 0 ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -275,10 +327,11 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All providers</SelectItem>
-                  <SelectItem value="phrase">Phrase</SelectItem>
-                  <SelectItem value="crowdin">Crowdin</SelectItem>
-                  <SelectItem value="smartling">Smartling</SelectItem>
-                  <SelectItem value="lokalise">Lokalise</SelectItem>
+                  {providerKinds.map((kind) => (
+                    <SelectItem key={kind} value={kind}>
+                      {providerLabel(kind)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             ) : null}
@@ -356,6 +409,37 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
         emptyDescription={emptyDescription}
         emptyAction={<TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />}
       />
+
+      {memoriesQuery.isSuccess && memoryTotal > MEMORIES_PAGE_SIZE ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-foreground/52">
+            Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </Button>
+            <p className="text-sm text-foreground/52">
+              Page {page} of {totalPages}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={page >= totalPages}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

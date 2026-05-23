@@ -173,7 +173,7 @@ export function TranslationMemoriesTable({
 }: {
   memories: MemoryListRow[];
   memoriesQuery: Pick<
-    UseQueryResult<MemoryListRow[], Error>,
+    UseQueryResult<unknown, Error>,
     "isLoading" | "isError" | "isSuccess" | "error"
   >;
   organizationSlug: string;
