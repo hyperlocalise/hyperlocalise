@@ -81,7 +81,8 @@ export async function pullCrowdinProviderReview(
   const stringIdList = [...stringIds];
 
   if (stringIdList.length === 0) {
-    stringComments.push(...(await client.listStringComments(projectId)));
+    // No job-specific string IDs available — skip string comment fetch to avoid
+    // pulling in comments from unrelated jobs in the same project.
   } else {
     for (const chunk of chunkArray(stringIdList, 25)) {
       const chunkResults = await Promise.all(
