@@ -163,6 +163,27 @@ export interface CrowdinDownloadLink {
   expireIn?: string;
 }
 
+export interface CrowdinTmConcordanceSearchRequest {
+  sourceLanguageId: string;
+  targetLanguageId: string;
+  autoSubstitution: boolean;
+  minRelevant: number;
+  expressions: string[];
+}
+
+export interface CrowdinTmConcordanceSearchResult {
+  tm: {
+    id: number;
+    name: string;
+  };
+  recordId: number;
+  source: string;
+  target: string;
+  relevant: number;
+  substituted: string;
+  updatedAt: string;
+}
+
 interface CrowdinListResponse<T> {
   data: Array<{ data: T }>;
   pagination?: {
@@ -415,6 +436,27 @@ export class CrowdinApiClient {
       `/projects/${projectId}/tasks/${taskId}`,
     );
     return response.data;
+  }
+
+  /**
+   * Search translation memory concordance for source expressions.
+   */
+  async concordanceSearch(
+    projectId: number,
+    input: CrowdinTmConcordanceSearchRequest,
+  ): Promise<CrowdinTmConcordanceSearchResult[]> {
+    const response = await this.post<CrowdinListResponse<CrowdinTmConcordanceSearchResult>>(
+      `/projects/${projectId}/tms/concordance`,
+      {
+        sourceLanguageId: input.sourceLanguageId,
+        targetLanguageId: input.targetLanguageId,
+        autoSubstitution: input.autoSubstitution,
+        minRelevant: input.minRelevant,
+        expressions: input.expressions,
+      },
+    );
+
+    return response.data.map((item) => item.data);
   }
 
   /**

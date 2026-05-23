@@ -2,7 +2,12 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
-import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
+import {
+  toContextTranslationMemoryMatch,
+  type ContextTranslationMemoryMatch,
+} from "@/lib/translation/translation-memory-match";
 
 const maxContextSearchTerms = 50;
 
@@ -13,14 +18,7 @@ export type StringTranslationContextSnapshot = {
     name: string;
     translationContext: string;
   };
-  job: {
-    sourceLocale: string;
-    targetLocales: string[];
-    sourceText: string;
-    context?: string;
-    metadata?: Record<string, string>;
-    maxLength?: number;
-  };
+  job: StringTranslationJobInput;
   glossaryTerms: Array<{
     id: string;
     glossaryId: string;
@@ -32,16 +30,7 @@ export type StringTranslationContextSnapshot = {
     forbidden: boolean | null;
     rank: number;
   }>;
-  translationMemoryMatches: Array<{
-    id: string;
-    memoryId: string;
-    sourceText: string;
-    targetText: string;
-    targetLocale: string;
-    provenance: string | null;
-    matchScore: number | null;
-    rank: number;
-  }>;
+  translationMemoryMatches: ContextTranslationMemoryMatch[];
 };
 
 function buildTsQuery(input: string): string {
@@ -124,81 +113,6 @@ async function loadGlossaryTermsForContext(input: {
     .limit(20);
 }
 
-async function loadMemoryMatchesForContext(input: {
-  projectId: string;
-  sourceLocale: string;
-  targetLocales: string[];
-  sourceText: string;
-}) {
-  const attached = await db
-    .select({ memoryId: schema.projectMemories.memoryId })
-    .from(schema.projectMemories)
-    .where(eq(schema.projectMemories.projectId, input.projectId));
-  const memoryIds = attached.map((item) => item.memoryId);
-  if (memoryIds.length === 0) {
-    return [];
-  }
-
-  const normalized = normalizeTranslationMemorySourceText(input.sourceText);
-  const exactMatches = await db
-    .select({
-      id: schema.memoryEntries.id,
-      memoryId: schema.memoryEntries.memoryId,
-      sourceText: schema.memoryEntries.sourceText,
-      targetText: schema.memoryEntries.targetText,
-      targetLocale: schema.memoryEntries.targetLocale,
-      provenance: schema.memoryEntries.provenance,
-      matchScore: schema.memoryEntries.matchScore,
-      rank: sql<number>`1`.as("rank"),
-    })
-    .from(schema.memoryEntries)
-    .where(
-      and(
-        inArray(schema.memoryEntries.memoryId, memoryIds),
-        eq(schema.memoryEntries.normalizedSourceText, normalized),
-        eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-        inArray(schema.memoryEntries.targetLocale, input.targetLocales),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-      ),
-    )
-    .limit(10);
-
-  if (exactMatches.length > 0) {
-    return exactMatches;
-  }
-
-  const tsQuery = buildTsQuery(input.sourceText);
-  if (!tsQuery) {
-    return [];
-  }
-
-  return db
-    .select({
-      id: schema.memoryEntries.id,
-      memoryId: schema.memoryEntries.memoryId,
-      sourceText: schema.memoryEntries.sourceText,
-      targetText: schema.memoryEntries.targetText,
-      targetLocale: schema.memoryEntries.targetLocale,
-      provenance: schema.memoryEntries.provenance,
-      matchScore: schema.memoryEntries.matchScore,
-      rank: sql<number>`ts_rank(${schema.memoryEntries.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-        "rank",
-      ),
-    })
-    .from(schema.memoryEntries)
-    .where(
-      and(
-        inArray(schema.memoryEntries.memoryId, memoryIds),
-        eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
-        inArray(schema.memoryEntries.targetLocale, input.targetLocales),
-        eq(schema.memoryEntries.reviewStatus, "approved"),
-        sql`${schema.memoryEntries.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-      ),
-    )
-    .orderBy(desc(sql`rank`))
-    .limit(10);
-}
-
 export async function loadTranslationContextProject(projectId: string) {
   return loadProjectForContext(projectId);
 }
@@ -207,6 +121,10 @@ export async function assembleStringTranslationContextSnapshot(
   projectId: string,
   jobInput: StringTranslationJobInput,
   projectOverride?: TranslationContextProject | null,
+  options?: {
+    organizationId?: string;
+    providerKind?: ExternalTmsProviderKind;
+  },
 ) {
   const project =
     projectOverride === undefined ? await loadProjectForContext(projectId) : projectOverride;
@@ -225,12 +143,14 @@ export async function assembleStringTranslationContextSnapshot(
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
     }),
-    loadMemoryMatchesForContext({
+    loadTranslationMemoryMatchesForContext({
       projectId,
+      organizationId: options?.organizationId,
+      providerKind: options?.providerKind,
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
-    }),
+    }).then((matches) => matches.map(toContextTranslationMemoryMatch)),
   ]);
 
   return {

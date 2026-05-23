@@ -3,6 +3,7 @@ import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   completeProviderAgentQaRun,
   prepareProviderAgentQaRun,
@@ -21,6 +22,7 @@ export async function completeProviderAgentQaStep(input: {
   agentRunId: string;
   organizationId: string;
   projectId: string;
+  providerKind: ExternalTmsProviderKind;
   pullRunId: string;
   content: ExternalTmsTaskContent;
   pullFailures: ExternalTmsContentSyncFailure[];

@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 
+import {
+  countTranslationMemoryMatchesInUsage,
+  parseTranslationMemoryUsageFromOutputSummary,
+} from "@/lib/translation/agent-run-translation-memory";
+
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 
@@ -352,6 +357,11 @@ export function JobProviderDetailSection({
                 typeof run.outputSummary.proposedCount === "number"
                   ? run.outputSummary.proposedCount
                   : run.changedItems.length;
+              const translationMemoryUsage = parseTranslationMemoryUsageFromOutputSummary(
+                run.outputSummary,
+              );
+              const translationMemoryMatchCount =
+                countTranslationMemoryMatchesInUsage(translationMemoryUsage);
 
               return (
                 <li
@@ -365,6 +375,9 @@ export function JobProviderDetailSection({
                     <p className="text-xs text-foreground/48">
                       Started {formatDate(run.createdAt)}
                       {hasProposals ? ` · ${proposedCount} proposals` : null}
+                      {translationMemoryMatchCount > 0
+                        ? ` · ${translationMemoryMatchCount} TM match${translationMemoryMatchCount === 1 ? "" : "es"}`
+                        : null}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

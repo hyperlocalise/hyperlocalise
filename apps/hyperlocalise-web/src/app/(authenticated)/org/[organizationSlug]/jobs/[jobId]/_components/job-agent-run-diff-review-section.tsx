@@ -32,6 +32,10 @@ import { cn } from "@/lib/utils";
 
 import { toneClass, type Tone } from "../../../_components/workspace-resource-shared";
 
+import {
+  TranslationMemoryMatchBadges,
+  TranslationMemoryMatchesDetail,
+} from "./job-agent-run-translation-memory";
 import type { AgentRunRecord } from "./job-provider-detail-section";
 import {
   activeWarningKinds,
@@ -131,6 +135,7 @@ function ProposalDiffRow({
             ) : null}
           </div>
           <WarningBadges item={item} />
+          <TranslationMemoryMatchBadges matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="space-y-1 rounded-md border border-foreground/8 bg-foreground/2 p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">
@@ -151,6 +156,7 @@ function ProposalDiffRow({
               <p className="text-sm whitespace-pre-wrap text-foreground/86">{item.to}</p>
             </div>
           </div>
+          <TranslationMemoryMatchesDetail matches={item.translationMemoryMatchesUsed ?? []} />
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
