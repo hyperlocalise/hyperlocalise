@@ -165,6 +165,112 @@ describe("fetchPhraseJobTasks", () => {
     expect(result[0]?.kind).toBe("review");
   });
 
+  it("does not classify translation steps as review when step names contain edit substrings", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      const workflowLevel = Number(new URL(path).searchParams.get("workflowLevel") ?? "0");
+
+      if (path.includes("/jobs?") && workflowLevel === 1) {
+        return new Response(
+          JSON.stringify({
+            content: [
+              {
+                uid: "task-expedited",
+                innerId: "phrase-job-3",
+                status: "NEW",
+                targetLang: "en-US",
+                filename: "Docs",
+                workflowStep: {
+                  id: "step-expedited",
+                  name: "Expedited translation",
+                  workflowLevel: 1,
+                },
+              },
+            ],
+            totalPages: 1,
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/transMemories") || path.includes("/termBases")) {
+        return new Response(JSON.stringify({ transMemories: [], termBases: [] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchPhraseJobTasks({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      credential,
+      project: { providerMetadata: {} } as never,
+      secretMaterial: "secret-token",
+    });
+
+    expect(result[0]?.kind).toBe("translation");
+  });
+
+  it("builds external job URLs from the resolved TMS base URL", async () => {
+    const euCredential = {
+      ...credential,
+      baseUrl: "https://eu.cloud.memsource.com/web",
+    };
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      const workflowLevel = Number(new URL(path).searchParams.get("workflowLevel") ?? "0");
+
+      if (path.includes("/jobs?") && workflowLevel === 1) {
+        return new Response(
+          JSON.stringify({
+            content: [
+              {
+                uid: "task-eu",
+                innerId: "phrase-job-eu",
+                status: "NEW",
+                targetLang: "fr-FR",
+                filename: "EU homepage",
+              },
+            ],
+            totalPages: 1,
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/transMemories") || path.includes("/termBases")) {
+        return new Response(JSON.stringify({ transMemories: [], termBases: [] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchPhraseJobTasks({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-eu",
+      credential: euCredential,
+      project: { providerMetadata: {} } as never,
+      secretMaterial: "secret-token",
+    });
+
+    expect(result[0]?.externalUrl).toBe(
+      "https://eu.cloud.memsource.com/web/project2/translate/phrase-project-eu/job/task-eu",
+    );
+  });
+
   it("uses tmsProjectUid from provider metadata when present", async () => {
     let requestedTmsProjectJobs = false;
 

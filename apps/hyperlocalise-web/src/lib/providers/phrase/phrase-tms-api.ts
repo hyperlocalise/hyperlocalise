@@ -92,13 +92,14 @@ export class PhraseTmsApiClient {
   }
 
   async listAllJobParts(projectUid: string, maxWorkflowLevel = 15): Promise<PhraseTmsJobPart[]> {
-    const levels = Array.from({ length: maxWorkflowLevel }, (_, index) => index + 1);
-    const pages = await Promise.all(
-      levels.map((workflowLevel) => this.listJobParts(projectUid, workflowLevel)),
-    );
-
     const byUid = new Map<string, PhraseTmsJobPart>();
-    for (const jobParts of pages) {
+
+    for (let workflowLevel = 1; workflowLevel <= maxWorkflowLevel; workflowLevel += 1) {
+      const jobParts = await this.listJobParts(projectUid, workflowLevel);
+      if (jobParts.length === 0) {
+        break;
+      }
+
       for (const jobPart of jobParts) {
         byUid.set(jobPart.uid, jobPart);
       }

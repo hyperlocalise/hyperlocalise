@@ -62,7 +62,7 @@ export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
         dueDate: jobPart.dateDue ? new Date(jobPart.dateDue) : null,
         targetLocales: targetLocale ? [targetLocale] : [],
         assignedUsers,
-        externalUrl: buildPhraseTmsJobUrl(tmsProjectUid, jobPart.uid),
+        externalUrl: buildPhraseTmsJobUrl(client.resolvedBaseUrl, tmsProjectUid, jobPart.uid),
         providerPayload: {
           workflowStep: jobPart.workflowStep?.name ?? null,
           workflowStepDetails: jobPart.workflowStep,
@@ -163,19 +163,29 @@ function normalizeTaskLocaleSuffix(targetLang: string) {
   return normalized.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function buildPhraseTmsJobUrl(projectUid: string, jobUid: string) {
-  return `https://cloud.memsource.com/web/project2/translate/${encodeURIComponent(projectUid)}/job/${encodeURIComponent(jobUid)}`;
+function buildPhraseTmsJobUrl(baseUrl: string, projectUid: string, jobUid: string) {
+  return `${baseUrl}/project2/translate/${encodeURIComponent(projectUid)}/job/${encodeURIComponent(jobUid)}`;
 }
+
+const PHRASE_TMS_REVIEW_STEP_TOKENS = new Set([
+  "review",
+  "proofread",
+  "proofreading",
+  "editing",
+  "revision",
+  "lqa",
+]);
 
 function mapPhraseTmsJobKind(
   workflowStepName: string | null | undefined,
 ): "translation" | "review" {
-  const normalized = (workflowStepName ?? "").toLowerCase().trim();
-  if (
-    ["review", "proofread", "proofreading", "edit", "editing", "revision", "lqa"].some((token) =>
-      normalized.includes(token),
-    )
-  ) {
+  const tokens = (workflowStepName ?? "")
+    .toLowerCase()
+    .trim()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 0);
+
+  if (tokens.some((token) => PHRASE_TMS_REVIEW_STEP_TOKENS.has(token))) {
     return "review";
   }
 

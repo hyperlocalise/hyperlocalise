@@ -74,6 +74,44 @@ describe("PhraseTmsApiClient", () => {
     const jobs = await client.listAllJobParts("project-1", 2);
     expect(jobs).toHaveLength(2);
     expect(jobs.map((job) => job.uid).sort()).toEqual(["job-de", "job-fr"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops listing workflow levels after the first empty page", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const workflowLevel = Number(new URL(String(url)).searchParams.get("workflowLevel"));
+
+      if (workflowLevel === 1) {
+        return new Response(
+          JSON.stringify({
+            content: [
+              {
+                uid: "job-fr",
+                innerId: "phrase-job-1",
+                status: "NEW",
+                targetLang: "fr-FR",
+                filename: "Homepage",
+              },
+            ],
+            totalPages: 1,
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const client = new PhraseTmsApiClient({
+      token: "secret",
+      baseUrl: "https://cloud.memsource.com/web",
+    });
+
+    const jobs = await client.listAllJobParts("project-1", 15);
+    expect(jobs).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("loads project translation memories and term bases", async () => {
