@@ -8,6 +8,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
   conflictResponse,
+  internalErrorResponse,
   notFoundResponse,
   serviceUnavailableResponse,
   validationErrorResponse,
@@ -38,6 +39,7 @@ import {
   isJobProviderActionAvailable,
 } from "@/lib/providers/job-provider-actions";
 import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/provider-agent-qa";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 
@@ -825,6 +827,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return c.json(parsed.data, 200);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Provider QA failed";
+        const status = mapProviderQaErrorToHttpStatus(error);
+
+        if (status === 503) {
+          return serviceUnavailableResponse(c, "provider_qa_unavailable", message);
+        }
+
+        if (status === 500) {
+          return internalErrorResponse(c, "provider_qa_failed", message);
+        }
+
         return badRequestResponse(c, "provider_qa_failed", message);
       }
     })

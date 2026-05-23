@@ -1204,6 +1204,86 @@ describe("jobRoutes", () => {
     );
   });
 
+  it("returns 500 when synchronous QA fails due to sandbox execution", async () => {
+    runProviderJobQaForJobMock.mockRejectedValue(new Error("hl check failed (exit 1): boom"));
+
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-manual-qa-failure",
+      externalStatus: "todo",
+      title: "Manual QA failure",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_qa_failed",
+      message: "hl check failed (exit 1): boom",
+    });
+  });
+
+  it("returns 503 when synchronous QA fails due to transient provider errors", async () => {
+    runProviderJobQaForJobMock.mockRejectedValue(
+      new Error("Phrase returned HTTP 429 while listing files"),
+    );
+
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.projects)
+      .innerJoin(schema.organizations, eq(schema.projects.organizationId, schema.organizations.id))
+      .where(eq(schema.projects.id, project.id))
+      .limit(1);
+
+    const externalJob = await upsertExternalJob({
+      organizationId: organization!.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalJobId: "crowdin-job-manual-qa-unavailable",
+      externalStatus: "todo",
+      title: "Manual QA unavailable",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].qa.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "provider_qa_unavailable",
+      message: "Phrase returned HTTP 429 while listing files",
+    });
+  });
+
   it("creates agent runs for supported provider actions", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);

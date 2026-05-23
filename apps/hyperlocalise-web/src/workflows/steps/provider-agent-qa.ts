@@ -1,8 +1,10 @@
 import { failAgentRun } from "@/lib/providers/agent-runs";
-import type { ExternalTmsContentSyncFailure, ExternalTmsTaskContent } from "@/lib/providers/external-tms-content-sync";
+import type {
+  ExternalTmsContentSyncFailure,
+  ExternalTmsTaskContent,
+} from "@/lib/providers/external-tms-content-sync";
 import {
   completeProviderAgentQaRun,
-  executeProviderAgentQa,
   prepareProviderAgentQaRun,
 } from "@/lib/providers/provider-agent-qa";
 import type { RunHlCheckResult } from "@/lib/providers/provider-job-qa/run-hl-check";
@@ -27,14 +29,6 @@ export async function completeProviderAgentQaStep(input: {
 }) {
   "use step";
   return completeProviderAgentQaRun(input);
-}
-
-export async function executeProviderAgentQaStep(input: {
-  agentRunId: string;
-  organizationId: string;
-}) {
-  "use step";
-  return executeProviderAgentQa(input);
 }
 
 export async function failProviderAgentQaStep(input: {

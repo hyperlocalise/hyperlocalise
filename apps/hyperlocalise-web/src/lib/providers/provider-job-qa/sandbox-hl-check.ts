@@ -1,11 +1,12 @@
-import { Sandbox } from "@vercel/sandbox";
-
 import {
   createTranslationSandbox,
   prepareSandbox,
   runSandboxCommand,
   stopTranslationSandbox,
+  writeFilesToSandbox,
 } from "@/lib/translation/sandbox-translation";
+import { isErr } from "@/lib/primitives/result/results";
+import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 import type { HlCheckReport } from "./hl-check-types";
 import {
@@ -22,8 +23,8 @@ export async function writeHlCheckWorkspaceToSandbox(
   sandboxId: string,
   bundle: HlCheckWorkspaceBundle,
 ): Promise<void> {
-  const sandbox = await Sandbox.get({ sandboxId });
-  await sandbox.writeFiles(
+  await writeFilesToSandbox(
+    sandboxId,
     bundle.files.map((file) => ({
       path: file.path,
       content: file.content,
@@ -54,7 +55,13 @@ export async function runHlCheckCommandInSandbox(
     throw new Error(`read hl check report failed: ${report.output}`.trim());
   }
 
-  return JSON.parse(report.output) as HlCheckReport;
+  const parsed = safeJsonParse(report.output);
+  if (isErr(parsed)) {
+    const detail = parsed.error instanceof Error ? parsed.error.message : "unknown parse error";
+    throw new Error(`hl check report is not valid JSON: ${detail}`);
+  }
+
+  return parsed.value as HlCheckReport;
 }
 
 export async function runHlCheckOnProviderContentInSandbox(input: {

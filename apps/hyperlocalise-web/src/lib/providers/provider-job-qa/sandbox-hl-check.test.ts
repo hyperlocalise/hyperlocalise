@@ -12,32 +12,18 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-const sandboxMocks = vi.hoisted(() => {
-  const output = vi.fn();
-  const runCommand = vi.fn();
-  const writeFiles = vi.fn();
-  const get = vi.fn();
-  const stop = vi.fn();
-
-  return { get, output, runCommand, stop, writeFiles };
-});
-
-vi.mock("@vercel/sandbox", () => ({
-  Sandbox: {
-    get: sandboxMocks.get,
-  },
-}));
-
 const createTranslationSandboxMock = vi.fn();
 const prepareSandboxMock = vi.fn();
 const stopTranslationSandboxMock = vi.fn();
 const runSandboxCommandMock = vi.fn();
+const writeFilesToSandboxMock = vi.fn();
 
 vi.mock("@/lib/translation/sandbox-translation", () => ({
   createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
   prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
   stopTranslationSandbox: (...args: unknown[]) => stopTranslationSandboxMock(...args),
   runSandboxCommand: (...args: unknown[]) => runSandboxCommandMock(...args),
+  writeFilesToSandbox: (...args: unknown[]) => writeFilesToSandboxMock(...args),
 }));
 
 import { runHlCheckOnProviderContentInSandbox } from "./sandbox-hl-check";
@@ -48,10 +34,7 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
     createTranslationSandboxMock.mockResolvedValue({ sandboxId: "sandbox_qa_1" });
     prepareSandboxMock.mockResolvedValue(undefined);
     stopTranslationSandboxMock.mockResolvedValue(undefined);
-    sandboxMocks.get.mockResolvedValue({
-      writeFiles: sandboxMocks.writeFiles,
-    });
-    sandboxMocks.writeFiles.mockResolvedValue(undefined);
+    writeFilesToSandboxMock.mockResolvedValue(undefined);
     runSandboxCommandMock.mockImplementation(async (_sandboxId, command, args) => {
       if (command === "bash") {
         return { exitCode: 0, output: "" };
@@ -86,7 +69,7 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
 
     expect(createTranslationSandboxMock).toHaveBeenCalled();
     expect(prepareSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
-    expect(sandboxMocks.writeFiles).toHaveBeenCalled();
+    expect(writeFilesToSandboxMock).toHaveBeenCalled();
     expect(runSandboxCommandMock).toHaveBeenCalled();
     expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
   });
@@ -107,6 +90,31 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
         targetLocales: ["fr"],
       }),
     ).rejects.toThrow("hl check failed");
+
+    expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
+  });
+
+  it("stops the sandbox when the hl check report is invalid JSON", async () => {
+    runSandboxCommandMock.mockImplementation(async (_sandboxId, command) => {
+      if (command === "bash") {
+        return { exitCode: 0, output: "" };
+      }
+      if (command === "cat") {
+        return { exitCode: 0, output: "not-json" };
+      }
+      return { exitCode: 0, output: "" };
+    });
+
+    await expect(
+      runHlCheckOnProviderContentInSandbox({
+        content: {
+          externalJobId: "job-1",
+          targetLocales: ["fr"],
+          units: [],
+        },
+        targetLocales: ["fr"],
+      }),
+    ).rejects.toThrow("hl check report is not valid JSON");
 
     expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
   });
