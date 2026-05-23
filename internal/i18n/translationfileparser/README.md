@@ -135,6 +135,8 @@
 - Supports short arrays (`return [ ... ];`) and legacy arrays (`return array(...);`).
 - Requires quoted string keys and string-literal values; nested arrays are flattened with dotted keys.
   - Example: `['auth' => ['failed' => 'Invalid']]` -> `auth.failed=Invalid`
+- PHP keywords such as `return` and `array` are matched case-insensitively.
+- Double-quoted PHP string escapes are decoded, including byte truncation for octal escapes above `\377`.
 - Preserves comments, whitespace, key order, quote style, and array syntax on marshal by replacing only existing string value literals.
 - Supports plural/select-style variants represented as nested keys such as `items.one` and `items.other`.
 - Rejects executable or dynamic PHP constructs, including variables, function calls, constants, `declare(...)`, and double-quoted interpolation.

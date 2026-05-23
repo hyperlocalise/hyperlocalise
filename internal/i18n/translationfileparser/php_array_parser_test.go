@@ -121,6 +121,24 @@ return array(
 	}
 }
 
+func TestPHPArrayParserMatchesKeywordsCaseInsensitively(t *testing.T) {
+	content := []byte(`<?php
+RETURN Array(
+    'validation' => ARRAY(
+        'required' => 'The :attribute field is required.',
+    ),
+);
+`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["validation.required"] != "The :attribute field is required." {
+		t.Fatalf("unexpected parsed value: %#v", got)
+	}
+}
+
 func TestPHPArrayParserDecodesDoubleQuotedHexEscapes(t *testing.T) {
 	content := []byte(`<?php return [
     'one_digit' => "\xA",
@@ -154,6 +172,24 @@ func TestPHPArrayParserDecodesDoubleQuotedOctalEscapes(t *testing.T) {
 	}
 	if got["newline"] != "\n" {
 		t.Fatalf("newline = %q, want newline", got["newline"])
+	}
+}
+
+func TestPHPArrayParserTruncatesOverRangeOctalEscapes(t *testing.T) {
+	content := []byte(`<?php return [
+    'nul' => "\400",
+    'max_byte' => "\777",
+];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["nul"] != "\x00" {
+		t.Fatalf("nul = %q, want NUL", got["nul"])
+	}
+	if got["max_byte"] != "\xff" {
+		t.Fatalf("max_byte = %q, want 0xff", got["max_byte"])
 	}
 }
 

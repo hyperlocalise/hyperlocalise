@@ -339,7 +339,7 @@ func (s *phpArrayScanner) consumeKeyword(keyword string) bool {
 }
 
 func (s *phpArrayScanner) hasKeywordAt(keyword string, pos int) bool {
-	if pos < 0 || pos+len(keyword) > len(s.text) || s.text[pos:pos+len(keyword)] != keyword {
+	if pos < 0 || pos+len(keyword) > len(s.text) || !strings.EqualFold(s.text[pos:pos+len(keyword)], keyword) {
 		return false
 	}
 	beforeOK := pos == 0 || !isPHPIdentifierByte(s.text[pos-1])
@@ -418,7 +418,7 @@ func readPHPOctalEscape(text string, start int) (byte, int, error) {
 		return 0, 0, fmt.Errorf("missing octal digits")
 	}
 	v, err := strconv.ParseUint(text[start:end], 8, 16)
-	if err != nil || v > 0xff {
+	if err != nil {
 		return 0, 0, fmt.Errorf("octal escape out of byte range")
 	}
 	return byte(v), end - start, nil
