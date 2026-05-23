@@ -647,6 +647,7 @@ export const memoryEntries = pgTable(
       table.targetLocale,
       table.normalizedSourceText,
     ),
+    uniqueIndex("memory_entries_memory_external_key").on(table.memoryId, table.externalKey),
     index("idx_memory_entries_memory_locale_pair").on(
       table.memoryId,
       table.sourceLocale,

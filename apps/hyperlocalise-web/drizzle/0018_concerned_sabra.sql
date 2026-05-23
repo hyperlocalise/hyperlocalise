@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "memory_entries_memory_external_key" ON "memory_entries" USING btree ("memory_id","external_key");
