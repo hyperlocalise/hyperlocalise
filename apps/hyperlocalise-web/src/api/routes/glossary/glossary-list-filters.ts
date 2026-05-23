@@ -37,6 +37,9 @@ export function buildGlossaryListWhere(
   if (query?.sync) {
     if (query.sync === "error") {
       conditions.push(isNotNull(schema.glossaries.lastSyncErrorAt));
+    } else if (query.sync === "synced") {
+      conditions.push(eq(schema.glossaries.syncState, query.sync));
+      conditions.push(isNull(schema.glossaries.lastSyncErrorAt));
     } else {
       conditions.push(eq(schema.glossaries.syncState, query.sync));
     }
