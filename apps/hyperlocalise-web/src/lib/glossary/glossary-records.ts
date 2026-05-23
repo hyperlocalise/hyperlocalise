@@ -1,30 +1,5 @@
 import type { Glossary } from "@/lib/database/types";
-
-export type GlossaryRecord = {
-  id: string;
-  organizationId: string;
-  createdByUserId: string | null;
-  name: string;
-  description: string;
-  sourceLocale: string;
-  targetLocale: string;
-  status: string;
-  source: "native" | "external_tms";
-  externalProviderKind: Glossary["externalProviderKind"];
-  externalProjectId: string | null;
-  externalResourceType: Glossary["externalResourceType"];
-  externalGlossaryId: string | null;
-  localeCoverage: string[];
-  termCount: number | null;
-  syncState: string | null;
-  termCapabilities: Record<string, unknown>;
-  externalUrl: string | null;
-  lastSyncedAt: string | null;
-  lastSyncErrorAt: string | null;
-  lastSyncErrorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 
 export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
   return {

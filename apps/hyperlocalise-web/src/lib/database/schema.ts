@@ -92,6 +92,13 @@ export const externalTmsTerminologyResourceTypeEnum = pgEnum(
   ["glossary", "term_base"],
 );
 export const projectSourceEnum = pgEnum("project_source", ["native", "external_tms"]);
+export const glossarySyncStateEnum = pgEnum("glossary_sync_state", [
+  "synced",
+  "stale",
+  "syncing",
+  "error",
+]);
+export const glossaryTermProvenanceEnum = pgEnum("glossary_term_provenance", ["manual", "sync"]);
 export const providerSyncRunKindEnum = pgEnum("provider_sync_run_kind", [
   "project_scan",
   "file_key_scan",
@@ -392,7 +399,7 @@ export const glossaries = pgTable(
     // Term count reported by the provider when available.
     termCount: integer("term_count"),
     // Sync lifecycle for provider-backed glossaries.
-    syncState: text("sync_state"),
+    syncState: glossarySyncStateEnum("sync_state"),
     // Provider-reported term capabilities such as import/export support.
     termCapabilities: jsonb("term_capabilities")
       .$type<Record<string, unknown>>()
@@ -469,7 +476,7 @@ export const glossaryTerms = pgTable(
     // Optional external identifier retained for later sync or dedupe.
     externalKey: text("external_key"),
     // Optional source label such as manual or sync.
-    provenance: text("provenance").notNull().default("manual"),
+    provenance: glossaryTermProvenanceEnum("provenance").notNull().default("manual"),
     // Review status for agent suggestions vs human-approved terms.
     reviewStatus: text("review_status").notNull().default("approved"),
     // Extensible metadata for tags, domains, or import provenance.

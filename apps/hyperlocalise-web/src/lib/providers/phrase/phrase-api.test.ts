@@ -77,7 +77,8 @@ describe("PhraseApiClient", () => {
 
     expect(client.resolvedBaseUrl).toBe(PHRASE_US_BASE_URL);
     const requestUrl = vi.mocked(fetchMock).mock.calls[0]?.[0];
-    expect(typeof requestUrl === "string" ? requestUrl : "").toContain(PHRASE_US_BASE_URL);
+    expect(requestUrl).toBeTypeOf("string");
+    expect(requestUrl).toContain(PHRASE_US_BASE_URL);
   });
 
   it("lists keys, uploads, and translations with branch filters", async () => {

@@ -48,6 +48,7 @@ export async function listGlossaryTermsByGlossaryId(input: {
 }
 
 export async function listGlossaryTermsForProject(input: {
+  organizationId: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -55,7 +56,14 @@ export async function listGlossaryTermsForProject(input: {
   const attached = await db
     .select({ glossaryId: schema.projectGlossaries.glossaryId })
     .from(schema.projectGlossaries)
-    .where(eq(schema.projectGlossaries.projectId, input.projectId));
+    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+    .where(
+      and(
+        eq(schema.projectGlossaries.projectId, input.projectId),
+        eq(schema.projectGlossaries.organizationId, input.organizationId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    );
 
   const glossaryIds = attached.map((item) => item.glossaryId);
   if (glossaryIds.length === 0 || input.targetLocales.length === 0) {
@@ -82,6 +90,7 @@ export async function listGlossaryTermsForProject(input: {
     .where(
       and(
         inArray(schema.glossaryTerms.glossaryId, glossaryIds),
+        eq(schema.glossaries.organizationId, input.organizationId),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         inArray(schema.glossaries.targetLocale, input.targetLocales),
         eq(schema.glossaries.status, "active"),

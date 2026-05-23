@@ -1,5 +1,5 @@
 {
-  "id": "ab2bfe69-e2bd-46f5-9b3c-594fc6a0b310",
+  "id": "b197b1a1-7cfa-45e9-9916-6f542246b067",
   "prevId": "3b20d412-b13d-463d-93e8-d44880b250b8",
   "version": "7",
   "dialect": "postgresql",
@@ -1819,7 +1819,8 @@
         },
         "sync_state": {
           "name": "sync_state",
-          "type": "text",
+          "type": "glossary_sync_state",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -2167,7 +2168,8 @@
         },
         "provenance": {
           "name": "provenance",
-          "type": "text",
+          "type": "glossary_term_provenance",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'manual'"
@@ -7134,6 +7136,24 @@
       "values": [
         "glossary",
         "term_base"
+      ]
+    },
+    "public.glossary_sync_state": {
+      "name": "glossary_sync_state",
+      "schema": "public",
+      "values": [
+        "synced",
+        "stale",
+        "syncing",
+        "error"
+      ]
+    },
+    "public.glossary_term_provenance": {
+      "name": "glossary_term_provenance",
+      "schema": "public",
+      "values": [
+        "manual",
+        "sync"
       ]
     },
     "public.inbox_status": {

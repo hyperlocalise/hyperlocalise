@@ -106,7 +106,8 @@ describe("fetchPhraseProjects", () => {
     });
 
     const requestUrl = vi.mocked(fetchMock).mock.calls[0]?.[0];
-    expect(typeof requestUrl === "string" ? requestUrl : "").toContain(PHRASE_US_BASE_URL);
+    expect(requestUrl).toBeTypeOf("string");
+    expect(requestUrl).toContain(PHRASE_US_BASE_URL);
   });
 
   it("throws phrase_auth_invalid when authentication fails", async () => {
