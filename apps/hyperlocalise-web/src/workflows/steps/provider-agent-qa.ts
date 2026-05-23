@@ -20,10 +20,10 @@ export async function completeProviderAgentQaStep(input: {
   organizationId: string;
   projectId: string;
   pullRunId: string;
-  content: Parameters<typeof completeProviderAgentQaRun>[0]["content"];
-  pullFailures: Parameters<typeof completeProviderAgentQaRun>[0]["pullFailures"];
+  content: ExternalTmsTaskContent;
+  pullFailures: ExternalTmsContentSyncFailure[];
   unitsDiscovered: number;
-  hlResult: Parameters<typeof completeProviderAgentQaRun>[0]["hlResult"];
+  hlResult: RunHlCheckResult;
 }) {
   "use step";
   return completeProviderAgentQaRun(input);
