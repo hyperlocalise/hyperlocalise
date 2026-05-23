@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import * as schema from "@/lib/database/schema";
+import { providerQaFindingSchema } from "@/api/routes/project/job-qa.schema";
 import {
   jobProviderActionDefinitions,
   type JobProviderActionId,
@@ -14,6 +15,7 @@ export const jobProviderActionIdSchema = z.enum(supportedJobProviderActionIds);
 
 export const createJobAgentRunBodySchema = z.object({
   action: jobProviderActionIdSchema,
+  selectedFindings: z.array(providerQaFindingSchema).max(500).optional(),
 });
 
 export const agentRunRecordSchema = z.object({

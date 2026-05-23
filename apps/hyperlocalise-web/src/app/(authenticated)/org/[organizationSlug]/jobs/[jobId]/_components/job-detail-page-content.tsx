@@ -340,7 +340,12 @@ export function JobDetailPageContent({
           </section>
 
           {isProviderBackedJob(job) ? (
-            <JobProviderDetailSection job={job} jobId={jobId} organizationSlug={organizationSlug} />
+            <JobProviderDetailSection
+              job={job}
+              jobId={jobId}
+              organizationSlug={organizationSlug}
+              projectId={job.projectId}
+            />
           ) : null}
 
           {job.kind === "review" || job.kind === "sync" || job.kind === "asset_management" ? (

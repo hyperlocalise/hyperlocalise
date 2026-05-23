@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 
+import { JobQaFindingsSection } from "./job-qa-findings-section";
+
 export type ProviderSourceFile = {
   id: string;
   displayName: string;
@@ -56,6 +58,8 @@ export type AgentRunRecord = {
   id: string;
   kind: string;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  inputSnapshot: Record<string, unknown>;
+  outputSummary: Record<string, unknown>;
   createdAt: string;
   completedAt: string | null;
 };
@@ -122,10 +126,12 @@ export function JobProviderDetailSection({
   job,
   jobId,
   organizationSlug,
+  projectId,
 }: {
   job: ProviderBackedJobFields;
   jobId: string;
   organizationSlug: string;
+  projectId: string | null;
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, jobId] as const;
@@ -146,6 +152,15 @@ export function JobProviderDetailSection({
 
       const body = (await response.json()) as { agentRuns: AgentRunRecord[] };
       return body.agentRuns;
+    },
+    refetchInterval: (query) => {
+      const runs = query.state.data;
+      if (!runs) {
+        return false;
+      }
+
+      const hasActiveRun = runs.some((run) => run.status === "queued" || run.status === "running");
+      return hasActiveRun ? 3000 : false;
     },
   });
 
@@ -283,6 +298,22 @@ export function JobProviderDetailSection({
           </div>
         </section>
       ) : null}
+
+      <JobQaFindingsSection
+        jobId={jobId}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        externalUrl={job.externalUrl}
+        agentRuns={agentRunsQuery.data}
+        agentRunsLoading={agentRunsQuery.isLoading}
+        providerActions={job.providerActions ?? []}
+        onAgentRunStarted={async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: agentRunsQueryKey }),
+            queryClient.invalidateQueries({ queryKey: jobQueryKey }),
+          ]);
+        }}
+      />
 
       <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
         <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">

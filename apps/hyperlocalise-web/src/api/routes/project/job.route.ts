@@ -699,6 +699,9 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             action: payload.action,
             hyperlocaliseJobId: job.id,
             projectId: job.projectId,
+            ...(payload.selectedFindings && payload.selectedFindings.length > 0
+              ? { selectedFindings: payload.selectedFindings }
+              : {}),
           },
           hyperlocaliseJobId: job.id,
         });
