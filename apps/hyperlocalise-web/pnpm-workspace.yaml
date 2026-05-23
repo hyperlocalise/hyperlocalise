@@ -14,6 +14,16 @@ catalog:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+minimumReleaseAgeExclude:
+  - '@storybook/addon-a11y@10.4.1'
+  - '@storybook/addon-docs@10.4.1'
+  - '@storybook/builder-vite@10.4.1'
+  - '@storybook/csf-plugin@10.4.1'
+  - '@storybook/nextjs-vite@10.4.1'
+  - '@storybook/react-dom-shim@10.4.1'
+  - '@storybook/react-vite@10.4.1'
+  - '@storybook/react@10.4.1'
+  - storybook@10.4.1
 overrides:
   vite: "8.0.13"
   vitest: "catalog:"
