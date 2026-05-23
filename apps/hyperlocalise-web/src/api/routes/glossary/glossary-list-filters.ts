@@ -1,4 +1,4 @@
-import { and, eq, ilike, isNotNull, or, type SQL } from "drizzle-orm";
+import { and, eq, ilike, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 
 import { schema } from "@/lib/database";
 
