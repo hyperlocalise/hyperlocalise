@@ -47,3 +47,63 @@ func TestMismatchIgnoresAngleBracketPathTokens(t *testing.T) {
 		t.Fatalf("expected <name> in paths not to count as HTML tags")
 	}
 }
+
+func TestMismatchFormattingAndKnownTags(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		tgt  string
+		want bool
+	}{
+		{
+			name: "multiline tag and attributes",
+			src:  "Hello <strong\n  class=\"foo\">world</strong>",
+			tgt:  "Bonjour <strong class=\"foo\">monde</strong>",
+			want: false,
+		},
+		{
+			name: "case-insensitive matching",
+			src:  "Hello <STRONG>world</STRONG>",
+			tgt:  "Bonjour <strong>monde</strong>",
+			want: false,
+		},
+		{
+			name: "self-closing variations",
+			src:  "Hello <br/> world <br>",
+			tgt:  "Bonjour <br> monde <br />",
+			want: false,
+		},
+		{
+			name: "heading tags",
+			src:  "<h1>Title</h1>",
+			tgt:  "<h1>Titre</h1>",
+			want: false,
+		},
+		{
+			name: "whitespace in closing tags",
+			src:  "Hello <strong>world</strong >",
+			tgt:  "Bonjour <strong>monde</strong>",
+			want: false,
+		},
+		{
+			name: "unknown tags are ignored in both",
+			src:  "Hello <not-a-tag>world</not-a-tag>",
+			tgt:  "Bonjour world",
+			want: false,
+		},
+		{
+			name: "img tags with different attributes",
+			src:  "<img src=\"/a.png\">",
+			tgt:  "<img src=\"/b.png\" alt=\"image\">",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Mismatch(tt.src, tt.tgt); got != tt.want {
+				t.Errorf("Mismatch() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
