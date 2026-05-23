@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -24,10 +24,18 @@ export function createWorkspaceFilesRoutes() {
     .use("*", workosAuthMiddleware)
     .get("/", validateWorkspaceFilesQuery, async (c) => {
       const query = c.req.valid("query");
+      const projectWhere =
+        query.projectId && query.projectId !== "all"
+          ? and(
+              eq(schema.projects.organizationId, c.var.auth.organization.localOrganizationId),
+              eq(schema.projects.id, query.projectId),
+            )
+          : eq(schema.projects.organizationId, c.var.auth.organization.localOrganizationId);
+
       const projects = await db
         .select({ id: schema.projects.id, name: schema.projects.name })
         .from(schema.projects)
-        .where(eq(schema.projects.organizationId, c.var.auth.organization.localOrganizationId))
+        .where(projectWhere)
         .orderBy(desc(schema.projects.createdAt));
 
       const files = await listWorkspaceFiles({

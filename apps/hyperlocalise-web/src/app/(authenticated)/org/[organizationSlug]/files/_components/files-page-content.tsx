@@ -186,7 +186,7 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
                     : null;
 
                   return (
-                    <li key={`${file.projectId}:${file.sourcePath}`}>
+                    <li key={`${file.projectId}:${file.origin}:${file.sourcePath}`}>
                       <Link
                         href={fileDetailHref(organizationSlug, file)}
                         className="flex flex-col gap-2 px-4 py-3 transition-colors hover:bg-foreground/4 sm:flex-row sm:items-center sm:justify-between"
