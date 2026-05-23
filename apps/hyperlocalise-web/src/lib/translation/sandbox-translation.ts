@@ -75,8 +75,20 @@ export async function writeFileToSandbox(
   filename: string,
   content: Buffer,
 ): Promise<void> {
+  await writeFilesToSandbox(sandboxId, [{ path: filename, content }]);
+}
+
+export async function writeFilesToSandbox(
+  sandboxId: string,
+  files: Array<{ path: string; content: string | Buffer }>,
+): Promise<void> {
   const sandbox = await Sandbox.get({ sandboxId });
-  await sandbox.writeFiles([{ path: filename, content: content }]);
+  await sandbox.writeFiles(
+    files.map((file) => ({
+      path: file.path,
+      content: file.content,
+    })),
+  );
 }
 
 export function buildTempConfig(
@@ -149,8 +161,7 @@ export async function writeTempConfig(
   configContent: string,
   configPath: string,
 ): Promise<void> {
-  const sandbox = await Sandbox.get({ sandboxId });
-  await sandbox.writeFiles([{ path: configPath, content: configContent }]);
+  await writeFilesToSandbox(sandboxId, [{ path: configPath, content: configContent }]);
 }
 
 export async function runTranslationCommand(

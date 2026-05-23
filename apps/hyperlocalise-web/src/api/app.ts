@@ -6,6 +6,7 @@ import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
   JobQueue,
+  ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -36,6 +37,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import {
   createTranslationJobEventQueue,
+  createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
 } from "@/workflows/adapters";
 
@@ -45,6 +47,7 @@ type CreateAppOptions = {
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
+  providerAgentQaQueue?: ProviderAgentQaQueue;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -52,6 +55,7 @@ export function createApp(options: CreateAppOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
   const providerAgentTranslationQueue =
     options.providerAgentTranslationQueue ?? createProviderAgentTranslationQueue();
+  const providerAgentQaQueue = options.providerAgentQaQueue ?? createProviderAgentQaQueue();
 
   return new Hono()
     .use("*", secureHeaders())
@@ -60,10 +64,23 @@ export function createApp(options: CreateAppOptions = {}) {
     .notFound(notFoundHandler)
     .route("/", createInternalRoutes())
     .route("/auth", createAuthRoutes())
-    .route("/", createLegacyAppRoutes({ ...options, jobQueue, providerAgentTranslationQueue }))
+    .route(
+      "/",
+      createLegacyAppRoutes({
+        ...options,
+        jobQueue,
+        providerAgentTranslationQueue,
+        providerAgentQaQueue,
+      }),
+    )
     .route(
       "/orgs/:organizationSlug",
-      createOrgScopedAppRoutes({ ...options, jobQueue, providerAgentTranslationQueue }),
+      createOrgScopedAppRoutes({
+        ...options,
+        jobQueue,
+        providerAgentTranslationQueue,
+        providerAgentQaQueue,
+      }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
     .route("/webhooks", createWebhookRoutes(options));
@@ -93,6 +110,7 @@ function createOrgScopedAppRoutes(
   options: CreateAppOptions & {
     jobQueue: JobQueue<TranslationJobEventData>;
     providerAgentTranslationQueue: ProviderAgentTranslationQueue;
+    providerAgentQaQueue: ProviderAgentQaQueue;
   },
 ) {
   return new Hono()
@@ -103,6 +121,7 @@ function createOrgScopedAppRoutes(
       createWorkspaceJobRoutes({
         jobQueue: options.jobQueue,
         providerAgentTranslationQueue: options.providerAgentTranslationQueue,
+        providerAgentQaQueue: options.providerAgentQaQueue,
       }),
     )
     .route("/provider-credential", createProviderCredentialRoutes())

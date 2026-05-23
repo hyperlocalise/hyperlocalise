@@ -10,10 +10,13 @@ describe("job provider actions", () => {
     const actions = getJobProviderActionAvailability("crowdin");
     const translate = actions.find((action) => action.id === "translate_with_agent");
     const review = actions.find((action) => action.id === "review_with_agent");
+    const qaChecks = actions.find((action) => action.id === "run_qa_checks");
 
     expect(translate).toMatchObject({ visible: true, enabled: true });
     expect(review).toMatchObject({ visible: true, enabled: true });
+    expect(qaChecks).toMatchObject({ visible: true, enabled: true });
     expect(isJobProviderActionAvailable("crowdin", "translate_with_agent")).toBe(true);
+    expect(isJobProviderActionAvailable("crowdin", "run_qa_checks")).toBe(true);
   });
 
   it("shows phrase QA fix as disabled when QA is unsupported", () => {
