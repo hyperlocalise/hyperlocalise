@@ -12,15 +12,23 @@ export type LokaliseTranslationWriteBackEntry = {
 export function buildLokaliseTranslationWriteBackBatches(input: {
   translations: ExternalTmsApprovedTranslationUpload[];
   defaultTargetLocale: string | null;
+  taskTargetLocales?: string[];
 }): {
   batches: LokaliseBulkUpdateKey[];
   failures: Array<{ locale: string; message: string; fileId?: string | null }>;
 } {
   const entriesByKeyId = new Map<number, LokaliseTranslationWriteBackEntry[]>();
+  const translationLocalesByKeyId = new Map<number, Map<string, string>>();
   const failures: Array<{ locale: string; message: string; fileId?: string | null }> = [];
+  const taskTargetLocales = (input.taskTargetLocales ?? [])
+    .map((locale) => locale.trim())
+    .filter(Boolean);
+  const allowDefaultTargetLocale = taskTargetLocales.length <= 1;
 
   for (const translation of input.translations) {
-    const locale = translation.locale.trim() || input.defaultTargetLocale?.trim() || "";
+    const requestedLocale = translation.locale.trim();
+    const locale =
+      requestedLocale || (allowDefaultTargetLocale ? input.defaultTargetLocale?.trim() || "" : "");
     const text = translation.text.trim();
     const keyId = parseLokaliseKeyId(translation.externalStringId);
     const keyName = translation.key?.trim() || null;
@@ -29,7 +37,10 @@ export function buildLokaliseTranslationWriteBackBatches(input: {
       failures.push({
         locale: translation.locale,
         fileId: translation.fileId ?? null,
-        message: "lokalise_translation_missing_locale",
+        message:
+          requestedLocale || allowDefaultTargetLocale
+            ? "lokalise_translation_missing_locale"
+            : "lokalise_translation_ambiguous_locale",
       });
       continue;
     }
@@ -52,9 +63,24 @@ export function buildLokaliseTranslationWriteBackBatches(input: {
       continue;
     }
 
+    const localesForKey = translationLocalesByKeyId.get(keyId) ?? new Map<string, string>();
+    const previousText = localesForKey.get(locale);
+    if (previousText !== undefined && previousText !== text) {
+      failures.push({
+        locale,
+        fileId: translation.fileId ?? null,
+        message: "lokalise_translation_duplicate_locale",
+      });
+      continue;
+    }
+    localesForKey.set(locale, text);
+    translationLocalesByKeyId.set(keyId, localesForKey);
+
     const existing = entriesByKeyId.get(keyId) ?? [];
-    existing.push({ keyId, keyName, locale, text });
-    entriesByKeyId.set(keyId, existing);
+    if (!previousText) {
+      existing.push({ keyId, keyName, locale, text });
+      entriesByKeyId.set(keyId, existing);
+    }
   }
 
   const batches: LokaliseBulkUpdateKey[] = [];

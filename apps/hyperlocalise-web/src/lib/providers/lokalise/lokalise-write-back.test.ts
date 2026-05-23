@@ -46,6 +46,54 @@ describe("buildLokaliseTranslationWriteBackBatches", () => {
     ]);
   });
 
+  it("rejects missing locale when the task has multiple target languages", () => {
+    const result = buildLokaliseTranslationWriteBackBatches({
+      defaultTargetLocale: "de",
+      taskTargetLocales: ["de", "fr"],
+      translations: [{ locale: "", externalStringId: "4242", key: "hello", text: "Bonjour" }],
+    });
+
+    expect(result.batches).toEqual([]);
+    expect(result.failures).toEqual([
+      {
+        locale: "",
+        fileId: null,
+        message: "lokalise_translation_ambiguous_locale",
+      },
+    ]);
+  });
+
+  it("rejects conflicting duplicate locales for the same key", () => {
+    const result = buildLokaliseTranslationWriteBackBatches({
+      defaultTargetLocale: "fr",
+      translations: [
+        { locale: "fr", externalStringId: "4242", text: "Bonjour" },
+        { locale: "fr", externalStringId: "4242", text: "Salut" },
+      ],
+    });
+
+    expect(result.batches).toEqual([
+      {
+        keyId: 4242,
+        translations: [
+          {
+            languageIso: "fr",
+            translation: "Bonjour",
+            isUnverified: false,
+            isReviewed: true,
+          },
+        ],
+      },
+    ]);
+    expect(result.failures).toEqual([
+      {
+        locale: "fr",
+        fileId: null,
+        message: "lokalise_translation_duplicate_locale",
+      },
+    ]);
+  });
+
   it("records validation failures for incomplete uploads", () => {
     const result = buildLokaliseTranslationWriteBackBatches({
       defaultTargetLocale: null,
