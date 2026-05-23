@@ -821,7 +821,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const parsed = providerQaReportResponseSchema.safeParse({ qaReport });
 
         if (!parsed.success) {
-          return badRequestResponse(c, "invalid_qa_report", "QA report failed validation");
+          return internalErrorResponse(c, "invalid_qa_report", "QA report failed validation");
         }
 
         return c.json(parsed.data, 200);

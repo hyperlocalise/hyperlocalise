@@ -45,7 +45,11 @@ function uniqueCheckKey(unit: ExternalTmsTranslationUnit, usedKeys: Set<string>)
     return base;
   }
 
-  const unique = `${base}__${unit.externalStringId}`;
+  let unique = `${base}__${unit.externalStringId}`;
+  let suffix = 2;
+  while (usedKeys.has(unique)) {
+    unique = `${base}__${unit.externalStringId}__${suffix++}`;
+  }
   usedKeys.add(unique);
   return unique;
 }
