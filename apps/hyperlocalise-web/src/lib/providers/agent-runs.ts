@@ -258,29 +258,52 @@ export async function listAgentRuns(input: {
 export async function updateAgentRunChangedItems(input: {
   runId: string;
   organizationId: string;
-  changedItems: AgentRunChangedItem[];
+  changedItems:
+    | AgentRunChangedItem[]
+    | ((run: typeof schema.agentRuns.$inferSelect) => AgentRunChangedItem[]);
 }) {
-  const now = new Date();
-  const [run] = await db
-    .update(schema.agentRuns)
-    .set({
-      changedItems: input.changedItems,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(schema.agentRuns.id, input.runId),
-        eq(schema.agentRuns.organizationId, input.organizationId),
-        eq(schema.agentRuns.status, "succeeded"),
-      ),
-    )
-    .returning();
+  return db.transaction(async (tx) => {
+    const [currentRun] = await tx
+      .select()
+      .from(schema.agentRuns)
+      .where(
+        and(
+          eq(schema.agentRuns.id, input.runId),
+          eq(schema.agentRuns.organizationId, input.organizationId),
+          eq(schema.agentRuns.status, "succeeded"),
+        ),
+      )
+      .limit(1)
+      .for("update");
 
-  if (!run) {
-    throw new Error("Agent run not found or not in reviewable state");
-  }
+    if (!currentRun) {
+      throw new Error("Agent run not found or not in reviewable state");
+    }
 
-  return run;
+    const changedItems =
+      typeof input.changedItems === "function" ? input.changedItems(currentRun) : input.changedItems;
+    const now = new Date();
+    const [run] = await tx
+      .update(schema.agentRuns)
+      .set({
+        changedItems,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.agentRuns.id, input.runId),
+          eq(schema.agentRuns.organizationId, input.organizationId),
+          eq(schema.agentRuns.status, "succeeded"),
+        ),
+      )
+      .returning();
+
+    if (!run) {
+      throw new Error("Agent run not found or not in reviewable state");
+    }
+
+    return run;
+  });
 }
 
 export async function getAgentRunsByExternalJob(input: {

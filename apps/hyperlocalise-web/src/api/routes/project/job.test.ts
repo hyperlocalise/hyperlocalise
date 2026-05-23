@@ -1698,6 +1698,33 @@ describe("jobRoutes", () => {
       ]),
     );
 
+    const emptyFilteredResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"][
+      "agent-runs"
+    ][":agentRunId"].review.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: externalJob.id,
+          agentRunId: agentRun.id,
+        },
+        json: {
+          bulk: { reviewState: "accepted", scope: "filtered" },
+        },
+      },
+      { headers: await authHeadersFor(identity) },
+    );
+
+    expect(emptyFilteredResponse.status).toBe(200);
+    const emptyFilteredBody = (await emptyFilteredResponse.json()) as {
+      agentRun: { changedItems: Array<{ itemId: string; reviewState: string }> };
+    };
+    expect(emptyFilteredBody.agentRun.changedItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemId: "1:fr", reviewState: "accepted" }),
+        expect.objectContaining({ itemId: "2:fr", reviewState: "pending" }),
+      ]),
+    );
+
     const rejectResponse = await client.api.orgs[":organizationSlug"].jobs[":jobId"]["agent-runs"][
       ":agentRunId"
     ].review.$patch(

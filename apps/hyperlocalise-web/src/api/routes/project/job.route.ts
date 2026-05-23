@@ -712,8 +712,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           );
         }
 
-        const existingItems = parseAgentRunProposalItems(agentRun.changedItems);
-        if (existingItems.length === 0) {
+        if (parseAgentRunProposalItems(agentRun.changedItems).length === 0) {
           return conflictResponse(
             c,
             "agent_run_not_reviewable",
@@ -721,34 +720,36 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           );
         }
 
-        let nextChangedItems = agentRun.changedItems;
-
-        if (payload.updates && payload.updates.length > 0) {
-          nextChangedItems = applyAgentRunProposalReviewUpdates({
-            changedItems: agentRun.changedItems,
-            updates: payload.updates,
-          });
-        } else if (payload.bulk) {
-          const scope = payload.bulk.scope ?? "pending";
-          const itemIds =
-            scope === "filtered"
-              ? payload.bulk.itemIdsFilter
-              : scope === "all"
-                ? undefined
-                : payload.bulk.itemIds;
-
-          nextChangedItems = applyBulkAgentRunProposalReview({
-            changedItems: agentRun.changedItems,
-            reviewState: payload.bulk.reviewState,
-            itemIds,
-            filter: scope === "all" ? "all" : "pending",
-          });
-        }
-
         const updatedRun = await updateAgentRunChangedItems({
           runId: agentRun.id,
           organizationId,
-          changedItems: nextChangedItems,
+          changedItems: (currentRun) => {
+            if (payload.updates && payload.updates.length > 0) {
+              return applyAgentRunProposalReviewUpdates({
+                changedItems: currentRun.changedItems,
+                updates: payload.updates,
+              });
+            }
+
+            if (payload.bulk) {
+              const scope = payload.bulk.scope ?? "pending";
+              const itemIds =
+                scope === "filtered"
+                  ? (payload.bulk.itemIdsFilter ?? [])
+                  : scope === "all"
+                    ? undefined
+                    : payload.bulk.itemIds;
+
+              return applyBulkAgentRunProposalReview({
+                changedItems: currentRun.changedItems,
+                reviewState: payload.bulk.reviewState,
+                itemIds,
+                filter: scope === "all" ? "all" : "pending",
+              });
+            }
+
+            return currentRun.changedItems;
+          },
         });
 
         return c.json({ agentRun: serializeAgentRun(updatedRun) }, 200);
