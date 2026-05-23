@@ -3,6 +3,8 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { loadPhraseTranslationContextMatches } from "@/lib/providers/phrase/load-phrase-translation-context-matches";
+import { mergeTranslationContextMatches } from "@/lib/providers/phrase/normalize-phrase-context-matches";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 import {
   toContextTranslationMemoryMatch,
@@ -50,12 +52,31 @@ export type TranslationContextProject = {
   translationContext: string;
 };
 
-async function loadProjectForContext(projectId: string): Promise<TranslationContextProject | null> {
+export type TranslationContextProjectRecord = TranslationContextProject &
+  Pick<
+    typeof schema.projects.$inferSelect,
+    | "organizationId"
+    | "source"
+    | "externalProviderKind"
+    | "externalProjectId"
+    | "externalProviderCredentialId"
+    | "providerMetadata"
+  >;
+
+async function loadProjectForContext(
+  projectId: string,
+): Promise<TranslationContextProjectRecord | null> {
   const [project] = await db
     .select({
       id: schema.projects.id,
       name: schema.projects.name,
       translationContext: schema.projects.translationContext,
+      organizationId: schema.projects.organizationId,
+      source: schema.projects.source,
+      externalProviderKind: schema.projects.externalProviderKind,
+      externalProjectId: schema.projects.externalProjectId,
+      externalProviderCredentialId: schema.projects.externalProviderCredentialId,
+      providerMetadata: schema.projects.providerMetadata,
     })
     .from(schema.projects)
     .where(eq(schema.projects.id, projectId))
@@ -120,10 +141,11 @@ export async function loadTranslationContextProject(projectId: string) {
 export async function assembleStringTranslationContextSnapshot(
   projectId: string,
   jobInput: StringTranslationJobInput,
-  projectOverride?: TranslationContextProject | null,
+  projectOverride?: TranslationContextProjectRecord | null,
   options?: {
     organizationId?: string;
     providerKind?: ExternalTmsProviderKind;
+    externalJobUid?: string | null;
   },
 ) {
   const project =
@@ -136,7 +158,9 @@ export async function assembleStringTranslationContextSnapshot(
     } as const;
   }
 
-  const [glossaryTerms, translationMemoryMatches] = await Promise.all([
+  const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
+
+  const [glossaryTerms, translationMemoryMatches, phraseLiveMatches] = await Promise.all([
     loadGlossaryTermsForContext({
       projectId,
       sourceLocale: jobInput.sourceLocale,
@@ -146,21 +170,47 @@ export async function assembleStringTranslationContextSnapshot(
     loadTranslationMemoryMatchesForContext({
       projectId,
       organizationId: options?.organizationId,
-      providerKind: options?.providerKind,
+      providerKind,
+      externalJobUid: options?.externalJobUid,
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
     }).then((matches) => matches.map(toContextTranslationMemoryMatch)),
+    providerKind === "phrase"
+      ? loadPhraseTranslationContextMatches({
+          project,
+          externalJobUid: options?.externalJobUid,
+          sourceLocale: jobInput.sourceLocale,
+          targetLocales: jobInput.targetLocales,
+          sourceText: jobInput.sourceText,
+        })
+      : Promise.resolve({ glossaryTerms: [], translationMemoryMatches: [] }),
   ]);
+
+  const mergedGlossaryTerms = mergeTranslationContextMatches(
+    glossaryTerms,
+    phraseLiveMatches.glossaryTerms,
+    20,
+  );
+
+  const mergedTranslationMemoryMatches = mergeTranslationContextMatches(
+    translationMemoryMatches,
+    phraseLiveMatches.translationMemoryMatches,
+    10,
+  );
 
   return {
     ok: true,
     snapshot: {
       assembledAt: new Date().toISOString(),
-      project,
+      project: {
+        id: project.id,
+        name: project.name,
+        translationContext: project.translationContext,
+      },
       job: jobInput,
-      glossaryTerms,
-      translationMemoryMatches,
+      glossaryTerms: mergedGlossaryTerms,
+      translationMemoryMatches: mergedTranslationMemoryMatches,
     } satisfies StringTranslationContextSnapshot,
   } as const;
 }

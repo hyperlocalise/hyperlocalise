@@ -40,6 +40,26 @@ export interface PhraseTmsResourceReference {
   id: string | null;
 }
 
+export interface PhraseTmsSearchSegmentResult {
+  score: number | null;
+  segmentId: string | null;
+  sourceText: string;
+  targetText: string;
+  targetLocale: string | null;
+  transMemoryUid: string | null;
+  transMemoryName: string | null;
+}
+
+export interface PhraseTmsTermBaseSearchResult {
+  termBaseUid: string | null;
+  termBaseName: string | null;
+  sourceTerm: string;
+  targetTerm: string;
+  targetLocale: string | null;
+  description: string | null;
+  forbidden: boolean | null;
+}
+
 export class PhraseTmsApiError extends Error {
   constructor(
     message: string,
@@ -130,6 +150,34 @@ export class PhraseTmsApiClient {
     return normalizePhraseTmsResourceList(response.termBases);
   }
 
+  async searchJobTranslationMemorySegment(input: {
+    projectUid: string;
+    jobUid: string;
+    segment: string;
+    maxSegments?: number;
+    scoreThreshold?: number;
+  }): Promise<PhraseTmsSearchSegmentResult[]> {
+    const path = `/api2/v1/projects/${encodeURIComponent(input.projectUid)}/jobs/${encodeURIComponent(input.jobUid)}/transMemories/searchSegment`;
+    const response = await this.post<PhraseTmsSearchSegmentResponseApiRecord>(path, {
+      segment: input.segment,
+      maxSegments: input.maxSegments ?? 5,
+      scoreThreshold: input.scoreThreshold ?? 0.5,
+    });
+    return normalizePhraseTmsSearchSegmentResults(response.searchResults);
+  }
+
+  async searchJobTermBasesInText(input: {
+    projectUid: string;
+    jobUid: string;
+    text: string;
+  }): Promise<PhraseTmsTermBaseSearchResult[]> {
+    const path = `/api2/v1/projects/${encodeURIComponent(input.projectUid)}/jobs/${encodeURIComponent(input.jobUid)}/termBases/searchInTextByJob`;
+    const response = await this.post<PhraseTmsTermBaseSearchResponseApiRecord>(path, {
+      text: input.text,
+    });
+    return normalizePhraseTmsTermBaseSearchResults(response.terms);
+  }
+
   private buildPath(
     path: string,
     query: Record<string, string | number | null | undefined>,
@@ -158,6 +206,17 @@ export class PhraseTmsApiClient {
     return this.request<T>(path, {
       method: "GET",
       headers: this.authHeaders(),
+    });
+  }
+
+  private async post<T>(path: string, body: Record<string, unknown>): Promise<T> {
+    return this.request<T>(path, {
+      method: "POST",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
   }
 
@@ -243,6 +302,101 @@ type PhraseTmsResourceApiRecord = {
   name?: string;
   id?: string | number | null;
 };
+
+type PhraseTmsSearchSegmentResponseApiRecord = {
+  searchResults?: PhraseTmsSearchSegmentApiRecord[];
+};
+
+type PhraseTmsSearchSegmentApiRecord = {
+  score?: number;
+  segmentId?: string;
+  source?: { text?: string; lang?: string };
+  translations?: Array<{ text?: string; lang?: string }>;
+  transMemory?: { uid?: string; name?: string };
+};
+
+type PhraseTmsTermBaseSearchResponseApiRecord = {
+  terms?: PhraseTmsTermBaseSearchApiRecord[];
+};
+
+type PhraseTmsTermBaseSearchApiRecord = {
+  termBase?: { uid?: string; name?: string };
+  sourceTerm?: { text?: string };
+  targetTerms?: Array<{ text?: string; lang?: string; forbidden?: boolean }>;
+  description?: string;
+};
+
+function normalizePhraseTmsSearchSegmentResults(
+  results: PhraseTmsSearchSegmentApiRecord[] | undefined,
+): PhraseTmsSearchSegmentResult[] {
+  if (!results?.length) {
+    return [];
+  }
+
+  const normalized: PhraseTmsSearchSegmentResult[] = [];
+
+  for (const result of results) {
+    const sourceText = result.source?.text?.trim() ?? "";
+    if (!sourceText) {
+      continue;
+    }
+
+    const targetTranslation =
+      result.translations?.find((translation) => translation.text?.trim()) ?? null;
+    const targetText = targetTranslation?.text?.trim() ?? "";
+    if (!targetText) {
+      continue;
+    }
+
+    normalized.push({
+      score: result.score ?? null,
+      segmentId: result.segmentId?.trim() || null,
+      sourceText,
+      targetText,
+      targetLocale: targetTranslation?.lang?.trim() || null,
+      transMemoryUid: result.transMemory?.uid?.trim() || null,
+      transMemoryName: result.transMemory?.name?.trim() || null,
+    });
+  }
+
+  return normalized;
+}
+
+function normalizePhraseTmsTermBaseSearchResults(
+  terms: PhraseTmsTermBaseSearchApiRecord[] | undefined,
+): PhraseTmsTermBaseSearchResult[] {
+  if (!terms?.length) {
+    return [];
+  }
+
+  const normalized: PhraseTmsTermBaseSearchResult[] = [];
+
+  for (const term of terms) {
+    const sourceTerm = term.sourceTerm?.text?.trim() ?? "";
+    if (!sourceTerm) {
+      continue;
+    }
+
+    const targetTermRecord =
+      term.targetTerms?.find((target) => target.text?.trim()) ?? term.targetTerms?.[0];
+    const targetTerm = targetTermRecord?.text?.trim() ?? "";
+    if (!targetTerm) {
+      continue;
+    }
+
+    normalized.push({
+      termBaseUid: term.termBase?.uid?.trim() || null,
+      termBaseName: term.termBase?.name?.trim() || null,
+      sourceTerm,
+      targetTerm,
+      targetLocale: targetTermRecord?.lang?.trim() || null,
+      description: term.description?.trim() || null,
+      forbidden: targetTermRecord?.forbidden ?? null,
+    });
+  }
+
+  return normalized;
+}
 
 function normalizePhraseTmsJobPart(job: PhraseTmsJobPartApiRecord): PhraseTmsJobPart {
   return {

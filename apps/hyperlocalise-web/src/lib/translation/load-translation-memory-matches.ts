@@ -59,6 +59,7 @@ async function loadExternalTmsProject(input: {
       externalProjectId: schema.projects.externalProjectId,
       externalProviderCredentialId: schema.projects.externalProviderCredentialId,
       externalProviderKind: schema.projects.externalProviderKind,
+      providerMetadata: schema.projects.providerMetadata,
     })
     .from(schema.projects)
     .where(
@@ -106,6 +107,8 @@ async function searchLiveProviderMatches(input: {
   targetLocales: string[];
   sourceText: string;
   limit: number;
+  externalJobUid?: string | null;
+  projectMetadata?: Record<string, unknown>;
 }): Promise<NormalizedTranslationMemoryMatch[]> {
   const matcher = getProviderTranslationMemoryMatcher(input.providerKind);
   if (!matcher) {
@@ -158,6 +161,13 @@ async function searchLiveProviderMatches(input: {
         targetLocale,
         sourceText: input.sourceText,
         limit: input.limit,
+        externalJobUid: input.externalJobUid,
+        project: input.projectMetadata
+          ? {
+              providerMetadata: input.projectMetadata,
+              externalProjectId: input.externalProjectId,
+            }
+          : undefined,
       });
 
       liveMatches.push(...matches.filter((match) => match.targetLocale === targetLocale));
@@ -184,6 +194,7 @@ export async function loadTranslationMemoryMatchesForContext(input: {
   projectId: string;
   organizationId?: string;
   providerKind?: ExternalTmsProviderKind;
+  externalJobUid?: string | null;
   sourceLocale: string;
   targetLocales: string[];
   sourceText: string;
@@ -251,6 +262,14 @@ export async function loadTranslationMemoryMatchesForContext(input: {
 
   let liveMatches: NormalizedTranslationMemoryMatch[] = [];
   try {
+    const projectRecord =
+      project ??
+      (await loadExternalTmsProject({
+        organizationId,
+        projectId: input.projectId,
+        providerKind,
+      }));
+
     liveMatches = await searchLiveProviderMatches({
       organizationId,
       projectId: input.projectId,
@@ -263,6 +282,8 @@ export async function loadTranslationMemoryMatchesForContext(input: {
       targetLocales: input.targetLocales,
       sourceText: input.sourceText,
       limit,
+      externalJobUid: input.externalJobUid,
+      projectMetadata: projectRecord?.providerMetadata ?? undefined,
     });
   } catch (error) {
     logger.error(
