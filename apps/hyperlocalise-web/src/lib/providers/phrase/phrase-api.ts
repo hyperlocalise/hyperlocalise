@@ -1,8 +1,5 @@
 /**
- * Phrase Strings API v2 client for project discovery and locale metadata.
- *
- * This module only implements endpoints required for the TMS connector
- * project-scan flow.
+ * Phrase Strings API v2 client for TMS connector discovery and file/key sync.
  */
 
 import { resolvePhraseBaseUrl } from "./phrase-base-url";
@@ -36,6 +33,66 @@ export interface PhraseLocale {
   code: string | null;
   default: boolean;
 }
+
+export interface PhraseBranch {
+  name: string;
+  merged: boolean | null;
+  state: string | null;
+}
+
+export interface PhraseKey {
+  id: string;
+  name: string;
+  description: string | null;
+  nameHash: string | null;
+  plural: boolean;
+  useOrdinalRules: boolean;
+  tags: string[];
+  dataType: string | null;
+  customMetadata: Record<string, unknown>;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface PhraseTranslation {
+  id: string;
+  keyId: string;
+  localeName: string;
+  content: string | null;
+  state: string | null;
+  unverified: boolean;
+  excluded: boolean;
+  pluralSuffix: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface PhraseUpload {
+  id: string;
+  filename: string;
+  format: string | null;
+  state: string | null;
+  tag: string | null;
+  tags: string[];
+  url: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface PhraseLocaleDownloadMetadata {
+  localeId: string;
+  localeName: string;
+  fileFormat: string;
+  branch: string | null;
+  tags: string[];
+  downloadPath: string;
+  options: Record<string, unknown>;
+}
+
+export type PhraseListOptions = {
+  branch?: string | null;
+  perPage?: number;
+};
 
 export class PhraseApiError extends Error {
   constructor(
@@ -87,16 +144,108 @@ export class PhraseApiClient {
     return projects;
   }
 
-  async listLocales(projectId: string): Promise<PhraseLocale[]> {
-    const locales: PhraseLocale[] = [];
+  async listLocales(projectId: string, options: PhraseListOptions = {}): Promise<PhraseLocale[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/locales`, {
+          page,
+          per_page: perPage,
+          branch: options.branch,
+        }),
+      normalize: (record) => normalizePhraseLocale(record as PhraseLocaleApiRecord),
+    });
+  }
+
+  async listBranches(projectId: string): Promise<PhraseBranch[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/branches`, {
+          page,
+          per_page: perPage,
+        }),
+      normalize: (record) => normalizePhraseBranch(record as PhraseBranchApiRecord),
+    });
+  }
+
+  async listKeys(projectId: string, options: PhraseListOptions = {}): Promise<PhraseKey[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/keys`, {
+          page,
+          per_page: perPage,
+          branch: options.branch,
+        }),
+      normalize: (record) => normalizePhraseKey(record as PhraseKeyApiRecord),
+    });
+  }
+
+  async listTranslations(
+    projectId: string,
+    localeName: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseTranslation[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/translations`, {
+          page,
+          per_page: perPage,
+          locale_name: localeName,
+          branch: options.branch,
+        }),
+      normalize: (record) => normalizePhraseTranslation(record as PhraseTranslationApiRecord),
+    });
+  }
+
+  async listUploads(projectId: string, options: PhraseListOptions = {}): Promise<PhraseUpload[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/uploads`, {
+          page,
+          per_page: perPage,
+          branch: options.branch,
+        }),
+      normalize: (record) => normalizePhraseUpload(record as PhraseUploadApiRecord),
+    });
+  }
+
+  buildLocaleDownloadMetadata(input: {
+    projectId: string;
+    locale: PhraseLocale;
+    fileFormat: string | null;
+    branch?: string | null;
+    tags?: string[];
+  }): PhraseLocaleDownloadMetadata {
+    const localeName = input.locale.name.trim();
+    const fileFormat = input.fileFormat?.trim() || "json";
+    const branch = input.branch?.trim() || null;
+    const tags = input.tags ?? [];
+
+    return {
+      localeId: input.locale.id,
+      localeName,
+      fileFormat,
+      branch,
+      tags,
+      downloadPath: `/projects/${encodeURIComponent(input.projectId)}/locales/${encodeURIComponent(input.locale.id)}/download`,
+      options: {
+        file_format: fileFormat,
+        ...(branch ? { branch } : {}),
+        ...(tags.length > 0 ? { tags: tags.join(",") } : {}),
+      },
+    };
+  }
+
+  private async paginate<T>(input: {
+    buildPath: (page: number, perPage: number) => string;
+    normalize: (record: unknown) => T;
+  }): Promise<T[]> {
+    const items: T[] = [];
     let page = 1;
     const perPage = 100;
 
     while (true) {
-      const pageItems = await this.get<PhraseLocaleApiRecord[]>(
-        `/projects/${encodeURIComponent(projectId)}/locales?page=${page}&per_page=${perPage}`,
-      );
-      locales.push(...pageItems.map(normalizePhraseLocale));
+      const pageItems = await this.get<unknown[]>(input.buildPath(page, perPage));
+      items.push(...pageItems.map(input.normalize));
 
       if (pageItems.length < perPage) {
         break;
@@ -105,7 +254,23 @@ export class PhraseApiClient {
       page += 1;
     }
 
-    return locales;
+    return items;
+  }
+
+  private buildPath(
+    path: string,
+    query: Record<string, string | number | null | undefined>,
+  ): string {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value === null || value === undefined || value === "") {
+        continue;
+      }
+      params.set(key, String(value));
+    }
+
+    const queryString = params.toString();
+    return queryString ? `${path}?${queryString}` : path;
   }
 
   private authHeaders(): Record<string, string> {
@@ -161,6 +326,60 @@ type PhraseLocaleApiRecord = {
   default?: boolean;
 };
 
+type PhraseBranchApiRecord = {
+  name: string;
+  merged?: boolean | null;
+  state?: string | null;
+};
+
+type PhraseKeyApiRecord = {
+  id: string;
+  name: string;
+  description?: string | null;
+  name_hash?: string | null;
+  plural?: boolean;
+  use_ordinal_rules?: boolean;
+  tags?: string[];
+  data_type?: string | null;
+  custom_metadata?: Record<string, unknown> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+type PhraseTranslationApiRecord = {
+  id: string;
+  key_id: string;
+  locale_name?: string;
+  content?: string | null;
+  state?: string | null;
+  unverified?: boolean;
+  excluded?: boolean;
+  plural_suffix?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  key?: {
+    id: string;
+    name?: string;
+  };
+  locale?: {
+    id?: string;
+    name?: string;
+    code?: string | null;
+  };
+};
+
+type PhraseUploadApiRecord = {
+  id: string;
+  filename: string;
+  format?: string | null;
+  state?: string | null;
+  tag?: string | null;
+  tags?: string[];
+  url?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 function normalizePhraseProject(project: PhraseProjectApiRecord): PhraseProject {
   return {
     id: project.id,
@@ -179,5 +398,65 @@ function normalizePhraseLocale(locale: PhraseLocaleApiRecord): PhraseLocale {
     name: locale.name,
     code: locale.code ?? null,
     default: locale.default ?? false,
+  };
+}
+
+function normalizePhraseBranch(branch: PhraseBranchApiRecord): PhraseBranch {
+  return {
+    name: branch.name,
+    merged: branch.merged ?? null,
+    state: branch.state ?? null,
+  };
+}
+
+function normalizePhraseKey(key: PhraseKeyApiRecord): PhraseKey {
+  return {
+    id: key.id,
+    name: key.name,
+    description: key.description ?? null,
+    nameHash: key.name_hash ?? null,
+    plural: key.plural ?? false,
+    useOrdinalRules: key.use_ordinal_rules ?? false,
+    tags: key.tags ?? [],
+    dataType: key.data_type ?? null,
+    customMetadata: key.custom_metadata ?? {},
+    createdAt: key.created_at ?? null,
+    updatedAt: key.updated_at ?? null,
+  };
+}
+
+function normalizePhraseTranslation(translation: PhraseTranslationApiRecord): PhraseTranslation {
+  const keyId = translation.key_id || translation.key?.id || "";
+  const localeName =
+    translation.locale_name?.trim() ||
+    translation.locale?.name?.trim() ||
+    translation.locale?.code?.trim() ||
+    "";
+
+  return {
+    id: translation.id,
+    keyId,
+    localeName,
+    content: translation.content ?? null,
+    state: translation.state ?? null,
+    unverified: translation.unverified ?? false,
+    excluded: translation.excluded ?? false,
+    pluralSuffix: translation.plural_suffix ?? null,
+    createdAt: translation.created_at ?? null,
+    updatedAt: translation.updated_at ?? null,
+  };
+}
+
+function normalizePhraseUpload(upload: PhraseUploadApiRecord): PhraseUpload {
+  return {
+    id: upload.id,
+    filename: upload.filename,
+    format: upload.format ?? null,
+    state: upload.state ?? null,
+    tag: upload.tag ?? null,
+    tags: upload.tags ?? [],
+    url: upload.url ?? null,
+    createdAt: upload.created_at ?? null,
+    updatedAt: upload.updated_at ?? null,
   };
 }

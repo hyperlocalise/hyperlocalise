@@ -22,6 +22,7 @@ import {
   type ExternalTmsJobTaskFetcher,
 } from "@/lib/providers/external-tms-job-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
 import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
 import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
 import {
@@ -300,6 +301,7 @@ const fileKeyFetchersByProvider: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsFileKeyFetcher>
 > = {
   crowdin: fetchCrowdinFileKeys,
+  phrase: fetchPhraseFileKeys,
   smartling: fetchSmartlingFileKeys,
 };
 
