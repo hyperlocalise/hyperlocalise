@@ -28,7 +28,7 @@ import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
 } from "@/lib/providers/external-tms-content-sync";
-import { filterProjectFiles, listProjectFilesForProject } from "@/lib/projects/project-files";
+import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import type { ExternalTmsResourceType } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
@@ -601,21 +601,19 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           ? ([query.resourceType] as ExternalTmsResourceType[])
           : undefined;
 
-      const mergedFiles = await listProjectFilesForProject({
+      const files = await listFilteredProjectFiles({
         organizationId: c.var.auth.organization.localOrganizationId,
         projectId: params.projectId,
-        limit: query.limit,
+        query: {
+          ...query,
+          origin: query.origin ?? "all",
+          resourceType: query.resourceType ?? "all",
+          providerKind: query.providerKind ?? "all",
+          locale: query.locale ?? "all",
+          syncState: query.syncState ?? "all",
+        },
         resourceTypes,
       });
-
-      const files = filterProjectFiles(mergedFiles, {
-        origin: query.origin ?? "all",
-        resourceType: query.resourceType ?? "all",
-        providerKind: query.providerKind ?? "all",
-        locale: query.locale ?? "all",
-        syncState: query.syncState ?? "all",
-        search: query.search,
-      }).slice(0, query.limit);
 
       return c.json({ files }, 200);
     })

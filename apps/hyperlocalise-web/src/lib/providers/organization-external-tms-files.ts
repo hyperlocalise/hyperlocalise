@@ -6,7 +6,7 @@ import { normalizeSourcePath } from "@/lib/file-storage/records";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
 const defaultExternalTmsFilesLimit = 500;
-const maxExternalTmsFilesLimit = 1_000;
+export const maxExternalTmsFilesLimit = 1_000;
 
 export type ExternalTmsResourceType =
   (typeof schema.externalTmsResourceTypeEnum.enumValues)[number];

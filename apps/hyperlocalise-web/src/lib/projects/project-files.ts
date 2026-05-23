@@ -1,9 +1,14 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { ProjectFileRecord, ProjectFilesQuery } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileRecord,
+  ProjectFilesQuery,
+  WorkspaceFileRecord,
+} from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import {
   listExternalTmsFilesForProject,
+  maxExternalTmsFilesLimit,
   type ExternalTmsResourceType,
 } from "@/lib/providers/organization-external-tms-files";
 
@@ -15,10 +20,25 @@ export type ProjectFileListContext = {
 type ProjectFileJobStatus = NonNullable<ProjectFileRecord["latestJob"]>["status"];
 type ProjectFileJobType = NonNullable<ProjectFileRecord["latestJob"]>["type"];
 
-export type WorkspaceFileRecord = ProjectFileRecord & {
-  projectId: string;
-  projectName: string;
-};
+type ProjectFileFilterQuery = Pick<
+  ProjectFilesQuery,
+  "origin" | "resourceType" | "providerKind" | "locale" | "syncState" | "search"
+>;
+
+export function hasActiveProjectFileFilters(query: ProjectFileFilterQuery) {
+  return Boolean(
+    query.search?.trim() ||
+    (query.origin && query.origin !== "all") ||
+    (query.resourceType && query.resourceType !== "all") ||
+    (query.providerKind && query.providerKind !== "all") ||
+    (query.locale && query.locale !== "all") ||
+    (query.syncState && query.syncState !== "all"),
+  );
+}
+
+function resolveProviderFetchLimit(query: ProjectFileFilterQuery, responseLimit: number) {
+  return hasActiveProjectFileFilters(query) ? maxExternalTmsFilesLimit : responseLimit;
+}
 
 function matchesLocale(file: ProjectFileRecord, locale: string) {
   if (file.provider?.sourceLocale === locale) {
@@ -27,13 +47,7 @@ function matchesLocale(file: ProjectFileRecord, locale: string) {
   return file.provider?.targetLocales.includes(locale) ?? false;
 }
 
-export function filterProjectFiles(
-  files: ProjectFileRecord[],
-  query: Pick<
-    ProjectFilesQuery,
-    "origin" | "resourceType" | "providerKind" | "locale" | "syncState" | "search"
-  >,
-) {
+export function filterProjectFiles(files: ProjectFileRecord[], query: ProjectFileFilterQuery) {
   const search = query.search?.trim().toLowerCase();
 
   return files.filter((file) => {
@@ -85,10 +99,26 @@ export function filterProjectFiles(
   });
 }
 
+export async function listFilteredProjectFiles(input: {
+  organizationId: string;
+  projectId: string;
+  query: ProjectFilesQuery;
+  resourceTypes?: ExternalTmsResourceType[];
+}) {
+  const mergedFiles = await listProjectFilesForProject({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    providerFetchLimit: resolveProviderFetchLimit(input.query, input.query.limit),
+    resourceTypes: input.resourceTypes,
+  });
+
+  return filterProjectFiles(mergedFiles, input.query).slice(0, input.query.limit);
+}
+
 export async function listProjectFilesForProject(input: {
   organizationId: string;
   projectId: string;
-  limit: number;
+  providerFetchLimit?: number;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
   const versionsSubquery = db
@@ -144,7 +174,7 @@ export async function listProjectFilesForProject(input: {
     organizationId: input.organizationId,
     projectId: input.projectId,
     resourceTypes: input.resourceTypes,
-    limit: input.limit,
+    limit: input.providerFetchLimit ?? maxExternalTmsFilesLimit,
   });
 
   const latestJobs = new Map<
@@ -284,21 +314,18 @@ export async function listWorkspaceFiles(input: {
       ? input.projects.filter((project) => project.projectId === input.query.projectId)
       : input.projects;
 
-  const perProjectLimit = Math.max(
-    1,
-    Math.ceil(input.query.limit / Math.max(projectIds.length, 1)),
-  );
+  const providerFetchLimit = resolveProviderFetchLimit(input.query, input.query.limit);
 
   const fileGroups = await Promise.all(
     projectIds.map(async (project) => {
       const files = await listProjectFilesForProject({
         organizationId: input.organizationId,
         projectId: project.projectId,
-        limit: perProjectLimit,
+        providerFetchLimit,
         resourceTypes,
       });
 
-      const filtered = filterProjectFiles(files, input.query).slice(0, perProjectLimit);
+      const filtered = filterProjectFiles(files, input.query);
 
       return filtered.map(
         (file): WorkspaceFileRecord => ({

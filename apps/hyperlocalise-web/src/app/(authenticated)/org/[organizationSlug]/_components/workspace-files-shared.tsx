@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -324,40 +323,4 @@ export function WorkspaceFilesFilterBar({
       </div>
     </div>
   );
-}
-
-export function useClientFileFilters(files: ProjectFileRecord[], filters: WorkspaceFileFilters) {
-  return useMemo(() => {
-    const search = filters.search.trim().toLowerCase();
-
-    return files.filter((file) => {
-      if (filters.origin !== "all" && file.origin !== filters.origin) return false;
-      if (filters.resourceType !== "all") {
-        const type = file.provider?.resourceType ?? "file";
-        if (type !== filters.resourceType) return false;
-      }
-      if (filters.providerKind !== "all" && file.provider?.kind !== filters.providerKind) {
-        return false;
-      }
-      if (filters.syncState !== "all") {
-        const state = file.provider?.syncState ?? "";
-        if (state !== filters.syncState) return false;
-      }
-      if (filters.locale !== "all") {
-        const locales = [
-          file.provider?.sourceLocale,
-          ...(file.provider?.targetLocales ?? []),
-        ].filter(Boolean);
-        if (!locales.includes(filters.locale)) return false;
-      }
-      if (search) {
-        const haystack = [file.sourcePath, file.filename, file.provider?.kind]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(search)) return false;
-      }
-      return true;
-    });
-  }, [files, filters]);
 }

@@ -464,10 +464,23 @@ export function ProjectFilesPageContent({
   }, [initialSourcePath]);
 
   useEffect(() => {
-    if (selectedPath && !files.some((file) => file.sourcePath === selectedPath)) {
-      setSelectedPath(files[0]?.sourcePath);
+    if (filesQuery.isLoading || filesQuery.isFetching) {
+      return;
     }
-  }, [files, selectedPath]);
+
+    if (files.length === 0) {
+      return;
+    }
+
+    if (!selectedPath) {
+      setSelectedPath(files[0].sourcePath);
+      return;
+    }
+
+    if (!files.some((file) => file.sourcePath === selectedPath)) {
+      setSelectedPath(files[0].sourcePath);
+    }
+  }, [files, selectedPath, filesQuery.isLoading, filesQuery.isFetching]);
 
   const stats = {
     total: files.length,
