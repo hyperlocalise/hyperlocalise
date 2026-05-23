@@ -4,6 +4,7 @@ import {
   applyAgentRunProposalReviewUpdates,
   applyBulkAgentRunProposalReview,
   buildAgentRunProposalItemId,
+  collectAcceptedAgentRunProposalsForJob,
   detectAgentRunProposalWarnings,
   enrichAgentRunProposalItem,
   parseAgentRunProposalItems,
@@ -90,5 +91,76 @@ describe("agent-run-proposals", () => {
 
     expect(enrichAgentRunProposalItem(bulkRejected[0]!)?.reviewState).toBe("accepted");
     expect(enrichAgentRunProposalItem(bulkRejected[1]!)?.reviewState).toBe("rejected");
+  });
+
+  it("collects accepted proposals across translate and qa_fix runs", () => {
+    const olderRunId = "run-older";
+    const newerRunId = "run-newer";
+
+    const accepted = collectAcceptedAgentRunProposalsForJob({
+      runs: [
+        {
+          id: newerRunId,
+          kind: "qa_fix",
+          status: "succeeded",
+          inputSnapshot: {},
+          createdAt: new Date("2026-01-02T00:00:00.000Z"),
+          changedItems: [
+            {
+              externalStringId: "1",
+              key: "hello",
+              locale: "fr",
+              sourceText: "Hello",
+              from: "",
+              to: "Bonjour",
+              reviewState: "accepted",
+            },
+            {
+              externalStringId: "2",
+              key: "world",
+              locale: "fr",
+              sourceText: "World",
+              from: "",
+              to: "Le monde",
+              reviewState: "pending",
+            },
+          ],
+        },
+        {
+          id: olderRunId,
+          kind: "translate",
+          status: "succeeded",
+          inputSnapshot: {},
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          changedItems: [
+            {
+              externalStringId: "1",
+              key: "hello",
+              locale: "fr",
+              sourceText: "Hello",
+              from: "",
+              to: "Salut",
+              reviewState: "accepted",
+            },
+          ],
+        },
+        {
+          id: "writeback-run",
+          kind: "translate",
+          status: "succeeded",
+          inputSnapshot: { action: "push_approved_changes" },
+          createdAt: new Date("2026-01-03T00:00:00.000Z"),
+          changedItems: [],
+        },
+      ],
+    });
+
+    expect(accepted).toEqual([
+      expect.objectContaining({
+        itemId: "1:fr",
+        to: "Bonjour",
+        sourceAgentRunId: newerRunId,
+      }),
+    ]);
   });
 });

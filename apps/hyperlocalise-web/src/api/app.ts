@@ -9,6 +9,7 @@ import type {
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
+  ProviderAgentWritebackQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
@@ -42,6 +43,7 @@ import {
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
+  createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
 
 type CreateAppOptions = {
@@ -52,6 +54,7 @@ type CreateAppOptions = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
   providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
+  providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -62,6 +65,8 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentQaQueue = options.providerAgentQaQueue ?? createProviderAgentQaQueue();
   const providerAgentCommentQueue =
     options.providerAgentCommentQueue ?? createProviderAgentCommentQueue();
+  const providerAgentWritebackQueue =
+    options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
 
   return new Hono()
     .use("*", secureHeaders())
@@ -78,6 +83,7 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentTranslationQueue,
         providerAgentQaQueue,
         providerAgentCommentQueue,
+        providerAgentWritebackQueue,
       }),
     )
     .route(
@@ -88,6 +94,7 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentTranslationQueue,
         providerAgentQaQueue,
         providerAgentCommentQueue,
+        providerAgentWritebackQueue,
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
@@ -121,6 +128,7 @@ function createOrgScopedAppRoutes(
     providerAgentTranslationQueue: ProviderAgentTranslationQueue;
     providerAgentQaQueue: ProviderAgentQaQueue;
     providerAgentCommentQueue: ProviderAgentCommentQueue;
+    providerAgentWritebackQueue: ProviderAgentWritebackQueue;
   },
 ) {
   return new Hono()
@@ -134,6 +142,7 @@ function createOrgScopedAppRoutes(
         providerAgentTranslationQueue: options.providerAgentTranslationQueue,
         providerAgentQaQueue: options.providerAgentQaQueue,
         providerAgentCommentQueue: options.providerAgentCommentQueue,
+        providerAgentWritebackQueue: options.providerAgentWritebackQueue,
       }),
     )
     .route("/provider-credential", createProviderCredentialRoutes())

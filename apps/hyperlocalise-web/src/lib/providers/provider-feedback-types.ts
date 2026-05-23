@@ -17,6 +17,17 @@ export type ProviderCommentChangedItem = {
   message?: string | null;
 };
 
+export type ProviderTranslationWritebackChangedItem = {
+  type: "provider_translation_writeback";
+  itemId: string;
+  externalStringId: string;
+  key: string;
+  locale: string;
+  status: "uploaded" | "skipped" | "failed";
+  sourceAgentRunId?: string | null;
+  message?: string | null;
+};
+
 export type ExternalTmsCommentPusher = (input: {
   organizationId: string;
   projectId: string;

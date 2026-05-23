@@ -118,3 +118,10 @@ export type ProviderAgentCommentEventData = {
 };
 
 export type ProviderAgentCommentQueue = JobQueue<ProviderAgentCommentEventData>;
+
+export type ProviderAgentWritebackEventData = {
+  agentRunId: string;
+  organizationId: string;
+};
+
+export type ProviderAgentWritebackQueue = JobQueue<ProviderAgentWritebackEventData>;

@@ -87,6 +87,7 @@ export async function failAgentRun(input: {
   runId: string;
   organizationId: string;
   outputSummary?: AgentRunOutputSummary;
+  changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
   return finishAgentRun({
@@ -94,6 +95,7 @@ export async function failAgentRun(input: {
     organizationId: input.organizationId,
     status: "failed",
     outputSummary: input.outputSummary,
+    changedItems: input.changedItems,
     warnings: input.warnings,
     sourceStatuses: ["queued", "running"],
   });
