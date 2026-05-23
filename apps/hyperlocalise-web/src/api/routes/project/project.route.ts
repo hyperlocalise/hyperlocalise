@@ -29,7 +29,8 @@ import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
 } from "@/lib/providers/external-tms-content-sync";
-import { listExternalTmsFilesForProject } from "@/lib/providers/organization-external-tms-files";
+import { listFilteredProjectFiles } from "@/lib/projects/project-files";
+import type { ExternalTmsResourceType } from "@/lib/providers/organization-external-tms-files";
 import { bufferFromStream } from "@/lib/streams";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
@@ -597,182 +598,24 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return projectNotFoundResponse(c);
       }
 
-      const versionsSubquery = db
-        .select({
-          versionId: schema.repositorySourceFileVersions.id,
-          sourcePath: schema.repositorySourceFileVersions.sourcePath,
-          sourceHash: schema.repositorySourceFileVersions.sourceHash,
-          commitSha: schema.repositorySourceFileVersions.commitSha,
-          workflowRunId: schema.repositorySourceFileVersions.workflowRunId,
-          uploadedAt: schema.repositorySourceFileVersions.createdAt,
-          storedFileId: schema.repositorySourceFileVersions.storedFileId,
-          metadata: schema.storedFiles.metadata,
-          filename: schema.storedFiles.filename,
-          byteSize: schema.storedFiles.byteSize,
-          rowNumber:
-            sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.repositorySourceFileVersions.sourcePath} ORDER BY ${schema.repositorySourceFileVersions.createdAt} DESC)`.as(
-              "rn",
-            ),
-        })
-        .from(schema.repositorySourceFileVersions)
-        .innerJoin(
-          schema.storedFiles,
-          eq(schema.storedFiles.id, schema.repositorySourceFileVersions.storedFileId),
-        )
-        .where(
-          and(
-            eq(schema.storedFiles.projectId, params.projectId),
-            eq(schema.storedFiles.role, "source"),
-            eq(schema.storedFiles.sourceKind, "repository_file"),
-            eq(schema.storedFiles.organizationId, c.var.auth.organization.localOrganizationId),
-          ),
-        )
-        .as("versions_sq");
-
-      const versions = await db
-        .select({
-          versionId: versionsSubquery.versionId,
-          sourcePath: versionsSubquery.sourcePath,
-          sourceHash: versionsSubquery.sourceHash,
-          commitSha: versionsSubquery.commitSha,
-          workflowRunId: versionsSubquery.workflowRunId,
-          uploadedAt: versionsSubquery.uploadedAt,
-          storedFileId: versionsSubquery.storedFileId,
-          metadata: versionsSubquery.metadata,
-          filename: versionsSubquery.filename,
-          byteSize: versionsSubquery.byteSize,
-        })
-        .from(versionsSubquery)
-        .where(eq(versionsSubquery.rowNumber, 1));
-
-      const versionIds = versions.map((v) => v.versionId);
-      const providerFiles = await listExternalTmsFilesForProject({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: params.projectId,
-        limit: query.limit,
-      });
-
-      const latestJobs = new Map<
-        string,
-        {
-          jobId: string;
-          jobStatus: string;
-          jobCreatedAt: Date;
-          jobType: string;
-        }
-      >();
-
-      if (versionIds.length > 0) {
-        const jobsSubquery = db
-          .select({
-            versionId: schema.translationJobDetails.sourceFileVersionId,
-            jobId: schema.jobs.id,
-            jobStatus: schema.jobs.status,
-            jobCreatedAt: schema.jobs.createdAt,
-            jobType: schema.translationJobDetails.type,
-            rowNumber:
-              sql<number>`ROW_NUMBER() OVER (PARTITION BY ${schema.translationJobDetails.sourceFileVersionId} ORDER BY ${schema.jobs.createdAt} DESC)`.as(
-                "rn",
-              ),
-          })
-          .from(schema.jobs)
-          .innerJoin(
-            schema.translationJobDetails,
-            eq(schema.translationJobDetails.jobId, schema.jobs.id),
-          )
-          .where(
-            and(
-              eq(schema.jobs.projectId, params.projectId),
-              inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
-            ),
-          )
-          .as("jobs_sq");
-
-        const jobs = await db
-          .select({
-            versionId: jobsSubquery.versionId,
-            jobId: jobsSubquery.jobId,
-            jobStatus: jobsSubquery.jobStatus,
-            jobCreatedAt: jobsSubquery.jobCreatedAt,
-            jobType: jobsSubquery.jobType,
-          })
-          .from(jobsSubquery)
-          .where(eq(jobsSubquery.rowNumber, 1));
-
-        for (const j of jobs) {
-          if (j.versionId) {
-            latestJobs.set(j.versionId, j);
-          }
-        }
-      }
-
-      const nativeFiles = versions.map((v) => {
-        const job = latestJobs.get(v.versionId);
-        return {
-          origin: "repository" as const,
-          sourcePath: v.sourcePath,
-          sourceHash: v.sourceHash,
-          commitSha: v.commitSha,
-          workflowRunId: v.workflowRunId,
-          uploadedAt: v.uploadedAt.toISOString(),
-          storedFileId: v.storedFileId,
-          metadata: v.metadata as Record<string, unknown>,
-          filename: v.filename,
-          byteSize: v.byteSize,
-          provider: null,
-          latestJob: job
-            ? {
-                id: job.jobId,
-                status: job.jobStatus,
-                createdAt: job.jobCreatedAt.toISOString(),
-                type: job.jobType,
-              }
-            : null,
-        };
-      });
-
-      const nativeFileByStoredFileId = new Map(
-        nativeFiles.map((file) => [file.storedFileId, file]),
-      );
-      const providerBackedFiles = providerFiles.map((file) => {
-        const linkedNativeFile = file.storedFileId
-          ? nativeFileByStoredFileId.get(file.storedFileId)
+      const resourceTypes =
+        query.resourceType && query.resourceType !== "all"
+          ? ([query.resourceType] as ExternalTmsResourceType[])
           : undefined;
 
-        return {
-          origin: "provider" as const,
-          sourcePath: file.sourcePath,
-          sourceHash: file.sourceHash,
-          commitSha: null,
-          workflowRunId: null,
-          uploadedAt:
-            file.lastSyncedAt?.toISOString() ??
-            linkedNativeFile?.uploadedAt ??
-            file.updatedAt.toISOString(),
-          storedFileId: file.storedFileId,
-          metadata: file.providerPayload as Record<string, unknown>,
-          filename: file.displayName,
-          byteSize: linkedNativeFile?.byteSize ?? null,
-          provider: {
-            kind: file.providerKind,
-            resourceType: file.resourceType,
-            externalProjectId: file.externalProjectId,
-            externalResourceId: file.externalResourceId,
-            externalUrl: file.externalUrl,
-            syncState: file.syncState,
-            sourceLocale: file.sourceLocale,
-            targetLocales: file.targetLocales,
-            localeReadiness: file.localeReadiness as Record<string, unknown>,
-            revision: file.revision,
-            format: file.format,
-          },
-          latestJob: linkedNativeFile?.latestJob ?? null,
-        };
+      const files = await listFilteredProjectFiles({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: params.projectId,
+        query: {
+          ...query,
+          origin: query.origin ?? "all",
+          resourceType: query.resourceType ?? "all",
+          providerKind: query.providerKind ?? "all",
+          locale: query.locale ?? "all",
+          syncState: query.syncState ?? "all",
+        },
+        resourceTypes,
       });
-
-      const files = [...nativeFiles, ...providerBackedFiles].sort((a, b) =>
-        a.sourcePath.localeCompare(b.sourcePath),
-      );
 
       return c.json({ files }, 200);
     })

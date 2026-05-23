@@ -612,6 +612,153 @@ describe("projectRoutes", () => {
     ]);
   });
 
+  it("combines repository and provider records for the same source path", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+    const sourcePath = "locales/en/home.json";
+
+    const [storedFile] = await db
+      .insert(schema.storedFiles)
+      .values({
+        id: `file_${randomUUID()}`,
+        organizationId: createdBody.project.organizationId,
+        projectId,
+        role: "source",
+        sourceKind: "repository_file",
+        storageProvider: "vercel_blob",
+        storageKey: `test/${projectId}/home.json`,
+        storageUrl: `https://example.com/${projectId}/home.json`,
+        filename: "home.json",
+        contentType: "application/json",
+        byteSize: 120,
+        sha256: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+        metadata: { sourcePath },
+      })
+      .returning();
+
+    const [sourceFile] = await db
+      .insert(schema.repositorySourceFiles)
+      .values({
+        organizationId: createdBody.project.organizationId,
+        projectId,
+        sourcePath,
+      })
+      .returning();
+
+    await db.insert(schema.repositorySourceFileVersions).values({
+      repositorySourceFileId: sourceFile.id,
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      sourcePath,
+      storedFileId: storedFile.id,
+      sourceHash: "repo-hash",
+      commitSha: "deadbeef",
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath,
+      displayName: "home.json",
+      format: "json",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceHash: "provider-hash",
+      revision: "one",
+      syncState: "synced",
+    });
+
+    for (const origin of ["all", "repository", "provider"] as const) {
+      const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+        {
+          param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+          query: { limit: "500", origin },
+        },
+        {
+          headers: await authHeadersFor(identity),
+        },
+      );
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as ProjectFilesResponse;
+      expect(body.files).toHaveLength(1);
+      expect(body.files[0]).toMatchObject({
+        origin: "combined",
+        sourcePath,
+        sourceHash: "repo-hash",
+        commitSha: "deadbeef",
+        storedFileId: storedFile.id,
+        filename: "home.json",
+        byteSize: 120,
+        provider: expect.objectContaining({
+          kind: "phrase",
+          externalResourceId: "file-1",
+          syncState: "synced",
+          revision: "one",
+        }),
+      });
+    }
+  });
+
+  it("filters project files by resource type and provider kind", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en/home.json",
+      displayName: "home.json",
+      syncState: "synced",
+    });
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "key",
+      externalResourceId: "key-1",
+      sourcePath: "keys/home.title",
+      displayName: "home.title",
+      syncState: "pending",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "500", resourceType: "key", providerKind: "crowdin" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files).toEqual([
+      expect.objectContaining({
+        sourcePath: "keys/home.title",
+        provider: expect.objectContaining({
+          kind: "crowdin",
+          resourceType: "key",
+        }),
+      }),
+    ]);
+  });
+
   it("limits provider-backed files when listing project files", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);

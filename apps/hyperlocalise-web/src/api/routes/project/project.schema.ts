@@ -83,7 +83,7 @@ export const projectsResponseSchema = z.object({
 });
 
 export const projectFileRecordSchema = z.object({
-  origin: z.enum(["repository", "provider"]).default("repository"),
+  origin: z.enum(["repository", "provider", "combined"]).default("repository"),
   sourcePath: z.string(),
   sourceHash: z.string().nullable(),
   commitSha: z.string().nullable(),
@@ -106,6 +106,7 @@ export const projectFileRecordSchema = z.object({
       localeReadiness: z.record(z.string(), z.unknown()),
       revision: z.string().nullable(),
       format: z.string().nullable(),
+      lastSyncedAt: z.string().nullable(),
     })
     .nullable()
     .default(null),
@@ -130,8 +131,30 @@ export const projectFilesResponseSchema = z.object({
   files: z.array(projectFileRecordSchema),
 });
 
+const projectFilesFilterOriginSchema = z.enum(["all", "repository", "provider"]).default("all");
+const projectFilesFilterResourceTypeSchema = z.enum(["all", "file", "key"]).default("all");
+const projectFilesFilterProviderKindSchema = z
+  .enum(["all", "crowdin", "smartling", "phrase", "lokalise"])
+  .default("all");
+
 export const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+  search: z.string().trim().max(256).optional(),
+  origin: projectFilesFilterOriginSchema.optional(),
+  resourceType: projectFilesFilterResourceTypeSchema.optional(),
+  providerKind: projectFilesFilterProviderKindSchema.optional(),
+  locale: z.string().trim().max(32).optional(),
+  syncState: z.string().trim().max(64).optional(),
+  projectId: z.string().trim().max(128).optional(),
+});
+
+export const workspaceFileRecordSchema = projectFileRecordSchema.extend({
+  projectId: z.string(),
+  projectName: z.string(),
+});
+
+export const workspaceFilesResponseSchema = z.object({
+  files: z.array(workspaceFileRecordSchema),
 });
 
 export const projectFileDetailQuerySchema = z.object({
@@ -210,3 +233,5 @@ export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSc
 export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSchema>;
 export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
 export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;
+export type WorkspaceFileRecord = z.infer<typeof workspaceFileRecordSchema>;
+export type WorkspaceFilesResponse = z.infer<typeof workspaceFilesResponseSchema>;
