@@ -231,22 +231,8 @@ export const tmsProviderCapabilityRegistry = Object.fromEntries(
         "locales.write": true,
         "tasks.create": true,
         "qa.run": true,
-        "translation_memory.import": {
-          supported: false,
-          ui: {
-            state: "disabled",
-            disabledReason:
-              "Lokalise translation memory support is not wired into this connector yet.",
-          },
-        },
-        "translation_memory.export": {
-          supported: false,
-          ui: {
-            state: "disabled",
-            disabledReason:
-              "Lokalise translation memory support is not wired into this connector yet.",
-          },
-        },
+        "translation_memory.import": true,
+        "translation_memory.export": true,
       },
     }),
   ].map((provider) => [provider.id, provider]),

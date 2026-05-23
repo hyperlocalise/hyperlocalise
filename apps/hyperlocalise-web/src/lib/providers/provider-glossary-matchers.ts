@@ -1,5 +1,6 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { searchCrowdinGlossaryMatches } from "@/lib/providers/crowdin/crowdin-glossary-matcher";
+import { searchLokaliseGlossaryMatches } from "@/lib/providers/lokalise/lokalise-glossary-matcher";
 import type { NormalizedGlossaryMatch } from "@/lib/translation/glossary-match";
 
 type ExternalTmsCredential =
@@ -34,6 +35,8 @@ export function getProviderGlossaryMatcher(
   switch (providerKind) {
     case "crowdin":
       return searchCrowdinGlossaryMatches;
+    case "lokalise":
+      return searchLokaliseGlossaryMatches;
     default:
       return null;
   }

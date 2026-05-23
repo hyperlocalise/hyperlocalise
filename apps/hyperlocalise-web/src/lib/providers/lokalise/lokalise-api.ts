@@ -146,6 +146,35 @@ export interface LokaliseKey {
 
 export const LOKALISE_DEFAULT_BUNDLE_STRUCTURE = "%LANG_ISO%.%FORMAT%";
 
+/** Caps glossary-term pagination during sync and live lookup. */
+export const LOKALISE_GLOSSARY_MAX_PAGES = 100;
+
+/** Caps project keys scanned when building translation-memory segments. */
+export const LOKALISE_TM_SYNC_MAX_KEYS = 2500;
+
+export interface LokaliseGlossaryTermTranslation {
+  id: number;
+  languageId: number;
+  languageIdSnake: number;
+  languageIso: string;
+  languageIsoSnake: string;
+  langIso: string;
+  langIsoSnake: string;
+  translation: string;
+  description: string | null;
+}
+
+export interface LokaliseGlossaryTerm {
+  id: number;
+  term: string;
+  description: string | null;
+  caseSensitive: boolean;
+  translatable: boolean;
+  forbidden: boolean;
+  tags: string[];
+  translations: LokaliseGlossaryTermTranslation[];
+}
+
 export class LokaliseApiError extends Error {
   constructor(
     message: string,
@@ -371,6 +400,50 @@ export class LokaliseApiClient {
     return response.arrayBuffer();
   }
 
+  async listGlossaryTerms(projectId: string): Promise<LokaliseGlossaryTerm[]> {
+    const terms: LokaliseGlossaryTerm[] = [];
+    let cursor = "";
+    const limit = 500;
+    let pageCount = 0;
+
+    while (true) {
+      if (pageCount >= LOKALISE_GLOSSARY_MAX_PAGES) {
+        break;
+      }
+
+      const params = new URLSearchParams({
+        limit: String(limit),
+      });
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
+
+      const { body, nextCursor } = await this.getWithPagination<LokaliseGlossaryTermsListResponse>(
+        `/projects/${encodeURIComponent(projectId)}/glossary-terms?${params.toString()}`,
+      );
+      const pageItems = listLokaliseGlossaryTermRecords(body).map(normalizeLokaliseGlossaryTerm);
+      terms.push(...pageItems);
+
+      if (!nextCursor && pageItems.length < limit) {
+        break;
+      }
+
+      if (!nextCursor) {
+        const bodyCursor = readLokaliseGlossaryNextCursor(body);
+        if (!bodyCursor) {
+          break;
+        }
+        cursor = bodyCursor;
+      } else {
+        cursor = nextCursor;
+      }
+
+      pageCount += 1;
+    }
+
+    return terms;
+  }
+
   async listProjectLanguages(projectId: string): Promise<LokaliseLanguage[]> {
     const languages: LokaliseLanguage[] = [];
     let page = 1;
@@ -464,6 +537,39 @@ export class LokaliseApiClient {
     return body;
   }
 }
+
+type LokaliseGlossaryTermTranslationApiRecord = {
+  id?: number;
+  lang_id?: number;
+  language_id?: number;
+  lang_iso?: string;
+  language_iso?: string;
+  translation?: string;
+  description?: string | null;
+};
+
+type LokaliseGlossaryTermApiRecord = {
+  id?: number;
+  term?: string;
+  description?: string | null;
+  case_sensitive?: boolean;
+  caseSensitive?: boolean;
+  translatable?: boolean;
+  forbidden?: boolean;
+  tags?: string[];
+  translations?: LokaliseGlossaryTermTranslationApiRecord[];
+};
+
+type LokaliseGlossaryTermsListResponse = {
+  items?: LokaliseGlossaryTermApiRecord[];
+  data?: LokaliseGlossaryTermApiRecord[];
+  next_cursor?: string;
+  nextCursor?: string;
+  meta?: {
+    next_cursor?: string;
+    nextCursor?: string;
+  };
+};
 
 type LokaliseProjectsListResponse = {
   projects?: LokaliseProjectApiRecord[];
@@ -663,6 +769,57 @@ function normalizeLokaliseTaskLanguageUser(
     userId: record.user_id ?? 0,
     email: record.email?.trim() ?? "",
     fullname: record.fullname?.trim() ?? "",
+  };
+}
+
+function listLokaliseGlossaryTermRecords(response: LokaliseGlossaryTermsListResponse) {
+  if (response.items?.length) {
+    return response.items;
+  }
+  return response.data ?? [];
+}
+
+function readLokaliseGlossaryNextCursor(response: LokaliseGlossaryTermsListResponse) {
+  return (
+    response.nextCursor?.trim() ||
+    response.next_cursor?.trim() ||
+    response.meta?.nextCursor?.trim() ||
+    response.meta?.next_cursor?.trim() ||
+    null
+  );
+}
+
+function normalizeLokaliseGlossaryTerm(
+  record: LokaliseGlossaryTermApiRecord,
+): LokaliseGlossaryTerm {
+  return {
+    id: record.id ?? 0,
+    term: record.term?.trim() ?? "",
+    description: record.description?.trim() || null,
+    caseSensitive: record.caseSensitive ?? record.case_sensitive ?? false,
+    translatable: record.translatable ?? true,
+    forbidden: record.forbidden ?? false,
+    tags: record.tags ?? [],
+    translations: (record.translations ?? []).map(normalizeLokaliseGlossaryTermTranslation),
+  };
+}
+
+function normalizeLokaliseGlossaryTermTranslation(
+  record: LokaliseGlossaryTermTranslationApiRecord,
+): LokaliseGlossaryTermTranslation {
+  const languageId = record.language_id ?? record.lang_id ?? 0;
+  const languageIso = record.language_iso?.trim() ?? record.lang_iso?.trim() ?? "";
+
+  return {
+    id: record.id ?? 0,
+    languageId,
+    languageIdSnake: languageId,
+    languageIso,
+    languageIsoSnake: languageIso,
+    langIso: languageIso,
+    langIsoSnake: languageIso,
+    translation: stringifyLokaliseTranslationValue(record.translation),
+    description: record.description?.trim() || null,
   };
 }
 
