@@ -9,10 +9,20 @@ import {
   validationErrorResponse,
   type JsonContext,
 } from "@/api/errors";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import type { z } from "zod";
+
+export const INVITED_WORKOS_USER_ID_PREFIX = "invited_user_";
+
+export function isInvitedPlaceholderWorkosUserId(workosUserId: string) {
+  return workosUserId.startsWith(INVITED_WORKOS_USER_ID_PREFIX);
+}
+
+export function resolveMemberStatus(workosUserId: string): "active" | "invited" {
+  return isInvitedPlaceholderWorkosUserId(workosUserId) ? "invited" : "active";
+}
 
 export function forbiddenResponse(c: JsonContext) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
@@ -77,8 +87,11 @@ export function canActorManageTarget(
   return true;
 }
 
-export async function countOrganizationOwners(organizationId: string) {
-  const [result] = await db
+export async function countOrganizationOwners(
+  organizationId: string,
+  database: DatabaseClient = db,
+) {
+  const [result] = await database
     .select({ count: sql<number>`count(*)::int` })
     .from(schema.organizationMemberships)
     .where(
@@ -89,6 +102,17 @@ export async function countOrganizationOwners(organizationId: string) {
     );
 
   return result?.count ?? 0;
+}
+
+export async function lockOrganizationOwnersAndCount(
+  database: DatabaseClient,
+  organizationId: string,
+) {
+  await database.execute(
+    sql`SELECT id FROM organization_memberships WHERE organization_id = ${organizationId} AND role = 'owner' FOR UPDATE`,
+  );
+
+  return countOrganizationOwners(organizationId, database);
 }
 
 export async function getOrganizationMember(organizationId: string, workosUserId: string) {
@@ -136,6 +160,7 @@ export function toMemberSummary(
   role: OrganizationMembershipRole;
   isCurrentUser: boolean;
   createdAt: string;
+  status: "active" | "invited";
 } {
   return {
     workosUserId: row.workosUserId,
@@ -146,5 +171,6 @@ export function toMemberSummary(
     role: row.role,
     isCurrentUser: row.workosUserId === currentWorkosUserId,
     createdAt: row.createdAt.toISOString(),
+    status: resolveMemberStatus(row.workosUserId),
   };
 }

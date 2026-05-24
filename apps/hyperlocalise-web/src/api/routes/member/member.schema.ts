@@ -24,6 +24,7 @@ export const memberSummarySchema = z.object({
   role: organizationMembershipRoleSchema,
   isCurrentUser: z.boolean(),
   createdAt: z.string(),
+  status: z.enum(["active", "invited"]),
 });
 
 export const membersResponseSchema = z.object({

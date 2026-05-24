@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
 import {
+  promoteInvitedPlaceholderUser,
   removeWorkosMembership,
   syncWorkosIdentity,
   syncWorkosOrganization,
@@ -105,6 +106,8 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
+    await promoteInvitedPlaceholderUser(db, { email, workosUserId });
+
     await syncWorkosUser(db, {
       workosUserId,
       email,
@@ -183,11 +186,27 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
-    const [existingUser] = await db
+    const membershipEmail = readString(data, "email", "user_email");
+    let [existingUser] = await db
       .select({ email: schema.users.email })
       .from(schema.users)
       .where(eq(schema.users.workosUserId, workosUserId))
       .limit(1);
+
+    if (!existingUser && membershipEmail) {
+      const promoted = await promoteInvitedPlaceholderUser(db, {
+        email: membershipEmail,
+        workosUserId,
+      });
+
+      if (promoted) {
+        [existingUser] = await db
+          .select({ email: schema.users.email })
+          .from(schema.users)
+          .where(eq(schema.users.workosUserId, workosUserId))
+          .limit(1);
+      }
+    }
 
     if (!existingUser) {
       return;

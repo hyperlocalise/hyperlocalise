@@ -22,13 +22,14 @@ import {
 import {
   canActorManageTarget,
   cannotManageOwnerResponse,
-  countOrganizationOwners,
   forbiddenResponse,
   getOrganizationMember,
   invalidMemberPayloadResponse,
+  INVITED_WORKOS_USER_ID_PREFIX,
   isMemberListAllowed,
   isMemberManageAllowed,
   lastOwnerProtectedResponse,
+  lockOrganizationOwnersAndCount,
   memberAlreadyExistsResponse,
   memberNotFoundResponse,
   toMemberSummary,
@@ -81,10 +82,11 @@ function shouldSyncMembershipToWorkos(input: {
   );
 }
 
-async function inviteLocalMember(input: {
+async function inviteOrganizationMember(input: {
   organizationId: string;
   email: string;
   role: OrganizationMembershipRole;
+  placeholderWorkosUserId: string;
 }) {
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -125,7 +127,7 @@ async function inviteLocalMember(input: {
       await db
         .insert(schema.users)
         .values({
-          workosUserId: `local_user_${randomUUID()}`,
+          workosUserId: input.placeholderWorkosUserId,
           email: normalizedEmail,
         })
         .returning({
@@ -146,11 +148,14 @@ async function inviteLocalMember(input: {
       workosMembershipId: null,
     })
     .returning({
+      id: schema.organizationMemberships.id,
       role: schema.organizationMemberships.role,
       createdAt: schema.organizationMemberships.createdAt,
     });
 
   return {
+    membershipId: membership.id,
+    localUserId: user.id,
     member: toMemberSummary(
       {
         workosUserId: user.workosUserId,
@@ -163,6 +168,22 @@ async function inviteLocalMember(input: {
       "",
     ),
   };
+}
+
+async function rollbackPendingInvite(input: { membershipId: string; localUserId: string }) {
+  await db
+    .delete(schema.organizationMemberships)
+    .where(eq(schema.organizationMemberships.id, input.membershipId));
+
+  const remainingMemberships = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(eq(schema.organizationMemberships.userId, input.localUserId))
+    .limit(1);
+
+  if (!remainingMemberships[0]) {
+    await db.delete(schema.users).where(eq(schema.users.id, input.localUserId));
+  }
 }
 
 export function createMemberRoutes() {
@@ -215,10 +236,11 @@ export function createMemberRoutes() {
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
 
       if (isLocallyManagedWorkosOrganization(workosOrganizationId)) {
-        const result = await inviteLocalMember({
+        const result = await inviteOrganizationMember({
           organizationId,
           email: payload.email,
           role: payload.role,
+          placeholderWorkosUserId: `local_user_${randomUUID()}`,
         });
 
         if ("error" in result) {
@@ -242,44 +264,42 @@ export function createMemberRoutes() {
       }
 
       const normalizedEmail = payload.email.trim().toLowerCase();
-      const [existingMember] = await db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .innerJoin(
-          schema.organizationMemberships,
-          eq(schema.organizationMemberships.userId, schema.users.id),
-        )
-        .where(
-          and(
-            eq(schema.organizationMemberships.organizationId, organizationId),
-            eq(schema.users.email, normalizedEmail),
-          ),
-        )
-        .limit(1);
+      const pendingInvite = await inviteOrganizationMember({
+        organizationId,
+        email: normalizedEmail,
+        role: payload.role,
+        placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+      });
 
-      if (existingMember) {
+      if ("error" in pendingInvite) {
         return memberAlreadyExistsResponse(c);
       }
 
-      await workos.userManagement.sendInvitation({
-        email: normalizedEmail,
-        organizationId: workosOrganizationId,
-        inviterUserId: c.var.auth.user.workosUserId,
-        roleSlug: payload.role,
-      });
+      try {
+        await workos.userManagement.sendInvitation({
+          email: normalizedEmail,
+          organizationId: workosOrganizationId,
+          inviterUserId: c.var.auth.user.workosUserId,
+          roleSlug: payload.role,
+        });
+      } catch {
+        await rollbackPendingInvite({
+          membershipId: pendingInvite.membershipId,
+          localUserId: pendingInvite.localUserId,
+        });
+
+        return internalErrorResponse(
+          c,
+          "member_invite_failed",
+          "Failed to send workspace invitation",
+        );
+      }
 
       return c.json(
         {
           member: {
-            workosUserId: "",
-            email: normalizedEmail,
-            firstName: null,
-            lastName: null,
-            displayName: normalizedEmail,
-            role: payload.role,
+            ...pendingInvite.member,
             isCurrentUser: false,
-            createdAt: new Date().toISOString(),
-            status: "invited" as const,
           },
         },
         201,
@@ -304,25 +324,35 @@ export function createMemberRoutes() {
         return cannotManageOwnerResponse(c);
       }
 
-      if (member.role === "owner" && payload.role !== "owner") {
-        const ownerCount = await countOrganizationOwners(organizationId);
-        if (ownerCount <= 1) {
-          return lastOwnerProtectedResponse(c);
-        }
-      }
-
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
       const previousRole = member.role;
 
-      const [updated] = await db
-        .update(schema.organizationMemberships)
-        .set({ role: payload.role })
-        .where(eq(schema.organizationMemberships.id, member.membershipId))
-        .returning({
-          role: schema.organizationMemberships.role,
-          createdAt: schema.organizationMemberships.createdAt,
-        });
+      const updateResult = await db.transaction(async (tx) => {
+        if (member.role === "owner" && payload.role !== "owner") {
+          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
+          if (ownerCount <= 1) {
+            return { error: "last_owner_protected" as const };
+          }
+        }
+
+        const [updated] = await tx
+          .update(schema.organizationMemberships)
+          .set({ role: payload.role })
+          .where(eq(schema.organizationMemberships.id, member.membershipId))
+          .returning({
+            role: schema.organizationMemberships.role,
+            createdAt: schema.organizationMemberships.createdAt,
+          });
+
+        return { updated };
+      });
+
+      if ("error" in updateResult) {
+        return lastOwnerProtectedResponse(c);
+      }
+
+      const { updated } = updateResult;
 
       if (
         shouldSyncMembershipToWorkos({
@@ -383,23 +413,29 @@ export function createMemberRoutes() {
         return cannotManageOwnerResponse(c);
       }
 
-      if (member.role === "owner") {
-        const ownerCount = await countOrganizationOwners(organizationId);
-        if (ownerCount <= 1) {
-          return lastOwnerProtectedResponse(c);
-        }
-      }
-
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
 
-      await removeWorkosMembership(db, {
-        workosMembershipId: member.workosMembershipId ?? undefined,
-        workosOrganizationId,
-        workosUserId: member.workosUserId,
+      const removeResult = await db.transaction(async (tx) => {
+        if (member.role === "owner") {
+          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
+          if (ownerCount <= 1) {
+            return { error: "last_owner_protected" as const };
+          }
+        }
+
+        await removeWorkosMembership(tx, {
+          workosMembershipId: member.workosMembershipId ?? undefined,
+          workosOrganizationId,
+          workosUserId: member.workosUserId,
+        });
+
+        return { ok: true as const };
       });
 
-      await deleteMemberMcpSessions(organizationId, member.localUserId);
+      if ("error" in removeResult) {
+        return lastOwnerProtectedResponse(c);
+      }
 
       if (
         shouldSyncMembershipToWorkos({
@@ -424,6 +460,8 @@ export function createMemberRoutes() {
           );
         }
       }
+
+      await deleteMemberMcpSessions(organizationId, member.localUserId);
 
       return c.body(null, 204);
     });
