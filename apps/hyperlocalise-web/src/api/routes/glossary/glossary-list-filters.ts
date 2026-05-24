@@ -1,14 +1,16 @@
 import { and, eq, ilike, isNotNull, isNull, or, type SQL } from "drizzle-orm";
 
+import type { ApiAuthContext } from "@/api/auth/workos";
+import { buildProjectLinkedGlossaryWhere } from "@/api/auth/team-access";
 import { schema } from "@/lib/database";
 
 import type { ListGlossaryQuery } from "./glossary.schema";
 
-export function buildGlossaryListWhere(
-  organizationId: string,
+export async function buildGlossaryListWhere(
+  auth: ApiAuthContext,
   query?: ListGlossaryQuery,
-): SQL | undefined {
-  const conditions: SQL[] = [eq(schema.glossaries.organizationId, organizationId)];
+): Promise<SQL | undefined> {
+  const conditions: SQL[] = [await buildProjectLinkedGlossaryWhere(auth)];
 
   const search = query?.search?.trim();
   if (search) {

@@ -35,6 +35,7 @@ export const createProjectBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(10_000).optional(),
   translationContext: z.string().max(20_000).optional(),
+  teamId: z.string().uuid().optional(),
 });
 
 export const updateProjectBodySchema = z
@@ -42,12 +43,14 @@ export const updateProjectBodySchema = z
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(10_000).optional(),
     translationContext: z.string().max(20_000).optional(),
+    teamId: z.string().uuid().optional(),
   })
   .refine(
     (value) =>
       value.name !== undefined ||
       value.description !== undefined ||
-      value.translationContext !== undefined,
+      value.translationContext !== undefined ||
+      value.teamId !== undefined,
     {
       message: "at least one field must be provided",
     },
@@ -56,6 +59,7 @@ export const updateProjectBodySchema = z
 export const projectRecordSchema = z.object({
   id: z.string(),
   organizationId: z.string(),
+  teamId: z.string().uuid().nullable(),
   createdByUserId: z.string().nullable(),
   name: z.string(),
   description: z.string(),

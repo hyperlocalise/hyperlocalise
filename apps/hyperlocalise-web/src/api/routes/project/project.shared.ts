@@ -1,5 +1,7 @@
-import { and, eq } from "drizzle-orm";
-
+import {
+  buildAccessibleProjectsWhere,
+  ownedProjectWhere as teamOwnedProjectWhere,
+} from "@/api/auth/team-access";
 import {
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
@@ -9,6 +11,8 @@ import {
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+
+export { buildAccessibleProjectsWhere };
 
 export function invalidProjectPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_project_payload", "Invalid project payload");
@@ -26,18 +30,15 @@ export function isProjectMutationAllowed(role: ApiAuthContext["membership"]["rol
   return hasCapability(role, "projects:write");
 }
 
-export function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
-  return and(
-    eq(schema.projects.id, projectId),
-    eq(schema.projects.organizationId, auth.organization.localOrganizationId),
-  );
+export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
+  return teamOwnedProjectWhere(auth, projectId);
 }
 
 export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
   const [project] = await db
     .select({ id: schema.projects.id })
     .from(schema.projects)
-    .where(ownedProjectWhere(auth, projectId))
+    .where(await ownedProjectWhere(auth, projectId))
     .limit(1);
 
   return project ?? null;

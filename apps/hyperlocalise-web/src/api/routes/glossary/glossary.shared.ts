@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import {
   forbiddenResponse as sharedForbiddenResponse,
@@ -6,9 +6,10 @@ import {
   validationErrorResponse,
   type JsonContext,
 } from "@/api/errors";
+import { canAccessGlossary } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import { schema } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 
 export function invalidGlossaryPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_glossary_payload", "Invalid glossary payload");
@@ -34,9 +35,24 @@ export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["ro
   return hasCapability(role, "glossaries:write");
 }
 
-export function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
+export async function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {
+  const glossary = await canAccessGlossary(auth, glossaryId);
+  if (!glossary) {
+    return sql`false`;
+  }
+
   return and(
     eq(schema.glossaries.id, glossaryId),
     eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
   );
+}
+
+export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string) {
+  const [glossary] = await db
+    .select()
+    .from(schema.glossaries)
+    .where(await ownedGlossaryWhere(auth, glossaryId))
+    .limit(1);
+
+  return glossary ?? null;
 }

@@ -4,6 +4,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
@@ -546,14 +547,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
-      const filters = jobListFilters({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        kind: query.kind,
-        type: query.type,
-        status: query.status,
-        mine: query.mine,
-        userId: c.var.auth.user.localUserId,
-      });
+      const filters = [
+        await buildAccessibleJobsWhere(c.var.auth),
+        ...jobListFilters({
+          kind: query.kind,
+          type: query.type,
+          status: query.status,
+          mine: query.mine,
+          userId: c.var.auth.user.localUserId,
+        }),
+      ];
 
       const jobs = await db
         .select(jobWithProjectSelect)
@@ -605,12 +608,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             eq(schema.projects.organizationId, schema.jobs.organizationId),
           ),
         )
-        .where(
-          and(
-            eq(schema.jobs.id, params.jobId),
-            eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-          ),
-        )
+        .where(and(await buildAccessibleJobsWhere(c.var.auth), eq(schema.jobs.id, params.jobId)))
         .limit(1);
 
       if (!job) {

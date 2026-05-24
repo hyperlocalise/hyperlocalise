@@ -98,10 +98,15 @@ export function createWorkosAuthMiddleware() {
         c.req.header("x-hyperlocalise-organization-slug") ||
         requestUrl.searchParams.get("organizationSlug") ||
         undefined;
+      const teamSlug =
+        c.req.header("x-hyperlocalise-team-slug") ||
+        requestUrl.searchParams.get("teamSlug") ||
+        undefined;
 
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),
         organizationSlug,
+        teamSlug,
       });
       if (!authFromSession) {
         throw new Error("missing_auth_context");
