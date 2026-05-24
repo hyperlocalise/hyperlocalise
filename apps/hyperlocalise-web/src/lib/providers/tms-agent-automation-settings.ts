@@ -110,6 +110,10 @@ export function requiresManualWriteBackApproval(settings: TmsAgentAutomationSett
 export function validateTmsAgentAutomationSettingsPatch(
   patch: TmsAgentAutomationSettingsPartial | TmsAgentAutomationSettings,
 ): string | null {
+  // NOTE: Called on the raw patch and again on fully merged settings
+  // (validationErrorAfterMerge in the store). The post-merge call is the
+  // authoritative safety gate; this early check is a fast-path for the most
+  // obvious invalid combination.
   if (
     patch.writeBack?.autoWriteBackEnabled === true &&
     patch.writeBack.requireManualApproval === false

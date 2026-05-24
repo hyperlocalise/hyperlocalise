@@ -159,18 +159,28 @@ export async function syncExternalTmsJobTasks(input: {
         }
 
         if (input.automationQueues) {
-          await runTmsAgentAutomationForSyncedJob({
-            organizationId: input.organizationId,
-            projectId: project.id,
-            providerKind: input.providerKind,
-            providerCredentialId: credential.id,
-            hyperlocaliseJobId: synced.id,
-            externalJobId: jobTask.externalJobId,
-            externalTaskId: jobTask.externalTaskId ?? null,
-            targetLocales: jobTask.targetLocales ?? [],
-            isNewlySynced,
-            queues: input.automationQueues,
-          });
+          try {
+            await runTmsAgentAutomationForSyncedJob({
+              organizationId: input.organizationId,
+              projectId: project.id,
+              providerKind: input.providerKind,
+              providerCredentialId: credential.id,
+              hyperlocaliseJobId: synced.id,
+              externalJobId: jobTask.externalJobId,
+              externalTaskId: jobTask.externalTaskId ?? null,
+              targetLocales: jobTask.targetLocales ?? [],
+              isNewlySynced,
+              queues: input.automationQueues,
+            });
+          } catch (error) {
+            // Automation trigger failures are non-fatal to the sync result.
+            // The job was already persisted; enqueue failures are surfaced via failAgentRun.
+            console.error("tms agent automation failed after job sync", {
+              organizationId: input.organizationId,
+              externalJobId: jobTask.externalJobId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
       } catch (error) {
         counts.jobTasksFailed += 1;
