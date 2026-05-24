@@ -130,6 +130,24 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
   }));
 }
 
+export async function getOrganizationExternalTmsProviderCredentialSummaryById(
+  organizationId: string,
+  credentialId: string,
+) {
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.id, credentialId),
+      ),
+    )
+    .limit(1);
+
+  return credential ? summarizeExternalCredential(credential) : null;
+}
+
 export async function getOrganizationExternalTmsProviderCredentialSummary(
   organizationId: string,
   providerKind: ExternalTmsProviderKind,

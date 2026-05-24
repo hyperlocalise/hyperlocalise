@@ -107,14 +107,6 @@ export function requiresManualWriteBackApproval(settings: TmsAgentAutomationSett
   return settings.writeBack.requireManualApproval;
 }
 
-export function isAutoWriteBackEnabled(settings: TmsAgentAutomationSettings) {
-  return settings.writeBack.autoWriteBackEnabled;
-}
-
-export function canAutoEnqueueProviderWriteBack(settings: TmsAgentAutomationSettings) {
-  return isAutoWriteBackEnabled(settings);
-}
-
 export function validateTmsAgentAutomationSettingsPatch(
   patch: TmsAgentAutomationSettingsPartial | TmsAgentAutomationSettings,
 ): string | null {

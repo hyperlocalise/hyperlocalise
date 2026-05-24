@@ -10,6 +10,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -844,12 +845,9 @@ export const tmsAgentAutomationSettings = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("tms_agent_automation_settings_org_scope_key").on(
-      table.organizationId,
-      table.scope,
-      table.projectId,
-      table.providerCredentialId,
-    ),
+    unique("tms_agent_automation_settings_org_scope_key")
+      .on(table.organizationId, table.scope, table.projectId, table.providerCredentialId)
+      .nullsNotDistinct(),
     index("idx_tms_agent_automation_settings_org").on(table.organizationId),
     check(
       "tms_agent_automation_settings_scope_shape",

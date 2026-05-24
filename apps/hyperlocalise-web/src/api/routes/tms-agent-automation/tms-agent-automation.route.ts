@@ -3,7 +3,10 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
-import { assertExternalTmsCredentialAdmin } from "@/lib/providers/organization-external-tms-provider-credentials";
+import {
+  assertExternalTmsCredentialAdmin,
+  getOrganizationExternalTmsProviderCredentialSummaryById,
+} from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   deleteTmsAgentAutomationSettingsForScope,
   getTmsAgentAutomationSettingsForScope,
@@ -40,6 +43,16 @@ const validateProviderParams = validator("param", (value, c) => {
   }
   return parsed.data;
 });
+
+async function resolveOwnedProviderCredential(
+  organizationId: string,
+  providerCredentialId: string,
+) {
+  return getOrganizationExternalTmsProviderCredentialSummaryById(
+    organizationId,
+    providerCredentialId,
+  );
+}
 
 function mapSettingsError(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
   if (error instanceof Error) {
@@ -171,10 +184,20 @@ export function createTmsAgentAutomationRoutes() {
     })
     .get("/provider-credentials/:providerCredentialId", validateProviderParams, async (c) => {
       const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const providerCredential = await resolveOwnedProviderCredential(
+        organizationId,
+        params.providerCredentialId,
+      );
+
+      if (!providerCredential) {
+        return c.json({ error: "provider_credential_not_found" }, 404);
+      }
+
       const record = await getTmsAgentAutomationSettingsForScope({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         scope: "provider",
-        providerCredentialId: params.providerCredentialId,
+        providerCredentialId: providerCredential.id,
       });
 
       return c.json({ tmsAgentAutomationSettings: record }, 200);
@@ -191,13 +214,22 @@ export function createTmsAgentAutomationRoutes() {
         }
 
         const params = c.req.valid("param");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const providerCredential = await resolveOwnedProviderCredential(
+          organizationId,
+          params.providerCredentialId,
+        );
+
+        if (!providerCredential) {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
 
         try {
           const payload = c.req.valid("json");
           const record = await upsertTmsAgentAutomationSettingsForScope({
-            organizationId: c.var.auth.organization.localOrganizationId,
+            organizationId,
             scope: "provider",
-            providerCredentialId: params.providerCredentialId,
+            providerCredentialId: providerCredential.id,
             settings: payload.settings,
           });
 
@@ -215,10 +247,20 @@ export function createTmsAgentAutomationRoutes() {
       }
 
       const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const providerCredential = await resolveOwnedProviderCredential(
+        organizationId,
+        params.providerCredentialId,
+      );
+
+      if (!providerCredential) {
+        return c.json({ error: "provider_credential_not_found" }, 404);
+      }
+
       const record = await deleteTmsAgentAutomationSettingsForScope({
-        organizationId: c.var.auth.organization.localOrganizationId,
+        organizationId,
         scope: "provider",
-        providerCredentialId: params.providerCredentialId,
+        providerCredentialId: providerCredential.id,
       });
 
       return c.json({ tmsAgentAutomationSettings: record }, 200);

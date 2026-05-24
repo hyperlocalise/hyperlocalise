@@ -138,23 +138,31 @@ export async function upsertTmsAgentAutomationSettingsForScope(input: {
   }
 
   const storedSettings = parseStoredSettings(mergedSettings, DEFAULT_TMS_AGENT_AUTOMATION_SETTINGS);
-
-  if (existing) {
-    await db
-      .update(schema.tmsAgentAutomationSettings)
-      .set({ settings: storedSettings })
-      .where(eq(schema.tmsAgentAutomationSettings.id, existing.id));
-
-    return getTmsAgentAutomationSettingsForScope(input);
-  }
-
-  await db.insert(schema.tmsAgentAutomationSettings).values({
+  const scopeValues = {
     organizationId: input.organizationId,
     scope: input.scope,
     projectId: input.scope === "project" ? input.projectId! : null,
     providerCredentialId: input.scope === "provider" ? input.providerCredentialId! : null,
-    settings: storedSettings,
-  });
+  };
+
+  await db
+    .insert(schema.tmsAgentAutomationSettings)
+    .values({
+      ...scopeValues,
+      settings: storedSettings,
+    })
+    .onConflictDoUpdate({
+      target: [
+        schema.tmsAgentAutomationSettings.organizationId,
+        schema.tmsAgentAutomationSettings.scope,
+        schema.tmsAgentAutomationSettings.projectId,
+        schema.tmsAgentAutomationSettings.providerCredentialId,
+      ],
+      set: {
+        settings: storedSettings,
+        updatedAt: new Date(),
+      },
+    });
 
   return getTmsAgentAutomationSettingsForScope(input);
 }
