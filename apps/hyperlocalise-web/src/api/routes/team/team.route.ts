@@ -13,6 +13,8 @@ import {
   teamMemberParamsSchema,
   updateTeamBodySchema,
 } from "./team.schema";
+import { getVisibleTeamIds } from "@/api/auth/team-access";
+
 import {
   forbiddenResponse,
   invalidTeamPayloadResponse,
@@ -23,30 +25,6 @@ import {
   teamNotFoundResponse,
   teamSlugAlreadyExistsResponse,
 } from "./team.shared";
-
-async function getVisibleTeamIds(auth: ApiAuthContext) {
-  if (isOrganizationAdmin(auth)) {
-    const teams = await db
-      .select({ id: schema.teams.id })
-      .from(schema.teams)
-      .where(eq(schema.teams.organizationId, auth.activeOrganization.localOrganizationId));
-
-    return teams.map((team) => team.id);
-  }
-
-  const teams = await db
-    .select({ id: schema.teams.id })
-    .from(schema.teamMemberships)
-    .innerJoin(schema.teams, eq(schema.teamMemberships.teamId, schema.teams.id))
-    .where(
-      and(
-        eq(schema.teamMemberships.userId, auth.user.localUserId),
-        eq(schema.teams.organizationId, auth.activeOrganization.localOrganizationId),
-      ),
-    );
-
-  return teams.map((team) => team.id);
-}
 
 async function getAccessibleTeam(
   auth: ApiAuthContext,

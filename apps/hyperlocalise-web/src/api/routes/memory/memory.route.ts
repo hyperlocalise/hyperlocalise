@@ -1,4 +1,6 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
+
+import { buildProjectLinkedMemoryWhere } from "@/api/auth/team-access";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -21,6 +23,7 @@ import {
   forbiddenResponse,
   invalidMemoryPayloadResponse,
   isMemoryMutationAllowed,
+  getOwnedMemory,
   ownedMemoryWhere,
   memoryNotFoundResponse,
 } from "./memory.shared";
@@ -42,7 +45,7 @@ const memoryStore: MemoryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    const where = eq(schema.memories.organizationId, auth.organization.localOrganizationId);
+    const where = await buildProjectLinkedMemoryWhere(auth);
 
     const [memories, totalRow] = await Promise.all([
       db
@@ -71,19 +74,13 @@ const memoryStore: MemoryStore = {
     return memory;
   },
   async getById(auth, memoryId) {
-    const [memory] = await db
-      .select()
-      .from(schema.memories)
-      .where(ownedMemoryWhere(auth, memoryId))
-      .limit(1);
-
-    return memory ?? null;
+    return getOwnedMemory(auth, memoryId);
   },
   async update(auth, memoryId, payload) {
     const [memory] = await db
       .update(schema.memories)
       .set(payload)
-      .where(ownedMemoryWhere(auth, memoryId))
+      .where(await ownedMemoryWhere(auth, memoryId))
       .returning();
 
     return memory ?? null;
@@ -91,7 +88,7 @@ const memoryStore: MemoryStore = {
   async delete(auth, memoryId) {
     const deletedMemories = await db
       .delete(schema.memories)
-      .where(ownedMemoryWhere(auth, memoryId))
+      .where(await ownedMemoryWhere(auth, memoryId))
       .returning({ id: schema.memories.id });
 
     return deletedMemories.length > 0;

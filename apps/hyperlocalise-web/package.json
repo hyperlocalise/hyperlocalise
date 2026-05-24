@@ -8,6 +8,7 @@
     "start": "next start",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:backfill-project-teams": "node --import tsx src/lib/teams/run-backfill-project-teams.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

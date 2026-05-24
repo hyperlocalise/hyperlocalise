@@ -297,6 +297,8 @@ export const projects = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    // Team that owns this project for membership-scoped access.
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "restrict" }),
     // User who created the project, stored as an internal user ID.
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
@@ -355,6 +357,7 @@ export const projects = pgTable(
       table.externalProjectId,
     ),
     index("idx_projects_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_projects_team_id").on(table.teamId),
     index("idx_projects_created_by_user_id").on(table.createdByUserId),
   ],
 );

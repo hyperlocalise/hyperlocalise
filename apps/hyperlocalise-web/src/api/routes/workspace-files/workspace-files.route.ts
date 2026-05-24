@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { listWorkspaceFiles } from "@/lib/projects/project-files";
@@ -24,13 +25,11 @@ export function createWorkspaceFilesRoutes() {
     .use("*", workosAuthMiddleware)
     .get("/", validateWorkspaceFilesQuery, async (c) => {
       const query = c.req.valid("query");
+      const accessibleProjectsWhere = await buildAccessibleProjectsWhere(c.var.auth);
       const projectWhere =
         query.projectId && query.projectId !== "all"
-          ? and(
-              eq(schema.projects.organizationId, c.var.auth.organization.localOrganizationId),
-              eq(schema.projects.id, query.projectId),
-            )
-          : eq(schema.projects.organizationId, c.var.auth.organization.localOrganizationId);
+          ? and(accessibleProjectsWhere, eq(schema.projects.id, query.projectId))
+          : accessibleProjectsWhere;
 
       const projects = await db
         .select({ id: schema.projects.id, name: schema.projects.name })

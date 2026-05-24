@@ -23,8 +23,9 @@ import {
   forbiddenResponse,
   invalidGlossaryPayloadResponse,
   isGlossaryMutationAllowed,
-  ownedGlossaryWhere,
+  getOwnedGlossary,
   glossaryNotFoundResponse,
+  ownedGlossaryWhere,
 } from "./glossary.shared";
 
 type GlossaryListResult = {
@@ -48,7 +49,7 @@ const glossaryStore: GlossaryStore = {
   async list(auth, query) {
     const limit = query?.limit ?? 50;
     const offset = query?.offset ?? 0;
-    const where = buildGlossaryListWhere(auth.organization.localOrganizationId, query);
+    const where = await buildGlossaryListWhere(auth, query);
 
     const [glossaries, totalRow] = await Promise.all([
       db
@@ -79,19 +80,13 @@ const glossaryStore: GlossaryStore = {
     return glossary;
   },
   async getById(auth, glossaryId) {
-    const [glossary] = await db
-      .select()
-      .from(schema.glossaries)
-      .where(ownedGlossaryWhere(auth, glossaryId))
-      .limit(1);
-
-    return glossary ?? null;
+    return getOwnedGlossary(auth, glossaryId);
   },
   async update(auth, glossaryId, payload) {
     const [glossary] = await db
       .update(schema.glossaries)
       .set(payload)
-      .where(ownedGlossaryWhere(auth, glossaryId))
+      .where(await ownedGlossaryWhere(auth, glossaryId))
       .returning();
 
     return glossary ?? null;
@@ -99,7 +94,7 @@ const glossaryStore: GlossaryStore = {
   async delete(auth, glossaryId) {
     const deletedGlossaries = await db
       .delete(schema.glossaries)
-      .where(ownedGlossaryWhere(auth, glossaryId))
+      .where(await ownedGlossaryWhere(auth, glossaryId))
       .returning({ id: schema.glossaries.id });
 
     return deletedGlossaries.length > 0;

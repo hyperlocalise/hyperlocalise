@@ -64,7 +64,11 @@ import {
   type CreateProjectBody,
   type UpdateProjectBody,
 } from "./project.schema";
+import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+
 import {
+  buildAccessibleProjectsWhere,
   forbiddenResponse,
   getOwnedProject,
   invalidProjectPayloadResponse,
@@ -100,20 +104,57 @@ async function countOpenJobs(auth: ApiAuthContext, projectId: string): Promise<n
   return row?.count ?? 0;
 }
 
+async function resolveProjectTeamId(auth: ApiAuthContext, requestedTeamId?: string) {
+  if (requestedTeamId) {
+    if (!hasOrganizationWideProjectAccess(auth)) {
+      const visibleTeamIds = await getVisibleTeamIds(auth);
+      if (!visibleTeamIds.includes(requestedTeamId)) {
+        return null;
+      }
+    }
+
+    const [team] = await db
+      .select({ id: schema.teams.id })
+      .from(schema.teams)
+      .where(
+        and(
+          eq(schema.teams.id, requestedTeamId),
+          eq(schema.teams.organizationId, auth.organization.localOrganizationId),
+        ),
+      )
+      .limit(1);
+
+    return team?.id ?? null;
+  }
+
+  if (auth.activeTeam) {
+    return auth.activeTeam.id;
+  }
+
+  const defaultTeam = await ensureDefaultWorkspaceTeam(auth.organization.localOrganizationId);
+  return defaultTeam.id;
+}
+
 const projectStore: ProjectStore = {
   async list(auth) {
     return db
       .select()
       .from(schema.projects)
-      .where(eq(schema.projects.organizationId, auth.organization.localOrganizationId))
+      .where(await buildAccessibleProjectsWhere(auth))
       .orderBy(desc(schema.projects.createdAt));
   },
   async create(auth, payload) {
+    const teamId = await resolveProjectTeamId(auth, payload.teamId);
+    if (!teamId) {
+      throw new Error("invalid_project_team");
+    }
+
     const [project] = await db
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
         organizationId: auth.organization.localOrganizationId,
+        teamId,
         createdByUserId: auth.user.localUserId,
         name: payload.name,
         description: payload.description ?? "",
@@ -128,16 +169,28 @@ const projectStore: ProjectStore = {
     const [project] = await db
       .select()
       .from(schema.projects)
-      .where(ownedProjectWhere(auth, projectId))
+      .where(await ownedProjectWhere(auth, projectId))
       .limit(1);
 
     return project ?? null;
   },
   async update(auth, projectId, payload) {
+    const { teamId, ...updates } = payload;
+    const updateValues: typeof updates & { teamId?: string } = { ...updates };
+
+    if (teamId !== undefined) {
+      const resolvedTeamId = await resolveProjectTeamId(auth, teamId);
+      if (!resolvedTeamId) {
+        throw new Error("invalid_project_team");
+      }
+
+      updateValues.teamId = resolvedTeamId;
+    }
+
     const [project] = await db
       .update(schema.projects)
-      .set(payload)
-      .where(ownedProjectWhere(auth, projectId))
+      .set(updateValues)
+      .where(await ownedProjectWhere(auth, projectId))
       .returning();
 
     return project ?? null;
@@ -145,7 +198,7 @@ const projectStore: ProjectStore = {
   async delete(auth, projectId) {
     const deletedProjects = await db
       .delete(schema.projects)
-      .where(ownedProjectWhere(auth, projectId))
+      .where(await ownedProjectWhere(auth, projectId))
       .returning({ id: schema.projects.id });
 
     return deletedProjects.length > 0;
@@ -307,8 +360,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const payload = c.req.valid("json");
-      const project = await projectStore.create(c.var.auth, payload);
-      return c.json({ project: { ...project, openJobCount: 0 } }, 201);
+      try {
+        const project = await projectStore.create(c.var.auth, payload);
+        return c.json({ project: { ...project, openJobCount: 0 } }, 201);
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid_project_team") {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        throw error;
+      }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
@@ -390,7 +451,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const project = await projectStore.update(c.var.auth, params.projectId, payload);
+      let project;
+      try {
+        project = await projectStore.update(c.var.auth, params.projectId, payload);
+      } catch (error) {
+        if (error instanceof Error && error.message === "invalid_project_team") {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        throw error;
+      }
 
       if (!project) {
         return projectNotFoundResponse(c);
