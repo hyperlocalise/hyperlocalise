@@ -78,6 +78,7 @@ export async function pullProviderReviewForJob(input: {
     externalJobId: input.externalJobId,
     credential,
     secretMaterial,
+    project,
     content: input.content,
   });
 

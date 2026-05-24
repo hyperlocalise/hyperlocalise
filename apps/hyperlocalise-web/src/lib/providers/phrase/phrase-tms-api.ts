@@ -50,6 +50,45 @@ export interface PhraseTmsSearchSegmentResult {
   transMemoryName: string | null;
 }
 
+export interface PhraseTmsConversationUser {
+  uid: string | null;
+  userName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}
+
+export interface PhraseTmsConversationComment {
+  id: string;
+  text: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  author: PhraseTmsConversationUser | null;
+}
+
+export interface PhraseTmsLqaConversationReference {
+  segmentId: string | null;
+  commentedText: string | null;
+  errorCategoryId: number | null;
+  severityId: number | null;
+  repeated: string | null;
+}
+
+export interface PhraseTmsConversation {
+  id: string;
+  type: "lqa" | "plain";
+  description: string | null;
+  deleted: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  resolvedAt: string | null;
+  state: "open" | "resolved" | "unknown";
+  author: PhraseTmsConversationUser | null;
+  resolver: PhraseTmsConversationUser | null;
+  comments: PhraseTmsConversationComment[];
+  lqaReference: PhraseTmsLqaConversationReference | null;
+}
+
 export class PhraseTmsApiError extends Error {
   constructor(
     message: string,
@@ -138,6 +177,22 @@ export class PhraseTmsApiClient {
     const path = `/api2/v1/projects/${encodeURIComponent(projectUid)}/termBases`;
     const response = await this.get<PhraseTmsTermBasesApiRecord>(path);
     return normalizePhraseTmsResourceList(response.termBases);
+  }
+
+  async listLqaConversations(jobUid: string): Promise<PhraseTmsConversation[]> {
+    const path = `/api2/v1/jobs/${encodeURIComponent(jobUid)}/conversations/lqas`;
+    const response = await this.get<PhraseTmsLqaConversationsApiRecord>(path);
+    return (response.conversations ?? []).map((conversation) =>
+      normalizePhraseTmsConversation(conversation, "lqa"),
+    );
+  }
+
+  async listPlainConversations(jobUid: string): Promise<PhraseTmsConversation[]> {
+    const path = `/api2/v1/jobs/${encodeURIComponent(jobUid)}/conversations/plains`;
+    const response = await this.get<PhraseTmsPlainConversationsApiRecord>(path);
+    return (response.conversations ?? []).map((conversation) =>
+      normalizePhraseTmsConversation(conversation, "plain"),
+    );
   }
 
   async searchJobTranslationMemorySegment(input: {
@@ -293,6 +348,56 @@ type PhraseTmsSearchSegmentApiRecord = {
   transMemory?: { uid?: string; name?: string };
 };
 
+type PhraseTmsLqaConversationsApiRecord = {
+  conversations?: PhraseTmsConversationApiRecord[];
+};
+
+type PhraseTmsPlainConversationsApiRecord = {
+  conversations?: PhraseTmsConversationApiRecord[];
+};
+
+type PhraseTmsConversationApiRecord = {
+  id?: string;
+  type?: string;
+  lqaDescription?: string;
+  deleted?: boolean;
+  dateCreated?: string | null;
+  dateModified?: string | null;
+  dateEdited?: string | null;
+  createdBy?: PhraseTmsUserApiRecord | null;
+  status?: {
+    name?: string;
+    date?: string | null;
+    by?: PhraseTmsUserApiRecord | null;
+  } | null;
+  comments?: PhraseTmsCommentApiRecord[];
+  references?: {
+    segmentId?: string;
+    commentedText?: string;
+    lqa?: Array<{
+      errorCategoryId?: number;
+      severityId?: number;
+      repeated?: string;
+    }>;
+  } | null;
+};
+
+type PhraseTmsUserApiRecord = {
+  uid?: string;
+  userName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+};
+
+type PhraseTmsCommentApiRecord = {
+  id?: string;
+  text?: string;
+  dateCreated?: string | null;
+  dateModified?: string | null;
+  createdBy?: PhraseTmsUserApiRecord | null;
+};
+
 function normalizePhraseTmsSearchSegmentResults(
   results: PhraseTmsSearchSegmentApiRecord[] | undefined,
 ): PhraseTmsSearchSegmentResult[] {
@@ -356,6 +461,93 @@ function normalizePhraseTmsJobPart(job: PhraseTmsJobPartApiRecord): PhraseTmsJob
       ? {
           status: job.importStatus.status ?? null,
           errorMessage: job.importStatus.errorMessage ?? null,
+        }
+      : null,
+  };
+}
+
+function normalizePhraseTmsConversationUser(
+  user: PhraseTmsUserApiRecord | null | undefined,
+): PhraseTmsConversationUser | null {
+  if (!user) {
+    return null;
+  }
+
+  const externalUserId = user.uid?.trim() || user.userName?.trim() || null;
+  if (!externalUserId) {
+    return null;
+  }
+
+  return {
+    uid: user.uid?.trim() || null,
+    userName: user.userName?.trim() || null,
+    firstName: user.firstName?.trim() || null,
+    lastName: user.lastName?.trim() || null,
+    email: user.email?.trim() || null,
+  };
+}
+
+function mapPhraseTmsConversationState(
+  statusName: string | null | undefined,
+): PhraseTmsConversation["state"] {
+  if (statusName === "resolved") {
+    return "resolved";
+  }
+  if (statusName === "unresolved") {
+    return "open";
+  }
+  return "unknown";
+}
+
+function normalizePhraseTmsConversationComment(
+  comment: PhraseTmsCommentApiRecord,
+): PhraseTmsConversationComment | null {
+  const id = comment.id?.trim();
+  const text = comment.text?.trim();
+  if (!id || !text) {
+    return null;
+  }
+
+  return {
+    id,
+    text,
+    createdAt: comment.dateCreated ?? null,
+    updatedAt: comment.dateModified ?? null,
+    author: normalizePhraseTmsConversationUser(comment.createdBy),
+  };
+}
+
+function normalizePhraseTmsConversation(
+  conversation: PhraseTmsConversationApiRecord,
+  type: PhraseTmsConversation["type"],
+): PhraseTmsConversation {
+  const lqa = conversation.references?.lqa?.[0];
+  const statusName = conversation.status?.name ?? null;
+
+  return {
+    id: conversation.id?.trim() || "",
+    type,
+    description: conversation.lqaDescription?.trim() || null,
+    deleted: conversation.deleted ?? false,
+    createdAt: conversation.dateCreated ?? null,
+    updatedAt: conversation.dateModified ?? conversation.dateEdited ?? null,
+    resolvedAt: statusName === "resolved" ? (conversation.status?.date ?? null) : null,
+    state: mapPhraseTmsConversationState(statusName),
+    author: normalizePhraseTmsConversationUser(conversation.createdBy),
+    resolver:
+      statusName === "resolved"
+        ? normalizePhraseTmsConversationUser(conversation.status?.by)
+        : null,
+    comments: (conversation.comments ?? [])
+      .map((comment) => normalizePhraseTmsConversationComment(comment))
+      .filter((comment): comment is PhraseTmsConversationComment => comment != null),
+    lqaReference: lqa
+      ? {
+          segmentId: conversation.references?.segmentId?.trim() || null,
+          commentedText: conversation.references?.commentedText?.trim() || null,
+          errorCategoryId: lqa.errorCategoryId ?? null,
+          severityId: lqa.severityId ?? null,
+          repeated: lqa.repeated ?? null,
         }
       : null,
   };
