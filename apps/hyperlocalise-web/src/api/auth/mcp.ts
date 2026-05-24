@@ -234,6 +234,7 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
           eq(schema.mcpSessions.accessTokenHash, hashMcpToken(token)),
           gt(schema.mcpSessions.expiresAt, new Date()),
           isNull(schema.mcpSessions.revokedAt),
+          eq(schema.organizations.lifecycleStatus, "active"),
         ),
       )
       .limit(1);

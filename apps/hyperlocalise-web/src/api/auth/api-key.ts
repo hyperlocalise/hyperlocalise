@@ -39,13 +39,22 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
         organizationId: schema.organizationApiKeys.organizationId,
         permissions: schema.organizationApiKeys.permissions,
         revokedAt: schema.organizationApiKeys.revokedAt,
+        lifecycleStatus: schema.organizations.lifecycleStatus,
       })
       .from(schema.organizationApiKeys)
+      .innerJoin(
+        schema.organizations,
+        eq(schema.organizationApiKeys.organizationId, schema.organizations.id),
+      )
       .where(eq(schema.organizationApiKeys.keyHash, keyHash))
       .limit(1);
 
     if (!keyRecord || keyRecord.revokedAt) {
       return unauthorizedResponse(c, "unauthorized", "Invalid or revoked API key");
+    }
+
+    if (keyRecord.lifecycleStatus !== "active") {
+      return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
     }
 
     // Update lastUsedAt asynchronously — don't block the request.
