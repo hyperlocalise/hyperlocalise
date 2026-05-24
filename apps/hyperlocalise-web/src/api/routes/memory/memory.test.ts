@@ -45,27 +45,20 @@ afterEach(async () => {
 
 describe("memoryRoutes", () => {
   it("returns 401 when auth context is missing", async () => {
-    const response = await client.api.memory.$get({ query: { limit: "50", offset: "0" } });
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"].$get({
+      param: { organizationSlug: "missing-slug" },
+      query: { limit: "50", offset: "0" },
+    });
 
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
-  it("keeps memory routes mounted at legacy and org-scoped app paths", async () => {
+  it("keeps memory routes mounted at the org-scoped app path", async () => {
     const identity = createWorkosIdentity();
     await createMemoryViaApi(identity, { name: "Mounted TM" });
     const headers = await authHeadersFor(identity);
-
-    const legacyResponse = await client.api.memory.$get(
-      { query: { limit: "50", offset: "0" } },
-      { headers },
-    );
-    expect(legacyResponse.status).toBe(200);
-    await expect(legacyResponse.json()).resolves.toMatchObject({
-      memories: [expect.objectContaining({ name: "Mounted TM" })],
-      total: 1,
-    });
 
     const orgScopedResponse = await client.api.orgs[":organizationSlug"][
       "translation-memories"
@@ -112,8 +105,11 @@ describe("memoryRoutes", () => {
       externalUrl: "https://crowdin.com/tm/77",
     });
 
-    const response = await client.api.memory.$get(
-      { query: { limit: "50", offset: "0" } },
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0" },
+      },
       {
         headers: await authHeadersFor(identity),
       },
@@ -163,9 +159,14 @@ describe("memoryRoutes", () => {
 
   it("returns memory_not_found for unknown ids", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.memory[":memoryId"].$get(
+    const response = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].$get(
       {
-        param: { memoryId: generateNonExistentUuid() },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: generateNonExistentUuid(),
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -200,9 +201,14 @@ describe("memoryRoutes", () => {
 
     const headers = await authHeadersFor(identity);
 
-    const patchResponse = await client.api.memory[":memoryId"].$patch(
+    const patchResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].$patch(
       {
-        param: { memoryId: externalMemory.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: externalMemory.id,
+        },
         json: { name: "Renamed" },
       },
       { headers },
@@ -212,9 +218,14 @@ describe("memoryRoutes", () => {
       error: "external_tms_memory_immutable",
     });
 
-    const deleteResponse = await client.api.memory[":memoryId"].$delete(
+    const deleteResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].$delete(
       {
-        param: { memoryId: externalMemory.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: externalMemory.id,
+        },
       },
       { headers },
     );
