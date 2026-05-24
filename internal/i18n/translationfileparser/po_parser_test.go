@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -36,6 +37,67 @@ msgstr[1] "items"
 	}
 	if !strings.Contains(content, `msgstr[1] "items"`) {
 		t.Fatalf("expected higher plural forms unchanged, got %q", content)
+	}
+}
+
+func TestPOParserMultilineContinuations(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected map[string]string
+	}{
+		{
+			name: "msgid_plural continuation does not leak into msgid",
+			content: `msgid "key"
+msgid_plural "plural"
+" continuation"
+msgstr "value"`,
+			expected: map[string]string{"key": "value"},
+		},
+		{
+			name: "msgstr[N] continuation does not leak into msgstr[0]",
+			content: `msgid "key"
+msgid_plural "plural"
+msgstr[0] "value0"
+" continuation0"
+msgstr[1] "value1"
+" continuation1"`,
+			expected: map[string]string{"key": "value0 continuation0"},
+		},
+		{
+			name: "msgctxt continuation does not leak into following fields",
+			content: `msgctxt "context"
+" continuation"
+msgid "key"
+msgstr "value"`,
+			expected: map[string]string{"key": "value"},
+		},
+		{
+			name: "multiple entries with continuations",
+			content: `msgid "key1"
+msgstr "value1"
+" continuation1"
+
+msgid "key2"
+msgstr "value2"
+" continuation2"`,
+			expected: map[string]string{
+				"key1": "value1 continuation1",
+				"key2": "value2 continuation2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := (POFileParser{}).Parse([]byte(tt.content))
+			if err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("got %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }
 

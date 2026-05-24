@@ -75,6 +75,9 @@ func consumePOLine(
 		return handlePOMsgStr(lineNumber, strings.TrimPrefix(line, "msgstr "), currentMsgStr, activeField, seenMsgStr)
 	case strings.HasPrefix(line, "msgstr["):
 		return handlePOIndexedMsgStr(lineNumber, line, currentMsgStr, activeField, seenMsgStr)
+	case strings.HasPrefix(line, "msgid_plural "):
+		*activeField = ""
+		return nil
 	case strings.HasPrefix(line, "msgctxt "):
 		// Context is currently ignored by the map[string]string strategy output.
 		*activeField = ""
@@ -112,6 +115,7 @@ func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *strings.Builder, 
 
 func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *strings.Builder, activeField *string, seenMsgStr *bool) error {
 	if !strings.HasPrefix(line, "msgstr[0]") {
+		*activeField = ""
 		return nil
 	}
 	idx := strings.Index(line, "]")

@@ -19,3 +19,7 @@
 ## 2025-05-22 - [Unicode Placeholder Support]
 **Learning:** ICU and mustache-style placeholders were restricted to ASCII letters, causing validation failures for non-Latin scripts or mathematical symbols (e.g., {π}).
 **Action:** Use `unicode.IsLetter` in placeholder validation helpers to ensure broad script support while maintaining structural integrity.
+
+## 2025-05-23 - [PO Parser Multiline State Management]
+**Learning:** The PO file parser's state management using `activeField` can lead to data leakage if not explicitly reset when encountering ignored fields (like `msgid_plural` or non-zero `msgstr[N]`). Continuation lines (quoted strings on new lines) rely on `activeField` to determine which buffer to append to; if `activeField` remains set to a previous valid field (e.g., `msgid`), the continuation from an ignored field will be incorrectly appended to it.
+**Action:** Always reset `activeField` to an empty string when skipping fields that may have multiline continuations to ensure subsequent lines are correctly ignored.
