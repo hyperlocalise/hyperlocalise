@@ -5,7 +5,10 @@ import {
   buildFindingId,
   buildProjectFilesHref,
   filterFindings,
+  formatProviderCommentWriteBackLabel,
   groupFindings,
+  indexProviderCommentWriteBackFromAgentRuns,
+  isProviderCommentWriteBackComplete,
   isProviderReviewFindingsAgentRun,
   isQaChecksAgentRun,
   isReviewWithAgentRun,
@@ -124,6 +127,74 @@ describe("job-qa-findings-model", () => {
     });
 
     expect(href).toBe("/org/acme/projects/project-1/files?sourcePath=locales%2Fen.json&locale=fr");
+  });
+
+  it("indexes provider comment write-back status from comment_only agent runs", () => {
+    const findingId = buildFindingId(sampleFinding);
+    const indexed = indexProviderCommentWriteBackFromAgentRuns([
+      {
+        kind: "comment_only",
+        status: "succeeded",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        completedAt: "2026-01-01T00:01:00.000Z",
+        changedItems: [
+          {
+            type: "provider_comment",
+            findingId,
+            status: "posted",
+            externalCommentUid: "comment-42",
+            providerReviewContext: {
+              providerUrl: "https://crowdin.com/project/demo/comments/42",
+            },
+          },
+        ],
+      },
+    ]);
+
+    const writeBack = indexed.get(findingId);
+    expect(writeBack).toMatchObject({
+      status: "posted",
+      externalCommentUid: "comment-42",
+      providerUrl: "https://crowdin.com/project/demo/comments/42",
+    });
+    expect(formatProviderCommentWriteBackLabel(writeBack)).toBe("Comment posted");
+    expect(isProviderCommentWriteBackComplete(writeBack)).toBe(true);
+  });
+
+  it("prefers posted write-back status over later failed retries", () => {
+    const findingId = buildFindingId(sampleFinding);
+    const indexed = indexProviderCommentWriteBackFromAgentRuns([
+      {
+        kind: "comment_only",
+        status: "succeeded",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        completedAt: "2026-01-01T00:01:00.000Z",
+        changedItems: [
+          {
+            type: "provider_comment",
+            findingId,
+            status: "posted",
+            externalCommentUid: "comment-42",
+          },
+        ],
+      },
+      {
+        kind: "comment_only",
+        status: "failed",
+        createdAt: "2026-01-02T00:00:00.000Z",
+        completedAt: "2026-01-02T00:01:00.000Z",
+        changedItems: [
+          {
+            type: "provider_comment",
+            findingId,
+            status: "failed",
+            message: "provider_comment_push_failed",
+          },
+        ],
+      },
+    ]);
+
+    expect(indexed.get(findingId)?.status).toBe("posted");
   });
 });
 

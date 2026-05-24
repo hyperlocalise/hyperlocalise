@@ -30,6 +30,27 @@ describe("job provider actions", () => {
     expect(qaFix?.disabledReason).toContain("Phrase QA");
   });
 
+  it("shows phrase comment write-back as disabled when no pusher exists", () => {
+    const actions = getJobProviderActionAvailability("phrase");
+    const commentAction = actions.find((action) => action.id === "leave_provider_comment");
+
+    expect(commentAction).toMatchObject({
+      visible: true,
+      enabled: false,
+    });
+    expect(commentAction?.disabledReason).toContain("does not support writing comments");
+    expect(isJobProviderActionAvailable("phrase", "leave_provider_comment")).toBe(false);
+  });
+
+  it("enables comment write-back for crowdin", () => {
+    const commentAction = getJobProviderActionAvailability("crowdin").find(
+      (action) => action.id === "leave_provider_comment",
+    );
+
+    expect(commentAction).toMatchObject({ visible: true, enabled: true });
+    expect(isJobProviderActionAvailable("crowdin", "leave_provider_comment")).toBe(true);
+  });
+
   it("returns no visible actions for unknown providers", () => {
     const actions = getJobProviderActionAvailability("unknown-provider");
     expect(actions.every((action) => !action.visible)).toBe(true);
