@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { projectIdParamsSchema } from "./project/project.schema";
+import {
+  projectIdParamsSchema,
+  externalTmsTranslationPushBodySchema,
+} from "./project/project.schema";
 import {
   jobProjectParamsSchema,
   jobParamsSchema,
@@ -109,5 +112,27 @@ describe("Identifier Schema length limits", () => {
     expect(multipartChatRequestSchema.safeParse({ text: "a", projectId: longId }).success).toBe(
       false,
     );
+  });
+
+  it("should enforce max length on translations in externalTmsTranslationPushBodySchema", () => {
+    const tooManyTranslations = Array.from({ length: 1001 }, (_, i) => ({
+      key: `key-${i}`,
+      locale: "en",
+      text: "a",
+    }));
+
+    expect(
+      externalTmsTranslationPushBodySchema.safeParse({
+        externalJobId: "valid",
+        translations: tooManyTranslations,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      externalTmsTranslationPushBodySchema.safeParse({
+        externalJobId: "valid",
+        translations: [{ key: "k", locale: "en", text: "a".repeat(100_001) }],
+      }).success,
+    ).toBe(false);
   });
 });
