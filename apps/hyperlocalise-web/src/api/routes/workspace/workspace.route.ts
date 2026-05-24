@@ -210,7 +210,12 @@ export function createWorkspaceRoutes() {
           archivedAt,
           updatedAt: archivedAt,
         })
-        .where(eq(schema.organizations.id, c.var.auth.activeOrganization.localOrganizationId))
+        .where(
+          and(
+            eq(schema.organizations.id, c.var.auth.activeOrganization.localOrganizationId),
+            eq(schema.organizations.lifecycleStatus, "active"),
+          ),
+        )
         .returning({
           id: schema.organizations.id,
           workosOrganizationId: schema.organizations.workosOrganizationId,
