@@ -34,22 +34,68 @@ export class StaleOrganizationSlugError extends Error {
   }
 }
 
-function selectActiveOrganization(
+async function resolveStaleSlugRedirectTarget(input: {
+  requestedSlug: string;
+  organizations: ApiAuthContext["organizations"];
+  workosOrganizationId?: string | null;
+  workosUserId: string;
+}): Promise<string | null> {
+  const { organizations, workosOrganizationId, requestedSlug, workosUserId } = input;
+
+  if (workosOrganizationId) {
+    const sessionOrganization = organizations.find(
+      (item) => item.workosOrganizationId === workosOrganizationId && item.slug,
+    );
+    if (sessionOrganization?.slug && sessionOrganization.slug !== requestedSlug) {
+      return sessionOrganization.slug;
+    }
+  }
+
+  const [archivedMembership] = await db
+    .select({ id: schema.organizations.id })
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+    )
+    .where(
+      and(
+        eq(schema.users.workosUserId, workosUserId),
+        eq(schema.organizations.slug, requestedSlug),
+        eq(schema.organizations.lifecycleStatus, "archived"),
+      ),
+    )
+    .limit(1);
+
+  if (!archivedMembership) {
+    return null;
+  }
+
+  return organizations.find((item) => item.slug)?.slug ?? null;
+}
+
+async function selectActiveOrganization(
   organizations: ApiAuthContext["organizations"],
   options: {
     organizationSlug?: string;
     workosOrganizationId?: string | null;
+    workosUserId: string;
   },
 ) {
   if (options.organizationSlug) {
     const organization = organizations.find((item) => item.slug === options.organizationSlug);
 
     if (!organization) {
-      const fallbackOrganization =
-        organizations.length === 1 && organizations[0]?.slug ? organizations[0] : null;
+      const currentSlug = await resolveStaleSlugRedirectTarget({
+        requestedSlug: options.organizationSlug,
+        organizations,
+        workosOrganizationId: options.workosOrganizationId,
+        workosUserId: options.workosUserId,
+      });
 
-      if (fallbackOrganization?.slug) {
-        throw new StaleOrganizationSlugError(options.organizationSlug, fallbackOrganization.slug);
+      if (currentSlug) {
+        throw new StaleOrganizationSlugError(options.organizationSlug, currentSlug);
       }
 
       throw new Error("organization_access_denied");
@@ -199,9 +245,10 @@ export async function resolveApiAuthContextFromSession(
     },
   }));
 
-  const activeOrganization = selectActiveOrganization(organizations, {
+  const activeOrganization = await selectActiveOrganization(organizations, {
     organizationSlug: options.organizationSlug,
     workosOrganizationId: session.organizationId,
+    workosUserId: session.user.id,
   });
 
   if (!activeOrganization) {

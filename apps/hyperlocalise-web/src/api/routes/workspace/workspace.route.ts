@@ -61,10 +61,14 @@ async function updateWorkosOrganizationName(input: { workosOrganizationId: strin
     return { ok: false as const };
   }
 
-  await workos.organizations.updateOrganization({
-    organization: input.workosOrganizationId,
-    name: input.name,
-  });
+  try {
+    await workos.organizations.updateOrganization({
+      organization: input.workosOrganizationId,
+      name: input.name,
+    });
+  } catch {
+    return { ok: false as const };
+  }
 
   return { ok: true as const };
 }

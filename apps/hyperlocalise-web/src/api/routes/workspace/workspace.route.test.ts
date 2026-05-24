@@ -4,13 +4,14 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, updateOrganizationMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  updateOrganizationMock: vi.fn(async () => ({ id: "org_mock" })),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -24,7 +25,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 vi.mock("@/lib/workos/server-client", () => ({
   getWorkosServerClient: () => ({
     organizations: {
-      updateOrganization: vi.fn(async () => ({ id: "org_mock" })),
+      updateOrganization: updateOrganizationMock,
     },
   }),
 }));
@@ -100,6 +101,25 @@ describe("workspaceRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       workspace: { name: "Admin Managed", slug: "admin-managed" },
+    });
+  });
+
+  it("returns workspace_identity_unavailable when WorkOS name sync fails", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    updateOrganizationMock.mockRejectedValueOnce(new Error("workos unavailable"));
+
+    const response = await client.api.orgs[":organizationSlug"].workspace.$patch(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: { name: "Broken Sync" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "workspace_identity_unavailable",
     });
   });
 
