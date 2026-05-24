@@ -15,6 +15,7 @@ import {
   WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 
+import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
@@ -99,11 +100,15 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
           href: `/org/${activeOrganizationSlug}/translation-memories`,
           icon: DatabaseSyncIcon,
         },
-        {
-          label: "Integrations",
-          href: `/org/${activeOrganizationSlug}/integrations`,
-          icon: LinkSquare02Icon,
-        },
+        ...(hasCapability(auth.membership.role, "integrations:read")
+          ? [
+              {
+                label: "Integrations",
+                href: `/org/${activeOrganizationSlug}/integrations`,
+                icon: LinkSquare02Icon,
+              },
+            ]
+          : []),
         {
           label: "Settings",
           href: `/org/${activeOrganizationSlug}/settings`,
@@ -117,6 +122,7 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
     <AppShellClient
       activeOrganization={auth.activeOrganization}
       organizations={auth.organizations}
+      showBillingLink={hasCapability(auth.membership.role, "billing:read")}
       user={{
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,

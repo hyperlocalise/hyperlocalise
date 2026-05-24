@@ -7,7 +7,19 @@ import {
   type OrganizationCapability,
 } from "./policy";
 
+const MEMBER_READ_CAPABILITIES: OrganizationCapability[] = [
+  "workspace:read",
+  "projects:read",
+  "teams:read",
+  "glossaries:read",
+  "memories:read",
+];
+
 const ADMIN_ONLY_CAPABILITIES: OrganizationCapability[] = [
+  "billing:read",
+  "api_keys:read",
+  "provider_credentials:read",
+  "integrations:read",
   "workspace:update",
   "members:invite",
   "teams:write",
@@ -23,7 +35,9 @@ const ADMIN_ONLY_CAPABILITIES: OrganizationCapability[] = [
 
 describe("organization capability policy", () => {
   it("defines every expected capability", () => {
-    expect([...ORGANIZATION_CAPABILITIES].sort()).toEqual([...ADMIN_ONLY_CAPABILITIES].sort());
+    expect([...ORGANIZATION_CAPABILITIES].sort()).toEqual(
+      [...MEMBER_READ_CAPABILITIES, ...ADMIN_ONLY_CAPABILITIES].sort(),
+    );
   });
 
   describe.each(["owner", "admin"] as const)("%s role", (role) => {
@@ -37,12 +51,18 @@ describe("organization capability policy", () => {
   });
 
   describe("member role", () => {
-    it("denies every defined capability", () => {
-      for (const capability of ORGANIZATION_CAPABILITIES) {
-        expect(hasCapability("member", capability)).toBe(false);
+    it("grants baseline read capabilities", () => {
+      for (const capability of MEMBER_READ_CAPABILITIES) {
+        expect(hasCapability("member", capability)).toBe(true);
       }
 
-      expect(getCapabilitiesForRole("member")).toEqual([]);
+      expect(getCapabilitiesForRole("member").sort()).toEqual([...MEMBER_READ_CAPABILITIES].sort());
+    });
+
+    it("denies admin-only read and write capabilities", () => {
+      for (const capability of ADMIN_ONLY_CAPABILITIES) {
+        expect(hasCapability("member", capability)).toBe(false);
+      }
     });
   });
 });

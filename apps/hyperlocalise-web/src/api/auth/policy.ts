@@ -1,6 +1,14 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-export const ORGANIZATION_CAPABILITIES = [
+const MEMBER_READ_CAPABILITIES = [
+  "workspace:read",
+  "projects:read",
+  "teams:read",
+  "glossaries:read",
+  "memories:read",
+] as const;
+
+const ADMIN_WRITE_CAPABILITIES = [
   "workspace:update",
   "members:invite",
   "teams:write",
@@ -14,14 +22,33 @@ export const ORGANIZATION_CAPABILITIES = [
   "agent_write:approve",
 ] as const;
 
+const ADMIN_READ_CAPABILITIES = [
+  "billing:read",
+  "api_keys:read",
+  "provider_credentials:read",
+  "integrations:read",
+] as const;
+
+export const ORGANIZATION_CAPABILITIES = [
+  ...MEMBER_READ_CAPABILITIES,
+  ...ADMIN_READ_CAPABILITIES,
+  ...ADMIN_WRITE_CAPABILITIES,
+] as const;
+
 export type OrganizationCapability = (typeof ORGANIZATION_CAPABILITIES)[number];
 
-const ADMIN_CAPABILITIES = new Set<OrganizationCapability>(ORGANIZATION_CAPABILITIES);
+const ADMIN_CAPABILITIES = new Set<OrganizationCapability>([
+  ...MEMBER_READ_CAPABILITIES,
+  ...ADMIN_READ_CAPABILITIES,
+  ...ADMIN_WRITE_CAPABILITIES,
+]);
+
+const MEMBER_CAPABILITIES = new Set<OrganizationCapability>(MEMBER_READ_CAPABILITIES);
 
 const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<OrganizationCapability>> = {
   owner: ADMIN_CAPABILITIES,
   admin: ADMIN_CAPABILITIES,
-  member: new Set<OrganizationCapability>(),
+  member: MEMBER_CAPABILITIES,
 };
 
 export function getCapabilitiesForRole(role: OrganizationMembershipRole): OrganizationCapability[] {

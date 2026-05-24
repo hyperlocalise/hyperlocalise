@@ -41,6 +41,7 @@ type AppShellClientProps = {
     name: string;
     slug?: string | null;
   }>;
+  showBillingLink?: boolean;
   user: {
     name: string;
     avatarUrl?: string;
@@ -52,6 +53,7 @@ export function AppShellClient({
   navigation,
   activeOrganization,
   organizations,
+  showBillingLink = false,
   user,
 }: AppShellClientProps) {
   const pathname = usePathname();
@@ -123,29 +125,31 @@ export function AppShellClient({
         <SidebarContent className="gap-0 px-2 py-2">
           {navigation}
 
-          <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
-            <div className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3">
-              <TypographyP className="text-xs font-medium text-sidebar-foreground">
-                Plan usage
-              </TypographyP>
-              <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
-                Enterprise
-              </TypographyP>
-              <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
-                Renews on Aug 24, 2027
-              </TypographyP>
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-foreground/10">
-                <div className="h-full w-[60%] rounded-full bg-bud-500" />
-              </div>
-              <TypographyP className="mt-3 text-xs text-sidebar-foreground/68">
-                1.2M / 2M words used
-              </TypographyP>
-              <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
-                <span>View usage</span>
-                <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
+          {showBillingLink ? (
+            <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
+              <div className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3">
+                <TypographyP className="text-xs font-medium text-sidebar-foreground">
+                  Plan usage
+                </TypographyP>
+                <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
+                  Enterprise
+                </TypographyP>
+                <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
+                  Renews on Aug 24, 2027
+                </TypographyP>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-foreground/10">
+                  <div className="h-full w-[60%] rounded-full bg-bud-500" />
+                </div>
+                <TypographyP className="mt-3 text-xs text-sidebar-foreground/68">
+                  1.2M / 2M words used
+                </TypographyP>
+                <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
+                  <span>View usage</span>
+                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </SidebarContent>
 
         <SidebarSeparator className="bg-sidebar-border" />
@@ -154,6 +158,7 @@ export function AppShellClient({
           <NavUser
             organizationName={activeOrganization.name}
             organizationSlug={activeOrganization.slug ?? ""}
+            showBillingLink={showBillingLink}
             user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
           />
         </SidebarFooter>

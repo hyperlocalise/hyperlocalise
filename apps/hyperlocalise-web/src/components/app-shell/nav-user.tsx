@@ -30,10 +30,12 @@ import {
 export function NavUser({
   organizationName,
   organizationSlug,
+  showBillingLink = false,
   user,
 }: {
   organizationName: string;
   organizationSlug: string;
+  showBillingLink?: boolean;
   user: {
     name: string;
     avatar: string;
@@ -104,12 +106,14 @@ export function NavUser({
                 <HugeiconsIcon icon={AiUserIcon} strokeWidth={2} className="size-4" />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem
-                render={<Link href={`/org/${organizationSlug}/settings/billing`} />}
-              >
-                <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} className="size-4" />
-                Billing
-              </DropdownMenuItem>
+              {showBillingLink ? (
+                <DropdownMenuItem
+                  render={<Link href={`/org/${organizationSlug}/settings/billing`} />}
+                >
+                  <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} className="size-4" />
+                  Billing
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem
                 render={<Link href={`/org/${organizationSlug}/settings/notifications`} />}
               >

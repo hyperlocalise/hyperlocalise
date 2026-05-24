@@ -26,7 +26,11 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-export function isApiKeyAdminActionAllowed(role: ApiAuthContext["membership"]["role"]) {
+export function isApiKeyReadAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "api_keys:read");
+}
+
+export function isApiKeyWriteAllowed(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "api_keys:write");
 }
 

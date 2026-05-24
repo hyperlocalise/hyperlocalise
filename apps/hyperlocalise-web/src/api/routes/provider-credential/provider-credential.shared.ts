@@ -31,6 +31,10 @@ export function providerValidationFailedResponse(
   );
 }
 
+export function isProviderCredentialReadAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "provider_credentials:read");
+}
+
 export function isProviderCredentialMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
   return hasCapability(role, "provider_credentials:write");
 }

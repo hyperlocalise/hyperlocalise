@@ -87,6 +87,36 @@ describe("providerCredentialRoutes", () => {
     });
   });
 
+  it("blocks org members from reading provider credential summaries", async () => {
+    const ownerIdentity = fixture.createWorkosIdentity();
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    const organizationSlug = ownerIdentity.organization.slug ?? "missing-slug";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    );
+
+    await fixture.upsertProviderCredentialViaApi(ownerIdentity, {
+      provider: "openai",
+      apiKey: "sk-owner-key",
+      defaultModel: "gpt-4.1-mini",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["provider-credential"].$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers: await fixture.authHeadersFor(memberIdentity) },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+  });
+
   it("reveals a stored provider credential only after explicit confirmation", async () => {
     vi.stubGlobal(
       "fetch",

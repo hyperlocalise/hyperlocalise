@@ -276,7 +276,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     });
   });
 
-  it("allows non-admins to list external TMS credentials", async () => {
+  it("blocks org members from listing external TMS credentials", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
@@ -299,13 +299,8 @@ describe("externalTmsProviderCredentialRoutes", () => {
       { headers },
     );
 
-    expect(response.status).toBe(200);
-    const data = (await response.json()) as {
-      externalTmsProviderCredentials: Array<{ providerKind: string; displayName: string }>;
-    };
-    expect(data.externalTmsProviderCredentials).toHaveLength(1);
-    expect(data.externalTmsProviderCredentials[0].providerKind).toBe("lokalise");
-    expect(data.externalTmsProviderCredentials[0].displayName).toBe("Lokalise");
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
   });
 
   it("returns connected provider health and records a health check sync run", async () => {

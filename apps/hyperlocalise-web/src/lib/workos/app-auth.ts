@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
+import type { OrganizationCapability } from "@/api/auth/policy";
+import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { getStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
@@ -42,6 +44,19 @@ export async function requireAppAuthContext(
     ...auth,
     sessionUser: session.user,
   } satisfies AppAuthContext;
+}
+
+export async function requireAppCapability(
+  capability: OrganizationCapability,
+  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
+) {
+  const auth = await requireAppAuthContext(options);
+
+  if (!hasCapability(auth.membership.role, capability)) {
+    redirect("/auth/access-denied?reason=insufficient-permissions");
+  }
+
+  return auth;
 }
 
 export async function getDefaultOrganizationDashboardPath() {
