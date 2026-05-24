@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import type { EvlogVariables } from "evlog/hono";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { type OrganizationCapability } from "@/api/auth/policy";
@@ -81,9 +82,9 @@ export type ApiAuthContext = {
 
 export { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 
-export interface AuthVariables {
+export type AuthVariables = EvlogVariables["Variables"] & {
   auth: ApiAuthContext;
-}
+};
 
 export function createWorkosAuthMiddleware() {
   return createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -103,6 +104,10 @@ export function createWorkosAuthMiddleware() {
         requestUrl.searchParams.get("teamSlug") ||
         undefined;
 
+      c.get("log").set({
+        auth: { organizationSlug, teamSlug },
+      });
+
       const authFromSession = await resolveApiAuthContextFromSession({
         cookie: c.req.header("cookie"),
         organizationSlug,
@@ -113,6 +118,13 @@ export function createWorkosAuthMiddleware() {
       }
 
       c.set("auth", authFromSession);
+      c.get("log").set({
+        auth: {
+          localUserId: authFromSession.user.localUserId,
+          localOrganizationId: authFromSession.organization.localOrganizationId,
+          activeTeamId: authFromSession.activeTeam?.id,
+        },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
 

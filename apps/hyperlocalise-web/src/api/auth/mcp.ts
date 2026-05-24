@@ -9,11 +9,12 @@ import {
 
 import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import type { EvlogVariables } from "evlog/hono";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
-export type McpAuthVariables = {
+export type McpAuthVariables = EvlogVariables["Variables"] & {
   mcpAuth: {
     user: {
       localUserId: string;
@@ -255,6 +256,13 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
       },
       session: {
         id: session.id,
+      },
+    });
+    c.get("log").set({
+      auth: {
+        mcpSessionId: session.id,
+        localUserId: session.userId,
+        localOrganizationId: session.organizationId,
       },
     });
 
