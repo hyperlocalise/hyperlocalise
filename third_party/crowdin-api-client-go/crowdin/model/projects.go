@@ -341,8 +341,6 @@ type ProjectsAddRequest struct {
 	MTID int `json:"mtId,omitempty"`
 	// Fields.
 	Fields map[string]any `json:"fields,omitempty"`
-	// Target Languages Identifiers.
-	Languages []string `json:"languages,omitempty"`
 }
 
 // LanguageMapping represents a project language mapping.

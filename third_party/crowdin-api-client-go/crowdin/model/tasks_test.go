@@ -25,8 +25,9 @@ func TestTasksListOptionsValues(t *testing.T) {
 			opts: &TasksListOptions{
 				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
 				AssigneeID: 1, ListOptions: ListOptions{Limit: 10, Offset: 5},
+				LabelIDs: []int{1, 2}, ExcludeLabelIDs: []int{3, 4},
 			},
-			out: "assigneeId=1&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
+			out: "assigneeId=1&excludeLabelIds=3%2C4&labelIds=1%2C2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
 		},
 	}
 
@@ -654,9 +655,19 @@ func TestEnterpriseTaskCreateFormValidate(t *testing.T) {
 			err:  "languageId is required",
 		},
 		{
-			name: "stringIds or fileIds is required",
+			name: "stringIds, fileIds or branchIds is required",
 			req:  &EnterpriseTaskCreateForm{WorkflowStepID: 1, Title: "French", LanguageID: "en"},
-			err:  "one of stringIds or fileIds is required",
+			err:  "one of stringIds, fileIds or branchIds is required",
+		},
+		{
+			name: "valid data validation with branchIds",
+			req: &EnterpriseTaskCreateForm{
+				WorkflowStepID: 1,
+				Title:          "French",
+				LanguageID:     "en",
+				BranchIDs:      []int{1, 2},
+			},
+			valid: true,
 		},
 		{
 			name: "valid data validation",
@@ -715,9 +726,19 @@ func TestEnterpriseVendorTaskCreateFormValidate(t *testing.T) {
 			err:  "languageId is required",
 		},
 		{
-			name: "stringIds or fileIds is required",
+			name: "stringIds, fileIds or branchIds is required",
 			req:  &EnterpriseVendorTaskCreateForm{WorkflowStepID: 1, Title: "French", LanguageID: "en"},
-			err:  "one of stringIds or fileIds is required",
+			err:  "one of stringIds, fileIds or branchIds is required",
+		},
+		{
+			name: "valid data validation with branchIds",
+			req: &EnterpriseVendorTaskCreateForm{
+				WorkflowStepID: 1,
+				Title:          "French",
+				LanguageID:     "en",
+				BranchIDs:      []int{1, 2},
+			},
+			valid: true,
 		},
 		{
 			name: "valid data validation",

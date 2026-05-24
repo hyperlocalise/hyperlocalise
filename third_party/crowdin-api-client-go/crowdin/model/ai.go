@@ -300,7 +300,7 @@ type PromptsListResponse struct {
 // AIPromptsListOptions specifies the optional parameters to the
 // AIService.ListPrompts method.
 type AIPromptsListOptions struct {
-	// Allows to filter the prompts available for the specific action.
+	// Filter the prompts available for the specific project.
 	ProjectID int `json:"projectId,omitempty"`
 	// Allows to filter the prompts available for the specific action.
 	// Enum: pre_translate, assist.
