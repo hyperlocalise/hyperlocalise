@@ -149,9 +149,26 @@ describe("agentSlackRoutes", () => {
     expect(url.searchParams.get("scope")).toContain("files:read");
     expect(url.searchParams.get("scope")).toContain("files:write");
     expect(state).toBeTruthy();
-    await expect(
-      verifySlackState(state ?? "", env.SLACK_OAUTH_STATE_SECRET ?? ""),
-    ).resolves.toEqual(expect.objectContaining({ slug: organizationSlug }));
+    const verified = await verifySlackState(state ?? "", env.SLACK_OAUTH_STATE_SECRET ?? "");
+    expect(verified).toMatchObject({ slug: organizationSlug });
+
+    const auth = globalThis.__testApiAuthContext;
+    if (!auth) {
+      throw new Error("missing auth context");
+    }
+
+    const states = await db
+      .select()
+      .from(schema.slackInstallationStates)
+      .where(
+        eq(schema.slackInstallationStates.organizationId, auth.organization.localOrganizationId),
+      );
+    expect(states).toHaveLength(1);
+    expect(states[0]).toMatchObject({
+      nonce: verified?.nonce,
+      userId: auth.user.localUserId,
+      consumedAt: null,
+    });
   });
 
   it("rejects slack install url requests when the organization has no slug", async () => {

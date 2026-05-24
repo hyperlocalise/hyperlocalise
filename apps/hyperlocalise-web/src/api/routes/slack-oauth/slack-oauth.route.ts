@@ -1,6 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 
+import { isAdminRole } from "@/api/auth/roles";
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { getSlackBot } from "@/lib/agents/slack/bot";
 import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
@@ -45,6 +47,40 @@ export function createSlackOAuthRoutes() {
 
     if (!org) {
       return c.redirect("/dashboard?error=organization_not_found");
+    }
+
+    const auth = await resolveApiAuthContextFromSession({
+      cookie: c.req.header("cookie"),
+      organizationSlug: org.slug ?? undefined,
+    });
+    const authOrganization = auth?.organizations.find(
+      (item) => item.localOrganizationId === org.id,
+    );
+    if (!auth || !authOrganization) {
+      return c.redirect("/dashboard?error=unauthorized");
+    }
+
+    if (!isAdminRole(authOrganization.membership.role)) {
+      return c.redirect("/dashboard?error=forbidden");
+    }
+
+    const now = new Date();
+    const consumedStates = await db
+      .update(schema.slackInstallationStates)
+      .set({ consumedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(schema.slackInstallationStates.nonce, verified.nonce),
+          eq(schema.slackInstallationStates.organizationId, org.id),
+          eq(schema.slackInstallationStates.userId, auth.user.localUserId),
+          gt(schema.slackInstallationStates.expiresAt, now),
+          isNull(schema.slackInstallationStates.consumedAt),
+        ),
+      )
+      .returning({ id: schema.slackInstallationStates.id });
+
+    if (consumedStates.length === 0) {
+      return c.redirect("/dashboard?error=invalid_slack_state");
     }
 
     let oauthResult: SlackOAuthResult;

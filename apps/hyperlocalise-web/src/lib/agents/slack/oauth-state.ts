@@ -2,6 +2,8 @@ import { timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
 
+export const SLACK_STATE_TTL_MS = 60 * 60 * 1000;
+
 async function importHmacKey(secret: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   return crypto.subtle.importKey(
@@ -20,25 +22,28 @@ export async function signSlackState(payload: string, secret: string): Promise<s
   return Buffer.from(signature).toString("base64");
 }
 
-export async function createSlackState(slug: string, secret: string): Promise<string> {
+export async function createSlackState(
+  slug: string,
+  secret: string,
+  nonce: string,
+  timestamp = Date.now(),
+): Promise<string> {
   const encodedSlug = encodeURIComponent(slug);
-  const payload = `${encodedSlug}:${Date.now()}`;
+  const payload = `${encodedSlug}:${timestamp}:${nonce}`;
   return `${payload}:${await signSlackState(payload, secret)}`;
 }
 
 export async function verifySlackState(
   state: string,
   secret: string,
-): Promise<{ slug: string; timestamp: number } | null> {
+): Promise<{ slug: string; timestamp: number; nonce: string } | null> {
   const parts = state.split(":");
-  if (parts.length < 3) return null;
+  if (parts.length !== 4) return null;
 
-  const providedSignature = parts.at(-1);
-  const timestampStr = parts.at(-2);
-  const encodedSlug = parts.slice(0, -2).join(":");
-  if (!encodedSlug || !timestampStr || !providedSignature) return null;
+  const [encodedSlug, timestampStr, nonce, providedSignature] = parts;
+  if (!encodedSlug || !timestampStr || !nonce || !providedSignature) return null;
 
-  const payload = `${encodedSlug}:${timestampStr}`;
+  const payload = `${encodedSlug}:${timestampStr}:${nonce}`;
   const expectedSignature = await signSlackState(payload, secret);
   const enc = new TextEncoder();
   const providedBytes = enc.encode(providedSignature);
@@ -49,7 +54,7 @@ export async function verifySlackState(
   const timestamp = Number.parseInt(timestampStr, 10);
   if (!Number.isFinite(timestamp)) return null;
 
-  if (Date.now() - timestamp > 60 * 60 * 1000) return null;
+  if (Date.now() - timestamp > SLACK_STATE_TTL_MS) return null;
 
   let slug: string;
   try {
@@ -58,7 +63,7 @@ export async function verifySlackState(
     return null;
   }
 
-  return { slug, timestamp };
+  return { slug, timestamp, nonce };
 }
 
 export function getSlackStateSecret(): string {

@@ -8,10 +8,10 @@ const secret = "test-slack-oauth-state-secret";
 
 describe("slack oauth state", () => {
   it("round trips slugs containing colons", async () => {
-    const state = await createSlackState("org:with:colon", secret);
+    const state = await createSlackState("org:with:colon", secret, "nonce-123");
 
     await expect(verifySlackState(state, secret)).resolves.toEqual(
-      expect.objectContaining({ slug: "org:with:colon" }),
+      expect.objectContaining({ slug: "org:with:colon", nonce: "nonce-123" }),
     );
   });
 });
