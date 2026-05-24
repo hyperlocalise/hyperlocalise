@@ -8,10 +8,7 @@ import { createAgentRun } from "./agent-runs";
 import { getJobProviderActionDefinition } from "./job-provider-actions";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { resolveEffectiveTmsAgentAutomationSettings } from "./tms-agent-automation-settings-store";
-import {
-  shouldAutoDraftTranslationForLocale,
-  shouldAutoRunQaOnSyncedJob,
-} from "./tms-agent-automation-settings";
+import { shouldAutoRunQaOnSyncedJob } from "./tms-agent-automation-settings";
 
 export type TmsAgentAutomationQueues = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
@@ -61,15 +58,19 @@ export async function runTmsAgentAutomationForSyncedJob(
     }
   }
 
+  const automationLocales = settings.autoDraftTranslations.locales.filter((locale) =>
+    input.targetLocales.includes(locale),
+  );
+
   if (
     settings.autoDraftTranslations.enabled &&
     input.queues?.providerAgentTranslationQueue &&
-    input.targetLocales.some((locale) => shouldAutoDraftTranslationForLocale(settings, locale))
+    automationLocales.length > 0
   ) {
     const translateRun = await createAutomationAgentRun({
       ...input,
       action: "translate_with_agent",
-      automationLocales: settings.autoDraftTranslations.locales,
+      automationLocales,
     });
 
     if (translateRun) {
