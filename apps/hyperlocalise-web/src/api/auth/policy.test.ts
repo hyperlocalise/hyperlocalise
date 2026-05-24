@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   getCapabilitiesForRole,
   hasCapability,
+  isAdminRole,
   ORGANIZATION_CAPABILITIES,
   type OrganizationCapability,
 } from "./policy";
@@ -63,6 +64,13 @@ describe("organization capability policy", () => {
       for (const capability of ADMIN_ONLY_CAPABILITIES) {
         expect(hasCapability("member", capability)).toBe(false);
       }
+    });
+  });
+
+  describe("isAdminRole", () => {
+    it("returns false for unrecognized role strings", () => {
+      expect(isAdminRole("guest")).toBe(false);
+      expect(isAdminRole("")).toBe(false);
     });
   });
 });

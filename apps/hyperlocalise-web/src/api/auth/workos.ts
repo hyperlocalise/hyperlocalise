@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
-import { enrichAuthContextWithCapabilities, type OrganizationCapability } from "@/api/auth/policy";
+import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 
@@ -107,7 +107,7 @@ export function createWorkosAuthMiddleware() {
         throw new Error("missing_auth_context");
       }
 
-      c.set("auth", enrichAuthContextWithCapabilities(authFromSession));
+      c.set("auth", authFromSession);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unauthorized";
 

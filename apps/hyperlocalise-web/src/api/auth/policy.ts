@@ -72,7 +72,8 @@ export function assertCapability(
 }
 
 export function isAdminRole(role: string): boolean {
-  return hasCapability(role as OrganizationMembershipRole, "integrations:write");
+  const capabilities = ROLE_CAPABILITIES[role as OrganizationMembershipRole];
+  return capabilities?.has("integrations:write") ?? false;
 }
 
 export function enrichAuthContextWithCapabilities<
