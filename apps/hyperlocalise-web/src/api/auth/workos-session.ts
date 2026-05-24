@@ -72,7 +72,12 @@ async function resolveStaleSlugRedirectTarget(input: {
     return null;
   }
 
-  return organizations.find((item) => item.slug)?.slug ?? null;
+  const activeSlug = organizations.find((item) => item.slug)?.slug;
+  if (activeSlug) {
+    return activeSlug;
+  }
+
+  throw new Error("archived_organization_access");
 }
 
 async function selectActiveOrganization(
@@ -230,20 +235,23 @@ export async function resolveApiAuthContextFromSession(
     )
     .orderBy(schema.organizations.name);
 
-  if (memberships.length === 0) {
+  const organizations =
+    memberships.length === 0
+      ? []
+      : memberships.map((membership: OrganizationMembershipRecord) => ({
+          workosOrganizationId: membership.workosOrganizationId,
+          localOrganizationId: membership.localOrganizationId,
+          name: membership.organizationName,
+          slug: membership.organizationSlug,
+          membership: {
+            workosMembershipId: membership.workosMembershipId,
+            role: membership.role,
+          },
+        }));
+
+  if (organizations.length === 0 && !options.organizationSlug) {
     return null;
   }
-
-  const organizations = memberships.map((membership: OrganizationMembershipRecord) => ({
-    workosOrganizationId: membership.workosOrganizationId,
-    localOrganizationId: membership.localOrganizationId,
-    name: membership.organizationName,
-    slug: membership.organizationSlug,
-    membership: {
-      workosMembershipId: membership.workosMembershipId,
-      role: membership.role,
-    },
-  }));
 
   const activeOrganization = await selectActiveOrganization(organizations, {
     organizationSlug: options.organizationSlug,

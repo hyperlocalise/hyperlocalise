@@ -125,6 +125,31 @@ describe("resolveApiAuthContextFromSession", () => {
     });
   });
 
+  it("rejects archived-only workspace slugs with a dedicated error", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    await db
+      .update(schema.organizations)
+      .set({ lifecycleStatus: "archived", archivedAt: new Date() })
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      );
+
+    withAuthMock.mockResolvedValue({
+      user: { id: identity.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: identity.organization.slug,
+      }),
+    ).rejects.toThrow("archived_organization_access");
+  });
+
   it("rejects an organization slug the user does not belong to", async () => {
     const identity = fixture.createWorkosIdentity();
     await syncWorkosIdentity(db, identity);

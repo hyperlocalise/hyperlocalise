@@ -40,6 +40,10 @@ export async function requireAppAuthContext(
       redirect(`/org/${error.currentSlug}/dashboard`);
     }
 
+    if (error instanceof Error && error.message === "archived_organization_access") {
+      redirect("/auth/access-denied?reason=workspace-archived");
+    }
+
     if (error instanceof Error && error.message === "organization_access_denied") {
       redirect("/auth/access-denied?reason=organization-access-denied");
     }

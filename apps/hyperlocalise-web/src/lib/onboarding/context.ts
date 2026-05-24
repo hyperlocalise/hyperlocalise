@@ -17,7 +17,11 @@ export async function loadOnboardingContext() {
       organizationSlug: onboardingState?.organizationSlug,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "organization_access_denied") {
+    if (
+      error instanceof Error &&
+      (error.message === "organization_access_denied" ||
+        error.message === "archived_organization_access")
+    ) {
       await clearStoredOnboardingState();
       onboardingState = null;
       auth = null;

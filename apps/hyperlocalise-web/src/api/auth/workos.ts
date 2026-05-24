@@ -145,6 +145,10 @@ export function createWorkosAuthMiddleware() {
         return unauthorizedResponse(c, "unauthorized", "Authentication required");
       }
 
+      if (message === "archived_organization_access") {
+        return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
+      }
+
       if (message === "organization_access_denied") {
         return forbiddenResponse(c, "organization_access_denied", "Organization access denied");
       }

@@ -1,4 +1,4 @@
-import { and, eq, like, sql } from "drizzle-orm";
+import { and, eq, like, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -6,7 +6,7 @@ const LOCAL_ORG_WORKOS_ID_PREFIX = "local_org_%";
 
 /**
  * Marks legacy organizations with synthetic WorkOS ids as deprecated.
- * Run once after migration 0022 via `vp run db:deprecate-local-org-workspaces`.
+ * Safe to re-run after migration 0022 via `vp run db:deprecate-local-org-workspaces`.
  */
 export async function deprecateLocalOrgWorkspaces() {
   const deprecatedAt = new Date();
@@ -18,7 +18,12 @@ export async function deprecateLocalOrgWorkspaces() {
       archivedAt: deprecatedAt,
       updatedAt: deprecatedAt,
     })
-    .where(like(schema.organizations.workosOrganizationId, LOCAL_ORG_WORKOS_ID_PREFIX))
+    .where(
+      and(
+        like(schema.organizations.workosOrganizationId, LOCAL_ORG_WORKOS_ID_PREFIX),
+        ne(schema.organizations.lifecycleStatus, "deprecated"),
+      ),
+    )
     .returning({ id: schema.organizations.id });
 
   return updated.length;
