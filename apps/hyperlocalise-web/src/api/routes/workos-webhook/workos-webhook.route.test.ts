@@ -6,6 +6,10 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import {
+  promoteInvitedPlaceholderUser,
+  syncWorkosUser,
+} from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
 
 const secret = env.WORKOS_WEBHOOK_SECRET ?? "test-workos-webhook-secret";
@@ -18,6 +22,7 @@ function sign(body: string, timestamp?: number) {
 }
 
 vi.mock("@/api/auth/workos-sync", () => ({
+  promoteInvitedPlaceholderUser: vi.fn().mockResolvedValue(false),
   syncWorkosUser: vi.fn().mockResolvedValue(undefined),
   syncWorkosOrganization: vi.fn().mockResolvedValue(undefined),
   syncWorkosIdentity: vi.fn().mockResolvedValue(undefined),
@@ -91,5 +96,13 @@ describe("workosWebhookRoutes", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(promoteInvitedPlaceholderUser).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        email: "dev@example.com",
+        workosUserId: "user_123",
+      },
+    );
+    expect(syncWorkosUser).toHaveBeenCalled();
   });
 });
