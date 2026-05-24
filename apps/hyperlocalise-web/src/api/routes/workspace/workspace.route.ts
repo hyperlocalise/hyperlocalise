@@ -136,6 +136,8 @@ export function createWorkspaceRoutes() {
         .select({
           id: schema.organizations.id,
           workosOrganizationId: schema.organizations.workosOrganizationId,
+          name: schema.organizations.name,
+          slug: schema.organizations.slug,
           lifecycleStatus: schema.organizations.lifecycleStatus,
         })
         .from(schema.organizations)
@@ -144,21 +146,6 @@ export function createWorkspaceRoutes() {
 
       if (!existingOrganization || existingOrganization.lifecycleStatus !== "active") {
         return notFoundResponse(c, "workspace_not_found", "Workspace not found");
-      }
-
-      if (payload.name) {
-        const workosResult = await updateWorkosOrganizationName({
-          workosOrganizationId: existingOrganization.workosOrganizationId,
-          name: payload.name,
-        });
-
-        if (!workosResult.ok) {
-          return internalErrorResponse(
-            c,
-            "workspace_identity_unavailable",
-            "WorkOS organization identity is unavailable",
-          );
-        }
       }
 
       const [updatedOrganization] = await db
@@ -185,6 +172,35 @@ export function createWorkspaceRoutes() {
 
       if (!updatedOrganization) {
         return notFoundResponse(c, "workspace_not_found", "Workspace not found");
+      }
+
+      if (payload.name) {
+        const workosResult = await updateWorkosOrganizationName({
+          workosOrganizationId: updatedOrganization.workosOrganizationId,
+          name: payload.name,
+        });
+
+        if (!workosResult.ok) {
+          await db
+            .update(schema.organizations)
+            .set({
+              name: existingOrganization.name,
+              slug: existingOrganization.slug,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(schema.organizations.id, organizationId),
+                eq(schema.organizations.lifecycleStatus, "active"),
+              ),
+            );
+
+          return internalErrorResponse(
+            c,
+            "workspace_identity_unavailable",
+            "WorkOS organization identity is unavailable",
+          );
+        }
       }
 
       if (!updatedOrganization.slug) {

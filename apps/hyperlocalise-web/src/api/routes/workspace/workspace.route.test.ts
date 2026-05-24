@@ -107,6 +107,13 @@ describe("workspaceRoutes", () => {
   it("returns workspace_identity_unavailable when WorkOS name sync fails", async () => {
     const identity = fixture.createWorkosIdentity();
     const headers = await fixture.authHeadersFor(identity);
+    const [organizationBeforeUpdate] = await db
+      .select({ name: schema.organizations.name, slug: schema.organizations.slug })
+      .from(schema.organizations)
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      )
+      .limit(1);
     updateOrganizationMock.mockRejectedValueOnce(new Error("workos unavailable"));
 
     const response = await client.api.orgs[":organizationSlug"].workspace.$patch(
@@ -121,6 +128,15 @@ describe("workspaceRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "workspace_identity_unavailable",
     });
+
+    const [organizationAfterFailure] = await db
+      .select({ name: schema.organizations.name, slug: schema.organizations.slug })
+      .from(schema.organizations)
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      )
+      .limit(1);
+    expect(organizationAfterFailure).toEqual(organizationBeforeUpdate);
   });
 
   it("denies workspace updates for members", async () => {
