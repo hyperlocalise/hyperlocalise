@@ -25,6 +25,15 @@ type OrganizationMembershipRecord = {
   role: ApiAuthContext["membership"]["role"];
 };
 
+export class StaleOrganizationSlugError extends Error {
+  constructor(
+    readonly requestedSlug: string,
+    readonly currentSlug: string,
+  ) {
+    super("stale_organization_slug");
+  }
+}
+
 function selectActiveOrganization(
   organizations: ApiAuthContext["organizations"],
   options: {
@@ -36,6 +45,13 @@ function selectActiveOrganization(
     const organization = organizations.find((item) => item.slug === options.organizationSlug);
 
     if (!organization) {
+      const fallbackOrganization =
+        organizations.length === 1 && organizations[0]?.slug ? organizations[0] : null;
+
+      if (fallbackOrganization?.slug) {
+        throw new StaleOrganizationSlugError(options.organizationSlug, fallbackOrganization.slug);
+      }
+
       throw new Error("organization_access_denied");
     }
 
@@ -160,7 +176,12 @@ export async function resolveApiAuthContextFromSession(
       schema.organizations,
       eq(schema.organizationMemberships.organizationId, schema.organizations.id),
     )
-    .where(eq(schema.users.workosUserId, session.user.id))
+    .where(
+      and(
+        eq(schema.users.workosUserId, session.user.id),
+        eq(schema.organizations.lifecycleStatus, "active"),
+      ),
+    )
     .orderBy(schema.organizations.name);
 
   if (memberships.length === 0) {

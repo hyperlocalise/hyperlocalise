@@ -90,6 +90,12 @@ export async function createWorkspaceAction(
       };
     }
 
+    if (error instanceof Error && error.message === "workos_organization_required") {
+      return {
+        error: "Workspace creation requires WorkOS organization management to be configured.",
+      };
+    }
+
     throw error;
   }
 

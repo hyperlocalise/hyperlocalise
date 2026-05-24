@@ -1,10 +1,13 @@
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
-import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
+import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
-import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
+import {
+  resolveApiAuthContextFromSession,
+  StaleOrganizationSlugError,
+} from "@/api/auth/workos-session";
 
 export type WorkosUserIdentity = {
   workosUserId: string;
@@ -128,6 +131,14 @@ export function createWorkosAuthMiddleware() {
         },
       });
     } catch (error) {
+      if (error instanceof StaleOrganizationSlugError) {
+        return apiErrorResponse(c, 403, "stale_organization_slug", "Organization slug changed", {
+          requestedSlug: error.requestedSlug,
+          currentSlug: error.currentSlug,
+          redirectTo: `/org/${error.currentSlug}/dashboard`,
+        });
+      }
+
       const message = error instanceof Error ? error.message : "unauthorized";
 
       if (message === "missing_auth_context") {

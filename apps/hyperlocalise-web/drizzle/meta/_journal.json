@@ -155,6 +155,13 @@
       "when": 1779601459419,
       "tag": "0021_vengeful_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1779618277198,
+      "tag": "0022_melted_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,7 @@ export default async function AccountSettingsPage({
 
   return (
     <AccountSettingsPageContent
+      canUpdateWorkspace={auth.capabilities.includes("workspace:update")}
       organizationName={auth.activeOrganization.name}
       organizationSlug={organizationSlug}
       userEmail={auth.sessionUser.email}

@@ -98,7 +98,7 @@ describe("authRoutes", () => {
   it("resolves auth from the first-party session", async () => {
     const activeOrganization = {
       workosOrganizationId: "org_123",
-      localOrganizationId: "local_org_123",
+      localOrganizationId: "org_local_123",
       name: "Example Org",
       slug: "example-org",
       membership: {
@@ -110,7 +110,7 @@ describe("authRoutes", () => {
       sessionAuthContext: {
         user: {
           workosUserId: "user_123",
-          localUserId: "local_user_123",
+          localUserId: "user_local_123",
           email: "user@example.com",
         },
         organizations: [activeOrganization],
@@ -138,12 +138,12 @@ describe("authRoutes", () => {
       auth: {
         user: {
           workosUserId: "user_123",
-          localUserId: "local_user_123",
+          localUserId: "user_local_123",
           email: "user@example.com",
         },
         organization: {
           workosOrganizationId: "org_123",
-          localOrganizationId: "local_org_123",
+          localOrganizationId: "org_local_123",
           name: "Example Org",
           slug: "example-org",
           membership: {
@@ -153,7 +153,7 @@ describe("authRoutes", () => {
         },
         activeOrganization: {
           workosOrganizationId: "org_123",
-          localOrganizationId: "local_org_123",
+          localOrganizationId: "org_local_123",
           name: "Example Org",
           slug: "example-org",
           membership: {
@@ -164,7 +164,7 @@ describe("authRoutes", () => {
         organizations: [
           {
             workosOrganizationId: "org_123",
-            localOrganizationId: "local_org_123",
+            localOrganizationId: "org_local_123",
             name: "Example Org",
             slug: "example-org",
             membership: {
@@ -186,7 +186,7 @@ describe("authRoutes", () => {
   it("passes route organizationSlug to session auth resolution for org-scoped routes", async () => {
     const activeOrganization = {
       workosOrganizationId: "org_123",
-      localOrganizationId: "local_org_123",
+      localOrganizationId: "org_local_123",
       name: "Example Org",
       slug: "example-org",
       membership: {
@@ -198,7 +198,7 @@ describe("authRoutes", () => {
     const authContext = enrichAuthContextWithCapabilities({
       user: {
         workosUserId: "user_123",
-        localUserId: "local_user_123",
+        localUserId: "user_local_123",
         email: "user@example.com",
       },
       organizations: [activeOrganization],
@@ -245,7 +245,7 @@ describe("authRoutes", () => {
   it("does not remap downstream errors from the session auth path", async () => {
     const activeOrganization = {
       workosOrganizationId: "org_123",
-      localOrganizationId: "local_org_123",
+      localOrganizationId: "org_local_123",
       name: "Example Org",
       slug: "example-org",
       membership: {
@@ -258,7 +258,7 @@ describe("authRoutes", () => {
       enrichAuthContextWithCapabilities({
         user: {
           workosUserId: "user_123",
-          localUserId: "local_user_123",
+          localUserId: "user_local_123",
           email: "user@example.com",
         },
         organizations: [activeOrganization],
