@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -19,7 +20,7 @@ vi.mock("@/api/auth/workos-session", () => ({
 }));
 
 import { createApp } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createMemberTestFixture } from "./member.fixture";
@@ -137,6 +138,35 @@ describe("memberRoutes", () => {
     expect(updateResponse.status).toBe(200);
     const updateBody = (await updateResponse.json()) as { member: { role: string } };
     expect(updateBody.member.role).toBe("admin");
+  });
+
+  it("removes a locally-invited placeholder user from the database", async () => {
+    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const headers = await authHeadersFor(ownerIdentity);
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "orphan-cleanup@example.com", role: "member" },
+      headers,
+    );
+
+    const listResponse = await listMembersViaApi(ownerIdentity, headers);
+    const listBody = (await listResponse.json()) as MembersResponse;
+    const target = listBody.members.find((member) => member.email === "orphan-cleanup@example.com");
+
+    expect(target).toBeDefined();
+    expect(target!.workosUserId.startsWith("local_user_")).toBe(true);
+
+    const deleteResponse = await removeMemberViaApi(ownerIdentity, target!.workosUserId, headers);
+    expect(deleteResponse.status).toBe(204);
+
+    const [remainingUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, "orphan-cleanup@example.com"))
+      .limit(1);
+
+    expect(remainingUser).toBeUndefined();
   });
 
   it("removes a member", async () => {

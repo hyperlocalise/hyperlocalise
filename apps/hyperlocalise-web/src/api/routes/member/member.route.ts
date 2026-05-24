@@ -28,6 +28,8 @@ import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
   isMemberListAllowed,
+  LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX,
+  shouldCleanupPlaceholderUserOnMemberRemoval,
   isMemberManageAllowed,
   lastOwnerProtectedResponse,
   lockOrganizationOwnersAndCount,
@@ -280,7 +282,7 @@ export function createMemberRoutes() {
           organizationId,
           email: payload.email,
           role: payload.role,
-          placeholderWorkosUserId: `local_user_${randomUUID()}`,
+          placeholderWorkosUserId: `${LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
         });
 
         if ("error" in result) {
@@ -524,7 +526,12 @@ export function createMemberRoutes() {
         }
       }
 
-      if (isPendingInvite) {
+      if (
+        shouldCleanupPlaceholderUserOnMemberRemoval({
+          workosUserId: member.workosUserId,
+          isLocallyManagedOrganization: isLocallyManagedWorkosOrganization(workosOrganizationId),
+        })
+      ) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
       }
 

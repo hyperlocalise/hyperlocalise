@@ -15,11 +15,18 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
+  LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX,
+  shouldCleanupPlaceholderUserOnMemberRemoval,
 } from "@/lib/workos/constants";
 
 import type { z } from "zod";
 
-export { INVITED_WORKOS_USER_ID_PREFIX, isInvitedPlaceholderWorkosUserId };
+export {
+  INVITED_WORKOS_USER_ID_PREFIX,
+  isInvitedPlaceholderWorkosUserId,
+  LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX,
+  shouldCleanupPlaceholderUserOnMemberRemoval,
+};
 
 export function resolveMemberStatus(workosUserId: string): "active" | "invited" {
   return isInvitedPlaceholderWorkosUserId(workosUserId) ? "invited" : "active";
