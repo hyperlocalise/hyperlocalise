@@ -48,6 +48,7 @@ describe("tmsDashboardSummaryRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.tmsDashboardSummary.counts.connectedProviders).toBe(0);
     expect(body.tmsDashboardSummary.providers).toEqual([]);
     expect(body.tmsDashboardSummary.localeReadiness).toEqual([]);
@@ -76,6 +77,7 @@ describe("tmsDashboardSummaryRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    if ("error" in body) throw new Error(String(body.error));
     expect(body.tmsDashboardSummary.counts.connectedProviders).toBe(1);
     expect(body.tmsDashboardSummary.providers).toHaveLength(1);
     expect(body.tmsDashboardSummary.providers[0]?.providerKind).toBe("crowdin");

@@ -18,7 +18,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { createApiClient } from "@/lib/api-client";
-import type { OrganizationTmsDashboardSummary } from "@/lib/providers/organization-tms-dashboard-summary";
+import {
+  FAILED_SYNC_RUNS_RECENCY_DAYS,
+  type OrganizationTmsDashboardSummary,
+} from "@/lib/providers/organization-tms-dashboard-summary";
 import { cn } from "@/lib/utils";
 
 import { buildOrgWorkspaceHref } from "../../_components/workspace-filter-params";
@@ -107,10 +110,13 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
     (data?.counts.staleFiles ?? 0) +
     (data?.counts.staleGlossaries ?? 0) +
     (data?.counts.staleMemories ?? 0);
-  const failedTotal =
-    (data?.counts.failedSyncRuns ?? 0) +
-    (data?.counts.syncErrorGlossaries ?? 0) +
-    (data?.counts.syncErrorMemories ?? 0);
+  const resourceSyncErrors =
+    (data?.counts.syncErrorGlossaries ?? 0) + (data?.counts.syncErrorMemories ?? 0);
+  const resourceSyncErrorsHref =
+    (data?.counts.syncErrorGlossaries ?? 0) > 0
+      ? buildOrgWorkspaceHref(organizationSlug, "glossaries", { sync: "error" })
+      : buildOrgWorkspaceHref(organizationSlug, "translation-memories", { sync: "error" });
+  const recentFailedSyncRunsHref = `/org/${organizationSlug}/dashboard#recent-failed-sync-runs`;
 
   return (
     <section className="flex flex-col gap-4">
@@ -199,21 +205,25 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                 href={buildOrgWorkspaceHref(organizationSlug, "jobs", { source: "provider" })}
               />
               <SummaryMetricCard
-                label="Failed syncs"
-                value={String(failedTotal)}
-                detail="runs and resource errors"
-                tone={failedTotal > 0 ? "risk" : "safe"}
-                href={buildOrgWorkspaceHref(organizationSlug, "glossaries", { sync: "error" })}
+                label="Failed sync runs"
+                value={String(data?.counts.failedSyncRuns ?? 0)}
+                detail={`last ${FAILED_SYNC_RUNS_RECENCY_DAYS} days`}
+                tone={(data?.counts.failedSyncRuns ?? 0) > 0 ? "risk" : "safe"}
+                href={recentFailedSyncRunsHref}
               />
               <SummaryMetricCard
-                label="Provider files"
-                value={String(data?.counts.staleFiles ?? 0)}
-                detail="stale file syncs"
-                tone={(data?.counts.staleFiles ?? 0) > 0 ? "watch" : "safe"}
-                href={buildOrgWorkspaceHref(organizationSlug, "files", {
-                  sync: "stale",
-                  origin: "provider",
-                })}
+                label="Resource sync errors"
+                value={String(resourceSyncErrors)}
+                detail="glossaries and translation memories"
+                tone={resourceSyncErrors > 0 ? "risk" : "safe"}
+                href={resourceSyncErrorsHref}
+              />
+              <SummaryMetricCard
+                label="Pending job sync"
+                value={String(data?.counts.pendingProviderJobSync ?? 0)}
+                detail="provider jobs awaiting sync"
+                tone={(data?.counts.pendingProviderJobSync ?? 0) > 0 ? "watch" : "safe"}
+                href={buildOrgWorkspaceHref(organizationSlug, "jobs", { source: "provider" })}
               />
             </div>
           )}
@@ -423,11 +433,14 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
           </Card>
 
           {data.recentFailedSyncRuns.length > 0 ? (
-            <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
+            <Card
+              id="recent-failed-sync-runs"
+              className="scroll-mt-6 rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0"
+            >
               <CardHeader className="px-5 pt-5">
                 <CardTitle className="text-xl text-foreground">Recent failed sync runs</CardTitle>
                 <CardDescription className="text-foreground/48">
-                  Latest provider sync failures recorded for this organization.
+                  Latest provider sync failures from the last {FAILED_SYNC_RUNS_RECENCY_DAYS} days.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0 pb-3">

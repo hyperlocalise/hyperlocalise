@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -44,6 +44,21 @@ export type OrganizationTmsDashboardSummary = {
 };
 
 const OPEN_JOB_STATUSES = ["queued", "running", "waiting_for_review"] as const;
+export const FAILED_SYNC_RUNS_RECENCY_DAYS = 30;
+
+function failedSyncRunsSince() {
+  const since = new Date();
+  since.setDate(since.getDate() - FAILED_SYNC_RUNS_RECENCY_DAYS);
+  return since;
+}
+
+function recentFailedSyncRunConditions(organizationId: string) {
+  return and(
+    eq(schema.providerSyncRuns.organizationId, organizationId),
+    eq(schema.providerSyncRuns.status, "failed"),
+    gte(schema.providerSyncRuns.startedAt, failedSyncRunsSince()),
+  );
+}
 
 export function aggregateLocaleReadiness(
   files: { localeReadiness: Record<string, unknown> }[],
@@ -156,12 +171,7 @@ export async function getOrganizationTmsDashboardSummary(
     db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(schema.providerSyncRuns)
-      .where(
-        and(
-          eq(schema.providerSyncRuns.organizationId, organizationId),
-          eq(schema.providerSyncRuns.status, "failed"),
-        ),
-      ),
+      .where(recentFailedSyncRunConditions(organizationId)),
     db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(schema.glossaries)
@@ -215,12 +225,7 @@ export async function getOrganizationTmsDashboardSummary(
         startedAt: schema.providerSyncRuns.startedAt,
       })
       .from(schema.providerSyncRuns)
-      .where(
-        and(
-          eq(schema.providerSyncRuns.organizationId, organizationId),
-          eq(schema.providerSyncRuns.status, "failed"),
-        ),
-      )
+      .where(recentFailedSyncRunConditions(organizationId))
       .orderBy(sql`${schema.providerSyncRuns.startedAt} desc`)
       .limit(5),
   ]);
