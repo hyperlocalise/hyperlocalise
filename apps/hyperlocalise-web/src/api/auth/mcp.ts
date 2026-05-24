@@ -11,6 +11,7 @@ import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
+import { forbiddenResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
@@ -215,6 +216,7 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
         workosOrganizationId: schema.organizations.workosOrganizationId,
         organizationName: schema.organizations.name,
         organizationSlug: schema.organizations.slug,
+        lifecycleStatus: schema.organizations.lifecycleStatus,
       })
       .from(schema.mcpSessions)
       .innerJoin(schema.users, eq(schema.mcpSessions.userId, schema.users.id))
@@ -240,6 +242,10 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
 
     if (!session) {
       return c.json({ error: "unauthorized" }, 401);
+    }
+
+    if (session.lifecycleStatus !== "active") {
+      return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
     }
 
     c.set("mcpAuth", {
