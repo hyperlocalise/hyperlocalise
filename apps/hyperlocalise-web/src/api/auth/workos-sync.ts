@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-type DatabaseClient = (typeof import("@/lib/database"))["db"];
+import type { DatabaseClient } from "@/lib/database";
+import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
   workosUserId: string;
@@ -132,6 +133,38 @@ export async function syncWorkosIdentity(
       membership,
     };
   });
+}
+
+export async function promoteInvitedPlaceholderUser(
+  database: DatabaseClient,
+  input: { email: string; workosUserId: string },
+): Promise<boolean> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const [invitedUser] = await database
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(
+      and(
+        eq(schema.users.email, normalizedEmail),
+        like(schema.users.workosUserId, `${INVITED_WORKOS_USER_ID_PREFIX}%`),
+      ),
+    )
+    .limit(1);
+
+  if (!invitedUser) {
+    return false;
+  }
+
+  await database
+    .update(schema.users)
+    .set({
+      workosUserId: input.workosUserId,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.users.id, invitedUser.id));
+
+  return true;
 }
 
 export async function syncWorkosUser(

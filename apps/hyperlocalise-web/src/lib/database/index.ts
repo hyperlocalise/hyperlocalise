@@ -22,4 +22,7 @@ export async function isDatabaseHealthy(): Promise<boolean> {
   }
 }
 
+export type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DatabaseClient = typeof db | DatabaseTransaction;
+
 export { db, schema };

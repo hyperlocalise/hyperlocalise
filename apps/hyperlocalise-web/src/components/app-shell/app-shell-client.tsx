@@ -2,12 +2,11 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Button } from "@/components/ui/button";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   InputGroup,
   InputGroupAddon,
@@ -80,33 +79,25 @@ export function AppShellClient({
               <TypographyP className="truncate text-sm font-medium text-sidebar-foreground">
                 Hyperlocalise
               </TypographyP>
-              <TypographyP className="truncate text-xs text-sidebar-foreground/45">
-                {activeOrganization.name}
-              </TypographyP>
             </div>
           </div>
 
-          {organizations.length > 1 ? (
-            <div className="flex flex-wrap gap-1 group-data-[collapsible=icon]:hidden">
-              {organizations
-                .filter(
-                  (organization) =>
-                    organization.slug && organization.slug !== activeOrganization.slug,
+          <div className="group-data-[collapsible=icon]:hidden">
+            <TeamSwitcher
+              activeOrganization={{
+                name: activeOrganization.name,
+                slug: activeOrganization.slug ?? "",
+              }}
+              organizations={organizations
+                .filter((organization): organization is { name: string; slug: string } =>
+                  Boolean(organization.slug),
                 )
-                .map((organization) => (
-                  <Button
-                    key={organization.slug}
-                    size="sm"
-                    variant="ghost"
-                    nativeButton={false}
-                    className="h-8 rounded-lg border border-sidebar-border px-2 text-xs text-sidebar-foreground/58 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                    render={<Link href={`/auth/select-organization/${organization.slug}`} />}
-                  >
-                    {organization.name}
-                  </Button>
-                ))}
-            </div>
-          ) : null}
+                .map((organization) => ({
+                  name: organization.name,
+                  slug: organization.slug,
+                }))}
+            />
+          </div>
 
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
             <InputGroup className="h-9 rounded-xl border-sidebar-border bg-sidebar-accent text-sidebar-foreground">

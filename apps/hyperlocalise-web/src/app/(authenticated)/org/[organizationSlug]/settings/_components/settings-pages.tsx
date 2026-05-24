@@ -7,6 +7,7 @@ import {
   BellDotIcon,
   Building02Icon,
   Calendar03Icon,
+  UserGroupIcon,
   CheckmarkCircle01Icon,
   CreditCardIcon,
   Invoice03Icon,
@@ -56,6 +57,14 @@ const settingsCards = [
     href: "account",
     icon: AiUserIcon,
     status: "Configured",
+  },
+  {
+    label: "Members",
+    description: "Invite people to this workspace and manage their roles.",
+    href: "members",
+    icon: UserGroupIcon,
+    status: "Manage",
+    requiredCapability: "workspace:read" as const,
   },
   {
     label: "API Keys",

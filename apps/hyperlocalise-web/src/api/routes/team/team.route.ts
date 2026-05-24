@@ -16,12 +16,14 @@ import {
 import { getVisibleTeamIds } from "@/api/auth/team-access";
 
 import {
+  canManageTeamMembership,
   forbiddenResponse,
   invalidTeamPayloadResponse,
   isOrganizationAdmin,
   isUniqueViolation,
   organizationMemberNotFoundResponse,
   slugifyTeamName,
+  teamHasProjectsResponse,
   teamNotFoundResponse,
   teamSlugAlreadyExistsResponse,
 } from "./team.shared";
@@ -124,6 +126,15 @@ export function createTeamRoutes() {
         return c.json({ teams: [] }, 200);
       }
 
+      const currentUserMembership = db
+        .select({
+          teamId: schema.teamMemberships.teamId,
+          role: schema.teamMemberships.role,
+        })
+        .from(schema.teamMemberships)
+        .where(eq(schema.teamMemberships.userId, c.var.auth.user.localUserId))
+        .as("current_user_membership");
+
       const teams = await db
         .select({
           id: schema.teams.id,
@@ -132,19 +143,49 @@ export function createTeamRoutes() {
           createdAt: schema.teams.createdAt,
           updatedAt: schema.teams.updatedAt,
           memberCount: count(schema.teamMemberships.id),
+          currentUserRole: currentUserMembership.role,
         })
         .from(schema.teams)
         .leftJoin(schema.teamMemberships, eq(schema.teamMemberships.teamId, schema.teams.id))
+        .leftJoin(currentUserMembership, eq(currentUserMembership.teamId, schema.teams.id))
         .where(
           and(
             eq(schema.teams.organizationId, c.var.auth.activeOrganization.localOrganizationId),
             inArray(schema.teams.id, visibleTeamIds),
           ),
         )
-        .groupBy(schema.teams.id)
+        .groupBy(
+          schema.teams.id,
+          schema.teams.slug,
+          schema.teams.name,
+          schema.teams.createdAt,
+          schema.teams.updatedAt,
+          currentUserMembership.role,
+        )
         .orderBy(desc(schema.teams.createdAt));
 
       return c.json({ teams }, 200);
+    })
+    .get("/member-directory", async (c) => {
+      const members = await db
+        .select({
+          workosUserId: schema.users.workosUserId,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .innerJoin(
+          schema.organizationMemberships,
+          eq(schema.organizationMemberships.userId, schema.users.id),
+        )
+        .where(
+          eq(
+            schema.organizationMemberships.organizationId,
+            c.var.auth.activeOrganization.localOrganizationId,
+          ),
+        )
+        .orderBy(schema.users.email);
+
+      return c.json({ members }, 200);
     })
     .post("/", validateCreateTeamBody, async (c) => {
       if (!isOrganizationAdmin(c.var.auth)) {
@@ -201,6 +242,39 @@ export function createTeamRoutes() {
 
       return c.json({ team: { ...team, members } }, 200);
     })
+    .delete("/:teamId", validateTeamParams, async (c) => {
+      if (!isOrganizationAdmin(c.var.auth)) {
+        return forbiddenResponse(c);
+      }
+
+      const { teamId } = c.req.valid("param");
+      const team = await getAccessibleTeam(c.var.auth, teamId);
+
+      if (!team) {
+        return teamNotFoundResponse(c);
+      }
+
+      const [projectUsingTeam] = await db
+        .select({ id: schema.projects.id })
+        .from(schema.projects)
+        .where(eq(schema.projects.teamId, team.id))
+        .limit(1);
+
+      if (projectUsingTeam) {
+        return teamHasProjectsResponse(c);
+      }
+
+      await db
+        .delete(schema.teams)
+        .where(
+          and(
+            eq(schema.teams.id, teamId),
+            eq(schema.teams.organizationId, c.var.auth.activeOrganization.localOrganizationId),
+          ),
+        );
+
+      return c.body(null, 204);
+    })
     .patch("/:teamId", validateTeamParams, validateUpdateTeamBody, async (c) => {
       if (!isOrganizationAdmin(c.var.auth)) {
         return forbiddenResponse(c);
@@ -237,10 +311,6 @@ export function createTeamRoutes() {
       }
     })
     .post("/:teamId/members", validateTeamParams, validateAddTeamMemberBody, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
-        return forbiddenResponse(c);
-      }
-
       const { teamId } = c.req.valid("param");
       const payload = c.req.valid("json");
       const team = await getAccessibleTeam(c.var.auth, teamId);
@@ -248,6 +318,14 @@ export function createTeamRoutes() {
       if (!team) {
         return teamNotFoundResponse(c);
       }
+
+      if (!(await canManageTeamMembership(c.var.auth, teamId))) {
+        return forbiddenResponse(c);
+      }
+
+      const memberLookup = payload.workosUserId
+        ? eq(schema.users.workosUserId, payload.workosUserId)
+        : eq(schema.users.email, payload.email!);
 
       const [user] = await db
         .select({
@@ -262,7 +340,7 @@ export function createTeamRoutes() {
         )
         .where(
           and(
-            eq(schema.users.workosUserId, payload.workosUserId),
+            memberLookup,
             eq(
               schema.organizationMemberships.organizationId,
               c.var.auth.activeOrganization.localOrganizationId,
@@ -330,15 +408,15 @@ export function createTeamRoutes() {
       );
     })
     .delete("/:teamId/members/:workosUserId", validateTeamMemberParams, async (c) => {
-      if (!isOrganizationAdmin(c.var.auth)) {
-        return forbiddenResponse(c);
-      }
-
       const { teamId, workosUserId } = c.req.valid("param");
       const team = await getAccessibleTeam(c.var.auth, teamId);
 
       if (!team) {
         return teamNotFoundResponse(c);
+      }
+
+      if (!(await canManageTeamMembership(c.var.auth, teamId))) {
+        return forbiddenResponse(c);
       }
 
       const [user] = await db
