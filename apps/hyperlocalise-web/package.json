@@ -9,6 +9,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:backfill-project-teams": "node --import tsx src/lib/teams/run-backfill-project-teams.ts",
+    "db:deprecate-local-org-workspaces": "node --import tsx src/lib/organizations/run-deprecate-local-org-workspaces.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

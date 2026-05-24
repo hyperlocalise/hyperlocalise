@@ -55,10 +55,7 @@ function toWorkspaceResponse(row: {
   };
 }
 
-async function updateWorkosOrganizationName(input: {
-  workosOrganizationId: string;
-  name: string;
-}) {
+async function updateWorkosOrganizationName(input: { workosOrganizationId: string; name: string }) {
   const workos = getWorkosServerClient();
   if (!workos) {
     return { ok: false as const };
@@ -167,7 +164,12 @@ export function createWorkspaceRoutes() {
           ...(payload.slug ? { slug: payload.slug } : {}),
           updatedAt: new Date(),
         })
-        .where(eq(schema.organizations.id, organizationId))
+        .where(
+          and(
+            eq(schema.organizations.id, organizationId),
+            eq(schema.organizations.lifecycleStatus, "active"),
+          ),
+        )
         .returning({
           id: schema.organizations.id,
           workosOrganizationId: schema.organizations.workosOrganizationId,
@@ -177,7 +179,11 @@ export function createWorkspaceRoutes() {
           archivedAt: schema.organizations.archivedAt,
         });
 
-      if (!updatedOrganization?.slug) {
+      if (!updatedOrganization) {
+        return notFoundResponse(c, "workspace_not_found", "Workspace not found");
+      }
+
+      if (!updatedOrganization.slug) {
         return badRequestResponse(c, "workspace_missing_slug", "Workspace slug is required");
       }
 
@@ -218,7 +224,7 @@ export function createWorkspaceRoutes() {
         return notFoundResponse(c, "workspace_not_found", "Workspace not found");
       }
 
-      return c.json({ workspace: toWorkspaceResponse(archivedOrganization) }, 200);
+      return c.body(null, 204);
     });
 }
 

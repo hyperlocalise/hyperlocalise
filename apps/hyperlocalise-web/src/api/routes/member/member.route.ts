@@ -69,9 +69,7 @@ async function deleteMemberMcpSessions(organizationId: string, userId: string) {
     );
 }
 
-function shouldSyncMembershipToWorkos(input: {
-  workosMembershipId: string | null;
-}) {
+function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
   return Boolean(input.workosMembershipId) && workos !== null;
 }
@@ -451,7 +449,6 @@ export function createMemberRoutes() {
       if (
         shouldSyncMembershipToWorkos({
           workosMembershipId: member.workosMembershipId,
-          workosOrganizationId,
         })
       ) {
         try {

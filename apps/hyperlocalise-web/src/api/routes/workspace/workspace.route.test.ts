@@ -75,7 +75,9 @@ describe("workspaceRoutes", () => {
     const [storedOrganization] = await db
       .select({ name: schema.organizations.name, slug: schema.organizations.slug })
       .from(schema.organizations)
-      .where(eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId))
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      )
       .limit(1);
     expect(storedOrganization).toEqual({
       name: "Renamed Workspace",
@@ -171,10 +173,8 @@ describe("workspaceRoutes", () => {
       { headers },
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
-      workspace: { lifecycleStatus: "archived", archivedAt: expect.any(String) },
-    });
+    expect(response.status).toBe(204);
+    expect(response.body).toBeNull();
 
     const [storedOrganization] = await db
       .select({
@@ -182,7 +182,9 @@ describe("workspaceRoutes", () => {
         archivedAt: schema.organizations.archivedAt,
       })
       .from(schema.organizations)
-      .where(eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId))
+      .where(
+        eq(schema.organizations.workosOrganizationId, identity.organization.workosOrganizationId),
+      )
       .limit(1);
     expect(storedOrganization?.lifecycleStatus).toBe("archived");
     expect(storedOrganization?.archivedAt).toBeInstanceOf(Date);
