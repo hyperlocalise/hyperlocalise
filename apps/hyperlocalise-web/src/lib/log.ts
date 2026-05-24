@@ -1,8 +1,10 @@
-import pino from "pino";
+import { initLogger, log as evlog } from "evlog";
+import type { DrainFn, LogLevel, LoggerConfig } from "evlog";
 import type { Logger as ChatLogger } from "chat";
 
-const isEdge = process.env.NEXT_RUNTIME === "edge";
 const isProduction = process.env.NODE_ENV === "production";
+const LOG_LEVELS = new Set<LogLevel>(["debug", "info", "warn", "error"]);
+const REDACTED = "[REDACTED]";
 
 /**
  * Sensitive keys that should be redacted from logs.
@@ -64,54 +66,201 @@ export const REDACTION_PATHS = [
   "*.encryption_key",
   '["x-api-key"]',
   '*.["x-api-key"]',
+  "x-api-key",
   '["x-workos-signature"]',
   '*.["x-workos-signature"]',
+  "x-workos-signature",
   '["x-hub-signature-256"]',
   '*.["x-hub-signature-256"]',
+  "x-hub-signature-256",
   '["x-slack-signature"]',
   '*.["x-slack-signature"]',
+  "x-slack-signature",
   '["svix-signature"]',
   '*.["svix-signature"]',
+  "svix-signature",
   "headers.authorization",
   "headers.cookie",
   'headers["x-api-key"]',
+  "headers.x-api-key",
   'headers["x-workos-signature"]',
+  "headers.x-workos-signature",
   'headers["x-hub-signature-256"]',
+  "headers.x-hub-signature-256",
   'headers["x-slack-signature"]',
+  "headers.x-slack-signature",
   'headers["svix-signature"]',
+  "headers.svix-signature",
 ];
 
-const root = pino({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: {
-    paths: REDACTION_PATHS,
-    censor: "[REDACTED]",
-  },
-  ...(isProduction || isEdge
-    ? {}
-    : {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            colorize: true,
-            translateTime: "HH:MM:ss Z",
-            ignore: "pid,hostname",
-          },
-        },
-      }),
-});
+const REDACTION_KEYS = new Set(
+  REDACTION_PATHS.map((path) => path.split(".").at(-1)?.toLowerCase()).filter(
+    (key): key is string => Boolean(key),
+  ),
+);
 
-export function createChatLogger(prefix?: string): ChatLogger {
-  const base = prefix ? root.child({ prefix }) : root;
+type LogBindings = Record<string, unknown>;
+type LogInput = string | Error | LogBindings;
+type LogMethod = (input: LogInput, messageOrContext?: unknown, ...args: unknown[]) => void;
+
+export type Logger = {
+  child: (bindings: LogBindings) => Logger;
+  debug: LogMethod;
+  error: LogMethod;
+  info: LogMethod;
+  warn: LogMethod;
+};
+
+function logLevelFromEnv(value: string | undefined): LogLevel {
+  return LOG_LEVELS.has(value as LogLevel) ? (value as LogLevel) : "info";
+}
+
+function initializeLogger(config: Pick<LoggerConfig, "drain" | "silent"> = {}) {
+  initLogger({
+    env: {
+      service: "hyperlocalise-web",
+      environment: process.env.NODE_ENV ?? "development",
+    },
+    minLevel: logLevelFromEnv(process.env.LOG_LEVEL),
+    pretty: !isProduction,
+    redact: {
+      paths: REDACTION_PATHS,
+      builtins: false,
+      replacement: REDACTED,
+    },
+    ...config,
+  });
+}
+
+initializeLogger();
+
+export function configureLoggerForTest(config: { drain?: DrainFn; silent?: boolean }) {
+  initializeLogger(config);
+}
+
+function isRecord(value: unknown): value is LogBindings {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isError(value: unknown): value is Error {
+  return value instanceof Error;
+}
+
+function errorToLogObject(error: Error) {
   return {
-    child: (subPrefix) => createChatLogger(prefix ? `${prefix}:${subPrefix}` : subPrefix),
-    debug: (msg, ...args) => base.debug(msg, ...(args as never[])),
-    error: (msg, ...args) => base.error(msg, ...(args as never[])),
-    info: (msg, ...args) => base.info(msg, ...(args as never[])),
-    warn: (msg, ...args) => base.warn(msg, ...(args as never[])),
+    name: error.name,
+    message: error.message,
+    stack: error.stack,
+    cause: error.cause,
   };
 }
 
-export function createLogger(prefix?: string): pino.Logger {
-  return prefix ? root.child({ prefix }) : root;
+function sanitizeValue(value: unknown, seen = new WeakSet<object>()): unknown {
+  if (isError(value)) {
+    return sanitizeValue(errorToLogObject(value), seen);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeValue(item, seen));
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return "[Circular]";
+  }
+  seen.add(value);
+
+  const sanitized: LogBindings = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    sanitized[key] = REDACTION_KEYS.has(key.toLowerCase())
+      ? REDACTED
+      : sanitizeValue(nestedValue, seen);
+  }
+
+  seen.delete(value);
+  return sanitized;
+}
+
+function sanitizeRecord(value: LogBindings): LogBindings {
+  return sanitizeValue(value) as LogBindings;
+}
+
+function mergeLogContext(bindings: LogBindings, input: LogInput, messageOrContext?: unknown) {
+  const event: LogBindings = { ...bindings };
+
+  if (typeof input === "string") {
+    event.message = input;
+    if (isRecord(messageOrContext)) {
+      Object.assign(event, sanitizeValue(messageOrContext));
+    } else if (isError(messageOrContext)) {
+      event.error = sanitizeValue(messageOrContext);
+    } else if (messageOrContext !== undefined) {
+      event.value = sanitizeValue(messageOrContext);
+    }
+    return event;
+  }
+
+  if (isError(input)) {
+    event.error = sanitizeValue(input);
+    if (typeof messageOrContext === "string") {
+      event.message = messageOrContext;
+    }
+    return event;
+  }
+
+  Object.assign(event, sanitizeValue(input));
+  if (typeof messageOrContext === "string") {
+    event.message = messageOrContext;
+  } else if (isRecord(messageOrContext)) {
+    Object.assign(event, sanitizeValue(messageOrContext));
+  }
+  return event;
+}
+
+function emit(level: LogLevel, bindings: LogBindings, input: LogInput, messageOrContext?: unknown) {
+  evlog[level](mergeLogContext(bindings, input, messageOrContext));
+}
+
+export function createChatLogger(prefix?: string): ChatLogger {
+  const base = createLogger(prefix);
+  return {
+    child: (subPrefix) => createChatLogger(prefix ? `${prefix}:${subPrefix}` : subPrefix),
+    debug: (msg, ...args) => base.debug(String(msg), { args }),
+    error: (msg, ...args) => base.error(String(msg), { args }),
+    info: (msg, ...args) => base.info(String(msg), { args }),
+    warn: (msg, ...args) => base.warn(String(msg), { args }),
+  };
+}
+
+export function createLogger(prefix?: string): Logger {
+  const bindings = prefix ? { prefix } : {};
+
+  return {
+    child: (childBindings) =>
+      createBoundLogger({
+        ...bindings,
+        ...sanitizeRecord(childBindings),
+      }),
+    debug: (input, messageOrContext) => emit("debug", bindings, input, messageOrContext),
+    error: (input, messageOrContext) => emit("error", bindings, input, messageOrContext),
+    info: (input, messageOrContext) => emit("info", bindings, input, messageOrContext),
+    warn: (input, messageOrContext) => emit("warn", bindings, input, messageOrContext),
+  };
+}
+
+function createBoundLogger(bindings: LogBindings): Logger {
+  return {
+    child: (childBindings) =>
+      createBoundLogger({
+        ...bindings,
+        ...sanitizeRecord(childBindings),
+      }),
+    debug: (input, messageOrContext) => emit("debug", bindings, input, messageOrContext),
+    error: (input, messageOrContext) => emit("error", bindings, input, messageOrContext),
+    info: (input, messageOrContext) => emit("info", bindings, input, messageOrContext),
+    warn: (input, messageOrContext) => emit("warn", bindings, input, messageOrContext),
+  };
 }

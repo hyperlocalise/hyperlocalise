@@ -1,25 +1,22 @@
-import { describe, it, expect } from "vite-plus/test";
-import pino from "pino";
-import { REDACTION_PATHS } from "./log";
+import { beforeEach, describe, expect, it } from "vite-plus/test";
+import type { DrainContext, WideEvent } from "evlog";
+import { configureLoggerForTest, createLogger } from "./log";
+
+const drainedEvents: WideEvent[] = [];
+
+beforeEach(() => {
+  drainedEvents.length = 0;
+  configureLoggerForTest({
+    silent: true,
+    drain: (context: DrainContext) => {
+      drainedEvents.push(context.event);
+    },
+  });
+});
 
 describe("Logger Redaction", () => {
   it("should redact sensitive fields", () => {
-    let loggedData = "";
-    const stream = {
-      write: (msg: string) => {
-        loggedData += msg;
-      },
-    };
-
-    const logger = pino(
-      {
-        redact: {
-          paths: REDACTION_PATHS,
-          censor: "[REDACTED]",
-        },
-      },
-      stream,
-    );
+    const logger = createLogger();
 
     logger.info(
       {
@@ -34,31 +31,18 @@ describe("Logger Redaction", () => {
       "test message",
     );
 
-    const parsed = JSON.parse(loggedData);
-    expect(parsed.apiKey).toBe("[REDACTED]");
-    expect(parsed.safeField).toBe("visible");
-    expect(parsed.nested.password).toBe("[REDACTED]");
-    expect(parsed.nested.token).toBe("[REDACTED]");
-    expect(parsed.authTag).toBe("[REDACTED]");
+    const [event] = drainedEvents;
+    const nested = event?.nested as Record<string, unknown>;
+    expect(event?.apiKey).toBe("[REDACTED]");
+    expect(event?.safeField).toBe("visible");
+    expect(nested.password).toBe("[REDACTED]");
+    expect(nested.token).toBe("[REDACTED]");
+    expect(event?.authTag).toBe("[REDACTED]");
+    expect(event?.message).toBe("test message");
   });
 
   it("should redact sensitive headers", () => {
-    let loggedData = "";
-    const stream = {
-      write: (msg: string) => {
-        loggedData += msg;
-      },
-    };
-
-    const logger = pino(
-      {
-        redact: {
-          paths: REDACTION_PATHS,
-          censor: "[REDACTED]",
-        },
-      },
-      stream,
-    );
+    const logger = createLogger();
 
     logger.info(
       {
@@ -73,59 +57,40 @@ describe("Logger Redaction", () => {
       "test headers",
     );
 
-    const parsed = JSON.parse(loggedData);
-    expect(parsed.headers.authorization).toBe("[REDACTED]");
-    expect(parsed.headers["x-api-key"]).toBe("[REDACTED]");
-    expect(parsed.headers["content-type"]).toBe("application/json");
-    expect(parsed.headers.cookie).toBe("[REDACTED]");
-    expect(parsed.headers["x-workos-signature"]).toBe("[REDACTED]");
+    const headers = drainedEvents[0]?.headers as Record<string, unknown>;
+    expect(headers.authorization).toBe("[REDACTED]");
+    expect(headers["x-api-key"]).toBe("[REDACTED]");
+    expect(headers["content-type"]).toBe("application/json");
+    expect(headers.cookie).toBe("[REDACTED]");
+    expect(headers["x-workos-signature"]).toBe("[REDACTED]");
   });
 
   it("should redact top-level hyphenated keys", () => {
-    let loggedData = "";
-    const stream = {
-      write: (msg: string) => {
-        loggedData += msg;
-      },
-    };
+    const logger = createLogger();
 
-    const logger = pino(
-      {
-        redact: {
-          paths: REDACTION_PATHS,
-          censor: "[REDACTED]",
-        },
-      },
-      stream,
-    );
+    logger.info({ "x-api-key": "top-level-key", "x-workos-signature": "sig" });
 
-    logger.info(
-      { "x-api-key": "top-level-key", "x-workos-signature": "sig" },
-      "test hyphenated keys",
-    );
+    const [event] = drainedEvents;
+    expect(event?.["x-api-key"]).toBe("[REDACTED]");
+    expect(event?.["x-workos-signature"]).toBe("[REDACTED]");
+  });
 
-    const parsed = JSON.parse(loggedData);
-    expect(parsed["x-api-key"]).toBe("[REDACTED]");
-    expect(parsed["x-workos-signature"]).toBe("[REDACTED]");
+  it("should redact child logger bindings", () => {
+    const logger = createLogger("test").child({
+      token: "child-token",
+      requestId: "req_123",
+    });
+
+    logger.info("test child bindings");
+
+    const [event] = drainedEvents;
+    expect(event?.prefix).toBe("test");
+    expect(event?.token).toBe("[REDACTED]");
+    expect(event?.requestId).toBe("req_123");
   });
 
   it("should redact newly added sensitive keys and nested variants", () => {
-    let loggedData = "";
-    const stream = {
-      write: (msg: string) => {
-        loggedData += msg;
-      },
-    };
-
-    const logger = pino(
-      {
-        redact: {
-          paths: REDACTION_PATHS,
-          censor: "[REDACTED]",
-        },
-      },
-      stream,
-    );
+    const logger = createLogger();
 
     logger.info(
       {
@@ -147,16 +112,16 @@ describe("Logger Redaction", () => {
       "test new keys",
     );
 
-    const parsed = JSON.parse(loggedData);
-    expect(parsed.access_token).toBe("[REDACTED]");
-    expect(parsed.refreshToken).toBe("[REDACTED]");
-    expect(parsed.nested.private_key).toBe("[REDACTED]");
-    expect(parsed.nested.signingSecret).toBe("[REDACTED]");
-    expect(parsed.nested.webhook_secret).toBe("[REDACTED]");
-    expect(parsed.nested["svix-signature"]).toBe("[REDACTED]");
-    // Note: pino redaction with *. only goes one level deep.
-    // Deeply nested keys (2+ levels) won't be redacted by our current rules.
-    expect(parsed.deep.level2.masterKey).toBe("secret-master");
-    expect(parsed.deep.level2.encryption_key).toBe("secret-encrypt");
+    const [event] = drainedEvents;
+    const nested = event?.nested as Record<string, unknown>;
+    const deep = event?.deep as { level2: Record<string, unknown> };
+    expect(event?.access_token).toBe("[REDACTED]");
+    expect(event?.refreshToken).toBe("[REDACTED]");
+    expect(nested.private_key).toBe("[REDACTED]");
+    expect(nested.signingSecret).toBe("[REDACTED]");
+    expect(nested.webhook_secret).toBe("[REDACTED]");
+    expect(nested["svix-signature"]).toBe("[REDACTED]");
+    expect(deep.level2.masterKey).toBe("[REDACTED]");
+    expect(deep.level2.encryption_key).toBe("[REDACTED]");
   });
 });
