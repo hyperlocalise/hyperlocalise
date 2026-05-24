@@ -56,11 +56,11 @@ export const InboxList = memo(function InboxList({
                   size="icon-sm"
                   className="text-muted-foreground hover:bg-accent hover:text-foreground"
                   aria-label="Filter inbox"
-                />
+                >
+                  <HugeiconsIcon icon={FilterMailIcon} strokeWidth={1.8} className="size-4" />
+                </Button>
               }
-            >
-              <HugeiconsIcon icon={FilterMailIcon} strokeWidth={1.8} className="size-4" />
-            </TooltipTrigger>
+            />
             <TooltipContent side="bottom">Filter inbox</TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -72,11 +72,15 @@ export const InboxList = memo(function InboxList({
                   size="icon-sm"
                   className="text-muted-foreground hover:bg-accent hover:text-foreground"
                   aria-label="Inbox display settings"
-                />
+                >
+                  <HugeiconsIcon
+                    icon={PreferenceHorizontalIcon}
+                    strokeWidth={1.8}
+                    className="size-4"
+                  />
+                </Button>
               }
-            >
-              <HugeiconsIcon icon={PreferenceHorizontalIcon} strokeWidth={1.8} className="size-4" />
-            </TooltipTrigger>
+            />
             <TooltipContent side="bottom">Inbox display settings</TooltipContent>
           </Tooltip>
         </div>

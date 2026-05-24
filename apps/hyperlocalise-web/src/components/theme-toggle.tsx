@@ -52,13 +52,15 @@ export function ThemeToggle() {
         <TooltipTrigger
           render={
             <DropdownMenuTrigger
-              render={<Button variant="outline" size="icon-sm" className="rounded-full" />}
+              render={
+                <Button variant="outline" size="icon-sm" className="rounded-full">
+                  <ThemeToggleIcon theme={triggerTheme} />
+                  <span className="sr-only">Change theme</span>
+                </Button>
+              }
             />
           }
-        >
-          <ThemeToggleIcon theme={triggerTheme} />
-          <span className="sr-only">Change theme</span>
-        </TooltipTrigger>
+        />
         <TooltipContent side="bottom" align="center">
           Change theme
         </TooltipContent>
