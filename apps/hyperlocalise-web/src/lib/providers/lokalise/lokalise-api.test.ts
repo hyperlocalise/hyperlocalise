@@ -344,6 +344,64 @@ describe("LokaliseApiClient", () => {
     await expect(client.listProjects()).rejects.toBeInstanceOf(LokaliseApiError);
     await expect(client.listProjects()).rejects.toMatchObject({ status: 401 });
   });
+
+  it("lists and creates key comments", async () => {
+    let createCalls = 0;
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.includes("/keys/4242/comments") && method === "GET") {
+        return new Response(
+          JSON.stringify({
+            comments: [
+              {
+                comment_id: 10,
+                key_id: 4242,
+                comment: "Existing note",
+                added_by: 1,
+                added_by_email: "reviewer@example.com",
+                added_at: "2026-05-01T10:00:00Z",
+                added_at_timestamp: 1746093600,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/4242/comments") && method === "POST") {
+        createCalls += 1;
+        return new Response(
+          JSON.stringify({
+            comments: [
+              {
+                comment_id: 11,
+                key_id: 4242,
+                comment: "New note",
+                added_by: 2,
+                added_by_email: "agent@example.com",
+                added_at: "2026-05-02T10:00:00Z",
+                added_at_timestamp: 1746180000,
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ comments: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const listed = await client.listKeyComments("proj.123", 4242);
+    const created = await client.createKeyComments("proj.123", 4242, [{ comment: "New note" }]);
+
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({ commentId: 10, comment: "Existing note" });
+    expect(createCalls).toBe(1);
+    expect(created[0]).toMatchObject({ commentId: 11, comment: "New note" });
+  });
 });
 
 describe("summarizeLokaliseBulkUpdateChunkResult", () => {

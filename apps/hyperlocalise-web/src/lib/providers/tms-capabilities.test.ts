@@ -100,6 +100,8 @@ describe("tmsProviderCapabilityRegistry", () => {
     ["lokalise", "glossary.export", true],
     ["lokalise", "translation_memory.export", true],
     ["lokalise", "translation_memory.import", true],
+    ["lokalise", "comments.read", true],
+    ["lokalise", "comments.write", true],
   ] as const)("answers whether %s supports %s", (provider, action, supported) => {
     expect(providerSupportsTmsAction(provider, action)).toBe(supported);
   });

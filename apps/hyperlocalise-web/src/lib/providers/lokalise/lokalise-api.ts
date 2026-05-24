@@ -127,6 +127,16 @@ export type LokaliseFileDownloadResult = {
   warning: string | null;
 };
 
+export interface LokaliseComment {
+  commentId: number;
+  keyId: number;
+  comment: string;
+  addedBy: number | null;
+  addedByEmail: string | null;
+  addedAt: string | null;
+  addedAtTimestamp: number | null;
+}
+
 export interface LokaliseKey {
   keyId: number;
   keyName: LokalisePlatformStrings;
@@ -466,6 +476,45 @@ export class LokaliseApiClient {
     return languages;
   }
 
+  async listKeyComments(projectId: string, keyId: number): Promise<LokaliseComment[]> {
+    const comments: LokaliseComment[] = [];
+    let page = 1;
+    const limit = 500;
+
+    while (true) {
+      const response = await this.get<LokaliseKeyCommentsListResponse>(
+        `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(String(keyId))}/comments?page=${page}&limit=${limit}`,
+      );
+      const pageItems = (response.comments ?? []).map(normalizeLokaliseComment);
+      comments.push(...pageItems);
+
+      if (pageItems.length < limit) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return comments;
+  }
+
+  async createKeyComments(
+    projectId: string,
+    keyId: number,
+    comments: Array<{ comment: string }>,
+  ): Promise<LokaliseComment[]> {
+    if (comments.length === 0) {
+      return [];
+    }
+
+    const response = await this.post<LokaliseKeyCommentsCreateResponse>(
+      `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(String(keyId))}/comments`,
+      { comments },
+    );
+
+    return (response.comments ?? []).map(normalizeLokaliseComment);
+  }
+
   private authHeaders(): Record<string, string> {
     return {
       "X-Api-Token": this.token,
@@ -646,6 +695,28 @@ type LokaliseTaskApiRecord = {
   completed_at_timestamp?: number | null;
 };
 
+type LokaliseCommentApiRecord = {
+  comment_id?: number;
+  key_id?: number;
+  comment?: string;
+  added_by?: number;
+  added_by_email?: string;
+  added_at?: string | null;
+  added_at_timestamp?: number | null;
+};
+
+type LokaliseKeyCommentsListResponse = {
+  project_id?: string;
+  key_id?: number;
+  comments?: LokaliseCommentApiRecord[];
+};
+
+type LokaliseKeyCommentsCreateResponse = {
+  project_id?: string;
+  key_id?: number;
+  comments?: LokaliseCommentApiRecord[];
+};
+
 type LokaliseLanguagesListResponse = {
   project_id?: string;
   languages?: LokaliseLanguageApiRecord[];
@@ -708,6 +779,18 @@ type LokaliseLanguageApiRecord = {
   lang_name: string;
   is_rtl?: boolean;
 };
+
+function normalizeLokaliseComment(record: LokaliseCommentApiRecord): LokaliseComment {
+  return {
+    commentId: record.comment_id ?? 0,
+    keyId: record.key_id ?? 0,
+    comment: record.comment?.trim() ?? "",
+    addedBy: record.added_by ?? null,
+    addedByEmail: record.added_by_email?.trim() || null,
+    addedAt: record.added_at ?? null,
+    addedAtTimestamp: record.added_at_timestamp ?? null,
+  };
+}
 
 function normalizeLokaliseDetailedTask(
   record: LokaliseDetailedTaskApiRecord,
@@ -992,6 +1075,17 @@ export function buildLokaliseProjectUrl(projectId: string) {
 
 export function buildLokaliseTaskUrl(projectId: string, taskId: number | string) {
   return `https://app.lokalise.com/project/${encodeURIComponent(projectId)}/?task=${encodeURIComponent(String(taskId))}`;
+}
+
+export function buildLokaliseKeyCommentProviderUrl(input: {
+  projectId: string;
+  taskId: number | string;
+  keyId: number;
+  commentId: number;
+}) {
+  const taskUrl = buildLokaliseTaskUrl(input.projectId, input.taskId);
+  const separator = taskUrl.includes("?") ? "&" : "?";
+  return `${taskUrl}${separator}key=${encodeURIComponent(String(input.keyId))}&comment=${encodeURIComponent(String(input.commentId))}`;
 }
 
 export function collectLokaliseTaskAssignees(task: LokaliseTask) {
