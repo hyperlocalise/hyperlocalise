@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import { notFoundResponse } from "@/api/response.schema";
 import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
 import { fetchLokaliseProjects } from "@/lib/providers/lokalise/lokalise-project-fetcher";
@@ -49,6 +50,10 @@ export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
       const providerCredentials = await listOrganizationExternalTmsProviderCredentialDetails(
         c.var.auth.organization.localOrganizationId,
       );

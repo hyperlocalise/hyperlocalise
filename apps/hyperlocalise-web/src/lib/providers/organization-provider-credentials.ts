@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
+import { assertCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database";
 import type {
   LlmProvider,
@@ -24,14 +25,8 @@ export type OrganizationProviderCredentialSummary = {
   updatedAt: Date;
 };
 
-function isProviderCredentialAdmin(role: OrganizationMembershipRole) {
-  return role === "owner" || role === "admin";
-}
-
 export function assertProviderCredentialAdmin(role: OrganizationMembershipRole) {
-  if (!isProviderCredentialAdmin(role)) {
-    throw new Error("forbidden");
-  }
+  assertCapability(role, "provider_credentials:write");
 }
 
 async function getCredentialByOrganizationId(organizationId: string, provider?: LlmProvider) {

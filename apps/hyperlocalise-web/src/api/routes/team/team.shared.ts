@@ -1,4 +1,5 @@
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import type { JsonContext } from "@/api/errors";
 
 export function slugifyTeamName(name: string) {
@@ -47,5 +48,5 @@ export function isUniqueViolation(error: unknown) {
 }
 
 export function isOrganizationAdmin(auth: ApiAuthContext) {
-  return auth.membership.role === "owner" || auth.membership.role === "admin";
+  return hasCapability(auth.membership.role, "teams:write");
 }

@@ -17,6 +17,7 @@ import {
   type RepoTmsAgentTask,
 } from "@/lib/agents/repo-tms-task";
 import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
+import { hasCapability } from "@/api/auth/policy";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
 import { db } from "@/lib/database";
@@ -189,8 +190,9 @@ async function processSlackMessage(
     }
 
     if (intent.kind === "repo_tms") {
-      const repoTmsWorkMode =
-        membership.role === "owner" || membership.role === "admin" ? "write" : "read_only";
+      const repoTmsWorkMode = hasCapability(membership.role, "integrations:write")
+        ? "write"
+        : "read_only";
       const repoTmsTask: RepoTmsAgentTask = {
         id: randomUUID(),
         source: "slack",

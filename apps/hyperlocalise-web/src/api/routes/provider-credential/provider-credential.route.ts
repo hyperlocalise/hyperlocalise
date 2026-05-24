@@ -18,6 +18,7 @@ import {
   invalidProviderCredentialPayloadResponse,
   invalidProviderModelResponse,
   isProviderCredentialMutationAllowed,
+  isProviderCredentialReadAllowed,
   providerCredentialNotFoundResponse,
   providerValidationFailedResponse,
 } from "./provider-credential.shared";
@@ -44,6 +45,10 @@ export function createProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isProviderCredentialReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const providerCredential = await getOrganizationProviderCredentialSummary(
         c.var.auth.organization.localOrganizationId,
       );

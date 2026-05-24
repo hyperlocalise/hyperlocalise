@@ -5,6 +5,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { hasCapability } from "@/api/auth/policy";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -218,7 +219,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
         .describe("Optional maximum string length for string jobs."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "projects:write")) {
         return {
           success: false,
           error:

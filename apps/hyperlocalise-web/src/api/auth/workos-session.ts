@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
+import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
@@ -114,7 +115,7 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
-  return {
+  return enrichAuthContextWithCapabilities({
     user: {
       workosUserId: membership.workosUserId,
       localUserId: membership.localUserId,
@@ -128,5 +129,5 @@ export async function resolveApiAuthContextFromSession(
       role: activeOrganization.membership.role,
     },
     activeTeam: null,
-  };
+  });
 }

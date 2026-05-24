@@ -7,9 +7,8 @@ import {
   type JsonContext,
 } from "@/api/errors";
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import { schema } from "@/lib/database";
-
-const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidGlossaryPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_glossary_payload", "Invalid glossary payload");
@@ -32,7 +31,7 @@ export function externalTmsGlossaryImmutableResponse(c: { json: JsonContext["jso
 }
 
 export function isGlossaryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return allowedMutationRoles.has(role);
+  return hasCapability(role, "glossaries:write");
 }
 
 export function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: string) {

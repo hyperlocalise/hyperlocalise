@@ -27,12 +27,16 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
+import type { OrganizationCapability } from "@/api/auth/policy";
+
 type SettingsPageProps = {
   organizationSlug: string;
+  capabilities: OrganizationCapability[];
 };
 
-type AccountPageProps = SettingsPageProps & {
+type AccountPageProps = {
   organizationName: string;
+  organizationSlug: string;
   userEmail: string;
   userName: string;
 };
@@ -59,6 +63,7 @@ const settingsCards = [
     href: "api-keys",
     icon: Key01Icon,
     status: "Manage",
+    requiredCapability: "api_keys:read" as const,
   },
   {
     label: "Billing",
@@ -66,6 +71,7 @@ const settingsCards = [
     href: "billing",
     icon: CreditCardIcon,
     status: "Enterprise",
+    requiredCapability: "billing:read" as const,
   },
   {
     label: "Notifications",
@@ -188,8 +194,11 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
+export function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
   const baseHref = `/org/${organizationSlug}/settings`;
+  const visibleCards = settingsCards.filter(
+    (card) => !("requiredCapability" in card) || capabilities.includes(card.requiredCapability),
+  );
 
   return (
     <main className="space-y-5">
@@ -201,7 +210,7 @@ export function SettingsPageContent({ organizationSlug }: SettingsPageProps) {
       />
 
       <section className="grid gap-3 md:grid-cols-3">
-        {settingsCards.map((card) => (
+        {visibleCards.map((card) => (
           <SettingsCard key={card.label} {...card} href={`${baseHref}/${card.href}`} />
         ))}
       </section>

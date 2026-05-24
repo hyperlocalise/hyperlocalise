@@ -7,9 +7,8 @@ import {
   type JsonContext,
 } from "@/api/errors";
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import { schema } from "@/lib/database";
-
-const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidMemoryPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_memory_payload", "Invalid translation memory payload");
@@ -32,7 +31,7 @@ export function externalTmsMemoryImmutableResponse(c: { json: JsonContext["json"
 }
 
 export function isMemoryMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return allowedMutationRoles.has(role);
+  return hasCapability(role, "memories:write");
 }
 
 export function ownedMemoryWhere(auth: ApiAuthContext, memoryId: string) {

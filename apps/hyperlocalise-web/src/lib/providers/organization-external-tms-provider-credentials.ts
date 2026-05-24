@@ -1,5 +1,6 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 
+import { assertCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
@@ -16,9 +17,7 @@ import {
 export type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
 
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
-  if (role !== "owner" && role !== "admin") {
-    throw new Error("forbidden");
-  }
+  assertCapability(role, "provider_credentials:write");
 }
 
 export type ExternalTmsProviderCredentialSummary = {

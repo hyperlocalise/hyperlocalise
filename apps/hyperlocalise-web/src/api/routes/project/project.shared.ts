@@ -6,10 +6,9 @@ import {
   validationErrorResponse,
   type JsonContext,
 } from "@/api/errors";
+import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-
-const allowedMutationRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidProjectPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_project_payload", "Invalid project payload");
@@ -24,7 +23,7 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
 }
 
 export function isProjectMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return allowedMutationRoles.has(role);
+  return hasCapability(role, "projects:write");
 }
 
 export function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {

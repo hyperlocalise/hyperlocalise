@@ -3,6 +3,8 @@ import type {
   RepoTmsAgentTaskSource,
   RepoTmsAgentWorkMode,
 } from "./repo-tms-task";
+import { hasCapability } from "@/api/auth/policy";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 export type WriteAction =
   | "upload_sources"
@@ -13,7 +15,13 @@ export type WriteAction =
 
 export type WriteGateResult = { allowed: true } | { allowed: false; reason: string };
 
-const adminRoles = new Set(["owner", "admin"]);
+function hasAdminCapability(role: OrganizationMembershipRole | null | undefined) {
+  return role ? hasCapability(role, "integrations:write") : false;
+}
+
+function canApproveAgentWrite(role: OrganizationMembershipRole | null | undefined) {
+  return role ? hasCapability(role, "agent_write:approve") : false;
+}
 
 /**
  * Determine whether a repo/TMS write action is allowed for the current task.
@@ -57,7 +65,7 @@ function checkSlackWriteGate(
   _workMode: RepoTmsAgentWorkMode,
   actor: RepoTmsAgentActor,
 ): WriteGateResult {
-  if (actor.role && adminRoles.has(actor.role)) {
+  if (actor.role && hasAdminCapability(actor.role)) {
     return { allowed: true };
   }
 
@@ -84,7 +92,7 @@ function checkGitHubWriteGate(
   workMode: RepoTmsAgentWorkMode,
   actor: RepoTmsAgentActor,
 ): WriteGateResult {
-  const isAdmin = actor.role && adminRoles.has(actor.role);
+  const isAdmin = canApproveAgentWrite(actor.role);
 
   if (workMode === "write") {
     // GitHub write mode is allowed if the requester passed the bot permission

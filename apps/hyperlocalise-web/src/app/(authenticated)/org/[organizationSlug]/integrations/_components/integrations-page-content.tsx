@@ -16,6 +16,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { LlmProvider } from "@/lib/database/types";
+import { hasCapability } from "@/api/auth/policy";
 import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/catalog";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -61,8 +62,8 @@ type IntegrationsPageContentProps = {
   membershipRole: OrganizationMembershipRole;
 };
 
-function isAdmin(role: OrganizationMembershipRole) {
-  return role === "owner" || role === "admin";
+function canManageIntegrations(role: OrganizationMembershipRole) {
+  return hasCapability(role, "integrations:write");
 }
 
 function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
@@ -497,7 +498,7 @@ export function IntegrationsPageContent({
   const tmsSecretFieldId = useId();
   const tmsRegionFieldId = useId();
   const tmsBaseUrlFieldId = useId();
-  const userIsAdmin = isAdmin(membershipRole);
+  const userIsAdmin = canManageIntegrations(membershipRole);
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {

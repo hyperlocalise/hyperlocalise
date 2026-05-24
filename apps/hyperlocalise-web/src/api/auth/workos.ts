@@ -1,6 +1,7 @@
 import { createMiddleware } from "hono/factory";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
+import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 
@@ -75,7 +76,10 @@ export type ApiAuthContext = {
     name: string;
     role: TeamMembershipRole;
   } | null;
+  capabilities: OrganizationCapability[];
 };
+
+export { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 
 export interface AuthVariables {
   auth: ApiAuthContext;

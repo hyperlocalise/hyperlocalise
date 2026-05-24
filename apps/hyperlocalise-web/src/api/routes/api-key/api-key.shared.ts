@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { z } from "zod";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { hasCapability } from "@/api/auth/policy";
 import {
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
@@ -9,8 +10,6 @@ import {
   type JsonContext,
 } from "@/api/errors";
 import { schema } from "@/lib/database";
-
-const allowedAdminActionRoles = new Set<string>(["owner", "admin"]);
 
 export function invalidApiKeyPayloadResponse(
   c: { json: JsonContext["json"] },
@@ -27,8 +26,12 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-export function isApiKeyAdminActionAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return allowedAdminActionRoles.has(role);
+export function isApiKeyReadAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "api_keys:read");
+}
+
+export function isApiKeyWriteAllowed(role: ApiAuthContext["membership"]["role"]) {
+  return hasCapability(role, "api_keys:write");
 }
 
 export function ownedApiKeyWhere(auth: ApiAuthContext, apiKeyId: string) {
