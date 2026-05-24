@@ -1,10 +1,16 @@
+import { randomUUID } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
-import { createSlackState, getSlackStateSecret } from "@/lib/agents/slack/oauth-state";
+import {
+  createSlackState,
+  getSlackStateSecret,
+  SLACK_STATE_TTL_MS,
+} from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
@@ -71,7 +77,17 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "organization_slug_required" as const }, 400);
       }
 
-      const state = await createSlackState(slug, getSlackStateSecret());
+      const nonce = randomUUID();
+      const timestamp = Date.now();
+      const state = await createSlackState(slug, getSlackStateSecret(), nonce, timestamp);
+
+      await db.insert(schema.slackInstallationStates).values({
+        nonce,
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        expiresAt: new Date(timestamp + SLACK_STATE_TTL_MS),
+      });
+
       const redirectUri = getSlackRedirectUri(c.req.url);
 
       const url = new URL("https://slack.com/oauth/v2/authorize");

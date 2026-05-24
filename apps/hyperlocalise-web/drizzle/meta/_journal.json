@@ -134,6 +134,13 @@
       "when": 1779515722341,
       "tag": "0018_clear_grim_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1779582450534,
+      "tag": "0019_conscious_steel_serpent",
+      "breakpoints": true
     }
   ]
 }
