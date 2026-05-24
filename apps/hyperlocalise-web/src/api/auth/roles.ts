@@ -1,3 +1,1 @@
-export function isAdminRole(role: string): boolean {
-  return role === "owner" || role === "admin";
-}
+export { isAdminRole } from "@/api/auth/policy";

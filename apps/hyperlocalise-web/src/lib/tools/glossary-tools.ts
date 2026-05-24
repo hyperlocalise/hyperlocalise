@@ -3,6 +3,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { hasCapability } from "@/api/auth/policy";
 
 import { localePattern } from "./locale";
 import type { ToolContext } from "./types";
@@ -80,7 +81,7 @@ export function createCreateGlossaryTool(ctx: ToolContext) {
         .describe("BCP-47 target locale tag."),
     }),
     execute: async ({ name, description, sourceLocale, targetLocale }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:
@@ -130,7 +131,7 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:
@@ -172,7 +173,7 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
       glossaryId: z.string().describe("The glossary ID to delete."),
     }),
     execute: async ({ glossaryId }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:
@@ -253,7 +254,7 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
       forbidden: z.boolean().default(false).describe("Whether this translation is forbidden."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:
@@ -329,7 +330,7 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:
@@ -374,7 +375,7 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
       termId: z.string().describe("The term ID to delete."),
     }),
     execute: async ({ termId }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "glossaries:write")) {
         return {
           success: false,
           error:

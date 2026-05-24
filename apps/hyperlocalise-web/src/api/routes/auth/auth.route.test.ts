@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createWorkosAuthMiddleware } from "../../auth/workos";
 import type { ApiAuthContext } from "../../auth/workos";
+import { enrichAuthContextWithCapabilities, getCapabilitiesForRole } from "../../auth/policy";
+
+type SessionAuthContextInput = Omit<ApiAuthContext, "capabilities">;
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(),
@@ -13,7 +16,7 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
 
 async function createClient(
   options: {
-    sessionAuthContext?: ApiAuthContext | null;
+    sessionAuthContext?: SessionAuthContextInput | null;
     mockProjectRoutes?: boolean;
   } = {},
 ) {
@@ -39,7 +42,11 @@ async function createClient(
     });
   }
 
-  resolveApiAuthContextFromSessionMock.mockResolvedValue(options.sessionAuthContext ?? null);
+  resolveApiAuthContextFromSessionMock.mockResolvedValue(
+    options.sessionAuthContext
+      ? enrichAuthContextWithCapabilities(options.sessionAuthContext)
+      : null,
+  );
 
   vi.doMock("@/api/auth/workos-session", () => ({
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
@@ -171,6 +178,7 @@ describe("authRoutes", () => {
           role: "owner",
         },
         activeTeam: null,
+        capabilities: getCapabilitiesForRole("owner"),
       },
     });
   });
@@ -187,7 +195,7 @@ describe("authRoutes", () => {
       },
     };
 
-    const authContext: ApiAuthContext = {
+    const authContext = enrichAuthContextWithCapabilities({
       user: {
         workosUserId: "user_123",
         localUserId: "local_user_123",
@@ -201,7 +209,7 @@ describe("authRoutes", () => {
         role: "owner",
       },
       activeTeam: null,
-    };
+    });
 
     const client = await createClient({ sessionAuthContext: authContext, mockProjectRoutes: true });
 
@@ -246,21 +254,23 @@ describe("authRoutes", () => {
       },
     };
     vi.resetModules();
-    resolveApiAuthContextFromSessionMock.mockResolvedValue({
-      user: {
-        workosUserId: "user_123",
-        localUserId: "local_user_123",
-        email: "user@example.com",
-      },
-      organizations: [activeOrganization],
-      organization: activeOrganization,
-      activeOrganization,
-      membership: {
-        workosMembershipId: "membership_123",
-        role: "owner",
-      },
-      activeTeam: null,
-    });
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(
+      enrichAuthContextWithCapabilities({
+        user: {
+          workosUserId: "user_123",
+          localUserId: "local_user_123",
+          email: "user@example.com",
+        },
+        organizations: [activeOrganization],
+        organization: activeOrganization,
+        activeOrganization,
+        membership: {
+          workosMembershipId: "membership_123",
+          role: "owner",
+        },
+        activeTeam: null,
+      }),
+    );
     vi.doMock("@/api/auth/workos-session", () => ({
       resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
     }));

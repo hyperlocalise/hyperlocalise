@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { expect } from "vite-plus/test";
 
 import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
+import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import { cleanupWorkosTestRecords } from "./test-cleanup";
@@ -165,7 +166,7 @@ export function createAuthTestFixture() {
       },
     };
 
-    const authContext: ApiAuthContext = {
+    const authContext = enrichAuthContextWithCapabilities({
       user: {
         workosUserId: user.workosUserId,
         localUserId: user.id,
@@ -179,7 +180,7 @@ export function createAuthTestFixture() {
         role: membership.role,
       },
       activeTeam: null,
-    };
+    });
     const sessionToken = `test_${randomUUID()}`;
     const records = currentTestRecords();
 

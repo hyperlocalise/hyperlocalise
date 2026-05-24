@@ -3,6 +3,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { hasCapability } from "@/api/auth/policy";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { localePattern } from "./locale";
@@ -62,7 +63,7 @@ export function createCreateTranslationMemoryTool(ctx: ToolContext) {
       description: z.string().max(10_000).optional().describe("Optional description."),
     }),
     execute: async ({ name, description }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -94,7 +95,7 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
       status: z.enum(["draft", "active", "archived"]).optional().describe("New status."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -136,7 +137,7 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
       memoryId: z.string().describe("The memory ID to delete."),
     }),
     execute: async ({ memoryId }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -245,7 +246,7 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
       externalKey: z.string().optional().describe("Optional external identifier."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -343,7 +344,7 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         .describe("New review status."),
     }),
     execute: async (input) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
@@ -395,7 +396,7 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
       entryId: z.string().describe("The entry ID to delete."),
     }),
     execute: async ({ entryId }) => {
-      if (ctx.membershipRole !== "owner" && ctx.membershipRole !== "admin") {
+      if (!hasCapability(ctx.membershipRole, "memories:write")) {
         return {
           success: false,
           error:
