@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const hexDigits = "0123456789ABCDEF"
+
 // Parser parses translation file content into key/value pairs.
 type Parser interface {
 	Parse(content []byte) (map[string]string, error)
