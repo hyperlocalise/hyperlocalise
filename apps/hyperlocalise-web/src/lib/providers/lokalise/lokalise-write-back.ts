@@ -99,7 +99,7 @@ export function buildLokaliseTranslationWriteBackBatches(input: {
   return { batches, failures };
 }
 
-function parseLokaliseKeyId(externalStringId: string | null | undefined) {
+export function parseLokaliseKeyId(externalStringId: string | null | undefined) {
   const trimmed = externalStringId?.trim() ?? "";
   if (!trimmed) {
     return null;
