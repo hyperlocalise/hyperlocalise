@@ -761,7 +761,12 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           (proposal) => proposal.reviewState === "accepted",
         );
 
-        if (hasAcceptedProposals && job.projectId) {
+        if (
+          hasAcceptedProposals &&
+          job.projectId &&
+          job.externalProviderKind &&
+          job.externalJobId
+        ) {
           const [project] = await db
             .select({
               externalProviderCredentialId: schema.projects.externalProviderCredentialId,
@@ -775,18 +780,28 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             )
             .limit(1);
 
-          await maybeEnqueueAutoWriteBackAfterProposalReview({
-            organizationId,
-            projectId: job.projectId,
-            providerCredentialId: project?.externalProviderCredentialId ?? null,
-            hyperlocaliseJobId: job.id,
-            externalProviderKind: job.externalProviderKind,
-            externalJobId: job.externalJobId,
-            externalTaskId: job.externalTaskId,
-            queues: {
-              providerAgentWritebackQueue: options.providerAgentWritebackQueue,
-            },
-          });
+          try {
+            await maybeEnqueueAutoWriteBackAfterProposalReview({
+              organizationId,
+              projectId: job.projectId,
+              providerCredentialId: project?.externalProviderCredentialId ?? null,
+              hyperlocaliseJobId: job.id,
+              externalProviderKind: job.externalProviderKind,
+              externalJobId: job.externalJobId,
+              externalTaskId: job.externalTaskId,
+              queues: {
+                providerAgentWritebackQueue: options.providerAgentWritebackQueue,
+              },
+            });
+          } catch (error) {
+            // Auto write-back failures are non-fatal; proposal review is already persisted.
+            console.error("auto write-back enqueue failed after proposal review", {
+              organizationId,
+              jobId: job.id,
+              agentRunId: updatedRun.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         return c.json({ agentRun: serializeAgentRun(updatedRun) }, 200);
