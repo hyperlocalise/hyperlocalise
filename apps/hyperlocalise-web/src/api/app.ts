@@ -36,6 +36,7 @@ import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.r
 import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
+import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
@@ -148,6 +149,7 @@ function createOrgScopedAppRoutes(
     )
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
+    .route("/tms-agent-automation", createTmsAgentAutomationRoutes())
     .route("/tms-dashboard-summary", createTmsDashboardSummaryRoutes())
     .route("/agent-email", createAgentEmailRoutes())
     .route("/agent-slack", createAgentSlackRoutes())

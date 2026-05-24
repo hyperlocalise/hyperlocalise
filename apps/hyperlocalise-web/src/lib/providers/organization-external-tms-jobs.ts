@@ -99,10 +99,18 @@ export async function upsertExternalJob(input: {
         .where(eq(schema.jobs.id, details.jobId))
         .returning();
 
-      return { ...updatedJob, externalDetails: details };
+      return {
+        ...updatedJob,
+        externalDetails: details,
+        isNewlySynced: false,
+      };
     }
 
-    return { ...createdJob, externalDetails: details };
+    return {
+      ...createdJob,
+      externalDetails: details,
+      isNewlySynced: true,
+    };
   });
 }
 

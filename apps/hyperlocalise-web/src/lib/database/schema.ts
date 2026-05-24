@@ -136,6 +136,11 @@ export const agentRunStatusEnum = pgEnum("agent_run_status", [
   "failed",
   "cancelled",
 ]);
+export const tmsAgentAutomationScopeEnum = pgEnum("tms_agent_automation_scope", [
+  "organization",
+  "project",
+  "provider",
+]);
 export const interactionSourceEnum = pgEnum("interaction_source", [
   "chat_ui",
   "email_agent",
@@ -812,6 +817,48 @@ export const organizationExternalTmsProviderCredentials = pgTable(
       table.providerKind,
     ),
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+export const tmsAgentAutomationSettings = pgTable(
+  "tms_agent_automation_settings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    scope: tmsAgentAutomationScopeEnum("scope").notNull(),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "cascade" },
+    ),
+    settings: jsonb("settings")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("tms_agent_automation_settings_org_scope_key").on(
+      table.organizationId,
+      table.scope,
+      table.projectId,
+      table.providerCredentialId,
+    ),
+    index("idx_tms_agent_automation_settings_org").on(table.organizationId),
+    check(
+      "tms_agent_automation_settings_scope_shape",
+      sql`(
+        (${table.scope} = 'organization' AND ${table.projectId} IS NULL AND ${table.providerCredentialId} IS NULL)
+        OR (${table.scope} = 'project' AND ${table.projectId} IS NOT NULL AND ${table.providerCredentialId} IS NULL)
+        OR (${table.scope} = 'provider' AND ${table.projectId} IS NULL AND ${table.providerCredentialId} IS NOT NULL)
+      )`,
+    ),
   ],
 );
 

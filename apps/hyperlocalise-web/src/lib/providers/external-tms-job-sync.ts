@@ -11,6 +11,10 @@ import {
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
+import {
+  runTmsAgentAutomationForSyncedJob,
+  type TmsAgentAutomationQueues,
+} from "./tms-agent-automation-runner";
 
 type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
@@ -65,6 +69,7 @@ export async function syncExternalTmsJobTasks(input: {
   projectId: string;
   providerKind: ExternalTmsProviderKind;
   fetchJobTasks: ExternalTmsJobTaskFetcher;
+  automationQueues?: TmsAgentAutomationQueues;
 }): Promise<ExternalTmsJobTaskSyncResult> {
   const project = await getExternalTmsProject(input);
 
@@ -130,7 +135,7 @@ export async function syncExternalTmsJobTasks(input: {
     for (const jobTask of jobTasks) {
       try {
         const previous = previousStatuses.get(jobTask.externalJobId) ?? null;
-        const synced = await upsertExternalJob({
+        const syncedJob = await upsertExternalJob({
           organizationId: input.organizationId,
           projectId: project.id,
           providerKind: input.providerKind,
@@ -145,10 +150,27 @@ export async function syncExternalTmsJobTasks(input: {
           providerPayload: jobTask.providerPayload,
           kind: jobTask.kind,
         });
+        const synced = syncedJob;
+        const isNewlySynced = syncedJob.isNewlySynced;
 
         counts.jobTasksSynced += 1;
         if (previous && previous !== synced.status) {
           counts.statusesChanged += 1;
+        }
+
+        if (input.automationQueues) {
+          await runTmsAgentAutomationForSyncedJob({
+            organizationId: input.organizationId,
+            projectId: project.id,
+            providerKind: input.providerKind,
+            providerCredentialId: credential.id,
+            hyperlocaliseJobId: synced.id,
+            externalJobId: jobTask.externalJobId,
+            externalTaskId: jobTask.externalTaskId ?? null,
+            targetLocales: jobTask.targetLocales ?? [],
+            isNewlySynced,
+            queues: input.automationQueues,
+          });
         }
       } catch (error) {
         counts.jobTasksFailed += 1;
