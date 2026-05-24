@@ -2,49 +2,26 @@ import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+import { listOrganizationExternalTmsProviderCredentialDetails } from "./organization-external-tms-provider-credentials";
+
+export {
+  FAILED_SYNC_RUNS_RECENCY_DAYS,
+  aggregateLocaleReadiness,
+  type OrganizationTmsDashboardSummary,
+  type TmsDashboardFailedSyncRun,
+  type TmsDashboardLocaleReadinessRow,
+  type TmsDashboardSummaryCounts,
+} from "./organization-tms-dashboard-summary.types";
+
 import {
-  listOrganizationExternalTmsProviderCredentialDetails,
-  type ExternalTmsProviderCredentialListItem,
-} from "./organization-external-tms-provider-credentials";
-
-export type TmsDashboardLocaleReadinessRow = {
-  locale: string;
-  ready: number;
-  missing: number;
-  changed: number;
-  fileCount: number;
-};
-
-export type TmsDashboardSummaryCounts = {
-  connectedProviders: number;
-  externalProjects: number;
-  staleFiles: number;
-  staleGlossaries: number;
-  staleMemories: number;
-  failedSyncRuns: number;
-  syncErrorGlossaries: number;
-  syncErrorMemories: number;
-  openProviderJobs: number;
-  pendingProviderJobSync: number;
-};
-
-export type TmsDashboardFailedSyncRun = {
-  id: string;
-  providerKind: string;
-  kind: string;
-  errorMessage: string | null;
-  startedAt: string;
-};
-
-export type OrganizationTmsDashboardSummary = {
-  providers: ExternalTmsProviderCredentialListItem[];
-  counts: TmsDashboardSummaryCounts;
-  localeReadiness: TmsDashboardLocaleReadinessRow[];
-  recentFailedSyncRuns: TmsDashboardFailedSyncRun[];
-};
+  FAILED_SYNC_RUNS_RECENCY_DAYS,
+  type OrganizationTmsDashboardSummary,
+  type TmsDashboardLocaleReadinessRow,
+  type TmsDashboardSummaryCounts,
+} from "./organization-tms-dashboard-summary.types";
 
 const OPEN_JOB_STATUSES = ["queued", "running", "waiting_for_review"] as const;
-export const FAILED_SYNC_RUNS_RECENCY_DAYS = 30;
+const LOCALE_READINESS_TOP_LOCALES = 12;
 
 function failedSyncRunsSince() {
   const since = new Date();
@@ -60,37 +37,41 @@ function recentFailedSyncRunConditions(organizationId: string) {
   );
 }
 
-export function aggregateLocaleReadiness(
-  files: { localeReadiness: Record<string, unknown> }[],
-): TmsDashboardLocaleReadinessRow[] {
-  const byLocale = new Map<
-    string,
-    { ready: number; missing: number; changed: number; fileCount: number }
-  >();
+async function fetchAggregatedLocaleReadiness(
+  organizationId: string,
+): Promise<TmsDashboardLocaleReadinessRow[]> {
+  const { rows } = await db.$client.query<{
+    locale: string;
+    ready: string;
+    missing: string;
+    changed: string;
+    file_count: string;
+  }>(
+    `
+      SELECT
+        lr.locale_key AS locale,
+        COUNT(*) FILTER (WHERE lr.locale_value IN ('ready', 'complete'))::int AS ready,
+        COUNT(*) FILTER (WHERE lr.locale_value IN ('missing', 'stale'))::int AS missing,
+        COUNT(*) FILTER (WHERE lr.locale_value = 'changed')::int AS changed,
+        COUNT(*)::int AS file_count
+      FROM external_tms_files etf
+      CROSS JOIN LATERAL jsonb_each_text(etf.locale_readiness) AS lr(locale_key, locale_value)
+      WHERE etf.organization_id = $1::uuid
+        AND jsonb_typeof(etf.locale_readiness) = 'object'
+      GROUP BY lr.locale_key
+      ORDER BY missing DESC, changed DESC, locale ASC
+      LIMIT $2
+    `,
+    [organizationId, LOCALE_READINESS_TOP_LOCALES],
+  );
 
-  for (const file of files) {
-    for (const [locale, value] of Object.entries(file.localeReadiness)) {
-      const entry = byLocale.get(locale) ?? { ready: 0, missing: 0, changed: 0, fileCount: 0 };
-      entry.fileCount += 1;
-      if (value === "ready" || value === "complete") {
-        entry.ready += 1;
-      } else if (value === "missing" || value === "stale") {
-        entry.missing += 1;
-      } else if (value === "changed") {
-        entry.changed += 1;
-      }
-      byLocale.set(locale, entry);
-    }
-  }
-
-  return Array.from(byLocale.entries())
-    .map(([locale, stats]) => ({ locale, ...stats }))
-    .sort((a, b) => {
-      if (b.missing !== a.missing) return b.missing - a.missing;
-      if (b.changed !== a.changed) return b.changed - a.changed;
-      return a.locale.localeCompare(b.locale);
-    })
-    .slice(0, 12);
+  return rows.map((row) => ({
+    locale: row.locale,
+    ready: Number(row.ready),
+    missing: Number(row.missing),
+    changed: Number(row.changed),
+    fileCount: Number(row.file_count),
+  }));
 }
 
 function emptySummary(): OrganizationTmsDashboardSummary {
@@ -133,7 +114,7 @@ export async function getOrganizationTmsDashboardSummary(
     syncErrorMemoriesRow,
     openProviderJobsRow,
     pendingProviderJobSyncRow,
-    localeReadinessFiles,
+    localeReadinessRows,
     recentFailedSyncRuns,
   ] = await Promise.all([
     db
@@ -209,13 +190,7 @@ export async function getOrganizationTmsDashboardSummary(
           eq(schema.externalJobDetails.syncState, "pending"),
         ),
       ),
-    db
-      .select({ localeReadiness: schema.externalTmsFiles.localeReadiness })
-      .from(schema.externalTmsFiles)
-      .where(
-        and(orgCondition, sql`jsonb_typeof(${schema.externalTmsFiles.localeReadiness}) = 'object'`),
-      )
-      .limit(500),
+    fetchAggregatedLocaleReadiness(organizationId),
     db
       .select({
         id: schema.providerSyncRuns.id,
@@ -246,11 +221,7 @@ export async function getOrganizationTmsDashboardSummary(
   return {
     providers,
     counts,
-    localeReadiness: aggregateLocaleReadiness(
-      localeReadinessFiles.map((row) => ({
-        localeReadiness: row.localeReadiness as Record<string, unknown>,
-      })),
-    ),
+    localeReadiness: localeReadinessRows,
     recentFailedSyncRuns: recentFailedSyncRuns.map((run) => ({
       id: run.id,
       providerKind: run.providerKind,

@@ -21,7 +21,7 @@ import { createApiClient } from "@/lib/api-client";
 import {
   FAILED_SYNC_RUNS_RECENCY_DAYS,
   type OrganizationTmsDashboardSummary,
-} from "@/lib/providers/organization-tms-dashboard-summary";
+} from "@/lib/providers/organization-tms-dashboard-summary.types";
 import { cn } from "@/lib/utils";
 
 import { buildOrgWorkspaceHref } from "../../_components/workspace-filter-params";

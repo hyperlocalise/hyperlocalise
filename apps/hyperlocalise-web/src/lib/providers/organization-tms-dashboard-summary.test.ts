@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { aggregateLocaleReadiness } from "./organization-tms-dashboard-summary";
+import { aggregateLocaleReadiness } from "./organization-tms-dashboard-summary.types";
 
 describe("aggregateLocaleReadiness", () => {
   it("aggregates readiness counts per locale and prioritizes missing locales", () => {
