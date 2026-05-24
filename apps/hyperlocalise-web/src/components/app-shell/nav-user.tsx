@@ -122,7 +122,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" />}>
+            <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}>
               <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} className="size-4" />
               Log out
             </DropdownMenuItem>
