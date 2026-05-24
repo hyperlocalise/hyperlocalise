@@ -154,6 +154,49 @@ describe("pushLokaliseProviderComments", () => {
     expect(result.changedItems[0]?.externalCommentUid).toBe("77");
   });
 
+  it("fails when the API returns a missing or zero comment id", async () => {
+    const finding = sampleFinding();
+    const findingId = buildFindingId(finding);
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      if (path.includes("/keys/4242/comments") && method === "GET") {
+        return new Response(JSON.stringify({ comments: [] }), { status: 200 });
+      }
+
+      if (path.includes("/keys/4242/comments") && method === "POST") {
+        return new Response(JSON.stringify({ comments: [{ key_id: 4242, comment: "x" }] }), {
+          status: 200,
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pushLokaliseProviderComments({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "lokalise",
+      externalProjectId: "proj.123",
+      externalJobId: "55392",
+      secretMaterial: "token",
+      feedback: [{ findingId, finding }],
+      knownExternalIds: new Map(),
+    });
+
+    expect(result.posted).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.changedItems[0]).toMatchObject({
+      status: "failed",
+      message: "lokalise_provider_comment_create_failed",
+    });
+    expect(result.changedItems[0]?.externalCommentUid).toBeUndefined();
+  });
+
   it("skips findings when known external ids were stored from a prior run", async () => {
     const finding = sampleFinding();
     const findingId = buildFindingId(finding);

@@ -1084,8 +1084,7 @@ export function buildLokaliseKeyCommentProviderUrl(input: {
   commentId: number;
 }) {
   const taskUrl = buildLokaliseTaskUrl(input.projectId, input.taskId);
-  const separator = taskUrl.includes("?") ? "&" : "?";
-  return `${taskUrl}${separator}key=${encodeURIComponent(String(input.keyId))}&comment=${encodeURIComponent(String(input.commentId))}`;
+  return `${taskUrl}&key=${encodeURIComponent(String(input.keyId))}&comment=${encodeURIComponent(String(input.commentId))}`;
 }
 
 export function collectLokaliseTaskAssignees(task: LokaliseTask) {

@@ -100,10 +100,11 @@ export const pushLokaliseProviderComments: ExternalTmsCommentPusher = async ({
       const created = await client.createKeyComments(projectId, entry.request.keyId, [
         { comment: entry.request.comment },
       ]);
-      const commentId = String(created[0]?.commentId ?? "");
-      if (!commentId) {
+      const rawCommentId = created[0]?.commentId;
+      if (rawCommentId == null || rawCommentId <= 0) {
         throw new Error("lokalise_provider_comment_create_failed");
       }
+      const commentId = String(rawCommentId);
 
       posted += 1;
       changedItems.push({
