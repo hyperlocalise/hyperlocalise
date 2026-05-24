@@ -38,12 +38,13 @@ vi.mock("@/lib/agents/slack/bot", () => ({
 }));
 
 vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
+  resolveApiAuthContextFromSession: vi.fn((options) => {
+    if (globalThis.__resolveTestApiAuthContextFromSession) {
+      return globalThis.__resolveTestApiAuthContextFromSession(options);
+    }
+
+    return globalThis.__testApiAuthContext ?? null;
+  }),
 }));
 
 const fixture = createProjectTestFixture();
@@ -225,6 +226,7 @@ describe("slackOAuthRoutes", () => {
 
   it("rejects callbacks without an authenticated session", async () => {
     const { state } = await createCallbackState({ role: "admin" });
+    globalThis.__testApiAuthContext = undefined;
     const app = createSlackOAuthRoutes();
 
     const response = await app.request(
