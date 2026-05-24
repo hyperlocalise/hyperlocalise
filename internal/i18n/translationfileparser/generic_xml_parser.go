@@ -55,7 +55,8 @@ func (p GenericXMLParser) Parse(content []byte) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]string{}
+	// BOLT OPTIMIZATION: Use capacity hint for the output map.
+	out := make(map[string]string, len(doc.entries))
 	for _, entry := range doc.entries {
 		out[entry.key] = entry.sourceValue
 	}
@@ -221,29 +222,44 @@ func genericXMLResolvedKey(stack []*genericXMLFrame) string {
 		return ""
 	}
 
-	var keyParts []string
-	var pathParts []string
-	hasAnyOwnKey := false
-
-	for i, frame := range stack {
-		if frame.ownKey != "" {
-			keyParts = append(keyParts, frame.ownKey)
+	// BOLT OPTIMIZATION: Reconstruct the key from the stack only when needed.
+	// This avoids O(Depth^2) allocations during tree traversal.
+	var hasAnyOwnKey bool
+	for _, f := range stack {
+		if f.ownKey != "" {
 			hasAnyOwnKey = true
-		}
-		if i > 0 {
-			pathParts = append(pathParts, frame.name)
+			break
 		}
 	}
 
+	var b strings.Builder
 	if hasAnyOwnKey {
-		frame := stack[len(stack)-1]
-		if frame.ownKey == "" && !isGenericXMLValueElement(frame.name) {
-			keyParts = append(keyParts, frame.name)
+		for _, f := range stack {
+			if f.ownKey != "" {
+				if b.Len() > 0 {
+					b.WriteByte('.')
+				}
+				b.WriteString(f.ownKey)
+			}
 		}
-		return strings.Join(keyParts, ".")
+		leaf := stack[len(stack)-1]
+		if leaf.ownKey == "" && !isGenericXMLValueElement(leaf.name) {
+			if b.Len() > 0 {
+				b.WriteByte('.')
+			}
+			b.WriteString(leaf.name)
+		}
+	} else {
+		// Element path, skipping the root element.
+		for i := 1; i < len(stack); i++ {
+			if b.Len() > 0 {
+				b.WriteByte('.')
+			}
+			b.WriteString(stack[i].name)
+		}
 	}
 
-	return strings.Join(pathParts, ".")
+	return b.String()
 }
 
 func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
