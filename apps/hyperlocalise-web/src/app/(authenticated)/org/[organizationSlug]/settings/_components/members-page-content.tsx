@@ -53,6 +53,14 @@ const roleLabels: Record<Member["role"], string> = {
   member: "Member",
 };
 
+function assignableRolesForActor(actorRole: Member["role"]): Member["role"][] {
+  return actorRole === "owner" ? ["owner", "admin", "member"] : ["admin", "member"];
+}
+
+function canManageTargetMember(targetRole: Member["role"], assignableRoles: Member["role"][]) {
+  return assignableRoles.includes("owner") || targetRole !== "owner";
+}
+
 function memberInitials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
@@ -83,11 +91,11 @@ async function readMemberError(response: Response, fallback: string) {
 export function MembersSettingsPageContent({
   organizationSlug,
   canManageMembers,
-  currentWorkosUserId,
+  currentUserRole,
 }: {
   organizationSlug: string;
   canManageMembers: boolean;
-  currentWorkosUserId: string;
+  currentUserRole: Member["role"];
 }) {
   const queryClient = useQueryClient();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -166,9 +174,10 @@ export function MembersSettingsPageContent({
       }
     },
     onSuccess: async () => {
+      const wasInvited = removingMember?.status === "invited";
       setRemovingMember(null);
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
-      toast.success("Member removed");
+      toast.success(wasInvited ? "Invitation cancelled" : "Member removed");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -185,10 +194,7 @@ export function MembersSettingsPageContent({
   }
 
   const members = membersQuery.data ?? [];
-  const assignableRoles: Member["role"][] =
-    members.find((member) => member.workosUserId === currentWorkosUserId)?.role === "owner"
-      ? ["owner", "admin", "member"]
-      : ["admin", "member"];
+  const assignableRoles = assignableRolesForActor(currentUserRole);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -230,12 +236,13 @@ export function MembersSettingsPageContent({
           ) : (
             <div className="divide-y divide-foreground/8">
               {members.map((member) => {
-                const isInvited = member.status === "invited" || !member.workosUserId;
-                const canEditMember =
+                const isInvited = member.status === "invited";
+                const canManageTarget =
                   canManageMembers &&
                   !member.isCurrentUser &&
-                  !isInvited &&
-                  (assignableRoles.includes("owner") || member.role !== "owner");
+                  canManageTargetMember(member.role, assignableRoles);
+                const canChangeRole = canManageTarget && !isInvited;
+                const canRemoveMember = canManageTarget;
 
                 return (
                   <div key={member.email} className="flex items-start justify-between gap-4 py-4">
@@ -274,7 +281,7 @@ export function MembersSettingsPageContent({
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      {canEditMember ? (
+                      {canChangeRole ? (
                         <Select
                           value={member.role}
                           onValueChange={(value) => {
@@ -309,7 +316,7 @@ export function MembersSettingsPageContent({
                         </Badge>
                       )}
 
-                      {canEditMember ? (
+                      {canRemoveMember ? (
                         <Button
                           type="button"
                           variant="outline"
@@ -317,7 +324,11 @@ export function MembersSettingsPageContent({
                           className="border-foreground/10 bg-transparent text-foreground/52 hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => setRemovingMember(member)}
                           disabled={removeMember.isPending}
-                          aria-label={`Remove ${member.displayName}`}
+                          aria-label={
+                            isInvited
+                              ? `Cancel invitation for ${member.displayName}`
+                              : `Remove ${member.displayName}`
+                          }
                         >
                           <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
                         </Button>
@@ -387,10 +398,14 @@ export function MembersSettingsPageContent({
       >
         <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Remove member</DialogTitle>
+            <DialogTitle>
+              {removingMember?.status === "invited" ? "Cancel invitation" : "Remove member"}
+            </DialogTitle>
             <DialogDescription>
               {removingMember
-                ? `${removingMember.displayName} will lose access to this workspace.`
+                ? removingMember.status === "invited"
+                  ? `${removingMember.email} will no longer be able to join this workspace with their pending invitation.`
+                  : `${removingMember.displayName} will lose access to this workspace.`
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -408,7 +423,7 @@ export function MembersSettingsPageContent({
                 }
               }}
             >
-              Remove member
+              {removingMember?.status === "invited" ? "Cancel invitation" : "Remove member"}
             </Button>
           </DialogFooter>
         </DialogContent>

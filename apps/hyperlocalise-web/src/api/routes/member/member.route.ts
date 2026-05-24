@@ -26,6 +26,7 @@ import {
   getOrganizationMember,
   invalidMemberPayloadResponse,
   INVITED_WORKOS_USER_ID_PREFIX,
+  isInvitedPlaceholderWorkosUserId,
   isMemberListAllowed,
   isMemberManageAllowed,
   lastOwnerProtectedResponse,
@@ -173,6 +174,42 @@ async function inviteOrganizationMember(input: {
   };
 }
 
+async function cleanupInvitedPlaceholderUser(localUserId: string) {
+  const remainingMemberships = await db
+    .select({ id: schema.organizationMemberships.id })
+    .from(schema.organizationMemberships)
+    .where(eq(schema.organizationMemberships.userId, localUserId))
+    .limit(1);
+
+  if (!remainingMemberships[0]) {
+    await db.delete(schema.users).where(eq(schema.users.id, localUserId));
+  }
+}
+
+async function revokePendingWorkosInvitation(input: {
+  workosOrganizationId: string;
+  email: string;
+}) {
+  const workos = getWorkosServerClient();
+  if (!workos || isLocallyManagedWorkosOrganization(input.workosOrganizationId)) {
+    return;
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const invitations = await workos.userManagement.listInvitations({
+    organizationId: input.workosOrganizationId,
+    email: normalizedEmail,
+    limit: 10,
+  });
+
+  const pendingInvitation = invitations.data.find((invitation) => invitation.state === "pending");
+  if (!pendingInvitation) {
+    return;
+  }
+
+  await workos.userManagement.revokeInvitation(pendingInvitation.id);
+}
+
 async function rollbackPendingInvite(input: {
   membershipId: string;
   localUserId: string;
@@ -186,15 +223,7 @@ async function rollbackPendingInvite(input: {
     return;
   }
 
-  const remainingMemberships = await db
-    .select({ id: schema.organizationMemberships.id })
-    .from(schema.organizationMemberships)
-    .where(eq(schema.organizationMemberships.userId, input.localUserId))
-    .limit(1);
-
-  if (!remainingMemberships[0]) {
-    await db.delete(schema.users).where(eq(schema.users.id, input.localUserId));
-  }
+  await cleanupInvitedPlaceholderUser(input.localUserId);
 }
 
 export function createMemberRoutes() {
@@ -449,6 +478,8 @@ export function createMemberRoutes() {
         return lastOwnerProtectedResponse(c);
       }
 
+      const isPendingInvite = isInvitedPlaceholderWorkosUserId(member.workosUserId);
+
       if (
         shouldSyncMembershipToWorkos({
           workosMembershipId: member.workosMembershipId,
@@ -471,6 +502,30 @@ export function createMemberRoutes() {
             "Failed to sync member removal with identity provider",
           );
         }
+      } else if (isPendingInvite) {
+        try {
+          await revokePendingWorkosInvitation({
+            workosOrganizationId,
+            email: member.email,
+          });
+        } catch {
+          await db.insert(schema.organizationMemberships).values({
+            organizationId,
+            userId: member.localUserId,
+            role: member.role,
+            workosMembershipId: member.workosMembershipId,
+          });
+
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to revoke workspace invitation with identity provider",
+          );
+        }
+      }
+
+      if (isPendingInvite) {
+        await cleanupInvitedPlaceholderUser(member.localUserId);
       }
 
       await deleteMemberMcpSessions(organizationId, member.localUserId);

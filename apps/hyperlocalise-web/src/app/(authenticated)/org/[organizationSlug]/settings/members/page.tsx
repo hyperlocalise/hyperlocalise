@@ -15,7 +15,7 @@ export default async function MembersSettingsPage({
     <MembersSettingsPageContent
       organizationSlug={organizationSlug}
       canManageMembers={hasCapability(auth.membership.role, "members:invite")}
-      currentWorkosUserId={auth.user.workosUserId}
+      currentUserRole={auth.membership.role}
     />
   );
 }
