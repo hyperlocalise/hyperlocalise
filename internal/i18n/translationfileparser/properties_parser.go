@@ -467,12 +467,27 @@ func encodeJavaPropertiesValue(s string) string {
 
 func writeJavaPropertiesEscapedRune(b *strings.Builder, r rune) bool {
 	if r < 0x20 {
-		_, _ = fmt.Fprintf(b, `\u%04X`, r)
+		// BOLT OPTIMIZATION: Use manual hex encoding instead of fmt.Fprintf to avoid reflection.
+		b.WriteString(`\u`)
+		b.WriteByte(hexDigits[(r>>12)&0xF])
+		b.WriteByte(hexDigits[(r>>8)&0xF])
+		b.WriteByte(hexDigits[(r>>4)&0xF])
+		b.WriteByte(hexDigits[r&0xF])
 		return true
 	}
 	if r > 0xFFFF {
 		hi, lo := utf16.EncodeRune(r)
-		_, _ = fmt.Fprintf(b, `\u%04X\u%04X`, hi, lo)
+		// BOLT OPTIMIZATION: Use manual hex encoding instead of fmt.Fprintf to avoid reflection.
+		b.WriteString(`\u`)
+		b.WriteByte(hexDigits[(hi>>12)&0xF])
+		b.WriteByte(hexDigits[(hi>>8)&0xF])
+		b.WriteByte(hexDigits[(hi>>4)&0xF])
+		b.WriteByte(hexDigits[hi&0xF])
+		b.WriteString(`\u`)
+		b.WriteByte(hexDigits[(lo>>12)&0xF])
+		b.WriteByte(hexDigits[(lo>>8)&0xF])
+		b.WriteByte(hexDigits[(lo>>4)&0xF])
+		b.WriteByte(hexDigits[lo&0xF])
 		return true
 	}
 	return false

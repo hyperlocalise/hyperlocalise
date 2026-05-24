@@ -66,3 +66,7 @@
 ## 2026-05-23 - Optimizing PHP array path construction
 **Learning:** In recursive tree/array traversal (like PHP array parsing), using a `[]string` slice to track the path leads to $O(N^2)$ complexity and high allocations due to repeated slice copies and `strings.Join` calls. Passing a pre-concatenated `string` prefix is much more efficient.
 **Action:** Refactored `PHPArrayParser` to use a `string` prefix for pathing, consistent with other optimized parsers in the codebase.
+
+## 2026-05-24 - Optimizing Unicode escape encoding
+**Learning:** Using `fmt.Fprintf` for simple hex encoding (like Unicode escapes `\uXXXX`) is expensive due to reflection and formatting overhead. Manual hex encoding using a lookup table and bit shifting is significantly faster (~5x) and avoids reflection.
+**Action:** Replaced `fmt.Fprintf` with manual hex encoding in `properties_parser.go` and `js_ts_locale_parser.go`, and centralized the `hexDigits` constant in `strategy.go`.

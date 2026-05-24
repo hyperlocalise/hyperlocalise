@@ -901,7 +901,12 @@ func encodeJSTSStringLiteral(value string, quote byte) string {
 			}
 		default:
 			if r < 0x20 || r == 0x7F {
-				fmt.Fprintf(&b, `\u%04X`, r)
+				// BOLT OPTIMIZATION: Use manual hex encoding instead of fmt.Fprintf to avoid reflection.
+				b.WriteString(`\u`)
+				b.WriteByte(hexDigits[(r>>12)&0xF])
+				b.WriteByte(hexDigits[(r>>8)&0xF])
+				b.WriteByte(hexDigits[(r>>4)&0xF])
+				b.WriteByte(hexDigits[r&0xF])
 				i += size
 				continue
 			}
