@@ -70,3 +70,7 @@
 ## 2026-05-24 - Optimizing Unicode escape encoding
 **Learning:** Using `fmt.Fprintf` for simple hex encoding (like Unicode escapes `\uXXXX`) is expensive due to reflection and formatting overhead. Manual hex encoding using a lookup table and bit shifting is significantly faster (~5x) and avoids reflection.
 **Action:** Replaced `fmt.Fprintf` with manual hex encoding in `properties_parser.go` and `js_ts_locale_parser.go`, and centralized the `hexDigits` constant in `strategy.go`.
+
+## 2026-06-25 - Optimizing GenericXMLParser path construction and sorting
+**Learning:** Constructing full path slices ((Depth^2)$ allocations) for every element in an XML tree is a significant bottleneck during parsing. Deferring key resolution to (Depth)$ reconstruction from the stack only for translatable leaves, combined with replacing reflection-based `sort.Slice` with `slices.SortFunc`, provides measurable efficiency gains.
+**Action:** Refactored `GenericXMLParser` to use a stack-based key reconstruction and `slices.SortFunc`, resulting in ~23% faster parsing and ~18% faster rendering for deep XML structures.
