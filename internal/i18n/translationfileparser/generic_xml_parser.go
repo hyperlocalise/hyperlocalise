@@ -2,9 +2,10 @@ package translationfileparser
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/xml"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -39,8 +40,6 @@ type genericXMLReplacement struct {
 
 type genericXMLFrame struct {
 	name              string
-	path              []string
-	keyPath           []string
 	ownKey            string
 	inMetadata        bool
 	contentStart      int
@@ -56,17 +55,13 @@ func (p GenericXMLParser) Parse(content []byte) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	out := make(map[string]string, len(doc.entries))
+	out := map[string]string{}
 	for _, entry := range doc.entries {
 		out[entry.key] = entry.sourceValue
 	}
 	return out, nil
 }
 
-// MarshalGenericXML renders translated generic XML values into template.
-// values must contain decoded plain text, not pre-escaped XML strings; XML
-// escaping is applied while rendering.
 func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
@@ -75,10 +70,6 @@ func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error
 	return doc.render(values, "", "")
 }
 
-// MarshalGenericXMLWithTargetLocale renders translated generic XML values into
-// template and rewrites matching root locale attributes to targetLocale.
-// values must contain decoded plain text, not pre-escaped XML strings; XML
-// escaping is applied while rendering.
 func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
@@ -87,95 +78,39 @@ func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string
 	return doc.render(values, sourceLocale, targetLocale)
 }
 
-func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
-	replacements := make([]genericXMLReplacement, 0, len(d.entries)+len(d.rootLocaleAttrs))
-	for _, entry := range d.entries {
-		if translated, ok := values[entry.key]; ok {
-			if translated != entry.sourceValue {
-				if containsXMLTextEntityReference(translated) {
-					return nil, fmt.Errorf("generic XML parser: translated value for key %q contains XML entity references; provide decoded plain text instead", entry.key)
-				}
-				replacements = append(replacements, genericXMLReplacement{
-					start: entry.valueStart,
-					end:   entry.valueEnd,
-					value: escapeXMLText(translated),
-				})
-			}
-		}
-	}
-
-	locale := strings.TrimSpace(targetLocale)
-	if locale != "" {
-		for _, attr := range d.rootLocaleAttrs {
-			if !genericXMLLocaleAttrMatchesSource(attr.value, sourceLocale) {
-				continue
-			}
-			replacements = append(replacements, genericXMLReplacement{
-				start: attr.valueStart,
-				end:   attr.valueEnd,
-				value: escapeXMLAttr(genericXMLTargetLocaleForAttr(attr.value, locale)),
-			})
-		}
-	}
-
-	if len(replacements) == 0 {
-		return []byte(d.template), nil
-	}
-
-	sort.Slice(replacements, func(i, j int) bool { return replacements[i].start < replacements[j].start })
-
-	var b strings.Builder
-	cursor := 0
-	for _, replacement := range replacements {
-		if replacement.start < cursor {
-			return nil, fmt.Errorf("generic XML parser: overlapping replacement at byte %d", replacement.start)
-		}
-		if replacement.start > len(d.template) || replacement.end > len(d.template) {
-			return nil, fmt.Errorf("generic XML parser: replacement range [%d,%d) is outside template length %d", replacement.start, replacement.end, len(d.template))
-		}
-		b.WriteString(d.template[cursor:replacement.start])
-		b.WriteString(replacement.value)
-		cursor = replacement.end
-	}
-	b.WriteString(d.template[cursor:])
-	return []byte(b.String()), nil
-}
-
 func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 	text := string(content)
-	doc := genericXMLDocument{template: text}
+	doc := genericXMLDocument{template: text, entries: []genericXMLEntry{}}
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	stack := []*genericXMLFrame{}
-	seenKeys := map[string]struct{}{}
 	rootName := ""
+	seenKeys := map[string]struct{}{}
 
 	for {
 		tokenStart := int(decoder.InputOffset())
 		tok, err := decoder.Token()
-		tokenEnd := int(decoder.InputOffset())
 		if err != nil {
 			if isEOFError(err) {
 				break
 			}
-			return genericXMLDocument{}, fmt.Errorf("xml decode: %w", err)
+			return genericXMLDocument{}, fmt.Errorf("generic XML parser: %w", err)
 		}
+		tokenEnd := int(decoder.InputOffset())
 
 		switch token := tok.(type) {
 		case xml.StartElement:
-			name := strings.TrimSpace(token.Name.Local)
-			if name == "" {
-				return genericXMLDocument{}, fmt.Errorf("generic XML parser: element with empty local name is not supported")
-			}
+			name := token.Name.Local
 			attrKey := genericXMLKeyAttr(token.Attr)
 			metadataElement := isGenericXMLMetadataElement(name)
 			if metadataElement && attrKey != "" && isGenericXMLKeyedMetadataConflict(name) {
-				return genericXMLDocument{}, fmt.Errorf("generic XML parser: metadata element <%s> has key/id/name attribute %q; rename the element or remove the key-like attribute", name, attrKey)
+				return genericXMLDocument{}, fmt.Errorf("generic XML parser: metadata element <%s> cannot have a key/id/name attribute; it would conflict with its role as a structural metadata container", name)
 			}
+
 			if rootName == "" {
 				rootName = name
 				if isGenericXMLSpecializedRoot(rootName) {
-					return genericXMLDocument{}, fmt.Errorf("generic XML parser: <%s> files require a specialized parser and are not supported as generic XML", rootName)
+					return genericXMLDocument{}, fmt.Errorf("generic XML parser: element <%s> should be handled by a specialized parser, not generic XML (Android resources require a specialized parser)", rootName)
 				}
 				doc.rootLocaleAttrs = genericXMLRootLocaleAttrs(text[tokenStart:tokenEnd], tokenStart, token.Attr)
 			}
@@ -183,35 +118,15 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				stack[len(stack)-1].hasElementChild = true
 			}
 
-			parentPath := []string{}
-			parentKeyPath := []string{}
 			parentMetadata := false
 			if len(stack) > 0 {
-				parent := stack[len(stack)-1]
-				parentPath = append(parentPath, parent.path...)
-				parentKeyPath = append(parentKeyPath, parent.keyPath...)
-				parentMetadata = parent.inMetadata
-			}
-
-			path := parentPath
-			if len(stack) > 0 {
-				path = append(path, name)
-			}
-			ownKey := ""
-			if len(stack) > 0 {
-				ownKey = attrKey
-			}
-			keyPath := parentKeyPath
-			if ownKey != "" {
-				keyPath = append(keyPath, ownKey)
+				parentMetadata = stack[len(stack)-1].inMetadata
 			}
 
 			stack = append(stack, &genericXMLFrame{
 				name:         name,
-				path:         path,
-				keyPath:      keyPath,
-				ownKey:       ownKey,
-				inMetadata:   parentMetadata || metadataElement,
+				ownKey:       attrKey,
+				inMetadata:   parentMetadata || (metadataElement && (attrKey == "" || !isGenericXMLKeyedMetadataConflict(name))),
 				contentStart: tokenEnd,
 			})
 		case xml.EndElement:
@@ -252,7 +167,7 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 				stack = stack[:len(stack)-1]
 				continue
 			}
-			key := genericXMLResolvedKey(frame)
+			key := genericXMLResolvedKey(stack)
 			if key == "" {
 				return genericXMLDocument{}, fmt.Errorf("generic XML parser: text element <%s> has no stable key; add key/id/name or use a nested path", frame.name)
 			}
@@ -301,17 +216,91 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 	return doc, nil
 }
 
-func genericXMLResolvedKey(frame *genericXMLFrame) string {
-	if len(frame.keyPath) > 0 {
-		if frame.ownKey == "" && !isGenericXMLValueElement(frame.name) {
-			parts := make([]string, len(frame.keyPath), len(frame.keyPath)+1)
-			copy(parts, frame.keyPath)
-			parts = append(parts, frame.name)
-			return strings.Join(parts, ".")
-		}
-		return strings.Join(frame.keyPath, ".")
+func genericXMLResolvedKey(stack []*genericXMLFrame) string {
+	if len(stack) == 0 {
+		return ""
 	}
-	return strings.Join(frame.path, ".")
+
+	var keyParts []string
+	var pathParts []string
+	hasAnyOwnKey := false
+
+	for i, frame := range stack {
+		if frame.ownKey != "" {
+			keyParts = append(keyParts, frame.ownKey)
+			hasAnyOwnKey = true
+		}
+		if i > 0 {
+			pathParts = append(pathParts, frame.name)
+		}
+	}
+
+	if hasAnyOwnKey {
+		frame := stack[len(stack)-1]
+		if frame.ownKey == "" && !isGenericXMLValueElement(frame.name) {
+			keyParts = append(keyParts, frame.name)
+		}
+		return strings.Join(keyParts, ".")
+	}
+
+	return strings.Join(pathParts, ".")
+}
+
+func (d genericXMLDocument) render(values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
+	replacements := make([]genericXMLReplacement, 0, len(d.entries)+len(d.rootLocaleAttrs))
+	for _, entry := range d.entries {
+		if translated, ok := values[entry.key]; ok {
+			if translated != entry.sourceValue {
+				if containsXMLTextEntityReference(translated) {
+					return nil, fmt.Errorf("generic XML parser: translated value for key %q contains XML entity references; provide decoded plain text instead", entry.key)
+				}
+				replacements = append(replacements, genericXMLReplacement{
+					start: entry.valueStart,
+					end:   entry.valueEnd,
+					value: escapeXMLText(translated),
+				})
+			}
+		}
+	}
+
+	locale := strings.TrimSpace(targetLocale)
+	if locale != "" {
+		for _, attr := range d.rootLocaleAttrs {
+			if !genericXMLLocaleAttrMatchesSource(attr.value, sourceLocale) {
+				continue
+			}
+			replacements = append(replacements, genericXMLReplacement{
+				start: attr.valueStart,
+				end:   attr.valueEnd,
+				value: escapeXMLAttr(genericXMLTargetLocaleForAttr(attr.value, locale)),
+			})
+		}
+	}
+
+	if len(replacements) == 0 {
+		return []byte(d.template), nil
+	}
+
+	// BOLT OPTIMIZATION: Use slices.SortFunc instead of sort.Slice to avoid reflection.
+	slices.SortFunc(replacements, func(a, b genericXMLReplacement) int {
+		return cmp.Compare(a.start, b.start)
+	})
+
+	var b strings.Builder
+	cursor := 0
+	for _, replacement := range replacements {
+		if replacement.start < cursor {
+			return nil, fmt.Errorf("generic XML parser: overlapping replacement at byte %d", replacement.start)
+		}
+		if replacement.start > len(d.template) || replacement.end > len(d.template) {
+			return nil, fmt.Errorf("generic XML parser: replacement range [%d,%d) is outside template length %d", replacement.start, replacement.end, len(d.template))
+		}
+		b.WriteString(d.template[cursor:replacement.start])
+		b.WriteString(replacement.value)
+		cursor = replacement.end
+	}
+	b.WriteString(d.template[cursor:])
+	return []byte(b.String()), nil
 }
 
 func genericXMLRootLocaleAttrs(rawStartTag string, absoluteStart int, decodedAttrs []xml.Attr) []genericXMLLocaleAttr {
