@@ -12,13 +12,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api-client-instance";
 
+function isStaleOrganizationSlugBody(
+  body: unknown,
+): body is { error: "stale_organization_slug"; details: { redirectTo: string } } {
+  return (
+    body !== null &&
+    typeof body === "object" &&
+    "error" in body &&
+    body.error === "stale_organization_slug" &&
+    "details" in body &&
+    body.details !== null &&
+    typeof body.details === "object" &&
+    "redirectTo" in body.details &&
+    typeof body.details.redirectTo === "string"
+  );
+}
+
 function readWorkspaceErrorBody(body: unknown, fallback: string) {
-  if (body && typeof body === "object" && "message" in body && body.message) {
-    return String(body.message);
+  if (body && typeof body === "object" && "message" in body) {
+    const message = body.message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
   }
 
   if (body && typeof body === "object" && "error" in body) {
-    return String(body.error);
+    const error = body.error;
+    if (typeof error === "string" && error.length > 0) {
+      return error;
+    }
   }
 
   return fallback;
@@ -49,19 +71,10 @@ export function WorkspaceSettingsForm({
         },
       });
 
-      const body = await response.json().catch(() => null);
+      const body: unknown = await response.json().catch(() => null);
 
       if (!response.ok) {
-        if (
-          response.status === 403 &&
-          body &&
-          typeof body === "object" &&
-          body.error === "stale_organization_slug" &&
-          body.details &&
-          typeof body.details === "object" &&
-          "redirectTo" in body.details &&
-          typeof body.details.redirectTo === "string"
-        ) {
+        if (response.status === 403 && isStaleOrganizationSlugBody(body)) {
           router.replace(body.details.redirectTo);
           router.refresh();
           return null;
@@ -73,7 +86,7 @@ export function WorkspaceSettingsForm({
       return body as {
         workspace: { name: string; slug: string | null };
         redirectTo: string;
-      }>;
+      };
     },
     onSuccess: (data) => {
       if (!data) {
@@ -92,7 +105,8 @@ export function WorkspaceSettingsForm({
     },
   });
 
-  const hasChanges = name.trim() !== organizationName || slug.trim().toLowerCase() !== organizationSlug;
+  const hasChanges =
+    name.trim() !== organizationName || slug.trim().toLowerCase() !== organizationSlug;
 
   return (
     <form

@@ -332,7 +332,6 @@ export function createMemberRoutes() {
         return cannotManageOwnerResponse(c);
       }
 
-      const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
       const previousRole = member.role;
 
