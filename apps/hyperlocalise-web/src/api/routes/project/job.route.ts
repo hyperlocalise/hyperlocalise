@@ -56,6 +56,7 @@ import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/provider-agent-qa";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/tms-agent-automation-runner";
 
 import {
   createJobAgentRunBodySchema,
@@ -667,8 +668,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const [job] = await db
           .select({
             id: schema.jobs.id,
+            projectId: schema.jobs.projectId,
             externalProviderKind: schema.externalJobDetails.providerKind,
             externalJobId: schema.externalJobDetails.externalJobId,
+            externalTaskId: schema.externalJobDetails.externalTaskId,
           })
           .from(schema.jobs)
           .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
@@ -753,6 +756,53 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             return currentRun.changedItems;
           },
         });
+
+        const hasAcceptedProposals = parseAgentRunProposalItems(updatedRun.changedItems).some(
+          (proposal) => proposal.reviewState === "accepted",
+        );
+
+        if (
+          hasAcceptedProposals &&
+          job.projectId &&
+          job.externalProviderKind &&
+          job.externalJobId
+        ) {
+          const [project] = await db
+            .select({
+              externalProviderCredentialId: schema.projects.externalProviderCredentialId,
+            })
+            .from(schema.projects)
+            .where(
+              and(
+                eq(schema.projects.id, job.projectId),
+                eq(schema.projects.organizationId, organizationId),
+              ),
+            )
+            .limit(1);
+
+          try {
+            await maybeEnqueueAutoWriteBackAfterProposalReview({
+              organizationId,
+              projectId: job.projectId,
+              providerCredentialId: project?.externalProviderCredentialId ?? null,
+              hyperlocaliseJobId: job.id,
+              externalProviderKind: job.externalProviderKind,
+              externalJobId: job.externalJobId,
+              externalTaskId: job.externalTaskId,
+              queues: {
+                providerAgentWritebackQueue: options.providerAgentWritebackQueue,
+              },
+            });
+          } catch (error) {
+            // Auto write-back failures are non-fatal; proposal review is already persisted.
+            console.error("auto write-back enqueue failed after proposal review", {
+              organizationId,
+              jobId: job.id,
+              agentRunId: updatedRun.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
 
         return c.json({ agentRun: serializeAgentRun(updatedRun) }, 200);
       },

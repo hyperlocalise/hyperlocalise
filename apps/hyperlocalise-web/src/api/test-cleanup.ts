@@ -132,6 +132,10 @@ export async function cleanupWorkosTestRecords(input: {
         orgParams,
       );
       await client.query(
+        "DELETE FROM tms_agent_automation_settings WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
+      await client.query(
         "DELETE FROM team_memberships WHERE team_id IN (SELECT id FROM teams WHERE organization_id = ANY($1::uuid[]))",
         orgParams,
       );

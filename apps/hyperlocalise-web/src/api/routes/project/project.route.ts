@@ -50,7 +50,12 @@ import {
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import type { ExternalTmsResourceType } from "@/lib/providers/organization-external-tms-files";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import type {
+  JobQueue,
+  ProviderAgentQaQueue,
+  ProviderAgentTranslationQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
 import {
@@ -278,6 +283,8 @@ const validateExternalTmsTranslationPushBody = validator("json", (value, c) => {
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
+  providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
+  providerAgentQaQueue?: ProviderAgentQaQueue;
 };
 
 const fileKeyFetchersByProvider: Partial<
@@ -525,6 +532,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         projectId: project.id,
         providerKind: project.externalProviderKind,
         fetchJobTasks,
+        automationQueues:
+          options.providerAgentTranslationQueue && options.providerAgentQaQueue
+            ? {
+                providerAgentTranslationQueue: options.providerAgentTranslationQueue,
+                providerAgentQaQueue: options.providerAgentQaQueue,
+              }
+            : undefined,
       });
 
       return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);

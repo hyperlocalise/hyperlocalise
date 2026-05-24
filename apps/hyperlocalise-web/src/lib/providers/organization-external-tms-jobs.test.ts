@@ -48,6 +48,7 @@ describe("upsertExternalJob", () => {
     });
 
     expect(result.id).toMatch(/^job_/);
+    expect(result.isNewlySynced).toBe(true);
     expect(result.status).toBe("running");
     expect(result.kind).toBe("translation");
     expect(result.projectId).toBe(project.id);
@@ -87,6 +88,7 @@ describe("upsertExternalJob", () => {
     });
 
     expect(second.id).toBe(first.id);
+    expect(second.isNewlySynced).toBe(false);
     expect(second.status).toBe("succeeded");
     expect(second.externalDetails?.externalStatus).toBe("done");
     expect(second.externalDetails?.title).toBe("Updated title");
