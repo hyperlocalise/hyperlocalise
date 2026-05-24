@@ -21,8 +21,9 @@ export function createGlossaryTestFixture(client?: Client) {
       throw new Error("createGlossaryViaApi requires a test client");
     }
 
-    return client.api.glossary.$post(
+    return client.api.orgs[":organizationSlug"].glossaries.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: input?.name ?? "Marketing Glossary",
           description: input?.description ?? "Marketing terminology",
