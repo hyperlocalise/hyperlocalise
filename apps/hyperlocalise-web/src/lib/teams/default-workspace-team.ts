@@ -28,9 +28,31 @@ export async function ensureDefaultWorkspaceTeam(organizationId: string) {
       slug: DEFAULT_WORKSPACE_TEAM_SLUG,
       name: DEFAULT_WORKSPACE_TEAM_NAME,
     })
+    .onConflictDoNothing({
+      target: [schema.teams.organizationId, schema.teams.slug],
+    })
     .returning();
 
-  return createdTeam;
+  if (createdTeam) {
+    return createdTeam;
+  }
+
+  const [racedTeam] = await db
+    .select()
+    .from(schema.teams)
+    .where(
+      and(
+        eq(schema.teams.organizationId, organizationId),
+        eq(schema.teams.slug, DEFAULT_WORKSPACE_TEAM_SLUG),
+      ),
+    )
+    .limit(1);
+
+  if (!racedTeam) {
+    throw new Error(`expected default workspace team for organization ${organizationId}`);
+  }
+
+  return racedTeam;
 }
 
 export async function backfillOrganizationProjectTeams(organizationId: string) {

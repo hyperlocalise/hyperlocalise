@@ -1,4 +1,4 @@
-import { isNull } from "drizzle-orm";
+import { isNull, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -14,10 +14,9 @@ export async function backfillAllOrganizationProjectTeams() {
 
 export async function countProjectsMissingTeam() {
   const [row] = await db
-    .select({ count: schema.projects.id })
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(schema.projects)
-    .where(isNull(schema.projects.teamId))
-    .limit(1);
+    .where(isNull(schema.projects.teamId));
 
-  return row ? 1 : 0;
+  return row?.count ?? 0;
 }

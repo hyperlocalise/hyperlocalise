@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -87,7 +87,7 @@ async function resolveActiveTeam(
     })
     .from(schema.teams)
     .where(and(...teamConditions))
-    .orderBy(desc(schema.teams.createdAt))
+    .orderBy(schema.teams.slug)
     .limit(1);
 
   if (!team) {
