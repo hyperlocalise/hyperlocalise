@@ -9,6 +9,7 @@ import {
   isProviderReviewFindingsAgentRun,
   isQaChecksAgentRun,
   isReviewWithAgentRun,
+  parseProviderReviewReportFromOutputSummary,
   parseQaReportFromOutputSummary,
 } from "./job-qa-findings-model";
 
@@ -32,6 +33,29 @@ describe("job-qa-findings-model", () => {
     });
 
     expect(report?.findings).toHaveLength(1);
+    expect(report?.summary.total).toBe(1);
+  });
+
+  it("parses provider review reports from agent run output summaries", () => {
+    const report = parseProviderReviewReportFromOutputSummary({
+      reviewThreads: [
+        {
+          threadId: "crowdin:1:9:issue:42",
+          kind: "issue",
+          state: "open",
+          comments: [{ externalCommentId: "42", body: "Wrong tense" }],
+          providerContext: {
+            externalProjectId: "1",
+            externalJobId: "9",
+            externalThreadId: "42",
+            providerUrl: "https://crowdin.com/project/demo",
+          },
+        },
+      ],
+      reviewSummary: { total: 1, open: 1, resolved: 0, byKind: { issue: 1 } },
+    });
+
+    expect(report?.threads).toHaveLength(1);
     expect(report?.summary.total).toBe(1);
   });
 

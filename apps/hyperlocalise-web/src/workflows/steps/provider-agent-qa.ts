@@ -1,9 +1,10 @@
-import { failAgentRun } from "@/lib/providers/agent-runs";
+import { failAgentRun, getAgentRun } from "@/lib/providers/agent-runs";
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
 } from "@/lib/providers/external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
 import {
   completeProviderAgentQaRun,
   prepareProviderAgentQaRun,
@@ -30,7 +31,18 @@ export async function completeProviderAgentQaStep(input: {
   hlResult: RunHlCheckResult;
 }) {
   "use step";
-  return completeProviderAgentQaRun(input);
+
+  const run = await getAgentRun({
+    runId: input.agentRunId,
+    organizationId: input.organizationId,
+  });
+
+  return completeProviderAgentQaRun({
+    ...input,
+    externalJobId: run?.externalJobId ?? "",
+    syncProviderReview: readInputSnapshotAction(run?.inputSnapshot ?? {}) === "review_with_agent",
+    hyperlocaliseJobId: run?.hyperlocaliseJobId ?? null,
+  });
 }
 
 export async function failProviderAgentQaStep(input: {

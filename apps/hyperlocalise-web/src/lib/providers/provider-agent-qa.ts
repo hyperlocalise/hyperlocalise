@@ -2,6 +2,7 @@ import {
   completeAgentRun,
   failAgentRun,
   getAgentRun,
+  listAgentRuns,
   startAgentRun,
 } from "@/lib/providers/agent-runs";
 import {
@@ -23,6 +24,14 @@ import {
   type RunHlCheckResult,
 } from "@/lib/providers/provider-job-qa/run-hl-check";
 import type { ProviderQaReport } from "@/lib/providers/provider-job-qa/types";
+import {
+  buildProviderReviewReport,
+  mergeProviderReviewReports,
+} from "@/lib/providers/provider-job-review/normalize-provider-review";
+import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
+import { providerReviewReportSchema } from "@/api/routes/project/job-qa.schema";
+import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
+import { pullProviderReviewForJob } from "@/lib/providers/sync-provider-review";
 
 export type ProviderAgentQaResult =
   | {
@@ -47,6 +56,56 @@ function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>):
 function readOutputSummaryString(outputSummary: Record<string, unknown>, key: string): string {
   const value = outputSummary[key];
   return typeof value === "string" ? value : "";
+}
+
+function readStoredReviewReport(
+  outputSummary: Record<string, unknown>,
+): ProviderReviewReport | null {
+  const parsed = providerReviewReportSchema.safeParse({
+    threads: outputSummary.reviewThreads,
+    summary: outputSummary.reviewSummary,
+  });
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
+
+async function loadPreviousProviderReviewReport(input: {
+  organizationId: string;
+  hyperlocaliseJobId: string | null;
+  currentRunId: string;
+}): Promise<ProviderReviewReport | null> {
+  if (!input.hyperlocaliseJobId) {
+    return null;
+  }
+
+  const priorRuns = await listAgentRuns({
+    organizationId: input.organizationId,
+    hyperlocaliseJobId: input.hyperlocaliseJobId,
+    kind: "review",
+    status: "succeeded",
+    limit: 25,
+  });
+
+  for (const run of priorRuns) {
+    if (run.id === input.currentRunId) {
+      continue;
+    }
+
+    if (readInputSnapshotAction(run.inputSnapshot ?? {}) !== "review_with_agent") {
+      continue;
+    }
+
+    const report = readStoredReviewReport(run.outputSummary ?? {});
+    if (report) {
+      return report;
+    }
+  }
+
+  return null;
 }
 
 function readStoredReport(outputSummary: Record<string, unknown>): ProviderQaReport | null {
@@ -294,11 +353,14 @@ export async function completeProviderAgentQaRun(input: {
   organizationId: string;
   projectId: string;
   providerKind: ExternalTmsProviderKind;
+  externalJobId: string;
   pullRunId: string;
   content: ExternalTmsTaskContent;
   pullFailures: ExternalTmsContentSyncFailure[];
   unitsDiscovered: number;
   hlResult: RunHlCheckResult;
+  syncProviderReview?: boolean;
+  hyperlocaliseJobId?: string | null;
 }): Promise<ProviderAgentQaResult> {
   const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
   const [translationMemoryUsage, glossaryUsage] = await Promise.all([
@@ -337,6 +399,34 @@ export async function completeProviderAgentQaRun(input: {
     input.hlResult,
   );
 
+  const reviewWarnings: string[] = [];
+  let reviewReport: ProviderReviewReport = buildProviderReviewReport([]);
+
+  if (input.syncProviderReview) {
+    const previousReport = await loadPreviousProviderReviewReport({
+      organizationId: input.organizationId,
+      hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
+      currentRunId: input.agentRunId,
+    });
+
+    try {
+      reviewReport =
+        (await pullProviderReviewForJob({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          providerKind: input.providerKind,
+          externalJobId: input.externalJobId,
+          content: input.content,
+          previousReport,
+        })) ?? buildProviderReviewReport([]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Provider review comment sync failed";
+      reviewWarnings.push(message);
+      reviewReport = mergeProviderReviewReports(previousReport, buildProviderReviewReport([]));
+    }
+  }
+
   await completeAgentRun({
     runId: input.agentRunId,
     organizationId: input.organizationId,
@@ -346,13 +436,15 @@ export async function completeProviderAgentQaRun(input: {
       findingCount: report.summary.total,
       findings: report.findings,
       summary: report.summary,
+      reviewThreads: reviewReport.threads,
+      reviewSummary: reviewReport.summary,
       targetLocales: input.content.targetLocales,
       sourceLocale: input.content.sourceLocale ?? null,
       translationMemoryUsage,
       glossaryUsage,
     },
     changedItems: [],
-    warnings: input.pullFailures.map((failure) => failure.message),
+    warnings: [...input.pullFailures.map((failure) => failure.message), ...reviewWarnings],
   });
 
   return {
@@ -386,15 +478,23 @@ export async function executeProviderAgentQa(input: {
     targetLocales: prepared.content.targetLocales,
   });
 
+  const run = await getAgentRun({
+    runId: input.agentRunId,
+    organizationId: input.organizationId,
+  });
+
   return completeProviderAgentQaRun({
     agentRunId: input.agentRunId,
     organizationId: input.organizationId,
     projectId: prepared.projectId,
     providerKind: prepared.providerKind,
+    externalJobId: run?.externalJobId ?? "",
     pullRunId: prepared.pullRunId,
     content: prepared.content,
     pullFailures: prepared.pullFailures,
     unitsDiscovered: prepared.unitsDiscovered,
     hlResult,
+    syncProviderReview: readInputSnapshotAction(run?.inputSnapshot ?? {}) === "review_with_agent",
+    hyperlocaliseJobId: run?.hyperlocaliseJobId ?? null,
   });
 }

@@ -35,6 +35,7 @@ import { TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
 import type { ProviderQaFinding, ProviderQaSeverity } from "@/lib/providers/provider-job-qa/types";
+import type { ProviderReviewThread } from "@/lib/providers/provider-job-review/types";
 import { cn } from "@/lib/utils";
 
 import { toneClass, type Tone } from "../../../_components/workspace-resource-shared";
@@ -47,11 +48,27 @@ import {
   filterFindings,
   formatCheckTypeLabel,
   groupFindings,
+  formatReviewAuthorLabel,
+  formatReviewThreadKindLabel,
+  formatReviewThreadStateLabel,
   isProviderReviewFindingsAgentRun,
+  isReviewWithAgentRun,
+  parseProviderReviewReportFromOutputSummary,
   parseQaReportFromOutputSummary,
   type QaFindingGroupBy,
   type QaFindingWithId,
 } from "./job-qa-findings-model";
+
+function reviewThreadStateTone(state: ProviderReviewThread["state"]): Tone {
+  switch (state) {
+    case "open":
+      return "watch";
+    case "resolved":
+      return "safe";
+    default:
+      return "info";
+  }
+}
 
 function severityTone(severity: ProviderQaSeverity): Tone {
   switch (severity) {
@@ -70,6 +87,116 @@ function parseActionError(response: Response, fallback: string) {
     .then((body: { error?: string; message?: string }) => body.message ?? body.error)
     .catch(() => null)
     .then((error) => (error ? `${fallback}: ${error}` : `${fallback} (${response.status})`));
+}
+
+function ProviderReviewSummaryChips({
+  summary,
+}: {
+  summary: { total: number; open: number; resolved: number };
+}) {
+  const entries: Array<{ label: string; count: number; tone: Tone }> = [
+    { label: "Threads", count: summary.total, tone: "info" },
+    { label: "Open", count: summary.open, tone: "watch" },
+    { label: "Resolved", count: summary.resolved, tone: "safe" },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {entries.map((entry) => (
+        <Badge
+          key={entry.label}
+          variant="outline"
+          className={cn("rounded-full capitalize", toneClass(entry.tone))}
+        >
+          {entry.label}: {entry.count}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function ProviderReviewThreadRow({
+  thread,
+  organizationSlug,
+  projectId,
+}: {
+  thread: ProviderReviewThread;
+  organizationSlug: string;
+  projectId: string | null;
+}) {
+  const primaryComment = thread.comments[0];
+  const body = primaryComment?.body ?? thread.subject ?? "";
+  const authorLabel = formatReviewAuthorLabel(thread.author ?? primaryComment?.author);
+  const contentHref =
+    projectId && thread.item
+      ? buildProjectFilesHref({
+          organizationSlug,
+          projectId,
+          key: thread.item.key,
+          locale: thread.item.locale ?? thread.locale ?? undefined,
+        })
+      : null;
+  const providerUrl = thread.providerContext.providerUrl;
+
+  return (
+    <li className="rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-3">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn(
+              "rounded-full capitalize",
+              toneClass(reviewThreadStateTone(thread.state)),
+            )}
+          >
+            {formatReviewThreadStateLabel(thread.state)}
+          </Badge>
+          <Badge variant="outline" className="rounded-full capitalize text-foreground/62">
+            {formatReviewThreadKindLabel(thread.kind)}
+          </Badge>
+          {thread.locale ? (
+            <Badge variant="outline" className="rounded-full text-foreground/62">
+              {thread.locale}
+            </Badge>
+          ) : null}
+          {thread.issueType ? (
+            <Badge variant="outline" className="rounded-full text-foreground/62">
+              {thread.issueType.replaceAll("_", " ")}
+            </Badge>
+          ) : null}
+        </div>
+        {body ? <p className="text-sm text-foreground/82">{body}</p> : null}
+        {thread.comments.length > 1 ? (
+          <p className="text-xs text-foreground/48">
+            {thread.comments.length} comments in this thread
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-foreground/54">
+          {authorLabel ? <span>{authorLabel}</span> : null}
+          {thread.createdAt ? <span>{thread.createdAt}</span> : null}
+          {thread.item?.key ? <span className="font-mono">{thread.item.key}</span> : null}
+          {contentHref ? (
+            <Link
+              href={contentHref}
+              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+            >
+              View in project files
+            </Link>
+          ) : null}
+          {providerUrl ? (
+            <Link
+              href={providerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+            >
+              Open in TMS
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
 }
 
 function QaSummaryChips({
@@ -246,6 +373,23 @@ export function JobQaFindingsSection({
       ) ?? null
     );
   }, [agentRuns]);
+
+  const latestReviewAgentRun = useMemo(() => {
+    if (!agentRuns) {
+      return null;
+    }
+
+    return (
+      agentRuns.find(
+        (run) => isReviewWithAgentRun(run.inputSnapshot) && run.status === "succeeded",
+      ) ?? null
+    );
+  }, [agentRuns]);
+
+  const providerReviewReport = useMemo(
+    () => parseProviderReviewReportFromOutputSummary(latestReviewAgentRun?.outputSummary),
+    [latestReviewAgentRun],
+  );
 
   const activeQaRun = useMemo(() => {
     if (!agentRuns) {
@@ -498,6 +642,28 @@ export function JobQaFindingsSection({
             ? "Agent review is running. Results will refresh when the run completes."
             : "QA checks are running. Results will refresh when the agent run completes."}
         </p>
+      ) : null}
+
+      {providerReviewReport && providerReviewReport.summary.total > 0 ? (
+        <div className="mt-4 space-y-3 rounded-md border border-foreground/8 bg-foreground/2 px-4 py-4">
+          <div>
+            <h3 className="text-sm font-medium text-foreground/82">Provider review threads</h3>
+            <p className="mt-1 text-sm text-foreground/48">
+              Issues and comments synced from the TMS for this job.
+            </p>
+          </div>
+          <ProviderReviewSummaryChips summary={providerReviewReport.summary} />
+          <ul className="space-y-2">
+            {providerReviewReport.threads.map((thread) => (
+              <ProviderReviewThreadRow
+                key={thread.threadId}
+                thread={thread}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+              />
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {report && report.summary.total > 0 ? (

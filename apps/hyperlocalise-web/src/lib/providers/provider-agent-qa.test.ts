@@ -14,6 +14,11 @@ import { executeProviderAgentQa } from "./provider-agent-qa";
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
 const runHlCheckOnProviderContentMock = vi.fn();
+const pullProviderReviewForJobMock = vi.fn();
+
+vi.mock("@/lib/providers/sync-provider-review", () => ({
+  pullProviderReviewForJob: (...args: unknown[]) => pullProviderReviewForJobMock(...args),
+}));
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
@@ -63,6 +68,7 @@ afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
   runHlCheckOnProviderContentMock.mockReset();
+  pullProviderReviewForJobMock.mockReset();
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     providerContentPullerMocks.state.actual,
   );
@@ -237,6 +243,68 @@ describe("executeProviderAgentQa", () => {
     expect(result).toMatchObject({
       ok: false,
       code: "missing_project_id",
+    });
+  });
+
+  it("syncs provider review threads for review_with_agent runs", async () => {
+    const project = await createExternalTmsProject();
+
+    pullExternalTmsTaskContentMock.mockResolvedValue({
+      runId: "pull-run-review-1",
+      counts: { unitsDiscovered: 1, translationsDiscovered: 1, approvedTranslations: 0 },
+      content: pulledContent,
+      failures: [],
+    });
+    runHlCheckOnProviderContentMock.mockResolvedValue({
+      report: { checks: [], findings: [], summary: { total: 0 } },
+      keyManifest: {
+        hello: { externalStringId: "1", key: "hello" },
+      },
+      workspaceRoot: "/tmp/hl-provider-review",
+    });
+    pullProviderReviewForJobMock.mockResolvedValue({
+      threads: [
+        {
+          threadId: "crowdin:123:task-qa-1:issue:42",
+          kind: "issue",
+          state: "open",
+          comments: [{ externalCommentId: "42", body: "Needs review" }],
+          providerContext: {
+            externalProjectId: "123",
+            externalJobId: "task-qa-1",
+            externalThreadId: "42",
+            providerUrl: "https://crowdin.com/project/demo",
+          },
+        },
+      ],
+      summary: { total: 1, open: 1, resolved: 0, byKind: { issue: 1 } },
+    });
+
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-qa-1",
+      kind: "review",
+      inputSnapshot: { projectId: project.id, action: "review_with_agent" },
+    });
+
+    const result = await executeProviderAgentQa({
+      agentRunId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(pullProviderReviewForJobMock).toHaveBeenCalled();
+
+    const completed = await getAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+    });
+
+    expect(completed?.outputSummary?.reviewThreads).toHaveLength(1);
+    expect(completed?.outputSummary?.reviewSummary).toMatchObject({
+      total: 1,
+      open: 1,
     });
   });
 

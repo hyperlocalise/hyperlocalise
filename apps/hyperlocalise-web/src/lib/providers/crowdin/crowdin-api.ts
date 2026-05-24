@@ -136,6 +136,39 @@ export interface CrowdinTranslationApproval {
   languageId: string;
 }
 
+export interface CrowdinShortUser {
+  id: number;
+  username: string;
+  fullName?: string | null;
+}
+
+export interface CrowdinStringComment {
+  id: number;
+  text: string;
+  userId: number;
+  stringId: number;
+  languageId: string;
+  type: string;
+  issueType?: string | null;
+  issueStatus?: string | null;
+  resolverId?: number | null;
+  resolver?: CrowdinShortUser | null;
+  user?: CrowdinShortUser | null;
+  resolvedAt?: string | null;
+  createdAt: string;
+  projectId: number;
+}
+
+export interface CrowdinTaskComment {
+  id: number;
+  userId: number;
+  taskId: number;
+  text: string;
+  timeSpent?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CrowdinStorage {
   id: number;
   fileName: string;
@@ -504,6 +537,56 @@ export class CrowdinApiClient {
   async getTask(projectId: number, taskId: number): Promise<CrowdinTaskDetails> {
     const response = await this.get<CrowdinGetResponse<CrowdinTaskDetails>>(
       `/projects/${projectId}/tasks/${taskId}`,
+    );
+    return response.data;
+  }
+
+  async listTaskComments(projectId: number, taskId: number): Promise<CrowdinTaskComment[]> {
+    return this.listPaginated<CrowdinTaskComment>(
+      `/projects/${projectId}/tasks/${taskId}/comments`,
+    );
+  }
+
+  async listStringComments(
+    projectId: number,
+    options?: {
+      stringId?: number;
+      type?: "comment" | "issue";
+      issueStatus?: "resolved" | "unresolved";
+    },
+  ): Promise<CrowdinStringComment[]> {
+    const params = new URLSearchParams();
+    if (options?.stringId) {
+      params.set("stringId", String(options.stringId));
+    }
+    if (options?.type) {
+      params.set("type", options.type);
+    }
+    if (options?.issueStatus) {
+      params.set("issueStatus", options.issueStatus);
+    }
+
+    const query = params.toString();
+    const path = query
+      ? `/projects/${projectId}/comments?${query}`
+      : `/projects/${projectId}/comments`;
+
+    return this.listPaginated<CrowdinStringComment>(path);
+  }
+
+  async addStringComment(
+    projectId: number,
+    request: {
+      text: string;
+      stringId: number;
+      targetLanguageId: string;
+      type: "comment" | "issue";
+      issueType?: string;
+    },
+  ): Promise<CrowdinStringComment> {
+    const response = await this.post<CrowdinGetResponse<CrowdinStringComment>>(
+      `/projects/${projectId}/comments`,
+      request,
     );
     return response.data;
   }
