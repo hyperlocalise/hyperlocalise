@@ -63,6 +63,9 @@ func (p GenericXMLParser) Parse(content []byte) (map[string]string, error) {
 	return out, nil
 }
 
+// MarshalGenericXML renders translated generic XML values into template.
+// values must contain decoded plain text, not pre-escaped XML strings; XML
+// escaping is applied while rendering.
 func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
@@ -71,6 +74,10 @@ func MarshalGenericXML(template []byte, values map[string]string) ([]byte, error
 	return doc.render(values, "", "")
 }
 
+// MarshalGenericXMLWithTargetLocale renders translated generic XML values into
+// template and rewrites matching root locale attributes to targetLocale.
+// values must contain decoded plain text, not pre-escaped XML strings; XML
+// escaping is applied while rendering.
 func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
 	doc, err := parseGenericXMLDocument(template)
 	if err != nil {
