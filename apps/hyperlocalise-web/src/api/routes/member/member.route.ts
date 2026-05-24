@@ -121,6 +121,8 @@ async function inviteOrganizationMember(input: {
     .where(eq(schema.users.email, normalizedEmail))
     .limit(1);
 
+  const isNewUser = !existingUser;
+
   const user =
     existingUser ??
     (
@@ -156,6 +158,7 @@ async function inviteOrganizationMember(input: {
   return {
     membershipId: membership.id,
     localUserId: user.id,
+    isNewUser,
     member: toMemberSummary(
       {
         workosUserId: user.workosUserId,
@@ -170,10 +173,18 @@ async function inviteOrganizationMember(input: {
   };
 }
 
-async function rollbackPendingInvite(input: { membershipId: string; localUserId: string }) {
+async function rollbackPendingInvite(input: {
+  membershipId: string;
+  localUserId: string;
+  isNewUser: boolean;
+}) {
   await db
     .delete(schema.organizationMemberships)
     .where(eq(schema.organizationMemberships.id, input.membershipId));
+
+  if (!input.isNewUser) {
+    return;
+  }
 
   const remainingMemberships = await db
     .select({ id: schema.organizationMemberships.id })
@@ -286,6 +297,7 @@ export function createMemberRoutes() {
         await rollbackPendingInvite({
           membershipId: pendingInvite.membershipId,
           localUserId: pendingInvite.localUserId,
+          isNewUser: pendingInvite.isNewUser,
         });
 
         return internalErrorResponse(

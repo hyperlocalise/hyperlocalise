@@ -12,13 +12,14 @@ import {
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
+import {
+  INVITED_WORKOS_USER_ID_PREFIX,
+  isInvitedPlaceholderWorkosUserId,
+} from "@/lib/workos/constants";
+
 import type { z } from "zod";
 
-export const INVITED_WORKOS_USER_ID_PREFIX = "invited_user_";
-
-export function isInvitedPlaceholderWorkosUserId(workosUserId: string) {
-  return workosUserId.startsWith(INVITED_WORKOS_USER_ID_PREFIX);
-}
+export { INVITED_WORKOS_USER_ID_PREFIX, isInvitedPlaceholderWorkosUserId };
 
 export function resolveMemberStatus(workosUserId: string): "active" | "invited" {
   return isInvitedPlaceholderWorkosUserId(workosUserId) ? "invited" : "active";

@@ -4,8 +4,7 @@ import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import type { DatabaseClient } from "@/lib/database";
-
-const INVITED_WORKOS_USER_ID_PREFIX = "invited_user_";
+import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
   workosUserId: string;
