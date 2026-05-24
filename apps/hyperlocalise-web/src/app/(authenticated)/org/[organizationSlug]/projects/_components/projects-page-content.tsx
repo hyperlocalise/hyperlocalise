@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,11 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
 
+import {
+  PROJECT_SOURCE_FILTERS,
+  readWorkspaceFilterParam,
+  TMS_PROVIDER_KINDS,
+} from "../../_components/workspace-filter-params";
 import { PageHeader } from "../../_components/workspace-resource-shared";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
@@ -41,11 +47,17 @@ async function readProjectError(response: Response, fallback: string) {
   return fallback;
 }
 
-function useProjectFilters(projects: ProjectListRow[]) {
+function useProjectFilters(projects: ProjectListRow[], searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [providerFilter, setProviderFilter] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
+  );
+  const [providerFilter, setProviderFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
+  );
+  const [statusFilter, setStatusFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "status", ["active", "inactive"]),
+  );
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -92,6 +104,7 @@ function useProjectFilters(projects: ProjectListRow[]) {
 }
 
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
@@ -190,7 +203,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     setStatusFilter,
     filteredProjects,
     activeFilterCount,
-  } = useProjectFilters(projects);
+  } = useProjectFilters(projects, searchParams);
 
   const isSavingProject = createProject.isPending || updateProject.isPending;
   const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";

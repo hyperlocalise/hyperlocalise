@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { JobsPageContent } from "./_components/jobs-page-content";
 
 export default async function JobsPage({
@@ -7,5 +9,9 @@ export default async function JobsPage({
 }) {
   const { organizationSlug } = await params;
 
-  return <JobsPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense fallback={null}>
+      <JobsPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }

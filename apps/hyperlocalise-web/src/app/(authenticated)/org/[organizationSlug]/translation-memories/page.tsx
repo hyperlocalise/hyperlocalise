@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { TranslationMemoriesPageContent } from "./_components/translation-memories-page-content";
 
 export default async function TranslationMemoriesPage({
@@ -7,5 +9,9 @@ export default async function TranslationMemoriesPage({
 }) {
   const { organizationSlug } = await params;
 
-  return <TranslationMemoriesPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense fallback={null}>
+      <TranslationMemoriesPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }

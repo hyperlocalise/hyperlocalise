@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { GlossariesPageContent } from "./_components/glossaries-page-content";
 
 export default async function GlossariesPage({
@@ -7,5 +9,9 @@ export default async function GlossariesPage({
 }) {
   const { organizationSlug } = await params;
 
-  return <GlossariesPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense fallback={null}>
+      <GlossariesPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }

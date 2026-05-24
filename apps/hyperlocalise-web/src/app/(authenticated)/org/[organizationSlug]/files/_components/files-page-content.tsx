@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight01Icon, File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -27,6 +28,12 @@ import {
   workspaceFileFiltersWithoutLocale,
   type WorkspaceFileFilters,
 } from "../../_components/workspace-files-shared";
+import {
+  FILE_ORIGIN_FILTERS,
+  FILE_SYNC_FILTERS,
+  readWorkspaceFilterParam,
+  TMS_PROVIDER_KINDS,
+} from "../../_components/workspace-filter-params";
 import { PageHeader } from "../../_components/workspace-resource-shared";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 
@@ -36,7 +43,14 @@ function fileDetailHref(organizationSlug: string, file: WorkspaceFileRecord) {
 }
 
 export function FilesPageContent({ organizationSlug }: { organizationSlug: string }) {
-  const [filters, setFilters] = useState<WorkspaceFileFilters>(defaultWorkspaceFileFilters);
+  const searchParams = useSearchParams();
+  const [filters, setFilters] = useState<WorkspaceFileFilters>(() => ({
+    ...defaultWorkspaceFileFilters,
+    syncState: readWorkspaceFilterParam(searchParams, "sync", FILE_SYNC_FILTERS),
+    providerKind: readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
+    origin: readWorkspaceFilterParam(searchParams, "origin", FILE_ORIGIN_FILTERS),
+    locale: searchParams.get("locale")?.trim() || "all",
+  }));
 
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],

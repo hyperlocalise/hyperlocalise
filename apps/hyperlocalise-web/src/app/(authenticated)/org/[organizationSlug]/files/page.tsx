@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { FilesPageContent } from "./_components/files-page-content";
 
 export default async function FilesPage({
@@ -7,5 +9,9 @@ export default async function FilesPage({
 }) {
   const { organizationSlug } = await params;
 
-  return <FilesPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense fallback={null}>
+      <FilesPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }
