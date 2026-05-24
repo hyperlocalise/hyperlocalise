@@ -6,6 +6,7 @@ import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
 import {
   resolveApiAuthContextFromSession,
+  OrganizationSlugUnresolvableError,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
 
@@ -137,6 +138,14 @@ export function createWorkosAuthMiddleware() {
           currentSlug: error.currentSlug,
           redirectTo: `/org/${error.currentSlug}/dashboard`,
         });
+      }
+
+      if (error instanceof OrganizationSlugUnresolvableError) {
+        return forbiddenResponse(
+          c,
+          "organization_slug_unresolvable",
+          "Organization slug is unavailable; choose another workspace",
+        );
       }
 
       const message = error instanceof Error ? error.message : "unauthorized";

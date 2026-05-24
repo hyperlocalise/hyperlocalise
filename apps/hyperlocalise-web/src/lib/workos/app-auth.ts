@@ -5,6 +5,7 @@ import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import {
+  OrganizationSlugUnresolvableError,
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
@@ -38,6 +39,10 @@ export async function requireAppAuthContext(
     if (error instanceof StaleOrganizationSlugError) {
       await setStoredActiveOrganizationSlug(error.currentSlug);
       redirect(`/org/${error.currentSlug}/dashboard`);
+    }
+
+    if (error instanceof OrganizationSlugUnresolvableError) {
+      redirect("/auth/select-organization");
     }
 
     if (error instanceof Error && error.message === "archived_organization_access") {

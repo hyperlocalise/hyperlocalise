@@ -34,6 +34,23 @@ export class StaleOrganizationSlugError extends Error {
   }
 }
 
+/** Signed-in user requested a slug that is not in their active memberships. */
+export class OrganizationSlugUnresolvableError extends Error {
+  constructor(readonly requestedSlug: string) {
+    super("organization_slug_unresolvable");
+  }
+}
+
+/**
+ * Best-effort redirect target when a URL still uses an old organization slug.
+ *
+ * Without slug history we can only infer renames when (a) the WorkOS session's
+ * active organization id matches a renamed workspace, or (b) the stale slug still
+ * exists on an archived organization row. Members who follow shared links to a
+ * renamed-but-still-active workspace while their session points elsewhere cannot
+ * be auto-redirected; they receive {@link OrganizationSlugUnresolvableError}
+ * and are sent to the organization picker instead of access denied.
+ */
 async function resolveStaleSlugRedirectTarget(input: {
   requestedSlug: string;
   organizations: ApiAuthContext["organizations"];
@@ -101,6 +118,10 @@ async function selectActiveOrganization(
 
       if (currentSlug) {
         throw new StaleOrganizationSlugError(options.organizationSlug, currentSlug);
+      }
+
+      if (organizations.length > 0) {
+        throw new OrganizationSlugUnresolvableError(options.organizationSlug);
       }
 
       throw new Error("organization_access_denied");

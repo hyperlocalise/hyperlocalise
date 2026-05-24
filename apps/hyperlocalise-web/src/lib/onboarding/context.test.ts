@@ -105,9 +105,7 @@ describe("loadOnboardingContext", () => {
       organizationSlug: "new-workspace",
       providerSetupStatus: "pending",
     });
-    expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith(
-      auth.activeOrganization.slug,
-    );
+    expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith(auth.activeOrganization.slug);
     expect(resolveApiAuthContextFromSessionMock).toHaveBeenNthCalledWith(2, {
       session,
       organizationSlug: "new-workspace",

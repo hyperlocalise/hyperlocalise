@@ -1,6 +1,7 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import {
+  OrganizationSlugUnresolvableError,
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
@@ -52,6 +53,10 @@ export async function loadOnboardingContext() {
           throw retryError;
         }
       }
+    } else if (error instanceof OrganizationSlugUnresolvableError) {
+      await clearStoredOnboardingState();
+      onboardingState = null;
+      auth = await resolveApiAuthContextFromSession({ session });
     } else if (
       error instanceof Error &&
       (error.message === "organization_access_denied" ||

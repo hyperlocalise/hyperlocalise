@@ -15,7 +15,6 @@ export async function deprecateLocalOrgWorkspaces() {
     .update(schema.organizations)
     .set({
       lifecycleStatus: "deprecated",
-      archivedAt: deprecatedAt,
       updatedAt: deprecatedAt,
     })
     .where(

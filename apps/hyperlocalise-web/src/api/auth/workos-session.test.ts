@@ -150,9 +150,49 @@ describe("resolveApiAuthContextFromSession", () => {
     ).rejects.toThrow("archived_organization_access");
   });
 
-  it("rejects an organization slug the user does not belong to", async () => {
+  it("sends multi-org users with unknown slugs to the organization picker", async () => {
+    const primaryIdentity = fixture.createWorkosIdentity();
+    const secondaryIdentity = {
+      ...fixture.createWorkosIdentity(),
+      user: primaryIdentity.user,
+      membership: {
+        workosMembershipId: `${primaryIdentity.membership.workosMembershipId}-secondary`,
+        role: "admin",
+      },
+    } satisfies WorkosAuthIdentity;
+
+    await syncWorkosIdentity(db, primaryIdentity);
+    await syncWorkosIdentity(db, secondaryIdentity);
+
+    withAuthMock.mockResolvedValue({
+      user: { id: primaryIdentity.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession, OrganizationSlugUnresolvableError } =
+      await import("./workos-session");
+
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: "not-a-real-membership",
+      }),
+    ).rejects.toBeInstanceOf(OrganizationSlugUnresolvableError);
+  });
+
+  it("rejects an organization slug when the user has no memberships", async () => {
     const identity = fixture.createWorkosIdentity();
     await syncWorkosIdentity(db, identity);
+
+    const [user] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, identity.user.workosUserId))
+      .limit(1);
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.userId, user.id));
+
     withAuthMock.mockResolvedValue({
       user: { id: identity.user.workosUserId },
       organizationId: null,

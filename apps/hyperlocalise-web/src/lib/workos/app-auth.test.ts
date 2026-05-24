@@ -41,6 +41,27 @@ describe("requireAppAuthContext", () => {
     vi.clearAllMocks();
   });
 
+  it("redirects to the organization picker when the requested slug cannot be resolved", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    const { OrganizationSlugUnresolvableError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new OrganizationSlugUnresolvableError("stale-slug"),
+    );
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
+      "redirect:/auth/select-organization",
+    );
+    expect(redirectMock).toHaveBeenCalledWith("/auth/select-organization");
+  });
+
   it("redirects to the org access-denied page when the requested org is not accessible", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
