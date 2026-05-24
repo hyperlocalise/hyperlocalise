@@ -13,9 +13,13 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-}));
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
 vi.mock("@/lib/workos/server-client", () => ({
   getWorkosServerClient: () => ({

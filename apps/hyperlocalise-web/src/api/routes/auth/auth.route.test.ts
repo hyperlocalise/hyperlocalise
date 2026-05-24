@@ -48,9 +48,15 @@ async function createClient(
       : null,
   );
 
-  vi.doMock("@/api/auth/workos-session", () => ({
-    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-  }));
+  vi.doMock("@/api/auth/workos-session", async () => {
+    const actual = await vi.importActual<typeof import("@/api/auth/workos-session")>(
+      "@/api/auth/workos-session",
+    );
+    return {
+      ...actual,
+      resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+    };
+  });
 
   const { app } = await import("../../app");
 

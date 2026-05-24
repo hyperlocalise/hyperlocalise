@@ -37,15 +37,19 @@ vi.mock("@/lib/agents/slack/bot", () => ({
   }),
 }));
 
-vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: vi.fn((options) => {
-    if (globalThis.__resolveTestApiAuthContextFromSession) {
-      return globalThis.__resolveTestApiAuthContextFromSession(options);
-    }
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: vi.fn((options) => {
+      if (globalThis.__resolveTestApiAuthContextFromSession) {
+        return globalThis.__resolveTestApiAuthContextFromSession(options);
+      }
 
-    return globalThis.__testApiAuthContext ?? null;
-  }),
-}));
+      return globalThis.__testApiAuthContext ?? null;
+    }),
+  };
+});
 
 const fixture = createProjectTestFixture();
 
