@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -39,6 +40,67 @@ msgstr[1] "items"
 	}
 }
 
+func TestPOParserMultilineContinuations(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected map[string]string
+	}{
+		{
+			name: "msgid_plural continuation does not leak into msgid",
+			content: `msgid "key"
+msgid_plural "plural"
+" continuation"
+msgstr "value"`,
+			expected: map[string]string{"key": "value"},
+		},
+		{
+			name: "msgstr[N] continuation does not leak into msgstr[0]",
+			content: `msgid "key"
+msgid_plural "plural"
+msgstr[0] "value0"
+" continuation0"
+msgstr[1] "value1"
+" continuation1"`,
+			expected: map[string]string{"key": "value0 continuation0"},
+		},
+		{
+			name: "msgctxt continuation does not leak into following fields",
+			content: `msgctxt "context"
+" continuation"
+msgid "key"
+msgstr "value"`,
+			expected: map[string]string{"key": "value"},
+		},
+		{
+			name: "multiple entries with continuations",
+			content: `msgid "key1"
+msgstr "value1"
+" continuation1"
+
+msgid "key2"
+msgstr "value2"
+" continuation2"`,
+			expected: map[string]string{
+				"key1": "value1 continuation1",
+				"key2": "value2 continuation2",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := (POFileParser{}).Parse([]byte(tt.content))
+			if err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.expected) {
+				t.Errorf("got %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestPOParserMsgctxtWithDuplicateMsgidCollidesByMsgid(t *testing.T) {
 	content := []byte(`msgctxt "nav"
 msgid "home"
@@ -59,57 +121,5 @@ msgstr "Accueil hero"
 	}
 	if got["home"] != "Accueil hero" {
 		t.Fatalf("expected last msgid variant to win, got %+v", got)
-	}
-}
-
-func TestPOParserIndexedMsgStrContinuation(t *testing.T) {
-	content := []byte(`msgid "plural"
-msgid_plural "plurals"
-msgstr[0] "singular"
-" continuation"
-msgstr[1] "plural"
-" should be ignored"
-`)
-
-	got, err := (POFileParser{}).Parse(content)
-	if err != nil {
-		t.Fatalf("parse po: %v", err)
-	}
-
-	val, ok := got["plural"]
-	if !ok {
-		t.Fatalf("expected key 'plural' to exist")
-	}
-
-	expected := "singular continuation"
-	if val != expected {
-		t.Errorf("expected %q, got %q. If it contains 'should be ignored', then msgstr[1] continuation leaked into msgstr[0]", expected, val)
-	}
-}
-
-func TestPOParserMsgidPluralContinuation(t *testing.T) {
-	content := []byte(`msgid "singular"
-msgid_plural "plural"
-" continuation"
-msgstr "singular value"
-`)
-
-	got, err := (POFileParser{}).Parse(content)
-	if err != nil {
-		t.Fatalf("parse po: %v", err)
-	}
-
-	val, ok := got["singular"]
-	if !ok {
-		for k := range got {
-			if k == "singular continuation" {
-				t.Errorf("bug: msgid_plural continuation was appended to msgid")
-				return
-			}
-		}
-		t.Fatalf("expected key 'singular' to exist, got %v", got)
-	}
-	if val != "singular value" {
-		t.Errorf("expected 'singular value', got %q", val)
 	}
 }
