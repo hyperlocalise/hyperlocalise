@@ -79,6 +79,28 @@ export interface PhraseUpload {
   updatedAt: string | null;
 }
 
+export interface PhraseUserPreview {
+  id: string;
+  username: string | null;
+  name: string | null;
+}
+
+export interface PhraseLocalePreview {
+  id: string;
+  name: string;
+  code: string | null;
+}
+
+export interface PhraseKeyComment {
+  id: string;
+  message: string;
+  hasReplies: boolean;
+  user: PhraseUserPreview | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  locales: PhraseLocalePreview[];
+}
+
 export interface PhraseLocaleDownloadMetadata {
   localeId: string;
   localeName: string;
@@ -176,6 +198,47 @@ export class PhraseApiClient {
           branch: options.branch,
         }),
       normalize: (record) => normalizePhraseKey(record as PhraseKeyApiRecord),
+    });
+  }
+
+  async listKeyComments(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseKeyComment[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/comments`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+            order: "desc",
+          },
+        ),
+      normalize: (record) => normalizePhraseKeyComment(record as PhraseKeyCommentApiRecord),
+    });
+  }
+
+  async listCommentReplies(
+    projectId: string,
+    keyId: string,
+    commentId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseKeyComment[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/comments/${encodeURIComponent(commentId)}/replies`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+            order: "asc",
+          },
+        ),
+      normalize: (record) => normalizePhraseKeyComment(record as PhraseKeyCommentApiRecord),
     });
   }
 
@@ -511,6 +574,28 @@ type PhraseUploadApiRecord = {
   updated_at?: string | null;
 };
 
+type PhraseUserPreviewApiRecord = {
+  id: string;
+  username?: string | null;
+  name?: string | null;
+};
+
+type PhraseLocalePreviewApiRecord = {
+  id: string;
+  name: string;
+  code?: string | null;
+};
+
+type PhraseKeyCommentApiRecord = {
+  id: string;
+  message?: string;
+  has_replies?: boolean;
+  user?: PhraseUserPreviewApiRecord | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  locales?: PhraseLocalePreviewApiRecord[];
+};
+
 function normalizePhraseProject(project: PhraseProjectApiRecord): PhraseProject {
   return {
     id: project.id,
@@ -589,5 +674,37 @@ function normalizePhraseUpload(upload: PhraseUploadApiRecord): PhraseUpload {
     url: upload.url ?? null,
     createdAt: upload.created_at ?? null,
     updatedAt: upload.updated_at ?? null,
+  };
+}
+
+function normalizePhraseUserPreview(user: PhraseUserPreviewApiRecord | null | undefined) {
+  if (!user?.id) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    username: user.username ?? null,
+    name: user.name ?? null,
+  };
+}
+
+function normalizePhraseLocalePreview(locale: PhraseLocalePreviewApiRecord) {
+  return {
+    id: locale.id,
+    name: locale.name,
+    code: locale.code ?? null,
+  };
+}
+
+function normalizePhraseKeyComment(comment: PhraseKeyCommentApiRecord): PhraseKeyComment {
+  return {
+    id: comment.id,
+    message: comment.message?.trim() || "",
+    hasReplies: comment.has_replies ?? false,
+    user: normalizePhraseUserPreview(comment.user),
+    createdAt: comment.created_at ?? null,
+    updatedAt: comment.updated_at ?? null,
+    locales: (comment.locales ?? []).map(normalizePhraseLocalePreview),
   };
 }
