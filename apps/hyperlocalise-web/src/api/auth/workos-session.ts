@@ -25,17 +25,105 @@ type OrganizationMembershipRecord = {
   role: ApiAuthContext["membership"]["role"];
 };
 
-function selectActiveOrganization(
+export class StaleOrganizationSlugError extends Error {
+  constructor(
+    readonly requestedSlug: string,
+    readonly currentSlug: string,
+  ) {
+    super("stale_organization_slug");
+  }
+}
+
+/** Signed-in user requested a slug that is not in their active memberships. */
+export class OrganizationSlugUnresolvableError extends Error {
+  constructor(readonly requestedSlug: string) {
+    super("organization_slug_unresolvable");
+  }
+}
+
+/**
+ * Best-effort redirect target when a URL still uses an old organization slug.
+ *
+ * Without slug history we can only infer renames when (a) the WorkOS session's
+ * active organization id matches a renamed workspace, or (b) the stale slug still
+ * exists on an archived organization row. Members who follow shared links to a
+ * renamed-but-still-active workspace while their session points elsewhere cannot
+ * be auto-redirected; they receive {@link OrganizationSlugUnresolvableError}
+ * and are sent to the organization picker instead of access denied.
+ */
+async function resolveStaleSlugRedirectTarget(input: {
+  requestedSlug: string;
+  organizations: ApiAuthContext["organizations"];
+  workosOrganizationId?: string | null;
+  workosUserId: string;
+}): Promise<string | null> {
+  const { organizations, workosOrganizationId, requestedSlug, workosUserId } = input;
+
+  if (workosOrganizationId) {
+    const sessionOrganization = organizations.find(
+      (item) => item.workosOrganizationId === workosOrganizationId && item.slug,
+    );
+    if (sessionOrganization?.slug && sessionOrganization.slug !== requestedSlug) {
+      return sessionOrganization.slug;
+    }
+  }
+
+  const [archivedMembership] = await db
+    .select({ id: schema.organizations.id })
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+    )
+    .where(
+      and(
+        eq(schema.users.workosUserId, workosUserId),
+        eq(schema.organizations.slug, requestedSlug),
+        eq(schema.organizations.lifecycleStatus, "archived"),
+      ),
+    )
+    .limit(1);
+
+  if (!archivedMembership) {
+    return null;
+  }
+
+  const activeSlug = organizations.find((item) => item.slug)?.slug;
+  if (activeSlug) {
+    return activeSlug;
+  }
+
+  throw new Error("archived_organization_access");
+}
+
+async function selectActiveOrganization(
   organizations: ApiAuthContext["organizations"],
   options: {
     organizationSlug?: string;
     workosOrganizationId?: string | null;
+    workosUserId: string;
   },
 ) {
   if (options.organizationSlug) {
     const organization = organizations.find((item) => item.slug === options.organizationSlug);
 
     if (!organization) {
+      const currentSlug = await resolveStaleSlugRedirectTarget({
+        requestedSlug: options.organizationSlug,
+        organizations,
+        workosOrganizationId: options.workosOrganizationId,
+        workosUserId: options.workosUserId,
+      });
+
+      if (currentSlug) {
+        throw new StaleOrganizationSlugError(options.organizationSlug, currentSlug);
+      }
+
+      if (organizations.length > 0) {
+        throw new OrganizationSlugUnresolvableError(options.organizationSlug);
+      }
+
       throw new Error("organization_access_denied");
     }
 
@@ -160,27 +248,36 @@ export async function resolveApiAuthContextFromSession(
       schema.organizations,
       eq(schema.organizationMemberships.organizationId, schema.organizations.id),
     )
-    .where(eq(schema.users.workosUserId, session.user.id))
+    .where(
+      and(
+        eq(schema.users.workosUserId, session.user.id),
+        eq(schema.organizations.lifecycleStatus, "active"),
+      ),
+    )
     .orderBy(schema.organizations.name);
 
-  if (memberships.length === 0) {
+  const organizations =
+    memberships.length === 0
+      ? []
+      : memberships.map((membership: OrganizationMembershipRecord) => ({
+          workosOrganizationId: membership.workosOrganizationId,
+          localOrganizationId: membership.localOrganizationId,
+          name: membership.organizationName,
+          slug: membership.organizationSlug,
+          membership: {
+            workosMembershipId: membership.workosMembershipId,
+            role: membership.role,
+          },
+        }));
+
+  if (organizations.length === 0 && !options.organizationSlug) {
     return null;
   }
 
-  const organizations = memberships.map((membership: OrganizationMembershipRecord) => ({
-    workosOrganizationId: membership.workosOrganizationId,
-    localOrganizationId: membership.localOrganizationId,
-    name: membership.organizationName,
-    slug: membership.organizationSlug,
-    membership: {
-      workosMembershipId: membership.workosMembershipId,
-      role: membership.role,
-    },
-  }));
-
-  const activeOrganization = selectActiveOrganization(organizations, {
+  const activeOrganization = await selectActiveOrganization(organizations, {
     organizationSlug: options.organizationSlug,
     workosOrganizationId: session.organizationId,
+    workosUserId: session.user.id,
   });
 
   if (!activeOrganization) {

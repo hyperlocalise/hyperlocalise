@@ -9,10 +9,7 @@ import { removeWorkosMembership } from "@/api/auth/workos-sync";
 import { internalErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import {
-  getWorkosServerClient,
-  isLocallyManagedWorkosOrganization,
-} from "@/lib/workos/server-client";
+import { getWorkosServerClient } from "@/lib/workos/server-client";
 
 import {
   inviteMemberBodySchema,
@@ -28,7 +25,6 @@ import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
   isMemberListAllowed,
-  LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX,
   shouldCleanupPlaceholderUserOnMemberRemoval,
   isMemberManageAllowed,
   lastOwnerProtectedResponse,
@@ -73,16 +69,9 @@ async function deleteMemberMcpSessions(organizationId: string, userId: string) {
     );
 }
 
-function shouldSyncMembershipToWorkos(input: {
-  workosMembershipId: string | null;
-  workosOrganizationId: string;
-}) {
+function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
-  return (
-    Boolean(input.workosMembershipId) &&
-    workos !== null &&
-    !isLocallyManagedWorkosOrganization(input.workosOrganizationId)
-  );
+  return Boolean(input.workosMembershipId) && workos !== null;
 }
 
 async function inviteOrganizationMember(input: {
@@ -193,7 +182,7 @@ async function revokePendingWorkosInvitation(input: {
   email: string;
 }) {
   const workos = getWorkosServerClient();
-  if (!workos || isLocallyManagedWorkosOrganization(input.workosOrganizationId)) {
+  if (!workos) {
     return;
   }
 
@@ -276,30 +265,6 @@ export function createMemberRoutes() {
 
       const organizationId = c.var.auth.organization.localOrganizationId;
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
-
-      if (isLocallyManagedWorkosOrganization(workosOrganizationId)) {
-        const result = await inviteOrganizationMember({
-          organizationId,
-          email: payload.email,
-          role: payload.role,
-          placeholderWorkosUserId: `${LOCAL_PLACEHOLDER_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
-        });
-
-        if ("error" in result) {
-          return memberAlreadyExistsResponse(c);
-        }
-
-        return c.json(
-          {
-            member: {
-              ...result.member,
-              isCurrentUser: result.member.workosUserId === c.var.auth.user.workosUserId,
-            },
-          },
-          201,
-        );
-      }
-
       const workos = getWorkosServerClient();
       if (!workos) {
         return forbiddenResponse(c);
@@ -367,7 +332,6 @@ export function createMemberRoutes() {
         return cannotManageOwnerResponse(c);
       }
 
-      const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
       const previousRole = member.role;
 
@@ -400,7 +364,6 @@ export function createMemberRoutes() {
       if (
         shouldSyncMembershipToWorkos({
           workosMembershipId: member.workosMembershipId,
-          workosOrganizationId,
         })
       ) {
         try {
@@ -485,7 +448,6 @@ export function createMemberRoutes() {
       if (
         shouldSyncMembershipToWorkos({
           workosMembershipId: member.workosMembershipId,
-          workosOrganizationId,
         })
       ) {
         try {
@@ -526,12 +488,7 @@ export function createMemberRoutes() {
         }
       }
 
-      if (
-        shouldCleanupPlaceholderUserOnMemberRemoval({
-          workosUserId: member.workosUserId,
-          isLocallyManagedOrganization: isLocallyManagedWorkosOrganization(workosOrganizationId),
-        })
-      ) {
+      if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
       }
 

@@ -59,14 +59,18 @@ vi.mock("@/lib/agents/github/repositories", () => ({
   syncInstallationRepositories: syncInstallationRepositoriesMock,
 }));
 
-vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
-}));
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+  };
+});
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import {

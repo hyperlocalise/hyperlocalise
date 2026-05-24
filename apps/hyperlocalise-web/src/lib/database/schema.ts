@@ -150,6 +150,11 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
 ]);
 export const inboxStatusEnum = pgEnum("inbox_status", ["active", "archived"]);
 export const messageSenderTypeEnum = pgEnum("message_sender_type", ["user", "agent"]);
+export const organizationLifecycleStatusEnum = pgEnum("organization_lifecycle_status", [
+  "active",
+  "archived",
+  "deprecated",
+]);
 export const storedFileRoleEnum = pgEnum("stored_file_role", [
   "source",
   "output",
@@ -175,6 +180,13 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     // Optional human-readable slug for URLs and future workspace routing.
     slug: text("slug"),
+    // App-local lifecycle (WorkOS owns identity). archived = soft-deleted workspace;
+    // deprecated = legacy rows with synthetic local_org_* WorkOS ids (migration only).
+    lifecycleStatus: organizationLifecycleStatusEnum("lifecycle_status")
+      .notNull()
+      .default("active"),
+    // Timestamp for soft-deleted workspaces. Hard delete remains unsupported.
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     // When the organization record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When organization metadata was last changed.

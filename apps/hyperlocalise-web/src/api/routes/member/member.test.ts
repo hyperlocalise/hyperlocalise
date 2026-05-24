@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-import { randomUUID } from "node:crypto";
-
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
@@ -15,8 +13,25 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   ),
 }));
 
-vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/workos/server-client", () => ({
+  getWorkosServerClient: () => ({
+    userManagement: {
+      sendInvitation: vi.fn(async () => ({ id: "invitation_mock" })),
+      listInvitations: vi.fn(async () => ({
+        data: [{ id: "invitation_mock", state: "pending" }],
+      })),
+      revokeInvitation: vi.fn(async () => undefined),
+      deleteOrganizationMembership: vi.fn(async () => undefined),
+    },
+  }),
 }));
 
 import { createApp } from "@/api/app";
@@ -60,14 +75,9 @@ afterEach(async () => {
   await memberFixture.cleanup();
 });
 
-function asLocalWorkspace(identity: ReturnType<typeof createWorkosIdentity>) {
-  identity.organization.workosOrganizationId = `local_org_${randomUUID()}`;
-  return identity;
-}
-
 describe("memberRoutes", () => {
   it("lists workspace members for any org member", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
     await inviteMemberViaApi(
       ownerIdentity,
@@ -96,8 +106,8 @@ describe("memberRoutes", () => {
     );
   });
 
-  it("invites a member on a local workspace", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+  it("invites a member through WorkOS-backed workspace membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     const response = await inviteMemberViaApi(
@@ -113,7 +123,7 @@ describe("memberRoutes", () => {
   });
 
   it("updates a member role", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     await inviteMemberViaApi(
@@ -140,8 +150,8 @@ describe("memberRoutes", () => {
     expect(updateBody.member.role).toBe("admin");
   });
 
-  it("removes a locally-invited placeholder user from the database", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+  it("removes an invited placeholder user from the database", async () => {
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     await inviteMemberViaApi(
@@ -155,7 +165,7 @@ describe("memberRoutes", () => {
     const target = listBody.members.find((member) => member.email === "orphan-cleanup@example.com");
 
     expect(target).toBeDefined();
-    expect(target!.workosUserId.startsWith("local_user_")).toBe(true);
+    expect(target!.workosUserId.startsWith("invited_user_")).toBe(true);
 
     const deleteResponse = await removeMemberViaApi(ownerIdentity, target!.workosUserId, headers);
     expect(deleteResponse.status).toBe(204);
@@ -170,7 +180,7 @@ describe("memberRoutes", () => {
   });
 
   it("removes a member", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     await inviteMemberViaApi(
@@ -195,7 +205,7 @@ describe("memberRoutes", () => {
   });
 
   it("returns 403 when a member invites someone", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     await authHeadersFor(ownerIdentity);
 
     const memberIdentity = createWorkosIdentityForOrganization(
@@ -213,7 +223,7 @@ describe("memberRoutes", () => {
   });
 
   it("returns 409 when inviting an existing member", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     await inviteMemberViaApi(
@@ -232,7 +242,7 @@ describe("memberRoutes", () => {
   });
 
   it("returns 409 when removing the last owner", async () => {
-    const ownerIdentity = asLocalWorkspace(createWorkosIdentity());
+    const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 
     const response = await removeMemberViaApi(

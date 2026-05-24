@@ -4,8 +4,15 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
-import { getStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
+import {
+  OrganizationSlugUnresolvableError,
+  resolveApiAuthContextFromSession,
+  StaleOrganizationSlugError,
+} from "@/api/auth/workos-session";
+import {
+  getStoredActiveOrganizationSlug,
+  setStoredActiveOrganizationSlug,
+} from "@/lib/workos/active-organization";
 
 export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
@@ -29,6 +36,19 @@ export async function requireAppAuthContext(
       session,
     });
   } catch (error) {
+    if (error instanceof StaleOrganizationSlugError) {
+      await setStoredActiveOrganizationSlug(error.currentSlug);
+      redirect(`/org/${error.currentSlug}/dashboard`);
+    }
+
+    if (error instanceof OrganizationSlugUnresolvableError) {
+      redirect("/auth/select-organization");
+    }
+
+    if (error instanceof Error && error.message === "archived_organization_access") {
+      redirect("/auth/access-denied?reason=workspace-archived");
+    }
+
     if (error instanceof Error && error.message === "organization_access_denied") {
       redirect("/auth/access-denied?reason=organization-access-denied");
     }

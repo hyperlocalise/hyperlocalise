@@ -18,7 +18,3 @@ export function getWorkosServerClient(): WorkOS | null {
   workosClient = new WorkOS(config.apiKey);
   return workosClient;
 }
-
-export function isLocallyManagedWorkosOrganization(workosOrganizationId: string) {
-  return workosOrganizationId.startsWith("local_org_");
-}

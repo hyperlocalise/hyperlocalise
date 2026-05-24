@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 
 import { syncWorkosUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
+import { getWorkosServerClient } from "@/lib/workos/server-client";
 
 function slugifyOrganizationName(name: string) {
   const normalized = name
@@ -50,6 +51,64 @@ async function createUniqueOrganizationSlug(name: string, dbHandle: Pick<typeof 
   return `${baseSlug}-${randomUUID().slice(0, 8)}`;
 }
 
+async function deleteWorkosOrganization(workosOrganizationId: string) {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return;
+  }
+
+  try {
+    await workos.organizations.deleteOrganization(workosOrganizationId);
+  } catch {
+    // Best-effort cleanup; preserve the original failure.
+  }
+}
+
+async function createWorkspaceIdentityInWorkos(input: {
+  localWorkspaceId: string;
+  organizationName: string;
+  workosUserId: string;
+}) {
+  const workos = getWorkosServerClient();
+
+  if (!workos) {
+    throw new Error("workos_organization_required");
+  }
+
+  let workosOrganizationId: string | undefined;
+
+  try {
+    const organization = await workos.organizations.createOrganization(
+      {
+        name: input.organizationName,
+        externalId: input.localWorkspaceId,
+        metadata: {
+          hyperlocalise_local_organization_id: input.localWorkspaceId,
+        },
+      },
+      { idempotencyKey: `workspace:${input.localWorkspaceId}` },
+    );
+    workosOrganizationId = organization.id;
+
+    const membership = await workos.userManagement.createOrganizationMembership({
+      organizationId: organization.id,
+      userId: input.workosUserId,
+      roleSlug: "owner",
+    });
+
+    return {
+      workosOrganizationId: organization.id,
+      workosMembershipId: membership.id,
+    };
+  } catch (error) {
+    if (workosOrganizationId) {
+      await deleteWorkosOrganization(workosOrganizationId);
+    }
+
+    throw error;
+  }
+}
+
 export async function createWorkspaceForSessionUser(input: {
   sessionUser: {
     id: string;
@@ -69,14 +128,25 @@ export async function createWorkspaceForSessionUser(input: {
   });
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    const localWorkspaceId = randomUUID();
+    let workosOrganizationId: string | undefined;
+
     try {
+      const identity = await createWorkspaceIdentityInWorkos({
+        localWorkspaceId,
+        organizationName: input.organizationName.trim(),
+        workosUserId: input.sessionUser.id,
+      });
+      workosOrganizationId = identity.workosOrganizationId;
+
       return await db.transaction(async (tx) => {
         const slug = await createUniqueOrganizationSlug(input.organizationName, tx);
 
         const [organization] = await tx
           .insert(schema.organizations)
           .values({
-            workosOrganizationId: `local_org_${randomUUID()}`,
+            id: localWorkspaceId,
+            workosOrganizationId: identity.workosOrganizationId,
             name: input.organizationName.trim(),
             slug,
           })
@@ -90,7 +160,7 @@ export async function createWorkspaceForSessionUser(input: {
           organizationId: organization.id,
           userId: user.id,
           role: "owner",
-          workosMembershipId: null,
+          workosMembershipId: identity.workosMembershipId,
         });
 
         return {
@@ -99,6 +169,10 @@ export async function createWorkspaceForSessionUser(input: {
         };
       });
     } catch (error) {
+      if (workosOrganizationId) {
+        await deleteWorkosOrganization(workosOrganizationId);
+      }
+
       if (isUniqueViolation(error)) {
         continue;
       }

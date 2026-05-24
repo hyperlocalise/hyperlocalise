@@ -41,6 +41,7 @@ import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tm
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
 import { createMemberRoutes } from "./routes/member/member.route";
 import { createTeamRoutes } from "./routes/team/team.route";
+import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import {
   createTranslationJobEventQueue,
@@ -146,7 +147,8 @@ function createOrgScopedAppRoutes(
     )
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/api-keys", createApiKeyRoutes())
-    .route("/members", createMemberRoutes());
+    .route("/members", createMemberRoutes())
+    .route("/workspace", createWorkspaceRoutes());
 }
 
 function createPublicApiRoutes(

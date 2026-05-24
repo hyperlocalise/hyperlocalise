@@ -33,9 +33,13 @@ const { resolveApiAuthContextFromSessionMock, runProviderJobQaForJobMock } = vi.
   runProviderJobQaForJobMock: vi.fn(),
 }));
 
-vi.mock("@/api/auth/workos-session", () => ({
-  resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-}));
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
 vi.mock("@/lib/providers/provider-agent-qa", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/providers/provider-agent-qa")>();

@@ -12,6 +12,7 @@ import type {
   mcpOAuthClients,
   mcpSessions,
   organizationApiKeys,
+  organizationLifecycleStatusEnum,
   organizationLlmProviderCredentials,
   providerSyncRunKindEnum,
   providerSyncRuns,
@@ -51,6 +52,8 @@ export type NewRepositorySourceFile = typeof repositorySourceFiles.$inferInsert;
 export type RepositorySourceFileVersion = typeof repositorySourceFileVersions.$inferSelect;
 export type NewRepositorySourceFileVersion = typeof repositorySourceFileVersions.$inferInsert;
 export type OrganizationMembershipRole = (typeof organizationMembershipRoleEnum.enumValues)[number];
+export type OrganizationLifecycleStatus =
+  (typeof organizationLifecycleStatusEnum.enumValues)[number];
 export type LlmProvider = (typeof llmProviderEnum.enumValues)[number];
 export type OrganizationApiKey = typeof organizationApiKeys.$inferSelect;
 export type NewOrganizationApiKey = typeof organizationApiKeys.$inferInsert;

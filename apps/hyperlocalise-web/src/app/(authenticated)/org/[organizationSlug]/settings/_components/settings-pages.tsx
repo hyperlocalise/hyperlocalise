@@ -29,6 +29,7 @@ import { Switch } from "@/components/ui/switch";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
+import { WorkspaceSettingsForm } from "./workspace-settings-form";
 
 type SettingsPageProps = {
   organizationSlug: string;
@@ -36,6 +37,7 @@ type SettingsPageProps = {
 };
 
 type AccountPageProps = {
+  canUpdateWorkspace: boolean;
   organizationName: string;
   organizationSlug: string;
   userEmail: string;
@@ -254,6 +256,7 @@ export function SettingsPageContent({ organizationSlug, capabilities }: Settings
 }
 
 export function AccountSettingsPageContent({
+  canUpdateWorkspace,
   organizationName,
   organizationSlug,
   userEmail,
@@ -304,10 +307,11 @@ export function AccountSettingsPageContent({
           </CardDescription>
         </CardHeader>
         <Separator className="bg-foreground/8" />
-        <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
-          <ReadonlyField label="Organization name" value={organizationName} />
-          <ReadonlyField label="Workspace slug" value={organizationSlug} />
-        </CardContent>
+        <WorkspaceSettingsForm
+          canUpdateWorkspace={canUpdateWorkspace}
+          organizationName={organizationName}
+          organizationSlug={organizationSlug}
+        />
       </SurfaceCard>
     </main>
   );
