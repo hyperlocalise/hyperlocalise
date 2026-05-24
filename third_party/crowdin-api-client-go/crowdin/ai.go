@@ -126,8 +126,8 @@ func (s *AIService) ListPrompts(ctx context.Context, userID int, opt *model.AIPr
 	}
 
 	list := make([]*model.Prompt, 0, len(res.Data))
-	for _, promt := range res.Data {
-		list = append(list, promt.Data)
+	for _, prompt := range res.Data {
+		list = append(list, prompt.Data)
 	}
 
 	return list, resp, err

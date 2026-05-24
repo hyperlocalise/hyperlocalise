@@ -111,6 +111,10 @@ type TasksListOptions struct {
 	AssigneeID int `json:"assigneeId,omitempty"`
 	// List tasks for specified workflow step.
 	WorkflowStepID int `json:"workflowStepId,omitempty"`
+	// Filter tasks by labelIds.
+	LabelIDs []int `json:"labelIds,omitempty"`
+	// Filter tasks by excludeLabelIds.
+	ExcludeLabelIDs []int `json:"excludeLabelIds,omitempty"`
 
 	ListOptions
 }
@@ -135,6 +139,12 @@ func (o *TasksListOptions) Values() (url.Values, bool) {
 	}
 	if o.WorkflowStepID > 0 {
 		v.Add("workflowStepId", strconv.Itoa(o.WorkflowStepID))
+	}
+	if len(o.LabelIDs) > 0 {
+		v.Add("labelIds", JoinSlice(o.LabelIDs))
+	}
+	if len(o.ExcludeLabelIDs) > 0 {
+		v.Add("excludeLabelIds", JoinSlice(o.ExcludeLabelIDs))
 	}
 
 	return v, len(v) > 0
@@ -499,6 +509,9 @@ type (
 		// Task workflow step id.
 		// Note: Can't be used with `type` in same request.
 		WorkflowStepID int `json:"workflowStepId,omitempty"`
+		// Branch identifiers.
+		// One of branchIds, stringIds or fileIds is required.
+		BranchIDs []int `json:"branchIds,omitempty"`
 		// Task title
 		Title string `json:"title"`
 		// Task language identifier.
@@ -550,6 +563,9 @@ type (
 	EnterpriseVendorTaskCreateForm struct {
 		// Task workflow step id with type `Translate by Vendor` or `Proofread by Vendor`.
 		WorkflowStepID int `json:"workflowStepId"`
+		// Branch identifiers.
+		// One of branchIds, stringIds or fileIds is required.
+		BranchIDs []int `json:"branchIds,omitempty"`
 		// Task title.
 		Title string `json:"title"`
 		// Language identifier.
@@ -855,8 +871,8 @@ func (r *EnterpriseTaskCreateForm) ValidateRequest() error {
 	if r.LanguageID == "" {
 		return errors.New("languageId is required")
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 {
-		return errors.New("one of stringIds or fileIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
+		return errors.New("one of stringIds, fileIds or branchIds is required")
 	}
 
 	return nil
@@ -882,8 +898,8 @@ func (r *EnterpriseVendorTaskCreateForm) ValidateRequest() error {
 	if r.LanguageID == "" {
 		return errors.New("languageId is required")
 	}
-	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 {
-		return errors.New("one of stringIds or fileIds is required")
+	if len(r.StringIDs) == 0 && len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 {
+		return errors.New("one of stringIds, fileIds or branchIds is required")
 	}
 
 	return nil

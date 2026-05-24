@@ -77,3 +77,9 @@
 **Learning:** Using `fmt.Sprintf("%d", id)` in `Values()` methods for query parameter serialization causes unnecessary allocations in hot paths. Replacing it with `strconv.Itoa(id)` is more efficient. Additionally, several typos (e.g., `AIPromtsListOptions`, `configuraion`) and duplicate fields (`MaxExamplesCount`) were identified in the AI model.
 
 **Action:** Optimized `Values()` methods across all model files using `strconv.Itoa`. Fixed typos and removed duplicate fields in `model/ai.go`, propagating the corrected `AIPromptsListOptions` name throughout the fork. Corrected `ProjectsListResponse` documentation comment and removed redundant `Languages` field from `ProjectsAddRequest`. Verified with full test suite passing in the fork.
+
+## 2026-07-10 - Improve Task model parity and fix AI model comments/typos
+
+**Learning:** The Crowdin Tasks API v2 supports filtering by `labelIds` and `excludeLabelIds`, and Enterprise task creation supports `branchIds`. These were missing from the SDK models. Additionally, some comments in the AI model were inaccurate, and redundant fields like `Languages` in `ProjectsAddRequest` (replaced by `TargetLanguageIDs`) should be removed to avoid confusion.
+
+**Action:** Added `LabelIDs` and `ExcludeLabelIDs` to `TasksListOptions` and updated `Values()` for correct query parameter encoding. Added `BranchIDs` to Enterprise task creation forms and updated `ValidateRequest` to include them. Corrected documentation comments and fixed a loop typo in the AI service. Removed redundant `Languages` field from `ProjectsAddRequest`. Verified with new unit tests and full test suite passing.
