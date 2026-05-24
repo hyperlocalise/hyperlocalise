@@ -2,11 +2,12 @@ import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
+import type { EvlogVariables } from "evlog/hono";
 
 import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 
-export type ApiKeyAuthVariables = {
+export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
   auth: {
     organization: {
       localOrganizationId: string;
@@ -61,6 +62,12 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       apiKey: {
         id: keyRecord.id,
         permissions: keyRecord.permissions,
+      },
+    });
+    c.get("log").set({
+      auth: {
+        apiKeyId: keyRecord.id,
+        localOrganizationId: keyRecord.organizationId,
       },
     });
 

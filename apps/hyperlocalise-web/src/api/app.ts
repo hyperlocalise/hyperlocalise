@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
 
 import type { FileStorageAdapter } from "@/lib/file-storage";
@@ -71,8 +72,9 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
 
-  return new Hono()
+  return new Hono<EvlogVariables>()
     .use("*", secureHeaders())
+    .use("*", evlog())
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
