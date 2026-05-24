@@ -272,17 +272,12 @@ func skipStringsWhitespace(text string, start int) int {
 }
 
 func lineNumberAt(text string, idx int) int {
-	if idx < 0 {
+	if idx <= 0 {
 		return 1
 	}
 	if idx > len(text) {
 		idx = len(text)
 	}
-	line := 1
-	for i := 0; i < idx; i++ {
-		if text[i] == '\n' {
-			line++
-		}
-	}
-	return line
+	// BOLT OPTIMIZATION: Use strings.Count for faster newline counting.
+	return 1 + strings.Count(text[:idx], "\n")
 }

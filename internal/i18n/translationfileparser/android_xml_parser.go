@@ -2,10 +2,11 @@ package translationfileparser
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/xml"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -80,8 +81,11 @@ func (d androidResourceDocument) render(values map[string]string) []byte {
 		return []byte(d.template)
 	}
 
-	entries := append([]androidResourceEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	// BOLT OPTIMIZATION: Use slices.Clone and slices.SortFunc instead of sort.Slice to avoid reflection.
+	entries := slices.Clone(d.entries)
+	slices.SortFunc(entries, func(a, b androidResourceEntry) int {
+		return cmp.Compare(a.valueStart, b.valueStart)
+	})
 
 	var b strings.Builder
 	cursor := 0
@@ -314,6 +318,11 @@ func isSelfClosingXMLStart(text string, endOffset int) bool {
 }
 
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
+	// BOLT OPTIMIZATION: Fast-path for strings without '<', '&', or '>' to skip expensive XML well-formedness checks.
+	if !strings.ContainsAny(value, "<&>") {
+		return value
+	}
+
 	if androidXMLFragmentWellFormed(value, namespaceAttrs) {
 		return value
 	}
@@ -351,18 +360,30 @@ func androidNamespaceAttrs(attrs []xml.Attr) string {
 
 func isAndroidStringResourcePath(path string) bool {
 	normalized := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
-	segments := strings.Split(strings.ToLower(normalized), "/")
-	if len(segments) < 3 || segments[len(segments)-1] != "strings.xml" {
+	// BOLT OPTIMIZATION: Avoid strings.Split while remaining case-insensitive.
+	// Android string resources are always in a "strings.xml" file.
+	lower := strings.ToLower(normalized)
+	if !strings.HasSuffix(lower, "/strings.xml") {
 		return false
 	}
-	for i := 1; i < len(segments)-1; i++ {
-		segment := segments[i]
-		if segment != "values" && !strings.HasPrefix(segment, "values-") {
-			continue
+
+	// We need to find /res/values*/strings.xml
+	// Iterate through path segments backwards to find "values*" then "res"
+	idx := len(lower) - len("/strings.xml")
+	for idx > 0 {
+		prevSlash := strings.LastIndexByte(lower[:idx], '/')
+		segment := lower[prevSlash+1 : idx]
+
+		if segment == "values" || strings.HasPrefix(segment, "values-") {
+			if prevSlash > 0 {
+				prevPrevSlash := strings.LastIndexByte(lower[:prevSlash], '/')
+				parent := lower[prevPrevSlash+1 : prevSlash]
+				if parent == "res" {
+					return true
+				}
+			}
 		}
-		if segments[i-1] == "res" {
-			return true
-		}
+		idx = prevSlash
 	}
 	return false
 }
