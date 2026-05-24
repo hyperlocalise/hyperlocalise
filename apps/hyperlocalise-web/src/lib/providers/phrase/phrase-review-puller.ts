@@ -31,6 +31,19 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+function rethrowPhraseReviewPullError(error: unknown): never {
+  if (error instanceof PhraseTmsApiError || error instanceof PhraseApiError) {
+    if (error.status === 401) {
+      throw new Error("phrase_auth_invalid");
+    }
+    if (error.status === 429) {
+      throw new Error("phrase_rate_limited");
+    }
+  }
+
+  throw error;
+}
+
 function resolvePhraseProjectSlugs(project: ExternalTmsProject) {
   const metadata = project.providerMetadata ?? {};
   const accountSlug = typeof metadata.accountSlug === "string" ? metadata.accountSlug.trim() : null;
@@ -135,15 +148,13 @@ export async function pullPhraseProviderReview(
               externalProjectId: input.externalProjectId,
               externalJobId: input.externalJobId,
               jobProviderUrl,
+              targetLocale,
             }),
           );
         }
       }
     } catch (error) {
-      if (error instanceof PhraseTmsApiError && error.status === 401) {
-        throw new Error("phrase_auth_invalid");
-      }
-      throw error;
+      rethrowPhraseReviewPullError(error);
     }
   }
 
@@ -201,10 +212,7 @@ export async function pullPhraseProviderReview(
         }
       }
     } catch (error) {
-      if (error instanceof PhraseApiError && error.status === 401) {
-        throw new Error("phrase_auth_invalid");
-      }
-      throw error;
+      rethrowPhraseReviewPullError(error);
     }
   }
 

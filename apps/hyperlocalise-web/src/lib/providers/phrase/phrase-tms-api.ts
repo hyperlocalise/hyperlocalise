@@ -517,11 +517,30 @@ function normalizePhraseTmsConversationComment(
   };
 }
 
+function normalizePhraseTmsConversationReference(
+  references: PhraseTmsConversationApiRecord["references"],
+): PhraseTmsLqaConversationReference | null {
+  const lqa = references?.lqa?.[0];
+  const segmentId = references?.segmentId?.trim() || null;
+  const commentedText = references?.commentedText?.trim() || null;
+
+  if (!lqa && !segmentId && !commentedText) {
+    return null;
+  }
+
+  return {
+    segmentId,
+    commentedText,
+    errorCategoryId: lqa?.errorCategoryId ?? null,
+    severityId: lqa?.severityId ?? null,
+    repeated: lqa?.repeated ?? null,
+  };
+}
+
 function normalizePhraseTmsConversation(
   conversation: PhraseTmsConversationApiRecord,
   type: PhraseTmsConversation["type"],
 ): PhraseTmsConversation {
-  const lqa = conversation.references?.lqa?.[0];
   const statusName = conversation.status?.name ?? null;
 
   return {
@@ -541,15 +560,7 @@ function normalizePhraseTmsConversation(
     comments: (conversation.comments ?? [])
       .map((comment) => normalizePhraseTmsConversationComment(comment))
       .filter((comment): comment is PhraseTmsConversationComment => comment != null),
-    lqaReference: lqa
-      ? {
-          segmentId: conversation.references?.segmentId?.trim() || null,
-          commentedText: conversation.references?.commentedText?.trim() || null,
-          errorCategoryId: lqa.errorCategoryId ?? null,
-          severityId: lqa.severityId ?? null,
-          repeated: lqa.repeated ?? null,
-        }
-      : null,
+    lqaReference: normalizePhraseTmsConversationReference(conversation.references),
   };
 }
 

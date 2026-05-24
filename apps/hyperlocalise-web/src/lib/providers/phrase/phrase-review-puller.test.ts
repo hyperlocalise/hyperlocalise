@@ -118,4 +118,48 @@ describe("pullPhraseProviderReview", () => {
     expect(report.summary.byKind.comment).toBe(1);
     expect(report.threads.some((thread) => thread.item?.key === "welcome.title")).toBe(true);
   });
+
+  it("maps Phrase API rate limits to phrase_rate_limited", async () => {
+    const fetchFn = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/api2/v2/projects/") && path.includes("/jobs")) {
+        return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
+      }
+
+      if (path.includes("/keys/")) {
+        return new Response("Too Many Requests", { status: 429 });
+      }
+
+      return new Response("not found", { status: 404 });
+    });
+
+    await expect(
+      pullPhraseProviderReview({
+        credential: { region: "eu" },
+        secretMaterial: "token",
+        fetchFn: fetchFn as typeof fetch,
+        externalProjectId: "strings-project-1",
+        externalJobId: "phrase-job-1-task-fr-fr",
+        project: {
+          providerMetadata: {
+            stringsProjectId: "strings-project-1",
+            tmsProjectUid: "tms-project-1",
+          },
+        } as never,
+        content: {
+          externalJobId: "phrase-job-1-task-fr-fr",
+          targetLocales: ["fr-FR"],
+          units: [
+            {
+              externalStringId: "key-1",
+              key: "welcome.title",
+              sourceText: "Hello",
+              translations: [{ locale: "fr-FR", text: "Bonjour" }],
+            },
+          ],
+        },
+      }),
+    ).rejects.toThrow("phrase_rate_limited");
+  });
 });

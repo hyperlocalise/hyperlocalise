@@ -133,6 +133,22 @@ function pickLatestTimestamp(conversation: PhraseTmsConversation): string | null
   return timestamps.sort().at(-1) ?? null;
 }
 
+function buildTmsSegmentItemReference(input: {
+  segmentId: string | null;
+  targetLocale?: string | null;
+}) {
+  if (!input.segmentId) {
+    return null;
+  }
+
+  return {
+    externalStringId: input.segmentId,
+    key: input.segmentId,
+    locale: input.targetLocale ?? undefined,
+    field: "target" as const,
+  };
+}
+
 export function normalizePhraseLqaConversationToThread(input: {
   conversation: PhraseTmsConversation;
   externalProjectId: string;
@@ -161,14 +177,10 @@ export function normalizePhraseLqaConversationToThread(input: {
     state: mapTmsConversationState(input.conversation.state),
     subject: pickConversationSubject(input.conversation),
     issueType: buildLqaIssueType(input.conversation),
-    item: segmentId
-      ? {
-          externalStringId: segmentId,
-          key: segmentId,
-          locale: input.targetLocale ?? undefined,
-          field: "target",
-        }
-      : null,
+    item: buildTmsSegmentItemReference({
+      segmentId,
+      targetLocale: input.targetLocale,
+    }),
     locale: input.targetLocale ?? null,
     comments,
     author: mapPhraseTmsUser(input.conversation.author),
@@ -191,12 +203,14 @@ export function normalizePhrasePlainConversationToThread(input: {
   externalProjectId: string;
   externalJobId: string;
   jobProviderUrl: string | null;
+  targetLocale?: string | null;
 }): ProviderReviewThread | null {
   if (input.conversation.deleted || !input.conversation.id.trim()) {
     return null;
   }
 
   const externalThreadId = `tms-plain:${input.conversation.id}`;
+  const segmentId = input.conversation.lqaReference?.segmentId?.trim() || null;
   const comments = buildTmsConversationComments(input.conversation);
   const firstCommentId = comments[0]?.externalCommentId ?? input.conversation.id;
 
@@ -211,6 +225,11 @@ export function normalizePhrasePlainConversationToThread(input: {
     kind: "comment",
     state: mapTmsConversationState(input.conversation.state),
     subject: pickConversationSubject(input.conversation),
+    item: buildTmsSegmentItemReference({
+      segmentId,
+      targetLocale: input.targetLocale,
+    }),
+    locale: segmentId ? (input.targetLocale ?? null) : null,
     comments,
     author: mapPhraseTmsUser(input.conversation.author),
     resolver: mapPhraseTmsUser(input.conversation.resolver),

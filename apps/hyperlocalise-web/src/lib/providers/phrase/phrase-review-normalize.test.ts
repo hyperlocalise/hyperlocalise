@@ -89,6 +89,27 @@ describe("phrase review normalization", () => {
       lqaReference: null,
     };
 
+    const withSegment: PhraseTmsConversation = {
+      id: "plain-segment",
+      type: "plain",
+      description: "Note on this segment",
+      deleted: false,
+      createdAt: "2026-05-06T10:00:00Z",
+      updatedAt: null,
+      resolvedAt: null,
+      state: "open",
+      author: null,
+      resolver: null,
+      comments: [],
+      lqaReference: {
+        segmentId: "segment-99",
+        commentedText: "Bonjour",
+        errorCategoryId: null,
+        severityId: null,
+        repeated: null,
+      },
+    };
+
     const resolved: PhraseTmsConversation = {
       id: "plain-1",
       type: "plain",
@@ -132,6 +153,21 @@ describe("phrase review normalization", () => {
         jobProviderUrl: null,
       }),
     ).toBeNull();
+
+    const segmentThread = normalizePhrasePlainConversationToThread({
+      conversation: withSegment,
+      externalProjectId: "project-1",
+      externalJobId: "phrase-job-1-task-fr-fr",
+      jobProviderUrl: null,
+      targetLocale: "fr-FR",
+    });
+
+    expect(segmentThread?.item).toEqual({
+      externalStringId: "segment-99",
+      key: "segment-99",
+      locale: "fr-FR",
+      field: "target",
+    });
 
     const thread = normalizePhrasePlainConversationToThread({
       conversation: resolved,
