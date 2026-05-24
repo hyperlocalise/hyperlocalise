@@ -6,7 +6,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { removeWorkosMembership } from "@/api/auth/workos-sync";
-import { internalErrorResponse } from "@/api/response.schema";
+import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
@@ -267,7 +267,11 @@ export function createMemberRoutes() {
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
       if (!workos) {
-        return forbiddenResponse(c);
+        return serviceUnavailableResponse(
+          c,
+          "workos_server_not_configured",
+          "WorkOS server integration is not configured",
+        );
       }
 
       const normalizedEmail = payload.email.trim().toLowerCase();
