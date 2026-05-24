@@ -7,6 +7,7 @@ import {
   ORGANIZATION_CAPABILITIES,
   type OrganizationCapability,
 } from "./policy";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 const MEMBER_READ_CAPABILITIES: OrganizationCapability[] = [
   "workspace:read",
@@ -71,6 +72,20 @@ describe("organization capability policy", () => {
     it("returns false for unrecognized role strings", () => {
       expect(isAdminRole("guest")).toBe(false);
       expect(isAdminRole("")).toBe(false);
+    });
+  });
+
+  describe("unrecognized roles", () => {
+    const unknownRole = "guest" as OrganizationMembershipRole;
+
+    it("returns no capabilities", () => {
+      expect(getCapabilitiesForRole(unknownRole)).toEqual([]);
+    });
+
+    it("denies every capability", () => {
+      for (const capability of ORGANIZATION_CAPABILITIES) {
+        expect(hasCapability(unknownRole, capability)).toBe(false);
+      }
     });
   });
 });

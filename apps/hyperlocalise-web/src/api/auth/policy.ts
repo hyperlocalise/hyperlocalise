@@ -52,14 +52,14 @@ const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<Organiza
 };
 
 export function getCapabilitiesForRole(role: OrganizationMembershipRole): OrganizationCapability[] {
-  return [...ROLE_CAPABILITIES[role]];
+  return [...(ROLE_CAPABILITIES[role] ?? [])];
 }
 
 export function hasCapability(
   role: OrganizationMembershipRole,
   capability: OrganizationCapability,
 ): boolean {
-  return ROLE_CAPABILITIES[role].has(capability);
+  return ROLE_CAPABILITIES[role]?.has(capability) ?? false;
 }
 
 export function assertCapability(
