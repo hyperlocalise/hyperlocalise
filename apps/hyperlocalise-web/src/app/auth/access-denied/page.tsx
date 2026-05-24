@@ -28,7 +28,10 @@ export default function AccessDeniedPage() {
             >
               Choose organization
             </Button>
-            <Button nativeButton={false} render={<Link href="/auth/sign-out?returnTo=/" />}>
+            <Button
+              nativeButton={false}
+              render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}
+            >
               Sign out
             </Button>
             <Button variant="outline" nativeButton={false} render={<Link href="/" />}>
