@@ -2,6 +2,7 @@ package translationfileparser
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/xml"
 	"fmt"
 	"path/filepath"
@@ -83,7 +84,7 @@ func (d androidResourceDocument) render(values map[string]string) []byte {
 	// BOLT OPTIMIZATION: Use slices.Clone and slices.SortFunc instead of sort.Slice to avoid reflection.
 	entries := slices.Clone(d.entries)
 	slices.SortFunc(entries, func(a, b androidResourceEntry) int {
-		return a.valueStart - b.valueStart
+		return cmp.Compare(a.valueStart, b.valueStart)
 	})
 
 	var b strings.Builder
@@ -317,8 +318,8 @@ func isSelfClosingXMLStart(text string, endOffset int) bool {
 }
 
 func encodeAndroidResourceValue(value, namespaceAttrs string) string {
-	// BOLT OPTIMIZATION: Fast-path for strings without '<' or '&' to skip expensive XML well-formedness checks.
-	if !strings.ContainsAny(value, "<&") {
+	// BOLT OPTIMIZATION: Fast-path for strings without '<', '&', or '>' to skip expensive XML well-formedness checks.
+	if !strings.ContainsAny(value, "<&>") {
 		return value
 	}
 
