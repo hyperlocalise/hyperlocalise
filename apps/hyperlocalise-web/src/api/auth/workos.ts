@@ -120,6 +120,8 @@ export function createWorkosAuthMiddleware() {
       c.set("auth", authFromSession);
       c.get("log").set({
         auth: {
+          organizationSlug,
+          teamSlug,
           localUserId: authFromSession.user.localUserId,
           localOrganizationId: authFromSession.organization.localOrganizationId,
           activeTeamId: authFromSession.activeTeam?.id,

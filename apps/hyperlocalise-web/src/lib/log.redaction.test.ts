@@ -89,6 +89,18 @@ describe("Logger Redaction", () => {
     expect(event?.requestId).toBe("req_123");
   });
 
+  it("should include record context when logging an error", () => {
+    const logger = createLogger();
+
+    logger.error(new Error("payment failed"), { userId: "user_123", requestId: "req_123" });
+
+    const [event] = drainedEvents;
+    const error = event?.error as Record<string, unknown>;
+    expect(error.message).toBe("payment failed");
+    expect(event?.userId).toBe("user_123");
+    expect(event?.requestId).toBe("req_123");
+  });
+
   it("should redact newly added sensitive keys and nested variants", () => {
     const logger = createLogger();
 

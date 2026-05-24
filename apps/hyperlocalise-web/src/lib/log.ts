@@ -135,6 +135,9 @@ function initializeLogger(config: Pick<LoggerConfig, "drain" | "silent"> = {}) {
 initializeLogger();
 
 export function configureLoggerForTest(config: { drain?: DrainFn; silent?: boolean }) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("configureLoggerForTest must not be called in production");
+  }
   initializeLogger(config);
 }
 
@@ -207,6 +210,8 @@ function mergeLogContext(bindings: LogBindings, input: LogInput, messageOrContex
     event.error = sanitizeValue(input);
     if (typeof messageOrContext === "string") {
       event.message = messageOrContext;
+    } else if (isRecord(messageOrContext)) {
+      Object.assign(event, sanitizeValue(messageOrContext));
     }
     return event;
   }
