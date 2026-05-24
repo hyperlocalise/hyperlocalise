@@ -4,7 +4,7 @@ import type {
   ProviderAgentWritebackQueue,
 } from "@/lib/workflow/types";
 
-import { createAgentRun } from "./agent-runs";
+import { createAgentRun, failAgentRun } from "./agent-runs";
 import { getJobProviderActionDefinition } from "./job-provider-actions";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { resolveEffectiveTmsAgentAutomationSettings } from "./tms-agent-automation-settings-store";
@@ -43,18 +43,27 @@ export async function runTmsAgentAutomationForSyncedJob(
 
   const triggered: string[] = [];
 
-  if (shouldAutoRunQaOnSyncedJob(settings) && input.queues?.providerAgentQaQueue) {
+  const qaQueue = input.queues?.providerAgentQaQueue;
+  if (shouldAutoRunQaOnSyncedJob(settings) && qaQueue) {
     const qaRun = await createAutomationAgentRun({
       ...input,
       action: "run_qa_checks",
     });
 
     if (qaRun) {
-      await input.queues.providerAgentQaQueue.enqueue({
-        agentRunId: qaRun.id,
+      const enqueued = await enqueueAgentRunOrFail({
         organizationId: input.organizationId,
+        runId: qaRun.id,
+        queueUnavailableMessage: "agent QA queue unavailable",
+        enqueue: () =>
+          qaQueue.enqueue({
+            agentRunId: qaRun.id,
+            organizationId: input.organizationId,
+          }),
       });
-      triggered.push("run_qa_checks");
+      if (enqueued) {
+        triggered.push("run_qa_checks");
+      }
     }
   }
 
@@ -62,11 +71,8 @@ export async function runTmsAgentAutomationForSyncedJob(
     input.targetLocales.includes(locale),
   );
 
-  if (
-    settings.autoDraftTranslations.enabled &&
-    input.queues?.providerAgentTranslationQueue &&
-    automationLocales.length > 0
-  ) {
+  const translationQueue = input.queues?.providerAgentTranslationQueue;
+  if (settings.autoDraftTranslations.enabled && translationQueue && automationLocales.length > 0) {
     const translateRun = await createAutomationAgentRun({
       ...input,
       action: "translate_with_agent",
@@ -74,11 +80,19 @@ export async function runTmsAgentAutomationForSyncedJob(
     });
 
     if (translateRun) {
-      await input.queues.providerAgentTranslationQueue.enqueue({
-        agentRunId: translateRun.id,
+      const enqueued = await enqueueAgentRunOrFail({
         organizationId: input.organizationId,
+        runId: translateRun.id,
+        queueUnavailableMessage: "agent translation queue unavailable",
+        enqueue: () =>
+          translationQueue.enqueue({
+            agentRunId: translateRun.id,
+            organizationId: input.organizationId,
+          }),
       });
-      triggered.push("translate_with_agent");
+      if (enqueued) {
+        triggered.push("translate_with_agent");
+      }
     }
   }
 
@@ -136,7 +150,8 @@ export async function maybeEnqueueAutoWriteBackAfterProposalReview(input: {
     providerCredentialId: input.providerCredentialId,
   });
 
-  if (!settings.writeBack.autoWriteBackEnabled || !input.queues?.providerAgentWritebackQueue) {
+  const writebackQueue = input.queues?.providerAgentWritebackQueue;
+  if (!settings.writeBack.autoWriteBackEnabled || !writebackQueue) {
     return { enqueued: false };
   }
 
@@ -161,10 +176,40 @@ export async function maybeEnqueueAutoWriteBackAfterProposalReview(input: {
     hyperlocaliseJobId: input.hyperlocaliseJobId,
   });
 
-  await input.queues.providerAgentWritebackQueue.enqueue({
-    agentRunId: agentRun.id,
+  const enqueued = await enqueueAgentRunOrFail({
     organizationId: input.organizationId,
+    runId: agentRun.id,
+    queueUnavailableMessage: "agent write-back queue unavailable",
+    enqueue: () =>
+      writebackQueue.enqueue({
+        agentRunId: agentRun.id,
+        organizationId: input.organizationId,
+      }),
   });
 
+  if (!enqueued) {
+    return { enqueued: false };
+  }
+
   return { enqueued: true, agentRunId: agentRun.id };
+}
+
+async function enqueueAgentRunOrFail(input: {
+  organizationId: string;
+  runId: string;
+  queueUnavailableMessage: string;
+  enqueue: () => Promise<unknown>;
+}) {
+  try {
+    await input.enqueue();
+    return true;
+  } catch (error) {
+    await failAgentRun({
+      runId: input.runId,
+      organizationId: input.organizationId,
+      outputSummary: { code: "agent_run_queue_unavailable" },
+      warnings: [error instanceof Error ? error.message : input.queueUnavailableMessage],
+    });
+    return false;
+  }
 }
