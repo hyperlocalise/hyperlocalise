@@ -14,6 +14,7 @@ import {
   Mail01Icon,
   Notification01Icon,
   Settings01Icon,
+  UserGroupIcon,
   Wallet03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -64,6 +65,14 @@ const settingsCards = [
     icon: Key01Icon,
     status: "Manage",
     requiredCapability: "api_keys:read" as const,
+  },
+  {
+    label: "Teams",
+    description: "Create teams, manage membership, and view your team roles.",
+    href: "teams",
+    icon: UserGroupIcon,
+    status: "Manage",
+    requiredCapability: "teams:read" as const,
   },
   {
     label: "Billing",

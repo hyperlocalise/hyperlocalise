@@ -17,10 +17,15 @@ export const updateTeamBodySchema = createTeamBodySchema
   .partial()
   .refine((value) => value.name !== undefined || value.slug !== undefined);
 
-export const addTeamMemberBodySchema = z.object({
-  workosUserId: z.string().trim().min(1).max(256),
-  role: teamRoleSchema.optional(),
-});
+export const addTeamMemberBodySchema = z
+  .object({
+    workosUserId: z.string().trim().min(1).max(256).optional(),
+    email: z.string().trim().email().optional(),
+    role: teamRoleSchema.optional(),
+  })
+  .refine((value) => value.workosUserId !== undefined || value.email !== undefined, {
+    message: "workosUserId or email is required",
+  });
 
 export const teamIdParamsSchema = z.object({
   teamId: z.string().uuid(),
@@ -50,6 +55,7 @@ export const teamSummarySchema = teamRecordSchema
   })
   .extend({
     memberCount: z.number(),
+    currentUserRole: teamRoleSchema.nullable(),
   });
 
 export const teamMemberSchema = z.object({
@@ -74,6 +80,15 @@ export const teamsResponseSchema = z.object({
 
 export const teamMemberResponseSchema = z.object({
   member: teamMemberSchema,
+});
+
+export const organizationMemberDirectoryEntrySchema = z.object({
+  workosUserId: z.string().max(256),
+  email: z.string().email(),
+});
+
+export const organizationMemberDirectoryResponseSchema = z.object({
+  members: z.array(organizationMemberDirectoryEntrySchema),
 });
 
 export type TeamRole = z.infer<typeof teamRoleSchema>;

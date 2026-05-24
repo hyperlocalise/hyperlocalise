@@ -1,6 +1,10 @@
+import { and, eq } from "drizzle-orm";
+
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import type { JsonContext } from "@/api/errors";
+import { db, schema } from "@/lib/database";
+import type { TeamMembershipRole } from "@/lib/database/types";
 
 export function slugifyTeamName(name: string) {
   return name
@@ -49,4 +53,36 @@ export function isUniqueViolation(error: unknown) {
 
 export function isOrganizationAdmin(auth: ApiAuthContext) {
   return hasCapability(auth.membership.role, "teams:write");
+}
+
+export async function getTeamMembershipRole(
+  auth: ApiAuthContext,
+  teamId: string,
+): Promise<TeamMembershipRole | null> {
+  const [membership] = await db
+    .select({ role: schema.teamMemberships.role })
+    .from(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.teamId, teamId),
+        eq(schema.teamMemberships.userId, auth.user.localUserId),
+      ),
+    )
+    .limit(1);
+
+  return membership?.role ?? null;
+}
+
+export async function canManageTeamMembership(auth: ApiAuthContext, teamId: string) {
+  if (isOrganizationAdmin(auth)) {
+    return true;
+  }
+
+  return (await getTeamMembershipRole(auth, teamId)) === "manager";
+}
+
+export function teamHasProjectsResponse(c: {
+  json(body: { error: string }, status: 409): Response;
+}) {
+  return c.json({ error: "team_has_projects" }, 409);
 }
