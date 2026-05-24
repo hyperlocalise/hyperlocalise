@@ -368,8 +368,10 @@ function FindingRow({
                 View provider comment
               </Link>
             ) : null}
-            {writeBack?.status === "failed" && writeBack.message ? (
-              <span className="text-foreground/48">{writeBack.message}</span>
+            {writeBack?.status === "failed" ? (
+              <span className="text-foreground/48" title={writeBack.message?.trim() || undefined}>
+                Could not post provider comment
+              </span>
             ) : null}
           </div>
         </div>
