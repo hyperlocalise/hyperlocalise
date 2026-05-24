@@ -83,4 +83,62 @@ describe("pullLokaliseProviderReview", () => {
       },
     });
   });
+
+  it("throws lokalise_auth_invalid when listKeyComments returns 401", async () => {
+    const fetchFn = vi.fn(async (url: string) => {
+      if (url.includes("/tasks/55392") && !url.includes("/comments")) {
+        return new Response(
+          JSON.stringify({
+            task: {
+              task_id: 55392,
+              title: "Review",
+              status: "in_progress",
+              languages: [
+                {
+                  language_iso: "fr",
+                  language_id: 673,
+                  language_name: "French",
+                  status: "created",
+                  progress: 0,
+                  users: [],
+                  keys: [4242],
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url.includes("/keys/4242/comments")) {
+        return new Response(JSON.stringify({ error: { message: "Invalid token" } }), {
+          status: 401,
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    await expect(
+      pullLokaliseProviderReview({
+        credential: { baseUrl: "https://api.lokalise.test/api2" },
+        secretMaterial: "token",
+        externalProjectId: "proj.123",
+        externalJobId: "55392",
+        content: {
+          externalJobId: "55392",
+          targetLocales: ["fr"],
+          units: [
+            {
+              externalStringId: "4242",
+              key: "welcome.title",
+              sourceText: "Hello",
+              translations: [{ locale: "fr", text: "Bonjour" }],
+            },
+          ],
+        },
+        fetchFn: fetchFn as typeof fetch,
+      }),
+    ).rejects.toThrow("lokalise_auth_invalid");
+  });
 });

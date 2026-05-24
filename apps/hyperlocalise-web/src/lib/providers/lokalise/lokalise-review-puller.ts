@@ -11,6 +11,13 @@ import {
 } from "./lokalise-api";
 import { normalizeLokaliseKeyCommentToThread } from "./lokalise-review-normalize";
 
+function rethrowLokaliseAuthError(error: unknown): never {
+  if (error instanceof LokaliseApiError && error.status === 401) {
+    throw new Error("lokalise_auth_invalid");
+  }
+  throw error;
+}
+
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -47,10 +54,7 @@ export async function pullLokaliseProviderReview(
   try {
     task = await client.getTask(projectId, parsedJobId.taskId);
   } catch (error) {
-    if (error instanceof LokaliseApiError && error.status === 401) {
-      throw new Error("lokalise_auth_invalid");
-    }
-    throw error;
+    rethrowLokaliseAuthError(error);
   }
 
   const stringKeyById = new Map(
@@ -76,13 +80,17 @@ export async function pullLokaliseProviderReview(
     return buildProviderReviewReport([]);
   }
 
-  for (const chunk of chunkArray(keyIdList, 25)) {
-    const chunkResults = await Promise.all(
-      chunk.map((keyId) => client.listKeyComments(projectId, keyId)),
-    );
-    for (const keyComments of chunkResults) {
-      comments.push(...keyComments);
+  try {
+    for (const chunk of chunkArray(keyIdList, 25)) {
+      const chunkResults = await Promise.all(
+        chunk.map((keyId) => client.listKeyComments(projectId, keyId)),
+      );
+      for (const keyComments of chunkResults) {
+        comments.push(...keyComments);
+      }
     }
+  } catch (error) {
+    rethrowLokaliseAuthError(error);
   }
 
   const threads = comments.map((comment) =>
