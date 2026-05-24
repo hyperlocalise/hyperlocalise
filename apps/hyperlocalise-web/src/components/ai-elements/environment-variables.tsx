@@ -297,11 +297,11 @@ export const EnvironmentVariableCopyButton = ({
             size="icon"
             variant="ghost"
             {...props}
-          />
+          >
+            {children ?? <Icon size={12} />}
+          </Button>
         }
-      >
-        {children ?? <Icon size={12} />}
-      </TooltipTrigger>
+      />
       <TooltipContent>{tooltipText}</TooltipContent>
     </Tooltip>
   );

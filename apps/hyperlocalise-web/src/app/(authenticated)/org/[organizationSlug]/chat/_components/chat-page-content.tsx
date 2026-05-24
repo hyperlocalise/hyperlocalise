@@ -260,13 +260,13 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                             size="icon-sm"
                             className="rounded-full text-muted-foreground hover:bg-accent/20 hover:text-foreground"
                             aria-label="Add translation context"
-                          />
+                          >
+                            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+                          </Button>
                         }
                       />
                     }
-                  >
-                    <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                  </TooltipTrigger>
+                  />
                   <TooltipContent>Add translation context</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent className="min-w-52" align="start">
@@ -367,16 +367,16 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                       disabled={!canSubmit}
                       className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                       aria-label="Send translation request"
-                    />
+                    >
+                      {chatRequestMutation.isPending ? (
+                        <Spinner className="text-primary-foreground" />
+                      ) : (
+                        <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
+                      )}
+                      Send
+                    </Button>
                   }
-                >
-                  {chatRequestMutation.isPending ? (
-                    <Spinner className="text-primary-foreground" />
-                  ) : (
-                    <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
-                  )}
-                  Send
-                </TooltipTrigger>
+                />
                 <TooltipContent side="top" align="end">
                   Send request
                   <Kbd className="ms-2 bg-background/15 text-background">Enter</Kbd>

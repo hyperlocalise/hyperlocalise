@@ -38,16 +38,23 @@ export const ArtifactClose = ({
   variant = "ghost",
   ...props
 }: ArtifactCloseProps) => (
-  <Button
-    className={cn("size-8 p-0 text-muted-foreground hover:text-foreground", className)}
-    size={size}
-    type="button"
-    variant={variant}
-    {...props}
-  >
-    {children ?? <XIcon className="size-4" />}
-    <span className="sr-only">Close</span>
-  </Button>
+  <Tooltip>
+    <TooltipTrigger
+      render={
+        <Button
+          className={cn("size-8 p-0 text-muted-foreground hover:text-foreground", className)}
+          size={size}
+          type="button"
+          variant={variant}
+          {...props}
+        />
+      }
+    >
+      {children ?? <XIcon className="size-4" />}
+      <span className="sr-only">Close</span>
+    </TooltipTrigger>
+    <TooltipContent>Close</TooltipContent>
+  </Tooltip>
 );
 
 export type ArtifactTitleProps = HTMLAttributes<HTMLParagraphElement>;
@@ -89,7 +96,29 @@ export const ArtifactAction = ({
    * RootLayout already provides a TooltipProvider. Local providers add
    * unnecessary React context overhead and can lead to desynced timers.
    */
-  const button = (
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              className={cn("size-8 p-0 text-muted-foreground hover:text-foreground", className)}
+              size={size}
+              type="button"
+              variant={variant}
+              {...props}
+            />
+          }
+        >
+          {Icon ? <Icon className="size-4" /> : children}
+          <span className="sr-only">{label || tooltip}</span>
+        </TooltipTrigger>
+        <TooltipContent>{tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
     <Button
       className={cn("size-8 p-0 text-muted-foreground hover:text-foreground", className)}
       size={size}
@@ -101,19 +130,6 @@ export const ArtifactAction = ({
       <span className="sr-only">{label || tooltip}</span>
     </Button>
   );
-
-  if (tooltip) {
-    return (
-      <Tooltip>
-        <TooltipTrigger>{button}</TooltipTrigger>
-        <TooltipContent>
-          <TypographyP>{tooltip}</TypographyP>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return button;
 };
 
 export type ArtifactContentProps = HTMLAttributes<HTMLDivElement>;
