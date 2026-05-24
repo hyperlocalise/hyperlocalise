@@ -23,8 +23,9 @@ export function createProjectTestFixture(client?: Client) {
       throw new Error("createProjectViaApi requires a test client");
     }
 
-    return client.api.project.$post(
+    return client.api.orgs[":organizationSlug"].projects.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: input?.name ?? "Marketing Site",
           description: input?.description ?? "Primary website strings",

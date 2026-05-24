@@ -45,26 +45,20 @@ afterEach(async () => {
 
 describe("glossaryRoutes", () => {
   it("returns 401 when auth context is missing", async () => {
-    const response = await client.api.glossary.$get({ query: { limit: "50", offset: "0" } });
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$get({
+      param: { organizationSlug: "missing-slug" },
+      query: { limit: "50", offset: "0" },
+    });
 
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
-  it("keeps glossary routes mounted at legacy and org-scoped app paths", async () => {
+  it("keeps glossary routes mounted at the org-scoped app path", async () => {
     const identity = createWorkosIdentity();
     await createGlossaryViaApi(identity, { name: "Mounted Glossary" });
     const headers = await authHeadersFor(identity);
-
-    const legacyResponse = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0" } },
-      { headers },
-    );
-    expect(legacyResponse.status).toBe(200);
-    await expect(legacyResponse.json()).resolves.toMatchObject({
-      glossaries: [expect.objectContaining({ name: "Mounted Glossary" })],
-    });
 
     const orgScopedResponse = await client.api.orgs[":organizationSlug"].glossaries.$get(
       {
@@ -88,8 +82,11 @@ describe("glossaryRoutes", () => {
     const otherIdentity = createWorkosIdentity();
     await createGlossaryViaApi(otherIdentity, { name: "Other Org Glossary" });
 
-    const response = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0" } },
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0" },
+      },
       {
         headers: await authHeadersFor(identity),
       },
@@ -130,8 +127,9 @@ describe("glossaryRoutes", () => {
 
   it("fills default values for optional create fields", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.glossary.$post(
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Test Glossary",
           sourceLocale: "en",
@@ -153,8 +151,9 @@ describe("glossaryRoutes", () => {
 
   it("returns 400 for invalid create payloads", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.glossary.$post(
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "   ",
           sourceLocale: "en",
@@ -176,8 +175,9 @@ describe("glossaryRoutes", () => {
 
   it("returns 403 when a member creates a glossary", async () => {
     const identity = createWorkosIdentityWithRole("member");
-    const response = await client.api.glossary.$post(
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Test Glossary",
           sourceLocale: "en",
@@ -213,9 +213,12 @@ describe("glossaryRoutes", () => {
     const createdBody = await createdResponse.json();
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
-    const response = await client.api.glossary[":glossaryId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -236,9 +239,12 @@ describe("glossaryRoutes", () => {
     const createdBody = await createdResponse.json();
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
-    const response = await client.api.glossary[":glossaryId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
         json: {
           name: "Updated Glossary Name",
         },
@@ -262,9 +268,14 @@ describe("glossaryRoutes", () => {
     const createdBody = await createdResponse.json();
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
-    const emptyResponse = await client.api.glossary[":glossaryId"].$patch(
+    const emptyResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
         json: {},
       },
       {
@@ -279,9 +290,14 @@ describe("glossaryRoutes", () => {
       message: expect.any(String),
     });
 
-    const invalidNameResponse = await client.api.glossary[":glossaryId"].$patch(
+    const invalidNameResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
         json: {
           name: "   ",
         },
@@ -306,9 +322,12 @@ describe("glossaryRoutes", () => {
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.glossary[":glossaryId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(otherIdentity),
@@ -330,9 +349,12 @@ describe("glossaryRoutes", () => {
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.glossary[":glossaryId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
         json: {
           name: "Should Not Apply",
         },
@@ -357,9 +379,12 @@ describe("glossaryRoutes", () => {
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const memberIdentity = createWorkosIdentityWithRole("member");
-    const response = await client.api.glossary[":glossaryId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$patch(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
         json: {
           name: "Should Not Apply",
         },
@@ -376,9 +401,12 @@ describe("glossaryRoutes", () => {
 
   it("returns 404 when a glossary does not exist", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.glossary[":glossaryId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
       {
-        param: { glossaryId: generateNonExistentUuid() },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: generateNonExistentUuid(),
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -399,9 +427,12 @@ describe("glossaryRoutes", () => {
     const createdBody = await createdResponse.json();
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
-    const response = await client.api.glossary[":glossaryId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -410,9 +441,12 @@ describe("glossaryRoutes", () => {
 
     expect(response.status).toBe(204);
 
-    const fetchResponse = await client.api.glossary[":glossaryId"].$get(
+    const fetchResponse = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -429,9 +463,12 @@ describe("glossaryRoutes", () => {
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.glossary[":glossaryId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(otherIdentity),
@@ -445,9 +482,12 @@ describe("glossaryRoutes", () => {
       message: expect.any(String),
     });
 
-    const fetchResponse = await client.api.glossary[":glossaryId"].$get(
+    const fetchResponse = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$get(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(ownerIdentity),
@@ -459,9 +499,12 @@ describe("glossaryRoutes", () => {
 
   it("returns 404 when deleting a glossary that does not exist", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.glossary[":glossaryId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
       {
-        param: { glossaryId: generateNonExistentUuid() },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: generateNonExistentUuid(),
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -483,9 +526,12 @@ describe("glossaryRoutes", () => {
     if ("error" in createdBody) throw new Error(String(createdBody.error));
 
     const memberIdentity = createWorkosIdentityWithRole("member");
-    const response = await client.api.glossary[":glossaryId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].glossaries[":glossaryId"].$delete(
       {
-        param: { glossaryId: createdBody.glossary.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          glossaryId: createdBody.glossary.id,
+        },
       },
       {
         headers: await authHeadersFor(memberIdentity),
@@ -526,8 +572,11 @@ describe("glossaryRoutes", () => {
       externalUrl: "https://phrase.com/term-bases/tb-42",
     });
 
-    const response = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0" } },
+    const response = await client.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0" },
+      },
       {
         headers: await authHeadersFor(identity),
       },
@@ -582,8 +631,11 @@ describe("glossaryRoutes", () => {
 
     const headers = await authHeadersFor(identity);
 
-    const searchResponse = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0", search: "marketing" } },
+    const searchResponse = await client.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0", search: "marketing" },
+      },
       { headers },
     );
     expect(searchResponse.status).toBe(200);
@@ -594,8 +646,11 @@ describe("glossaryRoutes", () => {
       expect.objectContaining({ name: "Workspace Marketing Terms" }),
     ]);
 
-    const providerResponse = await client.api.glossary.$get(
-      { query: { limit: "50", offset: "0", source: "external_tms" } },
+    const providerResponse = await client.api.orgs[":organizationSlug"].glossaries.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { limit: "50", offset: "0", source: "external_tms" },
+      },
       { headers },
     );
     expect(providerResponse.status).toBe(200);
@@ -633,9 +688,14 @@ describe("glossaryRoutes", () => {
 
     const headers = await authHeadersFor(identity);
 
-    const patchResponse = await client.api.glossary[":glossaryId"].$patch(
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$patch(
       {
-        param: { glossaryId: externalGlossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: externalGlossary.id,
+        },
         json: { name: "Renamed" },
       },
       { headers },
@@ -645,9 +705,14 @@ describe("glossaryRoutes", () => {
       error: "external_tms_glossary_immutable",
     });
 
-    const deleteResponse = await client.api.glossary[":glossaryId"].$delete(
+    const deleteResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].$delete(
       {
-        param: { glossaryId: externalGlossary.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: externalGlossary.id,
+        },
       },
       { headers },
     );

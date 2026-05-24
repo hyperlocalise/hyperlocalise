@@ -79,17 +79,6 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/", createInternalRoutes())
     .route("/auth", createAuthRoutes())
     .route(
-      "/",
-      createLegacyAppRoutes({
-        ...options,
-        jobQueue,
-        providerAgentTranslationQueue,
-        providerAgentQaQueue,
-        providerAgentCommentQueue,
-        providerAgentWritebackQueue,
-      }),
-    )
-    .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({
         ...options,
@@ -114,15 +103,6 @@ function createInternalRoutes() {
 
 function createAuthRoutes() {
   return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
-}
-
-function createLegacyAppRoutes(
-  options: CreateAppOptions & { jobQueue: JobQueue<TranslationJobEventData> },
-) {
-  return new Hono()
-    .route("/glossary", createGlossaryRoutes())
-    .route("/memory", createMemoryRoutes())
-    .route("/project", createProjectRoutes(options));
 }
 
 function createOrgScopedAppRoutes(

@@ -261,9 +261,15 @@ describe("jobRoutes", () => {
     });
     const headers = await authHeadersFor(identity);
 
-    const nestedResponse = await appClient.api.project[":projectId"].jobs[":jobId"].$get(
+    const nestedResponse = await appClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs[":jobId"].$get(
       {
-        param: { projectId: project.id, jobId: job.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          jobId: job.id,
+        },
       },
       { headers },
     );
@@ -294,9 +300,12 @@ describe("jobRoutes", () => {
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "string",
           stringInput: {
@@ -389,9 +398,12 @@ describe("jobRoutes", () => {
       },
     });
 
-    const allResponse = await client.api.project[":projectId"].jobs.$get(
+    const allResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         query: { mine: "false", limit: "50" },
       },
       { headers: authHeader },
@@ -406,9 +418,14 @@ describe("jobRoutes", () => {
       ]),
     });
 
-    const mineResponse = await client.api.project[":projectId"].jobs.$get(
+    const mineResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$get(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         query: { mine: "true", limit: "50" },
       },
       { headers: authHeader },
@@ -425,9 +442,14 @@ describe("jobRoutes", () => {
     expect(mineBody.jobs).toHaveLength(2);
     expect(mineBody.jobs.every((job) => job.createdByUserId === localUserId)).toBe(true);
 
-    const filteredResponse = await client.api.project[":projectId"].jobs.$get(
+    const filteredResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$get(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         query: { type: "file", status: "failed", mine: "false", limit: "50" },
       },
       { headers: authHeader },
@@ -438,9 +460,14 @@ describe("jobRoutes", () => {
       jobs: [expect.objectContaining({ type: "file", status: "failed" })],
     });
 
-    const limitedResponse = await client.api.project[":projectId"].jobs.$get(
+    const limitedResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$get(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         query: { mine: "false", limit: "1" },
       },
       { headers: authHeader },
@@ -516,9 +543,14 @@ describe("jobRoutes", () => {
       },
     });
 
-    const projectJobsResponse = await client.api.project[":projectId"].jobs.$get(
+    const projectJobsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$get(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         query: { kind: "research", mine: "false", limit: "50" },
       },
       { headers: authHeader },
@@ -581,9 +613,15 @@ describe("jobRoutes", () => {
 
     const authHeader = await authHeadersFor(identity);
 
-    const getResponse = await client.api.project[":projectId"].jobs[":jobId"].$get(
+    const getResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].$get(
       {
-        param: { projectId: project.id, jobId: job.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          jobId: job.id,
+        },
       },
       { headers: authHeader },
     );
@@ -597,9 +635,15 @@ describe("jobRoutes", () => {
       }),
     });
 
-    const statusResponse = await client.api.project[":projectId"].jobs[":jobId"].status.$get(
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].status.$get(
       {
-        param: { projectId: project.id, jobId: job.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          jobId: job.id,
+        },
       },
       { headers: authHeader },
     );
@@ -826,9 +870,12 @@ describe("jobRoutes", () => {
       ownerIdentity.organization,
       "member",
     );
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "string",
           stringInput: {
@@ -867,9 +914,15 @@ describe("jobRoutes", () => {
     });
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].jobs[":jobId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs[
+      ":jobId"
+    ].$get(
       {
-        param: { projectId: project.id, jobId: job.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          jobId: job.id,
+        },
       },
       {
         headers: await authHeadersFor(otherIdentity),
@@ -886,9 +939,12 @@ describe("jobRoutes", () => {
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "string",
           stringInput: {
@@ -921,9 +977,12 @@ describe("jobRoutes", () => {
       contentType: "application/xliff+xml",
     });
 
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "file",
           fileInput: {
@@ -964,9 +1023,12 @@ describe("jobRoutes", () => {
       contentType: "image/png",
     });
 
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "file",
           fileInput: {
@@ -995,9 +1057,12 @@ describe("jobRoutes", () => {
     const projectResponse = await createProjectViaApi(identity);
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
-    const response = await client.api.project[":projectId"].jobs.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "file",
           fileInput: {
@@ -1032,8 +1097,9 @@ describe("jobRoutes", () => {
       }),
     );
     const identity = createWorkosIdentity();
-    const projectResponse = await failingClient.api.project.$post(
+    const projectResponse = await failingClient.api.orgs[":organizationSlug"].projects.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Marketing Site",
           description: "Primary website strings",
@@ -1046,9 +1112,14 @@ describe("jobRoutes", () => {
     );
     const project = ((await projectResponse.json()) as ProjectResponse).project;
 
-    const response = await failingClient.api.project[":projectId"].jobs.$post(
+    const response = await failingClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
       {
-        param: { projectId: project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
         json: {
           type: "string",
           stringInput: {

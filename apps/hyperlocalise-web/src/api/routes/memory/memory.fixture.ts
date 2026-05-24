@@ -19,8 +19,9 @@ export function createMemoryTestFixture(client?: Client) {
       throw new Error("createMemoryViaApi requires a test client");
     }
 
-    return client.api.memory.$post(
+    return client.api.orgs[":organizationSlug"]["translation-memories"].$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: input?.name ?? "Product TM",
           description: input?.description ?? "Product translation memory",

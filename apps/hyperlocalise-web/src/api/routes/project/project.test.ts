@@ -53,23 +53,19 @@ afterEach(async () => {
 
 describe("projectRoutes", () => {
   it("returns 401 when auth context is missing", async () => {
-    const response = await client.api.project.$get();
+    const response = await client.api.orgs[":organizationSlug"].projects.$get({
+      param: { organizationSlug: "missing-slug" },
+    });
 
     expect(response.status).toBe(401);
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "unauthorized", message: expect.any(String) });
   });
 
-  it("keeps project routes mounted at legacy and org-scoped app paths", async () => {
+  it("keeps project routes mounted at the org-scoped app path", async () => {
     const identity = createWorkosIdentity();
     await createProjectViaApi(identity, { name: "Mounted Project" });
     const headers = await authHeadersFor(identity);
-
-    const legacyResponse = await appClient.api.project.$get({}, { headers });
-    expect(legacyResponse.status).toBe(200);
-    await expect(legacyResponse.json()).resolves.toMatchObject({
-      projects: [expect.objectContaining({ name: "Mounted Project" })],
-    });
 
     const orgScopedResponse = await appClient.api.orgs[":organizationSlug"].projects.$get(
       {
@@ -92,8 +88,8 @@ describe("projectRoutes", () => {
     const otherIdentity = createWorkosIdentity();
     await createProjectViaApi(otherIdentity, { name: "Other Org Project" });
 
-    const response = await client.api.project.$get(
-      {},
+    const response = await client.api.orgs[":organizationSlug"].projects.$get(
+      { param: { organizationSlug: identity.organization.slug ?? "missing-slug" } },
       {
         headers: await authHeadersFor(identity),
       },
@@ -125,8 +121,9 @@ describe("projectRoutes", () => {
 
   it("fills default values for optional create fields", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.project.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Docs",
         },
@@ -146,8 +143,9 @@ describe("projectRoutes", () => {
 
   it("returns 400 for invalid create payloads", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.project.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "   ",
         },
@@ -167,8 +165,9 @@ describe("projectRoutes", () => {
 
   it("returns 403 when a member creates a project", async () => {
     const identity = createWorkosIdentityWithRole("member");
-    const response = await client.api.project.$post(
+    const response = await client.api.orgs[":organizationSlug"].projects.$post(
       {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Docs",
           description: "Documentation content",
@@ -190,9 +189,12 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const response = await client.api.project[":projectId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -211,9 +213,12 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const response = await client.api.project[":projectId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
         json: {
           name: "Docs v2",
         },
@@ -235,9 +240,12 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const emptyResponse = await client.api.project[":projectId"].$patch(
+    const emptyResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
         json: {},
       },
       {
@@ -252,9 +260,14 @@ describe("projectRoutes", () => {
       message: expect.any(String),
     });
 
-    const invalidNameResponse = await client.api.project[":projectId"].$patch(
+    const invalidNameResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$patch(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
         json: {
           name: "   ",
         },
@@ -278,9 +291,12 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(otherIdentity),
@@ -298,9 +314,12 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
         json: {
           name: "Should Not Apply",
         },
@@ -321,9 +340,12 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const memberIdentity = createWorkosIdentityWithRole("member");
-    const response = await client.api.project[":projectId"].$patch(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
         json: {
           name: "Should Not Apply",
         },
@@ -340,9 +362,12 @@ describe("projectRoutes", () => {
 
   it("returns 404 when a project does not exist", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].$get(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
       {
-        param: { projectId: `project_missing_${randomUUID()}` },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: `project_missing_${randomUUID()}`,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -359,9 +384,12 @@ describe("projectRoutes", () => {
     const createdResponse = await createProjectViaApi(identity);
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
-    const response = await client.api.project[":projectId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -370,9 +398,12 @@ describe("projectRoutes", () => {
 
     expect(response.status).toBe(204);
 
-    const fetchResponse = await client.api.project[":projectId"].$get(
+    const fetchResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -388,9 +419,12 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const otherIdentity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(otherIdentity),
@@ -401,9 +435,12 @@ describe("projectRoutes", () => {
     const responseBody = await response.json();
     expect(responseBody).toMatchObject({ error: "project_not_found", message: expect.any(String) });
 
-    const fetchResponse = await client.api.project[":projectId"].$get(
+    const fetchResponse = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(ownerIdentity),
@@ -415,9 +452,12 @@ describe("projectRoutes", () => {
 
   it("returns 404 when deleting a project that does not exist", async () => {
     const identity = createWorkosIdentity();
-    const response = await client.api.project[":projectId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
       {
-        param: { projectId: `project_missing_${randomUUID()}` },
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: `project_missing_${randomUUID()}`,
+        },
       },
       {
         headers: await authHeadersFor(identity),
@@ -435,9 +475,12 @@ describe("projectRoutes", () => {
     const createdBody = (await createdResponse.json()) as ProjectResponse;
 
     const memberIdentity = createWorkosIdentityWithRole("member");
-    const response = await client.api.project[":projectId"].$delete(
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$delete(
       {
-        param: { projectId: createdBody.project.id },
+        param: {
+          organizationSlug: ownerIdentity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
       },
       {
         headers: await authHeadersFor(memberIdentity),
