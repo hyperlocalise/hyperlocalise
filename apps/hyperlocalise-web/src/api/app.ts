@@ -37,6 +37,7 @@ import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
+import { createMemberRoutes } from "./routes/member/member.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import {
@@ -160,7 +161,8 @@ function createOrgScopedAppRoutes(
       createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/github-installation", createGithubInstallationRoutes())
-    .route("/api-keys", createApiKeyRoutes());
+    .route("/api-keys", createApiKeyRoutes())
+    .route("/members", createMemberRoutes());
 }
 
 function createPublicApiRoutes(
