@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { removeWorkosMembership } from "@/api/auth/workos-sync";
+import { internalErrorResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
@@ -66,6 +67,18 @@ async function deleteMemberMcpSessions(organizationId: string, userId: string) {
         eq(schema.mcpSessions.organizationId, organizationId),
       ),
     );
+}
+
+function shouldSyncMembershipToWorkos(input: {
+  workosMembershipId: string | null;
+  workosOrganizationId: string;
+}) {
+  const workos = getWorkosServerClient();
+  return (
+    Boolean(input.workosMembershipId) &&
+    workos !== null &&
+    !isLocallyManagedWorkosOrganization(input.workosOrganizationId)
+  );
 }
 
 async function inviteLocalMember(input: {
@@ -300,16 +313,7 @@ export function createMemberRoutes() {
 
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
-
-      if (
-        member.workosMembershipId &&
-        workos &&
-        !isLocallyManagedWorkosOrganization(workosOrganizationId)
-      ) {
-        await workos.userManagement.updateOrganizationMembership(member.workosMembershipId, {
-          roleSlug: payload.role,
-        });
-      }
+      const previousRole = member.role;
 
       const [updated] = await db
         .update(schema.organizationMemberships)
@@ -319,6 +323,30 @@ export function createMemberRoutes() {
           role: schema.organizationMemberships.role,
           createdAt: schema.organizationMemberships.createdAt,
         });
+
+      if (
+        shouldSyncMembershipToWorkos({
+          workosMembershipId: member.workosMembershipId,
+          workosOrganizationId,
+        })
+      ) {
+        try {
+          await workos!.userManagement.updateOrganizationMembership(member.workosMembershipId!, {
+            roleSlug: payload.role,
+          });
+        } catch {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: previousRole })
+            .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to sync member role with identity provider",
+          );
+        }
+      }
 
       return c.json(
         {
@@ -365,14 +393,6 @@ export function createMemberRoutes() {
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
 
-      if (
-        member.workosMembershipId &&
-        workos &&
-        !isLocallyManagedWorkosOrganization(workosOrganizationId)
-      ) {
-        await workos.userManagement.deleteOrganizationMembership(member.workosMembershipId);
-      }
-
       await removeWorkosMembership(db, {
         workosMembershipId: member.workosMembershipId ?? undefined,
         workosOrganizationId,
@@ -380,6 +400,30 @@ export function createMemberRoutes() {
       });
 
       await deleteMemberMcpSessions(organizationId, member.localUserId);
+
+      if (
+        shouldSyncMembershipToWorkos({
+          workosMembershipId: member.workosMembershipId,
+          workosOrganizationId,
+        })
+      ) {
+        try {
+          await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
+        } catch {
+          await db.insert(schema.organizationMemberships).values({
+            organizationId,
+            userId: member.localUserId,
+            role: member.role,
+            workosMembershipId: member.workosMembershipId,
+          });
+
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to sync member removal with identity provider",
+          );
+        }
+      }
 
       return c.body(null, 204);
     });
