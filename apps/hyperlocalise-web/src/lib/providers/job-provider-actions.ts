@@ -1,9 +1,11 @@
 import type { AgentRunKind } from "@/lib/database/types";
 
+import { getProviderCommentPusher } from "./provider-comment-pushers";
 import {
   getTmsProviderActionCapability,
   type TmsProviderCapabilityAction,
 } from "./tms-capabilities";
+import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
 export type JobProviderActionId =
   | "translate_with_agent"
@@ -70,6 +72,9 @@ export type JobProviderActionAvailability = {
   disabledReason?: string;
 };
 
+const commentWriteBackUnsupportedReason =
+  "This provider connector does not support writing comments back to the TMS yet.";
+
 function resolveActionAvailability(
   providerKind: string,
   action: JobProviderActionDefinition,
@@ -110,6 +115,20 @@ function resolveActionAvailability(
       enabled: false,
       disabledReason: disabled.ui.disabledReason,
     };
+  }
+
+  if (action.id === "leave_provider_comment") {
+    const pusher = getProviderCommentPusher(providerKind as ExternalTmsProviderKind);
+    if (!pusher) {
+      return {
+        id: action.id,
+        label: action.label,
+        agentRunKind: action.agentRunKind,
+        visible: true,
+        enabled: false,
+        disabledReason: commentWriteBackUnsupportedReason,
+      };
+    }
   }
 
   return {

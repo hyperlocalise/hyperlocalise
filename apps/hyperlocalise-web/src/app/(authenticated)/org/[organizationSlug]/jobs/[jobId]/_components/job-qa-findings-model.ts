@@ -282,3 +282,112 @@ export function collectFilterOptions(findings: QaFindingWithId[]) {
     checkTypes: [...checkTypes].sort((a, b) => a.localeCompare(b)),
   };
 }
+
+export type ProviderCommentWriteBackStatus = {
+  status: "posted" | "skipped" | "failed";
+  externalCommentUid?: string | null;
+  externalIssueUid?: string | null;
+  providerUrl?: string | null;
+  message?: string | null;
+};
+
+type AgentRunWriteBackSource = {
+  kind: string;
+  status: string;
+  changedItems: Record<string, unknown>[];
+  completedAt?: string | null;
+  createdAt: string;
+};
+
+function isProviderCommentChangedItem(item: Record<string, unknown>): item is {
+  type: "provider_comment";
+  findingId: string;
+  status: "posted" | "skipped" | "failed";
+  externalCommentUid?: string | null;
+  externalIssueUid?: string | null;
+  message?: string | null;
+  providerReviewContext?: { providerUrl?: string | null } | null;
+} {
+  return (
+    item.type === "provider_comment" &&
+    typeof item.findingId === "string" &&
+    (item.status === "posted" || item.status === "skipped" || item.status === "failed")
+  );
+}
+
+function writeBackStatusPriority(status: ProviderCommentWriteBackStatus["status"]) {
+  switch (status) {
+    case "posted":
+      return 2;
+    case "skipped":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+export function indexProviderCommentWriteBackFromAgentRuns(
+  agentRuns: AgentRunWriteBackSource[],
+): Map<string, ProviderCommentWriteBackStatus> {
+  const indexed = new Map<string, ProviderCommentWriteBackStatus>();
+
+  const commentRuns = agentRuns
+    .filter(
+      (run) =>
+        run.kind === "comment_only" && (run.status === "succeeded" || run.status === "failed"),
+    )
+    .toSorted((left, right) => {
+      const leftTime = Date.parse(left.completedAt ?? left.createdAt);
+      const rightTime = Date.parse(right.completedAt ?? right.createdAt);
+      return leftTime - rightTime;
+    });
+
+  for (const run of commentRuns) {
+    for (const item of run.changedItems) {
+      if (!isProviderCommentChangedItem(item)) {
+        continue;
+      }
+
+      const nextStatus: ProviderCommentWriteBackStatus = {
+        status: item.status,
+        externalCommentUid: item.externalCommentUid ?? null,
+        externalIssueUid: item.externalIssueUid ?? null,
+        providerUrl: item.providerReviewContext?.providerUrl ?? null,
+        message: item.message ?? null,
+      };
+
+      const existing = indexed.get(item.findingId);
+      if (
+        existing &&
+        writeBackStatusPriority(existing.status) > writeBackStatusPriority(nextStatus.status)
+      ) {
+        continue;
+      }
+
+      indexed.set(item.findingId, nextStatus);
+    }
+  }
+
+  return indexed;
+}
+
+export function isProviderCommentWriteBackComplete(
+  writeBack: ProviderCommentWriteBackStatus | undefined,
+) {
+  return writeBack?.status === "posted" || writeBack?.status === "skipped";
+}
+
+export function formatProviderCommentWriteBackLabel(
+  writeBack: ProviderCommentWriteBackStatus | undefined,
+) {
+  switch (writeBack?.status) {
+    case "posted":
+      return "Comment posted";
+    case "skipped":
+      return "Already in TMS";
+    case "failed":
+      return "Comment failed";
+    default:
+      return null;
+  }
+}

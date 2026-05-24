@@ -47,14 +47,18 @@ import {
   collectFilterOptions,
   filterFindings,
   formatCheckTypeLabel,
+  formatProviderCommentWriteBackLabel,
   groupFindings,
   formatReviewAuthorLabel,
   formatReviewThreadKindLabel,
   formatReviewThreadStateLabel,
+  indexProviderCommentWriteBackFromAgentRuns,
+  isProviderCommentWriteBackComplete,
   isProviderReviewFindingsAgentRun,
   isReviewWithAgentRun,
   parseProviderReviewReportFromOutputSummary,
   parseQaReportFromOutputSummary,
+  type ProviderCommentWriteBackStatus,
   type QaFindingGroupBy,
   type QaFindingWithId,
 } from "./job-qa-findings-model";
@@ -238,6 +242,17 @@ function QaSummaryChips({
   );
 }
 
+function writeBackTone(status: ProviderCommentWriteBackStatus["status"]): Tone {
+  switch (status) {
+    case "posted":
+      return "safe";
+    case "skipped":
+      return "info";
+    default:
+      return "risk";
+  }
+}
+
 function FindingRow({
   finding,
   selected,
@@ -245,6 +260,7 @@ function FindingRow({
   organizationSlug,
   projectId,
   externalUrl,
+  writeBack,
 }: {
   finding: QaFindingWithId;
   selected: boolean;
@@ -252,7 +268,12 @@ function FindingRow({
   organizationSlug: string;
   projectId: string | null;
   externalUrl: string | null;
+  writeBack?: ProviderCommentWriteBackStatus;
 }) {
+  const writeBackLabel = formatProviderCommentWriteBackLabel(writeBack);
+  const writeBackComplete = isProviderCommentWriteBackComplete(writeBack);
+  const commentProviderUrl = writeBack?.providerUrl ?? null;
+
   const contentHref = projectId
     ? buildProjectFilesHref({
         organizationSlug,
@@ -268,8 +289,10 @@ function FindingRow({
         <label className="mt-0.5 flex cursor-pointer items-center gap-2">
           <input
             type="checkbox"
-            className="size-4 rounded border-foreground/20 accent-foreground"
+            className="size-4 rounded border-foreground/20 accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
             checked={selected}
+            disabled={writeBackComplete}
+            title={writeBackComplete ? "This finding already has a provider comment" : undefined}
             onChange={(event) => onToggle(finding.id, event.currentTarget.checked)}
           />
         </label>
@@ -299,6 +322,17 @@ function FindingRow({
                 {Math.round(finding.confidence * 100)}% confidence
               </Badge>
             ) : null}
+            {writeBackLabel && writeBack ? (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "rounded-full capitalize",
+                  toneClass(writeBackTone(writeBack.status)),
+                )}
+              >
+                {writeBackLabel}
+              </Badge>
+            ) : null}
           </div>
           <p className="text-sm text-foreground/82">{finding.message}</p>
           {finding.suggestedFix ? (
@@ -323,6 +357,19 @@ function FindingRow({
               >
                 Open in TMS
               </Link>
+            ) : null}
+            {commentProviderUrl ? (
+              <Link
+                href={commentProviderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+              >
+                View provider comment
+              </Link>
+            ) : null}
+            {writeBack?.status === "failed" && writeBack.message ? (
+              <span className="text-foreground/48">{writeBack.message}</span>
             ) : null}
           </div>
         </div>
@@ -429,6 +476,11 @@ export function JobQaFindingsSection({
     [report],
   );
 
+  const writeBackByFindingId = useMemo(
+    () => indexProviderCommentWriteBackFromAgentRuns(agentRuns ?? []),
+    [agentRuns],
+  );
+
   const filterOptions = useMemo(() => collectFilterOptions(findingsWithIds), [findingsWithIds]);
 
   const filteredFindings = useMemo(
@@ -450,6 +502,14 @@ export function JobQaFindingsSection({
   const selectedFindings = useMemo(
     () => findingsWithIds.filter((finding) => selectedIds.has(finding.id)),
     [findingsWithIds, selectedIds],
+  );
+
+  const commentableSelectedFindings = useMemo(
+    () =>
+      selectedFindings.filter(
+        (finding) => !isProviderCommentWriteBackComplete(writeBackByFindingId.get(finding.id)),
+      ),
+    [selectedFindings, writeBackByFindingId],
   );
 
   const runQaChecksAction = providerActions.find((action) => action.id === "run_qa_checks");
@@ -522,10 +582,15 @@ export function JobQaFindingsSection({
   useEffect(() => {
     setSelectedIds((current) => {
       const valid = new Set(findingsWithIds.map((finding) => finding.id));
-      const next = new Set([...current].filter((id) => valid.has(id)));
+      const next = new Set(
+        [...current].filter(
+          (id) =>
+            valid.has(id) && !isProviderCommentWriteBackComplete(writeBackByFindingId.get(id)),
+        ),
+      );
       return next.size === current.size ? current : next;
     });
-  }, [findingsWithIds]);
+  }, [findingsWithIds, writeBackByFindingId]);
 
   function toggleFinding(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -612,23 +677,27 @@ export function JobQaFindingsSection({
               variant="outline"
               disabled={
                 !commentAction.enabled ||
-                selectedFindings.length === 0 ||
+                commentableSelectedFindings.length === 0 ||
                 startAgentAction.isPending
               }
               title={
-                selectedFindings.length === 0
-                  ? "Select at least one finding"
-                  : commentAction.disabledReason
+                !commentAction.enabled
+                  ? commentAction.disabledReason
+                  : commentableSelectedFindings.length === 0
+                    ? selectedFindings.length > 0
+                      ? "Selected findings already have provider comments"
+                      : "Select at least one finding"
+                    : undefined
               }
               onClick={() =>
                 startAgentAction.mutate({
                   action: "leave_provider_comment",
-                  selectedFindings,
+                  selectedFindings: commentableSelectedFindings,
                 })
               }
             >
               <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} />
-              Comment on selected
+              Comment on selected ({commentableSelectedFindings.length})
             </Button>
           ) : null}
         </div>
@@ -790,6 +859,7 @@ export function JobQaFindingsSection({
                           organizationSlug={organizationSlug}
                           projectId={projectId}
                           externalUrl={externalUrl}
+                          writeBack={writeBackByFindingId.get(finding.id)}
                         />
                       ))}
                     </ul>
