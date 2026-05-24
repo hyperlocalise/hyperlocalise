@@ -110,12 +110,8 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
     (data?.counts.staleFiles ?? 0) +
     (data?.counts.staleGlossaries ?? 0) +
     (data?.counts.staleMemories ?? 0);
-  const resourceSyncErrors =
-    (data?.counts.syncErrorGlossaries ?? 0) + (data?.counts.syncErrorMemories ?? 0);
-  const resourceSyncErrorsHref =
-    (data?.counts.syncErrorGlossaries ?? 0) > 0
-      ? buildOrgWorkspaceHref(organizationSlug, "glossaries", { sync: "error" })
-      : buildOrgWorkspaceHref(organizationSlug, "translation-memories", { sync: "error" });
+  const syncErrorGlossaries = data?.counts.syncErrorGlossaries ?? 0;
+  const syncErrorMemories = data?.counts.syncErrorMemories ?? 0;
   const recentFailedSyncRunsHref = `/org/${organizationSlug}/dashboard#recent-failed-sync-runs`;
 
   return (
@@ -212,11 +208,20 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                 href={recentFailedSyncRunsHref}
               />
               <SummaryMetricCard
-                label="Resource sync errors"
-                value={String(resourceSyncErrors)}
-                detail="glossaries and translation memories"
-                tone={resourceSyncErrors > 0 ? "risk" : "safe"}
-                href={resourceSyncErrorsHref}
+                label="Glossary sync errors"
+                value={String(syncErrorGlossaries)}
+                detail="glossaries with sync failures"
+                tone={syncErrorGlossaries > 0 ? "risk" : "safe"}
+                href={buildOrgWorkspaceHref(organizationSlug, "glossaries", { sync: "error" })}
+              />
+              <SummaryMetricCard
+                label="TM sync errors"
+                value={String(syncErrorMemories)}
+                detail="translation memories with sync failures"
+                tone={syncErrorMemories > 0 ? "risk" : "safe"}
+                href={buildOrgWorkspaceHref(organizationSlug, "translation-memories", {
+                  sync: "error",
+                })}
               />
               <SummaryMetricCard
                 label="Pending job sync"

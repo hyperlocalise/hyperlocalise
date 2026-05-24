@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { ProjectsPageContent } from "./_components/projects-page-content";
 
 export default async function ProjectsPage({
@@ -7,5 +9,9 @@ export default async function ProjectsPage({
 }) {
   const { organizationSlug } = await params;
 
-  return <ProjectsPageContent organizationSlug={organizationSlug} />;
+  return (
+    <Suspense fallback={null}>
+      <ProjectsPageContent organizationSlug={organizationSlug} />
+    </Suspense>
+  );
 }
