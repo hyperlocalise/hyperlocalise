@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   FilterHorizontalIcon,
   MoreHorizontalCircle01Icon,
@@ -23,6 +24,11 @@ import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
+import {
+  JOB_SOURCE_FILTERS,
+  JOB_STATUS_FILTERS,
+  readWorkspaceFilterParam,
+} from "../../_components/workspace-filter-params";
 import { MetricsGrid, toneClass, type Tone } from "../../_components/workspace-resource-shared";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
@@ -292,9 +298,18 @@ export function JobsPageContent({
   organizationSlug: string;
   scope?: JobsScope;
 }) {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "provider">("all");
+  const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>(() => {
+    const status = readWorkspaceFilterParam(searchParams, "status", JOB_STATUS_FILTERS);
+    return (statusOptions as readonly string[]).includes(status)
+      ? (status as (typeof statusOptions)[number])
+      : "all";
+  });
+  const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "provider">(() => {
+    const source = readWorkspaceFilterParam(searchParams, "source", JOB_SOURCE_FILTERS);
+    return source === "native" || source === "provider" ? source : "all";
+  });
   const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
 
   const jobsQuery = useQuery({

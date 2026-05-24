@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
+import {
+  GLOSSARY_SYNC_FILTERS,
+  PROJECT_SOURCE_FILTERS,
+  readWorkspaceFilterParam,
+  TMS_PROVIDER_KINDS,
+} from "../../_components/workspace-filter-params";
 import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
@@ -92,12 +99,20 @@ const credentialsQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
-function useGlossaryFilters() {
+function useGlossaryFilters(searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [providerFilter, setProviderFilter] = useState<string>("all");
-  const [resourceTypeFilter, setResourceTypeFilter] = useState<string>("all");
-  const [syncFilter, setSyncFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
+  );
+  const [providerFilter, setProviderFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
+  );
+  const [resourceTypeFilter, setResourceTypeFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "resourceType", ["glossary", "term_base"]),
+  );
+  const [syncFilter, setSyncFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
+  );
 
   const filters = useMemo(
     () => ({
@@ -191,6 +206,7 @@ function GlossariesMetrics({
 }
 
 export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const {
     filters,
@@ -206,7 +222,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
     setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
-  } = useGlossaryFilters();
+  } = useGlossaryFilters(searchParams);
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),

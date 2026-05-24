@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
+import {
+  GLOSSARY_SYNC_FILTERS,
+  PROJECT_SOURCE_FILTERS,
+  readWorkspaceFilterParam,
+  TMS_PROVIDER_KINDS,
+} from "../../_components/workspace-filter-params";
 import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
@@ -46,11 +53,17 @@ const credentialsQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
-function useMemoryFilters(memories: MemoryListRow[]) {
+function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [providerFilter, setProviderFilter] = useState<string>("all");
-  const [syncFilter, setSyncFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
+  );
+  const [providerFilter, setProviderFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
+  );
+  const [syncFilter, setSyncFilter] = useState(() =>
+    readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
+  );
 
   const filteredMemories = useMemo(() => {
     return memories.filter((memory) => {
@@ -151,6 +164,7 @@ function TranslationMemoriesMetrics({
 }
 
 export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
@@ -248,7 +262,7 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
     setSyncFilter,
     filteredMemories,
     activeFilterCount,
-  } = useMemoryFilters(memories);
+  } = useMemoryFilters(memories, searchParams);
 
   useEffect(() => {
     setPage(1);
