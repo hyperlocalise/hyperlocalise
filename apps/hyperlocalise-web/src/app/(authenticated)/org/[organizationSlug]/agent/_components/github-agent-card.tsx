@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { GitBranchIcon, GithubIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -185,7 +186,37 @@ function useDisconnectInstallation(organizationSlug: string) {
 }
 
 export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
-  const { data: installation, isLoading } = useGitHubInstallation(organizationSlug);
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const {
+    data: installation,
+    isLoading,
+    isError,
+    error,
+    refetch: refetchInstallation,
+  } = useGitHubInstallation(organizationSlug);
+
+  const handledGithubConnectedRef = useRef(false);
+
+  useEffect(() => {
+    if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
+      return;
+    }
+
+    handledGithubConnectedRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("github_connected");
+    window.history.replaceState(null, "", url.toString());
+
+    void (async () => {
+      await refetchInstallation();
+      await queryClient.invalidateQueries({
+        queryKey: ["github-installation-repositories", organizationSlug],
+      });
+      toast.success("GitHub App connected");
+    })();
+  }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
   const { data: repositories = [], isLoading: isLoadingRepositories } = useGitHubRepositories(
     organizationSlug,
     Boolean(installation),
@@ -289,6 +320,21 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
       <CardContent className="px-5 py-5 lg:px-6">
         {isLoading ? (
           <Skeleton className="h-10 bg-foreground/5" />
+        ) : isError ? (
+          <div className="flex flex-col gap-4">
+            <TypographyP className="text-sm text-red-300">
+              {error instanceof Error
+                ? error.message
+                : "Unable to load GitHub installation status right now."}
+            </TypographyP>
+            <Button
+              variant="outline"
+              className="w-fit border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8"
+              onClick={() => void refetchInstallation()}
+            >
+              Retry
+            </Button>
+          </div>
         ) : installation ? (
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

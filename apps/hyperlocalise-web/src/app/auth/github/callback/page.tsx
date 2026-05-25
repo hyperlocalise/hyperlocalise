@@ -19,6 +19,19 @@ type GitHubCallbackPageProps = {
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
 export default async function GitHubCallbackPage({ searchParams }: GitHubCallbackPageProps) {
   const params = await searchParams;
   const installationId = params.installation_id;
@@ -80,7 +93,6 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
       and(
         eq(schema.githubInstallationStates.nonce, verified.nonce),
         eq(schema.githubInstallationStates.organizationId, org.id),
-        eq(schema.githubInstallationStates.userId, auth.user.localUserId),
         gt(schema.githubInstallationStates.expiresAt, now),
         isNull(schema.githubInstallationStates.consumedAt),
       ),
@@ -109,31 +121,49 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
   const githubInstallationId = installationId;
   const githubAppId = env.GITHUB_APP_ID;
 
+  const [installationLinkedElsewhere] = await db
+    .select({ organizationId: schema.githubInstallations.organizationId })
+    .from(schema.githubInstallations)
+    .where(eq(schema.githubInstallations.githubInstallationId, githubInstallationId))
+    .limit(1);
+
+  if (installationLinkedElsewhere && installationLinkedElsewhere.organizationId !== org.id) {
+    redirect("/dashboard?error=github_installation_already_linked");
+  }
+
   const existing = await db
     .select()
     .from(schema.githubInstallations)
     .where(eq(schema.githubInstallations.organizationId, org.id))
     .limit(1);
 
-  if (existing[0]) {
-    await db
-      .update(schema.githubInstallations)
-      .set({
+  try {
+    if (existing[0]) {
+      await db
+        .update(schema.githubInstallations)
+        .set({
+          githubInstallationId,
+          githubAppId,
+          accountLogin,
+          accountType,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.githubInstallations.id, existing[0].id));
+    } else {
+      await db.insert(schema.githubInstallations).values({
+        organizationId: org.id,
         githubInstallationId,
         githubAppId,
         accountLogin,
         accountType,
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.githubInstallations.id, existing[0].id));
-  } else {
-    await db.insert(schema.githubInstallations).values({
-      organizationId: org.id,
-      githubInstallationId,
-      githubAppId,
-      accountLogin,
-      accountType,
-    });
+      });
+    }
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      redirect("/dashboard?error=github_installation_already_linked");
+    }
+
+    throw error;
   }
 
   try {
@@ -147,7 +177,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
   }
 
   const redirectPath = org.slug
-    ? `/org/${org.slug}/settings?github_connected=1`
+    ? `/org/${org.slug}/agent?github_connected=1`
     : "/dashboard?github_connected=1";
 
   redirect(redirectPath);

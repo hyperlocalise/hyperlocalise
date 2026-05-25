@@ -141,7 +141,7 @@ describe("GitHubCallbackPage", () => {
     const { auth, nonce, slug, state } = await createCallbackState({ role: "admin" });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/settings?github_connected=1`,
+      `redirect:/org/${slug}/agent?github_connected=1`,
     );
 
     const [installation] = await db
@@ -217,21 +217,66 @@ describe("GitHubCallbackPage", () => {
     expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a state completed by a different authenticated user", async () => {
-    const { state, slug } = await createCallbackState({ role: "owner" });
+  it("rejects linking a GitHub installation already linked to another organization", async () => {
+    const { organization: linkedOrg } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.githubInstallations).values({
+      organizationId: linkedOrg.id,
+      githubInstallationId: "123456",
+      githubAppId: "123",
+      accountLogin: "other-org",
+      accountType: "Organization",
+    });
+
+    const { auth, state } = await createCallbackState({ role: "admin" });
+
+    await expect(runCallback(state)).rejects.toThrow(
+      "redirect:/dashboard?error=github_installation_already_linked",
+    );
+
+    const [linkedInstallation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, linkedOrg.id))
+      .limit(1);
+    expect(linkedInstallation).toMatchObject({
+      githubInstallationId: "123456",
+      accountLogin: "other-org",
+    });
+
+    const conflictingInstallations = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(conflictingInstallations).toHaveLength(0);
+    expect(syncInstallationRepositoriesMock).not.toHaveBeenCalled();
+  });
+
+  it("allows another org admin to complete an installation started by someone else", async () => {
+    const { auth, state, slug } = await createCallbackState({ role: "owner" });
     const organization = globalThis.__testApiAuthContext?.organization;
-    const replayIdentity = fixture.createWorkosIdentityForOrganization(
+    const otherAdminIdentity = fixture.createWorkosIdentityForOrganization(
       {
         workosOrganizationId: organization?.workosOrganizationId ?? "",
         name: organization?.name ?? "Example Org",
         slug,
       },
-      "owner",
+      "admin",
     );
-    await fixture.authHeadersFor(replayIdentity);
+    await fixture.authHeadersFor(otherAdminIdentity);
 
-    await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?error=invalid_state");
-    expect(getGitHubAppMock).not.toHaveBeenCalled();
+    await expect(runCallback(state)).rejects.toThrow(
+      `redirect:/org/${slug}/agent?github_connected=1`,
+    );
+
+    const [installation] = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId))
+      .limit(1);
+    expect(installation).toMatchObject({
+      githubInstallationId: "123456",
+    });
+    expect(getGitHubAppMock).toHaveBeenCalled();
   });
 
   it("rejects a non-admin member before consuming state", async () => {
