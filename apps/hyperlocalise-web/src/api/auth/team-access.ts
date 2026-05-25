@@ -179,6 +179,27 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
   return glossary ?? null;
 }
 
+export async function canAccessStoredFile(
+  auth: ApiAuthContext,
+  input: { organizationId: string; projectId: string | null },
+) {
+  if (input.organizationId !== auth.organization.localOrganizationId) {
+    return false;
+  }
+
+  if (input.projectId) {
+    const [project] = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(await ownedProjectWhere(auth, input.projectId))
+      .limit(1);
+
+    return Boolean(project);
+  }
+
+  return hasOrganizationWideProjectAccess(auth);
+}
+
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {
   if (hasOrganizationWideProjectAccess(auth)) {
     const [memory] = await db

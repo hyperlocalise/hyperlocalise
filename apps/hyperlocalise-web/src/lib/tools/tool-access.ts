@@ -7,6 +7,7 @@ import {
   buildProjectLinkedMemoryWhere,
   canAccessGlossary,
   canAccessMemory,
+  canAccessStoredFile,
   ownedProjectWhere,
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -120,9 +121,8 @@ export function toolMemoryOrgMutationWhere(ctx: ToolContext, memoryId: string) {
 }
 
 export async function toolCanAccessStoredFileProject(ctx: ToolContext, projectId: string | null) {
-  if (!projectId) {
-    return true;
-  }
-
-  return Boolean(await toolCanAccessProject(ctx, projectId));
+  return canAccessStoredFile(apiAuthContextFromToolContext(ctx), {
+    organizationId: ctx.organizationId,
+    projectId,
+  });
 }
