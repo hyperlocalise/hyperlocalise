@@ -205,14 +205,15 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
 
     handledGithubConnectedRef.current = true;
 
+    const url = new URL(window.location.href);
+    url.searchParams.delete("github_connected");
+    window.history.replaceState(null, "", url.toString());
+
     void (async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["github-installation", organizationSlug],
-      });
+      await refetchInstallation();
       await queryClient.invalidateQueries({
         queryKey: ["github-installation-repositories", organizationSlug],
       });
-      await refetchInstallation();
       toast.success("GitHub App connected");
     })();
   }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
