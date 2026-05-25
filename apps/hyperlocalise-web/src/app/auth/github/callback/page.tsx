@@ -114,10 +114,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     .where(eq(schema.githubInstallations.githubInstallationId, githubInstallationId))
     .limit(1);
 
-  if (
-    installationLinkedElsewhere &&
-    installationLinkedElsewhere.organizationId !== org.id
-  ) {
+  if (installationLinkedElsewhere && installationLinkedElsewhere.organizationId !== org.id) {
     redirect("/dashboard?error=github_installation_already_linked");
   }
 
