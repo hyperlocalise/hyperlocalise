@@ -345,6 +345,31 @@ describe("memberRoutes", () => {
     ).toBe("member");
   });
 
+  it("restores local membership when WorkOS removal fails", async () => {
+    deleteOrganizationMembershipMock.mockRejectedValueOnce(new Error("boom"));
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(memberIdentity);
+
+    const response = await removeMemberViaApi(
+      ownerIdentity,
+      memberIdentity.user.workosUserId,
+      headers,
+    );
+    expect(response.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(
+      listBody.members.find((m) => m.workosUserId === memberIdentity.user.workosUserId)?.role,
+    ).toBe("member");
+  });
+
   it("prevents admin from assigning owner role", async () => {
     const ownerIdentity = createWorkosIdentity();
     const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
