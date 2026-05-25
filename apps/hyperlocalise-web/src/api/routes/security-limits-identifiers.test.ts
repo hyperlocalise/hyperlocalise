@@ -142,10 +142,14 @@ describe("Identifier Schema length limits", () => {
     const item = { externalStringId: "v", key: "v" };
     const findings = (message: string, key = "v") => ({
       action: "run_qa_checks",
-      selectedFindings: [{ checkType: "glossary", severity: "error", message, item: { ...item, key } }],
+      selectedFindings: [
+        { checkType: "glossary", severity: "error", message, item: { ...item, key } },
+      ],
     });
     expect(createJobAgentRunBodySchema.safeParse(findings("a".repeat(2049))).success).toBe(false);
-    expect(createJobAgentRunBodySchema.safeParse(findings("v", "a".repeat(513))).success).toBe(false);
+    expect(createJobAgentRunBodySchema.safeParse(findings("v", "a".repeat(513))).success).toBe(
+      false,
+    );
     expect(createJobAgentRunBodySchema.safeParse(findings("")).success).toBe(false);
     expect(
       upsertTmsAgentAutomationSettingsBodySchema.safeParse({
