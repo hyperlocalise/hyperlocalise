@@ -80,7 +80,6 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
       and(
         eq(schema.githubInstallationStates.nonce, verified.nonce),
         eq(schema.githubInstallationStates.organizationId, org.id),
-        eq(schema.githubInstallationStates.userId, auth.user.localUserId),
         gt(schema.githubInstallationStates.expiresAt, now),
         isNull(schema.githubInstallationStates.consumedAt),
       ),
@@ -108,6 +107,19 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
 
   const githubInstallationId = installationId;
   const githubAppId = env.GITHUB_APP_ID;
+
+  const [installationLinkedElsewhere] = await db
+    .select({ organizationId: schema.githubInstallations.organizationId })
+    .from(schema.githubInstallations)
+    .where(eq(schema.githubInstallations.githubInstallationId, githubInstallationId))
+    .limit(1);
+
+  if (
+    installationLinkedElsewhere &&
+    installationLinkedElsewhere.organizationId !== org.id
+  ) {
+    redirect("/dashboard?error=github_installation_already_linked");
+  }
 
   const existing = await db
     .select()
@@ -147,7 +159,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
   }
 
   const redirectPath = org.slug
-    ? `/org/${org.slug}/settings?github_connected=1`
+    ? `/org/${org.slug}/agent?github_connected=1`
     : "/dashboard?github_connected=1";
 
   redirect(redirectPath);
