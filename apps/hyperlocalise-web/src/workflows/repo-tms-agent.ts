@@ -65,6 +65,23 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();
+  const localUserId = task.actor.userId?.trim();
+
+  if (!localUserId) {
+    console.warn(
+      `repo-tms-agent: refusing workflow ${workflowRunId} for ${task.source} actor ${task.actor.sourceUserId}: no linked Hyperlocalise user (team-scoped tools require a matched member).`,
+    );
+
+    return {
+      ok: false,
+      workflowRunId,
+      sourceReplyTarget: { source: task.source, threadId: task.sourceThreadId },
+      summary:
+        "Repo/TMS workflow could not run because the external actor is not linked to a Hyperlocalise user.",
+      error: "actor_not_linked",
+    };
+  }
+
   let sandboxId: string | null = null;
 
   try {
@@ -76,7 +93,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       conversationId: task.id,
       workflowRunId,
       organizationId: task.organizationId,
-      localUserId: task.actor.userId ?? "",
+      localUserId,
       membershipRole: task.actor.role ?? "member",
       projectId: task.projectId,
       db,

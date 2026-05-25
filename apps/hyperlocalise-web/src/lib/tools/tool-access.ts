@@ -1,3 +1,5 @@
+import { and, eq } from "drizzle-orm";
+
 import {
   buildAccessibleJobsWhere,
   buildAccessibleProjectsWhere,
@@ -79,6 +81,42 @@ export function toolCanAccessGlossary(ctx: ToolContext, glossaryId: string) {
 
 export function toolCanAccessMemory(ctx: ToolContext, memoryId: string) {
   return canAccessMemory(apiAuthContextFromToolContext(ctx), memoryId);
+}
+
+/** Single-query glossary fetch with team scoping (replaces check + select). */
+export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: string) {
+  const [glossary] = await ctx.db
+    .select()
+    .from(schema.glossaries)
+    .where(and(eq(schema.glossaries.id, glossaryId), await toolProjectLinkedGlossaryWhere(ctx)))
+    .limit(1);
+
+  return glossary ?? null;
+}
+
+/** Single-query memory fetch with team scoping (replaces check + select). */
+export async function toolGetAccessibleMemory(ctx: ToolContext, memoryId: string) {
+  const [memory] = await ctx.db
+    .select()
+    .from(schema.memories)
+    .where(and(eq(schema.memories.id, memoryId), await toolProjectLinkedMemoryWhere(ctx)))
+    .limit(1);
+
+  return memory ?? null;
+}
+
+export function toolGlossaryOrgMutationWhere(ctx: ToolContext, glossaryId: string) {
+  return and(
+    eq(schema.glossaries.id, glossaryId),
+    eq(schema.glossaries.organizationId, ctx.organizationId),
+  );
+}
+
+export function toolMemoryOrgMutationWhere(ctx: ToolContext, memoryId: string) {
+  return and(
+    eq(schema.memories.id, memoryId),
+    eq(schema.memories.organizationId, ctx.organizationId),
+  );
 }
 
 export async function toolCanAccessStoredFileProject(ctx: ToolContext, projectId: string | null) {
