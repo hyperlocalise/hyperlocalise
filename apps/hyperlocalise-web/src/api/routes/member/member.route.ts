@@ -415,7 +415,7 @@ export function createMemberRoutes() {
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
 
-      const ownerCheckResult = await db.transaction(async (tx) => {
+      const deletionResult = await db.transaction(async (tx) => {
         if (member.role === "owner") {
           const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
           if (ownerCount <= 1) {
@@ -423,51 +423,49 @@ export function createMemberRoutes() {
           }
         }
 
-        return { ok: true as const };
-      });
+        const isPendingInvite = isInvitedPlaceholderWorkosUserId(member.workosUserId);
 
-      if ("error" in ownerCheckResult) {
-        return lastOwnerProtectedResponse(c);
-      }
-
-      const isPendingInvite = isInvitedPlaceholderWorkosUserId(member.workosUserId);
-
-      if (
-        shouldSyncMembershipToWorkos({
-          workosMembershipId: member.workosMembershipId,
-        })
-      ) {
-        try {
-          await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
-        } catch {
-          return internalErrorResponse(
-            c,
-            "member_sync_failed",
-            "Failed to sync member removal with identity provider",
-          );
+        if (
+          shouldSyncMembershipToWorkos({
+            workosMembershipId: member.workosMembershipId,
+          })
+        ) {
+          try {
+            await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
+          } catch {
+            return { error: "member_sync_failed" as const };
+          }
+        } else if (isPendingInvite) {
+          try {
+            await revokePendingWorkosInvitation({
+              workosOrganizationId,
+              email: member.email,
+            });
+          } catch {
+            return { error: "member_sync_failed" as const };
+          }
         }
-      } else if (isPendingInvite) {
-        try {
-          await revokePendingWorkosInvitation({
-            workosOrganizationId,
-            email: member.email,
-          });
-        } catch {
-          return internalErrorResponse(
-            c,
-            "member_sync_failed",
-            "Failed to revoke workspace invitation with identity provider",
-          );
-        }
-      }
 
-      await db.transaction((tx) =>
-        revokeOrganizationMembershipAccess(tx, {
+        await revokeOrganizationMembershipAccess(tx, {
           workosMembershipId: member.workosMembershipId ?? undefined,
           workosOrganizationId,
           workosUserId: member.workosUserId,
-        }),
-      );
+        });
+
+        return { ok: true as const };
+      });
+
+      if ("error" in deletionResult) {
+        if (deletionResult.error === "last_owner_protected") {
+          return lastOwnerProtectedResponse(c);
+        }
+
+        return internalErrorResponse(
+          c,
+          "member_sync_failed",
+          "Failed to sync member removal with identity provider",
+        );
+      }
 
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
