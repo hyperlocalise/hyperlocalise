@@ -1,4 +1,4 @@
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -278,4 +278,118 @@ export async function removeWorkosMembership(
     );
 
   return Number(result.rowCount ?? 0);
+}
+
+export type RevokeOrganizationMembershipAccessResult = {
+  organizationMembershipsDeleted: number;
+  teamMembershipsDeleted: number;
+  mcpSessionsDeleted: number;
+};
+
+async function resolveRevocationTarget(
+  database: DatabaseClient,
+  input: {
+    workosMembershipId?: string;
+    workosOrganizationId?: string;
+    workosUserId?: string;
+  },
+): Promise<{ organizationId: string; userId: string } | null> {
+  if (input.workosMembershipId) {
+    const [membership] = await database
+      .select({
+        organizationId: schema.organizationMemberships.organizationId,
+        userId: schema.organizationMemberships.userId,
+      })
+      .from(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.workosMembershipId, input.workosMembershipId))
+      .limit(1);
+
+    if (membership) {
+      return membership;
+    }
+  }
+
+  if (!input.workosOrganizationId || !input.workosUserId) {
+    return null;
+  }
+
+  const [organization] = await database
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.workosOrganizationId, input.workosOrganizationId))
+    .limit(1);
+
+  const [user] = await database
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.workosUserId, input.workosUserId))
+    .limit(1);
+
+  if (!organization || !user) {
+    return null;
+  }
+
+  return {
+    organizationId: organization.id,
+    userId: user.id,
+  };
+}
+
+export async function revokeOrganizationMembershipAccess(
+  database: DatabaseClient,
+  input: {
+    workosMembershipId?: string;
+    workosOrganizationId?: string;
+    workosUserId?: string;
+  },
+): Promise<RevokeOrganizationMembershipAccessResult> {
+  const target = await resolveRevocationTarget(database, input);
+
+  if (!target) {
+    const organizationMembershipsDeleted = await removeWorkosMembership(database, input);
+
+    return {
+      organizationMembershipsDeleted,
+      teamMembershipsDeleted: 0,
+      mcpSessionsDeleted: 0,
+    };
+  }
+
+  const organizationMembershipsDeleted = await database
+    .delete(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, target.organizationId),
+        eq(schema.organizationMemberships.userId, target.userId),
+      ),
+    );
+
+  const teamIds = database
+    .select({ id: schema.teams.id })
+    .from(schema.teams)
+    .where(eq(schema.teams.organizationId, target.organizationId));
+
+  const teamMembershipsDeleted = await database
+    .delete(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.userId, target.userId),
+        inArray(schema.teamMemberships.teamId, teamIds),
+      ),
+    );
+
+  const mcpSessionsDeleted = await database
+    .delete(schema.mcpSessions)
+    .where(
+      and(
+        eq(schema.mcpSessions.userId, target.userId),
+        eq(schema.mcpSessions.organizationId, target.organizationId),
+      ),
+    );
+
+  return {
+    organizationMembershipsDeleted: Number(organizationMembershipsDeleted.rowCount ?? 0),
+    teamMembershipsDeleted: Number(teamMembershipsDeleted.rowCount ?? 0),
+    mcpSessionsDeleted: Number(mcpSessionsDeleted.rowCount ?? 0),
+  };
 }

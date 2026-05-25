@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { removeWorkosMembership } from "@/api/auth/workos-sync";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -57,17 +57,6 @@ const validateMemberParams = validator("param", (value, c) => {
   }
   return parsed.data;
 });
-
-async function deleteMemberMcpSessions(organizationId: string, userId: string) {
-  await db
-    .delete(schema.mcpSessions)
-    .where(
-      and(
-        eq(schema.mcpSessions.userId, userId),
-        eq(schema.mcpSessions.organizationId, organizationId),
-      ),
-    );
-}
 
 function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
@@ -426,7 +415,7 @@ export function createMemberRoutes() {
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
 
-      const removeResult = await db.transaction(async (tx) => {
+      const ownerCheckResult = await db.transaction(async (tx) => {
         if (member.role === "owner") {
           const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
           if (ownerCount <= 1) {
@@ -434,16 +423,10 @@ export function createMemberRoutes() {
           }
         }
 
-        await removeWorkosMembership(tx, {
-          workosMembershipId: member.workosMembershipId ?? undefined,
-          workosOrganizationId,
-          workosUserId: member.workosUserId,
-        });
-
         return { ok: true as const };
       });
 
-      if ("error" in removeResult) {
+      if ("error" in ownerCheckResult) {
         return lastOwnerProtectedResponse(c);
       }
 
@@ -457,13 +440,6 @@ export function createMemberRoutes() {
         try {
           await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
         } catch {
-          await db.insert(schema.organizationMemberships).values({
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-          });
-
           return internalErrorResponse(
             c,
             "member_sync_failed",
@@ -477,13 +453,6 @@ export function createMemberRoutes() {
             email: member.email,
           });
         } catch {
-          await db.insert(schema.organizationMemberships).values({
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-          });
-
           return internalErrorResponse(
             c,
             "member_sync_failed",
@@ -492,11 +461,17 @@ export function createMemberRoutes() {
         }
       }
 
+      await db.transaction((tx) =>
+        revokeOrganizationMembershipAccess(tx, {
+          workosMembershipId: member.workosMembershipId ?? undefined,
+          workosOrganizationId,
+          workosUserId: member.workosUserId,
+        }),
+      );
+
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
       }
-
-      await deleteMemberMcpSessions(organizationId, member.localUserId);
 
       return c.body(null, 204);
     });
