@@ -144,6 +144,10 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
         .where(toolGlossaryOrgMutationWhere(ctx, glossaryId))
         .returning();
 
+      if (!glossary) {
+        return { success: false, error: `Glossary ${glossaryId} not found.` };
+      }
+
       return { success: true, glossary };
     },
   });
@@ -173,6 +177,10 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
         .delete(schema.glossaries)
         .where(toolGlossaryOrgMutationWhere(ctx, glossaryId))
         .returning({ id: schema.glossaries.id });
+
+      if (deleted.length === 0) {
+        return { success: false, error: `Glossary ${glossaryId} not found.` };
+      }
 
       return { success: true, deletedId: deleted[0].id };
     },

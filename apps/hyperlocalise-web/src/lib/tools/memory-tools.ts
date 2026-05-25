@@ -111,6 +111,10 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
         .where(toolMemoryOrgMutationWhere(ctx, memoryId))
         .returning();
 
+      if (!memory) {
+        return { success: false, error: `Translation memory ${memoryId} not found.` };
+      }
+
       return { success: true, memory };
     },
   });
@@ -140,6 +144,10 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
         .delete(schema.memories)
         .where(toolMemoryOrgMutationWhere(ctx, memoryId))
         .returning({ id: schema.memories.id });
+
+      if (deleted.length === 0) {
+        return { success: false, error: `Translation memory ${memoryId} not found.` };
+      }
 
       return { success: true, deletedId: deleted[0].id };
     },
