@@ -18,7 +18,7 @@ export const upsertTmsAgentAutomationSettingsBodySchema = z.object({
     autoDraftTranslations: z
       .object({
         enabled: z.boolean().optional(),
-        locales: z.array(z.string().max(32)).optional(),
+        locales: z.array(z.string().trim().min(1).max(32)).optional(),
       })
       .optional(),
     writeBack: z

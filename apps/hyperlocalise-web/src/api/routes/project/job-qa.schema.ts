@@ -6,16 +6,16 @@ import {
 } from "@/lib/providers/provider-job-qa/types";
 
 export const providerQaItemReferenceSchema = z.object({
-  externalStringId: z.string().max(128),
-  key: z.string().max(512),
-  locale: z.string().max(32).optional(),
+  externalStringId: z.string().trim().min(1).max(128),
+  key: z.string().trim().min(1).max(512),
+  locale: z.string().trim().min(1).max(32).optional(),
   field: z.enum(["source", "target"]).optional(),
 });
 
 export const providerQaFindingSchema = z.object({
   checkType: z.enum(providerQaCheckTypes),
   severity: z.enum(providerQaSeverityLevels),
-  message: z.string().max(2048),
+  message: z.string().trim().min(1).max(2048),
   suggestedFix: z.string().max(100_000).optional(),
   confidence: z.number().min(0).max(1).optional(),
   item: providerQaItemReferenceSchema,

@@ -138,29 +138,15 @@ describe("Identifier Schema length limits", () => {
     ).toBe(false);
   });
 
-  it("should enforce max length on findings and locales", () => {
+  it("should enforce length limits on findings and locales", () => {
     const item = { externalStringId: "v", key: "v" };
-    expect(
-      createJobAgentRunBodySchema.safeParse({
-        action: "run_qa_checks",
-        selectedFindings: [
-          { checkType: "glossary", severity: "error", message: "a".repeat(2049), item },
-        ],
-      }).success,
-    ).toBe(false);
-    expect(
-      createJobAgentRunBodySchema.safeParse({
-        action: "run_qa_checks",
-        selectedFindings: [
-          {
-            checkType: "glossary",
-            severity: "error",
-            message: "v",
-            item: { ...item, key: "a".repeat(513) },
-          },
-        ],
-      }).success,
-    ).toBe(false);
+    const findings = (message: string, key = "v") => ({
+      action: "run_qa_checks",
+      selectedFindings: [{ checkType: "glossary", severity: "error", message, item: { ...item, key } }],
+    });
+    expect(createJobAgentRunBodySchema.safeParse(findings("a".repeat(2049))).success).toBe(false);
+    expect(createJobAgentRunBodySchema.safeParse(findings("v", "a".repeat(513))).success).toBe(false);
+    expect(createJobAgentRunBodySchema.safeParse(findings("")).success).toBe(false);
     expect(
       upsertTmsAgentAutomationSettingsBodySchema.safeParse({
         settings: { autoDraftTranslations: { enabled: true, locales: ["a".repeat(33)] } },
