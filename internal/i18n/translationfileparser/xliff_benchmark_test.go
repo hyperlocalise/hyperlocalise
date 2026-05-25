@@ -29,11 +29,11 @@ func generateLargeXLIFF(n int) []byte {
     <body>
 `)
 	for i := 0; i < n; i++ {
-		sb.WriteString(fmt.Sprintf(`      <trans-unit id="u%d">
+		fmt.Fprintf(&sb, `      <trans-unit id="u%d">
         <source>source %d</source>
         <target>target %d</target>
       </trans-unit>
-`, i, i, i))
+`, i, i, i)
 	}
 	sb.WriteString(`    </body>
   </file>

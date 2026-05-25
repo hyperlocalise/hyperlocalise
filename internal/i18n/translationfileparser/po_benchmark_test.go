@@ -35,8 +35,8 @@ func generateLargePO(n int) []byte {
 	var sb strings.Builder
 	sb.WriteString("msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\n")
 	for i := 0; i < n; i++ {
-		sb.WriteString(fmt.Sprintf("msgid \"key%d\"\n", i))
-		sb.WriteString(fmt.Sprintf("msgstr \"value%d\"\n\n", i))
+		fmt.Fprintf(&sb, "msgid \"key%d\"\n", i)
+		fmt.Fprintf(&sb, "msgstr \"value%d\"\n\n", i)
 	}
 	return []byte(sb.String())
 }
