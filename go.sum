@@ -1384,6 +1384,8 @@ github.com/openai/openai-go/v3 v3.35.0 h1:109x3epXMSE423KW2euR506GGFezcEt0s87MoW
 github.com/openai/openai-go/v3 v3.35.0/go.mod h1:cdufnVK14cWcT9qA1rRtrXx4FTRsgbDPW7Ia7SS5cZo=
 github.com/openai/openai-go/v3 v3.36.0 h1:PXYyY/v1S6WXGBEdFoNUFqKX7p3O5az2HMXklIeRXzk=
 github.com/openai/openai-go/v3 v3.36.0/go.mod h1:cdufnVK14cWcT9qA1rRtrXx4FTRsgbDPW7Ia7SS5cZo=
+github.com/openai/openai-go/v3 v3.37.0 h1:4OG68yZgnxZpwzebO+ZDUNkFJKKwKgzilMQq30nsouE=
+github.com/openai/openai-go/v3 v3.37.0/go.mod h1:cdufnVK14cWcT9qA1rRtrXx4FTRsgbDPW7Ia7SS5cZo=
 github.com/opentracing-contrib/go-observer v0.0.0-20170622124052-a52f23424492/go.mod h1:Ngi6UdF0k5OKD5t5wlmGhe/EDKPoUM3BXZSSfIuJbis=
 github.com/opentracing/basictracer-go v1.0.0/go.mod h1:QfBfYuafItcjQuMwinw9GhYKwFXS9KnPs5lxoYwgW74=
 github.com/opentracing/opentracing-go v1.0.2/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
