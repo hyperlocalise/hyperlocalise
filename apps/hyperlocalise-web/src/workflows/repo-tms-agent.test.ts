@@ -61,7 +61,7 @@ const baseTask = {
   id: "task_1",
   source: "github",
   sourceThreadId: "thread_1",
-  actor: { sourceUserId: "u1" },
+  actor: { sourceUserId: "u1", userId: "user_1" },
   organizationId: "org_1",
   projectId: null,
   workMode: "read_only",
@@ -140,6 +140,7 @@ describe("repoTmsAgentWorkflow", () => {
         conversationId: "task_1",
         workflowRunId: "run_123",
         organizationId: "org_1",
+        localUserId: "user_1",
         membershipRole: "member",
         projectId: null,
         workMode: "read_only",
@@ -149,6 +150,28 @@ describe("repoTmsAgentWorkflow", () => {
         githubContext: null,
       }),
     );
+  });
+
+  it("refuses workflow when actor has no linked Hyperlocalise user", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const result = await repoTmsAgentWorkflow({
+      ...baseTask,
+      actor: { sourceUserId: "u1" },
+    } as never);
+
+    expect(result).toEqual({
+      ok: false,
+      workflowRunId: "run_123",
+      sourceReplyTarget: { source: "github", threadId: "thread_1" },
+      summary:
+        "Repo/TMS workflow could not run because the external actor is not linked to a Hyperlocalise user.",
+      error: "actor_not_linked",
+    });
+    expect(toolLoopAgentCtor).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("refusing workflow run_123"));
+
+    warnSpy.mockRestore();
   });
 
   it.each([
@@ -200,7 +223,7 @@ describe("repoTmsAgentWorkflow", () => {
   it("passes repo-tms context fields to tools when github context is resolved", async () => {
     await repoTmsAgentWorkflow({
       ...baseTask,
-      actor: { sourceUserId: "u1", role: "admin" },
+      actor: { sourceUserId: "u1", userId: "user_admin", role: "admin" },
       workMode: "approval_required",
       githubContext: {
         resolved: true,
@@ -215,11 +238,12 @@ describe("repoTmsAgentWorkflow", () => {
         conversationId: "task_1",
         workflowRunId: "run_123",
         organizationId: "org_1",
+        localUserId: "user_admin",
         membershipRole: "admin",
         projectId: null,
         workMode: "approval_required",
         repoTmsSource: "github",
-        actor: { sourceUserId: "u1", role: "admin" },
+        actor: { sourceUserId: "u1", userId: "user_admin", role: "admin" },
         sandboxId: "sbx_1",
         githubContext: {
           resolved: true,

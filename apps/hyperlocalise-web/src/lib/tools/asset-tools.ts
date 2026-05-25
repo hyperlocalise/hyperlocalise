@@ -5,6 +5,11 @@ import { z } from "zod";
 import { schema } from "@/lib/database";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
+import {
+  toolCanAccessProject,
+  toolProjectLinkedGlossaryWhere,
+  toolProjectLinkedMemoryWhere,
+} from "./tool-access";
 import type { ToolContext } from "./types";
 
 /**
@@ -22,22 +27,6 @@ function buildTsQuery(input: string): string {
     .map((w) => `${w}:*`)
     .join(" & ");
   return sanitized;
-}
-
-async function projectBelongsToOrganization(
-  db: ToolContext["db"],
-  organizationId: string,
-  projectId: string,
-) {
-  const [project] = await db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(
-      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
-    )
-    .limit(1);
-
-  return Boolean(project);
 }
 
 /**
@@ -72,8 +61,8 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
 
       let glossaryIds: string[] | undefined;
       if (projectId) {
-        const ownsProject = await projectBelongsToOrganization(db, ctx.organizationId, projectId);
-        if (!ownsProject) {
+        const accessibleProject = await toolCanAccessProject(ctx, projectId);
+        if (!accessibleProject) {
           return { terms: [] };
         }
 
@@ -94,7 +83,7 @@ export function createQueryGlossaryTool(ctx: ToolContext) {
 
       const conditions = [
         sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        eq(schema.glossaries.organizationId, ctx.organizationId),
+        await toolProjectLinkedGlossaryWhere(ctx),
         eq(schema.glossaries.sourceLocale, sourceLocale),
         eq(schema.glossaries.targetLocale, targetLocale),
         eq(schema.glossaries.status, "active"),
@@ -169,8 +158,8 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
 
       let memoryIds: string[] | undefined;
       if (projectId) {
-        const ownsProject = await projectBelongsToOrganization(db, ctx.organizationId, projectId);
-        if (!ownsProject) {
+        const accessibleProject = await toolCanAccessProject(ctx, projectId);
+        if (!accessibleProject) {
           return { matches: [] };
         }
 
@@ -195,7 +184,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
         eq(schema.memoryEntries.sourceLocale, sourceLocale),
         eq(schema.memoryEntries.targetLocale, targetLocale),
         eq(schema.memoryEntries.reviewStatus, "approved"),
-        eq(schema.memories.organizationId, ctx.organizationId),
+        await toolProjectLinkedMemoryWhere(ctx),
       ];
       if (memoryIds) {
         exactConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));
@@ -233,7 +222,7 @@ export function createQueryTranslationMemoryTool(ctx: ToolContext) {
         eq(schema.memoryEntries.sourceLocale, sourceLocale),
         eq(schema.memoryEntries.targetLocale, targetLocale),
         eq(schema.memoryEntries.reviewStatus, "approved"),
-        eq(schema.memories.organizationId, ctx.organizationId),
+        await toolProjectLinkedMemoryWhere(ctx),
       ];
       if (memoryIds) {
         fuzzyConditions.push(inArray(schema.memoryEntries.memoryId, memoryIds));

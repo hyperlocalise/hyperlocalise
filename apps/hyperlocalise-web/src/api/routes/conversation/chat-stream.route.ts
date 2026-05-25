@@ -53,6 +53,7 @@ export function createChatStreamRoutes() {
         toolContext: {
           conversationId,
           organizationId: orgId,
+          localUserId: c.var.auth.user.localUserId,
           membershipRole: c.var.auth.membership.role,
           projectId: conversation.projectId ?? null,
           db,

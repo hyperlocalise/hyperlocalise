@@ -440,6 +440,7 @@ describe("handleNewConversation", () => {
         toolContext: expect.objectContaining({
           conversationId: "interaction-123",
           organizationId: "org-123",
+          localUserId: "user-123",
           membershipRole: "member",
           projectId: null,
         }),

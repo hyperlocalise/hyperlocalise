@@ -7,22 +7,12 @@ import { hasCapability } from "@/api/auth/policy";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 import { localePattern } from "./locale";
+import {
+  toolGetAccessibleMemory,
+  toolMemoryOrgMutationWhere,
+  toolProjectLinkedMemoryWhere,
+} from "./tool-access";
 import type { ToolContext } from "./types";
-
-/* ------------------------------------------------------------------ */
-/* Ownership helpers                                                  */
-/* ------------------------------------------------------------------ */
-
-async function getOwnedMemory(db: ToolContext["db"], organizationId: string, memoryId: string) {
-  const [memory] = await db
-    .select()
-    .from(schema.memories)
-    .where(
-      and(eq(schema.memories.id, memoryId), eq(schema.memories.organizationId, organizationId)),
-    )
-    .limit(1);
-  return memory ?? null;
-}
 
 /* ------------------------------------------------------------------ */
 /* Translation Memory CRUD                                            */
@@ -45,7 +35,7 @@ export function createListTranslationMemoriesTool(ctx: ToolContext) {
           createdAt: schema.memories.createdAt,
         })
         .from(schema.memories)
-        .where(eq(schema.memories.organizationId, ctx.organizationId))
+        .where(await toolProjectLinkedMemoryWhere(ctx))
         .orderBy(desc(schema.memories.createdAt))
         .limit(limit)
         .offset(offset);
@@ -110,15 +100,15 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
         return { success: false, error: "No fields provided to update." };
       }
 
+      const existing = await toolGetAccessibleMemory(ctx, memoryId);
+      if (!existing) {
+        return { success: false, error: `Translation memory ${memoryId} not found.` };
+      }
+
       const [memory] = await ctx.db
         .update(schema.memories)
         .set(updates)
-        .where(
-          and(
-            eq(schema.memories.id, memoryId),
-            eq(schema.memories.organizationId, ctx.organizationId),
-          ),
-        )
+        .where(toolMemoryOrgMutationWhere(ctx, memoryId))
         .returning();
 
       if (!memory) {
@@ -145,14 +135,14 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
         };
       }
 
+      const existing = await toolGetAccessibleMemory(ctx, memoryId);
+      if (!existing) {
+        return { success: false, error: `Translation memory ${memoryId} not found.` };
+      }
+
       const deleted = await ctx.db
         .delete(schema.memories)
-        .where(
-          and(
-            eq(schema.memories.id, memoryId),
-            eq(schema.memories.organizationId, ctx.organizationId),
-          ),
-        )
+        .where(toolMemoryOrgMutationWhere(ctx, memoryId))
         .returning({ id: schema.memories.id });
 
       if (deleted.length === 0) {
@@ -179,7 +169,7 @@ export function createListMemoryEntriesTool(ctx: ToolContext) {
       offset: z.number().min(0).default(0).describe("Number of entries to skip."),
     }),
     execute: async ({ memoryId, sourceLocale, targetLocale, limit, offset }) => {
-      const memory = await getOwnedMemory(ctx.db, ctx.organizationId, memoryId);
+      const memory = await toolGetAccessibleMemory(ctx, memoryId);
       if (!memory) {
         return { success: false, error: `Memory ${memoryId} not found.`, entries: [] };
       }
@@ -256,7 +246,7 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
 
       const { memoryId, ...entryData } = input;
 
-      const memory = await getOwnedMemory(ctx.db, ctx.organizationId, memoryId);
+      const memory = await toolGetAccessibleMemory(ctx, memoryId);
       if (!memory) {
         return { success: false, error: `Memory ${memoryId} not found.` };
       }

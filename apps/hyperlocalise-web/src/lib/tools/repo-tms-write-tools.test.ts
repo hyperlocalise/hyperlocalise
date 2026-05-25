@@ -64,6 +64,7 @@ function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
     conversationId: "task_1",
     workflowRunId: "run_1",
     organizationId: "org_1",
+    localUserId: "user_1",
     membershipRole: "member",
     projectId: "proj_1",
     db,
