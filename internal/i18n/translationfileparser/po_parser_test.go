@@ -139,7 +139,7 @@ msgstr "Hello "
 `)
 
 	values := map[string]string{
-		"hello world": "Bonjour le monde",
+		"hello world":   "Bonjour le monde",
 		"key with tabs": "Valeur avec\nnewlines",
 	}
 
