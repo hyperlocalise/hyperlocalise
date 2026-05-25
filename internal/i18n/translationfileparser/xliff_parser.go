@@ -322,6 +322,14 @@ func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targe
 }
 
 func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
+	// BOLT OPTIMIZATION: Fast-path for plain text to skip expensive xml.Decoder.
+	if !strings.ContainsAny(value, "<&") {
+		if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
+			return fmt.Errorf("xml encode char data: %w", err)
+		}
+		return nil
+	}
+
 	wrapped := "<hyperlocalise-root>" + value + "</hyperlocalise-root>"
 	decoder := xml.NewDecoder(strings.NewReader(wrapped))
 	depth := 0

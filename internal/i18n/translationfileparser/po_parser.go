@@ -10,7 +10,6 @@ import (
 type POFileParser struct{}
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
-	lines := strings.Split(string(content), "\n")
 	out := map[string]string{}
 
 	var currentMsgID strings.Builder
@@ -38,13 +37,29 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 		seenMsgStr = false
 	}
 
-	for i, raw := range lines {
+	// BOLT OPTIMIZATION: Avoid strings.Split(string(content), "\n") to reduce allocations for large files.
+	s := string(content)
+	lineNumber := 1
+	for {
+		var raw string
+		idx := strings.IndexByte(s, '\n')
+		if idx < 0 {
+			raw = s
+		} else {
+			raw = s[:idx]
+		}
 		line := strings.TrimSpace(raw)
 
-		err := consumePOLine(i+1, line, &currentMsgID, &currentMsgStr, &activeField, &seenMsgID, &seenMsgStr, flush, reset)
+		err := consumePOLine(lineNumber, line, &currentMsgID, &currentMsgStr, &activeField, &seenMsgID, &seenMsgStr, flush, reset)
 		if err != nil {
 			return nil, err
 		}
+
+		if idx < 0 {
+			break
+		}
+		s = s[idx+1:]
+		lineNumber++
 	}
 
 	flush()
@@ -165,37 +180,48 @@ func parsePOQuoted(raw string) (string, error) {
 
 // MarshalPOFile preserves .po structure while replacing msgstr/msgstr[0] values by msgid key.
 func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
-	lines := strings.Split(string(template), "\n")
+	// BOLT OPTIMIZATION: Avoid strings.Split(string(template), "\n") to reduce allocations for large files.
+	// We use a builder to reconstruct the file line by line.
+	var out strings.Builder
+	out.Grow(len(template))
 
+	s := string(template)
 	currentKey := ""
 	activeField := ""
-	for i, raw := range lines {
-		trimmed := strings.TrimSpace(raw)
-		if trimmed == "" {
-			activeField = ""
-			continue
-		}
-		if strings.HasPrefix(trimmed, "#") {
-			continue
+	lineNumber := 1
+	for {
+		var raw string
+		idx := strings.IndexByte(s, '\n')
+		if idx < 0 {
+			raw = s
+		} else {
+			raw = s[:idx]
 		}
 
+		lineOutput := raw
+		trimmed := strings.TrimSpace(raw)
+
 		switch {
+		case trimmed == "":
+			activeField = ""
+		case strings.HasPrefix(trimmed, "#"):
+			// skip
 		case strings.HasPrefix(trimmed, "msgid "):
 			v, err := parsePOQuoted(strings.TrimPrefix(trimmed, "msgid "))
 			if err != nil {
-				return nil, fmt.Errorf("line %d: parse msgid: %w", i+1, err)
+				return nil, fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 			}
 			currentKey = v
 			activeField = "msgid"
 		case strings.HasPrefix(trimmed, "msgstr "):
 			activeField = "msgstr"
 			if replacement, ok := values[currentKey]; ok {
-				lines[i] = replacePOQuotedSuffix(raw, "msgstr", replacement)
+				lineOutput = replacePOQuotedSuffix(raw, "msgstr", replacement)
 			}
 		case strings.HasPrefix(trimmed, "msgstr[0]"):
 			activeField = "msgstr0"
 			if replacement, ok := values[currentKey]; ok {
-				lines[i] = replacePOQuotedSuffix(raw, "msgstr[0]", replacement)
+				lineOutput = replacePOQuotedSuffix(raw, "msgstr[0]", replacement)
 			}
 		case strings.HasPrefix(trimmed, "msgstr["):
 			activeField = "msgstrN"
@@ -204,20 +230,31 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 			case "msgid":
 				v, err := parsePOQuoted(trimmed)
 				if err != nil {
-					return nil, fmt.Errorf("line %d: parse continued msgid: %w", i+1, err)
+					return nil, fmt.Errorf("line %d: parse continued msgid: %w", lineNumber, err)
 				}
 				currentKey += v
 			case "msgstr", "msgstr0":
 				if _, ok := values[currentKey]; ok {
-					lines[i] = preserveIndent(raw) + `""`
+					lineOutput = preserveIndent(raw) + `""`
 				}
 			}
 		default:
 			activeField = ""
 		}
+
+		out.WriteString(lineOutput)
+		if idx >= 0 {
+			out.WriteByte('\n')
+		}
+
+		if idx < 0 {
+			break
+		}
+		s = s[idx+1:]
+		lineNumber++
 	}
 
-	return []byte(strings.Join(lines, "\n")), nil
+	return []byte(out.String()), nil
 }
 
 func replacePOQuotedSuffix(raw, field, value string) string {

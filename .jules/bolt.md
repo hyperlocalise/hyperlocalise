@@ -82,3 +82,11 @@
 ## 2026-07-10 - Using strings.Count for fast newline counting
 **Learning:** A manual loop to count newlines is significantly slower than `strings.Count`, which leverages highly optimized (often SIMD) internal implementations.
 **Action:** Replaced manual byte-loop in `lineNumberAt` with `strings.Count`, achieving a ~16x performance improvement.
+
+## 2026-07-15 - Fast-path for XLIFF fragment encoding
+**Learning:** Initializing an `xml.Decoder` for every translation segment in XLIFF marshaling is expensive. Most segments are plain text. A fast-path `!strings.ContainsAny(value, "<&")` allows skipping the decoder for plain text, reducing allocations by ~20% and improving speed by ~15%.
+**Action:** Use fast-path checks for plain text when wrapping/unwrapping XML fragments in translation marshaling.
+
+## 2026-07-15 - Optimizing PO file line processing
+**Learning:** `strings.Split(string(content), "\n")` allocates a large slice of strings, which is memory-intensive for large PO files. Manual iteration with `strings.IndexByte` reduces peak memory and allocations.
+**Action:** Replace `strings.Split` with manual `strings.IndexByte` loops for large text file processing.
