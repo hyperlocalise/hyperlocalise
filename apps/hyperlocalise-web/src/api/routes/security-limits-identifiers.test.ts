@@ -3,6 +3,8 @@ import {
   projectIdParamsSchema,
   externalTmsTranslationPushBodySchema,
 } from "./project/project.schema";
+import { createJobAgentRunBodySchema } from "./project/agent-run.schema";
+import { upsertTmsAgentAutomationSettingsBodySchema } from "./tms-agent-automation/tms-agent-automation.schema";
 import {
   jobProjectParamsSchema,
   jobParamsSchema,
@@ -132,6 +134,26 @@ describe("Identifier Schema length limits", () => {
       externalTmsTranslationPushBodySchema.safeParse({
         externalJobId: "valid",
         translations: [{ key: "k", locale: "en", text: "a".repeat(100_001) }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("should enforce length limits on findings and locales", () => {
+    const item = { externalStringId: "v", key: "v" };
+    const findings = (message: string, key = "v") => ({
+      action: "run_qa_checks",
+      selectedFindings: [
+        { checkType: "glossary", severity: "error", message, item: { ...item, key } },
+      ],
+    });
+    expect(createJobAgentRunBodySchema.safeParse(findings("a".repeat(2049))).success).toBe(false);
+    expect(createJobAgentRunBodySchema.safeParse(findings("v", "a".repeat(513))).success).toBe(
+      false,
+    );
+    expect(createJobAgentRunBodySchema.safeParse(findings("")).success).toBe(false);
+    expect(
+      upsertTmsAgentAutomationSettingsBodySchema.safeParse({
+        settings: { autoDraftTranslations: { enabled: true, locales: ["a".repeat(33)] } },
       }).success,
     ).toBe(false);
   });
