@@ -7,6 +7,7 @@ function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
     conversationId: "conversation_1",
     organizationId: "org_1",
+    localUserId: "user_1",
     membershipRole: "member",
     projectId: "project_1",
     db: {} as ToolContext["db"],

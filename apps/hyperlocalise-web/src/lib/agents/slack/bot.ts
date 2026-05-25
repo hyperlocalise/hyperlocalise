@@ -307,6 +307,7 @@ async function processSlackMessage(
       toolContext: {
         conversationId: interactionId,
         organizationId,
+        localUserId: membership.localUserId,
         membershipRole: membership.role,
         projectId,
         db,

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { schema } from "@/lib/database";
 
+import { toolAccessibleProjectsWhere, toolCanAccessProject } from "./tool-access";
 import type { ToolContext } from "./types";
 
 /**
@@ -28,7 +29,7 @@ export function createListProjectsTool(ctx: ToolContext) {
           translationContext: schema.projects.translationContext,
         })
         .from(schema.projects)
-        .where(eq(schema.projects.organizationId, ctx.organizationId))
+        .where(await toolAccessibleProjectsWhere(ctx))
         .orderBy(desc(schema.projects.createdAt))
         .limit(limit);
 
@@ -54,6 +55,11 @@ export function createGetProjectContextTool(ctx: ToolContext) {
     execute: async ({ projectId }) => {
       const db = ctx.db;
 
+      const accessibleProject = await toolCanAccessProject(ctx, projectId);
+      if (!accessibleProject) {
+        return { error: `Project ${projectId} not found.` };
+      }
+
       const project = await db
         .select({
           id: schema.projects.id,
@@ -62,12 +68,7 @@ export function createGetProjectContextTool(ctx: ToolContext) {
           translationContext: schema.projects.translationContext,
         })
         .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.id, projectId),
-            eq(schema.projects.organizationId, ctx.organizationId),
-          ),
-        )
+        .where(eq(schema.projects.id, projectId))
         .limit(1)
         .then((rows) => rows[0] ?? null);
 
@@ -143,18 +144,18 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
     execute: async ({ projectId }) => {
       const db = ctx.db;
 
+      const accessibleProject = await toolCanAccessProject(ctx, projectId);
+      if (!accessibleProject) {
+        return { success: false, error: `Project ${projectId} not found.` };
+      }
+
       const project = await db
         .select({
           id: schema.projects.id,
           name: schema.projects.name,
         })
         .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.id, projectId),
-            eq(schema.projects.organizationId, ctx.organizationId),
-          ),
-        )
+        .where(eq(schema.projects.id, projectId))
         .limit(1)
         .then((rows) => rows[0] ?? null);
 

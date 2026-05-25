@@ -23,7 +23,19 @@ vi.mock("@/lib/database", () => ({
     glossaryTerms: { id: "glossaryTerms" },
     memories: { id: "memories" },
     memoryEntries: { id: "memoryEntries" },
+    projects: { id: "id", organizationId: "organizationId", teamId: "teamId" },
   },
+}));
+
+vi.mock("./tool-access", () => ({
+  toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
+  toolCanAccessGlossary: vi.fn(async () => true),
+  toolCanAccessMemory: vi.fn(async () => true),
+  toolCanAccessStoredFileProject: vi.fn(async () => true),
+  toolAccessibleProjectsWhere: vi.fn(async () => ({})),
+  toolAccessibleJobsWhere: vi.fn(async () => ({})),
+  toolProjectLinkedGlossaryWhere: vi.fn(async () => ({})),
+  toolProjectLinkedMemoryWhere: vi.fn(async () => ({})),
 }));
 
 import { createTranslationJobTool } from "./job-tools";
@@ -43,6 +55,7 @@ describe("Agent Tools RBAC", () => {
   const mockCtx = (role: "owner" | "admin" | "member"): ToolContext => ({
     conversationId: "conv_123",
     organizationId: "org_123",
+    localUserId: "user_123",
     membershipRole: role,
     projectId: "project_123",
     db: {

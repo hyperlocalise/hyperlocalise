@@ -126,6 +126,7 @@ function toolContext(organizationId: string) {
   return {
     conversationId: randomUUID(),
     organizationId,
+    localUserId: "user_test",
     membershipRole: "admin" as const,
     projectId: null,
     db,

@@ -181,6 +181,7 @@ describe("hyperlocalise agent core", () => {
     const toolContext = {
       conversationId: "conv_123",
       organizationId: "org_123",
+      localUserId: "user_123",
       membershipRole: "admin" as const,
       projectId: null,
       db: {} as never,

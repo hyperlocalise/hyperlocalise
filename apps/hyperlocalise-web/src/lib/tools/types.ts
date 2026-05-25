@@ -17,6 +17,8 @@ export type ToolContext = {
   conversationId: string;
   workflowRunId?: string | null;
   organizationId: string;
+  /** Hyperlocalise user id for team-scoped project and asset access. */
+  localUserId: string;
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   db: typeof db;

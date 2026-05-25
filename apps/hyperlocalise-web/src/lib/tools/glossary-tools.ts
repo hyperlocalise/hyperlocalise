@@ -6,23 +6,30 @@ import { schema } from "@/lib/database";
 import { hasCapability } from "@/api/auth/policy";
 
 import { localePattern } from "./locale";
+import { toolCanAccessGlossary, toolProjectLinkedGlossaryWhere } from "./tool-access";
 import type { ToolContext } from "./types";
 
 /* ------------------------------------------------------------------ */
 /* Ownership helpers                                                  */
 /* ------------------------------------------------------------------ */
 
-async function getOwnedGlossary(db: ToolContext["db"], organizationId: string, glossaryId: string) {
-  const [glossary] = await db
+async function getAccessibleGlossary(ctx: ToolContext, glossaryId: string) {
+  const accessible = await toolCanAccessGlossary(ctx, glossaryId);
+  if (!accessible) {
+    return null;
+  }
+
+  const [glossary] = await ctx.db
     .select()
     .from(schema.glossaries)
     .where(
       and(
         eq(schema.glossaries.id, glossaryId),
-        eq(schema.glossaries.organizationId, organizationId),
+        eq(schema.glossaries.organizationId, ctx.organizationId),
       ),
     )
     .limit(1);
+
   return glossary ?? null;
 }
 
@@ -49,7 +56,7 @@ export function createListGlossariesTool(ctx: ToolContext) {
           createdAt: schema.glossaries.createdAt,
         })
         .from(schema.glossaries)
-        .where(eq(schema.glossaries.organizationId, ctx.organizationId))
+        .where(await toolProjectLinkedGlossaryWhere(ctx))
         .orderBy(desc(schema.glossaries.createdAt))
         .limit(limit)
         .offset(offset);
@@ -146,20 +153,16 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
         return { success: false, error: "No fields provided to update." };
       }
 
+      const existing = await getAccessibleGlossary(ctx, glossaryId);
+      if (!existing) {
+        return { success: false, error: `Glossary ${glossaryId} not found.` };
+      }
+
       const [glossary] = await ctx.db
         .update(schema.glossaries)
         .set(updates)
-        .where(
-          and(
-            eq(schema.glossaries.id, glossaryId),
-            eq(schema.glossaries.organizationId, ctx.organizationId),
-          ),
-        )
+        .where(eq(schema.glossaries.id, glossaryId))
         .returning();
-
-      if (!glossary) {
-        return { success: false, error: `Glossary ${glossaryId} not found.` };
-      }
 
       return { success: true, glossary };
     },
@@ -181,19 +184,15 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
         };
       }
 
-      const deleted = await ctx.db
-        .delete(schema.glossaries)
-        .where(
-          and(
-            eq(schema.glossaries.id, glossaryId),
-            eq(schema.glossaries.organizationId, ctx.organizationId),
-          ),
-        )
-        .returning({ id: schema.glossaries.id });
-
-      if (deleted.length === 0) {
+      const existing = await getAccessibleGlossary(ctx, glossaryId);
+      if (!existing) {
         return { success: false, error: `Glossary ${glossaryId} not found.` };
       }
+
+      const deleted = await ctx.db
+        .delete(schema.glossaries)
+        .where(eq(schema.glossaries.id, glossaryId))
+        .returning({ id: schema.glossaries.id });
 
       return { success: true, deletedId: deleted[0].id };
     },
@@ -213,7 +212,7 @@ export function createListGlossaryTermsTool(ctx: ToolContext) {
       offset: z.number().min(0).default(0).describe("Number of terms to skip."),
     }),
     execute: async ({ glossaryId, limit, offset }) => {
-      const glossary = await getOwnedGlossary(ctx.db, ctx.organizationId, glossaryId);
+      const glossary = await getAccessibleGlossary(ctx, glossaryId);
       if (!glossary) {
         return { success: false, error: `Glossary ${glossaryId} not found.`, terms: [] };
       }
@@ -264,7 +263,7 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
 
       const { glossaryId, ...termData } = input;
 
-      const glossary = await getOwnedGlossary(ctx.db, ctx.organizationId, glossaryId);
+      const glossary = await getAccessibleGlossary(ctx, glossaryId);
       if (!glossary) {
         return { success: false, error: `Glossary ${glossaryId} not found.` };
       }

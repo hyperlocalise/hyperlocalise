@@ -20,6 +20,7 @@ import {
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
+import { toolAccessibleJobsWhere, toolCanAccessProject } from "./tool-access";
 import type { ToolContext } from "./types";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
@@ -90,7 +91,7 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
       schema.assetManagementJobDetails,
       eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
     )
-    .where(and(eq(schema.jobs.id, jobId), eq(schema.jobs.organizationId, ctx.organizationId)))
+    .where(and(eq(schema.jobs.id, jobId), await toolAccessibleJobsWhere(ctx)))
     .limit(1);
 
   if (!job) {
@@ -232,6 +233,13 @@ export function createTranslationJobTool(ctx: ToolContext) {
           success: false,
           error:
             "No project is attached to this conversation. Attach a project before creating a translation job.",
+        };
+      }
+
+      if (!(await toolCanAccessProject(ctx, ctx.projectId))) {
+        return {
+          success: false,
+          error: "The attached project is not accessible in this workspace.",
         };
       }
 
@@ -625,13 +633,18 @@ export function createListJobsTool(ctx: ToolContext) {
         .describe("Maximum number of jobs to return."),
     }),
     execute: async (input) => {
-      const filters = [eq(schema.jobs.organizationId, ctx.organizationId)];
+      const filters = [await toolAccessibleJobsWhere(ctx)];
 
       if (input.interactionId) {
         filters.push(eq(schema.jobs.interactionId, input.interactionId));
       }
 
       if (input.projectId) {
+        const accessibleProject = await toolCanAccessProject(ctx, input.projectId);
+        if (!accessibleProject) {
+          return { jobs: [] };
+        }
+
         filters.push(eq(schema.jobs.projectId, input.projectId));
       }
 
