@@ -23,9 +23,11 @@ func TestTranslationStatusService_GetBranchProgress(t *testing.T) {
 		fmt.Fprint(w, getJSONResponseMock())
 	})
 
-	opts := &model.ListOptions{
-		Limit:  25,
-		Offset: 1,
+	opts := &model.TranslationProgressListOptions{
+		ListOptions: model.ListOptions{
+			Limit:  25,
+			Offset: 1,
+		},
 	}
 	branchProgress, resp, err := client.TranslationStatus.GetBranchProgress(context.Background(), 1, 2, opts)
 	if err != nil {
@@ -88,9 +90,11 @@ func TestTranslationStatusService_GetDirectoryProgress(t *testing.T) {
 		fmt.Fprint(w, getJSONResponseMock())
 	})
 
-	opts := &model.ListOptions{
-		Limit:  25,
-		Offset: 1,
+	opts := &model.TranslationProgressListOptions{
+		ListOptions: model.ListOptions{
+			Limit:  25,
+			Offset: 1,
+		},
 	}
 	dirProgress, resp, err := client.TranslationStatus.GetDirectoryProgress(context.Background(), 1, 2, opts)
 	if err != nil {
@@ -153,9 +157,11 @@ func TestTranslationStatusService_GetFileProgress(t *testing.T) {
 		fmt.Fprint(w, getJSONResponseMock())
 	})
 
-	opts := &model.ListOptions{
-		Limit:  25,
-		Offset: 1,
+	opts := &model.TranslationProgressListOptions{
+		ListOptions: model.ListOptions{
+			Limit:  25,
+			Offset: 1,
+		},
 	}
 	fileProgress, resp, err := client.TranslationStatus.GetFileProgress(context.Background(), 1, 2, opts)
 	if err != nil {
@@ -245,9 +251,11 @@ func TestTranslationStatusService_GetLanguageProgress(t *testing.T) {
 		}`)
 	})
 
-	opts := &model.ListOptions{
-		Limit:  25,
-		Offset: 1,
+	opts := &model.LanguageProgressListOptions{
+		ListOptions: model.ListOptions{
+			Limit:  25,
+			Offset: 1,
+		},
 	}
 	langProgress, resp, err := client.TranslationStatus.GetLanguageProgress(context.Background(), 1, "es", opts)
 	if err != nil {
@@ -295,7 +303,7 @@ func TestTranslationStatusService_GetProjectProgress(t *testing.T) {
 		fmt.Fprint(w, getJSONResponseMock())
 	})
 
-	opts := &model.ProjectProgressListOptions{
+	opts := &model.TranslationProgressListOptions{
 		ListOptions: model.ListOptions{
 			Limit:  25,
 			Offset: 1,
@@ -492,4 +500,42 @@ func getJSONResponseMock() string {
 			"limit": 25
 		}
 	}`
+}
+
+func TestTranslationStatusService_GetLanguageProgress_WithFilters(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/1/languages/es/progress", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		testURL(t, r, "/api/v2/projects/1/languages/es/progress?branchIds=1%2C2&directoryIds=3%2C4&fileIds=5%2C6")
+
+		fmt.Fprint(w, `{"data": []}`)
+	})
+
+	opts := &model.LanguageProgressListOptions{
+		FileIDs:      []int{5, 6},
+		BranchIDs:    []int{1, 2},
+		DirectoryIDs: []int{3, 4},
+	}
+	_, _, err := client.TranslationStatus.GetLanguageProgress(context.Background(), 1, "es", opts)
+	require.NoError(t, err)
+}
+
+func TestTranslationStatusService_GetBranchProgress_WithLanguageIDs(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/1/branches/2/languages/progress", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodGet)
+		testURL(t, r, "/api/v2/projects/1/branches/2/languages/progress?languageIds=en%2Cde")
+
+		fmt.Fprint(w, `{"data": []}`)
+	})
+
+	opts := &model.TranslationProgressListOptions{
+		LanguageIDs: []string{"en", "de"},
+	}
+	_, _, err := client.TranslationStatus.GetBranchProgress(context.Background(), 1, 2, opts)
+	require.NoError(t, err)
 }

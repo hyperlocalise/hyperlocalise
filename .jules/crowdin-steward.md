@@ -83,3 +83,9 @@
 **Learning:** The Crowdin Tasks API v2 supports filtering by `labelIds` and `excludeLabelIds`, and Enterprise task creation supports `branchIds`. These were missing from the SDK models. Additionally, some comments in the AI model were inaccurate, and redundant fields like `Languages` in `ProjectsAddRequest` (replaced by `TargetLanguageIDs`) should be removed to avoid confusion.
 
 **Action:** Added `LabelIDs` and `ExcludeLabelIDs` to `TasksListOptions` and updated `Values()` for correct query parameter encoding. Added `BranchIDs` to Enterprise task creation forms and updated `ValidateRequest` to include them. Corrected documentation comments and fixed a loop typo in the AI service. Removed redundant `Languages` field from `ProjectsAddRequest`. Verified with new unit tests and full test suite passing.
+
+## 2026-07-17 - Improve Translation Status parity for progress filtering
+
+**Learning:** Several "Get Progress" endpoints in Crowdin API v2 support optional query parameters for granular filtering that were missing from the Go SDK. Specifically, branch, directory, and file progress can be filtered by `languageIds`, and language progress can be filtered by `fileIds`, `branchIds`, and `directoryIds`.
+
+**Action:** Defined `TranslationProgressListOptions` (with `LanguageIDs`) and `LanguageProgressListOptions` (with `FileIDs`, `BranchIDs`, `DirectoryIDs`) in `model/translation_status.go`. Updated `TranslationStatusService` methods to use these specific option structs. Maintained backward compatibility for `GetProjectProgress` by aliasing `ProjectProgressListOptions` to the new `TranslationProgressListOptions`. Verified correct query parameter encoding with new functional tests in `translation_status_test.go`.

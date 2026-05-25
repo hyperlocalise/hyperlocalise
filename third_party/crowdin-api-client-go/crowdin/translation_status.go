@@ -18,7 +18,7 @@ type TranslationStatusService struct {
 // GetBranchProgress returns the translation and proofreading progress on a branch level.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.projects.branches.languages.progress.getMany
-func (s *TranslationStatusService) GetBranchProgress(ctx context.Context, projectID, branchID int, opts *model.ListOptions) (
+func (s *TranslationStatusService) GetBranchProgress(ctx context.Context, projectID, branchID int, opts *model.TranslationProgressListOptions) (
 	[]*model.TranslationProgress, *Response, error,
 ) {
 	return s.progress(ctx, fmt.Sprintf("/api/v2/projects/%d/branches/%d/languages/progress", projectID, branchID), opts)
@@ -27,7 +27,7 @@ func (s *TranslationStatusService) GetBranchProgress(ctx context.Context, projec
 // GetDirectoryProgress returns the translation and proofreading progress on a directory level.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.projects.directories.languages.progress.getMany
-func (s *TranslationStatusService) GetDirectoryProgress(ctx context.Context, projectID, directoryID int, opts *model.ListOptions) (
+func (s *TranslationStatusService) GetDirectoryProgress(ctx context.Context, projectID, directoryID int, opts *model.TranslationProgressListOptions) (
 	[]*model.TranslationProgress, *Response, error,
 ) {
 	return s.progress(ctx, fmt.Sprintf("/api/v2/projects/%d/directories/%d/languages/progress", projectID, directoryID), opts)
@@ -36,7 +36,7 @@ func (s *TranslationStatusService) GetDirectoryProgress(ctx context.Context, pro
 // GetFileProgress returns the translation and proofreading progress on a file level.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.projects.files.languages.progress.getMany
-func (s *TranslationStatusService) GetFileProgress(ctx context.Context, projectID, fileID int, opts *model.ListOptions) (
+func (s *TranslationStatusService) GetFileProgress(ctx context.Context, projectID, fileID int, opts *model.TranslationProgressListOptions) (
 	[]*model.TranslationProgress, *Response, error,
 ) {
 	return s.progress(ctx, fmt.Sprintf("/api/v2/projects/%d/files/%d/languages/progress", projectID, fileID), opts)
@@ -45,7 +45,7 @@ func (s *TranslationStatusService) GetFileProgress(ctx context.Context, projectI
 // GetLanguageProgress returns the translation and proofreading progress on a language level.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.projects.languages.files.progress.getMany
-func (s *TranslationStatusService) GetLanguageProgress(ctx context.Context, projectID int, languageID string, opts *model.ListOptions) (
+func (s *TranslationStatusService) GetLanguageProgress(ctx context.Context, projectID int, languageID string, opts *model.LanguageProgressListOptions) (
 	[]*model.TranslationProgress, *Response, error,
 ) {
 	return s.progress(ctx, fmt.Sprintf("/api/v2/projects/%d/languages/%s/progress", projectID, languageID), opts)
@@ -54,7 +54,7 @@ func (s *TranslationStatusService) GetLanguageProgress(ctx context.Context, proj
 // GetProjectProgress returns the translation and proofreading progress on a project level.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.projects.languages.progress.getMany
-func (s *TranslationStatusService) GetProjectProgress(ctx context.Context, projectID int, opts *model.ProjectProgressListOptions) (
+func (s *TranslationStatusService) GetProjectProgress(ctx context.Context, projectID int, opts *model.TranslationProgressListOptions) (
 	[]*model.TranslationProgress, *Response, error,
 ) {
 	return s.progress(ctx, fmt.Sprintf("/api/v2/projects/%d/languages/progress", projectID), opts)
