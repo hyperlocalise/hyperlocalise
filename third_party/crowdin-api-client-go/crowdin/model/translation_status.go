@@ -23,18 +23,18 @@ type TranslationProgressResponse struct {
 	} `json:"data"`
 }
 
-// ProjectProgressListOptions specifies the optional parameters to the
-// TranslationStatusService.GetProjectProgress method.
-type ProjectProgressListOptions struct {
+// TranslationProgressListOptions specifies the optional parameters for progress
+// methods that filter by language identifiers.
+type TranslationProgressListOptions struct {
 	// Filter progress by Language Identifier.
 	LanguageIDs []string `json:"languageIds,omitempty"`
 
 	ListOptions
 }
 
-// Values returns the url.Values representation of ProjectProgressListOptions.
+// Values returns the url.Values representation of TranslationProgressListOptions.
 // It implements the crowdin.ListOptionsProvider interface.
-func (o *ProjectProgressListOptions) Values() (url.Values, bool) {
+func (o *TranslationProgressListOptions) Values() (url.Values, bool) {
 	if o == nil {
 		return nil, false
 	}
@@ -42,6 +42,43 @@ func (o *ProjectProgressListOptions) Values() (url.Values, bool) {
 	v, _ := o.ListOptions.Values()
 	if len(o.LanguageIDs) > 0 {
 		v.Add("languageIds", JoinSlice(o.LanguageIDs))
+	}
+
+	return v, len(v) > 0
+}
+
+// ProjectProgressListOptions is an alias for TranslationProgressListOptions.
+// Deprecated: Use TranslationProgressListOptions instead.
+type ProjectProgressListOptions = TranslationProgressListOptions
+
+// LanguageProgressListOptions specifies the optional parameters to the
+// TranslationStatusService.GetLanguageProgress method.
+type LanguageProgressListOptions struct {
+	// Filter progress by File Identifiers.
+	FileIDs []int `json:"fileIds,omitempty"`
+	// Filter progress by Branch Identifiers.
+	BranchIDs []int `json:"branchIds,omitempty"`
+	// Filter progress by Directory Identifiers.
+	DirectoryIDs []int `json:"directoryIds,omitempty"`
+
+	ListOptions
+}
+
+// Values returns the url.Values representation of LanguageProgressListOptions.
+func (o *LanguageProgressListOptions) Values() (url.Values, bool) {
+	if o == nil {
+		return nil, false
+	}
+
+	v, _ := o.ListOptions.Values()
+	if len(o.FileIDs) > 0 {
+		v.Add("fileIds", JoinSlice(o.FileIDs))
+	}
+	if len(o.BranchIDs) > 0 {
+		v.Add("branchIds", JoinSlice(o.BranchIDs))
+	}
+	if len(o.DirectoryIDs) > 0 {
+		v.Add("directoryIds", JoinSlice(o.DirectoryIDs))
 	}
 
 	return v, len(v) > 0
