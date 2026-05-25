@@ -54,6 +54,7 @@ describe("Tooltip Redundancy Optimization", () => {
     );
     expect(markup).toContain("Web");
     expect(markup).toContain('data-slot="tooltip-trigger"');
+    expect(markup).toContain('aria-label="Web Tooltip"');
   });
 
   it("CodeBlockCopyButton renders correctly within a TooltipProvider", () => {
