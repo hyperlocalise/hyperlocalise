@@ -38,8 +38,13 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 vi.mock("@/lib/workos/server-client", () => ({
-  getWorkosServerClient: () =>
-    getWorkosServerClientMock() ?? {
+  getWorkosServerClient: () => {
+    const override = getWorkosServerClientMock();
+    if (override !== undefined) {
+      return override;
+    }
+
+    return {
       userManagement: {
         sendInvitation: sendInvitationMock,
         listInvitations: listInvitationsMock,
@@ -47,7 +52,8 @@ vi.mock("@/lib/workos/server-client", () => ({
         deleteOrganizationMembership: deleteOrganizationMembershipMock,
         updateOrganizationMembership: updateOrganizationMembershipMock,
       },
-    },
+    };
+  },
 }));
 
 import { createApp } from "@/api/app";
@@ -232,6 +238,7 @@ describe("memberRoutes", () => {
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
     const memberIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "member");
+    await authHeadersFor(memberIdentity);
 
     const response = await updateMemberRoleViaApi(
       ownerIdentity,
