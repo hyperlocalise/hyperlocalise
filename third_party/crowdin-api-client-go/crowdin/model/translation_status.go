@@ -65,6 +65,7 @@ type LanguageProgressListOptions struct {
 }
 
 // Values returns the url.Values representation of LanguageProgressListOptions.
+// It implements the crowdin.ListOptionsProvider interface.
 func (o *LanguageProgressListOptions) Values() (url.Values, bool) {
 	if o == nil {
 		return nil, false
