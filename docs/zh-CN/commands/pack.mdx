@@ -49,7 +49,7 @@ hyperlocalise pack [translation-file] [flags]
 
 当未传入翻译文件时，`pack` 会加载你的 i18n 配置（默认情况下为工作目录中的 `i18n.yml` 或 `i18n.jsonc`），并打包桶 `to` 路径所引用的每个 react-intl 翻译文件，供所选目标区域设置使用。只有严格符合 FormatJS 结构的 JSON 文件（每个 id 对应 `defaultMessage`）会被打包；普通的嵌套 JSON、非 JSON 文件以及缺失文件都会被跳过。
 
-批量发现会为每个输入写入一个输出文件，使用 `--out-suffix`（默认 `.packed`）。例如，`lang/es-ES.json` 会变为 `lang/es-ES.packed.json`。进度会打印到 stderr。
+默认情况下，批量发现会将打包后的输出原位写回每个输入文件。请改用`--out-suffix`来写入单独的输出文件（例如，`--out-suffix .packed`会将`lang/es-ES.json`转换为`lang/es-ES.packed.json`）。进度会打印到 stderr。
 
 ## 标志
 
@@ -59,14 +59,20 @@ hyperlocalise pack [translation-file] [flags]
 - `--config <path>`：在发现区域设置文件时，i18n 配置的可选路径（默认：`i18n.yml` 或 `i18n.jsonc`）。
 - `--group <name>`：按组名称筛选配置发现。
 - `--bucket <name>`：按存储桶名称筛选配置发现。
-- `--out-suffix <suffix>`：打包多个文件时的输出文件名后缀（默认 `.packed`）。
+- `--out-suffix <suffix>`：在打包多个文件时可选的输出文件名后缀。省略时，每个输入文件都会在原地被覆盖。
 
 ## 示例
 
 从提取的目录中删除描述：
 
 ```bash
-hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+hyperlocalise pack lang/en.json --out-file lang/en.json
+```
+
+在批量发现期间为打包文件添加后缀：
+
+```bash
+hyperlocalise pack --out-suffix .packed
 ```
 
 打包默认 i18n 配置中的每个 react-intl 翻译文件：
