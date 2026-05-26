@@ -1,6 +1,6 @@
 ---
 title: "pack"
-description: "Group translation ids by shared string value."
+description: "Prepare translation JSON by stripping metadata or grouping duplicate strings."
 ---
 
 ## Usage
@@ -11,9 +11,31 @@ hyperlocalise pack <translation-file> [flags]
 
 ## Behavior
 
-`pack` reads a translation file, groups identical translated strings together, and writes JSON where each key is the string value and each value is an array of ids that use that string.
+By default, `pack` prepares a translation file for downstream workflows by removing `description` metadata while preserving id-keyed output.
 
-For FormatJS message JSON, `pack` uses `defaultMessage` as the string value and omits `description` metadata from output.
+For FormatJS message JSON, the default output keeps each message id and its `defaultMessage`:
+
+```json
+{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.components.hero.title": {
+    "defaultMessage": "Dashboard"
+  }
+}
+```
+
+For plain nested JSON, the default output is a flat id-to-string map:
+
+```json
+{
+  "home.title": "Dashboard",
+  "nav.title": "Dashboard"
+}
+```
+
+Use `--group-by-value` to invert the shape and group ids that share the same translation string:
 
 ```json
 {
@@ -23,15 +45,26 @@ For FormatJS message JSON, `pack` uses `defaultMessage` as the string value and 
 
 ## Flags
 
+- `--group-by-value`: group ids by shared translation string instead of preserving id-keyed output.
 - `--out-file <path>`: write the packed JSON to a file instead of stdout.
 - `--prefix-id`: strip `extract --prefix-id` filename prefixes from ids. For example, `src.components.app-header.title` becomes `title`.
 
 ## Examples
 
-```bash
-hyperlocalise pack lang/en.json --out-file lang/packed.json
-```
+Strip descriptions from an extracted catalog:
 
 ```bash
-hyperlocalise pack lang/en.json --prefix-id --out-file lang/packed.json
+hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+```
+
+Group duplicate strings for review:
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --out-file lang/duplicates.json
+```
+
+Strip prefixed ids while grouping:
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --prefix-id --out-file lang/packed.json
 ```

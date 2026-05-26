@@ -117,6 +117,11 @@ func isStrictFormatJSRoot(payload map[string]any) (bool, error) {
 	return true, nil
 }
 
+// IsStrictFormatJSRoot reports whether payload is a FormatJS message catalog.
+func IsStrictFormatJSRoot(payload map[string]any) (bool, error) {
+	return isStrictFormatJSRoot(payload)
+}
+
 func flattenJSON(out map[string]string, prefix string, input map[string]any) error {
 	keys := make([]string, 0, len(input))
 	for key := range input {
