@@ -1,0 +1,37 @@
+name: Install Hyperlocalise
+description: Install the Hyperlocalise CLI from GitHub releases.
+
+branding:
+  icon: download
+  color: gray-dark
+
+inputs:
+  version:
+    description: Hyperlocalise release version to install (for example latest, v1.2.3, or 1.2.3).
+    default: latest
+  install-dir:
+    description: Directory to install the hyperlocalise binary into. Defaults to a runner temp directory.
+    default: ""
+
+outputs:
+  install-dir:
+    description: Directory containing the installed hyperlocalise binary.
+    value: ${{ steps.install.outputs.install-dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install Hyperlocalise
+      id: install
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        INSTALL_DIR_INPUT: ${{ inputs.install-dir }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        install_dir="${INSTALL_DIR_INPUT:-${RUNNER_TEMP}/hyperlocalise-bin}"
+        mkdir -p "${install_dir}"
+        bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        echo "${install_dir}" >>"${GITHUB_PATH}"
+        echo "install-dir=${install_dir}" >>"${GITHUB_OUTPUT}"
