@@ -14,7 +14,10 @@ import { env } from "@/lib/env";
 import { buildTools } from "@/lib/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
 
-import { githubPullRequestUrlPatternSource } from "./repo-tms-context";
+import {
+  extractGitHubRepositoryFullNameReferences,
+  githubPullRequestUrlPatternSource,
+} from "./repo-tms-context";
 
 export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
 export const hyperlocaliseAgentStepLimit = 5;
@@ -76,6 +79,8 @@ const intentToolsets = {
     "listProjects",
     "getProjectContext",
     "updateInteractionProject",
+    "searchRepoFiles",
+    "readRepoFile",
     "createSyncJob",
     "resolveInteraction",
   ],
@@ -155,6 +160,8 @@ export function buildHyperlocaliseAgentIntentInstructions(intent: HyperlocaliseA
     return [
       "Intent: repository/TMS work.",
       "Use only the repository context provided by the source adapter.",
+      "Strings in owner/repository format (for example hyperlocalise/hyperlocalise) are GitHub repositories, not Hyperlocalise projects. Do not call listProjects to resolve them.",
+      "When the user asks to find or locate text in GitHub, use searchRepoFiles with the quoted string as the pattern, then readRepoFile for surrounding context when needed.",
       "Do not infer or invent a GitHub repository, pull request, branch, or installation ID.",
       "If repository/TMS execution is unavailable, say that clearly and keep the response tied to the resolved context.",
     ].join("\n");
@@ -172,12 +179,38 @@ function isRepoTmsPullRequestIntent(text: string) {
 }
 
 function isRepoTmsRepositoryIntent(text: string) {
+  if (isExplicitGitHubRepositoryMessage(text)) {
+    return true;
+  }
+
   const repoSubject = /\b(?:repo|repository|github|hl|hyperlocalise)\b/i.test(text);
-  const repoAction = /\b(?:checks?|fix|review|scan|inspect|sync|extract|analy[sz]e)\b/i.test(text);
+  const repoAction =
+    /\b(?:checks?|fix|review|scan|inspect|sync|extract|analy[sz]e|search|find(?:ing)?|locate|lookup)\b/i.test(
+      text,
+    );
   const repoRunAction = /\brun\s+(?:the\s+)?(?:repo|repository|github|hl|hyperlocalise)\b/i.test(
     text,
   );
   return repoSubject && (repoAction || repoRunAction);
+}
+
+function isExplicitGitHubRepositoryMessage(text: string) {
+  const references = extractGitHubRepositoryFullNameReferences(text);
+  if (references.length !== 1) {
+    return false;
+  }
+
+  const repositoryFullName = references[0]!;
+  const remainder = text
+    .replace(new RegExp(escapeRegExp(repositoryFullName), "gi"), "")
+    .replace(/https?:\/\/(?:www\.)?github\.com\/[^\s]+/gi, "")
+    .trim();
+
+  return remainder.length <= 40;
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function getHyperlocaliseAgentModel() {
@@ -230,8 +263,15 @@ export function buildHyperlocaliseAgentInstructions(input: {
     lines.push(
       "- This conversation is NOT attached to a project yet.",
       "- If the user mentions a project by name, call listProjects to find it, then call updateInteractionProject to attach it.",
+      "- If the user gives owner/repository (for example hyperlocalise/hyperlocalise), that is a GitHub repository name — not a Hyperlocalise project. Do not call listProjects for it.",
       "- If the user asks about translation without mentioning a project, you can still call queryGlossary and queryTranslationMemory org-wide.",
       "- If a project would help (e.g. the user says 'for the mobile app'), always attach it before translating.",
+    );
+  }
+
+  if (input.surface === "slack") {
+    lines.push(
+      "- When the user asks to find text or copy in GitHub, the Slack integration will queue a repository workflow when a GitHub repo is enabled — do not ask them to pick a Hyperlocalise project for that.",
     );
   }
 

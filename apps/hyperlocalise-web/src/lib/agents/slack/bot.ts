@@ -97,6 +97,32 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
+async function buildSlackRepoTmsInstructions(
+  interactionId: string,
+  latestText: string,
+): Promise<string> {
+  const messages = await loadInteractionModelMessages(interactionId);
+  const userLines = messages.flatMap((chatMessage) => {
+    if (chatMessage.role !== "user" || typeof chatMessage.content !== "string") {
+      return [];
+    }
+
+    const text = chatMessage.content.trim();
+    return text ? [text] : [];
+  });
+
+  const trimmedLatest = latestText.trim();
+  if (trimmedLatest && userLines.at(-1) !== trimmedLatest) {
+    userLines.push(trimmedLatest);
+  }
+
+  if (userLines.length === 0) {
+    return trimmedLatest;
+  }
+
+  return userLines.slice(-5).join("\n");
+}
+
 function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): string | null {
   const channelId = thread.channelId;
   if (typeof channelId === "string" && channelId.length > 0) {
@@ -166,11 +192,15 @@ async function processSlackMessage(
     const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
     const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
     let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
+    const repoTmsInstructions =
+      intent.kind === "repo_tms"
+        ? await buildSlackRepoTmsInstructions(interactionId, message.text)
+        : message.text;
 
     if (intent.kind === "repo_tms") {
       const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
         organizationId,
-        text: message.text,
+        text: repoTmsInstructions,
         connectorConfig,
         projectId,
         channelId: getSlackChannelId(thread, message),
@@ -207,14 +237,14 @@ async function processSlackMessage(
         organizationId,
         projectId,
         workMode: repoTmsWorkMode,
-        instructions: message.text,
+        instructions: repoTmsInstructions,
         githubContext: resolvedRepoTmsContext,
         createdAt: new Date().toISOString(),
         idempotencyKey: buildRepoTmsTaskIdempotencyKey({
           source: "slack",
           sourceThreadId: thread.id,
           organizationId,
-          instructions: message.text,
+          instructions: repoTmsInstructions,
           githubContext: resolvedRepoTmsContext,
         }),
       };

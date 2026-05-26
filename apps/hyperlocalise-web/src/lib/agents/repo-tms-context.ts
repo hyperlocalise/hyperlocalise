@@ -1,5 +1,5 @@
 import type { GitHubRawMessage } from "@chat-adapter/github";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -330,10 +330,24 @@ async function resolveInstalledGitHubContext(input: {
     repositoryFullName,
   });
   if (!repository) {
+    const enabledRepositories = await input.dependencies.listEnabledRepositories({
+      organizationId: input.organizationId,
+    });
+    const singleRepository = getSingleInstalledRepository(enabledRepositories);
+    if (singleRepository?.enabledRepository) {
+      return resolveEnabledGitHubRepositoryContext({
+        repository: singleRepository.enabledRepository,
+        pullRequestNumber: input.pullRequestNumber,
+        source: singleRepository.source,
+        accessFailureFollowUp: input.accessFailureFollowUp,
+        dependencies: input.dependencies,
+      });
+    }
+
     return unresolved(
       "The GitHub repository is not enabled for this workspace.",
-      "Install the GitHub App for the repository and enable it in Hyperlocalise.",
-      input.accessFailureFollowUp,
+      "Install the GitHub App for the repository and enable it in Agent → GitHub.",
+      `I couldn't find \`${repositoryFullName}\` among the GitHub repositories enabled for this workspace. Open Agent → GitHub, enable the repository, or ask again without naming the repo when only one is enabled.`,
     );
   }
 
@@ -615,7 +629,7 @@ export const defaultRepoTmsGitHubContextDependencies: RepoTmsGitHubContextDepend
       .where(
         and(
           eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
-          eq(schema.githubInstallationRepositories.fullName, input.repositoryFullName),
+          sql`lower(${schema.githubInstallationRepositories.fullName}) = lower(${input.repositoryFullName})`,
           eq(schema.githubInstallationRepositories.enabled, true),
         ),
       )

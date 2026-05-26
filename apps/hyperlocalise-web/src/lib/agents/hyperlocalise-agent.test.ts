@@ -128,6 +128,24 @@ describe("hyperlocalise agent core", () => {
     ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
   });
 
+  it("classifies GitHub copy lookup requests as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Can you help me find the context of the text 'Email agent' in our github",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+  });
+
+  it("classifies owner/repository-only Slack replies as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "hyperlocalise/hyperlocalise",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+  });
+
   it("converts interaction rows to model messages", () => {
     expect(
       toModelMessages([

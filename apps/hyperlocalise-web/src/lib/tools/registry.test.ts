@@ -26,6 +26,14 @@ describe("buildTools", () => {
     expect(tools.listProjects).toBeDefined();
   });
 
+  it("includes repository search tools when a sandbox is available", () => {
+    const tools = buildTools(createToolContext({ sandboxId: "sbx_1" }));
+
+    expect(tools.searchRepoFiles).toBeDefined();
+    expect(tools.readRepoFile).toBeDefined();
+    expect(tools.detectRepoConfig).toBeDefined();
+  });
+
   it("includes repo/TMS write tools outside read-only mode", () => {
     const tools = buildTools(
       createToolContext({

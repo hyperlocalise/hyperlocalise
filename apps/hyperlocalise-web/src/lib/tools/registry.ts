@@ -1,4 +1,5 @@
 import type { ToolSet } from "ai";
+import type { Bash } from "just-bash";
 
 import { createQueryGlossaryTool, createQueryTranslationMemoryTool } from "./asset-tools";
 import {
@@ -36,11 +37,17 @@ import {
 } from "./project-tools";
 import type { ToolContext } from "./types";
 import {
+  createDetectRepoConfigTool,
+  createReadRepoFileTool,
+  createSearchRepoFilesTool,
+} from "./repo-tools";
+import {
   createApplyHyperlocaliseFixesTool,
   createCommitChangesTool,
   createPushToBranchTool,
   createUploadSourcesTool,
 } from "./repo-tms-write-tools";
+import { createSandboxRepoBash } from "./sandbox-repo-bash";
 
 /**
  * Builds the full agent toolset for a specific request context.
@@ -92,6 +99,14 @@ export function buildTools(ctx: ToolContext): ToolSet {
     tools.commitChanges = createCommitChangesTool(ctx);
     tools.pushToBranch = createPushToBranchTool(ctx);
     tools.uploadSources = createUploadSourcesTool(ctx);
+  }
+
+  if (ctx.sandboxId) {
+    const repoBash = createSandboxRepoBash(ctx.sandboxId) as Bash;
+    const repoToolContext = { bash: repoBash };
+    tools.searchRepoFiles = createSearchRepoFilesTool(repoToolContext);
+    tools.readRepoFile = createReadRepoFileTool(repoToolContext);
+    tools.detectRepoConfig = createDetectRepoConfigTool(repoToolContext);
   }
 
   return tools;

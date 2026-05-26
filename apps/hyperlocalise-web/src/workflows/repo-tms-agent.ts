@@ -8,6 +8,7 @@ import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
 } from "@/lib/agents/hyperlocalise-agent";
+import { buildRepoTmsGitHubContextInstructions } from "@/lib/agents/repo-tms-context";
 import type { ToolContext } from "@/lib/tools/types";
 import { buildTools } from "@/lib/tools/registry";
 import { db } from "@/lib/database";
@@ -116,6 +117,12 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
           sandboxId
             ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
             : "No repository sandbox required for this task.",
+          task.githubContext?.resolved
+            ? buildRepoTmsGitHubContextInstructions(task.githubContext)
+            : null,
+          sandboxId
+            ? "Use searchRepoFiles to locate literal strings in the repository. Use readRepoFile to inspect surrounding lines and explain where copy appears."
+            : null,
           task.workMode === "read_only" ? readOnlyRepoInstructions : null,
         ]
           .filter((instruction): instruction is string => instruction !== null)
