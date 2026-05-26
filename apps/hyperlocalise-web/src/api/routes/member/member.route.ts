@@ -478,15 +478,7 @@ export function createMemberRoutes() {
       });
 
       if ("error" in deletionResult) {
-        if (deletionResult.error === "last_owner_protected") {
-          return lastOwnerProtectedResponse(c);
-        }
-
-        return internalErrorResponse(
-          c,
-          "member_sync_failed",
-          "Failed to sync member removal with identity provider",
-        );
+        return lastOwnerProtectedResponse(c);
       }
 
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
