@@ -62,6 +62,14 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
 - Run `vp run db:migrate` after starting Postgres to apply Drizzle migrations.
 - The `make test` target uses coverage flags that may warn about a missing `covdata` tool — all actual tests still pass. Use `go test ./...` if you want a clean exit code without coverage.
 
+### Web app dev server caveat
+
+The `withWorkflow` plugin in `next.config.ts` may crash `vp run dev` and `vp run build` with a `workflow-node-module-error` about `node:crypto` in `src/lib/agents/github/app.ts`. This does not affect `vp test` or `vp check`. If you only need to run tests or lint, proceed normally. CI builds pass because the workflow bundler behaves differently in that environment.
+
+### vp (Vite+) CLI
+
+Install `vp` via `curl -fsSL https://vite.plus | bash`, then run `vp env setup` to create Node.js shims. If `nvm` is active, ensure `$HOME/.vite-plus/bin` is before the nvm path so the vp-managed Node.js is used.
+
 ### CLI (Go)
 
 - Standard commands per `AGENTS.md`: `make bootstrap`, `make fmt`, `make lint`, `make test`.
