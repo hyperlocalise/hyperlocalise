@@ -40,6 +40,7 @@ jobs:
     env:
       CI: "true"
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+      OPENAI_API_KEY: test-openai-api-key
       NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
       NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
       GITHUB_APP_WEBHOOK_SECRET: your-github-app-webhook-secret
