@@ -47,13 +47,13 @@ Sử dụng `--group-by-value` để đảo ngược hình dạng và nhóm các
 
 ### Khám phá tự động
 
-Khi không có tệp dịch nào được truyền vào, `pack` sẽ tải cấu hình i18n của bạn (`i18n.yml` hoặc `i18n.jsonc` trong thư mục làm việc theo mặc định) và đóng gói mọi tệp ngôn ngữ nguồn react-intl được tham chiếu bởi các đường dẫn của bucket `from`. Chỉ các tệp JSON có định dạng FormatJS nghiêm ngặt (`defaultMessage` cho mỗi id) mới được đóng gói; JSON lồng nhau thông thường và các tệp bị thiếu sẽ bị bỏ qua.
+Khi không có tệp dịch nào được truyền vào, `pack` sẽ tải cấu hình i18n của bạn (mặc định là `i18n.yml` hoặc `i18n.jsonc` trong thư mục làm việc) và đóng gói mọi tệp dịch react-intl được tham chiếu bởi các đường dẫn bucket `to` cho các locale mục tiêu đã chọn. Chỉ các tệp JSON có định dạng FormatJS nghiêm ngặt (`defaultMessage` cho mỗi id) mới được đóng gói; JSON lồng thuần túy, các tệp không phải JSON và các tệp bị thiếu sẽ bị bỏ qua.
 
-Batch discovery ghi một tệp đầu ra cho mỗi đầu vào, sử dụng `--out-suffix` (mặc định `.packed`). Ví dụ, `lang/en-US.json` trở thành `lang/en-US.packed.json`. Tiến độ được in ra stderr.
+Khám phá hàng loạt sẽ ghi một tệp đầu ra cho mỗi đầu vào, sử dụng `--out-suffix` (mặc định `.packed`). Ví dụ, `lang/es-ES.json` trở thành `lang/es-ES.packed.json`. Tiến trình được in ra stderr.
 
 ## Các cờ
 
-- `--group-by-value`: nhóm các ID theo chuỗi bản dịch dùng chung thay vì giữ nguyên đầu ra được ánh xạ theo ID.
+- `--group-by-value`: nhóm các id theo chuỗi dịch dùng chung thay vì giữ đầu ra được khóa theo id. Chỉ sử dụng với một tệp đầu vào duy nhất.
 - `--out-file <path>`: ghi JSON đã đóng gói vào một tệp thay vì stdout. Chỉ dùng với một tệp đầu vào duy nhất.
 - `--prefix-id`: loại bỏ tiền tố tên tệp `extract --prefix-id` khỏi các id. Ví dụ, `src.components.app-header.title` sẽ trở thành `title`.
 - `--config <path>`: đường dẫn tùy chọn đến cấu hình i18n khi phát hiện các tệp ngôn ngữ (mặc định: `i18n.yml` hoặc `i18n.jsonc`).
@@ -69,7 +69,7 @@ Xóa mô tả khỏi một catalog đã trích xuất:
 hyperlocalise pack lang/en.json --out-file lang/en.packed.json
 ```
 
-Đóng gói mọi tệp ngôn ngữ nguồn react-intl từ cấu hình i18n mặc định:
+Đóng gói mọi tệp dịch react-intl từ cấu hình i18n mặc định:
 
 ```bash
 hyperlocalise pack

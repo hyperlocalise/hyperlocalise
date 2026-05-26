@@ -47,13 +47,13 @@ hyperlocalise pack [translation-file] [flags]
 
 ### 自动发现
 
-当未传入翻译文件时，`pack` 会加载你的 i18n 配置（默认情况下为工作目录中的 `i18n.yml` 或 `i18n.jsonc`），并打包 bucket `from` 路径所引用的每个 react-intl 源语言环境文件。仅会打包严格符合 FormatJS 结构（每个 id 对应 `defaultMessage`）的 JSON 文件；普通的嵌套 JSON 和缺失的文件会被跳过。
+当未传入翻译文件时，`pack` 会加载你的 i18n 配置（默认情况下为工作目录中的 `i18n.yml` 或 `i18n.jsonc`），并打包桶 `to` 路径所引用的每个 react-intl 翻译文件，供所选目标区域设置使用。只有严格符合 FormatJS 结构的 JSON 文件（每个 id 对应 `defaultMessage`）会被打包；普通的嵌套 JSON、非 JSON 文件以及缺失文件都会被跳过。
 
-批量发现会为每个输入写入一个输出文件，使用`--out-suffix`（默认`.packed`）。例如，`lang/en-US.json`会变为`lang/en-US.packed.json`。进度会打印到 stderr。
+批量发现会为每个输入写入一个输出文件，使用 `--out-suffix`（默认 `.packed`）。例如，`lang/es-ES.json` 会变为 `lang/es-ES.packed.json`。进度会打印到 stderr。
 
 ## 标志
 
-- `--group-by-value`：按共享的译文字符串对组 ID 进行分组，而不是保留按 ID 键控的输出。
+- `--group-by-value`：按共享的译文字符串对组 ID，而不是保留按 ID 键控的输出。仅与单个输入文件一起使用。
 - `--out-file <path>`：将打包后的 JSON 写入文件，而不是标准输出。仅与单个输入文件一起使用。
 - `--prefix-id`：从 ids 中去除 `extract --prefix-id` 文件名前缀。例如，`src.components.app-header.title` 会变成 `title`。
 - `--config <path>`：在发现区域设置文件时，i18n 配置的可选路径（默认：`i18n.yml` 或 `i18n.jsonc`）。
@@ -69,7 +69,7 @@ hyperlocalise pack [translation-file] [flags]
 hyperlocalise pack lang/en.json --out-file lang/en.packed.json
 ```
 
-打包默认 i18n 配置中的每个 react-intl 源语言环境文件：
+打包默认 i18n 配置中的每个 react-intl 翻译文件：
 
 ```bash
 hyperlocalise pack
