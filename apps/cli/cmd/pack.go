@@ -102,6 +102,8 @@ func validatePackOptions(args []string, options packOptions) error {
 		return fmt.Errorf("pack --out-file requires a translation file")
 	case !hasFile && strings.TrimSpace(options.outSuffix) == "":
 		return fmt.Errorf("pack --out-suffix cannot be empty")
+	case !hasFile && options.groupByValue:
+		return fmt.Errorf("pack --group-by-value requires a translation file")
 	}
 
 	return nil
@@ -157,6 +159,10 @@ func collectPackLocaleFilesFromConfig(options packOptions) ([]string, error) {
 }
 
 func isPackFormatJSFile(path string) (bool, error) {
+	if strings.ToLower(filepath.Ext(path)) != ".json" {
+		return false, nil
+	}
+
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return false, err

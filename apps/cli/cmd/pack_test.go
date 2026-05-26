@@ -491,6 +491,68 @@ func TestPackCommandDiscoversLocaleFilesFromConfig(t *testing.T) {
 	}
 }
 
+func TestPackCommandSkipsNonJSONFilesDuringDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	langDir := filepath.Join(dir, "lang")
+	writePackTestFile(t, filepath.Join(langDir, "en-US.json"), `{
+  "home.title": {
+    "defaultMessage": "Dashboard"
+  }
+}`)
+	writePackTestFile(t, filepath.Join(langDir, "en-US.yaml"), `home.title: Dashboard`)
+
+	writePackConfigWithFiles(t, filepath.Join(dir, "i18n.jsonc"), []packConfigFileMapping{
+		{from: filepath.Join(langDir, "{{source}}.json"), to: "dist/{{target}}.json"},
+		{from: filepath.Join(langDir, "{{source}}.yaml"), to: "dist/{{target}}.yaml"},
+	})
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs(nil)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+	if !strings.Contains(errOut.String(), "lang/en-US.packed.json") {
+		t.Fatalf("expected status output for packed JSON file, got %q", errOut.String())
+	}
+	if _, err := os.Stat(filepath.Join(langDir, "en-US.packed.json")); err != nil {
+		t.Fatalf("expected packed JSON output file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(langDir, "en-US.yaml.packed.json")); err == nil {
+		t.Fatalf("expected YAML locale file to be skipped during auto discovery")
+	}
+}
+
+func TestPackCommandRejectsGroupByValueInBatchMode(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	langDir := filepath.Join(dir, "lang")
+	writePackTestFile(t, filepath.Join(langDir, "en-US.json"), `{
+  "home.title": {
+    "defaultMessage": "Dashboard"
+  }
+}`)
+	writePackConfig(t, filepath.Join(dir, "i18n.jsonc"), filepath.Join(langDir, "{{source}}.json"))
+
+	cmd := newPackCmd()
+	cmd.SetArgs([]string{"--group-by-value"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to reject --group-by-value in batch mode")
+	}
+	if !strings.Contains(err.Error(), "pack --group-by-value requires a translation file") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestPackCommandRejectsFileWithConfigFlag(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "messages.json")
@@ -512,8 +574,24 @@ func TestPackCommandRejectsFileWithConfigFlag(t *testing.T) {
 	}
 }
 
-func writePackConfig(t *testing.T, configPath, sourcePattern string) {
+type packConfigFileMapping struct {
+	from string
+	to   string
+}
+
+func writePackConfigWithFiles(t *testing.T, configPath string, files []packConfigFileMapping) {
 	t.Helper()
+
+	var fileEntries strings.Builder
+	for i, file := range files {
+		if i > 0 {
+			fileEntries.WriteString(",\n")
+		}
+		fmt.Fprintf(&fileEntries, `        {
+          "from": %q,
+          "to": %q
+        }`, file.from, file.to)
+	}
 
 	content := fmt.Sprintf(`{
   "locales": {
@@ -523,10 +601,7 @@ func writePackConfig(t *testing.T, configPath, sourcePattern string) {
   "buckets": {
     "ui": {
       "files": [
-        {
-          "from": %q,
-          "to": "dist/{{target}}.json"
-        }
+%s
       ]
     }
   },
@@ -538,10 +613,18 @@ func writePackConfig(t *testing.T, configPath, sourcePattern string) {
       }
     }
   }
-}`, sourcePattern)
+}`, fileEntries.String())
 	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
 		t.Fatalf("write pack config: %v", err)
 	}
+}
+
+func writePackConfig(t *testing.T, configPath, sourcePattern string) {
+	t.Helper()
+
+	writePackConfigWithFiles(t, configPath, []packConfigFileMapping{
+		{from: sourcePattern, to: "dist/{{target}}.json"},
+	})
 }
 
 func TestRootHelpIncludesPackCommand(t *testing.T) {
