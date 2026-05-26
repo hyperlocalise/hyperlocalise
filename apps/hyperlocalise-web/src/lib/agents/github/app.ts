@@ -1,8 +1,26 @@
 import { App, type Octokit } from "octokit";
 
 import { env } from "@/lib/env";
+import {
+  assertGitHubAppPrivateKeyParsable,
+  normalizeGitHubAppPrivateKey,
+} from "@/lib/agents/github/private-key";
 
 let githubApp: App | null = null;
+let cachedPrivateKey: string | null = null;
+
+export function getGitHubAppPrivateKey(): string {
+  if (!env.GITHUB_APP_PRIVATE_KEY) {
+    throw new Error("missing GitHub App private key");
+  }
+
+  if (!cachedPrivateKey) {
+    cachedPrivateKey = normalizeGitHubAppPrivateKey(env.GITHUB_APP_PRIVATE_KEY);
+    assertGitHubAppPrivateKeyParsable(cachedPrivateKey);
+  }
+
+  return cachedPrivateKey;
+}
 
 export function getGitHubApp(): App {
   if (githubApp) {
@@ -14,7 +32,7 @@ export function getGitHubApp(): App {
 
   githubApp = new App({
     appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY.replaceAll("\\n", "\n"),
+    privateKey: getGitHubAppPrivateKey(),
     webhooks: {
       secret: env.GITHUB_APP_WEBHOOK_SECRET,
     },
