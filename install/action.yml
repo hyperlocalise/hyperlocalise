@@ -25,7 +25,7 @@ runs:
       id: install
       shell: bash
       env:
-        VERSION: ${{ inputs.hyperlocalise-version }}
+        VERSION: ${{ inputs.version }}
         GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
