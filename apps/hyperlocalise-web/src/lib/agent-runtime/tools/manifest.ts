@@ -14,7 +14,7 @@ export type ToolManifest = {
 };
 
 export const toolManifests = [
-  { name: "task", domain: "translation", sideEffect: "none" },
+  { name: "task", domain: "tms", sideEffect: "none" },
   { name: "createTranslationJob", domain: "translation", sideEffect: "external_write" },
   { name: "todoWrite", domain: "session", sideEffect: "none" },
   { name: "fetch", domain: "web", sideEffect: "none" },

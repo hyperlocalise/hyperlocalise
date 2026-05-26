@@ -5,7 +5,6 @@ import { truncate, redact } from "./redact";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const MAX_BODY_LENGTH = 10_000;
-const MAX_REDIRECTS = 5;
 
 function normalizeHostname(hostname: string): string {
   const lowerHostname = hostname.toLowerCase();
@@ -77,30 +76,6 @@ function isPrivateHost(hostname: string): boolean {
   );
 }
 
-async function fetchWithAllowedRedirects(url: string, init: RequestInit): Promise<Response> {
-  let currentUrl = url;
-
-  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
-    if (!isAllowedWebUrl(currentUrl)) {
-      throw new Error("Blocked redirect to private or disallowed host");
-    }
-
-    const response = await fetch(currentUrl, { ...init, redirect: "manual" });
-    if (response.status < 300 || response.status >= 400) {
-      return response;
-    }
-
-    const location = response.headers.get("location");
-    if (!location) {
-      return response;
-    }
-
-    currentUrl = new URL(location, currentUrl).href;
-  }
-
-  throw new Error("Too many redirects");
-}
-
 export function isAllowedWebUrl(value: string): boolean {
   let parsed: URL;
   try {
@@ -142,18 +117,29 @@ USAGE:
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const response = await fetchWithAllowedRedirects(url, {
+        const response = await fetch(url, {
           method,
+          redirect: "error",
           signal: controller.signal,
         });
 
-        const body = method === "HEAD" ? "" : truncate(await response.text(), MAX_BODY_LENGTH).text;
+        if (response.status >= 300 && response.status < 400) {
+          return {
+            success: false as const,
+            error: redact("HTTP redirects are not allowed"),
+          };
+        }
+
+        const bodyResult =
+          method === "HEAD"
+            ? { text: "", truncated: false }
+            : truncate(await response.text(), MAX_BODY_LENGTH);
 
         return {
           success: true as const,
           status: response.status,
-          body: redact(body),
-          truncated: body.length >= MAX_BODY_LENGTH,
+          body: redact(bodyResult.text),
+          truncated: bodyResult.truncated,
         };
       } catch (error) {
         return {
