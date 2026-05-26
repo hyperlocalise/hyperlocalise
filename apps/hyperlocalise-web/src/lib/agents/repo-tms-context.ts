@@ -3,6 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
+
 import { getInstallationOctokit } from "./github/app";
 import type {
   RepoTmsAgentGitHubContext,
@@ -235,6 +237,7 @@ export async function resolveSlackRepoTmsGitHubContext(input: {
     pullRequestNumber: pullRequestNumber ?? undefined,
     source: fallback.source,
     accessFailureFollowUp: `I found repository context for ${fallback.repositoryFullName}, but I can't access it with the GitHub App installation. Please check the app is installed and the repository is enabled for this workspace.`,
+    installedRepositories,
     dependencies,
   });
 }
@@ -314,6 +317,7 @@ async function resolveInstalledGitHubContext(input: {
   pullRequestNumber?: number;
   source: ResolvedContextSource;
   accessFailureFollowUp: string;
+  installedRepositories?: EnabledGitHubRepository[];
   dependencies: RepoTmsGitHubContextDependencies;
 }): Promise<RepoTmsGitHubContextResolution> {
   const repositoryFullName = normalizeRepositoryFullName(input.repositoryFullName);
@@ -330,11 +334,16 @@ async function resolveInstalledGitHubContext(input: {
     repositoryFullName,
   });
   if (!repository) {
-    const enabledRepositories = await input.dependencies.listEnabledRepositories({
-      organizationId: input.organizationId,
-    });
+    const enabledRepositories =
+      input.installedRepositories ??
+      (await input.dependencies.listEnabledRepositories({
+        organizationId: input.organizationId,
+      }));
     const singleRepository = getSingleInstalledRepository(enabledRepositories);
-    if (singleRepository?.enabledRepository) {
+    if (
+      singleRepository?.enabledRepository &&
+      repositoryFullName.toLowerCase() === singleRepository.repositoryFullName.toLowerCase()
+    ) {
       return resolveEnabledGitHubRepositoryContext({
         repository: singleRepository.enabledRepository,
         pullRequestNumber: input.pullRequestNumber,
@@ -548,10 +557,6 @@ function slackTextContainsRepositoryName(text: string, repositoryFullName: strin
     `(^|[^A-Za-z0-9_.-])${escapeRegExp(repositoryName)}($|[^A-Za-z0-9_.-])`,
     "i",
   ).test(text);
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function repositoryFullNameFromConfigValue(value: unknown): string | null {

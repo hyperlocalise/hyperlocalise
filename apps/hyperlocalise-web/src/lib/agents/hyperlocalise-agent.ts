@@ -11,6 +11,8 @@ import {
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
+import { getConversationActiveTools } from "@/lib/tools/conversation-tools";
 import { buildTools } from "@/lib/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
 
@@ -66,48 +68,21 @@ type CreateConversationAgentInput = {
 };
 
 const intentToolsets = {
-  translation: [
-    "listProjects",
-    "getProjectContext",
-    "updateInteractionProject",
-    "queryGlossary",
-    "queryTranslationMemory",
-    "createTranslationJob",
-    "readStoredFile",
-  ],
+  translation: ["createTranslationJob", "searchRepoFiles", "readRepoFile"],
   repo_tms: [
-    "listProjects",
-    "getProjectContext",
-    "updateInteractionProject",
     "searchRepoFiles",
     "readRepoFile",
-    "createSyncJob",
-    "resolveInteraction",
+    "detectRepoConfig",
+    "applyHyperlocaliseFixes",
+    "commitChanges",
+    "pushToBranch",
+    "uploadSources",
   ],
-  job_status: ["listJobs", "getJobStatus", "resolveInteraction"],
-  glossary_memory: [
-    "queryGlossary",
-    "queryTranslationMemory",
-    "listGlossaries",
-    "createGlossary",
-    "updateGlossary",
-    "deleteGlossary",
-    "listGlossaryTerms",
-    "createGlossaryTerm",
-    "updateGlossaryTerm",
-    "deleteGlossaryTerm",
-    "listTranslationMemories",
-    "createTranslationMemory",
-    "updateTranslationMemory",
-    "deleteTranslationMemory",
-    "listMemoryEntries",
-    "createMemoryEntry",
-    "updateMemoryEntry",
-    "deleteMemoryEntry",
-  ],
-  project: ["listProjects", "getProjectContext", "updateInteractionProject"],
-  general: undefined,
-} satisfies Record<HyperlocaliseAgentIntentKind, string[] | undefined>;
+  job_status: [],
+  glossary_memory: [],
+  project: [],
+  general: [],
+} satisfies Record<HyperlocaliseAgentIntentKind, string[]>;
 
 const githubPullRequestUrlPattern = new RegExp(githubPullRequestUrlPatternSource, "i");
 
@@ -151,8 +126,21 @@ export function classifyHyperlocaliseAgentIntent(input: {
 
 export function getActiveToolsForHyperlocaliseAgentIntent(
   intent: HyperlocaliseAgentIntent,
-): ToolLoopAgentSettings<never, ToolSet>["activeTools"] | undefined {
+): ToolLoopAgentSettings<never, ToolSet>["activeTools"] {
   return intentToolsets[intent.kind];
+}
+
+export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
+  const lines = [
+    "I can translate supported files, localize images, or search your connected GitHub repository.",
+    "Attach a file or image with a target language, or ask me to find text in a repo you have enabled in Agent → GitHub.",
+  ];
+
+  if (surface === "slack") {
+    lines.push("Supported file types include JSON, CSV, XLIFF, and other localization formats.");
+  }
+
+  return lines.join(" ");
 }
 
 export function buildHyperlocaliseAgentIntentInstructions(intent: HyperlocaliseAgentIntent) {
@@ -209,10 +197,6 @@ function isExplicitGitHubRepositoryMessage(text: string) {
   return remainder.length <= 40;
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export function getHyperlocaliseAgentModel() {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
@@ -227,8 +211,8 @@ export function buildHyperlocaliseAgentInstructions(input: {
   additionalInstructions?: string;
 }) {
   const lines = [
-    "You are Hyperlocalise, an expert localization and translation assistant.",
-    "You help teams translate content, manage glossaries, review translations, and organize localization projects.",
+    "You are Hyperlocalise, a localization assistant focused on file translation and GitHub repository lookup.",
+    "Use the tools you are given; do not guess repository paths or file contents.",
   ];
 
   if (input.surface === "slack") {
@@ -241,50 +225,24 @@ export function buildHyperlocaliseAgentInstructions(input: {
     );
   }
 
-  lines.push(
-    "",
-    "You can answer questions about:",
-    "- Translation strategies and best practices",
-    "- Locale-specific formatting, cultural adaptation, and regional conventions",
-    "- Managing translation workflows, jobs, and project organization",
-    "- Using glossaries and translation memories effectively",
-    "- Quality assurance and review processes for localized content",
-    "",
-    "Project context:",
-  );
-
   if (input.projectId) {
     lines.push(
+      "",
+      "Project context:",
       `- This conversation is attached to project ${input.projectId}.`,
-      "- Call getProjectContext when you need the project's name, description, translation rules, or attached glossaries and memories.",
-      "- Call updateInteractionProject only if the user explicitly says they want to switch to a different project.",
-    );
-  } else {
-    lines.push(
-      "- This conversation is NOT attached to a project yet.",
-      "- If the user mentions a project by name, call listProjects to find it, then call updateInteractionProject to attach it.",
-      "- If the user gives owner/repository (for example hyperlocalise/hyperlocalise), that is a GitHub repository name — not a Hyperlocalise project. Do not call listProjects for it.",
-      "- If the user asks about translation without mentioning a project, you can still call queryGlossary and queryTranslationMemory org-wide.",
-      "- If a project would help (e.g. the user says 'for the mobile app'), always attach it before translating.",
-    );
-  }
-
-  if (input.surface === "slack") {
-    lines.push(
-      "- When the user asks to find text or copy in GitHub, the Slack integration will queue a repository workflow when a GitHub repo is enabled — do not ask them to pick a Hyperlocalise project for that.",
     );
   }
 
   lines.push(
     "",
     "Guidelines:",
+    '- Use createTranslationJob with type "file" when sourceFileId values are present in the message.',
+    "- Use searchRepoFiles with the user's quoted string as the pattern, then readRepoFile for surrounding context.",
+    "- Ask for targetLocales (and sourceLocale when missing) before creating a translation job.",
+    "- Do not invent sourceFileId values; use only IDs provided in the conversation.",
+    "- If the user asks to find copy in GitHub but repo search tools are unavailable, say the repository context is missing.",
     "- Be concise but thorough. Responses should be scannable.",
-    "- When suggesting translations, consider context, tone, and target audience.",
-    "- If you need more information to provide a good answer, ask clarifying questions.",
-    "- You can create translation jobs, suggest glossary terms, and inspect existing jobs.",
-    "- Review, research, sync, and asset-management jobs are not runnable yet; use the matching unavailable-job tool if a user asks to queue one.",
     "- Always maintain a professional, helpful tone.",
-    "- If a request is outside your capabilities, give a clear fallback response explaining what you can do instead.",
   );
 
   if (input.additionalInstructions?.trim()) {
@@ -360,16 +318,17 @@ export function createConversationToolLoopAgent({
   surface,
   toolContext,
   additionalInstructions,
-  intent,
   onFinish,
-}: CreateConversationAgentInput) {
+  hasFileAttachments = false,
+}: Omit<CreateConversationAgentInput, "intent"> & { hasFileAttachments?: boolean }) {
   const tools = buildTools(toolContext);
+  const activeTools = getConversationActiveTools(toolContext, { hasFileAttachments });
   return createHyperlocaliseAgent({
     surface,
     projectId: toolContext.projectId,
     tools,
     additionalInstructions,
-    activeTools: intent ? getActiveToolsForHyperlocaliseAgentIntent(intent) : undefined,
+    activeTools,
     onFinish,
   });
 }

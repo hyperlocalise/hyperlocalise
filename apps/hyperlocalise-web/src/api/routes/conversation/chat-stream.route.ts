@@ -4,11 +4,12 @@ import { Hono } from "hono";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import {
+  buildTranslationAttachmentRequiredMessage,
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
 } from "@/lib/agents/hyperlocalise-agent";
 import { db, schema } from "@/lib/database";
-import { addInteractionMessage } from "@/lib/interactions";
+import { addInteractionMessage, interactionHasTranslationAttachments } from "@/lib/interactions";
 
 import { conversationIdParamsSchema } from "./conversation.schema";
 
@@ -45,6 +46,17 @@ export function createChatStreamRoutes() {
 
       if (conversation.source !== "chat_ui") {
         return c.json({ error: "conversation_not_replyable" }, 400);
+      }
+
+      const hasTranslationAttachments = await interactionHasTranslationAttachments(conversationId);
+      if (!hasTranslationAttachments) {
+        return c.json(
+          {
+            error: "translation_requires_attachment",
+            message: buildTranslationAttachmentRequiredMessage("web"),
+          },
+          400,
+        );
       }
 
       const chatMessages = await loadInteractionModelMessages(conversationId);

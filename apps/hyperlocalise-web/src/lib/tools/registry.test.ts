@@ -16,14 +16,25 @@ function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
 }
 
 describe("buildTools", () => {
+  it("exposes only file translation tools for ordinary conversations", () => {
+    const tools = buildTools(createToolContext());
+
+    expect(tools.createTranslationJob).toBeDefined();
+    expect(tools.searchRepoFiles).toBeUndefined();
+    expect(tools.readRepoFile).toBeUndefined();
+    expect(tools.listProjects).toBeUndefined();
+    expect(tools.queryGlossary).toBeUndefined();
+    expect(tools.listJobs).toBeUndefined();
+  });
+
   it("omits repo/TMS write tools in read-only mode", () => {
-    const tools = buildTools(createToolContext({ workMode: "read_only" }));
+    const tools = buildTools(createToolContext({ workMode: "read_only", sandboxId: "sbx_1" }));
 
     expect(tools.applyHyperlocaliseFixes).toBeUndefined();
     expect(tools.commitChanges).toBeUndefined();
     expect(tools.pushToBranch).toBeUndefined();
     expect(tools.uploadSources).toBeUndefined();
-    expect(tools.listProjects).toBeDefined();
+    expect(tools.searchRepoFiles).toBeDefined();
   });
 
   it("includes repository search tools when a sandbox is available", () => {
@@ -38,6 +49,7 @@ describe("buildTools", () => {
     const tools = buildTools(
       createToolContext({
         workMode: "approval_required",
+        sandboxId: "sbx_1",
         repoTmsSource: "slack",
         actor: { sourceUserId: "U1", role: "admin" },
       }),
