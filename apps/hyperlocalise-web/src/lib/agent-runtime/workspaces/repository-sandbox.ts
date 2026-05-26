@@ -40,7 +40,7 @@ export async function createRepositorySandbox(
       },
     });
   } catch (error) {
-    log.error(serializeErrorForLog(error), "vercel repository sandbox creation failed");
+    log.error({ err: serializeErrorForLog(error) }, "vercel repository sandbox creation failed");
     throw error;
   }
   log.info({ sandboxId: workspace.id }, "vercel repository sandbox created");

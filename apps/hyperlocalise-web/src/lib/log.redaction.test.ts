@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import type { DrainContext, WideEvent } from "evlog";
-import { configureLoggerForTest, createLogger } from "./log";
+import { configureLoggerForTest, createLogger, serializeErrorForLog } from "./log";
 
 const drainedEvents: WideEvent[] = [];
 
@@ -99,6 +99,17 @@ describe("Logger Redaction", () => {
     expect(error.message).toBe("payment failed");
     expect(event?.userId).toBe("user_123");
     expect(event?.requestId).toBe("req_123");
+  });
+
+  it("should preserve serialized error messages alongside log messages", () => {
+    const logger = createLogger();
+
+    logger.error({ err: serializeErrorForLog(new Error("sandbox unavailable")) }, "sandbox failed");
+
+    const [event] = drainedEvents;
+    const err = event?.err as Record<string, unknown>;
+    expect(event?.message).toBe("sandbox failed");
+    expect(err.message).toBe("sandbox unavailable");
   });
 
   it("should redact newly added sensitive keys and nested variants", () => {

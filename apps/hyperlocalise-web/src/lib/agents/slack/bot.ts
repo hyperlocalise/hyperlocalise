@@ -491,12 +491,12 @@ async function processSlackMessage(
     } finally {
       if (sandboxId) {
         await stopRepositorySandbox(sandboxId).catch((error: unknown) => {
-          log.warn(serializeErrorForLog(error), "repository sandbox cleanup failed");
+          log.warn({ err: serializeErrorForLog(error) }, "repository sandbox cleanup failed");
         });
       }
     }
   } catch (error) {
-    log.error(serializeErrorForLog(error), "slack agent message processing failed");
+    log.error({ err: serializeErrorForLog(error) }, "slack agent message processing failed");
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     await thread.post({
