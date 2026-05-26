@@ -81,6 +81,12 @@ func runPackDefault(path string, options packOptions) (any, error) {
 		if formatJS {
 			return buildPackCatalog(payload, options)
 		}
+
+		out := make(map[string]string)
+		if err := translationfileparser.FlattenJSON(out, "", payload); err != nil {
+			return nil, err
+		}
+		return buildPackFlat(out, options), nil
 	}
 
 	values, err := translationfileparser.NewDefaultStrategy().Parse(trimmedPath, content)
@@ -196,10 +202,7 @@ func writePackOutput(cmd *cobra.Command, payload any, options packOptions) error
 	}
 
 	outFile := strings.TrimSpace(options.outFile)
-	if options.outFile != "" {
-		if outFile == "" {
-			return fmt.Errorf("pack out-file cannot be empty")
-		}
+	if outFile != "" {
 		if err := os.MkdirAll(filepath.Dir(outFile), 0o755); err != nil {
 			return fmt.Errorf("create pack output directory: %w", err)
 		}

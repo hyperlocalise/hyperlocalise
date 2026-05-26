@@ -137,6 +137,95 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
 	assertPackGroupedOutput(t, got, want)
 }
 
+func TestPackCommandStripsPrefixIDInDefaultCatalog(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.button.label": {
+    "defaultMessage": "Save settings"
+  },
+  "src.components.app-header.my-button.label": {
+    "defaultMessage": "Save button label"
+  },
+  "src.components.app-header.cta": {
+    "defaultMessage": "Create project"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"button.label": {
+			DefaultMessage: "Save settings",
+		},
+		"cta": {
+			DefaultMessage: "Create project",
+		},
+		"my-button.label": {
+			DefaultMessage: "Save button label",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
+}
+
+func TestPackCommandStripsPrefixIDAtFilenameBoundaryInDefaultCatalog(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writePackTestFile(t, filepath.Join(dir, "src", "components", "AppHeader.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function AppHeader() {
+  return <FormattedMessage id="title" defaultMessage="Dashboard" />;
+}
+`)
+	writePackTestFile(t, filepath.Join(dir, "src", "foo.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function Foo() {
+  return <FormattedMessage id="bar.baz" defaultMessage="Ambiguous" />;
+}
+`)
+
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.foo.bar.baz": {
+    "defaultMessage": "Ambiguous"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"bar.baz": {
+			DefaultMessage: "Ambiguous",
+		},
+		"title": {
+			DefaultMessage: "Dashboard",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
+}
+
 func TestPackCommandStripsPrefixIDAtFilenameBoundary(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

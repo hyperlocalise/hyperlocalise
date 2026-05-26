@@ -122,6 +122,11 @@ func IsStrictFormatJSRoot(payload map[string]any) (bool, error) {
 	return isStrictFormatJSRoot(payload)
 }
 
+// FlattenJSON flattens nested JSON objects into dotted string keys.
+func FlattenJSON(out map[string]string, prefix string, input map[string]any) error {
+	return flattenJSON(out, prefix, input)
+}
+
 func flattenJSON(out map[string]string, prefix string, input map[string]any) error {
 	keys := make([]string, 0, len(input))
 	for key := range input {
