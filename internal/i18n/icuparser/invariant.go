@@ -34,6 +34,7 @@ func ParseInvariant(s string) (Invariant, error) {
 	collectInvariantFromElements(elems, &inv, "")
 
 	slices.Sort(inv.Placeholders)
+	inv.Placeholders = slices.Compact(inv.Placeholders)
 	slices.SortFunc(inv.ICUBlocks, func(a, b BlockSignature) int {
 		if c := cmp.Compare(a.Arg, b.Arg); c != 0 {
 			return c

@@ -26,7 +26,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "plural with selectors and nested placeholders",
 			msg:              "Hi {name}. {count, plural, =0 {No items} one {One item for {name}} other {{count} items}}",
-			wantPlaceholders: []string{"count", "count", "name", "name"},
+			wantPlaceholders: []string{"count", "name"},
 			wantICU: []BlockSignature{{
 				Arg:     "count",
 				Type:    "plural",
@@ -36,7 +36,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "nested select plural",
 			msg:              "{gender, select, male {{count, plural, one {He has one} other {He has #}}} female {{count, plural, one {She has one} other {She has #}}} other {They have {count}}}",
-			wantPlaceholders: []string{"count", "count", "count", "count", "count", "gender"},
+			wantPlaceholders: []string{"count", "gender"},
 			wantICU: []BlockSignature{
 				{Arg: "count", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{0, 1}},
 				{Arg: "count", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{0, 1}},
@@ -46,7 +46,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "plural offset accepted",
 			msg:              "{count, plural, offset:1 =0 {Nobody} one {{name}} other {{name} and # others}}",
-			wantPlaceholders: []string{"count", "count", "name", "name"},
+			wantPlaceholders: []string{"count", "name"},
 			wantICU: []BlockSignature{{
 				Arg:     "count",
 				Type:    "plural",
@@ -57,7 +57,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "plural pound and explicit arg normalize the same",
 			msg:              "{count, plural, one {# invite} other {{count} invites}}",
-			wantPlaceholders: []string{"count", "count", "count"},
+			wantPlaceholders: []string{"count"},
 			wantICU: []BlockSignature{{
 				Arg:     "count",
 				Type:    "plural",
@@ -78,7 +78,7 @@ func TestParserFeatureParitySubset(t *testing.T) {
 		{
 			name:             "selectordinal accepted",
 			msg:              "{pos, selectordinal, one {#st} two {#nd} few {#rd} other {#th}}",
-			wantPlaceholders: []string{"pos", "pos", "pos", "pos", "pos"},
+			wantPlaceholders: []string{"pos"},
 			wantICU: []BlockSignature{{
 				Arg:     "pos",
 				Type:    "selectordinal",
