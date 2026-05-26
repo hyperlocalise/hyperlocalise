@@ -131,6 +131,19 @@ vi.mock("@/lib/log", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   })),
+  createLogger: vi.fn(() => ({
+    child: vi.fn(() => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    })),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  })),
+  serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
 }));
 
 vi.mock("@/lib/database", () => {
