@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestPackCommandGroupsFormatJSMessagesAndDropsDescriptions(t *testing.T) {
+func TestPackCommandStripsDescriptionsByDefault(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "messages.json")
 	writePackTestFile(t, inputPath, `{
@@ -35,7 +35,52 @@ func TestPackCommandGroupsFormatJSMessagesAndDropsDescriptions(t *testing.T) {
 		t.Fatalf("execute pack command: %v", err)
 	}
 
-	got := decodePackTestOutput(t, out.Bytes())
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"src.components.app-header.cta": {
+			DefaultMessage: "Create project",
+		},
+		"src.components.app-header.title": {
+			DefaultMessage: "Dashboard",
+		},
+		"src.components.hero.title": {
+			DefaultMessage: "Dashboard",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
+
+	if strings.Contains(out.String(), "description") {
+		t.Fatalf("pack output should omit description metadata: %s", out.String())
+	}
+}
+
+func TestPackCommandGroupsByValue(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Main dashboard heading"
+  },
+  "src.components.hero.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Hero heading"
+  },
+  "src.components.app-header.cta": {
+    "defaultMessage": "Create project"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--group-by-value"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackGroupedOutput(t, out.Bytes())
 	want := map[string][]string{
 		"Create project": {"src.components.app-header.cta"},
 		"Dashboard": {
@@ -43,10 +88,10 @@ func TestPackCommandGroupsFormatJSMessagesAndDropsDescriptions(t *testing.T) {
 			"src.components.hero.title",
 		},
 	}
-	assertPackOutput(t, got, want)
+	assertPackGroupedOutput(t, got, want)
 
 	if strings.Contains(out.String(), "description") || strings.Contains(out.String(), "defaultMessage") {
-		t.Fatalf("pack output should only contain translation values and id arrays: %s", out.String())
+		t.Fatalf("grouped pack output should only contain translation values and id arrays: %s", out.String())
 	}
 }
 
@@ -76,20 +121,109 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
 	cmd := newPackCmd()
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
-	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--group-by-value"})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute pack command: %v", err)
 	}
 
-	got := decodePackTestOutput(t, out.Bytes())
+	got := decodePackGroupedOutput(t, out.Bytes())
 	want := map[string][]string{
 		"Create project":    {"cta"},
 		"Dashboard":         {"title"},
 		"Save button label": {"my-button.label"},
 		"Save settings":     {"button.label"},
 	}
-	assertPackOutput(t, got, want)
+	assertPackGroupedOutput(t, got, want)
+}
+
+func TestPackCommandStripsPrefixIDInDefaultCatalog(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.button.label": {
+    "defaultMessage": "Save settings"
+  },
+  "src.components.app-header.my-button.label": {
+    "defaultMessage": "Save button label"
+  },
+  "src.components.app-header.cta": {
+    "defaultMessage": "Create project"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"button.label": {
+			DefaultMessage: "Save settings",
+		},
+		"cta": {
+			DefaultMessage: "Create project",
+		},
+		"my-button.label": {
+			DefaultMessage: "Save button label",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
+}
+
+func TestPackCommandStripsPrefixIDAtFilenameBoundaryInDefaultCatalog(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	writePackTestFile(t, filepath.Join(dir, "src", "components", "AppHeader.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function AppHeader() {
+  return <FormattedMessage id="title" defaultMessage="Dashboard" />;
+}
+`)
+	writePackTestFile(t, filepath.Join(dir, "src", "foo.tsx"), `
+import { FormattedMessage } from "react-intl";
+
+export function Foo() {
+  return <FormattedMessage id="bar.baz" defaultMessage="Ambiguous" />;
+}
+`)
+
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.foo.bar.baz": {
+    "defaultMessage": "Ambiguous"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"bar.baz": {
+			DefaultMessage: "Ambiguous",
+		},
+		"title": {
+			DefaultMessage: "Dashboard",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
 }
 
 func TestPackCommandStripsPrefixIDAtFilenameBoundary(t *testing.T) {
@@ -149,20 +283,67 @@ export function Bar() {
 	cmd := newPackCmd()
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
-	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--group-by-value"})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute pack command: %v", err)
 	}
 
-	got := decodePackTestOutput(t, out.Bytes())
+	got := decodePackGroupedOutput(t, out.Bytes())
 	want := map[string][]string{
 		"Ambiguous":     {"bar.baz"},
 		"Dashboard":     {"title"},
 		"Save settings": {"button.label"},
 		"Start trial":   {"button.label"},
 	}
-	assertPackOutput(t, got, want)
+	assertPackGroupedOutput(t, got, want)
+}
+
+func TestPackCommandStripsPrefixIDInPlainJSONFlatOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.button.label": "Save settings",
+  "src.components.app-header.cta": "Create project"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackFlatOutput(t, out.Bytes())
+	want := map[string]string{
+		"button.label": "Save settings",
+		"cta":          "Create project",
+	}
+	assertPackFlatOutput(t, got, want)
+}
+
+func TestPackCommandRejectsPrefixIDCollisionsInPlainJSONFlatOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to fail on prefix-id collision")
+	}
+	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
 }
 
 func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
@@ -186,11 +367,78 @@ func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
 		t.Fatalf("execute pack command: %v", err)
 	}
 
-	got := decodePackTestOutput(t, out.Bytes())
+	got := decodePackFlatOutput(t, out.Bytes())
+	want := map[string]string{
+		"home.title": "Dashboard",
+		"nav.title":  "Dashboard",
+	}
+	assertPackFlatOutput(t, got, want)
+}
+
+func TestPackCommandGroupsPlainJSONTranslationsByValue(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "home": {
+    "title": "Dashboard"
+  },
+  "nav": {
+    "title": "Dashboard"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--group-by-value"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackGroupedOutput(t, out.Bytes())
 	want := map[string][]string{
 		"Dashboard": {"home.title", "nav.title"},
 	}
-	assertPackOutput(t, got, want)
+	assertPackGroupedOutput(t, got, want)
+}
+
+func TestPackCommandWritesOutFile(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "home.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "nav.title": {
+    "defaultMessage": "Dashboard"
+  }
+}`)
+
+	outPath := filepath.Join(dir, "packed.json")
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--out-file", outPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected out-file mode to keep stdout empty, got %q", out.String())
+	}
+
+	content, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read pack output file: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, content)
+	want := map[string]extractCatalogMessage{
+		"home.title": {DefaultMessage: "Dashboard"},
+		"nav.title":  {DefaultMessage: "Dashboard"},
+	}
+	assertPackCatalogOutput(t, got, want)
 }
 
 func TestRootHelpIncludesPackCommand(t *testing.T) {
@@ -220,18 +468,74 @@ func writePackTestFile(t *testing.T, path, content string) {
 	}
 }
 
-func decodePackTestOutput(t *testing.T, content []byte) map[string][]string {
+func decodePackCatalogOutput(t *testing.T, content []byte) map[string]extractCatalogMessage {
 	t.Helper()
 
-	var out map[string][]string
+	var out map[string]extractCatalogMessage
 	if err := json.Unmarshal(content, &out); err != nil {
-		t.Fatalf("decode pack output: %v\noutput=%s", err, string(content))
+		t.Fatalf("decode pack catalog output: %v\noutput=%s", err, string(content))
 	}
 
 	return out
 }
 
-func assertPackOutput(t *testing.T, got, want map[string][]string) {
+func decodePackFlatOutput(t *testing.T, content []byte) map[string]string {
+	t.Helper()
+
+	var out map[string]string
+	if err := json.Unmarshal(content, &out); err != nil {
+		t.Fatalf("decode pack flat output: %v\noutput=%s", err, string(content))
+	}
+
+	return out
+}
+
+func decodePackGroupedOutput(t *testing.T, content []byte) map[string][]string {
+	t.Helper()
+
+	var out map[string][]string
+	if err := json.Unmarshal(content, &out); err != nil {
+		t.Fatalf("decode pack grouped output: %v\noutput=%s", err, string(content))
+	}
+
+	return out
+}
+
+func assertPackCatalogOutput(t *testing.T, got, want map[string]extractCatalogMessage) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("packed catalog count = %d, want %d; output=%#v", len(got), len(want), got)
+	}
+	for id, wantMessage := range want {
+		gotMessage, ok := got[id]
+		if !ok {
+			t.Fatalf("missing id %q in output=%#v", id, got)
+		}
+		if gotMessage != wantMessage {
+			t.Fatalf("id %q message = %#v, want %#v", id, gotMessage, wantMessage)
+		}
+	}
+}
+
+func assertPackFlatOutput(t *testing.T, got, want map[string]string) {
+	t.Helper()
+
+	if len(got) != len(want) {
+		t.Fatalf("packed flat count = %d, want %d; output=%#v", len(got), len(want), got)
+	}
+	for id, wantValue := range want {
+		gotValue, ok := got[id]
+		if !ok {
+			t.Fatalf("missing id %q in output=%#v", id, got)
+		}
+		if gotValue != wantValue {
+			t.Fatalf("id %q value = %q, want %q", id, gotValue, wantValue)
+		}
+	}
+}
+
+func assertPackGroupedOutput(t *testing.T, got, want map[string][]string) {
 	t.Helper()
 
 	if len(got) != len(want) {
