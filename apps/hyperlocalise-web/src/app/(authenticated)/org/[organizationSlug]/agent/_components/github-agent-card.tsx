@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GitBranchIcon, GithubIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -14,6 +14,14 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
 import { TypographyP } from "@/components/ui/typography";
+
+import {
+  isGithubConnectedCallback,
+  resolveGithubConnectErrorCode,
+  shouldHandleGithubConnectedSuccess,
+  shouldShowGithubConnectErrorToast,
+  stripGithubConnectCallbackParamsFromUrl,
+} from "./github-connect-callback-params";
 
 const api = createApiClient();
 
@@ -215,37 +223,37 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
     refetch: refetchInstallation,
   } = useGitHubInstallation(organizationSlug);
 
-  const handledGithubConnectedRef = useRef(false);
-  const handledGithubErrorRef = useRef(false);
+  const [connectErrorCode, setConnectErrorCode] = useState<string | null>(null);
 
   useEffect(() => {
-    const errorCode = searchParams.get("error");
-    if (!errorCode || handledGithubErrorRef.current) {
+    const errorCode = resolveGithubConnectErrorCode(searchParams);
+    if (!errorCode) {
       return;
     }
 
-    handledGithubErrorRef.current = true;
+    setConnectErrorCode(errorCode);
+    stripGithubConnectCallbackParamsFromUrl();
 
-    const url = new URL(window.location.href);
-    url.searchParams.delete("error");
-    window.history.replaceState(null, "", url.toString());
+    if (!shouldShowGithubConnectErrorToast(organizationSlug, errorCode)) {
+      return;
+    }
 
     const message =
       GITHUB_CONNECT_ERROR_MESSAGES[errorCode] ??
       "GitHub App connection failed. Try connecting again.";
     toast.error(message);
-  }, [searchParams]);
+  }, [organizationSlug, searchParams]);
 
   useEffect(() => {
-    if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
+    if (!isGithubConnectedCallback(searchParams)) {
       return;
     }
 
-    handledGithubConnectedRef.current = true;
+    stripGithubConnectCallbackParamsFromUrl();
 
-    const url = new URL(window.location.href);
-    url.searchParams.delete("github_connected");
-    window.history.replaceState(null, "", url.toString());
+    if (!shouldHandleGithubConnectedSuccess(organizationSlug)) {
+      return;
+    }
 
     void (async () => {
       await refetchInstallation();
@@ -253,6 +261,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
         queryKey: ["github-installation-repositories", organizationSlug],
       });
       toast.success("GitHub App connected");
+      setConnectErrorCode(null);
     })();
   }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
   const { data: repositories = [], isLoading: isLoadingRepositories } = useGitHubRepositories(
@@ -290,6 +299,7 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
   }, [query, repositories]);
 
   const handleConnect = useCallback(async () => {
+    setConnectErrorCode(null);
     const { data: url } = await getInstallUrl();
     if (url) {
       window.location.href = url;
@@ -297,6 +307,11 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
       toast.error("Failed to generate GitHub install URL");
     }
   }, [getInstallUrl]);
+
+  const connectErrorMessage = connectErrorCode
+    ? (GITHUB_CONNECT_ERROR_MESSAGES[connectErrorCode] ??
+      "GitHub App connection failed. Try connecting again.")
+    : null;
 
   const toggleRepository = useCallback(
     (repositoryId: string) => {
@@ -356,6 +371,11 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
       </CardHeader>
       <Separator className="bg-foreground/8" />
       <CardContent className="px-5 py-5 lg:px-6">
+        {connectErrorMessage ? (
+          <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3">
+            <TypographyP className="text-sm text-red-300">{connectErrorMessage}</TypographyP>
+          </div>
+        ) : null}
         {isLoading ? (
           <Skeleton className="h-10 bg-foreground/5" />
         ) : isError ? (
