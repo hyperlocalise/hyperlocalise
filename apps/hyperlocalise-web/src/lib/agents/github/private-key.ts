@@ -50,17 +50,34 @@ export function assertGitHubAppPrivateKeyParsable(privateKey: string): void {
   }
 }
 
-export function isGitHubAppPrivateKeyDecoderError(error: unknown): boolean {
+function githubApiErrorText(error: unknown): string {
   if (!(error instanceof Error)) {
-    return false;
+    return String(error).toLowerCase();
   }
 
-  const message = error.message.toLowerCase();
+  const parts = [error.message];
+  if ("response" in error && error.response && typeof error.response === "object") {
+    const response = error.response as { data?: unknown };
+    if (response.data && typeof response.data === "object" && response.data !== null) {
+      const data = response.data as { message?: string };
+      if (typeof data.message === "string") {
+        parts.push(data.message);
+      }
+    }
+  }
+
+  return parts.join(" ").toLowerCase();
+}
+
+/** Local PEM/OpenSSL failures and GitHub JWT auth rejections for app credentials. */
+export function isGitHubAppPrivateKeyDecoderError(error: unknown): boolean {
+  const message = githubApiErrorText(error);
   return (
     message.includes("decoder routines") ||
     message.includes("no start line") ||
     message.includes("bad decrypt") ||
     message.includes("error:1e08010c") ||
-    message.includes("invalid github app private key pem format")
+    message.includes("invalid github app private key pem format") ||
+    message.includes("json web token could not be decoded")
   );
 }

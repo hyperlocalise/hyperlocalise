@@ -332,6 +332,28 @@ describe("GitHubCallbackPage", () => {
     expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
 
+  it("redirects when GitHub rejects app JWT credentials", async () => {
+    const { slug, state } = await createCallbackState({ role: "admin" });
+    getGitHubAppMock.mockReturnValueOnce({
+      octokit: {
+        rest: {
+          apps: {
+            getInstallation: vi.fn(async () => {
+              throw new Error(
+                "A JSON web token could not be decoded - https://docs.github.com/rest",
+              );
+            }),
+          },
+        },
+      },
+    });
+
+    await expect(runCallback(state)).rejects.toThrow(
+      `redirect:/org/${slug}/agent?error=github_app_private_key_invalid`,
+    );
+    expect(syncInstallationRepositoriesMock).not.toHaveBeenCalled();
+  });
+
   it("rejects missing GitHub app configuration before consuming state", async () => {
     envOverrides.GITHUB_APP_ID = undefined;
     const { nonce, state } = await createCallbackState({ role: "admin" });

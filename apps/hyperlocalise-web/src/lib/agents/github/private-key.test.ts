@@ -78,6 +78,25 @@ describe("isGitHubAppPrivateKeyDecoderError", () => {
     ).toBe(true);
   });
 
+  it("detects GitHub JWT decode failures from app authentication", () => {
+    expect(
+      isGitHubAppPrivateKeyDecoderError(
+        new Error("A JSON web token could not be decoded - https://docs.github.com/rest"),
+      ),
+    ).toBe(true);
+  });
+
+  it("detects JWT decode failures nested in GitHub API response payloads", () => {
+    const error = new Error("Bad credentials") as Error & {
+      response: { data: { message: string } };
+    };
+    error.response = {
+      data: { message: "A JSON web token could not be decoded" },
+    };
+
+    expect(isGitHubAppPrivateKeyDecoderError(error)).toBe(true);
+  });
+
   it("ignores unrelated errors", () => {
     expect(isGitHubAppPrivateKeyDecoderError(new Error("Not Found"))).toBe(false);
   });
