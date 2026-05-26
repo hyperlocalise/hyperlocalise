@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { openaiMock, stepCountIsMock, toolLoopAgentMock, buildToolsMock } = vi.hoisted(() => ({
+const { openaiMock, stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
   openaiMock: vi.fn(() => "mock-model"),
   stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
-  buildToolsMock: vi.fn(() => ({ listProjects: { description: "mock tool" } })),
 }));
 
 vi.mock("@ai-sdk/openai", () => ({
@@ -29,10 +28,6 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-vi.mock("@/lib/agent-runtime/tools/registry", () => ({
-  buildTools: buildToolsMock,
-}));
-
 vi.mock("@/lib/database", () => ({
   db: {},
   schema: {
@@ -45,17 +40,22 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
+vi.mock("@/lib/agent-runtime/loops/orchestrator", () => ({
+  createConversationOrchestratorAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
+    runtime,
+    onFinish,
+  })),
+}));
+
 import {
-  buildHyperlocaliseAgentIntentInstructions,
   buildHyperlocaliseAgentInstructions,
-  classifyHyperlocaliseAgentIntent,
   createConversationToolLoopAgent,
   createHyperlocaliseAgent,
-  getActiveToolsForHyperlocaliseAgentIntent,
   hyperlocaliseAgentStepLimit,
   replaceLastUserMessage,
   toModelMessages,
 } from "./hyperlocalise-agent";
+import { createConversationOrchestratorAgent } from "./orchestrator";
 
 describe("hyperlocalise agent core", () => {
   beforeEach(() => {
@@ -69,80 +69,8 @@ describe("hyperlocalise agent core", () => {
     });
 
     expect(instructions).toContain("Slack-friendly");
-    expect(instructions).toContain("bold labels");
-    expect(instructions).toContain("relevant emoji");
-    expect(instructions).toContain("This conversation is attached to project proj_123.");
-    expect(instructions).toContain("createTranslationJob");
-  });
-
-  it("builds missing-project guidance for web conversations", () => {
-    const instructions = buildHyperlocaliseAgentInstructions({
-      surface: "web",
-      projectId: null,
-    });
-
-    expect(instructions).toContain("focused on translating uploaded files");
-  });
-
-  it("classifies localized-string PR lookups as repository pull request intent", () => {
-    const intent = classifyHyperlocaliseAgentIntent({
-      surface: "slack",
-      text: "Can you find the context for 'Email agent' in https://github.com/acme/web/pull/42",
-    });
-
-    expect(intent).toEqual({
-      kind: "repository",
-      githubContextRequirement: "pull_request",
-    });
-    expect(getActiveToolsForHyperlocaliseAgentIntent(intent)).toContain("searchRepoFiles");
-    expect(buildHyperlocaliseAgentIntentInstructions(intent)).toContain(
-      "Intent: repository context lookup.",
-    );
-  });
-
-  it("does not classify normal translation requests as repository intent", () => {
-    expect(
-      classifyHyperlocaliseAgentIntent({
-        surface: "slack",
-        text: "Translate this JSON file to French",
-      }),
-    ).toEqual({ kind: "translation" });
-  });
-
-  it("does not treat standalone run plus hl as repository intent", () => {
-    expect(
-      classifyHyperlocaliseAgentIntent({
-        surface: "slack",
-        text: "Run a translation job in HL",
-      }),
-    ).toEqual({ kind: "translation" });
-  });
-
-  it("keeps explicit repo run requests out of repository context lookup", () => {
-    expect(
-      classifyHyperlocaliseAgentIntent({
-        surface: "slack",
-        text: "Run the repo checks",
-      }),
-    ).toEqual({ kind: "general" });
-  });
-
-  it("classifies GitHub copy lookup requests as repository repository intent", () => {
-    expect(
-      classifyHyperlocaliseAgentIntent({
-        surface: "slack",
-        text: "Can you help me find the context of the text 'Email agent' in our github",
-      }),
-    ).toEqual({ kind: "repository", githubContextRequirement: "repository" });
-  });
-
-  it("classifies owner/repository-only Slack replies as repository repository intent", () => {
-    expect(
-      classifyHyperlocaliseAgentIntent({
-        surface: "slack",
-        text: "hyperlocalise/hyperlocalise",
-      }),
-    ).toEqual({ kind: "repository", githubContextRequirement: "repository" });
+    expect(instructions).toContain("translate uploaded files");
+    expect(instructions).toContain("find localized copy");
   });
 
   it("converts interaction rows to model messages", () => {
@@ -194,28 +122,52 @@ describe("hyperlocalise agent core", () => {
     );
   });
 
-  it("builds request-scoped tools for conversational agents", () => {
-    const toolContext = {
-      conversationId: "conv_123",
-      organizationId: "org_123",
-      localUserId: "user_123",
-      membershipRole: "admin" as const,
-      projectId: null,
-      db: {} as never,
-    };
-
+  it("creates an orchestrator runtime for translation mode", () => {
     createConversationToolLoopAgent({
       surface: "web",
-      toolContext,
+      toolContext: {
+        conversationId: "conv_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "admin",
+        projectId: null,
+        db: {} as never,
+      },
       hasFileAttachments: true,
+      userMessageText: "Translate this file to French",
     });
 
-    expect(buildToolsMock).toHaveBeenCalledWith(toolContext);
-    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        tools: { listProjects: { description: "mock tool" } },
-        activeTools: ["createTranslationJob"],
+        surface: "web",
+        suggestedMode: "translation",
+        hasFileAttachments: true,
       }),
+      undefined,
+    );
+  });
+
+  it("creates an orchestrator runtime for repository mode", () => {
+    createConversationToolLoopAgent({
+      surface: "slack",
+      toolContext: {
+        conversationId: "conv_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "admin",
+        projectId: null,
+        db: {} as never,
+        sandboxId: "sbx_123",
+      },
+      userMessageText: "Find 'Email agent' in our GitHub repo",
+    });
+
+    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        suggestedMode: "repository",
+        toolContext: expect.objectContaining({ sandboxId: "sbx_123" }),
+      }),
+      undefined,
     );
   });
 });

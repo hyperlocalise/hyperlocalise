@@ -14,7 +14,12 @@ import {
   getHyperlocaliseAgentModel,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { buildRepositoryGitHubContextInstructions } from "@/lib/agents/repository-context";
+import {
+  filterToolSetByNames,
+  repositoryWorkflowToolNames,
+} from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db } from "@/lib/database";
 
@@ -61,6 +66,7 @@ export async function repositoryAgentWorkflow(
 
     const toolContext: ToolContext = {
       conversationId: task.id,
+      agentSession: { todos: [] },
       workflowRunId,
       organizationId: task.organizationId,
       localUserId,
@@ -74,7 +80,10 @@ export async function repositoryAgentWorkflow(
       githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
     };
 
-    const tools = buildTools(toolContext) as ToolSet;
+    ensureAgentSession(toolContext);
+    const tools = filterToolSetByNames(buildTools(toolContext), [
+      ...repositoryWorkflowToolNames,
+    ]) as ToolSet;
     const agent = new ToolLoopAgent({
       model: getHyperlocaliseAgentModel(),
       tools,
@@ -90,7 +99,7 @@ export async function repositoryAgentWorkflow(
             ? buildRepositoryGitHubContextInstructions(task.githubContext)
             : null,
           sandboxId
-            ? "Use searchRepoFiles to locate literal strings in the repository. Use readRepoFile to inspect surrounding lines and explain where copy appears."
+            ? "Use glob to find candidate files, grep to locate literal strings, and read to inspect surrounding lines. Use todoWrite for multi-step investigations."
             : null,
           readOnlyRepoInstructions,
         ]

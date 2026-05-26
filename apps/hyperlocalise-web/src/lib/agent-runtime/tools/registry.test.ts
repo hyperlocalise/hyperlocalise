@@ -20,15 +20,21 @@ describe("agent-runtime tool registry", () => {
     const tools = buildTools(createToolContext());
 
     expect(tools.createTranslationJob).toBeDefined();
-    expect(tools.searchRepoFiles).toBeUndefined();
+    expect(tools.grep).toBeUndefined();
+    expect(tools.todoWrite).toBeDefined();
     expect(tools.createSyncJob).toBeUndefined();
-    expect(tools.createAssetManagementJob).toBeUndefined();
   });
 
-  it("does not expose repo write tools in read-only mode", () => {
+  it("exposes workspace tools alongside translation tools when a sandbox is available", () => {
     const tools = buildTools(createToolContext({ sandboxId: "sbx_1", workMode: "read_only" }));
 
-    expect(tools.searchRepoFiles).toBeDefined();
+    expect(tools.createTranslationJob).toBeDefined();
+    expect(tools.grep).toBeDefined();
+    expect(tools.read).toBeDefined();
+    expect(tools.glob).toBeDefined();
+    expect(tools.detectRepoConfig).toBeDefined();
+    expect(tools.bash).toBeDefined();
+    expect(tools.todoWrite).toBeDefined();
     expect(tools.applyHyperlocaliseFixes).toBeUndefined();
   });
 });

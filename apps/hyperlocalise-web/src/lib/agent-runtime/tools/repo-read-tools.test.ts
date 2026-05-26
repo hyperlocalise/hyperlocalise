@@ -2,20 +2,18 @@ import { describe, expect, it } from "vite-plus/test";
 import { Bash, defineCommand, InMemoryFs } from "just-bash";
 import { z } from "zod";
 
+import { createGrepTool, createReadTool } from "./workspace";
+
 import {
   buildHlArgs,
   createDetectRepoConfigTool,
-  createReadRepoFileTool,
   createRepoGitStateTool,
   createRunHyperlocaliseCliTool,
-  createSearchRepoFilesTool,
   redact,
   type I18NConfigSummary,
-  type RepoSearchMatch,
-  type RepoToolContext,
 } from "./repo-read-tools";
 
-function createTestContext(files: Record<string, string> = {}): RepoToolContext {
+function createTestContext(files: Record<string, string> = {}): { bash: Bash } {
   const fs = new InMemoryFs(files);
   const bash = new Bash({ fs, cwd: "/home/user/project" });
   return { bash };
@@ -48,45 +46,37 @@ describe("redact", () => {
   });
 });
 
-describe("createReadRepoFileTool", () => {
-  it("reads a file", async () => {
-    const ctx = createTestContext({ "/home/user/project/readme.md": "hello world" });
-    const t = createReadRepoFileTool(ctx);
-    expect(t.execute).toBeDefined();
-    const result = await t.execute!({ path: "readme.md" }, toolCallInfo);
-    expect(result).toMatchObject({ success: true, content: "hello world", truncated: false });
+describe("createReadTool", () => {
+  it("reads a file with line numbers", async () => {
+    const ctx = createTestContext({ "/home/user/project/readme.md": "hello\nworld" });
+    const t = createReadTool(ctx);
+    const result = await t.execute!({ filePath: "readme.md" }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, path: "readme.md", totalLines: 2 });
+    expect((result as { content: string }).content).toContain("1: hello");
+    expect((result as { content: string }).content).toContain("2: world");
   });
 
   it("returns error for missing file", async () => {
     const ctx = createTestContext();
-    const t = createReadRepoFileTool(ctx);
-    const result = await t.execute!({ path: "missing.txt" }, toolCallInfo);
+    const t = createReadTool(ctx);
+    const result = await t.execute!({ filePath: "missing.txt" }, toolCallInfo);
     expect(result).toMatchObject({ success: false });
     expect((result as { error: string }).error).toBeTruthy();
   });
 
-  it("truncates when max bytes exceeded", async () => {
-    const content = "a".repeat(1000);
-    const ctx = createTestContext({ "/home/user/project/big.txt": content });
-    const t = createReadRepoFileTool(ctx);
-    const result = await t.execute!({ path: "big.txt", maxBytes: 100 }, toolCallInfo);
-    expect(result).toMatchObject({ success: true, truncated: true });
-    expect((result as { content: string }).content.length).toBeLessThan(200);
-  });
-
-  it("reads with offset", async () => {
-    const ctx = createTestContext({ "/home/user/project/readme.md": "hello world" });
-    const t = createReadRepoFileTool(ctx);
-    const result = await t.execute!({ path: "readme.md", offset: 6 }, toolCallInfo);
-    expect(result).toMatchObject({ success: true, content: "world" });
+  it("reads with line offset", async () => {
+    const ctx = createTestContext({ "/home/user/project/readme.md": "line1\nline2\nline3" });
+    const t = createReadTool(ctx);
+    const result = await t.execute!({ filePath: "readme.md", offset: 2, limit: 1 }, toolCallInfo);
+    expect((result as { content: string }).content).toContain("2: line2");
   });
 
   it("redacts secrets in file content", async () => {
     const ctx = createTestContext({
       "/home/user/project/.env": "OPENAI_API_KEY=sk-12345\ntoken=abcdefghijklmnopqrstuvwxyz12345",
     });
-    const t = createReadRepoFileTool(ctx);
-    const result = await t.execute!({ path: ".env" }, toolCallInfo);
+    const t = createReadTool(ctx);
+    const result = await t.execute!({ filePath: ".env" }, toolCallInfo);
     const content = (result as { content: string }).content;
     expect(content).toContain("OPENAI_API_KEY=***REDACTED***");
     expect(content).toContain("token=***REDACTED***");
@@ -94,15 +84,15 @@ describe("createReadRepoFileTool", () => {
   });
 });
 
-describe("createSearchRepoFilesTool", () => {
+describe("createGrepTool", () => {
   it("finds matches", async () => {
     const ctx = createTestContext({
       "/home/user/project/a.go": "package main\n\nfunc main() {}\n",
       "/home/user/project/b.go": "package test\n\nfunc helper() {}\n",
     });
-    const t = createSearchRepoFilesTool(ctx);
+    const t = createGrepTool(ctx);
     const result = await t.execute!({ pattern: "func main" }, toolCallInfo);
-    expect(result).toMatchObject({ success: true, truncated: false });
+    expect(result).toMatchObject({ success: true });
     expect((result as { matches: Array<{ path: string }> }).matches).toHaveLength(1);
     expect((result as { matches: Array<{ path: string }> }).matches[0].path).toBe("a.go");
   });
@@ -111,7 +101,7 @@ describe("createSearchRepoFilesTool", () => {
     const ctx = createTestContext({
       "/home/user/project/a.go": "package main\n",
     });
-    const t = createSearchRepoFilesTool(ctx);
+    const t = createGrepTool(ctx);
     const result = await t.execute!({ pattern: "zzzzz" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, matches: [] });
   });
@@ -121,7 +111,7 @@ describe("createSearchRepoFilesTool", () => {
       "/home/user/project/a.go": "func a() {}\n",
       "/home/user/project/b.go": "func b() {}\n",
     });
-    const t = createSearchRepoFilesTool(ctx);
+    const t = createGrepTool(ctx);
     const result = await t.execute!({ pattern: "func", maxResults: 1 }, toolCallInfo);
     expect(result).toMatchObject({ success: true, truncated: true });
     expect((result as { matches: unknown[] }).matches).toHaveLength(1);
@@ -131,12 +121,12 @@ describe("createSearchRepoFilesTool", () => {
     const ctx = createTestContext({
       "/home/user/project/config.yaml": "api_token: abcdefghijklmnopqrstuvwxyz12345\n",
     });
-    const t = createSearchRepoFilesTool(ctx);
+    const t = createGrepTool(ctx);
     const result = await t.execute!({ pattern: "api_token" }, toolCallInfo);
-    const matches = (result as { matches: RepoSearchMatch[] }).matches;
+    const matches = (result as { matches: Array<{ content: string }> }).matches;
     expect(matches).toHaveLength(1);
-    expect(matches[0].line).toBe("api_token: ***REDACTED***");
-    expect(matches[0].line).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
+    expect(matches[0].content).toBe("api_token: ***REDACTED***");
+    expect(matches[0].content).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
   });
 });
 

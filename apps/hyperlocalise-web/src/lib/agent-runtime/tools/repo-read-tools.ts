@@ -1,12 +1,12 @@
 import { tool } from "ai";
-import { Bash } from "just-bash";
+import type { Bash } from "just-bash";
 import { z } from "zod";
 
-// Default limits before truncation.
-const DEFAULT_MAX_FILE_BYTES = 500_000;
-const DEFAULT_MAX_OUTPUT_BYTES = 100_000;
+import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
 
-// Dangerous flags that are never allowed.
+export type { RepoToolContext } from "./workspace";
+export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES } from "./workspace";
+
 const DANGEROUS_FLAGS = new Set([
   "token",
   "api-token",
@@ -16,227 +16,6 @@ const DANGEROUS_FLAGS = new Set([
   "password",
   "private-key",
 ]);
-
-// Sensitive environment variable prefixes to redact.
-const SENSITIVE_ENV_PREFIXES = [
-  "HYPERLOCALISE_API_TOKEN=",
-  "HYPERLOCALISE_PROJECT_KEY=",
-  "CROWDIN_API_TOKEN=",
-  "CROWDIN_PROJECT_KEY=",
-  "LOKALISE_API_TOKEN=",
-  "PHRASE_API_TOKEN=",
-  "SMARTLING_API_TOKEN=",
-  "SMARTLING_API_SECRET=",
-  "OPENAI_API_KEY=",
-  "ANTHROPIC_API_KEY=",
-  "AZURE_OPENAI_API_KEY=",
-  "GEMINI_API_KEY=",
-  "MISTRAL_API_KEY=",
-  "GROQ_API_KEY=",
-  "AWS_ACCESS_KEY_ID=",
-  "AWS_SECRET_ACCESS_KEY=",
-];
-
-// Regex for token-like key=value patterns.
-const TOKEN_PATTERN =
-  /(\b[a-z0-9_]*(?:token|key|secret|password|api_key|apikey|auth)[a-z0-9_]*\s*[:=]\s*)([a-zA-Z0-9_\-./+]{20,})/gi;
-
-// Regex for Bearer tokens.
-const BEARER_PATTERN = /(Bearer\s+)([a-zA-Z0-9_\-./+]{20,})/gi;
-
-export type RepoToolContext = {
-  bash: Bash;
-};
-
-/**
- * Redact sensitive values from tool output.
- */
-export function redact(input: string): string {
-  if (!input) return "";
-
-  let out = input;
-
-  // Redact known environment variable lines.
-  for (const prefix of SENSITIVE_ENV_PREFIXES) {
-    out = out
-      .split("\n")
-      .map((line) => (line.startsWith(prefix) ? prefix + "***REDACTED***" : line))
-      .join("\n");
-  }
-
-  // Redact token-like key=value patterns.
-  out = out.replace(TOKEN_PATTERN, "$1***REDACTED***");
-
-  // Redact Bearer tokens.
-  out = out.replace(BEARER_PATTERN, "$1***REDACTED***");
-
-  return out;
-}
-
-/**
- * Truncate a string to maxBytes length.
- */
-function truncate(input: string, maxBytes: number): { text: string; truncated: boolean } {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(input);
-  if (bytes.length <= maxBytes) {
-    return { text: input, truncated: false };
-  }
-  const truncatedBytes = bytes.slice(0, maxBytes);
-  // Decode safely, replacing invalid sequences.
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(truncatedBytes);
-  return { text, truncated: true };
-}
-
-/**
- * Read a file inside the repo sandbox.
- */
-export function createReadRepoFileTool(ctx: RepoToolContext) {
-  return tool({
-    description:
-      "Read the contents of a file in the repository. Returns an error for binary files or paths outside the repo.",
-    inputSchema: z.object({
-      path: z.string().describe("Relative path to the file within the repo."),
-      maxBytes: z.number().optional().describe("Maximum bytes to read. Defaults to 500KB."),
-      offset: z.number().optional().describe("Byte offset to start reading from."),
-    }),
-    execute: async ({ path, maxBytes, offset }) => {
-      const limit = maxBytes ?? DEFAULT_MAX_FILE_BYTES;
-      const off = offset ?? 0;
-
-      try {
-        const raw = await ctx.bash.readFile(path);
-        const encoder = new TextEncoder();
-        const allBytes = encoder.encode(raw);
-
-        if (off >= allBytes.length) {
-          return {
-            success: true,
-            content: "",
-            byteLen: allBytes.length,
-            truncated: false,
-          };
-        }
-
-        const slice = allBytes.slice(off, off + limit);
-        const content = new TextDecoder("utf-8", { fatal: false }).decode(slice);
-        const { text, truncated } = truncate(redact(content), limit);
-
-        return {
-          success: true,
-          content: text,
-          byteLen: allBytes.length,
-          truncated: truncated || off + limit < allBytes.length,
-        };
-      } catch (err) {
-        return {
-          success: false,
-          error: redact(String(err)),
-        };
-      }
-    },
-  });
-}
-
-export type RepoSearchMatch = {
-  path: string;
-  lineNum: number;
-  line: string;
-};
-
-/**
- * Search for a literal text pattern in text files under the given path.
- */
-export function createSearchRepoFilesTool(ctx: RepoToolContext) {
-  return tool({
-    description:
-      "Search for a literal text pattern in text files within the repository. Skips binary files, node_modules, and .git.",
-    inputSchema: z.object({
-      pattern: z.string().describe("The literal text pattern to search for."),
-      path: z.string().optional().describe("Directory to search in. Defaults to repo root."),
-      maxResults: z
-        .number()
-        .optional()
-        .describe("Maximum number of matches to return. Defaults to 100."),
-    }),
-    execute: async ({ pattern, path, maxResults }) => {
-      const searchPath = path || ".";
-      const limit = maxResults ?? 100;
-
-      const result = await ctx.bash.exec("grep", {
-        args: [
-          "-r",
-          "-n",
-          "-F",
-          "--exclude-dir=node_modules",
-          "--exclude-dir=.git",
-          "--include=*.go",
-          "--include=*.ts",
-          "--include=*.tsx",
-          "--include=*.js",
-          "--include=*.jsx",
-          "--include=*.json",
-          "--include=*.jsonc",
-          "--include=*.yaml",
-          "--include=*.yml",
-          "--include=*.md",
-          "--include=*.mdx",
-          "--include=*.html",
-          "--include=*.css",
-          "--include=*.po",
-          "--include=*.xml",
-          "--include=*.csv",
-          "--include=*.vue",
-          "--include=*.svelte",
-          pattern,
-          searchPath,
-        ],
-      });
-
-      if (result.exitCode >= 2) {
-        return {
-          success: false,
-          error: redact(result.stderr || "Search command failed"),
-          matches: [],
-          truncated: false,
-        };
-      }
-      if (result.exitCode !== 0 && result.stdout === "") {
-        return {
-          success: true,
-          matches: [],
-          truncated: false,
-        };
-      }
-
-      const lines = result.stdout.split("\n").filter(Boolean);
-      const matches: RepoSearchMatch[] = [];
-      let truncated = false;
-
-      for (const line of lines.slice(0, limit)) {
-        const colonIdx = line.indexOf(":");
-        const colonIdx2 = line.indexOf(":", colonIdx + 1);
-        if (colonIdx === -1 || colonIdx2 === -1) continue;
-
-        const filePath = line.slice(0, colonIdx);
-        const lineNum = Number(line.slice(colonIdx + 1, colonIdx2));
-        const content = redact(line.slice(colonIdx2 + 1));
-
-        matches.push({ path: filePath, lineNum, line: content });
-      }
-
-      if (lines.length > limit) {
-        truncated = true;
-      }
-
-      return {
-        success: true,
-        matches,
-        truncated,
-      };
-    },
-  });
-}
 
 export type I18NConfigSummary = {
   sourceLocale: string;
@@ -263,7 +42,6 @@ export function createDetectRepoConfigTool(ctx: RepoToolContext) {
         const filePath = checkPath === "." ? name : `${checkPath}/${name}`;
         const result = await ctx.bash.exec("test", { args: ["-f", filePath] });
         if (result.exitCode === 0) {
-          // Try to parse the config file.
           const summary = await extractConfigSummary(ctx.bash, filePath, name);
 
           return {
@@ -284,7 +62,7 @@ export function createDetectRepoConfigTool(ctx: RepoToolContext) {
 }
 
 async function extractConfigSummary(
-  bash: Bash,
+  bash: Pick<Bash, "exec">,
   filePath: string,
   filename: string,
 ): Promise<I18NConfigSummary | undefined> {
@@ -296,7 +74,6 @@ async function extractConfigSummary(
       if (result.exitCode !== 0) return undefined;
       jsonText = normalizeJsonc(result.stdout);
     } else {
-      // Convert YAML to JSON using yq.
       const result = await bash.exec("yq", { args: ["-o", "json", ".", filePath] });
       if (result.exitCode !== 0) return undefined;
       jsonText = result.stdout;
@@ -426,9 +203,6 @@ export type RepoGitStateOutput = {
   changedFiles: string[];
 };
 
-/**
- * Inspect the git state of the repository.
- */
 export function createRepoGitStateTool(ctx: RepoToolContext) {
   return tool({
     description:
@@ -498,21 +272,7 @@ export type RunHyperlocaliseCliOutput = {
 };
 
 const HL_SUBCOMMANDS = ["check", "status", "extract"] as const;
-// TODO: Re-enable provider/TMS CLI actions when the repository agent grows a
-// dedicated context-ingestion flow. For now the repo agent only searches local
-// files for context around already-localized strings/messages.
-// const TMS_SUBCOMMANDS = ["crowdin", "lokalise", "phrase"] as const;
-// const READ_ONLY_TMS_ACTIONS = new Set([
-//   "config",
-//   "check",
-//   "translations:download",
-//   "glossary:download",
-//   "tm:download",
-// ]);
 
-/**
- * Run an allowlisted hyperlocalise CLI subcommand with structured inputs.
- */
 export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   return tool({
     description:
@@ -643,8 +403,6 @@ function extractReport(subcommand: string, stdout: string): unknown {
 function assertReadOnlyAction(subcommand: string, args?: string[]): void {
   if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
 
-  // TODO: Wire TMS/provider actions here after the next agent scope lands.
-
   throw new Error(
     `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
   );
@@ -660,7 +418,7 @@ function summarizeArtifactHint(
     return {
       kind: "file",
       path: outputFlag.slice("--output=".length),
-      note: "Use readRepoFile or readStoredFile to inspect this artifact.",
+      note: "Use read to inspect this artifact.",
     };
   }
 

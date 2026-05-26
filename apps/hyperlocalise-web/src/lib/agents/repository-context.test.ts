@@ -367,6 +367,33 @@ describe("resolveSlackRepositoryGitHubContext", () => {
       followUp: expect.stringContaining("include the repository name"),
     });
   });
+
+  it("asks for repo context when multiple repositories are enabled without a fallback", async () => {
+    const resolution = await resolveSlackRepositoryGitHubContext({
+      organizationId: "org_123",
+      text: 'What is the context of "Email agent"?',
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "acme/web",
+            defaultBranch: "main",
+          },
+          {
+            installationId: 67890,
+            repositoryFullName: "acme/api",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "unresolved",
+      followUp: expect.stringContaining("include the repository name"),
+    });
+  });
 });
 
 describe("resolveGitHubRepositoryGitHubContext", () => {

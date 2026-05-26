@@ -7,6 +7,23 @@ import type {
   RepositoryAgentWorkMode,
 } from "@/lib/agents/repository-agent-task";
 
+export type AgentTodoItem = {
+  id: string;
+  content: string;
+  status: "todo" | "in-progress" | "completed";
+};
+
+export type AgentSessionState = {
+  todos: AgentTodoItem[];
+};
+
+export function ensureAgentSession(ctx: { agentSession?: AgentSessionState }): AgentSessionState {
+  if (!ctx.agentSession) {
+    ctx.agentSession = { todos: [] };
+  }
+  return ctx.agentSession;
+}
+
 /**
  * Request-scoped context passed to every chat tool.
  *
@@ -28,4 +45,6 @@ export type ToolContext = {
   actor?: RepositoryAgentActor;
   sandboxId?: string | null;
   githubContext?: RepositoryAgentGitHubContext | null;
+  /** Mutable per-run session state (todos, etc.). */
+  agentSession?: AgentSessionState;
 };

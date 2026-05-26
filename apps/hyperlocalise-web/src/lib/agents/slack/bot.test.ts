@@ -437,14 +437,12 @@ describe("handleNewConversation", () => {
       senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(true);
-    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
-    expect(agentGenerateMock).not.toHaveBeenCalled();
-    expect(posts).toEqual([
-      expect.objectContaining({ markdown: expect.stringContaining("Attach") }),
-    ]);
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
+    expect(agentGenerateMock).toHaveBeenCalled();
+    expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
-  it("does not resolve GitHub context for ordinary translation chat", async () => {
+  it("attempts GitHub context discovery for ordinary chat without attachments", async () => {
     const { thread } = createThread();
     const message = createMessage({ text: "Translate this to French" });
 
@@ -466,13 +464,18 @@ describe("handleNewConversation", () => {
 
     await handleNewConversation(thread, message);
 
-    expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Translate this to French",
+        requirePullRequest: false,
+      }),
+    );
   });
 
-  it("resolves GitHub context for repository Slack intents", async () => {
+  it("exposes repository read tools when GitHub context resolves", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({
-      text: "Can you find context for 'Email agent' in https://github.com/acme/web/pull/42",
+      text: "Can you find context for 'Email agent'?",
       raw: { team_id: "T123", channel: "C123" },
     });
 
@@ -507,11 +510,11 @@ describe("handleNewConversation", () => {
 
     expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith({
       organizationId: "org-123",
-      text: "Can you find context for 'Email agent' in https://github.com/acme/web/pull/42",
+      text: "Can you find context for 'Email agent'?",
       connectorConfig: { repository: { github: { defaultRepositoryFullName: "acme/web" } } },
       projectId: "project-123",
       channelId: "C123",
-      requirePullRequest: true,
+      requirePullRequest: false,
     });
     expect(enqueueRepositoryTaskMock).not.toHaveBeenCalled();
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
@@ -610,17 +613,18 @@ describe("handleNewConversation", () => {
 
     await handleNewConversation(thread, message);
 
-    expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Please fix https://github.com/acme/web/pull/42",
+        requirePullRequest: true,
+      }),
+    );
     expect(enqueueRepositoryTaskMock).not.toHaveBeenCalled();
-    expect(posts).toEqual([
-      {
-        markdown:
-          "I can translate supported localization files. Attach a file with a target language to create a translation job. Supported file types include JSON, CSV, XLIFF, and other localization formats.",
-      },
-    ]);
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
+    expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
-  it("asks a Slack follow-up when repository context is unresolved", async () => {
+  it("asks a Slack follow-up when requested repository context is unresolved", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({
       text: "Can you find context for 'Email agent' in PR #42",
@@ -655,6 +659,43 @@ describe("handleNewConversation", () => {
 
     expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
     expect(posts).toEqual([{ markdown: "Please send a GitHub pull request URL." }]);
+  });
+
+  it("asks for repo context when a string context lookup is ambiguous", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: 'What is the context of "Email agent"?',
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "unresolved",
+      context: {
+        resolved: false,
+        reason: "No GitHub repository context was configured for this Slack request.",
+      },
+      followUp: "Please include owner/repository or a pull request URL.",
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([{ markdown: "Please include owner/repository or a pull request URL." }]);
   });
 
   it("resumes existing interaction and posts AI response", async () => {

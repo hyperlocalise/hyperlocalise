@@ -124,8 +124,9 @@ repositoryAgentWorkflow
         +-- build read-only ToolContext
         |
         +-- buildTools
-        |       +-- searchRepoFiles
-        |       +-- readRepoFile
+        |       +-- grep
+        |       +-- read
+        |       +-- glob
         |       `-- detectRepoConfig
         |
         +-- ToolLoopAgent.generate
