@@ -10,6 +10,6 @@ export const SUBAGENT_NO_QUESTIONS_RULES = [
 ].join("\n");
 
 export const SUBAGENT_RESPONSE_FORMAT = [
-  "End with a concise summary the parent agent can relay to the user.",
+  "Return a concise final message the parent agent can relay to the user.",
   "Include concrete results (file paths, job IDs, locales) when tools return them.",
 ].join("\n");

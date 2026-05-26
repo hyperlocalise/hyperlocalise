@@ -80,8 +80,9 @@ export function buildConversationModeInstructions(
 ): string | null {
   if (mode === "repository") {
     return [
-      "Mode: find repository context (read-only).",
+      "Mode: find localization context in a connected repository (read-only).",
       "Use grep with the user's quoted string as the pattern, then read for surrounding lines when needed.",
+      "Return context for translation decisions: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
       "Strings in owner/repository format (for example acme/web) are GitHub repositories, not Hyperlocalise projects.",
       "Do not infer repository paths, pull requests, or file contents without tool results.",
       "If repository search tools are unavailable, say the GitHub context is missing.",

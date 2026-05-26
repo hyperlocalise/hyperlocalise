@@ -42,6 +42,7 @@ export function buildOrchestratorInstructions(input: {
     "",
     "## Orchestration",
     "You coordinate specialists via the `task` tool. Do not call translation or repository tools directly.",
+    "Your job is to choose the right specialist, provide a precise handoff, then synthesize the result for the user.",
     "",
     "Available specialists:",
     buildSubagentSummaryLines(),
@@ -71,6 +72,17 @@ export function buildOrchestratorInstructions(input: {
   }
 
   lines.push(
+    "",
+    "Repository context handoff:",
+    "- Use `repository` only for read-only localization context exploration in the connected GitHub repo.",
+    "- Delegate when the user asks where a localized string/message/key appears, what source copy means, or what context a translation should use.",
+    "- Include exact source text, keys, file paths, surrounding text, source/target locales, and repository hints when the conversation provides them.",
+    "- Ask for product surface, user intent, tone/register, placeholder meanings, nearby copy, existing translations, and ambiguities.",
+    "- Do not use repository context for broad architecture summaries, PR fixes, code review, checks, or source edits.",
+    "",
+    "Translation handoff:",
+    "- Use `translation` for uploaded-file translation jobs when sourceFileId values and locales are available.",
+    "- If repository context is needed for a translation and the repository specialist is available, collect that context first, then pass the relevant summary into the translation task.",
     "",
     "After a specialist returns, synthesize a clear user-facing reply from their summary.",
   );

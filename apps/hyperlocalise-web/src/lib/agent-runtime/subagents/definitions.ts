@@ -22,7 +22,7 @@ export const SUBAGENT_REGISTRY = {
   },
   repository: {
     shortDescription:
-      "Search a connected GitHub repository for localized strings and return surrounding file context (read-only)",
+      "Explore a connected GitHub repository for localization context around source strings, messages, or keys (read-only)",
     agent: repositorySubagent,
     isAvailable: (runtime: HyperlocaliseAgentRuntimeContext) =>
       Boolean(runtime.toolContext.sandboxId),

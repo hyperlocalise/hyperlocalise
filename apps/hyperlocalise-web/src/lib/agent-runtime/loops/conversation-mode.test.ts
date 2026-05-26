@@ -11,7 +11,8 @@ describe("conversation mode", () => {
     expect(
       classifyConversationMode("Can you find the context of the text 'Email agent' in our github"),
     ).toBe("repository");
-    expect(buildConversationModeInstructions("repository")).toContain("find repository context");
+    expect(buildConversationModeInstructions("repository")).toContain("find localization context");
+    expect(buildConversationModeInstructions("repository")).toContain("placeholder");
   });
 
   it("classifies translation requests as translation mode", () => {

@@ -70,7 +70,7 @@ describe("hyperlocalise agent core", () => {
 
     expect(instructions).toContain("Slack-friendly");
     expect(instructions).toContain("translate uploaded files");
-    expect(instructions).toContain("find localized copy");
+    expect(instructions).toContain("find localization context");
   });
 
   it("converts interaction rows to model messages", () => {
