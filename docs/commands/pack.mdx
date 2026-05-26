@@ -6,8 +6,10 @@ description: "Prepare translation JSON by stripping metadata or grouping duplica
 ## Usage
 
 ```bash
-hyperlocalise pack <translation-file> [flags]
+hyperlocalise pack [translation-file] [flags]
 ```
+
+Pass a single translation file, or omit it to discover react-intl locale JSON files from your i18n config.
 
 ## Behavior
 
@@ -43,11 +45,21 @@ Use `--group-by-value` to invert the shape and group ids that share the same tra
 }
 ```
 
+### Automatic discovery
+
+When no translation file is passed, `pack` loads your i18n config (`i18n.yml` or `i18n.jsonc` in the working directory by default) and packs every react-intl source locale file referenced by bucket `from` paths. Only JSON files in strict FormatJS shape (`defaultMessage` per id) are packed; plain nested JSON and missing files are skipped.
+
+Batch discovery writes one output file per input, using `--out-suffix` (default `.packed`). For example, `lang/en-US.json` becomes `lang/en-US.packed.json`. Progress is printed to stderr.
+
 ## Flags
 
 - `--group-by-value`: group ids by shared translation string instead of preserving id-keyed output.
-- `--out-file <path>`: write the packed JSON to a file instead of stdout.
+- `--out-file <path>`: write the packed JSON to a file instead of stdout. Use with a single input file only.
 - `--prefix-id`: strip `extract --prefix-id` filename prefixes from ids. For example, `src.components.app-header.title` becomes `title`.
+- `--config <path>`: optional path to i18n config when discovering locale files (default: `i18n.yml` or `i18n.jsonc`).
+- `--group <name>`: filter config discovery by group name.
+- `--bucket <name>`: filter config discovery by bucket name.
+- `--out-suffix <suffix>`: output filename suffix when packing multiple files (default `.packed`).
 
 ## Examples
 
@@ -55,6 +67,18 @@ Strip descriptions from an extracted catalog:
 
 ```bash
 hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+```
+
+Pack every react-intl source locale file from the default i18n config:
+
+```bash
+hyperlocalise pack
+```
+
+Use a custom config path:
+
+```bash
+hyperlocalise pack --config path/to/i18n.yml
 ```
 
 Group duplicate strings for review:

@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -439,6 +440,108 @@ func TestPackCommandWritesOutFile(t *testing.T) {
 		"nav.title":  {DefaultMessage: "Dashboard"},
 	}
 	assertPackCatalogOutput(t, got, want)
+}
+
+func TestPackCommandDiscoversLocaleFilesFromConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	langDir := filepath.Join(dir, "lang")
+	writePackTestFile(t, filepath.Join(langDir, "en-US.json"), `{
+  "home.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Home heading"
+  }
+}`)
+	writePackTestFile(t, filepath.Join(langDir, "plain.json"), `{
+  "home.title": "Dashboard"
+}`)
+
+	writePackConfig(t, filepath.Join(dir, "i18n.jsonc"), filepath.Join(langDir, "{{source}}.json"))
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs(nil)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected batch pack to keep stdout empty, got %q", out.String())
+	}
+	if !strings.Contains(errOut.String(), "lang/en-US.packed.json") {
+		t.Fatalf("expected status output for packed file, got %q", errOut.String())
+	}
+
+	content, err := os.ReadFile(filepath.Join(langDir, "en-US.packed.json"))
+	if err != nil {
+		t.Fatalf("read packed output file: %v", err)
+	}
+	got := decodePackCatalogOutput(t, content)
+	want := map[string]extractCatalogMessage{
+		"home.title": {DefaultMessage: "Dashboard"},
+	}
+	assertPackCatalogOutput(t, got, want)
+
+	if _, err := os.Stat(filepath.Join(langDir, "plain.packed.json")); err == nil {
+		t.Fatalf("expected plain JSON file to be skipped during auto discovery")
+	}
+}
+
+func TestPackCommandRejectsFileWithConfigFlag(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "home.title": {
+    "defaultMessage": "Dashboard"
+  }
+}`)
+
+	cmd := newPackCmd()
+	cmd.SetArgs([]string{inputPath, "--config", filepath.Join(dir, "i18n.jsonc")})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to reject file plus --config")
+	}
+	if !strings.Contains(err.Error(), "cannot combine") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func writePackConfig(t *testing.T, configPath, sourcePattern string) {
+	t.Helper()
+
+	content := fmt.Sprintf(`{
+  "locales": {
+    "source": "en-US",
+    "targets": ["es-ES"]
+  },
+  "buckets": {
+    "ui": {
+      "files": [
+        {
+          "from": %q,
+          "to": "dist/{{target}}.json"
+        }
+      ]
+    }
+  },
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "openai",
+        "model": "gpt-5.2"
+      }
+    }
+  }
+}`, sourcePattern)
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write pack config: %v", err)
+	}
 }
 
 func TestRootHelpIncludesPackCommand(t *testing.T) {
