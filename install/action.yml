@@ -31,6 +31,6 @@ runs:
         set -euo pipefail
         install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
         mkdir -p "${install_dir}"
-        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
+        bash "${GITHUB_ACTION_PATH}/../tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
         echo "install-dir=${install_dir}" >>"${GITHUB_OUTPUT}"
