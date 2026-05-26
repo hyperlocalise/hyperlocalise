@@ -25,12 +25,12 @@ runs:
       id: install
       shell: bash
       env:
-        VERSION: ${{ inputs.version }}
-        INSTALL_DIR_INPUT: ${{ inputs.install-dir }}
+        VERSION: ${{ inputs.hyperlocalise-version }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
-        install_dir="${INSTALL_DIR_INPUT:-${RUNNER_TEMP}/hyperlocalise-bin}"
+        install_dir="${RUNNER_TEMP}/hyperlocalise-bin"
         mkdir -p "${install_dir}"
-        curl -fsSL https://hyperlocalise.com/install | VERSION="${VERSION}" INSTALL_DIR="${install_dir}" bash
+        bash "${GITHUB_ACTION_PATH}/tools/github-action/hyperlocalise-ci/scripts/install-hyperlocalise.sh" "${VERSION}" "${install_dir}"
         echo "${install_dir}" >>"${GITHUB_PATH}"
         echo "install-dir=${install_dir}" >>"${GITHUB_OUTPUT}"
