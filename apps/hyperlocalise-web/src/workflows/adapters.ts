@@ -7,7 +7,7 @@ import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
-import { repoTmsAgentWorkflow } from "./repo-tms-agent";
+import { repositoryAgentWorkflow } from "./repository-agent";
 import { translationJobWorkflow } from "./translation-job";
 import type {
   EmailAgentTaskQueue,
@@ -17,7 +17,7 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  RepoTmsAgentTaskQueue,
+  RepositoryAgentTaskQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
@@ -58,10 +58,10 @@ export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
   };
 }
 
-export function createRepoTmsAgentTaskQueue(): RepoTmsAgentTaskQueue {
+export function createRepositoryAgentTaskQueue(): RepositoryAgentTaskQueue {
   return {
     async enqueue(task) {
-      const run = await start(repoTmsAgentWorkflow, [task]);
+      const run = await start(repositoryAgentWorkflow, [task]);
       return { ids: [run.runId] };
     },
   };

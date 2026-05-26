@@ -7,7 +7,7 @@ import {
   buildTranslationAttachmentRequiredMessage,
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
-} from "@/lib/agents/hyperlocalise-agent";
+} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { db, schema } from "@/lib/database";
 import { addInteractionMessage, interactionHasTranslationAttachments } from "@/lib/interactions";
 
@@ -70,6 +70,7 @@ export function createChatStreamRoutes() {
           projectId: conversation.projectId ?? null,
           db,
         },
+        hasFileAttachments: hasTranslationAttachments,
         onFinish: async ({ text }) => {
           try {
             await addInteractionMessage({

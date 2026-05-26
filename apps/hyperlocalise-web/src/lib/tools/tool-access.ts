@@ -13,7 +13,7 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 
-import type { ToolContext } from "./types";
+import type { ToolContext } from "@/lib/tools/types";
 
 function organizationRecord(ctx: ToolContext) {
   return {

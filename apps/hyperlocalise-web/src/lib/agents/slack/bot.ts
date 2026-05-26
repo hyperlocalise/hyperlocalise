@@ -1,30 +1,25 @@
 import { Chat, emoji } from "chat";
-import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
 import {
-  buildHyperlocaliseAgentIntentInstructions,
-  classifyHyperlocaliseAgentIntent,
-  buildTranslationAttachmentRequiredMessage,
+  classifyConversationMode,
+  conversationModeRequiresPullRequestContext,
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
   replaceLastUserMessage,
-} from "@/lib/agents/hyperlocalise-agent";
+} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import {
-  buildRepoTmsGitHubContextInstructions,
-  resolveSlackRepoTmsGitHubContext,
-} from "@/lib/agents/repo-tms-context";
-import { createRepoTmsSandbox, stopRepoTmsSandbox } from "@/lib/agents/repo-tms-sandbox";
+  buildRepositoryGitHubContextInstructions,
+  resolveSlackRepositoryGitHubContext,
+} from "@/lib/agents/repository-context";
 import {
-  buildRepoTmsTaskIdempotencyKey,
-  type RepoTmsAgentGitHubContext,
-  type RepoTmsAgentTask,
-} from "@/lib/agents/repo-tms-task";
-import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
-import { hasCapability } from "@/api/auth/policy";
+  createRepositorySandbox,
+  stopRepositorySandbox,
+} from "@/lib/agent-runtime/workspaces/repository-sandbox";
+import { type RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
-import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger } from "@/lib/log";
@@ -102,11 +97,10 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
-async function buildSlackRepoTmsInstructions(
-  interactionId: string,
+function buildSlackRepositoryInstructions(
+  messages: Awaited<ReturnType<typeof loadInteractionModelMessages>>,
   latestText: string,
-): Promise<string> {
-  const messages = await loadInteractionModelMessages(interactionId);
+): string {
   const userLines = messages.flatMap((chatMessage) => {
     if (chatMessage.role !== "user" || typeof chatMessage.content !== "string") {
       return [];
@@ -136,6 +130,62 @@ function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): str
 
   const raw = message.raw as { channel?: string } | undefined;
   return raw?.channel ?? null;
+}
+
+const githubReferencePattern =
+  /https?:\/\/(?:www\.)?github\.com\/[^\s]+|\b(?:github|repo|repository)\b|(?:^|[\s(<])[\w.-]+\/[\w.-]+(?=[\s>|)\].,;:!?]|$)/i;
+const repositoryContextQuestionPattern =
+  /\b(?:context|search|find(?:ing)?|locate|lookup|where|usage|surrounding|nearby)\b/i;
+const repositoryStringSubjectPattern =
+  /\b(?:locali[sz]ed|translated|message|messages|string|strings|copy|text)\b/i;
+
+function shouldAttemptRepositoryContextResolution(input: {
+  text: string;
+  hasStoredFileAttachments: boolean;
+  mode: ReturnType<typeof classifyConversationMode>;
+}) {
+  if (input.mode === "repository") {
+    return true;
+  }
+
+  if (githubReferencePattern.test(input.text)) {
+    return true;
+  }
+
+  if (
+    repositoryContextQuestionPattern.test(input.text) &&
+    (repositoryStringSubjectPattern.test(input.text) || /["'`][^"'`]+["'`]/.test(input.text))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function shouldRequireRepositoryContextClarification(text: string) {
+  return (
+    githubReferencePattern.test(text) ||
+    (repositoryContextQuestionPattern.test(text) &&
+      (repositoryStringSubjectPattern.test(text) || /["'`][^"'`]+["'`]/.test(text)))
+  );
+}
+
+function buildMissingRepositoryContextInstructions(followUp: string) {
+  return [
+    "Repository context is not available for this request.",
+    `If the user asks where a string, message, copy, or localized text appears in code, ask this follow-up exactly: ${followUp}`,
+    "Do not invent a GitHub repository, pull request, branch, installation ID, path, or file contents.",
+  ].join("\n");
+}
+
+function buildResolvedRepositoryContextInstructions(context: RepositoryAgentGitHubContext) {
+  return [
+    buildRepositoryGitHubContextInstructions(context),
+    "Repository read tools are available for this request.",
+    "Use grep with the user's literal string or copy, then read for surrounding lines when needed.",
+    "Only explain where strings, messages, or copy appear and what nearby code implies.",
+    "Do not modify files, upload sources, commit, push, or create jobs from repository context alone.",
+  ].join("\n");
 }
 
 async function removeEyesReaction(thread: Thread<SlackBotState>, message: Message): Promise<void> {
@@ -193,141 +243,6 @@ async function processSlackMessage(
       return;
     }
 
-    const intent = classifyHyperlocaliseAgentIntent({ surface: "slack", text: message.text });
-    const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
-    const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
-    let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
-    const repoTmsInstructions =
-      intent.kind === "repo_tms"
-        ? await buildSlackRepoTmsInstructions(interactionId, message.text)
-        : message.text;
-
-    if (intent.kind === "repo_tms") {
-      const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
-        organizationId,
-        text: message.text,
-        connectorConfig,
-        projectId,
-        channelId: getSlackChannelId(thread, message),
-        requirePullRequest: intent.githubContextRequirement === "pull_request",
-      });
-
-      if (githubContextResolution.status === "unresolved") {
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post({ markdown: githubContextResolution.followUp });
-        return;
-      }
-
-      if (githubContextResolution.status === "resolved") {
-        resolvedRepoTmsContext = githubContextResolution.context;
-      }
-    }
-
-    if (intent.kind === "repo_tms") {
-      const repoTmsWorkMode = hasCapability(membership.role, "integrations:write")
-        ? "write"
-        : "read_only";
-
-      if (repoTmsWorkMode === "write") {
-        const repoTmsTask: RepoTmsAgentTask = {
-          id: randomUUID(),
-          source: "slack",
-          sourceThreadId: thread.id,
-          actor: {
-            sourceUserId: message.author.userId,
-            userId: membership.localUserId,
-            email: slackUser?.email,
-            displayName: message.author.fullName ?? message.author.userName,
-            role: membership.role,
-          },
-          organizationId,
-          projectId,
-          workMode: repoTmsWorkMode,
-          instructions: repoTmsInstructions,
-          githubContext: resolvedRepoTmsContext,
-          createdAt: new Date().toISOString(),
-          idempotencyKey: buildRepoTmsTaskIdempotencyKey({
-            source: "slack",
-            sourceThreadId: thread.id,
-            organizationId,
-            instructions: repoTmsInstructions,
-            githubContext: resolvedRepoTmsContext,
-          }),
-        };
-        await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
-
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post({
-          markdown:
-            "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
-        });
-        return;
-      }
-
-      if (!resolvedRepoTmsContext) {
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post({
-          markdown: buildTranslationAttachmentRequiredMessage("slack"),
-        });
-        return;
-      }
-
-      let sandboxId: string | null = null;
-      try {
-        sandboxId = await createRepoTmsSandbox(resolvedRepoTmsContext);
-        const chatMessages = replaceLastUserMessage(
-          await loadInteractionModelMessages(interactionId),
-          repoTmsInstructions,
-        );
-        const agent = createConversationToolLoopAgent({
-          surface: "slack",
-          toolContext: {
-            conversationId: interactionId,
-            organizationId,
-            localUserId: membership.localUserId,
-            membershipRole: membership.role,
-            projectId,
-            db,
-            sandboxId,
-            githubContext: resolvedRepoTmsContext,
-            workMode: "read_only",
-            repoTmsSource: "slack",
-            actor: {
-              sourceUserId: message.author.userId,
-              userId: membership.localUserId,
-              role: membership.role,
-            },
-          },
-          additionalInstructions: [
-            buildSlackFileTranslationInstructions(),
-            intentInstructions,
-            buildRepoTmsGitHubContextInstructions(resolvedRepoTmsContext),
-            "Use searchRepoFiles with the user's quoted string, then readRepoFile for surrounding lines.",
-          ]
-            .filter((instruction): instruction is string => instruction !== null)
-            .join("\n\n"),
-        });
-        const result = await agent.generate({ messages: chatMessages });
-
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        const replyText = result.text.trim();
-        if (replyText) {
-          await thread.post({ markdown: replyText });
-        }
-      } finally {
-        if (sandboxId) {
-          await stopRepoTmsSandbox(sandboxId).catch(() => {
-            // Best-effort cleanup
-          });
-        }
-      }
-      return;
-    }
-
     const imageAttachments = getSlackImageAttachments(message);
     const fileAttachments = getSlackTranslationFileAttachments(message);
     const unsupportedFileAttachments = getUnsupportedSlackFileAttachments(message);
@@ -368,9 +283,53 @@ async function processSlackMessage(
       }
     }
 
+    const conversationMode = classifyConversationMode(message.text);
+
+    let resolvedRepositoryContext: RepositoryAgentGitHubContext | null = null;
+    let repositoryContextInstructions: string | null = null;
+    if (
+      shouldAttemptRepositoryContextResolution({
+        text: message.text,
+        hasStoredFileAttachments: storedFileAttachments.length > 0,
+        mode: conversationMode,
+      })
+    ) {
+      const githubContextResolution = await resolveSlackRepositoryGitHubContext({
+        organizationId,
+        text: message.text,
+        connectorConfig,
+        projectId,
+        channelId: getSlackChannelId(thread, message),
+        requirePullRequest: conversationModeRequiresPullRequestContext(
+          message.text,
+          conversationMode,
+        ),
+      });
+
+      if (githubContextResolution.status === "resolved") {
+        resolvedRepositoryContext = githubContextResolution.context;
+        repositoryContextInstructions =
+          buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
+      } else if (githubContextResolution.status === "unresolved") {
+        repositoryContextInstructions = buildMissingRepositoryContextInstructions(
+          githubContextResolution.followUp,
+        );
+
+        if (shouldRequireRepositoryContextClarification(message.text)) {
+          await removeEyesReaction(thread, message);
+          wrapThreadPost(thread, interactionId);
+          await thread.post({ markdown: githubContextResolution.followUp });
+          return;
+        }
+      }
+    }
+
+    const loadedMessages = await loadInteractionModelMessages(interactionId);
     const chatMessages = replaceLastUserMessage(
-      await loadInteractionModelMessages(interactionId),
-      persistedUserText,
+      loadedMessages,
+      resolvedRepositoryContext
+        ? buildSlackRepositoryInstructions(loadedMessages, persistedUserText)
+        : persistedUserText,
     );
 
     if (imageAttachments.length > 0) {
@@ -399,37 +358,58 @@ async function processSlackMessage(
       }
     }
 
-    if (storedFileAttachments.length === 0) {
+    let sandboxId: string | null = null;
+    try {
+      if (resolvedRepositoryContext) {
+        sandboxId = await createRepositorySandbox(resolvedRepositoryContext);
+      }
+
+      const agent = createConversationToolLoopAgent({
+        surface: "slack",
+        userMessageText: persistedUserText,
+        toolContext: {
+          conversationId: interactionId,
+          organizationId,
+          localUserId: membership.localUserId,
+          membershipRole: membership.role,
+          projectId,
+          db,
+          ...(sandboxId
+            ? {
+                sandboxId,
+                githubContext: resolvedRepositoryContext,
+                workMode: "read_only" as const,
+                repositorySource: "slack" as const,
+                actor: {
+                  sourceUserId: message.author.userId,
+                  userId: membership.localUserId,
+                  role: membership.role,
+                },
+              }
+            : {}),
+        },
+        hasFileAttachments: storedFileAttachments.length > 0,
+        additionalInstructions: [
+          buildSlackFileTranslationInstructions(),
+          repositoryContextInstructions,
+        ]
+          .filter((instruction): instruction is string => instruction !== null)
+          .join("\n\n"),
+      });
+      const result = await agent.generate({ messages: chatMessages });
+
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
-      await thread.post({
-        markdown: buildTranslationAttachmentRequiredMessage("slack"),
-      });
-      return;
-    }
-
-    const agent = createConversationToolLoopAgent({
-      surface: "slack",
-      toolContext: {
-        conversationId: interactionId,
-        organizationId,
-        localUserId: membership.localUserId,
-        membershipRole: membership.role,
-        projectId,
-        db,
-      },
-      hasFileAttachments: true,
-      additionalInstructions: additionalInstructions
-        .filter((instruction): instruction is string => instruction !== null)
-        .join("\n\n"),
-    });
-    const result = await agent.generate({ messages: chatMessages });
-
-    await removeEyesReaction(thread, message);
-    wrapThreadPost(thread, interactionId);
-    const replyText = result.text.trim();
-    if (replyText) {
-      await thread.post({ markdown: replyText });
+      const replyText = result.text.trim();
+      if (replyText) {
+        await thread.post({ markdown: replyText });
+      }
+    } finally {
+      if (sandboxId) {
+        await stopRepositorySandbox(sandboxId).catch(() => {
+          // Best-effort cleanup
+        });
+      }
     }
   } catch {
     await removeEyesReaction(thread, message);

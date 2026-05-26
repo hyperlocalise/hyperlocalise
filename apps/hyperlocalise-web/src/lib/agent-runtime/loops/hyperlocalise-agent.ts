@@ -1,0 +1,201 @@
+import { eq } from "drizzle-orm";
+import {
+  stepCountIs,
+  ToolLoopAgent,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolLoopAgentSettings,
+  type ToolSet,
+} from "ai";
+
+import { db, schema } from "@/lib/database";
+import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
+import { getHyperlocaliseAgentModel } from "./model";
+
+export { getHyperlocaliseAgentModel, hyperlocaliseAgentModelId } from "./model";
+import type { ToolContext } from "@/lib/tools/types";
+
+import { classifyConversationMode } from "./conversation-mode";
+import {
+  createConversationOrchestratorAgent,
+  type ConversationOrchestratorOnFinish,
+} from "./orchestrator";
+
+export type { HyperlocaliseConversationMode } from "./conversation-mode";
+export {
+  buildConversationModeInstructions,
+  classifyConversationMode,
+  conversationModeRequiresPullRequestContext,
+  isRepositoryConversationRequest,
+} from "./conversation-mode";
+
+export const hyperlocaliseAgentStepLimit = 5;
+export const hyperlocaliseAgentMaxOutputTokens = 4_000;
+
+export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
+
+type InteractionHistoryRow = {
+  senderType: "user" | "agent";
+  text: string;
+};
+
+type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
+  surface: HyperlocaliseAgentSurface;
+  projectId: string | null;
+  tools: TOOLS;
+  model?: LanguageModel;
+  additionalInstructions?: string;
+  activeTools?: ToolLoopAgentSettings<never, TOOLS>["activeTools"];
+  prepareStep?: ToolLoopAgentSettings<never, TOOLS>["prepareStep"];
+  toolChoice?: ToolLoopAgentSettings<never, TOOLS>["toolChoice"];
+  onFinish?: ToolLoopAgentSettings<never, TOOLS>["onFinish"];
+};
+
+type CreateConversationAgentInput = {
+  surface: HyperlocaliseAgentSurface;
+  toolContext: ToolContext;
+  additionalInstructions?: string;
+  onFinish?: ConversationOrchestratorOnFinish;
+};
+
+export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
+  const lines = [
+    "I can translate supported localization files or search your connected GitHub repository for localized copy.",
+    "Attach a file with a target language to create a translation job, or ask me to find text in a repo enabled under Agent → GitHub.",
+  ];
+
+  if (surface === "slack") {
+    lines.push("Supported file types include JSON, CSV, XLIFF, and other localization formats.");
+  }
+
+  return lines.join(" ");
+}
+
+export function buildHyperlocaliseAgentInstructions(input: {
+  surface: HyperlocaliseAgentSurface;
+  projectId: string | null;
+  additionalInstructions?: string;
+}) {
+  const lines = [
+    "You are Hyperlocalise, a localization assistant.",
+    "Route each request to the capability you have: translate uploaded files, or find localized copy in a connected GitHub repository.",
+    "Use only the tools you are given; do not guess file IDs, repository paths, or file contents.",
+  ];
+
+  if (input.surface === "slack") {
+    lines.push(
+      "Keep responses concise and Slack-friendly. Use short Markdown with bullets, bold labels, and a small number of relevant emoji when it improves readability.",
+    );
+  } else if (input.surface === "github") {
+    lines.push(
+      "Keep GitHub replies concise, concrete, and focused on the requested repository action.",
+    );
+  }
+
+  if (input.projectId) {
+    lines.push(
+      "",
+      "Project context:",
+      `- This conversation is attached to project ${input.projectId}.`,
+    );
+  }
+
+  lines.push(
+    "",
+    "Guidelines:",
+    "- Follow the mode-specific instructions when present.",
+    "- Be concise but thorough. Responses should be scannable.",
+    "- Always maintain a professional, helpful tone.",
+  );
+
+  if (input.additionalInstructions?.trim()) {
+    lines.push("", "Surface-specific instructions:", input.additionalInstructions.trim());
+  }
+
+  return lines.join("\n");
+}
+
+export function toModelMessages(rows: InteractionHistoryRow[]): ModelMessage[] {
+  return rows.map((row) => ({
+    role: row.senderType === "user" ? "user" : "assistant",
+    content: row.text,
+  }));
+}
+
+export function replaceLastUserMessage(messages: ModelMessage[], text: string): ModelMessage[] {
+  const nextMessages = [...messages];
+  const lastUserIndex = nextMessages.findLastIndex((message) => message.role === "user");
+
+  if (lastUserIndex >= 0) {
+    nextMessages[lastUserIndex] = { role: "user", content: text };
+    return nextMessages;
+  }
+
+  nextMessages.push({ role: "user", content: text });
+  return nextMessages;
+}
+
+export async function loadInteractionModelMessages(interactionId: string): Promise<ModelMessage[]> {
+  const messages = await db
+    .select({
+      senderType: schema.interactionMessages.senderType,
+      text: schema.interactionMessages.text,
+    })
+    .from(schema.interactionMessages)
+    .where(eq(schema.interactionMessages.interactionId, interactionId))
+    .orderBy(schema.interactionMessages.createdAt)
+    .limit(50);
+
+  return toModelMessages(messages);
+}
+
+export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
+  surface,
+  projectId,
+  tools,
+  model,
+  additionalInstructions,
+  activeTools,
+  prepareStep,
+  toolChoice,
+  onFinish,
+}: CreateHyperlocaliseAgentInput<TOOLS>) {
+  return new ToolLoopAgent({
+    model: model ?? getHyperlocaliseAgentModel(),
+    instructions: buildHyperlocaliseAgentInstructions({
+      surface,
+      projectId,
+      additionalInstructions,
+    }),
+    tools,
+    activeTools,
+    prepareStep,
+    toolChoice,
+    onFinish,
+    maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
+    stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
+  });
+}
+
+export function createConversationToolLoopAgent({
+  surface,
+  toolContext,
+  additionalInstructions,
+  onFinish,
+  hasFileAttachments = false,
+  userMessageText = "",
+}: Omit<CreateConversationAgentInput, "intent"> & {
+  hasFileAttachments?: boolean;
+  userMessageText?: string;
+}) {
+  const suggestedMode = classifyConversationMode(userMessageText);
+  const runtime: HyperlocaliseAgentRuntimeContext = {
+    surface,
+    toolContext,
+    suggestedMode,
+    hasFileAttachments,
+    additionalInstructions: additionalInstructions?.trim() || undefined,
+  };
+
+  return createConversationOrchestratorAgent(runtime, onFinish);
+}

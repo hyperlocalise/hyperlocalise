@@ -11,6 +11,7 @@ vi.mock("@/lib/env", () => ({
     RESEND_WEBHOOK_SECRET: "test-secret",
     RESEND_FROM_ADDRESS: "agent@example.com",
     RESEND_FROM_NAME: "Hyperlocalise",
+    OPENAI_API_KEY: "test-openai-api-key",
   },
 }));
 

@@ -8,18 +8,18 @@ const {
   createInteractionMock,
   findInteractionBySourceThreadIdMock,
   buildGitHubFixRequestInputMock,
-  buildGitHubRepoTmsRequestInputMock,
+  buildGitHubRepositoryRequestInputMock,
   claimGitHubAgentRequestMock,
   loadMessagesMock,
   markGitHubAgentRequestEnqueuedMock,
-  createRepoTmsAgentTaskQueueMock,
+  createRepositoryAgentTaskQueueMock,
   getInstallationOctokitMock,
   releaseGitHubAgentRequestClaimMock,
-  repoTmsQueueEnqueueMock,
+  repositoryQueueEnqueueMock,
   selectMock,
 } = vi.hoisted(() => {
   const agentGenerateMock = vi.fn();
-  const repoTmsQueueEnqueueMock = vi.fn();
+  const repositoryQueueEnqueueMock = vi.fn();
 
   return {
     addInteractionMessageMock: vi.fn(),
@@ -33,13 +33,13 @@ const {
       scopeType: "review_comment",
       scopeKey: JSON.stringify(event),
     })),
-    buildGitHubRepoTmsRequestInputMock: vi.fn((input: unknown) => ({
-      requestKind: "repo_tms",
+    buildGitHubRepositoryRequestInputMock: vi.fn((input: unknown) => ({
+      requestKind: "repository",
       githubInstallationId: "54321",
       repositoryFullName: "owner/repo",
       pullRequestNumber: 42,
       commentId: "123",
-      scopeType: "repo_tms",
+      scopeType: "repository",
       scopeKey: JSON.stringify(input),
     })),
     claimGitHubAgentRequestMock: vi.fn(),
@@ -47,8 +47,8 @@ const {
       generate: agentGenerateMock,
     })),
     createInteractionMock: vi.fn(),
-    createRepoTmsAgentTaskQueueMock: vi.fn(() => ({
-      enqueue: repoTmsQueueEnqueueMock,
+    createRepositoryAgentTaskQueueMock: vi.fn(() => ({
+      enqueue: repositoryQueueEnqueueMock,
     })),
     findInteractionBySourceThreadIdMock: vi.fn(),
     loadMessagesMock: vi.fn(async () => [{ role: "user", content: "@hyperlocalise fix" }]),
@@ -73,12 +73,12 @@ const {
       },
     })),
     releaseGitHubAgentRequestClaimMock: vi.fn(),
-    repoTmsQueueEnqueueMock,
+    repositoryQueueEnqueueMock,
     selectMock: vi.fn(),
   };
 });
 
-vi.mock("@/lib/agents/hyperlocalise-agent", () => {
+vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
   return {
     createHyperlocaliseAgent: createHyperlocaliseAgentMock,
     loadInteractionModelMessages: loadMessagesMock,
@@ -105,14 +105,14 @@ vi.mock("@/lib/interactions", () => ({
 
 vi.mock("@/lib/agents/github/request-idempotency", () => ({
   buildGitHubFixRequestInput: buildGitHubFixRequestInputMock,
-  buildGitHubRepoTmsRequestInput: buildGitHubRepoTmsRequestInputMock,
+  buildGitHubRepositoryRequestInput: buildGitHubRepositoryRequestInputMock,
   claimGitHubAgentRequest: claimGitHubAgentRequestMock,
   markGitHubAgentRequestEnqueued: markGitHubAgentRequestEnqueuedMock,
   releaseGitHubAgentRequestClaim: releaseGitHubAgentRequestClaimMock,
 }));
 
 vi.mock("@/workflows/adapters", () => ({
-  createRepoTmsAgentTaskQueue: createRepoTmsAgentTaskQueueMock,
+  createRepositoryAgentTaskQueue: createRepositoryAgentTaskQueueMock,
 }));
 
 vi.mock("@/lib/agents/github/app", () => ({
@@ -207,7 +207,7 @@ describe("GitHub command routing", () => {
       alreadyQueued: false,
       requestId: "request_123",
     });
-    repoTmsQueueEnqueueMock.mockResolvedValue({ ids: ["repo_tms_run_123"] });
+    repositoryQueueEnqueueMock.mockResolvedValue({ ids: ["repository_run_123"] });
     findInteractionBySourceThreadIdMock.mockResolvedValue(null);
     markGitHubAgentRequestEnqueuedMock.mockResolvedValue(undefined);
     createInteractionMock.mockResolvedValue({
@@ -236,7 +236,7 @@ describe("GitHub command routing", () => {
 
     expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
     expect(queue.enqueue).not.toHaveBeenCalled();
-    expect(createRepoTmsAgentTaskQueueMock).not.toHaveBeenCalled();
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
   });
 
@@ -306,7 +306,7 @@ describe("GitHub command routing", () => {
     ]);
   });
 
-  it("denies repo/TMS commands when collaborator permission lookup fails", async () => {
+  it("denies repository commands when collaborator permission lookup fails", async () => {
     const { posts, thread } = createThread();
     const queue = { enqueue: vi.fn() };
     getInstallationOctokitMock.mockResolvedValueOnce({
@@ -328,14 +328,14 @@ describe("GitHub command routing", () => {
       queue,
     });
 
-    expect(createRepoTmsAgentTaskQueueMock).not.toHaveBeenCalled();
-    expect(repoTmsQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
+    expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
       "I can only run `@hyperlocalise` commands for repository collaborators with write access.",
     ]);
   });
 
-  it("does not add the repo/TMS reaction when the workspace cannot be resolved", async () => {
+  it("does not add the repository reaction when the workspace cannot be resolved", async () => {
     const { addReactionMock, posts, thread } = createThread();
     const queue = { enqueue: vi.fn() };
     mockOrganizationLookup(null);
@@ -344,14 +344,14 @@ describe("GitHub command routing", () => {
       queue,
     });
 
-    expect(repoTmsQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
       "I could not resolve the Hyperlocalise workspace for this GitHub installation.",
     ]);
   });
 
-  it("reports repo/TMS claim failures before adding the reaction", async () => {
+  it("reports repository claim failures before adding the reaction", async () => {
     const { addReactionMock, posts, thread } = createThread();
     const queue = { enqueue: vi.fn() };
     claimGitHubAgentRequestMock.mockRejectedValueOnce(new Error("claimed"));
@@ -362,10 +362,10 @@ describe("GitHub command routing", () => {
       }),
     ).rejects.toThrow("claimed");
 
-    expect(repoTmsQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
-      "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+      "I could not queue this repository workflow right now. Please try again in a moment.",
     ]);
   });
 

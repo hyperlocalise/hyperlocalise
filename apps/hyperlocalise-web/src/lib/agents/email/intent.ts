@@ -1,7 +1,7 @@
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
-import { getHyperlocaliseAgentModel } from "@/lib/agents/hyperlocalise-agent";
+import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import type { EmailAgentIntentKind } from "./types";
 
 const emailRequestIntentSchema = z.object({

@@ -6,13 +6,13 @@ import type { Message, Thread } from "chat";
 import {
   createHyperlocaliseAgent,
   loadInteractionModelMessages,
-} from "@/lib/agents/hyperlocalise-agent";
+} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
-import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import {
-  buildRepoTmsGitHubContextInstructions,
-  resolveGitHubRepoTmsGitHubContext,
-} from "@/lib/agents/repo-tms-context";
+  buildRepositoryGitHubContextInstructions,
+  resolveGitHubRepositoryGitHubContext,
+} from "@/lib/agents/repository-context";
 import { env } from "@/lib/env";
 import {
   addInteractionMessage,
@@ -24,7 +24,7 @@ import { eq } from "drizzle-orm";
 import type {
   GitHubFixRequestedEventData,
   GitHubFixQueue,
-  RepoTmsAgentTaskQueue,
+  RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
 
 import { getGitHubAppPrivateKey } from "./app";
@@ -32,11 +32,11 @@ import { parseHyperlocaliseCommand } from "./commands";
 import { buildFixEvent } from "./events";
 import { requesterCanRunFix } from "./permissions";
 import { createGitHubFixTools } from "./tools";
-import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
-import { buildRepoTmsTaskIdempotencyKey } from "@/lib/agents/repo-tms-task";
+import { createRepositoryAgentTaskQueue } from "@/workflows/adapters";
+import { buildRepositoryTaskIdempotencyKey } from "@/lib/agents/repository-agent-task";
 import { randomUUID } from "node:crypto";
 import {
-  buildGitHubRepoTmsRequestInput,
+  buildGitHubRepositoryRequestInput,
   claimGitHubAgentRequest,
   markGitHubAgentRequestEnqueued,
   releaseGitHubAgentRequestClaim,
@@ -118,7 +118,7 @@ export async function handleMention(
     return;
   }
 
-  const githubContextResolution = await resolveGitHubRepoTmsGitHubContext({
+  const githubContextResolution = await resolveGitHubRepositoryGitHubContext({
     raw: message.raw as GitHubRawMessage,
     installationId: Number.parseInt(githubInstallationId, 10),
   });
@@ -165,7 +165,7 @@ export async function handleMention(
     // Best-effort tracking
   }
 
-  if (command.command === "repo_tms") {
+  if (command.command === "repository") {
     if (githubContextResolution.status !== "resolved") {
       await thread.post(
         "I need a pull request context for this GitHub request. Please run the command from a PR comment or an inline PR review comment.",
@@ -178,12 +178,12 @@ export async function handleMention(
       );
       return;
     }
-    const taskQueue: RepoTmsAgentTaskQueue = createRepoTmsAgentTaskQueue();
+    const taskQueue: RepositoryAgentTaskQueue = createRepositoryAgentTaskQueue();
     const githubContext = githubContextResolution.context;
     let claim: Awaited<ReturnType<typeof claimGitHubAgentRequest>>;
     try {
       claim = await claimGitHubAgentRequest(
-        buildGitHubRepoTmsRequestInput({
+        buildGitHubRepositoryRequestInput({
           installationId: event.installationId,
           repositoryFullName: event.repositoryFullName,
           pullRequestNumber: event.pullRequestNumber,
@@ -193,12 +193,12 @@ export async function handleMention(
       );
     } catch (error) {
       await thread.post(
-        "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+        "I could not queue this repository workflow right now. Please try again in a moment.",
       );
       throw error;
     }
     if (claim.alreadyQueued) {
-      await thread.post("This repo/TMS request is already queued.");
+      await thread.post("This repository request is already queued.");
       return;
     }
 
@@ -214,11 +214,11 @@ export async function handleMention(
         },
         organizationId,
         projectId: null,
-        workMode: "approval_required",
+        workMode: "read_only",
         instructions: command.instructions,
         githubContext: githubContext,
         createdAt: new Date().toISOString(),
-        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+        idempotencyKey: buildRepositoryTaskIdempotencyKey({
           source: "github",
           sourceThreadId: thread.id,
           organizationId,
@@ -231,12 +231,12 @@ export async function handleMention(
         workflowRunIds: result.ids,
       });
       await thread.post(
-        "Queued your repo/TMS workflow. I will post progress and completion updates on this pull request.",
+        "Queued your repository workflow. I will post progress and completion updates on this pull request.",
       );
     } catch (error) {
       await releaseGitHubAgentRequestClaim(claim.requestId);
       await thread.post(
-        "I could not queue this repo/TMS workflow right now. Please try again in a moment.",
+        "I could not queue this repository workflow right now. Please try again in a moment.",
       );
       throw error;
     }
@@ -255,7 +255,7 @@ export async function handleMention(
     additionalInstructions: [
       buildGitHubFixInstructions(event),
       githubContextResolution.status === "resolved"
-        ? buildRepoTmsGitHubContextInstructions(githubContextResolution.context)
+        ? buildRepositoryGitHubContextInstructions(githubContextResolution.context)
         : null,
     ]
       .filter((instruction): instruction is string => instruction !== null)

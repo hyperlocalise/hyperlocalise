@@ -10,8 +10,8 @@ import {
   toolGetAccessibleGlossary,
   toolGlossaryOrgMutationWhere,
   toolProjectLinkedGlossaryWhere,
-} from "./tool-access";
-import type { ToolContext } from "./types";
+} from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 /* ------------------------------------------------------------------ */
 /* Glossary CRUD                                                      */
